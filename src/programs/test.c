@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,9 +29,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/font.h>
 #include <sys/paths.h>
 #include <sys/processor.h>
-#include <sys/vsh.h>
 
 // Tests should save/restore the text screen if they (deliberately) spew
 // output or errors.
@@ -256,7 +256,8 @@ static int exceptions(void)
 
 	for (count = 0; count < 10; count ++)
 	{
-		procId = multitaskerSpawn(&crashThread, "crashy thread", 0, NULL);
+		procId = multitaskerSpawn(&crashThread, "crashy thread",
+			0 /* no args */, NULL /* no args */, 1 /* run */);
 		if (procId < 0)
 		{
 			FAILMSG("Couldn't spawn exception-causing process");
@@ -395,7 +396,7 @@ static int text_output(void)
 		if (length < 0)
 		{
 			// Maybe we made a string that's too long
-			buffer[count + MAXSTRINGLENGTH - 1] = '\0';
+			buffer[count + MAXSTRINGLENGTH] = '\0';
 
 			length = strlen(buffer + count);
 			if (length < 0)
@@ -728,7 +729,7 @@ static int disk_io(void)
 	// Test disk IO reads
 
 	int status = 0;
-	char diskName[DISK_MAX_NAMELENGTH];
+	char diskName[DISK_MAX_NAMELENGTH + 1];
 	disk theDisk;
 	int count = 0;
 
@@ -788,9 +789,9 @@ static int file_recurse(const char *dirPath, unsigned startTime)
 	file theFile;
 	int numFiles = 0;
 	int fileNum = 0;
-	char relPath[MAX_PATH_NAME_LENGTH];
+	char relPath[MAX_PATH_NAME_LENGTH + 1];
 	unsigned op = 0;
-	char newPath[MAX_PATH_NAME_LENGTH];
+	char newPath[MAX_PATH_NAME_LENGTH + 1];
 	int count;
 
 	// Initialize the file structure
@@ -1137,7 +1138,7 @@ static int file_ops(void)
 	{
 		for (count = 0; useFiles[count]; count ++)
 		{
-			char tmpName[MAX_PATH_NAME_LENGTH];
+			char tmpName[MAX_PATH_NAME_LENGTH + 1];
 			sprintf(tmpName, "%s%s", DIRNAME, useFiles[count]);
 
 			printf("Recursively copy %s to %s\n", useFiles[count], tmpName);
@@ -1770,7 +1771,7 @@ static int gui(void)
 	params.padRight = 5;
 	params.orientationX = orient_left;
 	params.orientationY = orient_top;
-	params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	params.font = NULL;
 	buttonContainer = windowNewContainer(window, "buttonContainer", &params);
 	if (!buttonContainer)
@@ -1786,7 +1787,7 @@ static int gui(void)
 	params.padRight = 0;
 	params.padTop = 0;
 	params.padBottom = 0;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	abcdButton = windowNewButton(buttonContainer, "ABCD", NULL, &params);
 	if (!abcdButton)
 	{
@@ -1929,7 +1930,7 @@ static int icons(void)
 		goto out;
 	}
 
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 	{
 		FAILMSG("Error getting file name memory");
@@ -1963,7 +1964,7 @@ static int icons(void)
 	params.padBottom = 2;
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
-	params.flags |= WINDOW_COMPFLAG_CUSTOMBACKGROUND;
+	params.flags |= COMP_PARAMS_FLAG_CUSTOMBACKGROUND;
 	params.background.red = 255;
 	params.background.green = 255;
 	params.background.blue = 255;

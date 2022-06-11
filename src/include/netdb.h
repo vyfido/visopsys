@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,8 @@
 // This is the Visopsys version of the standard C library header file
 // <netdb.h>
 
-#if !defined(_NETDB_H)
+#ifndef _NETDB_H
+#define _NETDB_H
 
 // Contains the socklen_t and sockaddr definitions
 #include <sys/socket.h>
@@ -56,6 +57,5 @@ struct protoent *getprotobynumber(int);
 struct servent *getservbyname(const char *, const char *);
 struct servent *getservbyport(int, const char *);
 
-#define _NETDB_H
 #endif
 

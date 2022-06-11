@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2014-01-22 05:06-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,19 +21,19 @@ msgstr ""
 msgid "Mines"
 msgstr "Minas"
 
-#: mines.c:143
+#: mines.c:145
 msgid "Game over"
 msgstr "Game over"
 
-#: mines.c:144
+#: mines.c:145
 msgid "You win!"
 msgstr "Ganaste!"
 
-#: mines.c:144
+#: mines.c:146
 msgid "You lose."
 msgstr "Perdiste."
 
-#: mines.c:348
+#: mines.c:354
 #, c-format
 msgid ""
 "\n"
@@ -42,7 +42,7 @@ msgstr ""
 "\n"
 "El comando \"%s\" funciona solamente en modo gráfico\n"
 
-#: mines.c:357
+#: mines.c:363
 #, c-format
 msgid ""
 "\n"

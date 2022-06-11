@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -32,6 +32,7 @@
 #include <sys/image.h>
 #include <sys/loader.h>
 #include <sys/paths.h>
+#include <sys/vis.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
@@ -119,7 +120,7 @@ typedef struct {
 
 typedef struct {
 	file file;
-	char fullName[MAX_PATH_NAME_LENGTH];
+	char fullName[MAX_PATH_NAME_LENGTH + 1];
 	listItemParameters iconParams;
 	loaderFileClass class;
 	typeIcon *icon;
@@ -187,7 +188,7 @@ static void error(const char *format, ...)
 	va_list list;
 	char *output = NULL;
 
-	output = malloc(MAXSTRINGLENGTH);
+	output = malloc(MAXSTRINGLENGTH + 1);
 	if (!output)
 		return;
 
@@ -415,8 +416,8 @@ static int changeDirectory(windowFileList *fileList, const char *rawPath)
 	// information into memory
 
 	int status = 0;
-	char path[MAX_PATH_LENGTH];
-	char tmpFileName[MAX_PATH_NAME_LENGTH];
+	char path[MAX_PATH_LENGTH + 1];
+	char tmpFileName[MAX_PATH_NAME_LENGTH + 1];
 	int totalFiles = 0;
 	fileEntry *tmpFileEntries = NULL;
 	int tmpNumFileEntries = 0;
@@ -729,7 +730,7 @@ static void launchIconThread(windowFileList *fileList)
 	lltoux((unsigned long) fileList, ptrString);
 
 	fileList->iconThreadPid = multitaskerSpawn(&iconThread, "icon thread", 1,
-		(void *[]){ ptrString });
+		(void *[]){ ptrString }, 1 /* run */);
 
 	// Give the thread a chance to get going before we return
 	multitaskerYield();
@@ -811,9 +812,10 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
 
 	// Check for events in our icon list.  We consider the icon 'clicked'
 	// if it is a mouse click selection, or an ENTER key selection
-	if ((event->type & EVENT_SELECTION) &&
-		((event->type & EVENT_MOUSE_LEFTUP) ||
-		((event->type & EVENT_KEY_DOWN) && (event->key == keyEnter))))
+	if ((event->type & WINDOW_EVENT_SELECTION) &&
+		((event->type & WINDOW_EVENT_MOUSE_LEFTUP) ||
+		((event->type & WINDOW_EVENT_KEY_DOWN) &&
+			(event->key.scan == keyEnter))))
 	{
 		memcpy(&saveEntry, &fileEntries[selected], sizeof(fileEntry));
 
@@ -824,7 +826,7 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
 		}
 
 		if ((saveEntry.file.type == dirT) && (fileList->browseFlags &
-			WINFILEBROWSE_CAN_CD))
+			WINDOW_FILEBROWSE_CAN_CD))
 		{
 			// Change to the directory, get the list of icon parameters, and
 			// update our window list.
@@ -844,9 +846,10 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
 		}
 	}
 
-	else if ((event->type & EVENT_KEY_DOWN) && (event->key == keyDel))
+	else if ((event->type & WINDOW_EVENT_KEY_DOWN) &&
+		(event->key.scan == keyDel))
 	{
-		if ((fileList->browseFlags & WINFILEBROWSE_CAN_DEL) &&
+		if ((fileList->browseFlags & WINDOW_FILEBROWSE_CAN_DEL) &&
 			strcmp((char *) fileEntries[selected].file.name, ".."))
 		{
 			windowSwitchPointer(fileList->key, MOUSE_POINTER_BUSY);

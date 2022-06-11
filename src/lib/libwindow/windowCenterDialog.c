@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -41,19 +41,22 @@ _X_ void windowCenterDialog(objectKey parentWindow, objectKey dialogWindow)
 {
 	// Desc: Center a dialog window.  The first object key is the parent window, and the second is the dialog window.  This function can be used to center a regular window on the screen if the first objectKey argument is NULL.
 
+	windowInfo parentInfo;
 	int parentX = 0, parentY = 0;
 	int parentWidth = 0, parentHeight = 0;
-	int myWidth = 0, myHeight = 0;
+	windowInfo dialogInfo;
 	int diffWidth, diffHeight;
 
 	if (!libwindow_initialized)
 		libwindowInitialize();
 
-	if (parentWindow)
+	if (parentWindow && (windowGetInfo(parentWindow, &parentInfo) >= 0))
 	{
 		// Get the size and location of the parent window
-		windowGetLocation(parentWindow, &parentX, &parentY);
-		windowGetSize(parentWindow, &parentWidth, &parentHeight);
+		parentX = parentInfo.xCoord;
+		parentY = parentInfo.yCoord;
+		parentWidth = parentInfo.width;
+		parentHeight = parentInfo.height;
 	}
 	else
 	{
@@ -61,14 +64,18 @@ _X_ void windowCenterDialog(objectKey parentWindow, objectKey dialogWindow)
 		parentHeight = graphicGetScreenHeight();
 	}
 
+	// Try to make sure the window has been laid out, so we can get its size
+	windowLayout(dialogWindow);
+
 	// Get our size
-	windowGetSize(dialogWindow, &myWidth, &myHeight);
+	if (windowGetInfo(dialogWindow, &dialogInfo) >= 0)
+	{
+		diffWidth = (parentWidth - dialogInfo.width);
+		diffHeight = (parentHeight - dialogInfo.height);
 
-	diffWidth = (parentWidth - myWidth);
-	diffHeight = (parentHeight - myHeight);
-
-	// Set our location
-	windowSetLocation(dialogWindow, max(0, (parentX + (diffWidth / 2))),
-		max(0, (parentY + (diffHeight / 2))));
+		// Set our location
+		windowSetLocation(dialogWindow, max(0, (parentX + (diffWidth / 2))),
+			max(0, (parentY + (diffHeight / 2))));
+	}
 }
 

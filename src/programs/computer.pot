@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,134 +17,134 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: computer.c:59
+#: computer.c:60
 msgid "Computer"
 msgstr ""
 
-#: computer.c:80
+#: computer.c:61
 msgid "Browse"
 msgstr ""
 
-#: computer.c:81
+#: computer.c:62
 msgid "Mount as..."
 msgstr ""
 
-#: computer.c:82
+#: computer.c:63
 msgid "Unmount"
 msgstr ""
 
-#: computer.c:83 computer.c:500
+#: computer.c:64 computer.c:503
 msgid "Properties"
 msgstr ""
 
-#: computer.c:122
+#: computer.c:125
 msgid "Error"
 msgstr ""
 
-#: computer.c:155
+#: computer.c:158
 msgid "Error re-reading disk info"
-msgstr ""
-
-#: computer.c:238
-#, c-format
-msgid "Filesystem on %s is not supported for browsing"
 msgstr ""
 
 #: computer.c:241
 #, c-format
+msgid "Filesystem on %s is not supported for browsing"
+msgstr ""
+
+#: computer.c:244
+#, c-format
 msgid "Can't mount %s on %s"
 msgstr ""
 
-#: computer.c:284 computer.c:364
+#: computer.c:287 computer.c:367
 #, c-format
 msgid "No media in disk %s"
 msgstr ""
 
-#: computer.c:315 computer.c:405
+#: computer.c:318 computer.c:408
 msgid "Error launching file browser"
 msgstr ""
 
-#: computer.c:354
+#: computer.c:357
 #, c-format
 msgid "Disk is already mounted as %s"
 msgstr ""
 
-#: computer.c:376
+#: computer.c:379
 msgid "Mount point"
 msgstr ""
 
-#: computer.c:377
+#: computer.c:380
 msgid "Please enter the mount point"
 msgstr ""
 
-#: computer.c:433
+#: computer.c:436
 #, c-format
 msgid "Disk %s is not mounted"
 msgstr ""
 
-#: computer.c:442
+#: computer.c:445
 #, c-format
 msgid "Error unmounting %s"
 msgstr ""
 
-#: computer.c:468
+#: computer.c:471
 msgid "Fixed "
 msgstr ""
 
-#: computer.c:470
+#: computer.c:473
 msgid "Removable "
 msgstr ""
 
-#: computer.c:473
+#: computer.c:476
 msgid "floppy\n"
 msgstr ""
 
-#: computer.c:475
+#: computer.c:478
 msgid "CD-ROM\n"
 msgstr ""
 
-#: computer.c:477
+#: computer.c:480
 msgid "flash disk\n"
 msgstr ""
 
-#: computer.c:479
+#: computer.c:482
 msgid "hard disk\n"
 msgstr ""
 
-#: computer.c:481
+#: computer.c:484
 #, c-format
 msgid "%u cylinders, %u heads, %u sectors\n"
 msgstr ""
 
-#: computer.c:485
+#: computer.c:488
 #, c-format
 msgid "Size: %llu MB\n"
 msgstr ""
 
-#: computer.c:489
+#: computer.c:492
 #, c-format
 msgid "Partition type: %s\n"
 msgstr ""
 
-#: computer.c:492
+#: computer.c:495
 #, c-format
 msgid "Filesystem type: %s\n"
 msgstr ""
 
-#: computer.c:496
+#: computer.c:499
 #, c-format
 msgid "Mounted as %s%s\n"
 msgstr ""
 
-#: computer.c:498
+#: computer.c:501
 msgid " (read only)"
 msgstr ""
 
-#: computer.c:583 computer.c:640
+#: computer.c:582 computer.c:641
 msgid "Error spawning browser thread"
 msgstr ""
 
-#: computer.c:596
+#: computer.c:595
 msgid "Error spawning mount as thread"
 msgstr ""
 
@@ -156,22 +156,22 @@ msgstr ""
 msgid "Error spawning properties thread"
 msgstr ""
 
-#: computer.c:707
+#: computer.c:708
 msgid "Memory allocation error"
 msgstr ""
 
-#: computer.c:801
+#: computer.c:803
 msgid "Disk"
 msgstr ""
 
-#: computer.c:843
+#: computer.c:845
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: computer.c:868
+#: computer.c:870
 #, c-format
 msgid "Can't load icon image %s"
 msgstr ""

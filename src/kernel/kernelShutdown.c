@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -64,8 +64,10 @@ static void messageBox(kernelFont *font, int numLines, char *message[])
 	extern color kernelDefaultDesktop;
 
 	if (kernelCurrentProcess)
-		charSet = kernelVariableListGet(kernelCurrentProcess->environment,
+	{
+		charSet = variableListGet(kernelCurrentProcess->environment,
 			ENV_CHARSET);
+	}
 
 	if (!charSet)
 		charSet = CHARSET_NAME_DEFAULT;
@@ -130,7 +132,7 @@ int kernelSystemShutdown(int reboot, int force)
 	componentParameters params;
 	unsigned screenWidth = 0;
 	unsigned screenHeight = 0;
-	int windowWidth, windowHeight;
+	windowInfo info;
 
 	if (shutdownInProgress && !force)
 	{
@@ -148,6 +150,7 @@ int kernelSystemShutdown(int reboot, int force)
 	{
 		screenWidth = kernelGraphicGetScreenWidth();
 		screenHeight = kernelGraphicGetScreenHeight();
+		memset(&info, 0, sizeof(windowInfo));
 
 		// Try to load a nice-looking font
 		font = kernelFontGet(WINDOW_DEFAULT_VARFONT_MEDIUM_FAMILY,
@@ -156,7 +159,7 @@ int kernelSystemShutdown(int reboot, int force)
 
 		if (!font)
 			// Font's not there, we suppose.  Use the system one.
-			kernelFontGetSystem(&font);
+			font = kernelFontGetSystem();
 
 		window = kernelWindowNew(kernelMultitaskerGetCurrentProcessId(),
 			_("Shutting down"));
@@ -182,9 +185,10 @@ int kernelSystemShutdown(int reboot, int force)
 
 			kernelWindowRemoveMinimizeButton(window);
 			kernelWindowRemoveCloseButton(window);
-			kernelWindowGetSize(window, &windowWidth, &windowHeight);
-			kernelWindowSetLocation(window, ((screenWidth - windowWidth) / 2),
-				((screenHeight - windowHeight) / 3));
+			kernelWindowLayout(window);
+			kernelWindowGetInfo(window, &info);
+			kernelWindowSetLocation(window, ((screenWidth - info.width) / 2),
+				((screenHeight - info.height) / 3));
 			kernelWindowSetVisible(window, 1);
 		}
 	}
@@ -319,9 +323,8 @@ void kernelPanicOutput(const char *fileName, const char *function, int line,
 	// This is a quick shutdown for kernel panic which puts nice messages
 	// on the screen in graphics mode as well.
 
-	kernelFont *font = NULL;
-	char panicMessage[MAX_ERRORTEXT_LENGTH];
-	char errorText[MAX_ERRORTEXT_LENGTH];
+	char panicMessage[MAX_ERRORTEXT_LENGTH + 1];
+	char errorText[MAX_ERRORTEXT_LENGTH + 1];
 	va_list list;
 
 	processorDisableInts();
@@ -337,8 +340,8 @@ void kernelPanicOutput(const char *fileName, const char *function, int line,
 	if (kernelGraphicsAreEnabled())
 	{
 		// Draw a box with the panic message
-		kernelFontGetSystem(&font);
-		messageBox(font, 2, (char *[]){ panicMessage, errorText } );
+		messageBox(kernelFontGetSystem(), 2, (char *[]){ panicMessage,
+			errorText } );
 	}
 	else
 	{

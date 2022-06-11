@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -51,12 +51,17 @@ browser window for that filesystem.
 #include <sys/ascii.h>
 #include <sys/env.h>
 #include <sys/paths.h>
+#include <sys/vis.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
 #define gettext_noop(string) (string)
 
 #define WINDOW_TITLE			_("Computer")
+#define BROWSE					gettext_noop("Browse")
+#define MOUNT_AS				gettext_noop("Mount as...")
+#define UNMOUNT					gettext_noop("Unmount")
+#define PROPERTIES				gettext_noop("Properties")
 #define DEFAULT_ROWS			3
 #define DEFAULT_COLUMNS			5
 #define MAX_VARIABLE_LEN		128
@@ -68,19 +73,17 @@ browser window for that filesystem.
 #define FORMAT					PATH_PROGRAMS "/format"
 
 // Right-click menu
-
 #define DISKMENU_BROWSE			0
 #define DISKMENU_MOUNTAS		1
 #define DISKMENU_UNMOUNT		2
 #define DISKMENU_PROPERTIES		3
-
 static windowMenuContents diskMenuContents = {
 	4,
 	{
-		{ gettext_noop("Browse"), NULL },
-		{ gettext_noop("Mount as..."), NULL },
-		{ gettext_noop("Unmount"), NULL },
-		{ gettext_noop("Properties"), NULL }
+		{ BROWSE, NULL },
+		{ MOUNT_AS, NULL },
+		{ UNMOUNT, NULL },
+		{ PROPERTIES, NULL }
 	}
 };
 
@@ -113,7 +116,7 @@ static void error(const char *format, ...)
 	// Generic error message code
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
@@ -294,7 +297,7 @@ static void browseThread(void)
 			goto out;
 	}
 
-	command = calloc(MAXSTRINGLENGTH, 1);
+	command = calloc((MAXSTRINGLENGTH + 1), 1);
 	if (!command)
 	{
 		status = ERR_MEMORY;
@@ -384,7 +387,7 @@ static void mountAsThread(void)
 	if (status < 0)
 		goto out;
 
-	command = calloc(MAXSTRINGLENGTH, 1);
+	command = calloc((MAXSTRINGLENGTH + 1), 1);
 	if (!command)
 	{
 		status = ERR_MEMORY;
@@ -505,32 +508,16 @@ out:
 }
 
 
-static void initMenuContents(windowMenuContents *contents)
+static void initMenuContents(void)
 {
-	int count;
-
-	for (count = 0; count < contents->numItems; count ++)
-	{
-		strncpy(contents->items[count].text, _(contents->items[count].text),
-			WINDOW_MAX_LABEL_LENGTH);
-		contents->items[count].text[WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
-	}
-}
-
-
-static void refreshMenuContents(void)
-{
-	int count;
-
-	initMenuContents(&diskMenuContents);
-
-	for (count = 0; count < diskMenuContents.numItems; count ++)
-	{
-		windowComponentSetData(diskMenuContents.items[count].key,
-			diskMenuContents.items[count].text,
-			strlen(diskMenuContents.items[count].text),
-			(count == (diskMenuContents.numItems - 1)));
-	}
+	strncpy(diskMenuContents.items[DISKMENU_BROWSE].text, gettext(BROWSE),
+		WINDOW_MAX_LABEL_LENGTH);
+	strncpy(diskMenuContents.items[DISKMENU_MOUNTAS].text, gettext(MOUNT_AS),
+		WINDOW_MAX_LABEL_LENGTH);
+	strncpy(diskMenuContents.items[DISKMENU_UNMOUNT].text, gettext(UNMOUNT),
+		WINDOW_MAX_LABEL_LENGTH);
+	strncpy(diskMenuContents.items[DISKMENU_PROPERTIES].text,
+		gettext(PROPERTIES), WINDOW_MAX_LABEL_LENGTH);
 }
 
 
@@ -539,19 +526,30 @@ static void refreshWindow(void)
 	// We got a 'window refresh' event (probably because of a language
 	// switch), so we need to update things
 
+	const char *charSet = NULL;
+
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("computer");
 
 	// Re-get the character set
-	if (getenv(ENV_CHARSET))
-		windowSetCharSet(window, getenv(ENV_CHARSET));
+	charSet = getenv(ENV_CHARSET);
 
-	// Refresh the menu contents
-	refreshMenuContents();
+	if (charSet)
+		windowSetCharSet(window, charSet);
+
+	// Refresh all the menu contents
+	initMenuContents();
+
+	// Refresh the disk context menu
+	windowMenuUpdate(diskMenu, NULL /* name */, charSet, &diskMenuContents,
+		NULL /* params */);
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -563,11 +561,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			stop = 1;
 	}
 
@@ -575,10 +573,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == diskMenuContents.items[DISKMENU_BROWSE].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			// Launch the 'browse' thread
-			if (multitaskerSpawn(&browseThread, "browse thread", 0, NULL) < 0)
+			if (multitaskerSpawn(&browseThread, "browse thread",
+				0 /* no args */, NULL /* no args */, 1 /* run */) < 0)
 			{
 				error("%s", _("Error spawning browser thread"));
 			}
@@ -587,11 +586,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == diskMenuContents.items[DISKMENU_MOUNTAS].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			// Launch the "mount as" thread
-			if (multitaskerSpawn(&mountAsThread, "mount as thread", 0,
-				NULL) < 0)
+			if (multitaskerSpawn(&mountAsThread, "mount as thread",
+				0 /* no args */, NULL /* no args */, 1 /* run */) < 0)
 			{
 				error("%s", _("Error spawning mount as thread"));
 			}
@@ -600,10 +599,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == diskMenuContents.items[DISKMENU_UNMOUNT].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			// Launch the 'unmount' thread
-			if (multitaskerSpawn(&unmountThread, "unmount thread", 0, NULL) < 0)
+			if (multitaskerSpawn(&unmountThread, "unmount thread",
+				0 /* no args */, NULL /* no args */, 1 /* run */) < 0)
 			{
 				error("%s", _("Error spawning unmount thread"));
 			}
@@ -612,11 +612,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == diskMenuContents.items[DISKMENU_PROPERTIES].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			// Launch the 'properties' thread
 			if (multitaskerSpawn(&propertiesThread, "properties thread",
-				0, NULL) < 0)
+				0 /* no args */, NULL /* no args */, 1 /* run */) < 0)
 			{
 				error("%s", _("Error spawning properties thread"));
 			}
@@ -626,16 +626,17 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Check for events in our icon list.
 	else if (key == iconList)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			// We consider the icon 'clicked' if it is a mouse left-up,
 			// or an ENTER key press
-			if ((event->type & EVENT_MOUSE_LEFTUP) ||
-				((event->type & EVENT_KEY_DOWN) && (event->key == keyEnter)))
+			if ((event->type & WINDOW_EVENT_MOUSE_LEFTUP) ||
+				((event->type & WINDOW_EVENT_KEY_DOWN) &&
+					(event->key.scan == keyEnter)))
 			{
 				// Launch the browse thread
-				if (multitaskerSpawn(&browseThread, "browse thread", 0,
-					NULL) < 0)
+				if (multitaskerSpawn(&browseThread, "browse thread",
+					0 /* no args */, NULL /* no args */, 1 /* run */) < 0)
 				{
 					error("%s", _("Error spawning browser thread"));
 				}
@@ -796,8 +797,9 @@ static int constructWindow(void)
 
 	memset(&params, 0, sizeof(componentParameters));
 
+	initMenuContents();
+
 	// Create a context menu for disks
-	initMenuContents(&diskMenuContents);
 	diskMenu = windowNewMenu(window, NULL, _("Disk"), &diskMenuContents,
 		&params);
 	handleMenuEvents(&diskMenuContents);

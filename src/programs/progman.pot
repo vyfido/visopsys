@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,126 +17,126 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: progman.c:58
+#: progman.c:59
 msgid "Program Manager"
 msgstr ""
 
-#: progman.c:59
+#: progman.c:60
 msgid "Memory blocks: "
 msgstr ""
 
-#: progman.c:60
+#: progman.c:61
 msgid "Used memory: "
 msgstr ""
 
-#: progman.c:61
+#: progman.c:62
 msgid "Free memory: "
 msgstr ""
 
-#: progman.c:62
+#: progman.c:63
 msgid "Disk performance:"
 msgstr ""
 
-#: progman.c:63
+#: progman.c:64
 msgid "Read: "
 msgstr ""
 
-#: progman.c:64
+#: progman.c:65
 msgid "Write: "
 msgstr ""
 
-#: progman.c:65
+#: progman.c:66
 msgid "K/sec"
 msgstr ""
 
-#: progman.c:102
-msgid "Error"
-msgstr ""
-
-#: progman.c:233
-msgid "Can't get temporary memory for processes"
-msgstr ""
-
-#: progman.c:297
-msgid "running "
-msgstr ""
-
-#: progman.c:301
-msgid "ready "
-msgstr ""
-
-#: progman.c:304
-msgid "waiting "
-msgstr ""
-
-#: progman.c:307
-msgid "sleeping "
-msgstr ""
-
-#: progman.c:310
-msgid "stopped "
-msgstr ""
-
-#: progman.c:313
-msgid "finished "
-msgstr ""
-
-#: progman.c:316
-msgid "zombie "
-msgstr ""
-
-#: progman.c:319
-msgid "unknown "
-msgstr ""
-
-#: progman.c:340
-msgid "Enter command"
-msgstr ""
-
-#: progman.c:341
-msgid "Please enter a command to run:"
-msgstr ""
-
-#: progman.c:370
-msgid "Unable to execute program"
-msgstr ""
-
-#: progman.c:407 progman.c:630
-msgid "Set priority"
-msgstr ""
-
-#: progman.c:408
-msgid "Please enter the desired priority"
-msgstr ""
-
-#: progman.c:504
-msgid "Unable to launch file dialog"
-msgstr ""
-
-#: progman.c:585
-#, c-format
-msgid "Process                   PID PPID UID Pri Priv CPU% STATE   "
-msgstr ""
-
-#: progman.c:606
+#: progman.c:67
 msgid "Show all sub-processes"
 msgstr ""
 
-#: progman.c:623
+#: progman.c:68
 msgid "Run program"
 msgstr ""
 
-#: progman.c:636
+#: progman.c:69 progman.c:420
+msgid "Set priority"
+msgstr ""
+
+#: progman.c:70
 msgid "Kill process"
 msgstr ""
 
-#: progman.c:658
+#: progman.c:114
+msgid "Error"
+msgstr ""
+
+#: progman.c:245
+msgid "Can't get temporary memory for processes"
+msgstr ""
+
+#: progman.c:310
+msgid "running "
+msgstr ""
+
+#: progman.c:314
+msgid "ready "
+msgstr ""
+
+#: progman.c:317
+msgid "waiting "
+msgstr ""
+
+#: progman.c:320
+msgid "sleeping "
+msgstr ""
+
+#: progman.c:323
+msgid "stopped "
+msgstr ""
+
+#: progman.c:326
+msgid "finished "
+msgstr ""
+
+#: progman.c:329
+msgid "zombie "
+msgstr ""
+
+#: progman.c:332
+msgid "unknown "
+msgstr ""
+
+#: progman.c:353
+msgid "Enter command"
+msgstr ""
+
+#: progman.c:354
+msgid "Please enter a command to run:"
+msgstr ""
+
+#: progman.c:383
+msgid "Unable to execute program"
+msgstr ""
+
+#: progman.c:421
+msgid "Please enter the desired priority"
+msgstr ""
+
+#: progman.c:540
+msgid "Unable to launch file dialog"
+msgstr ""
+
+#: progman.c:622
+#, c-format
+msgid "Process                   PID PPID UID      Pri Priv CPU% STATE   "
+msgstr ""
+
+#: progman.c:693
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: progman.c:677
+#: progman.c:712
 msgid "Error getting memory"
 msgstr ""

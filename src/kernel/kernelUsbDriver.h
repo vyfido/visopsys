@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,11 +19,13 @@
 //  kernelUsbDriver.h
 //
 
-#if !defined(_KERNELUSBDRIVER_H)
+#ifndef _KERNELUSBDRIVER_H
+#define _KERNELUSBDRIVER_H
 
 #include "kernelBus.h"
-#include "kernelLinkedList.h"
+#include <sys/lock.h>
 #include <sys/usb.h>
+#include <sys/vis.h>
 
 #define USB_STD_TIMEOUT_MS		2000
 
@@ -132,7 +134,7 @@ typedef volatile struct _usbHub {
 	unsigned char *changeBitmap;
 	int doneColdDetect;
 	usbEndpoint *intrInEndp;
-	kernelLinkedList devices;
+	linkedList devices;
 
 	// Functions for managing the hub
 	void (*detectDevices)(volatile struct _usbHub *, int);
@@ -149,7 +151,7 @@ typedef volatile struct _usbController {
 	int interruptNum;
 	unsigned char addressCounter;
 	usbHub hub;
-	lock lock;
+	spinLock lock;
 	void *data;
 
 	// Functions provided by the specific USB root hub driver
@@ -225,6 +227,5 @@ kernelDevice *kernelUsbOhciDetect(kernelBusTarget *, kernelDriver *);
 kernelDevice *kernelUsbEhciDetect(kernelBusTarget *, kernelDriver *);
 kernelDevice *kernelUsbXhciDetect(kernelBusTarget *, kernelDriver *);
 
-#define _KERNELUSBDRIVER_H
 #endif
 

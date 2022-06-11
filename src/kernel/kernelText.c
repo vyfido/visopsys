@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -828,7 +828,7 @@ int kernelTextPrint(const char *format, ...)
 	// otherwise.
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 	kernelTextOutputStream *outputStream = NULL;
 
 	// Check params
@@ -880,7 +880,7 @@ int kernelTextPrintAttrs(textAttrs *attrs, const char *format, ...)
 	// otherwise.
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 	kernelTextOutputStream *outputStream = NULL;
 
 	// Check params
@@ -942,7 +942,7 @@ int kernelTextPrintLine(const char *format, ...)
 	// output the text with a newline.
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 	kernelTextOutputStream *outputStream = NULL;
 
 	// Check params

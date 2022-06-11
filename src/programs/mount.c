@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -58,7 +58,7 @@ example above will fail if there is already a file or directory called /cdrom.
 #include <stdlib.h>
 #include <sys/api.h>
 #include <sys/env.h>
-#include <sys/vsh.h>
+#include <sys/vis.h>
 
 #define _(string) gettext(string)
 
@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
 
 	diskName = argv[1];
 
-	mountPoint = calloc(MAX_PATH_LENGTH, 1);
+	mountPoint = calloc((MAX_PATH_LENGTH + 1), 1);
 	if (!mountPoint)
 	{
 		status = ERR_MEMORY;

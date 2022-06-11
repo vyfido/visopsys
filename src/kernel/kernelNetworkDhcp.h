@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelNetworkDhcp.h
 //
 
-#if !defined(_KERNELNETWORKDHCP_H)
+#ifndef _KERNELNETWORKDHCP_H
+#define _KERNELNETWORKDHCP_H
 
 #include "kernelNetwork.h"
 
@@ -31,6 +32,5 @@ int kernelNetworkDhcpConfigure(kernelNetworkDevice *, const char *,
 	const char *, unsigned);
 int kernelNetworkDhcpRelease(kernelNetworkDevice *);
 
-#define _KERNELNETWORKDHCP_H
 #endif
 

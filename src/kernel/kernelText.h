@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelText.h
 //
 
-#if !defined(_KERNELTEXT_H)
+#ifndef _KERNELTEXT_H
+#define _KERNELTEXT_H
 
 #include "kernelFont.h"
 #include "kernelGraphic.h"
@@ -212,6 +213,5 @@ void kernelTextInputSetEcho(int);
 	(area->bufferData + ((area->maxBufferLines - 1) * \
 		(area->columns * area->bytesPerChar)))
 
-#define _KERNELTEXT_H
 #endif
 

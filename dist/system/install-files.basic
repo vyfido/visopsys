@@ -85,6 +85,7 @@
 /system/libraries/libc.so
 /system/libraries/libdl.so
 /system/libraries/libintl.so
+/system/libraries/libvis.so
 /system/libraries/libvsh.so
 /system/libraries/libwindow.so
 /system/mouse/

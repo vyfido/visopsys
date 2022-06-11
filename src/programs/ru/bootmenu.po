@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2018 J. Andrew McLaughlin
+# Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bootmenu\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2015-05-08 00:54+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -18,19 +18,19 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
-#: bootmenu.c:62
+#: bootmenu.c:61
 msgid "Boot Menu Installer"
 msgstr "Установщик загрузочного меню"
 
-#: bootmenu.c:67
+#: bootmenu.c:66
 msgid ""
 "Visopsys Boot Menu Installer\n"
-"Copyright (C) 1998-2018 J. Andrew McLaughlin"
+"Copyright (C) 1998-2019 J. Andrew McLaughlin"
 msgstr ""
 "Visopsys Boot Menu Installer\n"
-"Copyright (C) 1998-2018 J. Andrew McLaughlin"
+"Copyright (C) 1998-2019 J. Andrew McLaughlin"
 
-#: bootmenu.c:69
+#: bootmenu.c:68
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
@@ -38,43 +38,43 @@ msgstr ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
 
-#: bootmenu.c:71
+#: bootmenu.c:70
 msgid "Partitions on the disk:"
 msgstr "Разделы на диске:"
 
-#: bootmenu.c:72
+#: bootmenu.c:71
 msgid "Chain-loadable entries for the boot menu:"
 msgstr "Вторично-загружаемые элементы для загрузочного меню:"
 
-#: bootmenu.c:73
+#: bootmenu.c:72
 msgid "Edit"
 msgstr "Правка"
 
-#: bootmenu.c:74
+#: bootmenu.c:73
 msgid "Default"
 msgstr "По умолчанию"
 
-#: bootmenu.c:75
+#: bootmenu.c:74
 msgid "Delete"
 msgstr "Удалить"
 
-#: bootmenu.c:76
+#: bootmenu.c:75
 msgid "Automatically boot default selection after (seconds)"
 msgstr "Автоматическая загрузка выбранного элемента через (секунд)"
 
-#: bootmenu.c:78
+#: bootmenu.c:77
 msgid "OK"
 msgstr "ОК"
 
-#: bootmenu.c:79
+#: bootmenu.c:78
 msgid "Cancel"
 msgstr "Отмена"
 
-#: bootmenu.c:80
+#: bootmenu.c:79
 msgid "Boot menu written."
 msgstr "Загрузочное меню записано"
 
-#: bootmenu.c:121
+#: bootmenu.c:120
 #, c-format
 msgid ""
 "usage:\n"
@@ -83,15 +83,15 @@ msgstr ""
 "использование:\n"
 "%s <имя_диска>\n"
 
-#: bootmenu.c:139
+#: bootmenu.c:138
 msgid "Error"
 msgstr "Ошибка"
 
-#: bootmenu.c:218
+#: bootmenu.c:217
 msgid "Edit entry label"
 msgstr "Редактировать метку элемента"
 
-#: bootmenu.c:290
+#: bootmenu.c:289
 #, c-format
 msgid ""
 "Enter new label (%d characters max.):\n"
@@ -102,31 +102,31 @@ msgstr ""
 " [%s]\n"
 " ["
 
-#: bootmenu.c:371
+#: bootmenu.c:370
 msgid "Can't get memory for the logical disk list"
 msgstr "Не могу получить память для списка логических дисков"
 
-#: bootmenu.c:378
+#: bootmenu.c:377
 #, fuzzy
 msgid "Can't get the logical disk list"
 msgstr "Не могу получить список логических дисков\n"
 
-#: bootmenu.c:409
+#: bootmenu.c:408
 #, fuzzy, c-format
 msgid "Can't open %s file"
 msgstr "Не могу открыть файл %s\n"
 
-#: bootmenu.c:416
+#: bootmenu.c:415
 #, fuzzy
 msgid "Can't get buffer memory"
 msgstr "Не могу получить буфер памяти\n"
 
-#: bootmenu.c:423
+#: bootmenu.c:422
 #, fuzzy, c-format
 msgid "Can't read %s file"
 msgstr "Не могу прочитать файл %s\n"
 
-#: bootmenu.c:493
+#: bootmenu.c:492
 #, c-format
 msgid ""
 "Disk %s\n"
@@ -141,52 +141,52 @@ msgstr ""
 "  Chain-loadable: %s\n"
 "\n"
 
-#: bootmenu.c:496
+#: bootmenu.c:495
 msgid "yes"
 msgstr "да"
 
-#: bootmenu.c:496
+#: bootmenu.c:495
 msgid "no"
 msgstr "нет"
 
-#: bootmenu.c:700
+#: bootmenu.c:706
 #, fuzzy
 msgid "Can't write boot menu"
 msgstr "Не могу записать загрузочное меню\n"
 
-#: bootmenu.c:712
+#: bootmenu.c:718
 #, fuzzy, c-format
 msgid "Can't write MBR %s to %s"
 msgstr "Не могу записать MBR %s на %s\n"
 
-#: bootmenu.c:753
+#: bootmenu.c:759
 msgid "Permission Denied"
 msgstr "Доступ запрещен"
 
-#: bootmenu.c:764
+#: bootmenu.c:770
 #, fuzzy, c-format
 msgid "Can't get disk %s"
 msgstr "Не могу получить диск\n"
 
-#: bootmenu.c:773
+#: bootmenu.c:779
 #, fuzzy, c-format
 msgid "Disk %s is not a physical hard disk device"
 msgstr "Диск  %s не физический носитель\n"
 
-#: bootmenu.c:781
+#: bootmenu.c:787
 msgid "Can't get the list of logical disks"
 msgstr "Не могу получить список логических дисков"
 
-#: bootmenu.c:836
+#: bootmenu.c:842
 #, c-format
 msgid "\"%s\" [Filesystem: %s]"
 msgstr "\"%s\" [файловая система: %s]"
 
-#: bootmenu.c:861
+#: bootmenu.c:867
 msgid "There are no chain-loadable operating systems on this disk."
 msgstr ""
 
-#: bootmenu.c:905
+#: bootmenu.c:911
 msgid ""
 "\n"
 "  [Cursor up/down to select, 'e' edit, '*' default\n"
@@ -196,11 +196,11 @@ msgstr ""
 "  [Выбор - стрелки вверх/вниз, 'e' - редактировать, '*' - по умолчанию\n"
 "   'd' - удалить, Enter - принять, 'Q' - выход]"
 
-#: bootmenu.c:972
+#: bootmenu.c:978
 #, fuzzy
 msgid "Can't write boot menu or MBR"
 msgstr "Не могу записать меню или MBR\n"
 
-#: bootmenu.c:980
+#: bootmenu.c:986
 msgid "Done"
 msgstr "Готово"

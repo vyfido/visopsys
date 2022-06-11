@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,6 +22,10 @@
 // This contains code for calling the Visopsys kernel
 
 #include <sys/api.h>
+
+#ifndef _X_
+#define _X_
+#endif
 
 // This is generic method for invoking the kernel API
 #define kernelCall(fnum, args, codeLo, codeHi)	\
@@ -1000,10 +1004,10 @@ _X_ int multitaskerCreateProcess(const char *name, int privilege _U_, processIma
 	return (_syscall(_fnum_multitaskerCreateProcess, &name));
 }
 
-_X_ int multitaskerSpawn(void *addr, const char *name _U_, int numargs _U_, void *args[] _U_)
+_X_ int multitaskerSpawn(void *addr, const char *name _U_, int numargs _U_, void *args[] _U_, int run _U_)
 {
-	// Proto: int kernelMultitaskerSpawn(void *, const char *, int, void *[]);
-	// Desc : Spawn a thread from the current process.  The starting point of the code (for example, a function address) should be specified as 'addr'.  'name' will be the new thread's name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new thread.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new thread's process ID.  New threads are created and made runnable, so there is no need to change its state to activate it.
+	// Proto: int kernelMultitaskerSpawn(void *, const char *, int, void *[], int);
+	// Desc : Spawn a thread from the current process.  The starting point of the code (for example, a function address) should be specified as 'addr'.  'name' will be the new thread's name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new thread.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new thread's process ID.  If 'run' is non-zero, the thread will be made runnable, so there is no need to change its state to activate it.
 	return (_syscall(_fnum_multitaskerSpawn, &addr));
 }
 
@@ -1410,53 +1414,6 @@ _X_ void randomBytes(unsigned char *buffer, unsigned size _U_)
 
 
 //
-// Variable list functions
-//
-
-_X_ int variableListCreate(variableList *list)
-{
-	// Proto: int kernelVariableListCreate(variableList *);
-	// Desc : Set up a new variable list structure.
-	return (_syscall(_fnum_variableListCreate, &list));
-}
-
-_X_ int variableListDestroy(variableList *list)
-{
-	// Proto: int kernelVariableListDestroy(variableList *);
-	// Desc : Deallocate a variable list structure previously allocated by a call to variableListCreate() or configurationReader()
-	return (_syscall(_fnum_variableListDestroy, &list));
-}
-
-_X_ const char *variableListGetVariable(variableList *list, int num _U_)
-{
-	// Proto: const char *kernelVariableListGetVariable(variableList *, int);
-	// Desc : Return a pointer to the name of the 'num'th variable from the variable list 'list'.
-	return ((const char *)(long) _syscall(_fnum_variableListGetVariable, &list));
-}
-
-_X_ const char *variableListGet(variableList *list, const char *var _U_)
-{
-	// Proto: const char *kernelVariableListGet(variableList *, const char *);
-	// Desc : Return a pointer to the value of the variable 'var' from the variable list 'list'.
-	return ((const char *)(long) _syscall(_fnum_variableListGet, &list));
-}
-
-_X_ int variableListSet(variableList *list, const char *var _U_, const char *value _U_)
-{
-	// Proto: int kernelVariableListSet(variableList *, const char *, const char *);
-	// Desc : Set the value of the variable 'var' to the value 'value'.
-	return (_syscall(_fnum_variableListSet, &list));
-}
-
-_X_ int variableListUnset(variableList *list, const char *var _U_)
-{
-	// Proto: int kernelVariableListUnset(variableList *, const char *);
-	// Desc : Remove the variable 'var' from the variable list 'list'.
-	return (_syscall(_fnum_variableListUnset, &list));
-}
-
-
-//
 // Environment functions
 //
 
@@ -1685,6 +1642,13 @@ _X_ int imagePaste(image *srcImage, image *destImage _U_, int xCoord _U_, int yC
 // Font functions
 //
 
+_X_ objectKey fontGetSystem(void)
+{
+	// Proto: kernelFont *kernelFontGetSystem(void);
+	// Desc : Returns an object key for the built-in, default system font.
+	return ((objectKey)(long) _syscall(_fnum_fontGetSystem, NULL));
+}
+
 _X_ objectKey fontGet(const char *family, unsigned flags _U_, int points _U_, const char *charSet _U_)
 {
 	// Proto: kernelFont *kernelFontGet(const char *, unsigned, int, const char *);
@@ -1718,18 +1682,18 @@ _X_ int fontGetHeight(objectKey font)
 // Windowing system functions
 //
 
-_X_ int windowLogin(const char *userName)
+_X_ int windowLogin(const char *userName, const char *password _U_)
 {
 	// Proto: kernelWindowLogin(const char *, const char *);
-	// Desc : Log the user into the window environment with 'userName'.  The return value is the PID of the window shell for this session.  The calling program must have supervisor privilege in order to use this function.
+	// Desc : Log the user 'userName' into the window environment (and system) using the password 'password'.  The return value is the PID of the window shell for this session.  The calling program must have supervisor privilege in order to use this function.
 	return (_syscall(_fnum_windowLogin, &userName));
 }
 
-_X_ int windowLogout(void)
+_X_ int windowLogout(const char *userName)
 {
-	// Proto: kernelWindowLogout(void);
-	// Desc : Log the current user out of the windowing system.  This kills the window shell process returned by windowLogin() call.
-	return (_syscall(_fnum_windowLogout, NULL));
+	// Proto: kernelWindowLogout(const char *);
+	// Desc : Log the user 'userName' out of the window environment, and the system.  This kills the window shell process returned by windowLogin() call.
+	return (_syscall(_fnum_windowLogout, &userName));
 }
 
 _X_ objectKey windowNew(int processId, const char *title _U_)
@@ -1753,11 +1717,18 @@ _X_ int windowDestroy(objectKey window)
 	return (_syscall(_fnum_windowDestroy, &window));
 }
 
-_X_ int windowUpdateBuffer(void *buffer, int xCoord _U_, int yCoord _U_, int width _U_, int height _U_)
+_X_ int windowGetList(objectKey *list, int max _U_)
 {
-	// Proto: kernelWindowUpdateBuffer(graphicBuffer *, int, int, int, int);
-	// Desc : Tells the windowing system to redraw the visible portions of the graphic buffer 'buffer', using the given clip coordinates/size.
-	return (_syscall(_fnum_windowUpdateBuffer, &buffer));
+	// Proto: int kernelWindowGetList(kernelWindow **, int);
+	// Desc : Fills the supplied objectKey array 'list' with up to 'max' object keys of current windows.
+	return (_syscall(_fnum_windowGetList, &list));
+}
+
+_X_ int windowGetInfo(objectKey window, windowInfo *info _U_)
+{
+	// Proto: int kernelWindowGetInfo(kernelWindow *, windowInfo *);
+	// Desc : Returns a userspace excerpt 'info' of the window referenced by the object key 'window'.
+	return (_syscall(_fnum_windowGetInfo, &window));
 }
 
 _X_ int windowSetCharSet(objectKey window, const char *charSet _U_)
@@ -1774,25 +1745,11 @@ _X_ int windowSetTitle(objectKey window, const char *title _U_)
 	return (_syscall(_fnum_windowSetTitle, &window));
 }
 
-_X_ int windowGetSize(objectKey window, int *width _U_, int *height _U_)
-{
-	// Proto: int kernelWindowGetSize(kernelWindow *, int *, int *);
-	// Desc : Get the size of the window 'window', and put the results in 'width' and 'height'.
-	return (_syscall(_fnum_windowGetSize, &window));
-}
-
 _X_ int windowSetSize(objectKey window, int width _U_, int height _U_)
 {
 	// Proto: int kernelWindowSetSize(kernelWindow *, int, int);
 	// Desc : Resize the window 'window' to the width 'width' and the height 'height'.
 	return (_syscall(_fnum_windowSetSize, &window));
-}
-
-_X_ int windowGetLocation(objectKey window, int *xCoord _U_, int *yCoord _U_)
-{
-	// Proto: int kernelWindowGetLocation(kernelWindow *, int *, int *);
-	// Desc : Get the current screen location of the window 'window' and put it into the coordinate variables 'xCoord' and 'yCoord'.
-	return (_syscall(_fnum_windowGetLocation, &window));
 }
 
 _X_ int windowSetLocation(objectKey window, int xCoord _U_, int yCoord _U_)
@@ -1851,6 +1808,13 @@ _X_ int windowSetFocusable(objectKey window, int trueFalse _U_)
 	return (_syscall(_fnum_windowSetFocusable, &window));
 }
 
+_X_ int windowSetRoot(objectKey window)
+{
+	// Proto: int kernelWindowSetRoot(kernelWindow *);
+	// Desc : Sets attributes to make 'window' a 'root window' that's always at the bottom level, and records it in the current process's userSession, if any.  Useful for window manager 'shells' and similar.
+	return (_syscall(_fnum_windowSetRoot, &window));
+}
+
 _X_ int windowRemoveMinimizeButton(objectKey window)
 {
 	// Proto: int kernelWindowRemoveMinimizeButton(kernelWindow *);
@@ -1886,20 +1850,6 @@ _X_ int windowAddConsoleTextArea(objectKey window)
 	return (_syscall(_fnum_windowAddConsoleTextArea, &window));
 }
 
-_X_ void windowRedrawArea(int xCoord, int yCoord _U_, int width _U_, int height _U_)
-{
-	// Proto: void kernelWindowRedrawArea(int, int, int, int);
-	// Desc : Tells the windowing system to redraw whatever is supposed to be in the screen area bounded by the supplied coordinates.  This might be useful if you were drawing non-window-based things (i.e., things without their own independent graphics buffer) directly onto the screen and you wanted to restore an area to its original contents.  For example, the mouse driver uses this method to erase the pointer from its previous position.
-	_syscall(_fnum_windowRedrawArea, &xCoord);
-}
-
-_X_ void windowDrawAll(void)
-{
-	// Proto: void kernelWindowDrawAll(void);
-	// Desc : Tells the windowing system to (re)draw all the windows.
-	_syscall(_fnum_windowDrawAll, NULL);
-}
-
 _X_ int windowGetColor(const char *colorName, color *getColor _U_)
 {
 	// Proto: int kernelWindowGetColor(const char *, color *);
@@ -1921,13 +1871,6 @@ _X_ void windowResetColors(void)
 	_syscall(_fnum_windowResetColors, NULL);
 }
 
-_X_ void windowProcessEvent(objectKey event)
-{
-	// Proto: void kernelWindowProcessEvent(windowEvent *);
-	// Desc : Creates a window event using the supplied event structure.  This function is most often used within the kernel, particularly in the mouse and keyboard functions, to signify clicks or key presses.  It can, however, be used by external programs to create 'artificial' events.  The windowEvent structure specifies the target component and event type.
-	_syscall(_fnum_windowProcessEvent, &event);
-}
-
 _X_ int windowComponentEventGet(objectKey key, windowEvent *event _U_)
 {
 	// Proto: int kernelWindowComponentEventGet(objectKey, windowEvent *);
@@ -1938,8 +1881,15 @@ _X_ int windowComponentEventGet(objectKey key, windowEvent *event _U_)
 _X_ int windowSetBackgroundColor(objectKey window, color *background _U_)
 {
 	// Proto: int kernelWindowSetBackgroundColor(kernelWindow *, color *);
-	// Desc : Set the background color of 'window'.  If 'color' is NULL, use the default.
+	// Desc : Set the background color of 'window'.  If 'background' is NULL, use the default.
 	return (_syscall(_fnum_windowSetBackgroundColor, &window));
+}
+
+_X_ int windowSetBackgroundImage(objectKey window, image *img _U_)
+{
+	// Proto: int kernelWindowSetBackgroundImage(kernelWindow *, image *);
+	// Desc : Set the background image of 'window'.  If 'img' is NULL, remove any existing background image.
+	return (_syscall(_fnum_windowSetBackgroundImage, &window));
 }
 
 _X_ int windowShellTileBackground(const char *theFile)
@@ -1971,11 +1921,11 @@ _X_ objectKey windowShellNewTaskbarTextLabel(const char *text)
 		&text));
 }
 
-_X_ void windowShellDestroyTaskbarComp(objectKey component)
+_X_ int windowShellDestroyTaskbarComp(objectKey component)
 {
-	// Proto: void kernelWindowShellDestroyTaskbarComp(kernelWindowComponent *);
+	// Proto: int kernelWindowShellDestroyTaskbarComp(kernelWindowComponent *);
 	// Desc : Destroy a component in the window shell's taskbar menu
-	_syscall(_fnum_windowShellDestroyTaskbarComp, &component);
+	return (_syscall(_fnum_windowShellDestroyTaskbarComp, &component));
 }
 
 _X_ objectKey windowShellIconify(objectKey window, int iconify _U_, image *img _U_)
@@ -2020,18 +1970,11 @@ _X_ void windowDebugLayout(objectKey window)
 	_syscall(_fnum_windowDebugLayout, &window);
 }
 
-_X_ int windowContextAdd(objectKey parent, windowMenuContents *contents _U_)
+_X_ int windowContextSet(objectKey component, objectKey menu _U_)
 {
-	// Proto: int kernelWindowContextAdd(objectKey, windowMenuContents *);
-	// Desc : This function allows the caller to add context menu items in the 'content' structure to the supplied parent object 'parent' (can be a window or a component).  The function supplies the pointers to the new menu items in the caller's structure, which can then be manipulated to some extent (enable/disable, destroy, etc) using regular component functions.
-	return (_syscall(_fnum_windowContextAdd, &parent));
-}
-
-_X_ int windowContextSet(objectKey parent, objectKey menu _U_)
-{
-	// Proto: int kernelWindowContextSet(objectKey, kernelWindowComponent *);
-	// Desc : This function allows the caller to set the context menu of the the supplied parent object 'parent' (can be a window or a component).
-	return (_syscall(_fnum_windowContextSet, &parent));
+	// Proto: int kernelWindowContextSet(kernelWindowComponent *, kernelWindow *);
+	// Desc : This function allows the caller to set the context menu 'menu' of the the supplied parent component 'component'.
+	return (_syscall(_fnum_windowContextSet, &component));
 }
 
 _X_ int windowSwitchPointer(objectKey parent, const char *pointerName _U_)
@@ -2041,10 +1984,17 @@ _X_ int windowSwitchPointer(objectKey parent, const char *pointerName _U_)
 	return (_syscall(_fnum_windowSwitchPointer, &parent));
 }
 
+_X_ int windowToggleMenuBar(objectKey window)
+{
+	// Proto: int kernelWindowToggleMenuBar(kernelWindow *);
+	// Desc : If 'window' has a menu bar component, raise (or lower) it as if the menu title has been clicked.  If 'window' is NULL, the currently-focused (if any) window is used.
+	return (_syscall(_fnum_windowToggleMenuBar, &window));
+}
+
 _X_ int windowRefresh(void)
 {
 	// Proto: int kernelWindowRefresh(void);
-	// Desk : Tell the window system to do a global refresh, sending 'refresh' events to all the windows.
+	// Desc : Tell the window system to do a global refresh, sending 'refresh' events to all the windows.
 	return (_syscall(_fnum_windowRefresh, NULL));
 }
 
@@ -2116,6 +2066,13 @@ _X_ int windowComponentUnfocus(objectKey component)
 	// Proto: int kernelWindowComponentUnfocus(kernelWindowComponent *component);
 	// Desc : Removes the focus from window component 'component' in its window.
 	return (_syscall(_fnum_windowComponentUnfocus, &component));
+}
+
+_X_ int windowComponentLayout(objectKey component)
+{
+	// Proto: int kernelWindowComponentLayout(kernelWindowComponent *)
+	// Desc : Calls the window component 'component' to (re-)do its layout calculations.
+	return (_syscall(_fnum_windowComponentLayout, &component));
 }
 
 _X_ int windowComponentDraw(objectKey component)
@@ -2307,6 +2264,20 @@ _X_ objectKey windowNewTree(objectKey parent, windowTreeItem *rootItem _U_, int 
 	return ((objectKey)(long) _syscall(_fnum_windowNewTree, &parent));
 }
 
+_X_ int windowMenuUpdate(objectKey menu, const char *name _U_, const char *charSet _U_, windowMenuContents *contents _U_, componentParameters *params _U_)
+{
+	// Proto: int kernelWindowMenuUpdate(objectKey, const char *, const char *, windowMenuContents *, componentParameters *);
+	// Desc : Update a menu component's menubar title 'name', the character set 'charSet', the menu contents 'contents', or component parameters 'params'.  All are optional.
+	return (_syscall(_fnum_windowMenuUpdate, &menu));
+}
+
+_X_ int windowMenuDestroy(objectKey menu)
+{
+	// Proto: int kernelWindowMenuDestroy(kernelWindow *);
+	// Desc : Destroy the menu component 'menu'.  Menus are special instances of windows.  They can be destroyed using the usual function windowDestroy(), but this function can be used to ensure that they are first removed from any menu bar.
+	return (_syscall(_fnum_windowMenuDestroy, &menu));
+}
+
 
 //
 // User functions
@@ -2319,10 +2290,10 @@ _X_ int userAuthenticate(const char *name, const char *password _U_)
 	return (_syscall(_fnum_userAuthenticate, &name));
 }
 
-_X_ int userLogin(const char *name, const char *password _U_)
+_X_ int userLogin(const char *name, const char *password _U_, int loginPid _U_)
 {
-	// Proto: int kernelUserLogin(const char *, const char *);
-	// Desc : Log the user 'name' into the system, using the password 'password'.  Calling this function requires supervisor privilege level.
+	// Proto: int kernelUserLogin(const char *, const char *, int);
+	// Desc : Log the user 'name' into the system, using the password 'password', with the process ID 'loginPid' as the user's login process.  Calling this function requires supervisor privilege level.
 	return (_syscall(_fnum_userLogin, &name));
 }
 
@@ -2382,18 +2353,11 @@ _X_ int userGetPrivilege(const char *name)
 	return (_syscall(_fnum_userGetPrivilege, &name));
 }
 
-_X_ int userGetPid(void)
+_X_ int userGetSessions(userSession *sessions, int max _U_)
 {
-	// Proto: int kernelUserGetPid(void);
-	// Desc : Get the process ID of the current user's 'login process'.
-	return (_syscall(_fnum_userGetPid, NULL));
-}
-
-_X_ int userSetPid(const char *name, int pid _U_)
-{
-	// Proto: int kernelUserSetPid(const char *, int);
-	// Desc : Set the login PID of user 'name' to 'pid'.  This is the process that gets killed when the user indicates that they want to logout.  In graphical mode this will typically be the PID of the window shell pid, and in text mode it will be the PID of the login VSH shell.
-	return (_syscall(_fnum_userSetPid, &name));
+	// Proto: int kernelUserGetSessions(userSession *sessions, int max);
+	// Desc : Fills the userSession array 'sessions' with all of the current user sessions (up to 'max' entries) and returns the number copied.
+	return (_syscall(_fnum_userGetSessions, &sessions));
 }
 
 _X_ int userFileAdd(const char *passFile, const char *userName _U_, const char *password _U_)
@@ -2595,25 +2559,25 @@ _X_ int cryptHashMd5(const unsigned char *in, unsigned len _U_, unsigned char *o
 	return (_syscall(_fnum_cryptHashMd5, &in));
 }
 
-_X_ int lockGet(lock *getLock)
+_X_ int lockGet(spinLock *lock)
 {
-	// Proto: int kernelLockGet(lock *);
-	// Desc : Get an exclusive lock based on the lock structure 'getLock'.
-	return (_syscall(_fnum_lockGet, &getLock));
+	// Proto: int kernelLockGet(spinLock *);
+	// Desc : Get an exclusive lock based on the lock structure 'lock'.
+	return (_syscall(_fnum_lockGet, &lock));
 }
 
-_X_ int lockRelease(lock *relLock)
+_X_ int lockRelease(spinLock *lock)
 {
-	// Proto: int kernelLockRelease(lock *);
+	// Proto: int kernelLockRelease(spinLock *);
 	// Desc : Release a lock on the lock structure 'lock' previously obtained with a call to the lockGet() function.
-	return (_syscall(_fnum_lockRelease, &relLock));
+	return (_syscall(_fnum_lockRelease, &lock));
 }
 
-_X_ int lockVerify(lock *verLock)
+_X_ int lockVerify(spinLock *lock)
 {
-	// Proto: int kernelLockVerify(lock *);
-	// Desc : Verify that a lock on the lock structure 'verLock' is still valid.  This can be useful for retrying a lock attempt if a previous one failed; if the process that was previously holding the lock has failed, this will release the lock.
-	return (_syscall(_fnum_lockVerify, &verLock));
+	// Proto: int kernelLockVerify(spinLock *);
+	// Desc : Verify that a lock on the lock structure 'lock' is still valid.  This can be useful for retrying a lock attempt if a previous one failed; if the process that was previously holding the lock has failed, this will release the lock.
+	return (_syscall(_fnum_lockVerify, &lock));
 }
 
 _X_ int configRead(const char *fileName, variableList *list _U_)
@@ -2747,5 +2711,12 @@ _X_ void cpuSpinMs(unsigned millisecs)
 	// Proto: void kernelCpuSpinMs(unsigned);
 	// Desc : This will use the CPU timestamp counter to spin for (at least) the specified number of milliseconds.
 	_syscall(_fnum_cpuSpinMs, &millisecs);
+}
+
+_X_ int touchAvailable(void)
+{
+	// Proto: int kernelTouchAvailable(void);
+	// Desc : Returns non-zero if a touchscreen interface has been detected and enabled.
+	return (_syscall(_fnum_touchAvailable, NULL));
 }
 

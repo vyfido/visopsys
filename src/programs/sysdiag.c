@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -43,6 +43,7 @@ functions on hardware such as the RAM memory or hard disks.
 #include <stdlib.h>
 #include <sys/api.h>
 #include <sys/env.h>
+#include <sys/font.h>
 #include <sys/memory.h>
 #include <sys/paths.h>
 #include <sys/progress.h>
@@ -140,7 +141,7 @@ static void error(const char *format, ...)
 	va_list list;
 	char *output = NULL;
 
-	output = malloc(MAXSTRINGLENGTH);
+	output = malloc(MAXSTRINGLENGTH + 1);
 	if (!output)
 		return;
 
@@ -165,7 +166,7 @@ static void error(const char *format, ...)
 static void printBanner(void)
 {
 	textScreenClear();
-	printf(_("%s\nCopyright (C) 1998-2018 J. Andrew McLaughlin\n"), PROGNAME);
+	printf(_("%s\nCopyright (C) 1998-2019 J. Andrew McLaughlin\n"), PROGNAME);
 }
 
 
@@ -350,8 +351,8 @@ static void showResults(int status, testError *testErrors, int numErrors)
 				{
 					// Check for window close events
 					status = windowComponentEventGet(resultsWindow, &event);
-					if ((status < 0) ||
-						((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
+					if ((status < 0) || ((status > 0) && (event.type ==
+						WINDOW_EVENT_WINDOW_CLOSE)))
 					{
 						break;
 					}
@@ -535,7 +536,7 @@ static int doDiskTest(disk *theDisk, testError **testErrors,
 			}
 		}
 
-		if (lockGet(&prog.progLock) >= 0)
+		if (lockGet(&prog.lock) >= 0)
 		{
 			if (prog.cancel)
 			{
@@ -548,7 +549,7 @@ static int doDiskTest(disk *theDisk, testError **testErrors,
 			snprintf((char *) prog.statusMessage, PROGRESS_MAX_MESSAGELEN,
 				_("Testing disk sectors %llu/%llu"),
 				(uquad_t) prog.numFinished, (uquad_t) prog.numTotal);
-			lockRelease(&prog.progLock);
+			lockRelease(&prog.lock);
 		}
 	}
 
@@ -752,7 +753,7 @@ static int doMemoryTest(testError **testErrors, uquad_t *numErrors)
 			}
 		}
 
-		if (lockGet(&prog.progLock) >= 0)
+		if (lockGet(&prog.lock) >= 0)
 		{
 			if (prog.cancel)
 			{
@@ -765,7 +766,7 @@ static int doMemoryTest(testError **testErrors, uquad_t *numErrors)
 			snprintf((char *) prog.statusMessage, PROGRESS_MAX_MESSAGELEN,
 				_("Testing memory MB %llu/%llu"), prog.numFinished,
 				prog.numTotal);
-			lockRelease(&prog.progLock);
+			lockRelease(&prog.lock);
 		}
 	}
 
@@ -835,7 +836,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for the window being closed
-		if (event->type == EVENT_WINDOW_CLOSE)
+		if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			quit(0);
 	}
 
@@ -859,7 +860,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 	}
 
-	else if ((key == testButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == testButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		windowComponentSetEnabled(testButton, 0);
 		windowComponentSetEnabled(quitButton, 0);
@@ -877,8 +879,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 		windowComponentSetEnabled(quitButton, 1);
 	}
 
-	else if ((key == quitButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == quitButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
+	{
 		quit(0);
+	}
 }
 
 
@@ -919,7 +924,7 @@ static void constructWindow(void)
 	params.padLeft = 5;
 	params.orientationX = orient_left;
 	params.orientationY = orient_top;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 
 	// Make a container for the left hand side components
 	container = windowNewContainer(window, "leftContainer", &params);
@@ -937,7 +942,7 @@ static void constructWindow(void)
 	// Create the test type radio button
 	params.gridY += 1;
 	testTypeRadio = windowNewRadioButton(container, 2, 1, (char *[])
-			{ DISK_TEST, MEMORY_TEST }, 2, &params);
+		{ DISK_TEST, MEMORY_TEST }, 2, &params);
 	windowRegisterEventHandler(testTypeRadio, &eventHandler);
 
 	// A little divider between the containers
@@ -952,7 +957,7 @@ static void constructWindow(void)
 	params.gridX += 1;
 	params.padLeft = 5;
 	params.orientationX = orient_left;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDWIDTH;
 	container = windowNewContainer(window, "rightContainer", &params);
 
 	// Make a window list with all the disk choices
@@ -967,14 +972,14 @@ static void constructWindow(void)
 	params.gridY += 1;
 	params.gridWidth = 1;
 	params.padTop = 5;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	readWriteRadio = windowNewRadioButton(container, 2, 1, (char *[])
 		{ READ_ONLY, READ_WRITE }, 2, &params);
 
 	// A description of read-only vs. read-write tests
 	params.gridX += 1;
 	params.padLeft = 5;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDWIDTH;
 	params.font = fontGet(FONT_FAMILY_LIBMONO, (FONT_STYLEFLAG_BOLD |
 		FONT_STYLEFLAG_FIXED), 10, NULL);
 	readWriteLabel = windowNewTextLabel(container, READWRITE, &params);
@@ -986,8 +991,8 @@ static void constructWindow(void)
 	params.padLeft = params.padRight = params.padTop = params.padBottom = 5;
 	params.orientationX = orient_center;
 	params.font = NULL;
-	params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH |
-		WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags |= (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	container = windowNewContainer(window, "buttonContainer", &params);
 
 	// Create the Test button

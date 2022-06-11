@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,7 +21,8 @@
 
 // This is the header for the "Disk Manager" program, fdisk.c
 
-#if !defined(_FDISK_H)
+#ifndef _FDISK_H
+#define _FDISK_H
 
 #include <sys/color.h>
 #include <sys/disk.h>
@@ -116,7 +117,7 @@ typedef struct {
 	char diskName[6];
 	char showSliceName[6];
 	unsigned opFlags;
-	char fsType[FSTYPE_MAX_NAMELENGTH];
+	char fsType[FSTYPE_MAX_NAMELENGTH + 1];
 	char string[MAX_DESCSTRING_LENGTH];
 	int pixelX;
 	int pixelWidth;
@@ -195,7 +196,5 @@ void error(const char *, ...) __attribute__((format(printf, 1, 2)));
 void warning(const char *, ...) __attribute__((format(printf, 1, 2)));
 void getChsValues(const disk *, rawSlice *, rawGeom *);
 
-
-#define _FDISK_H
 #endif
 

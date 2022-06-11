@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -110,8 +110,8 @@ static void interpretCommand(char *commandLine)
 	// Initialize stack memory
 	memset(args, 0, (MAX_ARGS * sizeof(char *)));
 
-	commandName = malloc(MAX_PATH_NAME_LENGTH);
-	fullCommand = malloc(MAXSTRINGLENGTH);
+	commandName = malloc(MAX_PATH_NAME_LENGTH + 1);
+	fullCommand = malloc(MAXSTRINGLENGTH + 1);
 	if (!commandName || !fullCommand)
 	{
 		errno = ERR_MEMORY;
@@ -206,7 +206,17 @@ static void interpretCommand(char *commandLine)
 		{
 			for (count = 1; count < numArgs; count ++)
 			{
-				status = vshDeleteFile(args[count]);
+				if (args[count])
+				{
+					status = fileDelete(args[count]);
+					if (status < 0)
+						errno = status;
+				}
+				else
+				{
+					status = errno = ERR_NULLPARAMETER;
+				}
+
 				if (status < 0)
 					perror(args[0]);
 			}
@@ -240,7 +250,17 @@ static void interpretCommand(char *commandLine)
 	{
 		if (numArgs > 2)
 		{
-			status = vshMoveFile(args[1], args[2]);
+			if (args[1] && args[2])
+			{
+				status = fileMove(args[1], args[2]);
+				if (status < 0)
+					errno = status;
+			}
+			else
+			{
+				status = errno = ERR_NULLPARAMETER;
+			}
+
 			if (status < 0)
 				perror(args[0]);
 		}
@@ -385,8 +405,8 @@ static void simpleShell(void)
 	static int currentCharacter = 0;
 	int count;
 
-	commandBuffer = malloc(MAXSTRINGLENGTH);
-	char *tmp = malloc(COMMANDHISTORY * MAXSTRINGLENGTH);
+	commandBuffer = malloc(MAXSTRINGLENGTH + 1);
+	char *tmp = malloc(COMMANDHISTORY * (MAXSTRINGLENGTH + 1));
 	if (!commandBuffer || !tmp)
 	{
 		errno = ERR_MEMORY;
@@ -396,7 +416,7 @@ static void simpleShell(void)
 
 	// Initialize stack data
 	for (count = 0; count < COMMANDHISTORY; count ++)
-		commandHistory[count] = (tmp + (count * MAXSTRINGLENGTH));
+		commandHistory[count] = (tmp + (count * (MAXSTRINGLENGTH + 1)));
 
 	// This program runs in an infinite loop
 	while (1)
@@ -725,7 +745,7 @@ int main(int argc, char *argv[])
 	// This initializes the simple shell
 
 	int status = 0;
-	char fileName[MAX_PATH_NAME_LENGTH];
+	char fileName[MAX_PATH_NAME_LENGTH + 1];
 	char *fullCommand = NULL;
 	int count;
 
@@ -764,7 +784,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		fullCommand = malloc(MAXSTRINGLENGTH);
+		fullCommand = malloc(MAXSTRINGLENGTH + 1);
 		if (!fullCommand)
 		{
 			errno = ERR_MEMORY;
@@ -794,7 +814,7 @@ int main(int argc, char *argv[])
 
 	// Get the starting current directory
 
-	cwd = malloc(MAX_PATH_LENGTH);
+	cwd = malloc(MAX_PATH_LENGTH + 1);
 	if (!cwd)
 	{
 		errno = ERR_MEMORY;

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -110,8 +110,8 @@ static void calculateMinimumGrid(kernelWindowComponent *containerComponent,
 		component = container->components[count];
 
 		if ((component->params.gridWidth > 1) &&
-			(component->flags & WINFLAG_RESIZABLEX) &&
-			!(component->params.flags & WINDOW_COMPFLAG_FIXEDWIDTH))
+			(component->flags & WINDOW_COMP_FLAG_RESIZABLEX) &&
+			!(component->params.flags & COMP_PARAMS_FLAG_FIXEDWIDTH))
 		{
 			continue;
 		}
@@ -131,8 +131,8 @@ static void calculateMinimumGrid(kernelWindowComponent *containerComponent,
 		component = container->components[count];
 
 		if ((component->params.gridWidth < 2) ||
-			!(component->flags & WINFLAG_RESIZABLEX) ||
-			(component->params.flags & WINDOW_COMPFLAG_FIXEDWIDTH))
+			!(component->flags & WINDOW_COMP_FLAG_RESIZABLEX) ||
+			(component->params.flags & COMP_PARAMS_FLAG_FIXEDWIDTH))
 		{
 			continue;
 		}
@@ -152,8 +152,8 @@ static void calculateMinimumGrid(kernelWindowComponent *containerComponent,
 		component = container->components[count];
 
 		if ((component->params.gridHeight > 1) &&
-			(component->flags & WINFLAG_RESIZABLEY) &&
-			!(component->params.flags & WINDOW_COMPFLAG_FIXEDHEIGHT))
+			(component->flags & WINDOW_COMP_FLAG_RESIZABLEY) &&
+			!(component->params.flags & COMP_PARAMS_FLAG_FIXEDHEIGHT))
 		{
 			continue;
 		}
@@ -173,8 +173,8 @@ static void calculateMinimumGrid(kernelWindowComponent *containerComponent,
 		component = container->components[count];
 
 		if ((component->params.gridHeight < 2) ||
-			!(component->flags & WINFLAG_RESIZABLEY) ||
-			(component->params.flags & WINDOW_COMPFLAG_FIXEDHEIGHT))
+			!(component->flags & WINDOW_COMP_FLAG_RESIZABLEY) ||
+			(component->params.flags & COMP_PARAMS_FLAG_FIXEDHEIGHT))
 		{
 			continue;
 		}
@@ -254,8 +254,8 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
 		component = container->components[count];
 
 		if ((component->params.gridWidth < 2) &&
-			(component->flags & WINFLAG_RESIZABLEX) &&
-			!(component->params.flags & WINDOW_COMPFLAG_FIXEDWIDTH) &&
+			(component->flags & WINDOW_COMP_FLAG_RESIZABLEX) &&
+			!(component->params.flags & COMP_PARAMS_FLAG_FIXEDWIDTH) &&
 			!resizableX[component->params.gridX])
 		{
 			resizableX[component->params.gridX] = 1;
@@ -263,8 +263,8 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
 		}
 
 		if ((component->params.gridHeight < 2) &&
-			(component->flags & WINFLAG_RESIZABLEY) &&
-			!(component->params.flags & WINDOW_COMPFLAG_FIXEDHEIGHT) &&
+			(component->flags & WINDOW_COMP_FLAG_RESIZABLEY) &&
+			!(component->params.flags & COMP_PARAMS_FLAG_FIXEDHEIGHT) &&
 			!resizableY[component->params.gridY])
 		{
 			resizableY[component->params.gridY] = 1;
@@ -409,8 +409,8 @@ static int layoutSized(kernelWindowComponent *containerComponent, int width,
 		component = container->components[count1];
 
 		tmpWidth = 0;
-		if ((component->flags & WINFLAG_RESIZABLEX) &&
-			!(component->params.flags & WINDOW_COMPFLAG_FIXEDWIDTH))
+		if ((component->flags & WINDOW_COMP_FLAG_RESIZABLEX) &&
+			!(component->params.flags & COMP_PARAMS_FLAG_FIXEDWIDTH))
 		{
 			for (count2 = 0; count2 < component->params.gridWidth; count2 ++)
 				tmpWidth += columnWidth[component->params.gridX + count2];
@@ -427,8 +427,8 @@ static int layoutSized(kernelWindowComponent *containerComponent, int width,
 			tmpWidth = component->minWidth;
 
 		tmpHeight = 0;
-		if ((component->flags & WINFLAG_RESIZABLEY) &&
-			!(component->params.flags & WINDOW_COMPFLAG_FIXEDHEIGHT))
+		if ((component->flags & WINDOW_COMP_FLAG_RESIZABLEY) &&
+			!(component->params.flags & COMP_PARAMS_FLAG_FIXEDHEIGHT))
 		{
 			for (count2 = 0; count2 < component->params.gridHeight; count2 ++)
 				tmpHeight += rowHeight[component->params.gridY + count2];
@@ -772,14 +772,14 @@ static kernelWindowComponent *eventComp(kernelWindowComponent *component,
 		item = container->components[count];
 
 		// If not visible or enabled, skip it
-		if (!(item->flags & WINFLAG_VISIBLE) ||
-			!(item->flags & WINFLAG_ENABLED))
+		if (!(item->flags & WINDOW_COMP_FLAG_VISIBLE) ||
+			!(item->flags & WINDOW_COMP_FLAG_ENABLED))
 		{
 			continue;
 		}
 
 		// Are the coordinates inside this component?
-		if (isPointInside(event->xPosition, event->yPosition,
+		if (isPointInside(event->coord.x, event->coord.y,
 			makeComponentScreenArea(item)))
 		{
 			kernelDebug(debug_gui, "WindowContainer '%s' container '%s' "
@@ -842,7 +842,7 @@ static int draw(kernelWindowComponent *component)
 
 	int status = 0;
 
-	if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
+	if (component->params.flags & COMP_PARAMS_FLAG_HASBORDER)
 		component->drawBorder(component, 1);
 
 	return (status);
@@ -1018,7 +1018,7 @@ kernelWindowComponent *kernelWindowNewContainer(objectKey parent,
 	kernelWindowComponent *component = NULL;
 	kernelWindowContainer *container = NULL;
 
-	// Check parameters.
+	// Check params
 	if (!parent || !name || !params)
 	{
 		kernelError(kernel_error, "NULL parameter");
@@ -1031,11 +1031,11 @@ kernelWindowComponent *kernelWindowNewContainer(objectKey parent,
 		return (component);
 
 	component->type = containerComponentType;
-	component->flags |= WINFLAG_RESIZABLE;
+	component->flags |= WINDOW_COMP_FLAG_RESIZABLE;
 
 	// Set the functions
 	component->add = (int (*)(kernelWindowComponent *, objectKey)) &add;
-	component->delete = &delete;
+	component->delete = (int (*)(kernelWindowComponent *, objectKey)) &delete;
 	component->numComps = &numComps;
 	component->flatten = &flatten;
 	component->layout = &layout;
@@ -1074,5 +1074,68 @@ kernelWindowComponent *kernelWindowNewContainer(objectKey parent,
 	container->drawGrid = &drawGrid;
 
 	return (component);
+}
+
+
+int kernelWindowContainerAdd(kernelWindowComponent *parent,
+	objectKey component)
+{
+	int status = 0;
+
+	// Check params
+	if (!parent || !component)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	// Make sure the parent is a container
+	if ((parent->type != containerComponentType) &&
+		(parent->subType != containerComponentType))
+	{
+		kernelError(kernel_error, "Parent component is not a container");
+		return (status = ERR_INVALID);
+	}
+
+	// Make sure the parent container has an 'add' function
+	if (!parent->add)
+	{
+		kernelError(kernel_error, "Parent container has no 'add' function");
+		return (status = ERR_NOSUCHFUNCTION);
+	}
+
+	return (status = parent->add(parent, component));
+}
+
+
+int kernelWindowContainerDelete(kernelWindowComponent *parent,
+	objectKey component)
+{
+	int status = 0;
+
+	// Check params
+	if (!parent || !component)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	// Make sure the parent is a container
+	if ((parent->type != containerComponentType) &&
+		(parent->subType != containerComponentType))
+	{
+		kernelError(kernel_error, "Parent component is not a container");
+		return (status = ERR_INVALID);
+	}
+
+	// Make sure the parent container has a 'delete' function
+	if (!parent->delete)
+	{
+		kernelError(kernel_error, "Parent container has no 'delete' "
+			"function");
+		return (status = ERR_NOSUCHFUNCTION);
+	}
+
+	return (status = parent->delete(parent, component));
 }
 

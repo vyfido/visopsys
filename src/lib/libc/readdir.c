@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -70,7 +70,7 @@ struct dirent *readdir(DIR *dir)
 	entry->d_ino = 1;	// bogus
 	entry->d_type = dir->f.type;
 	strncpy(entry->d_name, dir->f.name, MAX_NAME_LENGTH);
-	entry->d_name[MAX_NAME_LENGTH - 1] = '\0';
+	entry->d_name[MAX_NAME_LENGTH] = '\0';
 
 	// Get the next file, if applicable
 	status = fileNext(dir->name, &dir->f);

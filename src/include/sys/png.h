@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,11 +21,11 @@
 
 // This defines things for manipulating PNG image files
 
-#if !defined(_PNG_H)
+#ifndef _PNG_H
+#define _PNG_H
 
 #define PNG_MAGIC1	0x474E5089
 #define PNG_MAGIC2	0x0A1A0A0D
 
-#define _PNG_H
 #endif
 

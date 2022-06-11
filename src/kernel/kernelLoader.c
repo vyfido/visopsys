@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -573,8 +573,8 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
 	void *loadAddress = NULL;
 	kernelFileClass *fileClassDriver = NULL;
 	loaderFileClass fileClass;
-	char procName[MAX_NAME_LENGTH];
-	char tmp[MAX_PATH_NAME_LENGTH];
+	char procName[MAX_NAME_LENGTH + 1];
+	char tmp[MAX_PATH_NAME_LENGTH + 1];
 	int newProcId = 0;
 	loaderSymbolTable *symTable = NULL;
 
@@ -700,7 +700,7 @@ int kernelLoaderLoadLibrary(const char *libraryName)
 	loaderFileClass fileClass;
 	processImage libImage;
 	kernelDynamicLibrary *library = NULL;
-	char tmp[MAX_PATH_NAME_LENGTH];
+	char tmp[MAX_PATH_NAME_LENGTH + 1];
 
 	// Check params
 	if (!libraryName)
@@ -787,9 +787,9 @@ kernelDynamicLibrary *kernelLoaderGetLibrary(const char *libraryName)
 	// kernelLoaderLoadLibrary() function to try and load it, before searching
 	// the list again.
 
-	char shortName[MAX_NAME_LENGTH];
+	char shortName[MAX_NAME_LENGTH + 1];
 	kernelDynamicLibrary *library = libraryList;
-	char tmp[MAX_PATH_NAME_LENGTH];
+	char tmp[MAX_PATH_NAME_LENGTH + 1];
 	int count;
 
 	// Check params

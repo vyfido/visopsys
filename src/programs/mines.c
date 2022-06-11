@@ -78,8 +78,10 @@ static void uncoverAll(void)
 	int x, y;
 
 	for (x = 0; x < GRID_DIM; x++)
+	{
 		for (y = 0; y < GRID_DIM; y++)
 			uncover(x, y);
+	}
 }
 
 
@@ -136,12 +138,12 @@ static void clickEmpties(int x, int y)
 }
 
 
-static void gameOver(int win)
+static void gameOver(int winner)
 {
 	uncoverAll();
 
-	windowNewInfoDialog(window, _("Game over"),
-		(win? _("You win!") : _("You lose.")));
+	windowNewInfoDialog(window, _("Game over"), (winner? _("You win!") :
+		_("You lose.")));
 
 	return;
 }
@@ -162,6 +164,9 @@ static void refreshWindow(void)
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window (not necessary if no components have changed)
+	//windowLayout(window);
 }
 
 
@@ -174,16 +179,16 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			windowGuiStop();
 	}
 
 	// Only go through the array of buttons if the event was a mouse click
-	else if (event->type == EVENT_MOUSE_LEFTUP)
+	else if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 	{
 		for (x = 0; x < GRID_DIM; x++)
 		{
@@ -319,7 +324,8 @@ static void initialize(void)
 		}
 	}
 
-	// Set up the buttons.  We set up an array, just like the actual minefield.
+	// Set up the buttons.  We set up an array, just like the actual
+	// minefield.
 	for (y = 0; y < GRID_DIM; y++)
 	{
 		params.gridY = y;

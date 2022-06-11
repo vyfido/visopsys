@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -32,30 +32,29 @@ char *strcat(char *destString, const char *sourceString)
 	// Find the end of the first String
 	for (count1 = 0; count1 < MAXSTRINGLENGTH; )
 	{
-		if (destString[count1] == (char) NULL) break;
-			else count1++;
+		if (!destString[count1])
+			break;
+
+		count1 += 1;
 	}
 
-	// If this is true, then we probably have an unterminated string
-	// constant.  Checking for a string that exceeds MAXSTRINGLENGTH will
-	// help to prevent the function from running off too far into memory.
+	// If this is true, then we possibly have an unterminated string constant.
+	// Checking for a string that exceeds MAXSTRINGLENGTH will help to prevent
+	// the function from running off too far into memory.
 	if (count1 >= MAXSTRINGLENGTH)
 	{
 		errno = ERR_BOUNDS;
 		return (destString = NULL);
 	}
 
-	// Now copy the source string into the dest until the source is a
-	// NULL character.
-	for (count2 = 0; count2 < MAXSTRINGLENGTH; )
+	// Now copy the source string into the dest until the source is a NULL
+	// character.
+	for (count2 = 0; count1 < MAXSTRINGLENGTH; count1 ++, count2 ++)
 	{
 		destString[count1] = sourceString[count2];
 
-		if (sourceString[count2] == (char) NULL)
+		if (!sourceString[count2])
 			break;
-
-		else
-			count1++; count2++;
 	}
 
 	return (destString);

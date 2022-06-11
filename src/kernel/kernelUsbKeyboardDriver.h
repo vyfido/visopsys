@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelUsbKeyboardDriver.h
 //
 
-#if !defined(_KERNELUSBKEYBOARDDRIVER_H)
+#ifndef _KERNELUSBKEYBOARDDRIVER_H
+#define _KERNELUSBKEYBOARDDRIVER_H
 
 #include "kernelKeyboard.h"
 #include "kernelUsbDriver.h"
@@ -54,6 +55,5 @@ typedef struct {
 
 } usbKeyboard;
 
-#define _KERNELUSBKEYBOARDDRIVER_H
 #endif
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelBus.h
 //
 
-#if !defined(_KERNELBUS_H)
+#ifndef _KERNELBUS_H
+#define _KERNELBUS_H
 
 #include "kernelDevice.h"
 
@@ -72,6 +73,5 @@ int kernelBusSetMaster(kernelBusTarget *, int);
 int kernelBusRead(kernelBusTarget *, unsigned, void *);
 int kernelBusWrite(kernelBusTarget *, unsigned, void *);
 
-#define _KERNELBUS_H
 #endif
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 	char *sizeArg = NULL;
 	unit units = bytes;
 	unsigned size = 0;
-	char name[DISK_MAX_NAMELENGTH];
+	char name[DISK_MAX_NAMELENGTH + 1];
 
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("ramdisk");

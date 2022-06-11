@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,10 +22,10 @@
 // This file contains definitions and structures for accessing multitasker
 // scheduling functionality in Visopsys.
 
-#if !defined(_SCHED_H)
+#ifndef _SCHED_H
+#define _SCHED_H
 
 int sched_yield(void);
 
-#define _SCHED_H
 #endif
 

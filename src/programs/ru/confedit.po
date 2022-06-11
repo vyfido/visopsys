@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2018 J. Andrew McLaughlin
+# Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: confedit\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2015-05-08 01:13+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -18,81 +18,81 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
-#: confedit.c:64
+#: confedit.c:65
 msgid "Configuration Editor"
 msgstr "Редактор конфигурации"
 
-#: confedit.c:65
+#: confedit.c:66
 msgid "File"
 msgstr "Файл"
 
-#: confedit.c:66 confedit.c:370
+#: confedit.c:67 confedit.c:371
 msgid "Save"
 msgstr "Сохранить"
 
-#: confedit.c:67 confedit.c:370
+#: confedit.c:68 confedit.c:371
 msgid "Quit"
 msgstr "Выход"
 
-#: confedit.c:68
+#: confedit.c:69
 msgid "Add variable"
 msgstr "Добавить переменную"
 
-#: confedit.c:69
+#: confedit.c:70
 msgid "Change variable"
 msgstr "Изменить переменную"
 
-#: confedit.c:70
+#: confedit.c:71
 msgid "Delete variable"
 msgstr "Удалить переменную"
 
-#: confedit.c:109
+#: confedit.c:110
 msgid "Error"
 msgstr "Ошибка"
 
-#: confedit.c:122
+#: confedit.c:123
 #, c-format
 msgid "Error %d reading configuration file."
 msgstr "Ошибка %d чтения конфигурационного файла."
 
-#: confedit.c:139
+#: confedit.c:140
 #, c-format
 msgid "Error %d writing configuration file."
 msgstr "Ошибка %d записи конфигурационного файла."
 
-#: confedit.c:208
+#: confedit.c:209
 msgid "Change Variable"
 msgstr "Изменить Переменную"
 
-#: confedit.c:214
+#: confedit.c:215
 msgid "Add Variable"
 msgstr "Добавить Переменную"
 
-#: confedit.c:230
+#: confedit.c:231
 msgid "Variable name:"
 msgstr "Имя переменной:"
 
-#: confedit.c:254
+#: confedit.c:255
 msgid "value:"
 msgstr "значение:"
 
-#: confedit.c:273
+#: confedit.c:274
 msgid "OK"
 msgstr "ОК"
 
-#: confedit.c:279 confedit.c:370
+#: confedit.c:280 confedit.c:371
 msgid "Cancel"
 msgstr "Отмена"
 
-#: confedit.c:368
+#: confedit.c:369
 msgid "Unsaved changes"
 msgstr "Несохраненные изменения"
 
-#: confedit.c:369
+#: confedit.c:370
 msgid "Quit without saving changes?"
 msgstr "Выйти не сохраняя изменения?"
 
-#: confedit.c:612
+#: confedit.c:608
 #, c-format
 msgid ""
 "\n"
@@ -101,15 +101,15 @@ msgstr ""
 "\n"
 "Команда  \"%s\" работает только в графическом режиме\n"
 
-#: confedit.c:624
+#: confedit.c:620
 msgid "Enter filename"
 msgstr "Введите имя файла"
 
-#: confedit.c:625
+#: confedit.c:621
 msgid "Please enter a configuration file to edit:"
 msgstr "Введите конфигурационный файл для редактирования:"
 
-#: confedit.c:648
+#: confedit.c:644
 #, c-format
 msgid "Error %d creating new configuration file."
 msgstr "Ошибка %d создания нового конфигурационного файла."

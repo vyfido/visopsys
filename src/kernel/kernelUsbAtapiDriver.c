@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,11 +31,11 @@
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
 #include "kernelScsiDriver.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <sys/processor.h>
+#include <sys/vis.h>
 
 static kernelPhysicalDisk *disks[USBATAPI_MAX_DISKS];
 static int numDisks = 0;
@@ -993,9 +993,9 @@ static kernelPhysicalDisk *detectTarget(void *parent, int targetId,
 	// Set up the kernelDevice
 	dsk->dev.device.class = kernelDeviceGetClass(DEVICECLASS_DISK);
 	dsk->dev.device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_DISK_CDDVD);
-	kernelVariableListSet((variableList *) &dsk->dev.device.attrs,
+	variableListSet((variableList *) &dsk->dev.device.attrs,
 		DEVICEATTRNAME_VENDOR, dsk->vendorId);
-	kernelVariableListSet((variableList *) &dsk->dev.device.attrs,
+	variableListSet((variableList *) &dsk->dev.device.attrs,
 		DEVICEATTRNAME_MODEL, dsk->productId);
 	dsk->dev.driver = driver;
 	dsk->dev.data = (void *) physical;
@@ -1198,7 +1198,7 @@ static int driverHotplug(void *parent, int busType __attribute__((unused)),
 			kernelDeviceRemove(&dsk->dev);
 
 			// Free the device's attributes list
-			kernelVariableListDestroy(&dsk->dev.device.attrs);
+			variableListDestroy(&dsk->dev.device.attrs);
 
 			// Delete.
 			removeDisk(physical);

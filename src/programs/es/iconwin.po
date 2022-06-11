@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2014-01-22 17:34-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -34,12 +34,12 @@ msgstr ""
 msgid "Memory allocation error"
 msgstr "Error de memoria"
 
-#: iconwin.c:394
+#: iconwin.c:398
 #, c-format
 msgid "Couldn't execute command \"%s\""
 msgstr "No se puede ejecutar el comando \"%s\""
 
-#: iconwin.c:463
+#: iconwin.c:467
 #, c-format
 msgid ""
 "\n"
@@ -48,7 +48,7 @@ msgstr ""
 "\n"
 "El comando \"%s\"funciona solamente en modo gráfico\n"
 
-#: iconwin.c:477
+#: iconwin.c:481
 #, c-format
 msgid ""
 "usage:\n"
@@ -57,7 +57,7 @@ msgstr ""
 "Uso:\n"
 "%s <Archivo_config>\n"
 
-#: iconwin.c:508
+#: iconwin.c:512
 #, c-format
 msgid "Config file %s specifies no valid icons"
 msgstr "El archivo de configuración %s especifica íconos inválidos"

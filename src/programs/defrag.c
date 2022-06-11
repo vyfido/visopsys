@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -113,7 +113,7 @@ static void error(const char *format, ...)
 	// Generic error message code for either text or graphics modes
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	if (silentMode)
 		return;
@@ -184,7 +184,7 @@ static int chooseDisk(void)
 		params.gridWidth = 1;
 		params.padBottom = 5;
 		params.orientationX = orient_right;
-		params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+		params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 		okButton = windowNewButton(chooseWindow, _("OK"), NULL, &params);
 
 		params.gridX = 1;
@@ -203,7 +203,7 @@ static int chooseDisk(void)
 			// Check for our OK button
 			status = windowComponentEventGet(okButton, &event);
 			if ((status < 0) || ((status > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP)))
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 			{
 				windowComponentGetSelected(diskList, &diskNumber);
 				break;
@@ -212,7 +212,7 @@ static int chooseDisk(void)
 			// Check for our Cancel button
 			status = windowComponentEventGet(cancelButton, &event);
 			if ((status < 0) || ((status > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP)))
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 			{
 				break;
 			}
@@ -359,7 +359,7 @@ int main(int argc, char *argv[])
 
 	if (!graphics && !silentMode)
 		// Print a message
-		printf("%s", _("\nVisopsys DEFRAG Utility\nCopyright (C) 1998-2018 J. "
+		printf("%s", _("\nVisopsys DEFRAG Utility\nCopyright (C) 1998-2019 J. "
 			"Andrew McLaughlin\n"));
 
 	if (argc > 1)

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,12 +37,12 @@
 #include "kernelParameters.h"
 #include "kernelPciDriver.h"
 #include "kernelPic.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <sys/processor.h>
+#include <sys/vis.h>
 
 #define DISK_CTRL(diskNum) (&controllers[diskNum >> 8])
 #define DISK(diskNum) (DISK_CTRL(diskNum)->disk[diskNum & 0xFF])
@@ -1883,16 +1883,16 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 		}
 
 		// Initialize the variable list for attributes of the disk.
-		status = kernelVariableListCreate(&diskDevice->device.attrs);
+		status = variableListCreateSystem(&diskDevice->device.attrs);
 		if (status >= 0)
 		{
-			kernelVariableListSet(&diskDevice->device.attrs,
-				DEVICEATTRNAME_MODEL, (char *) DISK(diskNum)->physical.model);
+			variableListSet(&diskDevice->device.attrs, DEVICEATTRNAME_MODEL,
+				(char *) DISK(diskNum)->physical.model);
 
 			if (DISK(diskNum)->featureFlags & ATA_FEATURE_MULTI)
 			{
 				sprintf(value, "%d", DISK(diskNum)->physical.multiSectors);
-				kernelVariableListSet(&diskDevice->device.attrs,
+				variableListSet(&diskDevice->device.attrs,
 					"disk.multisectors", value);
 			}
 
@@ -1917,7 +1917,7 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 			if (DISK(diskNum)->featureFlags & ATA_FEATURE_48BIT)
 				strcat(value, ",48-bit");
 
-			kernelVariableListSet(&diskDevice->device.attrs, "disk.features",
+			variableListSet(&diskDevice->device.attrs, "disk.features",
 				value);
 		}
 	}
@@ -1971,12 +1971,12 @@ static int driverDetect(void *parent __attribute__((unused)),
 			kernelDeviceGetClass(DEVICESUBCLASS_DISKCTRL_SATA);
 
 		// Initialize the variable list for attributes of the controller
-		status = kernelVariableListCreate(
+		status = variableListCreateSystem(
 			&controllerDevices[count].device.attrs);
 		if (status >= 0)
 		{
 			sprintf(value, "%d", controllers[count].interrupt);
-			kernelVariableListSet(&controllerDevices[count].device.attrs,
+			variableListSet(&controllerDevices[count].device.attrs,
 				"controller.interrupt", value);
 		}
 

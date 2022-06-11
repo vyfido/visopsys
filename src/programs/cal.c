@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -208,11 +208,14 @@ static void refreshWindow(void)
 	if (getenv(ENV_CHARSET))
 		windowSetCharSet(window, getenv(ENV_CHARSET));
 
+	// Refresh the contents
+	getUpdate();
+
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
 
-	// Refresh the contents
-	getUpdate();
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -222,15 +225,15 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			windowGuiStop();
 	}
 
-	else if (event->type == EVENT_MOUSE_LEFTUP)
+	else if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 	{
 		if (key == minusMonthButton)
 			month = ((month > 1)? (month - 1) : 12);
@@ -270,7 +273,7 @@ static void constructWindow(void)
 	params.gridHeight = 1;
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
-	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags = COMP_PARAMS_FLAG_FIXEDWIDTH;
 
 	params.padLeft = params.padTop = params.padRight = 5;
 	container = windowNewContainer(window, "container", &params);

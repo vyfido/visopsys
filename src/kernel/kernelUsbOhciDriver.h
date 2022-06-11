@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,10 +19,11 @@
 //  kernelUsbOhciDriver.h
 //
 
-#if !defined(_KERNELUSBOHCIDRIVER_H)
+#ifndef _KERNELUSBOHCIDRIVER_H
+#define _KERNELUSBOHCIDRIVER_H
 
-#include "kernelLinkedList.h"
 #include "kernelUsbDriver.h"
+#include <sys/vis.h>
 
 #define OHCI_PCI_PROGIF				0x10
 #define OHCI_NUM_FRAMES				32
@@ -220,14 +221,13 @@ typedef struct {
 typedef struct {
 	ohciOpRegs *opRegs;
 	int numPorts;
-	kernelLinkedList usedEndpDescs;
-	kernelLinkedList freeEndpDescs;
+	linkedList usedEndpDescs;
+	linkedList freeEndpDescs;
 	ohciEndpDesc *queueEndpDescs[OHCI_NUM_QUEUEDESCS];
 	ohciHcca *hcca;
-	kernelLinkedList intrRegs;
+	linkedList intrRegs;
 
 } ohciData;
 
-#define _KERNELUSBOHCIDRIVER_H
 #endif
 

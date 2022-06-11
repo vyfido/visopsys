@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,7 +62,7 @@ Options:
 #define gettext_noop(string) (string)
 
 #define WELCOME			_("Welcome to %s")
-#define COPYRIGHT		_("Copyright (C) 1998-2018 J. Andrew McLaughlin")
+#define COPYRIGHT		_("Copyright (C) 1998-2019 J. Andrew McLaughlin")
 #define GPL				_( \
 	"  This program is free software; you can redistribute it and/or modify it\n" \
 	"  under the terms of the GNU General Public License as published by the\n" \
@@ -105,8 +105,8 @@ static image flagImage;
 static void setDefaults(void)
 {
 	char language[6];
-	char charsetName[CHARSET_NAME_LEN];
-	char keyMapName[KEYMAP_NAMELEN];
+	char charsetName[CHARSET_NAME_LEN + 1];
+	char keyMapName[KEYMAP_NAMELEN + 1];
 	char keyMapFile[MAX_PATH_NAME_LENGTH + 1];
 
 	if (getenv(ENV_LANG))
@@ -158,7 +158,7 @@ static void error(const char *format, ...)
 	// Generic error message code for either text or graphics modes
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
@@ -177,7 +177,7 @@ static void quit(int status, const char *message, ...)
 	// Shut everything down
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	if (message)
 	{
@@ -272,6 +272,9 @@ static int runLogin(void)
 	else
 		pid = loaderLoadProgram(LOGINPROGRAM, 0);
 
+	if (pid < 0)
+		return (pid);
+
 	if (!graphics)
 		// Give the login program a copy of the I/O streams
 		multitaskerDuplicateIo(processId, pid, 0);
@@ -285,7 +288,7 @@ static int runLogin(void)
 static int loadFlagImage(const char *lang, image *img)
 {
 	int status = 0;
-	char path[MAX_PATH_LENGTH];
+	char path[MAX_PATH_LENGTH + 1];
 
 	sprintf(path, "%s/flag-%s.bmp", PATH_SYSTEM_LOCALE, lang);
 
@@ -335,8 +338,10 @@ static void refreshWindow(void)
 		if (flagImage.data)
 			imageFree(&flagImage);
 		if (loadFlagImage(getenv(ENV_LANG), &flagImage) >= 0)
+		{
 			windowComponentSetData(langButton, &flagImage, sizeof(image),
 				1 /* redraw */);
+		}
 	}
 
 	// Refresh the 'go away' checkbox
@@ -356,8 +361,8 @@ static void refreshWindow(void)
 static void chooseLanguage(void)
 {
 	char pickedLanguage[6];
-	char charsetName[CHARSET_NAME_LEN];
-	char keyMapName[KEYMAP_NAMELEN];
+	char charsetName[CHARSET_NAME_LEN + 1];
+	char keyMapName[KEYMAP_NAMELEN + 1];
 
 	if (windowNewLanguageDialog(window, pickedLanguage) >= 0)
 	{
@@ -388,7 +393,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 {
 	// Check for the 'install' button
 	if (haveInstall && (key == instButton) &&
-		(event->type == EVENT_MOUSE_LEFTUP))
+		(event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		// Stop the GUI here and run the install program
 		windowSetVisible(window, 0);
@@ -406,7 +411,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	}
 
 	// Check for the 'continue' button
-	else if ((key == contButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == contButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		// Stop the GUI here and run the login program
 		if (runLogin() >= 0)
@@ -414,8 +420,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	}
 
 	// Check for the 'language' button
-	else if (langButton && (key == langButton) &&
-		(event->type == EVENT_MOUSE_LEFTUP))
+	else if (langButton && (key == langButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		chooseLanguage();
 	}
@@ -461,8 +467,8 @@ static void constructWindow(void)
 	params.padRight = 5;
 	params.orientationX = orient_left;
 	params.orientationY = orient_middle;
-	params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
-		WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+	params.flags = (COMP_PARAMS_FLAG_CUSTOMFOREGROUND |
+		COMP_PARAMS_FLAG_CUSTOMBACKGROUND);
 	params.foreground = COLOR_WHITE;
 	memcpy(&params.background, &background, sizeof(color));
 	welcomeLabel = windowNewTextLabel(window, welcome, &params);
@@ -492,7 +498,8 @@ static void constructWindow(void)
 	}
 
 	params.gridY += 1;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	buttonContainer = windowNewContainer(window, "buttonContainer", &params);
 	if (buttonContainer)
 	{
@@ -544,8 +551,8 @@ static void constructWindow(void)
 	params.gridY += 1;
 	params.padBottom = 5;
 	params.orientationX = orient_center;
-	params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
-		WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+	params.flags = (COMP_PARAMS_FLAG_CUSTOMFOREGROUND |
+		COMP_PARAMS_FLAG_CUSTOMBACKGROUND);
 	params.foreground = COLOR_WHITE;
 	memcpy(&params.background, &background, sizeof(color));
 	goAwayCheckbox = windowNewCheckbox(window, DONTASK, &params);

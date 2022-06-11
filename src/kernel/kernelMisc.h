@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,38 +19,22 @@
 //  kernelMisc.h
 //
 
-#if !defined(_KERNELMISC_H)
+#ifndef _KERNELMISC_H
+#define _KERNELMISC_H
 
 #include "kernelMultitasker.h"
-#include "kernelVariableList.h"
 #include <time.h>
 #include <sys/guid.h>
 #include <sys/utsname.h>
-
-static inline int POW(int x, int y)
-{
-	int ret = 0;
-	int count;
-
-	if (!y)
-	{
-		ret = 1;
-	}
-	else
-	{
-		ret = x;
-		for (count = 1; count < y; count ++)
-			ret *= x;
-	}
-	return (ret);
-}
+#include <sys/vis.h>
 
 void kernelGetVersion(char *, int);
 int kernelSystemInfo(struct utsname *);
 const char *kernelLookupClosestSymbol(kernelProcess *, void *);
 int kernelStackTrace(kernelProcess *, char *, int);
-void kernelConsoleLogin(void);
+int kernelConsoleLogin(const char *);
 int kernelConfigRead(const char *, variableList *);
+int kernelConfigReadSystem(const char *, variableList *);
 int kernelConfigWrite(const char *, variableList *);
 int kernelConfigGet(const char *, const char *, char *, unsigned);
 int kernelConfigSet(const char *, const char *, const char *);
@@ -59,8 +43,6 @@ int kernelReadSymbols(void);
 time_t kernelUnixTime(void);
 int kernelGuidGenerate(guid *);
 unsigned kernelCrc32(void *, unsigned, unsigned *);
-void kernelPause(int);
 
-#define _KERNELMISC_H
 #endif
 

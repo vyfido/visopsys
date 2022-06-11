@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -43,7 +43,7 @@ static inline int isMouseInScrollBar(windowEvent *event,
 	kernelWindowScrollBar *scrollBar = component->data;
 
 	if (scrollBar->dragging ||
-		(event->xPosition >= (component->window->xCoord + component->xCoord)))
+		(event->coord.x >= (component->window->xCoord + component->xCoord)))
 	{
 		return (1);
 	}
@@ -143,7 +143,7 @@ static int draw(kernelWindowComponent *component)
 	if (textArea->scrollBar && textArea->scrollBar->draw)
 		textArea->scrollBar->draw(textArea->scrollBar);
 
-	if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
+	if (component->params.flags & COMP_PARAMS_FLAG_HASBORDER)
 		component->drawBorder(component, 1);
 
 	return (0);
@@ -307,7 +307,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	// Is the event in one of our scroll bars, or a mouse scroll?
 	if (textArea->scrollBar &&
 		(isMouseInScrollBar(event, textArea->scrollBar) ||
-			(event->type & EVENT_MOUSE_SCROLL)))
+			(event->type & WINDOW_EVENT_MOUSE_SCROLL)))
 	{
 		scrollBar = textArea->scrollBar->data;
 
@@ -326,20 +326,24 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			component->draw(component);
 		}
 	}
-	else if ((event->type == EVENT_MOUSE_LEFTDOWN) &&
-		(component->params.flags & WINDOW_COMPFLAG_CLICKABLECURSOR))
+	else if ((event->type == WINDOW_EVENT_MOUSE_LEFTDOWN) &&
+		(component->params.flags & COMP_PARAMS_FLAG_CLICKABLECURSOR))
 	{
 		// The event was a click in the text area.  Move the cursor to the
 		// clicked location.
 
 		if (textArea->area->font)
-			cursorColumn = ((event->xPosition - (component->window->xCoord +
+		{
+			cursorColumn = ((event->coord.x - (component->window->xCoord +
 				textArea->area->xCoord)) / textArea->area->font->glyphWidth);
+		}
 		cursorColumn = min(cursorColumn, textArea->area->columns);
 
 		if (textArea->area->font)
-			cursorRow = ((event->yPosition - (component->window->yCoord +
+		{
+			cursorRow = ((event->coord.y - (component->window->yCoord +
 				textArea->area->yCoord)) / textArea->area->font->glyphHeight);
+		}
 		cursorRow = min(cursorRow, textArea->area->rows);
 
 		if (textArea->area && textArea->area->outputStream &&
@@ -351,7 +355,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 			// Write a 'cursor moved' event to the component event stream
 			memset(&cursorEvent, 0, sizeof(windowEvent));
-			cursorEvent.type = EVENT_CURSOR_MOVE;
+			cursorEvent.type = WINDOW_EVENT_CURSOR_MOVE;
 			kernelWindowEventStreamWrite(&component->events, &cursorEvent);
 		}
 	}
@@ -367,10 +371,10 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 	kernelWindowTextArea *textArea = component->data;
 	kernelTextInputStream *inputStream = textArea->area->inputStream;
 
-	if ((event->type == EVENT_KEY_DOWN) && inputStream &&
-		inputStream->s.append && event->ascii)
+	if ((event->type == WINDOW_EVENT_KEY_DOWN) && inputStream &&
+		inputStream->s.append && event->key.ascii)
 	{
-		inputStream->s.append(&inputStream->s, (char) event->ascii);
+		inputStream->s.append(&inputStream->s, (char) event->key.ascii);
 	}
 
 	if (textArea->scrollBar)
@@ -452,7 +456,8 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 		return (component);
 
 	component->type = textAreaComponentType;
-	component->flags |= (WINFLAG_CANFOCUS | WINFLAG_RESIZABLE);
+	component->flags |= (WINDOW_COMP_FLAG_CANFOCUS |
+		WINDOW_COMP_FLAG_RESIZABLE);
 
 	// Set the functions
 	component->numComps = &numComps;
@@ -471,9 +476,11 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 
 	// If the user wants the default colors, we set them to the default for a
 	// text area
-	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
+	if (!(component->params.flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND))
+	{
 		memcpy((color *) &component->params.background, &COLOR_WHITE,
 			sizeof(color));
+	}
 
 	// If font is NULL, user the default small fixed-width font
 	if (!component->params.font)
@@ -530,20 +537,20 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 	{
 		// Standard parameters for a scroll bar
 		memcpy(&subParams, params, sizeof(componentParameters));
-		subParams.flags &= ~(WINDOW_COMPFLAG_CUSTOMFOREGROUND |
-			WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+		subParams.flags &= ~(COMP_PARAMS_FLAG_CUSTOMFOREGROUND |
+			COMP_PARAMS_FLAG_CUSTOMBACKGROUND);
 
-		textArea->scrollBar =
-			kernelWindowNewScrollBar(parent, scrollbar_vertical, 0,
-				component->height, &subParams);
+		textArea->scrollBar = kernelWindowNewScrollBar(parent,
+			scrollbar_vertical, 0, component->height, &subParams);
 		if (!textArea->scrollBar)
 		{
 			kernelWindowComponentDestroy(component);
 			return (component = NULL);
 		}
 
-		// Remove the scrollbar from the parent container
-		removeFromContainer(textArea->scrollBar);
+		// Remove it from the parent container
+		kernelWindowContainerDelete(textArea->scrollBar->container,
+			textArea->scrollBar);
 
 		textArea->scrollBar->xCoord = component->width;
 		component->width += textArea->scrollBar->width;

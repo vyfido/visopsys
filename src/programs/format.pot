@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -58,7 +58,7 @@ msgstr ""
 msgid "OK"
 msgstr ""
 
-#: format.c:221 format.c:289
+#: format.c:221 format.c:288
 msgid "Cancel"
 msgstr ""
 
@@ -69,110 +69,110 @@ msgid ""
 "that you unmount before continuing"
 msgstr ""
 
-#: format.c:288
+#: format.c:287
 msgid "Disk is mounted"
 msgstr ""
 
-#: format.c:289
+#: format.c:288
 msgid "Ignore"
 msgstr ""
 
-#: format.c:289
+#: format.c:288
 msgid "Unmount"
 msgstr ""
 
-#: format.c:293
+#: format.c:292
 #, c-format
 msgid ""
 "\n"
 "%s (I)gnore/(U)nmount/(C)ancel?: "
 msgstr ""
 
-#: format.c:302
+#: format.c:301
 msgid "Ignore\n"
 msgstr ""
 
-#: format.c:308
+#: format.c:307
 msgid "Unmount\n"
 msgstr ""
 
-#: format.c:314
+#: format.c:313
 msgid "Cancel\n"
 msgstr ""
 
-#: format.c:333
+#: format.c:332
 #, c-format
 msgid "Unable to unmount %s"
 msgstr ""
 
-#: format.c:366
+#: format.c:365
 #, c-format
 msgid "No boot sector available for filesystem type %s\n"
 msgstr ""
 
-#: format.c:379
+#: format.c:378
 #, c-format
 msgid "Error %d copying boot sector \"%s\" to disk %s"
 msgstr ""
 
-#: format.c:390
+#: format.c:389
 msgid "usage:\n"
 msgstr ""
 
-#: format.c:391
+#: format.c:390
 #, c-format
 msgid "%s [-l] [-s] [-t type] [-T] [disk_name]\n"
 msgstr ""
 
-#: format.c:442
+#: format.c:441
 msgid "Missing volume name argument for '-n' option"
 msgstr ""
 
-#: format.c:459
+#: format.c:458
 msgid "Missing type argument for '-t' option"
 msgstr ""
 
-#: format.c:472
+#: format.c:471
 #, c-format
 msgid "Missing parameter for %s option"
 msgstr ""
 
-#: format.c:477
+#: format.c:476
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: format.c:485
+#: format.c:484
 msgid "NTFS formatting is not available"
 msgstr ""
 
-#: format.c:500
+#: format.c:499
 msgid ""
 "\n"
 "Visopsys FORMAT Utility\n"
-"Copyright (C) 1998-2018 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2019 J. Andrew McLaughlin\n"
 msgstr ""
 
-#: format.c:523
+#: format.c:522
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
 msgstr ""
 
-#: format.c:541
+#: format.c:540
 #, c-format
 msgid ""
 "Formatting disk %s as %s.  All data currenly on the disk will be lost.\n"
 "Are you sure?"
 msgstr ""
 
-#: format.c:546 format.c:570
+#: format.c:545 format.c:569
 msgid ""
 "\n"
 "Quitting.\n"
 msgstr ""
 
-#: format.c:564
+#: format.c:563
 msgid ""
 "\n"
 "YOU HAVE REQUESTED TO FORMAT YOUR ROOT DISK.  I probably shouldn't let you\n"
@@ -180,10 +180,10 @@ msgid ""
 "Are you SURE you want to proceed?"
 msgstr ""
 
-#: format.c:580
+#: format.c:579
 msgid "Formatting..."
 msgstr ""
 
-#: format.c:621
+#: format.c:620
 msgid "Success"
 msgstr ""

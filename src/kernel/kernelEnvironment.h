@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,22 +19,24 @@
 //  kernelEnvironment.h
 //
 
-#if !defined(_KERNELENVIRONMENT_H)
+#ifndef _KERNELENVIRONMENT_H
+#define _KERNELENVIRONMENT_H
 
 #include <sys/env.h>
-#include <sys/variable.h>
+#include <sys/vis.h>
 
 // Definitions.
 
 // Functions exported by kernelEnvironment.c
 int kernelEnvironmentCreate(int, variableList *, variableList *);
-int kernelEnvironmentLoad(const char *);
+int kernelEnvironmentLoad(const char *, int);
 int kernelEnvironmentGet(const char *, char *, unsigned);
+int kernelEnvironmentProcessGet(int, const char *, char *, unsigned);
 int kernelEnvironmentSet(const char *, const char *);
+int kernelEnvironmentProcessSet(int, const char *, const char *);
 int kernelEnvironmentUnset(const char *);
 int kernelEnvironmentClear(void);
 void kernelEnvironmentDump(void);
 
-#define _KERNELENVIRONMENT_H
 #endif
 

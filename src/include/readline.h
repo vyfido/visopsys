@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,10 +21,10 @@
 
 // This goes with the readline.c file in the lib directory
 
-#if !defined(_READLINE_H)
+#ifndef _READLINE_H
+#define _READLINE_H
 
 char *readline (const char *);
 
-#define _READLINE_H
 #endif
 

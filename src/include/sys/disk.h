@@ -1,20 +1,20 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
-//  This library is free software; you can redistribute it and/or modify it
-//  under the terms of the GNU Lesser General Public License as published by
-//  the Free Software Foundation; either version 2.1 of the License, or (at
-//  your option) any later version.
+//  This program is free software; you can redistribute it and/or modify it
+//  under the terms of the GNU General Public License as published by the Free
+//  Software Foundation; either version 2 of the License, or (at your option)
+//  any later version.
 //
-//  This library is distributed in the hope that it will be useful, but
-//  WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-//  General Public License for more details.
+//  This program is distributed in the hope that it will be useful, but
+//  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+//  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+//  for more details.
 //
-//  You should have received a copy of the GNU Lesser General Public License
-//  along with this library; if not, write to the Free Software Foundation,
-//  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+//  You should have received a copy of the GNU General Public License along
+//  with this program; if not, write to the Free Software Foundation, Inc.,
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  disk.h
 //
@@ -22,7 +22,8 @@
 // This file contains definitions and structures for using and manipulating
 // disks in Visopsys.
 
-#if !defined(_DISK_H)
+#ifndef _DISK_H
+#define _DISK_H
 
 #include <sys/file.h>
 #include <sys/guid.h>
@@ -31,7 +32,7 @@
 
 #define DISK_MOUNT_CONFIG			PATH_SYSTEM_CONFIG "/mount.conf"
 #define DISK_MAXDEVICES				32
-#define DISK_MAX_NAMELENGTH			16
+#define DISK_MAX_NAMELENGTH			15
 #define DISK_MAX_MODELLENGTH		40
 #define DISK_MAX_PARTITIONS			16
 #define DISK_MAX_PRIMARY_PARTITIONS	4
@@ -40,7 +41,7 @@
 #define DISK_NAME_PREFIX_CDROM		"cd"
 #define DISK_NAME_PREFIX_SCSIDISK	"sd"
 #define DISK_NAME_PREFIX_HARDDISK	"hd"
-#define FSTYPE_MAX_NAMELENGTH		32
+#define FSTYPE_MAX_NAMELENGTH		31
 
 // Flags for supported filesystem operations on a partition
 #define FS_OP_FORMAT				0x01
@@ -87,25 +88,25 @@
 // This structure is used to describe an MS-DOS partition tag
 typedef struct {
 	unsigned char tag;
-	const char description[FSTYPE_MAX_NAMELENGTH];
+	const char description[FSTYPE_MAX_NAMELENGTH + 1];
 
 } msdosPartType;
 
 // This structure is used to describe a GPT partition type GUID
 typedef struct {
 	guid typeGuid;
-	const char description[FSTYPE_MAX_NAMELENGTH];
+	const char description[FSTYPE_MAX_NAMELENGTH + 1];
 
 } gptPartType;
 
 typedef struct {
-	char name[DISK_MAX_NAMELENGTH];
+	char name[DISK_MAX_NAMELENGTH + 1];
 	int deviceNumber;
 	unsigned type;
 	char model[DISK_MAX_MODELLENGTH];
 	unsigned flags;
-	char partType[FSTYPE_MAX_NAMELENGTH];
-	char fsType[FSTYPE_MAX_NAMELENGTH];
+	char partType[FSTYPE_MAX_NAMELENGTH + 1];
+	char fsType[FSTYPE_MAX_NAMELENGTH + 1];
 	unsigned opFlags;
 
 	unsigned heads;
@@ -117,13 +118,13 @@ typedef struct {
 	uquad_t numSectors;
 
 	// Filesystem related
-	char label[MAX_NAME_LENGTH];
+	char label[MAX_NAME_LENGTH + 1];
 	unsigned blockSize;
 	uquad_t freeBytes;
 	uquad_t minSectors;  // for
 	uquad_t maxSectors;  // resize
 	int mounted;
-	char mountPoint[MAX_PATH_LENGTH];
+	char mountPoint[MAX_PATH_LENGTH + 1];
 	int readOnly;
 
 } disk;
@@ -139,6 +140,5 @@ typedef struct {
 
 #define CYLSECTS(d) ((d)->heads * (d)->sectorsPerCylinder)
 
-#define _DISK_H
 #endif
 

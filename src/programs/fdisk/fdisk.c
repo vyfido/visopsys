@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,6 +62,7 @@ Options:
 #include <sys/ascii.h>
 #include <sys/env.h>
 #include <sys/fat.h>
+#include <sys/font.h>
 #include <sys/paths.h>
 #include <sys/vsh.h>
 
@@ -373,7 +374,7 @@ void error(const char *format, ...)
 	va_list list;
 	char *output = NULL;
 
-	output = malloc(MAXSTRINGLENGTH);
+	output = malloc(MAXSTRINGLENGTH + 1);
 	if (!output)
 		return;
 
@@ -402,7 +403,7 @@ void warning(const char *format, ...)
 	va_list list;
 	char *output = NULL;
 
-	output = malloc(MAXSTRINGLENGTH);
+	output = malloc(MAXSTRINGLENGTH + 1);
 	if (!output)
 		return;
 
@@ -411,7 +412,9 @@ void warning(const char *format, ...)
 	va_end(list);
 
 	if (graphics)
+	{
 		windowNewErrorDialog(window, _("Warning"), output);
+	}
 	else
 	{
 		printf(_("\n\nWARNING: %s\n"), output);
@@ -539,11 +542,13 @@ static int scanDisks(void)
 	for (count = 0; count < tmpNumberDisks; count ++)
 	{
 		if ((tmpDiskInfo[count].type & DISKTYPE_HARDDISK) &&
-			(!(tmpDiskInfo[count].type & DISKTYPE_REMOVABLE) || showRemovable))
+			(!(tmpDiskInfo[count].type & DISKTYPE_REMOVABLE) ||
+				showRemovable))
 		{
 			memcpy(&disks[numberDisks], &tmpDiskInfo[count], sizeof(disk));
 
-			snprintf(diskListParams[numberDisks].text, WINDOW_MAX_LABEL_LENGTH,
+			snprintf(diskListParams[numberDisks].text,
+				WINDOW_MAX_LABEL_LENGTH,
 				_("Disk %d: [%s] %s, %u MB, %u bytes/sec"), numberDisks,
 				disks[numberDisks].name,
 				labelType2String(detectLabel(&disks[numberDisks])),
@@ -946,7 +951,7 @@ static int readPartitionTable(disk *theDisk, partitionTable *t)
 
 	// Any backup partition table saved?  Construct the file name
 
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 		return (status = ERR_MEMORY);
 
@@ -977,7 +982,7 @@ static int readPartitionTable(disk *theDisk, partitionTable *t)
 
 		if (!tmpBackupFileName)
 		{
-			tmpBackupFileName = malloc(MAX_PATH_NAME_LENGTH);
+			tmpBackupFileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 			if (!tmpBackupFileName)
 				return (status = ERR_MEMORY);
 		}
@@ -1045,7 +1050,7 @@ static int writePartitionTable(partitionTable *t)
 	// Make the backup file permanent
 	if (tmpBackupName)
 	{
-		fileName = malloc(MAX_PATH_NAME_LENGTH);
+		fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 		if (!fileName)
 			return (status = ERR_MEMORY);
 
@@ -1383,7 +1388,7 @@ static int haveUsedSlices(void)
 static void printBanner(void)
 {
 	textScreenClear();
-	printf(_("%s\nCopyright (C) 1998-2018 J. Andrew McLaughlin\n"),
+	printf(_("%s\nCopyright (C) 1998-2019 J. Andrew McLaughlin\n"),
 		programName);
 }
 
@@ -1408,8 +1413,10 @@ static void display(void)
 		if (!sliceListParams)
 			return;
 		for (count = 0; count < table->numSlices; count ++)
+		{
 			strncpy(sliceListParams[count].text, table->slices[count].string,
 				WINDOW_MAX_LABEL_LENGTH);
+		}
 		windowComponentSetSelected(sliceList, 0);
 		windowComponentSetData(sliceList, sliceListParams, table->numSlices,
 			1 /* redraw */);
@@ -1633,8 +1640,8 @@ static int typeListDialog(listItemParameters *typeListParams, int numberTypes,
 		params.gridY += 1;
 		params.gridWidth = 1;
 		params.padBottom = 5;
-		params.flags |=
-			(WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+		params.flags |= (COMP_PARAMS_FLAG_FIXEDWIDTH |
+			COMP_PARAMS_FLAG_FIXEDHEIGHT);
 		params.orientationX = orient_right;
 		selectButton = windowNewButton(typesDialog, _("Select"), NULL,
 			&params);
@@ -1652,7 +1659,7 @@ static int typeListDialog(listItemParameters *typeListParams, int numberTypes,
 	{
 		// Check for window close
 		if ((windowComponentEventGet(typesDialog, &event) > 0) &&
-			(event.type & EVENT_WINDOW_CLOSE))
+			(event.type & WINDOW_EVENT_WINDOW_CLOSE))
 		{
 			break;
 		}
@@ -1661,7 +1668,7 @@ static int typeListDialog(listItemParameters *typeListParams, int numberTypes,
 		{
 			// Check for selection
 			if ((windowComponentEventGet(selectButton, &event) > 0) &&
-				(event.type & EVENT_MOUSE_LEFTUP))
+				(event.type & WINDOW_EVENT_MOUSE_LEFTUP))
 			{
 				windowComponentGetSelected(typesList, &selection);
 				break;
@@ -1669,7 +1676,7 @@ static int typeListDialog(listItemParameters *typeListParams, int numberTypes,
 
 			// Check for cancel
 			if ((windowComponentEventGet(cancelButton, &event) > 0) &&
-				(event.type & EVENT_MOUSE_LEFTUP))
+				(event.type & WINDOW_EVENT_MOUSE_LEFTUP))
 			{
 				selection = ERR_CANCELLED;
 				break;
@@ -2210,7 +2217,7 @@ static void create(int sliceNumber)
 			params.gridWidth = 1;
 			params.padBottom = 5;
 			params.orientationX = orient_right;
-			params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+			params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 			okButton = windowNewButton(createDialog, _("OK"), NULL, &params);
 
 			params.gridX++;
@@ -2230,9 +2237,9 @@ static void create(int sliceNumber)
 			{
 				// Check for start text field changes
 				if ((windowComponentEventGet(startField, &event) > 0) &&
-					(event.type == EVENT_KEY_DOWN))
+					(event.type == WINDOW_EVENT_KEY_DOWN))
 				{
-					if (event.key == keyEnter)
+					if (event.key.scan == keyEnter)
 						// User hit enter.
 						break;
 
@@ -2254,8 +2261,8 @@ static void create(int sliceNumber)
 				// Check for start slider changes
 				if (windowComponentEventGet(startSlider, &event) > 0)
 				{
-					if (event.type & (EVENT_MOUSE_LEFTDOWN | EVENT_MOUSE_DRAG |
-						EVENT_KEY_DOWN))
+					if (event.type & (WINDOW_EVENT_MOUSE_LEFTDOWN |
+						WINDOW_EVENT_MOUSE_DRAG | WINDOW_EVENT_KEY_DOWN))
 					{
 						windowComponentGetData(startSlider, &sliderState,
 							sizeof(scrollBarState));
@@ -2298,9 +2305,9 @@ static void create(int sliceNumber)
 
 				// Check for size text field changes
 				if ((windowComponentEventGet(sizeField, &event) > 0) &&
-					(event.type == EVENT_KEY_DOWN))
+					(event.type == WINDOW_EVENT_KEY_DOWN))
 				{
-					if (event.key == keyEnter)
+					if (event.key.scan == keyEnter)
 						// User hit enter.
 						break;
 
@@ -2320,8 +2327,8 @@ static void create(int sliceNumber)
 				// Check for size slider changes
 				if (windowComponentEventGet(sizeSlider, &event) > 0)
 				{
-					if (event.type & (EVENT_MOUSE_LEFTDOWN | EVENT_MOUSE_DRAG |
-						EVENT_KEY_DOWN))
+					if (event.type & (WINDOW_EVENT_MOUSE_LEFTDOWN |
+						WINDOW_EVENT_MOUSE_DRAG | WINDOW_EVENT_KEY_DOWN))
 					{
 						windowComponentGetData(sizeSlider, &sliderState,
 							sizeof(scrollBarState));
@@ -2335,14 +2342,14 @@ static void create(int sliceNumber)
 
 				// Check for the OK button
 				if ((windowComponentEventGet(okButton, &event) > 0) &&
-					(event.type == EVENT_MOUSE_LEFTUP))
+					(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 				{
 					break;
 				}
 
 				// Check for the Cancel button
 				if ((windowComponentEventGet(cancelButton, &event) > 0) &&
-					(event.type == EVENT_MOUSE_LEFTUP))
+					(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 				{
 					windowDestroy(createDialog);
 					return;
@@ -2350,7 +2357,7 @@ static void create(int sliceNumber)
 
 				// Check for window close events
 				if ((windowComponentEventGet(createDialog, &event) > 0) &&
-					(event.type == EVENT_WINDOW_CLOSE))
+					(event.type == WINDOW_EVENT_WINDOW_CLOSE))
 				{
 					windowDestroy(createDialog);
 					return;
@@ -2478,12 +2485,16 @@ static void create(int sliceNumber)
 
 	// Set the type
 	if (setType(newSliceNumber) < 0)
+	{
 		// Cancelled.  Remove it again.
 		doDelete(newSliceNumber);
+	}
 	else
+	{
 		// The setType() will increase the 'changes pending' if it succeeded,
 		// so we don't do it here.
 		table->selectedSlice = newSliceNumber;
+	}
 
 	return;
 }
@@ -2526,7 +2537,8 @@ static void format(int sliceNumber)
 
 	if (graphics)
 	{
-		sprintf(tmpChar, _("Format Partition %s"), formatSlice->showSliceName);
+		sprintf(tmpChar, _("Format Partition %s"),
+			formatSlice->showSliceName);
 		typeNum = windowNewRadioDialog(window, tmpChar, chooseString, fsTypes,
 			numTypes, 0);
 	}
@@ -2660,10 +2672,14 @@ static void defragment(int sliceNumber)
 
 	memset((void *) &prog, 0, sizeof(progress));
 	if (graphics)
-		progressDialog =
-			windowNewProgressDialog(window, _("Defragmenting..."), &prog);
+	{
+		progressDialog = windowNewProgressDialog(window,
+			_("Defragmenting..."), &prog);
+	}
 	else
+	{
 		vshProgressBar(&prog);
+	}
 
 	status = filesystemDefragment(defragSlice->diskName, &prog);
 
@@ -2680,7 +2696,9 @@ static void defragment(int sliceNumber)
 	{
 		sprintf(tmpChar, "%s", _("Defragmentation complete"));
 		if (graphics)
+		{
 			windowNewInfoDialog(window, _("Success"), tmpChar);
+		}
 		else
 		{
 			printf("%s\n", tmpChar);
@@ -2996,7 +3014,7 @@ static int doMove(int sliceNumber, uquad_t newStartSector)
 			destSector -= min(sectorsToCopy, sectorsPerOp);
 		}
 
-		if (lockGet(&prog.progLock) >= 0)
+		if (lockGet(&prog.lock) >= 0)
 		{
 			prog.numFinished += sectorsPerOp;
 			if (prog.numTotal >= 100)
@@ -3023,7 +3041,7 @@ static int doMove(int sliceNumber, uquad_t newStartSector)
 				prog.canCancel = 0;
 			}
 
-			lockRelease(&prog.progLock);
+			lockRelease(&prog.lock);
 		}
 	}
 
@@ -3379,8 +3397,8 @@ static int resize(int sliceNumber)
 		strcpy(tmpChar, _("Please select the type of resize operation:"));
 		if (graphics)
 		{
-			selected = windowNewRadioDialog(window, _("Resize Type"),
-				tmpChar, optionStrings, 2, 0);
+			selected = windowNewRadioDialog(window, _("Resize Type"), tmpChar,
+				optionStrings, 2, 0);
 		}
 		else
 		{
@@ -3554,7 +3572,7 @@ static int resize(int sliceNumber)
 
 			if (haveResizeConstraints)
 			{
-				params.flags |= WINDOW_COMPFLAG_HASBORDER;
+				params.flags |= COMP_PARAMS_FLAG_HASBORDER;
 				partCanvas = windowNewCanvas(resizeDialog, (canvasWidth / 2),
 					canvasHeight, &params);
 			}
@@ -3566,7 +3584,7 @@ static int resize(int sliceNumber)
 			params.gridY++;
 			params.padTop = 5;
 			params.orientationX = orient_left;
-			params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
+			params.flags &= ~COMP_PARAMS_FLAG_HASBORDER;
 			windowNewTextLabel(resizeDialog, tmpChar, &params);
 
 			// Make a text field for the new size value
@@ -3592,7 +3610,7 @@ static int resize(int sliceNumber)
 			params.gridWidth = 1;
 			params.padBottom = 5;
 			params.orientationX = orient_right;
-			params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+			params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 			okButton = windowNewButton(resizeDialog, _("OK"), NULL, &params);
 
 			params.gridX = 1;
@@ -3640,9 +3658,9 @@ static int resize(int sliceNumber)
 			{
 				// Check for size text field changes
 				if ((windowComponentEventGet(sizeField, &event) > 0) &&
-					(event.type == EVENT_KEY_DOWN))
+					(event.type == WINDOW_EVENT_KEY_DOWN))
 				{
-					if (event.key == keyEnter)
+					if (event.key.scan == keyEnter)
 						// User hit enter.
 						break;
 
@@ -3663,8 +3681,8 @@ static int resize(int sliceNumber)
 				// Check for size slider changes
 				if (windowComponentEventGet(sizeSlider, &event) > 0)
 				{
-					if (event.type & (EVENT_MOUSE_LEFTDOWN | EVENT_MOUSE_DRAG |
-						EVENT_KEY_DOWN))
+					if (event.type & (WINDOW_EVENT_MOUSE_LEFTDOWN |
+						WINDOW_EVENT_MOUSE_DRAG | WINDOW_EVENT_KEY_DOWN))
 					{
 						windowComponentGetData(sizeSlider, &sliderState,
 							sizeof(scrollBarState));
@@ -3677,14 +3695,14 @@ static int resize(int sliceNumber)
 
 				// Check for the OK button
 				if ((windowComponentEventGet(okButton, &event) > 0) &&
-					(event.type == EVENT_MOUSE_LEFTUP))
+					(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 				{
 					break;
 				}
 
 				// Check for the Cancel button
 				if ((windowComponentEventGet(cancelButton, &event) > 0) &&
-					(event.type == EVENT_MOUSE_LEFTUP))
+					(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 				{
 					windowDestroy(resizeDialog);
 					return (status = 0);
@@ -3692,7 +3710,7 @@ static int resize(int sliceNumber)
 
 				// Check for window close events
 				if ((windowComponentEventGet(resizeDialog, &event) > 0) &&
-					(event.type == EVENT_WINDOW_CLOSE))
+					(event.type == WINDOW_EVENT_WINDOW_CLOSE))
 				{
 					windowDestroy(resizeDialog);
 					return (status = 0);
@@ -3901,8 +3919,9 @@ static void copyIoThread(int argc, char *argv[])
 				}
 				else
 				{
-					status = diskWriteSectors(args->theDisk->name, retrySector,
-						1, (args->buffer->buffer[currentBuffer].data +
+					status = diskWriteSectors(args->theDisk->name,
+						retrySector, 1,
+						(args->buffer->buffer[currentBuffer].data +
 							((retrySector - currentSector) *
 								args->theDisk->sectorSize)));
 				}
@@ -3920,7 +3939,7 @@ static void copyIoThread(int argc, char *argv[])
 		currentSector += sectorsPerOp;
 		doSectors -= sectorsPerOp;
 
-		if (!reader && args->prog && (lockGet(&args->prog->progLock) >= 0))
+		if (!reader && args->prog && (lockGet(&args->prog->lock) >= 0))
 		{
 			args->prog->numFinished = (currentSector - args->startSector);
 			if (args->numSectors >= 100)
@@ -3940,7 +3959,7 @@ static void copyIoThread(int argc, char *argv[])
 
 			formatTime((char *) args->prog->statusMessage, remainingSeconds);
 
-			lockRelease(&args->prog->progLock);
+			lockRelease(&args->prog->lock);
 		}
 
 		if (!currentBuffer)
@@ -4068,7 +4087,7 @@ static int copyData(disk *srcDisk, unsigned srcSector, disk *destDisk,
 	ioThreadsFinished = 0;
 
 	readerPID = multitaskerSpawn(&copyIoThread, "i/o reader thread", 1,
-		(void *[]){ "reader" });
+		(void *[]){ "reader" }, 1 /* run */);
 	if (readerPID < 0)
 	{
 		status = readerPID;
@@ -4076,7 +4095,7 @@ static int copyData(disk *srcDisk, unsigned srcSector, disk *destDisk,
 	}
 
 	writerPID = multitaskerSpawn(&copyIoThread, "i/o writer thread", 1,
-		(void *[]){ "writer" });
+		(void *[]){ "writer" }, 1 /* run */);
 	if (writerPID < 0)
 	{
 		status = writerPID;
@@ -4253,7 +4272,7 @@ static disk *chooseDiskDialog(void)
 	params.gridWidth = 1;
 	params.padBottom = 5;
 	params.orientationX = orient_right;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	okButton = windowNewButton(chooseWindow, _("OK"), NULL, &params);
 
 	params.gridX = 1;
@@ -4270,7 +4289,7 @@ static disk *chooseDiskDialog(void)
 	{
 		// Check for our OK button
 		status = windowComponentEventGet(okButton, &event);
-		if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+		if ((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			windowComponentGetSelected(dList, &selected);
 			retDisk = &disks[selected];
@@ -4279,7 +4298,7 @@ static disk *chooseDiskDialog(void)
 
 		// Check for our Cancel button
 		status = windowComponentEventGet(cancelButton, &event);
-		if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+		if ((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 			break;
 
 		// Done
@@ -4589,11 +4608,15 @@ static int pastePartition(int sliceNumber)
 	if (table->label->flags & LABELFLAG_USEGUIDS)
 	{
 		if (memcmp(&clipboardSlice.raw.typeGuid, &GUID_UNUSED, sizeof(guid)))
+		{
 			memcpy(&table->slices[newSliceNumber].raw.typeGuid,
 				&clipboardSlice.raw.typeGuid, sizeof(guid));
+		}
 		else
+		{
 			memcpy(&table->slices[newSliceNumber].raw.typeGuid, &DEFAULT_GUID,
 				sizeof(guid));
+		}
 	}
 
 	table->slices[newSliceNumber].raw.flags = clipboardSlice.raw.flags;
@@ -4737,7 +4760,7 @@ static void changePartitionOrder(void)
 		params.gridY = 2;
 		params.padBottom = 5;
 		params.orientationX = orient_right;
-		params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+		params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 		okButton = windowNewButton(orderDialog, _("OK"), NULL, &params);
 
 		params.gridX = 1;
@@ -4755,7 +4778,7 @@ static void changePartitionOrder(void)
 			windowComponentGetSelected(orderList, &selected);
 
 			if ((windowComponentEventGet(upButton, &event) > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP) && (selected > 0))
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP) && (selected > 0))
 			{
 				// 'Up' button
 				swapSlices(&tableCopy, selected, (selected - 1));
@@ -4771,7 +4794,7 @@ static void changePartitionOrder(void)
 			}
 
 			if ((windowComponentEventGet(downButton, &event) > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP) &&
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP) &&
 				(selected < (tableCopy.numSlices - 1)))
 			{
 				// 'Down' button
@@ -4789,7 +4812,7 @@ static void changePartitionOrder(void)
 
 			// Check for our OK button
 			if ((windowComponentEventGet(okButton, &event) > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP))
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 			{
 				windowDestroy(orderDialog);
 				goto commit;
@@ -4797,9 +4820,9 @@ static void changePartitionOrder(void)
 
 			// Check for our Cancel button or window close
 			if (((windowComponentEventGet(orderDialog, &event) > 0) &&
-				(event.type == EVENT_WINDOW_CLOSE)) ||
+				(event.type == WINDOW_EVENT_WINDOW_CLOSE)) ||
 				((windowComponentEventGet(cancelButton, &event) > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP)))
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 			{
 				windowDestroy(orderDialog);
 				return;
@@ -5044,7 +5067,7 @@ static void restoreBackup(void)
 	memset(&backupFile, 0, sizeof(fileStream));
 
 	// Construct the file name
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 		return;
 	sprintf(fileName, BACKUP_MBR, table->disk->name);
@@ -5107,8 +5130,8 @@ static int chooseSecurityLevel(void)
 
 	if (graphics)
 	{
-		securityLevel = windowNewRadioDialog(window, _("Erase security level"),
-			chooseString, eraseLevels, 4, 0);
+		securityLevel = windowNewRadioDialog(window,
+			_("Erase security level"), chooseString, eraseLevels, 4, 0);
 	}
 	else
 	{
@@ -5144,8 +5167,8 @@ static int eraseData(disk *theDisk, unsigned startSector, unsigned numSectors,
 
 	if (graphics)
 	{
-		progressDialog =
-			windowNewProgressDialog(window, _("Erasing data..."), &prog);
+		progressDialog = windowNewProgressDialog(window, _("Erasing data..."),
+			&prog);
 	}
 	else
 	{
@@ -5171,7 +5194,7 @@ static int eraseData(disk *theDisk, unsigned startSector, unsigned numSectors,
 		remainingSectors -= doSectors;
 		startSector += doSectors;
 
-		if (lockGet(&prog.progLock) >= 0)
+		if (lockGet(&prog.lock) >= 0)
 		{
 			prog.numFinished = (numSectors - remainingSectors);
 			if (numSectors >= 100)
@@ -5181,7 +5204,8 @@ static int eraseData(disk *theDisk, unsigned startSector, unsigned numSectors,
 			}
 			else
 			{
-				prog.percentFinished = ((prog.numFinished * 100) / numSectors);
+				prog.percentFinished = ((prog.numFinished * 100) /
+					numSectors);
 			}
 
 			remainingSeconds = (((rtcUptimeSeconds() - startSeconds) *
@@ -5190,7 +5214,7 @@ static int eraseData(disk *theDisk, unsigned startSector, unsigned numSectors,
 
 			formatTime((char *) prog.statusMessage, remainingSeconds);
 
-			lockRelease(&prog.progLock);
+			lockRelease(&prog.lock);
 		}
 	}
 
@@ -5461,8 +5485,10 @@ static void newLabel(void)
 	scanDisks();
 
 	if (graphics)
+	{
 		windowComponentSetData(diskList, diskListParams, numberDisks,
 			1 /* redraw */);
+	}
 
 	table->changesPending = 0;
 
@@ -5515,13 +5541,13 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	if (key == window)
 	{
-		if (event->type == EVENT_WINDOW_CLOSE)
+		if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 		{
 			// Window being closed by a GUI event.
 			quit(0, 0);
 		}
 
-		else if (event->type == EVENT_WINDOW_RESIZE)
+		else if (event->type == WINDOW_EVENT_WINDOW_RESIZE)
 		{
 			// Window resize.  Get the canvas sizes
 			canvasWidth = windowComponentGetWidth(canvas);
@@ -5535,7 +5561,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Check for 'file' menu events
 	else if (key == fileMenuContents.items[FILEMENU_WRITE].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			writeChanges(table, 1);
 			redisplay = 1;
@@ -5544,7 +5570,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == fileMenuContents.items[FILEMENU_UNDO].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			undo();
 			redisplay = 1;
@@ -5553,7 +5579,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == fileMenuContents.items[FILEMENU_RESTOREBACKUP].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			restoreBackup();
 			redisplay = 1;
@@ -5562,7 +5588,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == fileMenuContents.items[FILEMENU_QUIT].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 			quit(0, 0);
 	}
 
@@ -5570,7 +5596,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == diskMenuContents.items[DISKMENU_COPYDISK].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			copyDisk();
 			redisplay = 1;
@@ -5579,7 +5605,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == diskMenuContents.items[DISKMENU_PARTORDER].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			changePartitionOrder();
 			redisplay = 1;
@@ -5588,7 +5614,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == diskMenuContents.items[DISKMENU_SIMPLEMBR].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			writeSimpleMbr();
 			redisplay = 1;
@@ -5597,7 +5623,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == diskMenuContents.items[DISKMENU_BOOTMENU].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			mbrBootMenu();
 			redisplay = 1;
@@ -5606,13 +5632,13 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == diskMenuContents.items[DISKMENU_DISKINFO].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 			diskInfo();
 	}
 
 	else if (key == diskMenuContents.items[DISKMENU_ERASEDISK].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			erase(1);
 			redisplay = 1;
@@ -5621,7 +5647,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == diskMenuContents.items[DISKMENU_NEWLABEL].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			newLabel();
 			redisplay = 1;
@@ -5632,13 +5658,13 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == partMenuContents.items[PARTMENU_COPY].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 			copyPartition(table->selectedSlice);
 	}
 
 	else if (key == partMenuContents.items[PARTMENU_PASTE].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			pastePartition(table->selectedSlice);
 			redisplay = 1;
@@ -5647,7 +5673,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == partMenuContents.items[PARTMENU_SETACTIVE].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			setActive(table->selectedSlice);
 			redisplay = 1;
@@ -5656,7 +5682,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == partMenuContents.items[PARTMENU_DELETE].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			delete(table->selectedSlice);
 			redisplay = 1;
@@ -5665,7 +5691,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == partMenuContents.items[PARTMENU_FORMAT].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			format(table->selectedSlice);
 			redisplay = 1;
@@ -5674,7 +5700,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == partMenuContents.items[PARTMENU_DEFRAG].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			defragment(table->selectedSlice);
 			redisplay = 1;
@@ -5683,7 +5709,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == partMenuContents.items[PARTMENU_RESIZE].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			resize(table->selectedSlice);
 			redisplay = 1;
@@ -5692,7 +5718,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == partMenuContents.items[PARTMENU_HIDE].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			hide(table->selectedSlice);
 			redisplay = 1;
@@ -5701,19 +5727,19 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == partMenuContents.items[PARTMENU_INFO].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 			sliceInfo(table->selectedSlice);
 	}
 
 	else if (key == partMenuContents.items[PARTMENU_LISTTYPES].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 			listTypes();
 	}
 
 	else if (key == partMenuContents.items[PARTMENU_MOVE].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			move(table->selectedSlice);
 			redisplay = 1;
@@ -5722,7 +5748,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == partMenuContents.items[PARTMENU_CREATE].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			create(table->selectedSlice);
 			redisplay = 1;
@@ -5731,7 +5757,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == partMenuContents.items[PARTMENU_DELETEALL].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			deleteAll();
 			redisplay = 1;
@@ -5740,7 +5766,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == partMenuContents.items[PARTMENU_SETTYPE].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			setType(table->selectedSlice);
 			redisplay = 1;
@@ -5749,7 +5775,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == partMenuContents.items[PARTMENU_ERASE].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			erase(0);
 			redisplay = 1;
@@ -5759,8 +5785,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Check for changes to our disk list
 	else if (key == diskList)
 	{
-		if ((event->type & EVENT_MOUSE_DOWN) ||
-			(event->type & EVENT_KEY_DOWN))
+		if ((event->type & WINDOW_EVENT_MOUSE_DOWN) ||
+			(event->type & WINDOW_EVENT_KEY_DOWN))
 		{
 			windowComponentGetSelected(diskList, &selected);
 			if ((selected >= 0) && (selected != table->diskNumber))
@@ -5776,7 +5802,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Check for changes to our 'show removable' checkbox
 	else if (key == removableCheckbox)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			scanDisks();
 			windowComponentSetData(diskList, diskListParams, numberDisks,
@@ -5790,12 +5816,12 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Check for clicks or cursor keys on our canvas diagram
 	else if (key == canvas)
 	{
-		if (event->type & EVENT_MOUSE_DOWN)
+		if (event->type & WINDOW_EVENT_MOUSE_DOWN)
 		{
 			for (count = 0; count < table->numSlices; count ++)
 			{
-				if ((event->xPosition > table->slices[count].pixelX) &&
-					(event->xPosition < (table->slices[count].pixelX +
+				if ((event->coord.x > table->slices[count].pixelX) &&
+					(event->coord.x < (table->slices[count].pixelX +
 						table->slices[count].pixelWidth)))
 				{
 					selected = count;
@@ -5810,10 +5836,10 @@ static void eventHandler(objectKey key, windowEvent *event)
 			}
 		}
 
-		else if (event->type & EVENT_KEY_DOWN)
+		else if (event->type & WINDOW_EVENT_KEY_DOWN)
 		{
 			// Respond to cursor left or right
-			switch (event->key)
+			switch (event->key.scan)
 			{
 				case keyLeftArrow:
 					// LEFT cursor key
@@ -5842,8 +5868,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Check for changes to our slice list
 	else if (key == sliceList)
 	{
-		if ((event->type & EVENT_MOUSE_DOWN) ||
-			(event->type & EVENT_KEY_DOWN))
+		if ((event->type & WINDOW_EVENT_MOUSE_DOWN) ||
+			(event->type & WINDOW_EVENT_KEY_DOWN))
 		{
 			windowComponentGetSelected(sliceList, &selected);
 			if (selected >= 0)
@@ -5858,7 +5884,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == writeButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			writeChanges(table, 1);
 			redisplay = 1;
@@ -5867,7 +5893,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == undoButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			undo();
 			redisplay = 1;
@@ -5876,7 +5902,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == setActiveButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			setActive(table->selectedSlice);
 			redisplay = 1;
@@ -5885,7 +5911,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == deleteButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			delete(table->selectedSlice);
 			redisplay = 1;
@@ -5894,7 +5920,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == formatButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			format(table->selectedSlice);
 			redisplay = 1;
@@ -5903,7 +5929,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == defragButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			defragment(table->selectedSlice);
 			redisplay = 1;
@@ -5912,7 +5938,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == hideButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			hide(table->selectedSlice);
 			redisplay = 1;
@@ -5921,13 +5947,13 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == infoButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 			sliceInfo(table->selectedSlice);
 	}
 
 	else if (key == moveButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			move(table->selectedSlice);
 			redisplay = 1;
@@ -5936,7 +5962,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == createButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			create(table->selectedSlice);
 			redisplay = 1;
@@ -5945,7 +5971,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == deleteAllButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			deleteAll();
 			redisplay = 1;
@@ -5954,7 +5980,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == resizeButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			resize(table->selectedSlice);
 			redisplay = 1;
@@ -6050,16 +6076,16 @@ static void constructWindow(void)
 		{
 			// Create an image component from it, and add it to the container
 			iconImage.transColor.green = 255;
-			params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH |
-				WINDOW_COMPFLAG_FIXEDHEIGHT);
+			params.flags |= (COMP_PARAMS_FLAG_FIXEDWIDTH |
+				COMP_PARAMS_FLAG_FIXEDHEIGHT);
 			windowNewImage(container, &iconImage, draw_alphablend, &params);
 			imageFree(&iconImage);
 		}
 
 		// Make a list for the disks
 		params.gridX++;
-		params.flags &= ~(WINDOW_COMPFLAG_FIXEDWIDTH |
-			WINDOW_COMPFLAG_FIXEDHEIGHT);
+		params.flags &= ~(COMP_PARAMS_FLAG_FIXEDWIDTH |
+			COMP_PARAMS_FLAG_FIXEDHEIGHT);
 		diskList = windowNewList(container, windowlist_textonly, numberDisks,
 			1, 0, diskListParams, numberDisks, &params);
 		windowRegisterEventHandler(diskList, &eventHandler);
@@ -6082,7 +6108,7 @@ static void constructWindow(void)
 	params.gridY++;
 	params.padTop = 5;
 	params.padBottom = 5;
-	params.flags |= WINDOW_COMPFLAG_CANFOCUS;
+	params.flags |= COMP_PARAMS_FLAG_CANFOCUS;
 	canvasWidth = ((graphicGetScreenWidth() * 2) / 3);
 	canvas = windowNewCanvas(window, canvasWidth, canvasHeight, &params);
 	windowRegisterEventHandler(canvas, &eventHandler);
@@ -6093,15 +6119,15 @@ static void constructWindow(void)
 
 	// Put a header label over the slice list
 	params.gridY++;
-	params.flags &= ~WINDOW_COMPFLAG_CANFOCUS;
-	params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags &= ~COMP_PARAMS_FLAG_CANFOCUS;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	params.padBottom = 0;
 	params.font = fontGet(FONT_FAMILY_LIBMONO, FONT_STYLEFLAG_FIXED, 10, NULL);
 	windowNewTextLabel(window, sliceListHeader, &params);
 
 	// Make a list for the slices
 	params.gridY++;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	listItemParameters tmpListParams;
 	for (count = 0; count < WINDOW_MAX_LABEL_LENGTH; count ++)
 		tmpListParams.text[count] = ' ';
@@ -6118,7 +6144,7 @@ static void constructWindow(void)
 	params.gridY++;
 	params.padBottom = 5;
 	params.orientationX = orient_center;
-	params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	container = windowNewContainer(window, "buttonContainer", &params);
 	if (container)
 	{

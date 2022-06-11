@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,11 +19,12 @@
 //  kernelUsbEhciDriver.h
 //
 
-#if !defined(_KERNELUSBEHCIDRIVER_H)
+#ifndef _KERNELUSBEHCIDRIVER_H
+#define _KERNELUSBEHCIDRIVER_H
 
-#include "kernelLinkedList.h"
 #include "kernelUsbDriver.h"
 #include <sys/types.h>
+#include <sys/vis.h>
 
 // Global definitions
 #define EHCI_PCI_PROGIF				0x20
@@ -319,16 +320,15 @@ typedef struct {
 	ehciOpRegs *opRegs;
 	int numPorts;
 	int debugPort;
-	kernelLinkedList freeQueueHeadItems;
-	kernelLinkedList freeQtdItems;
+	linkedList freeQueueHeadItems;
+	linkedList freeQtdItems;
 	ehciQueueHeadItem *devHeads;
 	ehciQueueHeadItem *asyncHeads;
 	unsigned *periodicList;
 	ehciQueueHeadItem *intQueue[EHCI_NUM_INTQUEUEHEADS];
-	kernelLinkedList intrRegs;
+	linkedList intrRegs;
 
 } usbEhciData;
 
-#define _KERNELUSBEHCIDRIVER_H
 #endif
 

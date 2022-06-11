@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,8 @@
 // This is the Visopsys version of the dynamic linking loader header file
 // dlfcn.h
 
-#if !defined(_DLFCN_H)
+#ifndef _DLFCN_H
+#define _DLFCN_H
 
 // Flags
 #define RTLD_LAZY      0x0040
@@ -38,6 +39,5 @@ char *dlerror(void);
 void *dlsym(void *, const char *);
 int dlclose(void *);
 
-#define _DLFCN_H
 #endif
 

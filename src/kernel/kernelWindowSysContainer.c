@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,7 +49,7 @@ static int layout(kernelWindowComponent *containerComponent)
 	clientAreaHeight = window->buffer.height;
 
 	// Does the window have a border?
-	if (window->flags & WINFLAG_HASBORDER)
+	if (window->flags & WINDOW_FLAG_HASBORDER)
 	{
 		for (count = 0; count < 4; count ++)
 		{
@@ -222,7 +222,7 @@ static int resize(kernelWindowComponent *component, int width, int height)
 		height = (window->buffer.height - window->mainContainer->yCoord);
 
 		// Adjust for any right/bottom borders
-		if (window->flags & WINFLAG_HASBORDER)
+		if (window->flags & WINDOW_FLAG_HASBORDER)
 		{
 			width -= windowVariables->border.thickness;
 			height -= windowVariables->border.thickness;
@@ -261,7 +261,7 @@ kernelWindowComponent *kernelWindowNewSysContainer(kernelWindow *window,
 
 	kernelWindowComponent *component = NULL;
 
-	// Check parameters.
+	// Check params
 	if (!window || !params)
 		return (component = NULL);
 

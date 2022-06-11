@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,16 +34,16 @@
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
 #include "kernelShutdown.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/env.h>
 #include <sys/kernconf.h>
 #include <sys/paths.h>
+#include <sys/vis.h>
 
 static variableList systemUserList;
-static kernelUser currentUser;
+static userSession currentUser;
 static int systemDirWritable = 0;
 static int initialized = 0;
 
@@ -51,7 +51,7 @@ static int initialized = 0;
 static inline int readPasswordFile(const char *fileName,
 	variableList *userList)
 {
-	return (kernelConfigRead(fileName, userList));
+	return (kernelConfigReadSystem(fileName, userList));
 }
 
 
@@ -66,7 +66,7 @@ static int userExists(const char *userName, variableList *userList)
 {
 	// Returns 1 if the user exists in the supplied user list
 
-	if (kernelVariableListGet(userList, userName))
+	if (variableListGet(userList, userName))
 		return (1);
 	else
 		return (0);
@@ -78,7 +78,7 @@ static int hashString(const char *plain, char *hash)
 	// Turns a plain text string into a hash
 
 	int status = 0;
-	unsigned char hashValue[16];
+	unsigned char hashValue[CRYPT_HASH_MD5_BYTES];
 	char byte[3];
 	int count;
 
@@ -90,7 +90,7 @@ static int hashString(const char *plain, char *hash)
 
 	// Turn it into a string
 	hash[0] = '\0';
-	for (count = 0; count < 16; count ++)
+	for (count = 0; count < CRYPT_HASH_MD5_BYTES; count ++)
 	{
 		sprintf(byte, "%02x", (unsigned char) hashValue[count]);
 		strcat(hash, byte);
@@ -121,7 +121,7 @@ static int addUser(variableList *userList, const char *userName,
 		return (status);
 
 	// Add it to the variable list
-	status = kernelVariableListSet(userList, userName, hash);
+	status = variableListSet(userList, userName, hash);
 	if (status < 0)
 		return (status);
 
@@ -149,7 +149,7 @@ static int deleteUser(variableList *userList, const char *userName)
 		return (status = ERR_BOUNDS);
 	}
 
-	status = kernelVariableListUnset(userList, userName);
+	status = variableListUnset(userList, userName);
 	if (status < 0)
 		return (status);
 
@@ -164,7 +164,7 @@ static int authenticate(const char *userName, const char *password)
 	char testHash[33];
 
 	// Get the hash of the real password
-	fileHash = kernelVariableListGet(&systemUserList, userName);
+	fileHash = variableListGet(&systemUserList, userName);
 	if (!fileHash)
 		return (status = 0);
 
@@ -203,7 +203,7 @@ static int setPassword(variableList *userList, const char *userName,
 		return (status);
 
 	// Add it to the variable list
-	status = kernelVariableListSet(userList, userName, newHash);
+	status = variableListSet(userList, userName, newHash);
 	if (status < 0)
 		return (status);
 
@@ -217,7 +217,7 @@ static int isSystemPasswordFile(const char *fileName)
 	// fixup first, to make sure we know the canonical pathname.
 
 	int status = 0;
-	char fixedName[MAX_PATH_NAME_LENGTH];
+	char fixedName[MAX_PATH_NAME_LENGTH + 1];
 
 	status = kernelFileFixupPath(fileName, fixedName);
 	if (status < 0)
@@ -247,7 +247,7 @@ int kernelUserInitialize(void)
 	kernelFileEntry *systemDir = NULL;
 
 	memset(&systemUserList, 0, sizeof(variableList));
-	memset(&currentUser, 0, sizeof(kernelUser));
+	memset(&currentUser, 0, sizeof(userSession));
 
 	// Try to read the password file.
 
@@ -256,17 +256,19 @@ int kernelUserInitialize(void)
 	{
 		status = readPasswordFile(USER_PASSWORDFILE, &systemUserList);
 		if (status < 0)
+		{
 			// This is bad, but we don't want to fail the whole kernel startup
 			// because of it.
 			kernelError(kernel_warn, "Error reading password file %s",
 				USER_PASSWORDFILE);
+		}
 	}
 
 	// Make sure there's a list, and least one user
 	if ((status < 0) || (systemUserList.numVariables <= 0))
 	{
 		// Create a variable list
-		status = kernelVariableListCreate(&systemUserList);
+		status = variableListCreateSystem(&systemUserList);
 		if (status < 0)
 			return (status);
 	}
@@ -327,7 +329,7 @@ int kernelUserAuthenticate(const char *userName, const char *password)
 }
 
 
-int kernelUserLogin(const char *userName, const char *password)
+int kernelUserLogin(const char *userName, const char *password, int loginPid)
 {
 	// Logs a user in
 
@@ -355,6 +357,9 @@ int kernelUserLogin(const char *userName, const char *password)
 	if (!authenticate(userName, password))
 		return (status = ERR_PERMISSION);
 
+	// Log the user in
+
+	currentUser.type = session_local;
 	strncpy(currentUser.name, userName, USER_MAX_NAMELENGTH);
 
 	// This is just a kludge for now.  'admin' is supervisor privilege,
@@ -364,6 +369,12 @@ int kernelUserLogin(const char *userName, const char *password)
 	else
 		currentUser.privilege = PRIVILEGE_USER;
 
+	currentUser.loginPid = loginPid;
+
+	// Set the user session for the login process
+	kernelMultitaskerSetProcessUserSession(currentUser.loginPid,
+		&currentUser);
+
 	// Determine the user's home directory
 	if (!strncmp(userName, USER_ADMIN, USER_MAX_NAMELENGTH))
 		strcpy(homeDir, "/");
@@ -371,19 +382,20 @@ int kernelUserLogin(const char *userName, const char *password)
 		snprintf(homeDir, MAX_PATH_LENGTH, PATH_USERS_HOME, userName);
 
 	// Set the user's home directory as the current directory
-	kernelMultitaskerSetCurrentDirectory(homeDir);
+	kernelMultitaskerSetProcessCurrentDirectory(loginPid, homeDir);
 
 	// Set the login name as an environment variable
-	kernelEnvironmentSet(ENV_USER, userName);
+	kernelEnvironmentProcessSet(loginPid, ENV_USER, userName);
 
 	// Set the user home directory as an environment variable
-	kernelEnvironmentSet(ENV_HOME, homeDir);
+	kernelEnvironmentProcessSet(loginPid, ENV_HOME, homeDir);
 
 	// Load the rest of the environment variables
-	kernelEnvironmentLoad(userName);
+	kernelEnvironmentLoad(userName, loginPid);
 
 	// If the user has the ENV_KEYMAP variable set, set the current keymap
-	status = kernelEnvironmentGet(ENV_KEYMAP, keyMapName, KEYMAP_NAMELEN);
+	status = kernelEnvironmentProcessGet(loginPid, ENV_KEYMAP, keyMapName,
+		KEYMAP_NAMELEN);
 	if (status >= 0)
 	{
 		sprintf(keyMapFile, PATH_SYSTEM_KEYMAPS "/%s.map", keyMapName);
@@ -416,16 +428,6 @@ int kernelUserLogout(const char *userName)
 	if (!currentUser.name[0] || !currentUser.loginPid)
 		return (status = ERR_NOSUCHUSER);
 
-	// Kill the user's login process.  The termination of the login process
-	// is what effectively logs out the user.  This will only succeed if the
-	// current process is owned by the user, or if the current process is
-	// supervisor privilege
-	if (kernelMultitaskerProcessIsAlive(currentUser.loginPid))
-		status = kernelMultitaskerKillProcess(currentUser.loginPid, 0);
-
-	// Clear environment variables
-	kernelEnvironmentClear();
-
 	// Restore keyboard mapping to the default
 	if ((kernelConfigGet(KERNEL_DEFAULT_CONFIG, KERNELVAR_KEYBOARD_MAP,
 			keyMapFile, MAX_PATH_NAME_LENGTH) >= 0) &&
@@ -438,13 +440,20 @@ int kernelUserLogout(const char *userName)
 		kernelKeyboardSetMap(NULL);
 	}
 
-	// Set the current directory to '/'
-	kernelMultitaskerSetCurrentDirectory("/");
-
-	kernelLog("User %s logged out", userName);
+	// Kill the user's login process.  The termination of the login process
+	// is what effectively logs out the user.  This will only succeed if the
+	// current process is owned by the user, or if the current process is
+	// supervisor privilege
+	if (kernelMultitaskerProcessIsAlive(currentUser.loginPid))
+	{
+		// Retain this status as the return value
+		status = kernelMultitaskerKillProcess(currentUser.loginPid, 0);
+	}
 
 	// Clear the user structure
-	memset(&currentUser, 0, sizeof(kernelUser));
+	memset(&currentUser, 0, sizeof(userSession));
+
+	kernelLog("User %s logged out", userName);
 
 	return (status);
 }
@@ -487,7 +496,7 @@ int kernelUserGetNames(char *buffer, unsigned bufferSize)
 		return (ERR_NOTINITIALIZED);
 
 	// Check params
-	if (!buffer)
+	if (!buffer || !bufferSize)
 	{
 		kernelError(kernel_error, "NULL parameter");
 		return (ERR_NULLPARAMETER);
@@ -500,7 +509,7 @@ int kernelUserGetNames(char *buffer, unsigned bufferSize)
 	for (count = 0; ((count < systemUserList.numVariables) &&
 		(strlen(buffer) < bufferSize)); count ++)
 	{
-		user = kernelVariableListGetVariable(&systemUserList, count);
+		user = variableListGetVariable(&systemUserList, count);
 		strcat(bufferPointer, user);
 		bufferPointer += (strlen(user) + 1);
 	}
@@ -620,24 +629,48 @@ int kernelUserSetPassword(const char *userName, const char *oldPass,
 }
 
 
-int kernelUserGetCurrent(char *userName, unsigned bufferLen)
+int kernelUserGetCurrentLoginPid(void)
 {
-	// Returns the name of the currently logged-in user, if any
+	// Returns the login process ID of the currently logged-in user, if any
 
 	// Check initialization
 	if (!initialized)
 		return (ERR_NOTINITIALIZED);
 
+	// Temporary, until we have multi-user support
+	return (currentUser.loginPid);
+}
+
+
+int kernelUserGetCurrent(char *userName, unsigned bufferLen)
+{
+	// Returns the name of the currently logged-in user, if any
+
+	int status = 0;
+	int processId = 0;
+
+	// Check initialization
+	if (!initialized)
+		return (status = ERR_NOTINITIALIZED);
+
 	// Check params
-	if (!userName)
+	if (!userName || !bufferLen)
 	{
 		kernelError(kernel_error, "NULL parameter");
-		return (ERR_NULLPARAMETER);
+		return (status = ERR_NULLPARAMETER);
 	}
 
+	processId = kernelUserGetCurrentLoginPid();
+	if (processId < 0)
+	{
+		kernelError(kernel_error, "Current user is unknown");
+		return (status = processId);
+	}
+
+	// Temporary, until we have multi-user support
 	strncpy(userName, currentUser.name, min(bufferLen, USER_MAX_NAMELENGTH));
 
-	return (0);
+	return (status = 0);
 }
 
 
@@ -672,21 +705,10 @@ int kernelUserGetPrivilege(const char *userName)
 }
 
 
-int kernelUserGetPid(void)
+int kernelUserGetSessions(userSession *sessions, int max)
 {
-	// Returns the login process id for the current user
-
-	// Check initialization
-	if (!initialized)
-		return (ERR_NOTINITIALIZED);
-
-	return (currentUser.loginPid);
-}
-
-
-int kernelUserSetPid(const char *userName, int loginPid)
-{
-	// Set the login PID for the named user.  This is just a kludge for now.
+	// Fills the supplied array with all of the current user sessions (up to
+	// 'max' entries) and returns the number copied.
 
 	int status = 0;
 
@@ -695,24 +717,28 @@ int kernelUserSetPid(const char *userName, int loginPid)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (!userName)
+	if (!sessions)
 	{
 		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	currentUser.loginPid = loginPid;
+	// Temporary, until we have multi-user support
+	if (currentUser.loginPid && (max >= 1))
+	{
+		memcpy(sessions, &currentUser, sizeof(userSession));
+		status = 1;
+	}
 
-	return (status = 0);
+	return (status);
 }
 
 
 int kernelUserFileAdd(const char *fileName, const char *userName,
 	const char *password)
 {
-	// Add a user to the designated password file, with the given name and
-	// password.  If it's the system password file, this can only be done by
-	// a privileged user.
+	// Add a user to the designated (non-system) password file, with the given
+	// name and password.
 
 	int status = 0;
 	variableList userList;
@@ -727,6 +753,7 @@ int kernelUserFileAdd(const char *fileName, const char *userName,
 	// Make sure this isn't the system password file.
 	status = isSystemPasswordFile(fileName);
 	if (status < 0)
+		// Filename probably isn't valid
 		return (status);
 
 	if (status == 1)
@@ -752,7 +779,7 @@ int kernelUserFileAdd(const char *fileName, const char *userName,
 			status = ERR_ALREADY;
 		}
 
-		kernelVariableListDestroy(&userList);
+		variableListDestroy(&userList);
 	}
 
 	return (status);
@@ -761,8 +788,7 @@ int kernelUserFileAdd(const char *fileName, const char *userName,
 
 int kernelUserFileDelete(const char *fileName, const char *userName)
 {
-	// Remove a user from the designated password file.  If it's the system
-	// password file, this can only be done by a privileged user.
+	// Remove a user from the designated (non-system) password file.
 
 	int status = 0;
 	variableList userList;
@@ -777,6 +803,7 @@ int kernelUserFileDelete(const char *fileName, const char *userName)
 	// Make sure this isn't the system password file.
 	status = isSystemPasswordFile(fileName);
 	if (status < 0)
+		// Filename probably isn't valid
 		return (status);
 
 	if (status == 1)
@@ -802,7 +829,7 @@ int kernelUserFileDelete(const char *fileName, const char *userName)
 			status = ERR_NOSUCHUSER;
 		}
 
-		kernelVariableListDestroy(&userList);
+		variableListDestroy(&userList);
 	}
 
 	return (status);
@@ -812,8 +839,7 @@ int kernelUserFileDelete(const char *fileName, const char *userName)
 int kernelUserFileSetPassword(const char *fileName, const char *userName,
 	const char *oldPass, const char *newPass)
 {
-	// Set the password in the designated password file.  If it's the system
-	// password file, this can only be done by a privileged user.
+	// Set the password in the designated (non-system) password file.
 
 	int status = 0;
 	variableList userList;
@@ -828,6 +854,7 @@ int kernelUserFileSetPassword(const char *fileName, const char *userName,
 	// Make sure this isn't the system password file.
 	status = isSystemPasswordFile(fileName);
 	if (status < 0)
+		// Filename probably isn't valid
 		return (status);
 
 	if (status == 1)
@@ -853,7 +880,7 @@ int kernelUserFileSetPassword(const char *fileName, const char *userName,
 			status = ERR_NOSUCHUSER;
 		}
 
-		kernelVariableListDestroy(&userList);
+		variableListDestroy(&userList);
 	}
 
 	return (status);

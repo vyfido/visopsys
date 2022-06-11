@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,9 +25,9 @@
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelText.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <string.h>
+#include <sys/vis.h>
 
 // An array of device classes, with names
 static kernelDeviceClass allClasses[] = {
@@ -248,7 +248,7 @@ static void device2user(kernelDevice *kernel, device *user)
 		return;
 	}
 
-	kernelVariableListDestroy(&user->attrs);
+	variableListDestroy(&user->attrs);
 	memset(user, 0, sizeof(device));
 
 	if (kernel->device.class)
@@ -265,13 +265,15 @@ static void device2user(kernelDevice *kernel, device *user)
 			DEV_CLASSNAME_MAX);
 	}
 
-	kernelVariableListCreate(&user->attrs);
+	variableListCreate(&user->attrs);
 	for (count = 0; count < kernel->device.attrs.numVariables; count ++)
 	{
-		variable = kernelVariableListGetVariable(&kernel->device.attrs, count);
+		variable = variableListGetVariable(&kernel->device.attrs, count);
 		if (variable)
-			kernelVariableListSet(&user->attrs, variable,
-				kernelVariableListGet(&kernel->device.attrs, variable));
+		{
+			variableListSet(&user->attrs, variable,
+				variableListGet(&kernel->device.attrs, variable));
+		}
 	}
 
 	user->parent = kernel->device.parent;
@@ -554,8 +556,8 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 
 	driverString[0] = '\0';
 
-	vendor = kernelVariableListGet(&new->device.attrs, DEVICEATTRNAME_VENDOR);
-	model = kernelVariableListGet(&new->device.attrs, DEVICEATTRNAME_MODEL);
+	vendor = variableListGet(&new->device.attrs, DEVICEATTRNAME_VENDOR);
+	model = variableListGet(&new->device.attrs, DEVICEATTRNAME_MODEL);
 	if (vendor || model)
 	{
 		if (vendor && model)

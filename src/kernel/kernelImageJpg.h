@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,7 +22,8 @@
 // This defines things used by kernelImageJpg.c for manipulating JPEG format
 // image files
 
-#if !defined(_KERNELIMAGEJPG_H)
+#ifndef _KERNELIMAGEJPG_H
+#define _KERNELIMAGEJPG_H
 
 #include <sys/jpg.h>
 
@@ -72,6 +73,5 @@ typedef struct {
 
 } jpgData;
 
-#define _KERNELIMAGEJPG_H
 #endif
 

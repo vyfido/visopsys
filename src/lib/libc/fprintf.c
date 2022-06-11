@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -34,7 +34,7 @@ int fprintf(FILE *theStream, const char *format, ...)
 	int status = 0;
 	va_list list;
 	int len = 0;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	if (visopsys_in_kernel)
 		return (errno = ERR_BUG);

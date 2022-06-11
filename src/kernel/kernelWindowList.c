@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -76,10 +76,10 @@ static void setVisibleItems(kernelWindowComponent *component)
 				listItemComponent->yCoord = yCoord;
 			}
 
-			if (!(listItemComponent->flags & WINFLAG_VISIBLE))
+			if (!(listItemComponent->flags & WINDOW_COMP_FLAG_VISIBLE))
 				kernelWindowComponentSetVisible(listItemComponent, 1);
 		}
-		else if (listItemComponent->flags & WINFLAG_VISIBLE)
+		else if (listItemComponent->flags & WINDOW_COMP_FLAG_VISIBLE)
 		{
 			kernelWindowComponentSetVisible(listItemComponent, 0);
 		}
@@ -103,7 +103,8 @@ static void drawVisibleItems(kernelWindowComponent *component)
 
 	for (count = 0; count < container->numComponents; count ++)
 	{
-		if ((container->components[count]->flags & WINFLAG_VISIBLE) &&
+		if ((container->components[count]->flags &
+				WINDOW_COMP_FLAG_VISIBLE) &&
 			(container->components[count]->draw))
 		{
 			//kernelDebug(debug_gui, "WindowList item %d xCoord %d, yCoord "
@@ -147,8 +148,8 @@ static inline int isMouseInScrollBar(windowEvent *event,
 
 	kernelWindowScrollBar *scrollBar = component->data;
 
-	if (scrollBar->dragging || (event->xPosition >=
-		(component->window->xCoord + component->xCoord)))
+	if (scrollBar->dragging || (event->coord.x >= (component->window->xCoord +
+		component->xCoord)))
 	{
 		return (1);
 	}
@@ -486,7 +487,7 @@ static kernelWindowComponent *eventComp(kernelWindowComponent *component,
 
 	// If this is anything other than a right-click, we want our windowList
 	// component to receive it.
-	if (!(event->type & EVENT_MOUSE_RIGHTDOWN))
+	if (!(event->type & WINDOW_EVENT_MOUSE_RIGHTDOWN))
 	{
 		kernelDebug(debug_gui, "WindowList return main component");
 		return (component);
@@ -497,14 +498,14 @@ static kernelWindowComponent *eventComp(kernelWindowComponent *component,
 		listItemComponent = container->components[count];
 
 		// If not visible or enabled, skip it
-		if (!(listItemComponent->flags & WINFLAG_VISIBLE) ||
-			!(listItemComponent->flags & WINFLAG_ENABLED))
+		if (!(listItemComponent->flags & WINDOW_COMP_FLAG_VISIBLE) ||
+			!(listItemComponent->flags & WINDOW_COMP_FLAG_ENABLED))
 		{
 			continue;
 		}
 
 		// Are the coordinates inside this component?
-		if (isPointInside(event->xPosition, event->yPosition,
+		if (isPointInside(event->coord.x, event->coord.y,
 			makeComponentScreenArea(listItemComponent)))
 		{
 			kernelDebug(debug_gui, "WindowList found right-clicked list "
@@ -526,12 +527,12 @@ static kernelWindowComponent *eventComp(kernelWindowComponent *component,
 			memcpy(&tmpEvent, event, sizeof(windowEvent));
 
 			// Make this also a 'selection' event
-			tmpEvent.type |= EVENT_SELECTION;
+			tmpEvent.type |= WINDOW_EVENT_SELECTION;
 
 			// Adjust to the coordinates of the windowList component
-			tmpEvent.xPosition -= (component->window->xCoord +
+			tmpEvent.coord.x -= (component->window->xCoord +
 				component->xCoord);
-			tmpEvent.yPosition -= (component->window->yCoord +
+			tmpEvent.coord.y -= (component->window->yCoord +
 				component->yCoord);
 
 			// Put this mouse event into windowList component's
@@ -596,8 +597,8 @@ static int draw(kernelWindowComponent *component)
 	if (list->scrollBar && list->scrollBar->draw)
 		list->scrollBar->draw(list->scrollBar);
 
-	if ((component->params.flags & WINDOW_COMPFLAG_HASBORDER) ||
-		(component->flags & WINFLAG_HASFOCUS))
+	if ((component->params.flags & COMP_PARAMS_FLAG_HASBORDER) ||
+		(component->flags & WINDOW_COMP_FLAG_HASFOCUS))
 	{
 		component->drawBorder(component, 1);
 	}
@@ -667,8 +668,8 @@ static void populateList(kernelWindowComponent *listComponent,
 	params.padRight = 0;
 	params.orientationX = orient_top;
 	params.orientationY = orient_left;
-	params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH |
-		WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags |= (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 
 	list->itemWidth = 0;
 	list->itemHeight = 0;
@@ -687,7 +688,7 @@ static void populateList(kernelWindowComponent *listComponent,
 		kernelWindowComponentSetVisible(listItemComponent, 0);
 
 		// The component should adopt and keep the color of the list component
-		listItemComponent->params.flags |= WINDOW_COMPFLAG_CUSTOMBACKGROUND;
+		listItemComponent->params.flags |= COMP_PARAMS_FLAG_CUSTOMBACKGROUND;
 
 		if (listItemComponent->width > list->itemWidth)
 			list->itemWidth = listItemComponent->width;
@@ -848,7 +849,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 	// Is the event in one of our scroll bars, or a mouse scroll?
 	if (list->scrollBar && (isMouseInScrollBar(event, list->scrollBar) ||
-		(event->type & EVENT_MOUSE_SCROLL)))
+		(event->type & WINDOW_EVENT_MOUSE_SCROLL)))
 	{
 		if (list->scrollBar->mouseEvent)
 		{
@@ -880,7 +881,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			}
 		}
 	}
-	else if (event->type & (EVENT_MOUSE_DOWN | EVENT_MOUSE_UP))
+	else if (event->type & (WINDOW_EVENT_MOUSE_DOWN | WINDOW_EVENT_MOUSE_UP))
 	{
 		// Figure out which list item was clicked based on the coordinates
 		// of the event
@@ -888,15 +889,15 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		{
 			listItemComponent = container->components[count];
 
-			if ((listItemComponent->flags & WINFLAG_VISIBLE) &&
-				isPointInside(event->xPosition, event->yPosition,
+			if ((listItemComponent->flags & WINDOW_COMP_FLAG_VISIBLE) &&
+				isPointInside(event->coord.x, event->coord.y,
 					makeComponentScreenArea(listItemComponent)))
 			{
 				// Don't bother passing the mouse event to the list item
 				setSelected(component, count);
 
 				// Make this also a 'selection' event
-				event->type |= EVENT_SELECTION;
+				event->type |= WINDOW_EVENT_SELECTION;
 
 				break;
 			}
@@ -921,7 +922,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 
 	kernelDebug(debug_gui, "WindowList key event");
 
-	if (event->type == EVENT_KEY_DOWN)
+	if (event->type == WINDOW_EVENT_KEY_DOWN)
 	{
 		if (!container->numComponents)
 			return (status = 0);
@@ -933,7 +934,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 			gridX = listItemComponent->params.gridX;
 			gridY = listItemComponent->params.gridY;
 
-			switch (event->key)
+			switch (event->key.scan)
 			{
 				case keyUpArrow:
 					// Cursor up
@@ -975,7 +976,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 
 				case keyEnter:
 					// ENTER.  We will make this also a 'selection' event.
-					event->type |= EVENT_SELECTION;
+					event->type |= WINDOW_EVENT_SELECTION;
 					break;
 
 				default:
@@ -996,7 +997,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 						setSelected(component, count);
 
 						// Make this also a 'selection' event
-						event->type |= EVENT_SELECTION;
+						event->type |= WINDOW_EVENT_SELECTION;
 						break;
 					}
 				}
@@ -1008,7 +1009,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 			setSelected(component, 0);
 
 			// Make this also a 'selection' event
-			event->type |= EVENT_SELECTION;
+			event->type |= WINDOW_EVENT_SELECTION;
 		}
 	}
 
@@ -1076,7 +1077,8 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
 		return (component);
 
 	component->type = listComponentType;
-	component->flags |= (WINFLAG_CANFOCUS | WINFLAG_RESIZABLE);
+	component->flags |= (WINDOW_COMP_FLAG_CANFOCUS |
+		WINDOW_COMP_FLAG_RESIZABLE);
 
 	// Set the functions
 	component->numComps = &numComps;
@@ -1099,11 +1101,11 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
 
 	// If default colors were requested, override the standard background color
 	// with the one we prefer (white)
-	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
+	if (!(component->params.flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND))
 	{
 		memcpy((color *) &component->params.background, &COLOR_WHITE,
 			sizeof(color));
-		component->params.flags |= WINDOW_COMPFLAG_CUSTOMBACKGROUND;
+		component->params.flags |= COMP_PARAMS_FLAG_CUSTOMBACKGROUND;
 	}
 
 	// If font is NULL, use the default
@@ -1137,16 +1139,16 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
 	}
 
 	// Remove it from the parent container
-	removeFromContainer(list->container);
+	kernelWindowContainerDelete(list->container->container, list->container);
 
 	container = list->container->data;
 
 	// Standard parameters for a scroll bar
 	memcpy(&subParams, params, sizeof(componentParameters));
-	subParams.flags &= ~(WINDOW_COMPFLAG_CUSTOMFOREGROUND |
-		WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+	subParams.flags &= ~(COMP_PARAMS_FLAG_CUSTOMFOREGROUND |
+		COMP_PARAMS_FLAG_CUSTOMBACKGROUND);
 
-	if (!(subParams.flags & WINDOW_COMPFLAG_NOSCROLLBARS))
+	if (!(subParams.flags & COMP_PARAMS_FLAG_NOSCROLLBARS))
 	{
 		// Get our scrollbar component
 		list->scrollBar = kernelWindowNewScrollBar(parent, scrollbar_vertical,
@@ -1158,7 +1160,8 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
 		}
 
 		// Remove it from the parent container
-		removeFromContainer(list->scrollBar);
+		kernelWindowContainerDelete(list->scrollBar->container,
+			list->scrollBar);
 	}
 
 	// Fill up

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelMultitasker.h
 //
 
-#if !defined(_KERNELMULTITASKER_H)
+#ifndef _KERNELMULTITASKER_H
+#define _KERNELMULTITASKER_H
 
 #include "kernelDescriptor.h"
 #include "kernelPage.h"
@@ -29,7 +30,8 @@
 #include <sys/file.h>
 #include <sys/loader.h>
 #include <sys/process.h>
-#include <sys/variable.h>
+#include <sys/user.h>
+#include <sys/vis.h>
 
 // Definitions
 #define MAX_PROCESSES				((GDT_SIZE - RES_GLOBAL_DESCRIPTORS))
@@ -102,11 +104,11 @@ typedef volatile struct {
 
 // A structure for processes
 typedef volatile struct {
-	char name[MAX_PROCNAME_LENGTH];
+	char name[MAX_PROCNAME_LENGTH + 1];
 	processImage execImage;
-	int userId;
 	int processId;
 	processType type;
+	userSession *session;
 	int priority;
 	int privilege;
 	int processorPrivilege;
@@ -127,7 +129,7 @@ typedef volatile struct {
 	kernelPageDirectory *pageDirectory;
 	kernelSelector tssSelector;
 	kernelTSS taskStateSegment;
-	char currentDirectory[MAX_PATH_LENGTH];
+	char currentDirectory[MAX_PATH_LENGTH + 1];
 	variableList *environment;
 	kernelTextInputStream *textInputStream;
 	kernelTextInputStreamAttrs oldInputAttrs;
@@ -154,9 +156,11 @@ int kernelMultitaskerGetProcess(int, process *);
 int kernelMultitaskerGetProcessByName(const char *, process *);
 int kernelMultitaskerGetProcesses(void *, unsigned);
 int kernelMultitaskerCreateProcess(const char *, int, processImage *);
-int kernelMultitaskerSpawn(void *, const char *, int, void *[]);
-int kernelMultitaskerSpawnKernelThread(void *, const char *, int, void *[]);
-//int kernelMultitaskerFork(void);
+int kernelMultitaskerSpawn(void *, const char *, int, void *[], int);
+int kernelMultitaskerSpawnKernelThread(void *, const char *, int, void *[],
+	int);
+userSession *kernelMultitaskerGetProcessUserSession(int);
+int kernelMultitaskerSetProcessUserSession(int, userSession *);
 int kernelMultitaskerGetProcessState(int, processState *);
 int kernelMultitaskerSetProcessState(int, processState);
 int kernelMultitaskerProcessIsAlive(int);
@@ -165,7 +169,9 @@ int kernelMultitaskerSetProcessPriority(int, int);
 int kernelMultitaskerGetProcessPrivilege(int);
 int kernelMultitaskerGetProcessParent(int);
 int kernelMultitaskerSetProcessParent(int, int);
+variableList *kernelMultitaskerGetProcessEnvironment(int);
 int kernelMultitaskerGetCurrentDirectory(char *, int);
+int kernelMultitaskerSetProcessCurrentDirectory(int, const char *);
 int kernelMultitaskerSetCurrentDirectory(const char *);
 kernelTextInputStream *kernelMultitaskerGetTextInput(void);
 int kernelMultitaskerSetTextInput(int, kernelTextInputStream *);
@@ -190,8 +196,7 @@ kernelPageDirectory *kernelMultitaskerGetPageDir(int);
 loaderSymbolTable *kernelMultitaskerGetSymbols(int);
 int kernelMultitaskerSetSymbols(int, loaderSymbolTable *);
 int kernelMultitaskerStackTrace(int);
-int kernelMultitaskerPropagateEnvironment(const char *);
+int kernelMultitaskerPropagateEnvironment(int, const char *);
 
-#define _KERNELMULTITASKER_H
 #endif
 

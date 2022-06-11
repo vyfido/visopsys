@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,7 +22,8 @@
 // This file contains definitions and structures used by the Gzip archive
 // file format.
 
-#if !defined(_GZIP_H)
+#ifndef _GZIP_H
+#define _GZIP_H
 
 #define GZIP_MAGIC			0x8B1F
 #define GZIP_COMP_DEFLATE	0x08	// Deflate
@@ -67,6 +68,5 @@ typedef struct {
 
 } __attribute__((packed)) gzipExtraField;
 
-#define _GZIP_H
 #endif
 

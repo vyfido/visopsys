@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -55,8 +55,8 @@ static int countItemsRecursive(windowTreeItem *item)
 }
 
 
-static void copyItemsRecursive(kernelWindowTree *tree, windowTreeItem *srcItem,
-	windowTreeItem **link)
+static void copyItemsRecursive(kernelWindowTree *tree,
+	windowTreeItem *srcItem, windowTreeItem **link)
 {
 	// Given a hierarchy of items, copy them into the tree
 
@@ -183,7 +183,7 @@ static void layoutItemsRecursive(kernelWindowComponent *component,
 		kernelWindowComponentSetData(itemComponent, item->displayText,
 			strlen(item->displayText), 0 /* no render */);
 
-		if (!(itemComponent->flags & WINFLAG_VISIBLE))
+		if (!(itemComponent->flags & WINDOW_COMP_FLAG_VISIBLE))
 			kernelWindowComponentSetVisible(itemComponent, 1);
 
 		tree->visibleItems += 1;
@@ -209,7 +209,7 @@ static void layoutItems(kernelWindowComponent *component)
 	// Set all item components to not visible
 	for (count = 0; count < container->numComponents; count ++)
 	{
-		if (container->components[count]->flags & WINFLAG_VISIBLE)
+		if (container->components[count]->flags & WINDOW_COMP_FLAG_VISIBLE)
 			kernelWindowComponentSetVisible(container->components[count], 0);
 	}
 
@@ -303,8 +303,8 @@ static inline int isMouseInScrollBar(windowEvent *event,
 
 	kernelWindowScrollBar *scrollBar = component->data;
 
-	if (scrollBar->dragging ||
-		(event->xPosition >= (component->window->xCoord + component->xCoord)))
+	if (scrollBar->dragging || (event->coord.x >= (component->window->xCoord +
+		component->xCoord)))
 	{
 		return (1);
 	}
@@ -472,7 +472,7 @@ static int draw(kernelWindowComponent *component)
 
 	for (count = 0; count < container->numComponents; count ++)
 	{
-		if (container->components[count]->flags & WINFLAG_VISIBLE)
+		if (container->components[count]->flags & WINDOW_COMP_FLAG_VISIBLE)
 		{
 			kernelDebug(debug_gui, "WindowTree item %d xCoord %d, yCoord %d",
 				count, container->components[count]->xCoord,
@@ -516,7 +516,7 @@ static int draw(kernelWindowComponent *component)
 	if (tree->scrollBar->draw)
 		tree->scrollBar->draw(tree->scrollBar);
 
-	if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
+	if (component->params.flags & COMP_PARAMS_FLAG_HASBORDER)
 		component->drawBorder(component, 1);
 
 	return (0);
@@ -715,7 +715,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 	// Is the event in our scroll bar, or a mouse scroll?
 	if (tree->scrollBar && (isMouseInScrollBar(event, tree->scrollBar) ||
-		(event->type & EVENT_MOUSE_SCROLL)))
+		(event->type & WINDOW_EVENT_MOUSE_SCROLL)))
 	{
 		scrollBar = tree->scrollBar->data;
 
@@ -745,7 +745,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 				component->yCoord, component->width, component->height);
 		}
 	}
-	else if (event->type & (EVENT_MOUSE_DOWN | EVENT_MOUSE_UP))
+	else if (event->type & (WINDOW_EVENT_MOUSE_DOWN | WINDOW_EVENT_MOUSE_UP))
 	{
 		// Figure out which list item was clicked based on the coordinates
 		// of the event
@@ -755,28 +755,28 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		{
 			itemComponent = container->components[count];
 
-			if (itemComponent->flags & WINFLAG_VISIBLE)
+			if (itemComponent->flags & WINDOW_COMP_FLAG_VISIBLE)
 			{
 				area = makeComponentScreenArea(itemComponent);
 
 				// Was it a click inside the item itself?
-				if (isPointInside(event->xPosition, event->yPosition, area))
+				if (isPointInside(event->coord.x, event->coord.y, area))
 				{
 					// Don't bother passing the mouse event to the list item
 					setSelected(component, count);
 
 					// Make this also a 'selection' event
-					event->type |= EVENT_SELECTION;
+					event->type |= WINDOW_EVENT_SELECTION;
 
 					break;
 				}
 
 				// Was it a click to expand or collapse the item?
-				if ((event->type & EVENT_MOUSE_DOWN) &&
-					(event->yPosition >= area->topY) &&
-					(event->yPosition <= area->bottomY) &&
-					(event->xPosition >= (area->leftX - INDENT)) &&
-					(event->xPosition <= area->leftX))
+				if ((event->type & WINDOW_EVENT_MOUSE_DOWN) &&
+					(event->coord.y >= area->topY) &&
+					(event->coord.y <= area->bottomY) &&
+					(event->coord.x >= (area->leftX - INDENT)) &&
+					(event->coord.x <= area->leftX))
 				{
 					expandCollapse(component, count);
 					break;
@@ -803,7 +803,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 
 	kernelDebug(debug_gui, "WindowTree key event");
 
-	if (event->type == EVENT_KEY_DOWN)
+	if (event->type == WINDOW_EVENT_KEY_DOWN)
 	{
 		if (!container->numComponents)
 			return (status = 0);
@@ -814,7 +814,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 			itemComponent = container->components[tree->selectedItem];
 			gridY = itemComponent->params.gridY;
 
-			switch (event->key)
+			switch (event->key.scan)
 			{
 				case keyUpArrow:
 					// Cursor up
@@ -836,7 +836,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 
 				case keyEnter:
 					// ENTER.  We will make this also a 'selection' event.
-					event->type |= EVENT_SELECTION;
+					event->type |= WINDOW_EVENT_SELECTION;
 					break;
 
 				default:
@@ -861,14 +861,14 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 				for (count = 0; count < container->numComponents; count ++)
 				{
 					if ((container->components[count]->flags &
-							WINFLAG_VISIBLE) &&
+							WINDOW_COMP_FLAG_VISIBLE) &&
 						(container->components[count]->params.gridY == gridY))
 					{
 						// Don't bother passing the key event to the list item
 						setSelected(component, count);
 
 						// Make this also a 'selection' event
-						event->type |= EVENT_SELECTION;
+						event->type |= WINDOW_EVENT_SELECTION;
 						break;
 					}
 				}
@@ -879,7 +879,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 			// No item was selected, so we just select the first item.
 			setSelected(component, 0);
 			// Make this also a 'selection' event
-			event->type |= EVENT_SELECTION;
+			event->type |= WINDOW_EVENT_SELECTION;
 		}
 	}
 
@@ -944,15 +944,16 @@ kernelWindowComponent *kernelWindowNewTree(objectKey parent,
 		return (component);
 
 	component->type = treeComponentType;
-	component->flags |= (WINFLAG_CANFOCUS | WINFLAG_RESIZABLE);
+	component->flags |= (WINDOW_COMP_FLAG_CANFOCUS |
+		WINDOW_COMP_FLAG_RESIZABLE);
 
-	// If default colors were requested, override the standard background color
-	// with the one we prefer (white)
-	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
+	// If default colors were requested, override the standard background
+	// color with the one we prefer (white)
+	if (!(component->params.flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND))
 	{
 		memcpy((color *) &component->params.background, &COLOR_WHITE,
 			sizeof(color));
-		component->params.flags |= WINDOW_COMPFLAG_CUSTOMBACKGROUND;
+		component->params.flags |= COMP_PARAMS_FLAG_CUSTOMBACKGROUND;
 	}
 
 	// If font is NULL, use the default
@@ -983,7 +984,7 @@ kernelWindowComponent *kernelWindowNewTree(objectKey parent,
 	}
 
 	// Remove it from the parent container
-	removeFromContainer(tree->container);
+	kernelWindowContainerDelete(tree->container->container, tree->container);
 
 	// Set a default/minimum sizes
 	width = max(width, (windowVariables->slider.width * 2));
@@ -994,8 +995,8 @@ kernelWindowComponent *kernelWindowNewTree(objectKey parent,
 	// We need a scroll bar as well.
 
 	// Standard parameters for a scroll bar
-	subParams.flags &= ~(WINDOW_COMPFLAG_CUSTOMFOREGROUND |
-		WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+	subParams.flags &= ~(COMP_PARAMS_FLAG_CUSTOMFOREGROUND |
+		COMP_PARAMS_FLAG_CUSTOMBACKGROUND);
 	tree->scrollBar = kernelWindowNewScrollBar(parent, scrollbar_vertical,
 		0, tree->container->height, &subParams);
 	if (!tree->scrollBar)
@@ -1004,8 +1005,8 @@ kernelWindowComponent *kernelWindowNewTree(objectKey parent,
 		return (component = NULL);
 	}
 
-	// Remove the scrollbar from the parent container
-	removeFromContainer(tree->scrollBar);
+	// Remove it from the parent container
+	kernelWindowContainerDelete(tree->scrollBar->container, tree->scrollBar);
 
 	component->width = width;
 	component->height = height;

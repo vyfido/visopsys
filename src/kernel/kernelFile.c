@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -146,13 +146,13 @@ static void fileEntry2File(kernelFileEntry *entry, file *fileStruct)
 	// to an external 'file' structure.
 
 	strncpy(fileStruct->name, (char *) entry->name, MAX_NAME_LENGTH);
-	fileStruct->name[MAX_NAME_LENGTH - 1] = '\0';
+	fileStruct->name[MAX_NAME_LENGTH] = '\0';
 	fileStruct->handle = (void *) entry;
 	fileStruct->type = entry->type;
 
 	strncpy(fileStruct->filesystem,
 		(char *) entry->disk->filesystem.mountPoint, MAX_PATH_LENGTH);
-	fileStruct->filesystem[MAX_PATH_LENGTH - 1] = '\0';
+	fileStruct->filesystem[MAX_PATH_LENGTH] = '\0';
 
 	kernelRtcDateTime2Tm(entry->creationDate, entry->creationTime,
 		&fileStruct->created);
@@ -327,7 +327,7 @@ static char *fixupPath(const char *originalPath)
 	if (!strlen(originalPath))
 		return (newPath = NULL);
 
-	newPath = kernelMalloc(MAX_PATH_NAME_LENGTH);
+	newPath = kernelMalloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!newPath)
 		return (newPath);
 
@@ -577,8 +577,8 @@ static int fileCreate(const char *path)
 	// to be created.
 
 	int status = 0;
-	char prefix[MAX_PATH_LENGTH];
-	char name[MAX_NAME_LENGTH];
+	char prefix[MAX_PATH_LENGTH + 1];
+	char name[MAX_NAME_LENGTH + 1];
 	kernelDisk *fsDisk = NULL;
 	kernelFilesystemDriver *driver = NULL;
 	kernelFileEntry *dirEntry = NULL;
@@ -645,7 +645,7 @@ static int fileCreate(const char *path)
 	// Set up the appropriate data items in the new entry that aren't done
 	// by default in the kernelFileNewEntry() function
 	strncpy((char *) createEntry->name, name, MAX_NAME_LENGTH);
-	((char *) createEntry->name)[MAX_NAME_LENGTH - 1] = '\0';
+	((char *) createEntry->name)[MAX_NAME_LENGTH] = '\0';
 	createEntry->type = fileT;
 
 	// Add the file to the directory
@@ -847,11 +847,11 @@ static int fileMakeDir(const char *path)
 	kernelFileEntry *parentEntry = NULL;
 	kernelFileEntry *entry = NULL;
 
-	prefix = kernelMalloc(MAX_PATH_LENGTH);
+	prefix = kernelMalloc(MAX_PATH_LENGTH + 1);
 	if (!prefix)
 		return (status = ERR_MEMORY);
 
-	name = kernelMalloc(MAX_NAME_LENGTH);
+	name = kernelMalloc(MAX_NAME_LENGTH + 1);
 	if (!name)
 		return (status = ERR_MEMORY);
 
@@ -919,7 +919,7 @@ static int fileMakeDir(const char *path)
 	// Now, set some fields for our new item
 
 	strncpy((char *) entry->name, name, MAX_NAME_LENGTH);
-	((char *) entry->name)[MAX_NAME_LENGTH - 1] = '\0';
+	((char *) entry->name)[MAX_NAME_LENGTH] = '\0';
 
 	entry->type = dirT;
 
@@ -1920,7 +1920,7 @@ int kernelFileEntrySetSize(kernelFileEntry *entry, unsigned newSize)
 	kernelDisk *fsDisk = NULL;
 	unsigned newBlocks = 0;
 
-	// Check parameters
+	// Check params
 	if (!entry)
 		return (status = ERR_NULLPARAMETER);
 
@@ -2108,7 +2108,7 @@ int kernelFileGetDisk(const char *path, disk *userDisk)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Check parameters.
+	// Check params
 	if (!path || !userDisk)
 	{
 		kernelError(kernel_error, "NULL parameter");
@@ -3077,8 +3077,8 @@ int kernelFileMove(const char *srcName, const char *destName)
 	int status = 0;
 	char *fixedSrcName = NULL;
 	char *fixedDestName = NULL;
-	char origName[MAX_NAME_LENGTH];
-	char destDirName[MAX_PATH_LENGTH];
+	char origName[MAX_NAME_LENGTH + 1];
+	char destDirName[MAX_PATH_LENGTH + 1];
 	kernelFileEntry *srcDir = NULL;
 	kernelFileEntry *srcEntry = NULL;
 	kernelFileEntry *destDir = NULL;
@@ -3392,7 +3392,7 @@ int kernelFileGetTemp(file *tmpFile)
 		return (status = ERR_NOWRITE);
 	}
 
-	fileName = kernelMalloc(MAX_PATH_NAME_LENGTH);
+	fileName = kernelMalloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 		return (status = ERR_MEMORY);
 

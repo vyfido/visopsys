@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelNetworkEthernet.h
 //
 
-#if !defined(_KERNELNETWORKETHERNET_H)
+#ifndef _KERNELNETWORKETHERNET_H
+#define _KERNELNETWORKETHERNET_H
 
 #include "kernelNetwork.h"
 
@@ -27,6 +28,5 @@
 int kernelNetworkEthernetPrependHeader(kernelNetworkDevice *,
 	kernelNetworkPacket *);
 
-#define _KERNELNETWORKETHERNET_H
 #endif
 

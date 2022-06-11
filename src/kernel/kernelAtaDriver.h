@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,7 +21,8 @@
 
 // This header file contains definitions for the ATA family of disk drivers
 
-#if !defined(_KERNELATADRIVER_H)
+#ifndef _KERNELATADRIVER_H
+#define _KERNELATADRIVER_H
 
 #include <string.h>
 
@@ -381,6 +382,5 @@ ataCommandType kernelAtaCommandType(unsigned char);
 ataFeature *kernelAtaGetFeatures(void);
 ataDmaMode *kernelAtaGetDmaModes(void);
 
-#define _KERNELATADRIVER_H
 #endif
 

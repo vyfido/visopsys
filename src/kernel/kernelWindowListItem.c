@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -160,7 +160,7 @@ static int draw(kernelWindowComponent *component)
 			item->icon->draw(item->icon);
 	}
 
-	if ((component->params.flags & WINDOW_COMPFLAG_HASBORDER) &&
+	if ((component->params.flags & COMP_PARAMS_FLAG_HASBORDER) &&
 		component->drawBorder)
 	{
 		component->drawBorder(component, 1);
@@ -233,8 +233,9 @@ static int setData(kernelWindowComponent *component, void *itemParams,
 		if (!listItem->icon)
 			return (ERR_NOCREATE);
 
-		// Remove the icon from the parent container
-		removeFromContainer(listItem->icon);
+		// Remove it from the parent container
+		kernelWindowContainerDelete(listItem->icon->container,
+			listItem->icon);
 
 		component->width = (listItem->icon->width + 2);
 		component->height = (listItem->icon->height + 2);
@@ -267,7 +268,7 @@ static int setSelected(kernelWindowComponent *component, int selected)
 	if (item->icon)
 		((kernelWindowIcon *) item->icon->data)->selected = selected;
 
-	if (component->flags & WINFLAG_VISIBLE)
+	if (component->flags & WINDOW_COMP_FLAG_VISIBLE)
 	{
 		if (component->draw)
 			component->draw(component);
@@ -294,7 +295,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	kernelDebug(debug_gui, "WindowListItem \"%s\" mouse event",
 		((kernelWindowListItem *) component->data)->params.text);
 
-	if (event->type & EVENT_MOUSE_DOWN)
+	if (event->type & WINDOW_EVENT_MOUSE_DOWN)
 		setSelected(component, 1);
 
 	return (0);
@@ -364,7 +365,7 @@ kernelWindowComponent *kernelWindowNewListItem(objectKey parent,
 
 	// If default colors were requested, override the standard background
 	// color with the one we prefer (white)
-	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
+	if (!(component->params.flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND))
 	{
 		memcpy((color *) &component->params.background, &COLOR_WHITE,
 			sizeof(color));

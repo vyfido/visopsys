@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -105,29 +105,29 @@ static int mouseEvent(kernelWindow *menu, kernelWindowComponent *component,
 	kernelDebug(debug_gui, "WindowMenu mouseEvent");
 
 	// We don't care about anything other than left-button events
-	if (!(event->type & EVENT_MOUSE_LEFT))
+	if (!(event->type & WINDOW_EVENT_MOUSE_LEFT))
 		return (0);
 
 	// We only care about clicks in our menu items
 	if (component->type != listItemComponentType)
 		return (0);
 
-	if (component && (component->flags & WINFLAG_VISIBLE) &&
-		(component->flags & WINFLAG_ENABLED))
+	if (component && (component->flags & WINDOW_COMP_FLAG_VISIBLE) &&
+		(component->flags & WINDOW_COMP_FLAG_ENABLED))
 	{
 		kernelDebug(debug_gui, "WindowMenu clicked item %s",
 			((kernelWindowMenuItem *) component->data)->params.text);
 
-		if (event->type & EVENT_MOUSE_LEFTUP)
+		if (event->type & WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			memcpy(&tmpEvent, event, sizeof(windowEvent));
 
 			// Make this also a 'selection' event
-			tmpEvent.type |= EVENT_SELECTION;
+			tmpEvent.type |= WINDOW_EVENT_SELECTION;
 
 			// Adjust to the coordinates of the component
-			tmpEvent.xPosition -= (menu->xCoord + component->xCoord);
-			tmpEvent.yPosition -= (menu->yCoord + component->yCoord);
+			tmpEvent.coord.x -= (menu->xCoord + component->xCoord);
+			tmpEvent.coord.y -= (menu->yCoord + component->yCoord);
 
 			// Copy the event into the event stream of the menu item
 			kernelWindowEventStreamWrite(&component->events, &tmpEvent);
@@ -137,7 +137,7 @@ static int mouseEvent(kernelWindow *menu, kernelWindowComponent *component,
 		}
 	}
 
-	if (!(event->type & EVENT_MOUSE_DOWN))
+	if (!(event->type & WINDOW_EVENT_MOUSE_DOWN))
 		// No longer visible
 		kernelWindowSetVisible(menu, 0);
 
@@ -160,16 +160,16 @@ static int keyEvent(kernelWindow *menu, kernelWindowComponent *itemComponent,
 
 	kernelDebug(debug_gui, "WindowMenu keyEvent");
 
-	if (event->type != EVENT_KEY_DOWN)
+	if (event->type != WINDOW_EVENT_KEY_DOWN)
 		// Not interested
 		return (0);
 
-	if ((event->key == keyUpArrow) || (event->key == keyDownArrow))
+	if ((event->key.scan == keyUpArrow) || (event->key.scan == keyDownArrow))
 	{
 		// Find the next thing to select.
 		for (count = 0; count < container->numComponents; count ++)
 		{
-			if (event->key == keyUpArrow)
+			if (event->key.scan == keyUpArrow)
 			{
 				// Cursor up
 				if (!tmpSelected)
@@ -202,8 +202,8 @@ static int keyEvent(kernelWindow *menu, kernelWindowComponent *itemComponent,
 
 			itemComponent = container->components[tmpSelected];
 
-			if ((itemComponent->flags & WINFLAG_VISIBLE) &&
-				(itemComponent->flags & WINFLAG_ENABLED))
+			if ((itemComponent->flags & WINDOW_COMP_FLAG_VISIBLE) &&
+				(itemComponent->flags & WINDOW_COMP_FLAG_ENABLED))
 			{
 				kernelDebug(debug_gui, "WindowMenu selected item %s",
 					((kernelWindowMenuItem *) itemComponent->data)
@@ -233,7 +233,7 @@ static int keyEvent(kernelWindow *menu, kernelWindowComponent *itemComponent,
 		}
 	}
 
-	else if (event->key == keyEnter)
+	else if (event->key.scan == keyEnter)
 	{
 		// ENTER.  Is any item currently selected?
 		if (oldSelected >= 0)
@@ -243,11 +243,7 @@ static int keyEvent(kernelWindow *menu, kernelWindowComponent *itemComponent,
 			memcpy(&tmpEvent, event, sizeof(windowEvent));
 
 			// Make this also a 'selection' event
-			tmpEvent.type |= EVENT_SELECTION;
-
-			// Adjust to the coordinates of the component
-			tmpEvent.xPosition -= (menu->xCoord + itemComponent->xCoord);
-			tmpEvent.yPosition -= (menu->yCoord + itemComponent->yCoord);
+			tmpEvent.type |= WINDOW_EVENT_SELECTION;
 
 			// Copy the event into the event stream of the menu item
 			kernelWindowEventStreamWrite(&itemComponent->events, &tmpEvent);
@@ -260,7 +256,7 @@ static int keyEvent(kernelWindow *menu, kernelWindowComponent *itemComponent,
 		kernelWindowSetVisible(menu, 0);
 	}
 
-	else if (event->key == keyEsc)
+	else if (event->key.scan == keyEsc)
 	{
 		// No longer visible
 		kernelWindowSetVisible(menu, 0);
@@ -287,8 +283,8 @@ kernelWindow *kernelWindowNewMenu(kernelWindow *parentWindow,
 	kernelWindow *menu = NULL;
 	int count;
 
-	// Check parameters.  It's okay for 'parentWindow', 'menuBarComponent',
-	// or 'contents' to be NULL.
+	// Check params.  It's okay for 'parentWindow', 'menuBarComponent', or
+	// 'contents' to be NULL.
 	if (!name || !params)
 	{
 		kernelError(kernel_error, "NULL parameter");
@@ -307,7 +303,7 @@ kernelWindow *kernelWindowNewMenu(kernelWindow *parentWindow,
 	kernelWindowSetResizable(menu, 0);
 
 	// Any custom colours?
-	if (params->flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
+	if (params->flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND)
 		kernelWindowSetBackgroundColor(menu, &params->background);
 
 	if (contents)
@@ -335,9 +331,88 @@ kernelWindow *kernelWindowNewMenu(kernelWindow *parentWindow,
 	menu->keyEvent = &keyEvent;
 
 	// If the menu will be part of a menuBar, add it
-	if (menuBarComponent && menuBarComponent->add)
-		menuBarComponent->add(menuBarComponent, menu);
+	if (menuBarComponent)
+	{
+		if (kernelWindowContainerAdd(menuBarComponent, (objectKey) menu) >= 0)
+			menu->parentMenuBar = menuBarComponent;
+	}
 
 	return (menu);
+}
+
+
+int kernelWindowMenuUpdate(kernelWindow *menu, const char *name,
+	const char *charSet, windowMenuContents *contents,
+	componentParameters *params)
+{
+	// Update a menu's name, character set, contents, or parameters.  All are
+	// optional.
+
+	int status = 0;
+	int count;
+
+	// Check params.  It's okay for 'name', 'charSet', 'contents', or 'params'
+	// to be NULL.
+	if (!menu)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	if (name)
+		kernelWindowSetTitle(menu, name);
+
+	if (charSet)
+		kernelWindowSetCharSet(menu, charSet);
+
+	if (contents)
+	{
+		for (count = 0; count < contents->numItems; count ++)
+		{
+			if (contents->items[count].key)
+			{
+				kernelWindowComponentSetData(contents->items[count].key,
+					contents->items[count].text,
+					strlen(contents->items[count].text),
+					(count == (contents->numItems - 1)));
+			}
+		}
+
+		kernelWindowSetResizable(menu, 1);
+
+		kernelWindowLayout(menu);
+
+		kernelWindowSetResizable(menu, 0);
+	}
+
+	if (params)
+	{
+		// Any custom colours?
+		if (params->flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND)
+			kernelWindowSetBackgroundColor(menu, &params->background);
+	}
+
+	return (status = 0);
+}
+
+int kernelWindowMenuDestroy(kernelWindow *menu)
+{
+	// Menus are special instances of windows.  They can be destroyed using
+	// the usual function kernelWindowDestroy(), but this function can be used
+	// to ensure that they are first removed from any menu bar.
+
+	int status = 0;
+
+	// Check params
+	if (!menu)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	if (menu->parentMenuBar)
+		kernelWindowContainerDelete(menu->parentMenuBar, menu);
+
+	return (status = kernelWindowDestroy(menu));
 }
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -139,7 +139,7 @@ _X_ objectKey windowNewThumbImage(objectKey parent, const char *fileName, unsign
 		return (thumbImage = NULL);
 	}
 
-	if (params->flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
+	if (params->flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND)
 		background = &params->background;
 
 	status = getImage(fileName, &imageData, maxWidth, maxHeight, stretch,

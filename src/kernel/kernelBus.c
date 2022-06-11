@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,11 +22,11 @@
 #include "kernelBus.h"
 #include "kernelDebug.h"
 #include "kernelError.h"
-#include "kernelLinkedList.h"
 #include "kernelMalloc.h"
 #include <string.h>
+#include <sys/vis.h>
 
-static kernelLinkedList buses;
+static linkedList buses;
 static int initialized = 0;
 
 #ifdef DEBUG
@@ -71,12 +71,12 @@ int kernelBusRegister(kernelBus *bus)
 
 	if (!initialized)
 	{
-		memset(&buses, 0, sizeof(kernelLinkedList));
+		memset(&buses, 0, sizeof(linkedList));
 		initialized = 1;
 	}
 
 	// Add the supplied device to our list of buses
-	status = kernelLinkedListAdd(&buses, (void *) bus);
+	status = linkedListAdd(&buses, (void *) bus);
 	if (status < 0)
 		return (status);
 
@@ -90,7 +90,7 @@ int kernelBusGetTargets(kernelBusType type, kernelBusTarget **pointer)
 	// aggregate a list of targets from all buses of the requested type.
 
 	int status = 0;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	kernelBus *bus = NULL;
 	kernelBusTarget *tmpTargets = NULL;
 	int numTargets = 0;
@@ -114,7 +114,7 @@ int kernelBusGetTargets(kernelBusType type, kernelBusTarget **pointer)
 
 	// Loop through all our buses and collect all the targets for buses
 	// of the requested type
-	bus = kernelLinkedListIterStart(&buses, &iter);
+	bus = linkedListIterStart(&buses, &iter);
 	while (bus)
 	{
 		if (bus->type == type)
@@ -148,7 +148,7 @@ int kernelBusGetTargets(kernelBusType type, kernelBusTarget **pointer)
 			}
 		}
 
-		bus = kernelLinkedListIterNext(&buses, &iter);
+		bus = linkedListIterNext(&buses, &iter);
 	}
 
 	return (numTargets);

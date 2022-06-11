@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -20,7 +20,8 @@
 
 // This is the Visopsys version of the standard header file stdio.h
 
-#if !defined(_STDIO_H)
+#ifndef _STDIO_H
+#define _STDIO_H
 
 #include <stdarg.h>
 #include <sys/file.h>
@@ -96,6 +97,5 @@ int vsnprintf(char *, size_t, const char *, va_list);
 int vsprintf(char *, const char *, va_list);
 int vsscanf(const char *, const char *, va_list);
 
-#define _STDIO_H
 #endif
 

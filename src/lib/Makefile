@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2018 J. Andrew McLaughlin
+##  Copyright (C) 1998-2019 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -15,6 +15,7 @@ all:
 	${MAKE} -C libintl DEBUG=${DEBUG}
 	${MAKE} -C ../../ports/ntfsprogs -f Makefile.visopsys DEBUG=${DEBUG}
 	${MAKE} -C libtimer DEBUG=${DEBUG}
+	${MAKE} -C libvis DEBUG=${DEBUG}
 	${MAKE} -C libvsh DEBUG=${DEBUG}
 	${MAKE} -C libwindow DEBUG=${DEBUG}
 
@@ -28,6 +29,7 @@ clean:
 	${MAKE} -C libintl clean
 	${MAKE} -C ../../ports/ntfsprogs -f Makefile.visopsys clean
 	${MAKE} -C libtimer clean
+	${MAKE} -C libvis clean
 	${MAKE} -C libvsh clean
 	${MAKE} -C libwindow clean
 	rm -f *~ *.o core

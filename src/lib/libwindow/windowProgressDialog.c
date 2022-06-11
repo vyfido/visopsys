@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -52,7 +52,7 @@ static void progressThread(void)
 
 	// Copy the supplied progress structure so we'll notice changes
 	memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
-	if (lockGet(&prog->progLock) >= 0)
+	if (lockGet(&prog->lock) >= 0)
 	{
 		// Set initial display values.  After this we only watch for changes to
 		// these.
@@ -60,7 +60,7 @@ static void progressThread(void)
 			1 /* redraw */);
 		windowComponentSetData(statusLabel, (char *) prog->statusMessage,
 			strlen((char *) prog->statusMessage), 1 /* redraw */);
-		lockRelease(&prog->progLock);
+		lockRelease(&prog->lock);
 	}
 
 	windowComponentSetEnabled(cancelButton, prog->canCancel);
@@ -71,7 +71,7 @@ static void progressThread(void)
 
 	while (1)
 	{
-		if (lockGet(&prog->progLock) >= 0)
+		if (lockGet(&prog->lock) >= 0)
 		{
 			// Did the status change?
 			if (memcmp((void *) &lastProg, (void *) prog, sizeof(progress)))
@@ -133,13 +133,13 @@ static void progressThread(void)
 				memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
 			}
 
-			lockRelease(&prog->progLock);
+			lockRelease(&prog->lock);
 		}
 
 		// Check for our Cancel button
 		status = windowComponentEventGet(cancelButton, &event);
 		if ((status < 0) ||
-			((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
+			((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 		{
 			prog->cancel = 1;
 			windowComponentSetEnabled(cancelButton, 0);
@@ -150,7 +150,7 @@ static void progressThread(void)
 		multitaskerYield();
 	}
 
-	lockRelease(&prog->progLock);
+	lockRelease(&prog->lock);
 
 	// Exit.
 	multitaskerTerminate(0);
@@ -213,10 +213,11 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
 	params.padLeft = 0;
 	params.orientationX = orient_left;
 	params.orientationY = orient_top;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 
 	// Try to load the 'wait' image
-	status = imageLoad(WAITIMAGE_NAME, 0, 0, &iconImage);
+	status = imageLoad(WINDOW_WAITIMAGE_NAME, 0, 0, &iconImage);
 	if (!status && iconImage.data)
 	{
 		iconImage.transColor.green = 0xFF;
@@ -254,7 +255,8 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
 	params.gridWidth = 2;
 	params.padBottom = 0;
 	params.orientationX = orient_center;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	cancelButton = windowNewButton(container, _("Cancel"), NULL, &params);
 	if (!cancelButton)
 	{
@@ -275,7 +277,8 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
 	prog = tmpProg;
 
 	// Spawn our thread to monitor the progress
-	threadPid = multitaskerSpawn(progressThread, "progress thread", 0, NULL);
+	threadPid = multitaskerSpawn(progressThread, "progress thread",
+		0 /* no args */, NULL /* no args */, 1 /* run */);
 	if (threadPid < 0)
 	{
 		windowDestroy(dialogWindow);
@@ -304,7 +307,7 @@ _X_ int windowProgressDialogDestroy(objectKey window)
 	if (prog)
 	{
 		// Get a final lock on the progress structure
-		status = lockGet(&prog->progLock);
+		status = lockGet(&prog->lock);
 		if (status < 0)
 			return (status);
 
@@ -321,7 +324,7 @@ _X_ int windowProgressDialogDestroy(objectKey window)
 	windowDestroy(dialogWindow);
 
 	if (prog)
-		lockRelease(&prog->progLock);
+		lockRelease(&prog->lock);
 
 	dialogWindow = NULL;
 	progressBar = NULL;

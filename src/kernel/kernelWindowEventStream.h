@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,7 +22,8 @@
 // This file describes the kernel's facilities for reading and writing
 // window events using a 'streams' abstraction.
 
-#if !defined(_KERNELWINDOWEVENTSTREAM_H)
+#ifndef _KERNELWINDOWEVENTSTREAM_H
+#define _KERNELWINDOWEVENTSTREAM_H
 
 #include "kernelWindow.h"
 
@@ -34,6 +35,5 @@ int kernelWindowEventStreamPeek(windowEventStream *);
 int kernelWindowEventStreamRead(windowEventStream *, windowEvent *);
 int kernelWindowEventStreamWrite(windowEventStream *, windowEvent *);
 
-#define _KERNELWINDOWEVENTSTREAM_H
 #endif
 

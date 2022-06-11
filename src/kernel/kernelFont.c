@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,12 +31,12 @@
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
 #include "kernelMultitasker.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/env.h>
 #include <sys/paths.h>
+#include <sys/vis.h>
 
 static int initialized = 0;
 
@@ -142,8 +142,7 @@ static unsigned char glyphs[ASCII_PRINTABLES][8] = {
 };
 
 static kernelFont *systemFont = NULL;
-static kernelFont *fontList[FONTS_MAX];
-static int numFonts = 0;
+static linkedList fontList;
 
 
 static int search(const char *family, unsigned flags, int points,
@@ -165,7 +164,7 @@ static int search(const char *family, unsigned flags, int points,
 	kernelDebug(debug_font, "Searching for %s font with flags=0x%x, "
 		"points=%d, charset=%s", family, flags, points, charSet);
 
-	fileName = kernelMalloc(MAX_PATH_NAME_LENGTH);
+	fileName = kernelMalloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 		return (status = ERR_MEMORY);
 
@@ -199,17 +198,18 @@ static int search(const char *family, unsigned flags, int points,
 			continue;
 
 		// Get info about the font file
-		status = fileClassDriver->font.getInfo(fileName, &font);
+		status = fileClassDriver->font.getInfo(fileName, &font.info);
 		if (status < 0)
 			continue;
 
-		kernelDebug(debug_font, "Family %s, flags=0x%x, points=%d, charset=%s",
-			font.family, font.flags, font.points, font.charSet[0]);
+		kernelDebug(debug_font, "Family %s, flags=0x%x, points=%d, "
+			"charset=%s", font.info.family, font.info.flags, font.info.points,
+			font.info.charSet);
 
-		if (!strcmp(font.family, family) &&
-			(font.flags == (flags & ~FONT_STYLEFLAG_FIXED)) &&
-			(font.points == points) &&
-			!strcmp(font.charSet[0], charSet))
+		if (!strcmp(font.info.family, family) &&
+			(font.info.flags == (flags & ~FONT_STYLEFLAG_FIXED)) &&
+			(font.info.points == points) &&
+			!strcmp(font.info.charSet, charSet))
 		{
 			// This is the one we're looking for
 			strcpy(foundFileName, fileName);
@@ -283,10 +283,14 @@ static kernelFont *load(kernelFont *font, const char *fileName, int fixedWidth)
 	if (status >= 0)
 	{
 		if (fixedWidth)
-			font->flags |= FONT_STYLEFLAG_FIXED;
+			font->info.flags |= FONT_STYLEFLAG_FIXED;
 
 		if (allocated)
-			fontList[numFonts++] = font;
+		{
+			status = linkedListAdd(&fontList, font);
+			if (status < 0)
+				goto out;
+		}
 	}
 
 out:
@@ -301,8 +305,8 @@ out:
 		font = NULL;
 	}
 
-	kernelDebug(debug_font, "Loading %s %s", fileName,
-		((status < 0)? "failed" : "successful"));
+	kernelDebug(debug_font, "Loading %s %s", fileName, ((status < 0)?
+		"failed" : "successful"));
 
 	return (font);
 }
@@ -324,7 +328,7 @@ int kernelFontInitialize(void)
 	int count;
 
 	// Clear out our font list
-	memset(&fontList, 0, (sizeof(kernelFont *) * FONTS_MAX));
+	memset(&fontList, 0, sizeof(linkedList));
 
 	// Create the default system font
 
@@ -332,20 +336,26 @@ int kernelFontInitialize(void)
 	if (!systemFont)
 	{
 		kernelError(kernel_error, "Couldn't get memory for system font");
-		return (status = ERR_MEMORY);
+		status = ERR_MEMORY;
+		goto out;
 	}
 
 	systemFont->glyphs = kernelMalloc(ASCII_PRINTABLES * sizeof(kernelGlyph));
 	if (!systemFont->glyphs)
 	{
 		kernelError(kernel_error, "Couldn't get memory for system font");
-		return (status = ERR_MEMORY);
+		status = ERR_MEMORY;
+		goto out;
 	}
 
-	strcpy(systemFont->family, "system");
-	systemFont->points = 8;
-	systemFont->numCharSets = 1;
-	strcpy(systemFont->charSet[0], CHARSET_NAME_ASCII);
+	strcpy(systemFont->info.family, "system");
+	systemFont->info.points = 8;
+
+	strcpy(systemFont->info.charSet, CHARSET_NAME_ASCII);
+	status = linkedListAdd(&systemFont->charSet, systemFont->info.charSet);
+	if (status < 0)
+		goto out;
+
 	systemFont->numGlyphs = ASCII_CHARS;
 	systemFont->glyphWidth = 8;
 	systemFont->glyphHeight = 8;
@@ -364,30 +374,33 @@ int kernelFontInitialize(void)
 	}
 
 	initialized = 1;
+	status = 0;
 
-	return (status = 0);
+out:
+	if (status < 0)
+	{
+		if (systemFont)
+		{
+			if (systemFont->glyphs)
+				kernelFree(systemFont->glyphs);
+
+			free (systemFont);
+		}
+	}
+
+	return (status);
 }
 
 
-int kernelFontGetSystem(kernelFont **pointer)
+kernelFont *kernelFontGetSystem(void)
 {
 	// Return a pointer to the default system font
 
-	int status = 0;
-
 	// Make sure we've been initialized
 	if (!initialized)
-		return (status = ERR_NOTINITIALIZED);
+		return (NULL);
 
-	// Check parameters
-	if (!pointer)
-	{
-		kernelError(kernel_error, "NULL parameter");
-		return (status = ERR_NULLPARAMETER);
-	}
-
-	*pointer = systemFont;
-	return (status = 0);
+	return (systemFont);
 }
 
 
@@ -396,24 +409,29 @@ int kernelFontHasCharSet(kernelFont *font, const char *charSet)
 	// Returns 1 if the supplied font has the requested character set loaded.
 	// 0 otherwise.
 
-	int count;
+	linkedListItem *iter = NULL;
+	char *haveCharSet = NULL;
 
 	// Make sure we've been initialized
 	if (!initialized)
 		return (0);
 
-	// Check parameters
+	// Check params
 	if (!font || !charSet)
 	{
 		kernelError(kernel_error, "NULL parameter");
 		return (0);
 	}
 
-	for (count = 0; count < font->numCharSets; count ++)
+	haveCharSet = linkedListIterStart(&font->charSet, &iter);
+
+	while (haveCharSet)
 	{
-		if (!strcmp(font->charSet[count], charSet))
+		if (!strcmp(haveCharSet, charSet))
 			// We've got it
 			return (1);
+
+		haveCharSet = linkedListIterNext(&font->charSet, &iter);
 	}
 
 	// Don't have it
@@ -431,15 +449,15 @@ kernelFont *kernelFontGet(const char *family, unsigned flags, int points,
 	// call the driver to load it into memory.
 
 	int status = 0;
+	linkedListItem *iter = NULL;
 	kernelFont *font = NULL;
 	char *fileName = NULL;
-	int count;
 
 	// Make sure we've been initialized
 	if (!initialized)
 		return (font = NULL);
 
-	// Check parameters
+	// Check params
 	if (!family || !points)
 	{
 		kernelError(kernel_error, "NULL parameter");
@@ -447,30 +465,29 @@ kernelFont *kernelFontGet(const char *family, unsigned flags, int points,
 	}
 
 	if (!charSet)
-		charSet = CHARSET_NAME_DEFAULT;;
+		charSet = CHARSET_NAME_DEFAULT;
 
 	kernelDebug(debug_font, "Getting %s font with flags=0x%x, points=%d, "
 		"charset=%s", family, flags, points, charSet);
 
-	fileName = kernelMalloc(MAX_PATH_NAME_LENGTH);
+	fileName = kernelMalloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 		return (font = NULL);
 
 	// Check to see if it's been loaded already.
-	for (count = 0; count < numFonts; count ++)
+
+	font = linkedListIterStart(&fontList, &iter);
+
+	while (font)
 	{
 		kernelDebug(debug_font, "Checking %s, flags=0x%x, points=%d",
-			fontList[count]->family, fontList[count]->flags,
-			fontList[count]->points);
+			font->info.family, font->info.flags, font->info.points);
 
-		if (!strcmp(fontList[count]->family, family) &&
-			(fontList[count]->flags == flags) &&
-			(fontList[count]->points == points))
+		if (!strcmp(font->info.family, family) &&
+			(font->info.flags == flags) && (font->info.points == points))
 		{
 			// The font is already loaded.
 			kernelDebug(debug_font, "Font already loaded, checking charset");
-
-			font = fontList[count];
 
 			// Do we already have the required character set?
 			if (kernelFontHasCharSet(font, charSet))
@@ -482,15 +499,6 @@ kernelFont *kernelFontGet(const char *family, unsigned flags, int points,
 
 			// We don't have this charset yet.
 			kernelDebug(debug_font, "Charset not yet loaded");
-
-			// Don't exceed FONT_MAX_CHARSETS
-			if (font->numCharSets >= FONT_MAX_CHARSETS)
-			{
-				kernelDebugError("Max charsets reached for font %s with "
-					"flags=0x%x, points=%d", family, flags, points);
-				font = NULL;
-				goto out;
-			}
 
 			// Try to load it.
 
@@ -506,16 +514,14 @@ kernelFont *kernelFontGet(const char *family, unsigned flags, int points,
 			font = load(font, fileName, (flags & FONT_STYLEFLAG_FIXED));
 			goto out;
 		}
+
+		font = linkedListIterNext(&fontList, &iter);
 	}
 
 	if (!font)
 	{
 		// We don't have this font yet.
 		kernelDebug(debug_font, "Font not yet loaded");
-
-		// Don't exceed FONTS_MAX
-		if (numFonts >= FONTS_MAX)
-			goto out;
 
 		// Search for the basic ASCII version first.
 		status = search(family, flags, points, CHARSET_NAME_ASCII, fileName);
@@ -539,6 +545,7 @@ kernelFont *kernelFontGet(const char *family, unsigned flags, int points,
 	}
 
 out:
+
 	if (fileName)
 		kernelFree(fileName);
 
@@ -563,7 +570,7 @@ int kernelFontGetPrintedWidth(kernelFont *font, const char *charSet,
 	if (!initialized)
 		return (printedWidth = -1);
 
-	// Check parameters.  'charSet' can be NULL.
+	// Check params.  'charSet' can be NULL.
 	if (!font || !string)
 		return (printedWidth = -1);
 
@@ -605,7 +612,7 @@ int kernelFontGetWidth(kernelFont *font)
 	if (!initialized)
 		return (-1);
 
-	// Check parameters
+	// Check params
 	if (!font)
 		return (-1);
 
@@ -620,7 +627,7 @@ int kernelFontGetHeight(kernelFont *font)
 	if (!initialized)
 		return (-1);
 
-	// Check parameters
+	// Check params
 	if (!font)
 		return (-1);
 

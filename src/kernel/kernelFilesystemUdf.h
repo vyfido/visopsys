@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelFilesystemUdf.h
 //
 
-#if !defined(_KERNELFILESYSTEMUDF_H)
+#ifndef _KERNELFILESYSTEMUDF_H
+#define _KERNELFILESYSTEMUDF_H
 
 #include "kernelDisk.h"
 #include <sys/udf.h>
@@ -43,6 +44,5 @@ typedef volatile struct {
 
 } udfInternalData;
 
-#define _KERNELFILESYSTEMUDF_H
 #endif
 

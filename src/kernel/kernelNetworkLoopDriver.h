@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,7 +21,8 @@
 
 // Definitions for the loopback virtual network device
 
-#if !defined(_KERNELNETWORKLOOPDRIVER_H)
+#ifndef _KERNELNETWORKLOOPDRIVER_H
+#define _KERNELNETWORKLOOPDRIVER_H
 
 // General constants
 #define LOOP_QUEUE_LEN		64
@@ -42,6 +43,5 @@ typedef struct {
 // Functions exported from kernelNetworkLoopDriver.c
 int kernelNetworkLoopDeviceRegister(void);
 
-#define _KERNELNETWORKLOOPDRIVER_H
 #endif
 

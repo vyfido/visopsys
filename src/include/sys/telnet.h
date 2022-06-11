@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,8 @@
 // This file contains definitions and structures for using the telnet protocol
 // in Visopsys.
 
-#if !defined(_TELNET_H)
+#ifndef _TELNET_H
+#define _TELNET_H
 
 // Telnet commands
 #define TELNET_COMMAND_SE		240	// End of subnegotiation parameters.
@@ -64,6 +65,5 @@
 #define TELNET_OPTION_ENVAR		36	// environment variables: RFC 1408
 #define TELNET_OPTION_ENVOPT	39	// environment variables: RFC 1572
 
-#define _TELNET_H
 #endif
 

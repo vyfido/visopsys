@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,7 +23,8 @@
 // object files.  Much of the information here comes straight from the Tools
 // Interface Standard (TIS) Portable Formats Specification, version 1.1
 
-#if !defined(_ELF_H)
+#ifndef _ELF_H
+#define _ELF_H
 
 // ELF file types
 #define ELFTYPE_RELOC		1
@@ -234,6 +235,5 @@ typedef struct {
 
 } __attribute__((packed)) Elf32ProgramHeader;
 
-#define _ELF_H
 #endif
 

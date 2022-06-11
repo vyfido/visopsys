@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -50,13 +50,15 @@ Options:
 #include <sys/font.h>
 #include <sys/paths.h>
 #include <sys/text.h>
-#include <sys/vsh.h>
 
 #define _(string) gettext(string)
 #define gettext_noop(string) (string)
 
 #define WINDOW_TITLE		_("Edit")
 #define FILE_MENU			_("File")
+#define OPEN				gettext_noop("Open")
+#define SAVE				gettext_noop("Save")
+#define QUIT				gettext_noop("Quit")
 #define UNTITLED_FILENAME	_("Untitled")
 #define DISCARDQUESTION		_("File has been modified.  Discard changes?")
 #define FILENAMEQUESTION	_("Please enter the name of the file to edit:")
@@ -107,9 +109,9 @@ static objectKey statusLabel = NULL;
 windowMenuContents fileMenuContents = {
 	3,
 	{
-		{ gettext_noop("Open"), NULL },
-		{ gettext_noop("Save"), NULL },
-		{ gettext_noop("Quit"), NULL }
+		{ OPEN, NULL },
+		{ SAVE, NULL },
+		{ QUIT, NULL }
 	}
 };
 
@@ -120,7 +122,7 @@ static void error(const char *format, ...)
 	// Generic error message code for either text or graphics modes
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
@@ -142,23 +144,28 @@ static void updateStatus(void)
 
 	int column = textGetColumn();
 	int row = textGetRow();
-	char statusMessage[MAXSTRINGLENGTH];
+	char statusMessage[MAXSTRINGLENGTH + 1];
 	textAttrs attrs;
 
 	memset(&attrs, 0, sizeof(textAttrs));
 	attrs.flags = TEXT_ATTRS_REVERSE;
 
 	if (!strncmp(editFileName, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH))
+	{
 		sprintf(statusMessage, "%s%s  %u/%u", UNTITLED_FILENAME,
 			(modified? _(" (modified)") : ""), line, numLines);
+	}
 	else
+	{
 		sprintf(statusMessage, "%s%s  %u/%u", editFileStream.f.name,
 			(modified? _(" (modified)") : ""), line, numLines);
+	}
 
 	if (graphics)
+	{
 		windowComponentSetData(statusLabel, statusMessage,
 			strlen(statusMessage), 1 /* redraw */);
-
+	}
 	else
 	{
 		// Extend to the end of the line
@@ -401,7 +408,7 @@ static int doLoadFile(const char *fileName)
 static int askFileName(char *fileName)
 {
 	int status = 0;
-	char pwd[MAX_PATH_NAME_LENGTH];
+	char pwd[MAX_PATH_NAME_LENGTH + 1];
 
 	multitaskerGetCurrentDirectory(pwd, MAX_PATH_NAME_LENGTH);
 
@@ -414,7 +421,9 @@ static int askFileName(char *fileName)
 		return (status);
 	}
 	else
+	{
 		return (status = 0);
+	}
 }
 
 
@@ -450,7 +459,7 @@ static int loadFile(const char *fileName)
 			// Try to remember the name of the temp file, so we can delete it
 			// later if it doesn't get saved.
 
-			tempFileName = malloc(MAX_PATH_NAME_LENGTH);
+			tempFileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 			if (!tempFileName)
 				return (status = ERR_MEMORY);
 
@@ -501,8 +510,10 @@ static int loadFile(const char *fileName)
 	if (graphics)
 	{
 		if (readOnly)
+		{
 			windowComponentSetEnabled(
 				fileMenuContents.items[FILEMENU_SAVE].key, 0);
+		}
 		windowComponentFocus(textArea);
 	}
 
@@ -983,7 +994,7 @@ static void openFileThread(void)
 	int status = 0;
 	char *fileName = NULL;
 
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 		goto out;
 
@@ -1039,30 +1050,14 @@ static void quit(void)
 }
 
 
-static void initMenuContents(windowMenuContents *contents)
+static void initMenuContents(void)
 {
-	int count;
-
-	for (count = 0; count < contents->numItems; count ++)
-	{
-		strncpy(contents->items[count].text, _(contents->items[count].text),
-			WINDOW_MAX_LABEL_LENGTH);
-		contents->items[count].text[WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
-	}
-}
-
-
-static void refreshMenuContents(void)
-{
-	int count;
-
-	initMenuContents(&fileMenuContents);
-
-	for (count = 0; count < fileMenuContents.numItems; count ++)
-		windowComponentSetData(fileMenuContents.items[count].key,
-			fileMenuContents.items[count].text,
-			strlen(fileMenuContents.items[count].text),
-			(count == (fileMenuContents.numItems - 1)));
+	strncpy(fileMenuContents.items[FILEMENU_OPEN].text, gettext(OPEN),
+		WINDOW_MAX_LABEL_LENGTH);
+	strncpy(fileMenuContents.items[FILEMENU_SAVE].text, gettext(SAVE),
+		WINDOW_MAX_LABEL_LENGTH);
+	strncpy(fileMenuContents.items[FILEMENU_QUIT].text, gettext(QUIT),
+		WINDOW_MAX_LABEL_LENGTH);
 }
 
 
@@ -1071,22 +1066,30 @@ static void refreshWindow(void)
 	// We got a 'window refresh' event (probably because of a language
 	// switch), so we need to update things
 
+	const char *charSet = NULL;
+
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("edit");
 
 	// Re-get the character set
-	if (getenv(ENV_CHARSET))
-		windowSetCharSet(window, getenv(ENV_CHARSET));
+	charSet = getenv(ENV_CHARSET);
+
+	if (charSet)
+		windowSetCharSet(window, charSet);
 
 	// Refresh all the menu contents
-	refreshMenuContents();
+	initMenuContents();
 
 	// Refresh the 'file' menu
-	windowSetTitle(fileMenu, FILE_MENU);
+	windowMenuUpdate(fileMenu, FILE_MENU, charSet, &fileMenuContents,
+		NULL /* params */);
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -1102,11 +1105,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for window resize
-		else if (event->type == EVENT_WINDOW_RESIZE)
+		else if (event->type == WINDOW_EVENT_WINDOW_RESIZE)
 		{
 			screenColumns = textGetNumColumns();
 			screenRows = textGetNumRows();
@@ -1114,7 +1117,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			quit();
 	}
 
@@ -1122,12 +1125,12 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == fileMenuContents.items[FILEMENU_OPEN].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			if (!modified || askDiscardChanges())
 			{
-				if (multitaskerSpawn(&openFileThread, "open file", 0,
-					NULL) < 0)
+				if (multitaskerSpawn(&openFileThread, "open file",
+					0 /* no args */, NULL /* no args */, 1 /* run */) < 0)
 				{
 					error("%s", _("Unable to launch file dialog"));
 				}
@@ -1137,7 +1140,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == fileMenuContents.items[FILEMENU_SAVE].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 		{
 			status = saveFile();
 			if (status < 0)
@@ -1147,7 +1150,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == fileMenuContents.items[FILEMENU_QUIT].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 			quit();
 	}
 
@@ -1155,7 +1158,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == textArea)
 	{
-	 	if (event->type & EVENT_CURSOR_MOVE)
+	 	if (event->type & WINDOW_EVENT_CURSOR_MOVE)
 		{
 			// The user clicked to move the cursor, which is a pain.  We need
 			// to try to figure out the new screen line.
@@ -1205,8 +1208,9 @@ static void constructWindow(void)
 	// Create the top menu bar
 	objectKey menuBar = windowNewMenuBar(window, &params);
 
+	initMenuContents();
+
 	// Create the top 'file' menu
-	initMenuContents(&fileMenuContents);
 	fileMenu = windowNewMenu(window, menuBar, FILE_MENU, &fileMenuContents,
 		&params);
 	handleMenuEvents(&fileMenuContents);
@@ -1227,8 +1231,8 @@ static void constructWindow(void)
 		rows = 40;
 
 	// Put a text area in the window
-	params.flags |=
-		(WINDOW_COMPFLAG_STICKYFOCUS | WINDOW_COMPFLAG_CLICKABLECURSOR);
+	params.flags |= (COMP_PARAMS_FLAG_STICKYFOCUS |
+		COMP_PARAMS_FLAG_CLICKABLECURSOR);
 	params.font = font;
 	textArea = windowNewTextArea(window, 80, rows, 0, &params);
 	windowRegisterEventHandler(textArea, &eventHandler);
@@ -1238,7 +1242,7 @@ static void constructWindow(void)
 	windowSetTextOutput(textArea);
 
 	// Put a status label below the text area
-	params.flags &= ~WINDOW_COMPFLAG_STICKYFOCUS;
+	params.flags &= ~COMP_PARAMS_FLAG_STICKYFOCUS;
 	params.gridY += 1;
 	params.padBottom = 1;
 	params.font = fontGet(FONT_FAMILY_ARIAL, FONT_STYLEFLAG_BOLD, 10, NULL);
@@ -1316,7 +1320,7 @@ int main(int argc, char *argv[])
 	textEnableScroll(0);
 
 	screenLines = malloc(screenRows * sizeof(screenLineInfo));
-	editFileName = malloc(MAX_PATH_NAME_LENGTH);
+	editFileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!screenLines || !editFileName)
 	{
 		status = ERR_MEMORY;

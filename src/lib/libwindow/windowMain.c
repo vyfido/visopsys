@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -25,13 +25,13 @@
 #include <libintl.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/window.h>
 #include <sys/api.h>
+#include <sys/vis.h>
+#include <sys/window.h>
 
 
-typedef volatile struct {
+typedef struct {
 	objectKey key;
-	unsigned eventMask;
 	void (*function)(objectKey, windowEvent *);
 
 } callBack;
@@ -39,8 +39,7 @@ typedef volatile struct {
 int libwindow_initialized = 0;
 void libwindowInitialize(void);
 
-static callBack *callBacks = NULL;
-static volatile int numCallBacks = 0;
+static linkedList callBackList = { NULL, NULL, 0, { 0 } };
 static volatile int run = 0;
 static volatile int guiThreadPid = 0;
 
@@ -50,9 +49,9 @@ static void guiRun(void)
 	// This is the thread that runs for each user GUI program polling
 	// components' event queues for events.
 
-	objectKey key = NULL;
+	callBack *cb = NULL;
+	linkedListItem *iter = NULL;
 	windowEvent event;
-	int count;
 
 	run = 1;
 
@@ -60,16 +59,18 @@ static void guiRun(void)
 	{
 		// Loop through all of the registered callbacks looking for components
 		// with pending events
-		for (count = 0; (run && (count < numCallBacks)); count ++)
-		{
-			key = callBacks[count].key;
 
-			// Any events pending?
-			if (key && (windowComponentEventGet(key, &event) > 0))
+		cb = linkedListIterStart(&callBackList, &iter);
+
+		while (cb)
+		{
+			if (cb->key && (windowComponentEventGet(cb->key, &event) > 0))
 			{
-				if (callBacks[count].function)
-					callBacks[count].function(key, &event);
+				if (cb->function)
+					cb->function(cb->key, &event);
 			}
+
+			cb = linkedListIterNext(&callBackList, &iter);
 		}
 
 		// Done
@@ -104,11 +105,21 @@ _X_ int windowClearEventHandlers(void)
 {
 	// Desc: Remove all the callback event handlers registered with the windowRegisterEventHandler() function.
 
-	numCallBacks = 0;
+	callBack *cb = NULL;
+	linkedListItem *iter = NULL;
 
-	if (callBacks)
-		memset((void *) callBacks, 0, (WINDOW_MAX_EVENTHANDLERS *
-			sizeof(callBack)));
+	cb = linkedListIterStart(&callBackList, &iter);
+
+	while (cb)
+	{
+		if (linkedListRemove(&callBackList, cb) >= 0)
+			free(cb);
+
+		cb = linkedListIterNext(&callBackList, &iter);
+	}
+
+	// Probably unnecessary
+	linkedListClear(&callBackList);
 
 	return (0);
 }
@@ -119,30 +130,25 @@ _X_ int windowRegisterEventHandler(objectKey key, void (*function)(objectKey, wi
 	// Desc: Register a callback function as an event handler for the GUI object 'key'.  The GUI object can be a window component, or a window for example.  GUI components are typically the target of mouse click or key press events, whereas windows typically receive 'close window' events.  For example, if you create a button component in a window, you should call windowRegisterEventHandler() to receive a callback when the button is pushed by a user.  You can use the same callback function for all your objects if you wish -- the objectKey of the target component can always be found in the windowEvent passed to your callback function.  It is necessary to use one of the 'run' functions, below, such as windowGuiRun() or windowGuiThread() in order to receive the callbacks.
 
 	int status = 0;
+	callBack *cb = NULL;
 
-	// Check parameters
+	// Check params
 	if (!key || !function)
 		return (status = ERR_NULLPARAMETER);
 
-	if (!callBacks)
+	cb = calloc(1, sizeof(callBack));
+	if (!cb)
+		return (status = ERR_MEMORY);
+
+	cb->key = key;
+	cb->function = function;
+
+	status = linkedListAdd(&callBackList, cb);
+	if (status < 0)
 	{
-		// Get memory for our callbacks
-		callBacks = malloc(WINDOW_MAX_EVENTHANDLERS * sizeof(callBack));
-		if (!callBacks)
-		{
-			errno = ERR_MEMORY;
-			return (status = errno);
-		}
-
-		numCallBacks = 0;
+		free(cb);
+		return (status);
 	}
-
-	if (numCallBacks >= WINDOW_MAX_EVENTHANDLERS)
-		return (status = ERR_NOFREE);
-
-	callBacks[numCallBacks].key = key;
-	callBacks[numCallBacks].function = function;
-	numCallBacks += 1;
 
 	return (status = 0);
 }
@@ -152,27 +158,30 @@ _X_ int windowClearEventHandler(objectKey key)
 {
 	// Desc: Remove a callback event handler registered with the windowRegisterEventHandler() function.
 
-	int callBackIndex = -1;
-	int count;
+	int status = 0;
+	callBack *cb = NULL;
+	linkedListItem *iter = NULL;
 
-	for (count = 0; count < numCallBacks; count ++)
+	cb = linkedListIterStart(&callBackList, &iter);
+
+	while (cb)
 	{
-		if (callBacks[count].key == key)
+		if (cb->key == key)
 		{
-			callBackIndex = count;
-			break;
+			status = linkedListRemove(&callBackList, cb);
+			if (status < 0)
+				return (status);
+
+			free(cb);
+
+			return (status = 0);
 		}
+
+		cb = linkedListIterNext(&callBackList, &iter);
 	}
 
-	if (callBackIndex < 0)
-		return (ERR_NOSUCHENTRY);
-
-	if ((numCallBacks > 1) && (callBackIndex < (numCallBacks - 1)))
-		memcpy((void *) &callBacks[callBackIndex],
-			(void *) &callBacks[numCallBacks - 1], sizeof(callBack));
-	numCallBacks -= 1;
-
-	return (0);
+	// Not found
+	return (status = ERR_NOSUCHENTRY);
 }
 
 
@@ -181,7 +190,6 @@ _X_ void windowGuiRun(void)
 	// Desc: Run the GUI windowEvent polling as a blocking call.  In other words, use this function when your program has completed its setup code, and simply needs to watch for GUI events such as mouse clicks, key presses, and window closures.  If your program needs to do other processing (independently of windowEvents) you should use the windowGuiThread() function instead.
 
 	guiRun();
-	return;
 }
 
 
@@ -190,7 +198,10 @@ _X_ int windowGuiThread(void)
 	// Desc: Run the GUI windowEvent polling as a non-blocking call.  In other words, this function will launch a separate thread to monitor for GUI events and return control to your program.  Your program can then continue execution -- independent of GUI windowEvents.  If your program doesn't need to do any processing after setting up all its window components and event callbacks, use the windowGuiRun() function instead.
 
 	if (!guiThreadPid || !multitaskerProcessIsAlive(guiThreadPid))
-		guiThreadPid = multitaskerSpawn(&guiRunThread, "gui thread", 0, NULL);
+	{
+		guiThreadPid = multitaskerSpawn(&guiRunThread, "gui thread",
+			0 /* no args */, NULL /* no args */, 1 /* run */);
+	}
 
 	return (guiThreadPid);
 }
@@ -215,7 +226,5 @@ _X_ void windowGuiStop(void)
 	multitaskerYield();
 
 	guiThreadPid = 0;
-
-	return;
 }
 

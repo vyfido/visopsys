@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -200,7 +200,7 @@ static int unmount(const char *path, int removed)
 	// filesystem structure and its driver from the lists.
 
 	int status = 0;
-	char mountPointName[MAX_PATH_LENGTH];
+	char mountPointName[MAX_PATH_LENGTH + 1];
 	kernelDisk *theDisk = NULL;
 	kernelFilesystemDriver *theDriver = NULL;
 	kernelFileEntry *mountPoint = NULL;
@@ -722,9 +722,9 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 	// mounted.  Otherwise it returns negative.
 
 	int status = 0;
-	char mountPoint[MAX_PATH_LENGTH];
-	char parentDirName[MAX_PATH_LENGTH];
-	char mountDirName[MAX_NAME_LENGTH];
+	char mountPoint[MAX_PATH_LENGTH + 1];
+	char parentDirName[MAX_PATH_LENGTH + 1];
+	char mountDirName[MAX_NAME_LENGTH + 1];
 	kernelDisk *theDisk = NULL;
 	kernelFilesystemDriver *theDriver = NULL;
 	kernelFileEntry *parentDir = NULL;
@@ -909,7 +909,7 @@ uquad_t kernelFilesystemGetFreeBytes(const char *path)
 
 	int status = 0;
 	uquad_t freeSpace = 0;
-	char mountPoint[MAX_PATH_LENGTH];
+	char mountPoint[MAX_PATH_LENGTH + 1];
 	kernelFileEntry *fileEntry = NULL;
 	kernelDisk *theDisk = NULL;
 	kernelFilesystemDriver *theDriver = NULL;
@@ -973,7 +973,7 @@ unsigned kernelFilesystemGetBlockSize(const char *path)
 
 	int status = 0;
 	unsigned blockSize = 0;
-	char fixedPath[MAX_PATH_LENGTH];
+	char fixedPath[MAX_PATH_LENGTH + 1];
 	kernelFileEntry *fileEntry = NULL;
 
 	// Make sure the path name isn't NULL

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -61,7 +61,7 @@ static void usage(char *name)
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char userDir[MAX_PATH_NAME_LENGTH];
+	char userDir[MAX_PATH_NAME_LENGTH + 1];
 
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("adduser");

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,7 +24,8 @@
 // - Originally contributed by Davide Airaghi
 // - Modified by Andy McLaughlin.
 
-#if !defined(_KERNELRAMDISKDRIVER_H)
+#ifndef _KERNELRAMDISKDRIVER_H
+#define _KERNELRAMDISKDRIVER_
 
 #include "kernelDevice.h"
 
@@ -37,6 +38,5 @@ typedef struct {
 
 } kernelRamDisk;
 
-#define _KERNELRAMDISKDRIVER_
 #endif
 

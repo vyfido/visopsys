@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -44,7 +44,7 @@ static void error(const char *format, ...)
 	va_list list;
 	char *output = NULL;
 
-	output = malloc(MAXSTRINGLENGTH);
+	output = malloc(MAXSTRINGLENGTH + 1);
 	if (!output)
 		return;
 
@@ -145,9 +145,10 @@ static int eventHandler(windowArchiveList *archList, windowEvent *event)
 
 	// Check for events in our icon list.  We consider the icon 'clicked'
 	// if it is a mouse click selection, or an ENTER key selection
-	if ((event->type & EVENT_SELECTION) &&
-		((event->type & EVENT_MOUSE_LEFTUP) ||
-		((event->type & EVENT_KEY_DOWN) && (event->key == keyEnter))))
+	if ((event->type & WINDOW_EVENT_SELECTION) &&
+		((event->type & WINDOW_EVENT_MOUSE_LEFTUP) ||
+		((event->type & WINDOW_EVENT_KEY_DOWN) &&
+			(event->key.scan == keyEnter))))
 	{
 		if (archList->selectionCallback)
 			archList->selectionCallback(selected);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,8 @@
 
 // This is the Visopsys version of the GNU gettext header file libintl.h
 
-#if !defined(_LIBINTL_H)
+#ifndef _LIBINTL_H
+#define _LIBINTL_H
 
 #include <sys/paths.h>
 
@@ -32,6 +33,5 @@ char *bindtextdomain(const char *, const char *);
 char *gettext(const char *);
 char *textdomain(const char *);
 
-#define _LIBINTL_H
 #endif
 

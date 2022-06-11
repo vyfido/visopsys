@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2018 J. Andrew McLaughlin
+##  Copyright (C) 1998-2019 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -11,8 +11,7 @@ INCDIR = ../../include
 
 include ${ROOT}/Makefile.include
 
-STDDEPS = ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
-	${INCDIR}/sys/*.h
+STDDEPS = ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h ${INCDIR}/sys/*.h
 INCLUDE = -nostdinc -I${INCDIR}
 CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
 LFLAGS = -nostdlib
@@ -25,17 +24,16 @@ endif
 
 NAMES = vshCompleteFilename \
 	vshCursorMenu \
-	vshDeleteFile \
 	vshDumpFile \
 	vshFileList \
 	vshMakeAbsolutePath \
 	vshMakeDirRecursive \
+	vshPager \
 	vshParseCommand \
 	vshPasswordPrompt \
 	vshPrintDate \
 	vshPrintTime \
 	vshProgressBar \
-	vshMoveFile \
 	vshSearchPath
 
 OBJDIR = obj

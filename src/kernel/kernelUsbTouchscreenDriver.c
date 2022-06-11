@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,9 +30,9 @@
 #include "kernelMalloc.h"
 #include "kernelTouch.h"
 #include "kernelUsbDriver.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <string.h>
+#include <sys/vis.h>
 
 
 #ifdef DEBUG
@@ -974,7 +974,7 @@ static int detectTarget(void *parent, int target, void *driver)
 		kernelDeviceGetClass(DEVICESUBCLASS_TOUCHSCR_USB);
 	kernelUsbSetDeviceAttrs(touchDev->usbDev, interNum, &touchDev->dev);
 	snprintf(value, sizeof(value), "%d", touchDev->numReports);
-	kernelVariableListSet(&touchDev->dev.device.attrs, "touch.reports", value);
+	variableListSet(&touchDev->dev.device.attrs, "touch.reports", value);
 	touchDev->dev.driver = driver;
 
 	// Add the kernel device

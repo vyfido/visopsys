@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,12 +26,12 @@
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelSysTimer.h"
-#include "kernelVariableList.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <sys/processor.h>
+#include <sys/vis.h>
 
 static struct {
 	char *string;
@@ -76,7 +76,7 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 		return (status = ERR_NOCREATE);
 
 	// Initialize the variable list for attributes of the CPU
-	status = kernelVariableListCreate(&dev->device.attrs);
+	status = variableListCreateSystem(&dev->device.attrs);
 	if (status < 0)
 	{
 		kernelFree(dev);
@@ -97,18 +97,17 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 	vendorString[12] = '\0';
 
 	// Try to identify the chip vendor by name
-	kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR,
-		"unknown");
+	variableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR, "unknown");
 	for (count1 = 0; cpuVendorIds[count1].string; count1 ++)
 	{
 		if (!strncmp(vendorString, cpuVendorIds[count1].string, 12))
 		{
-			kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR,
+			variableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR,
 				cpuVendorIds[count1].vendor);
 			break;
 		}
 	}
-	kernelVariableListSet(&dev->device.attrs, "vendor.string", vendorString);
+	variableListSet(&dev->device.attrs, "vendor.string", vendorString);
 
 	// Do additional supported functions
 
@@ -121,27 +120,27 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 		// CPU type
 		sprintf(variable, "%s.%s", "cpu", "type");
 		sprintf(value, "%02x", ((rega & 0xF000) >> 12));
-		kernelVariableListSet(&dev->device.attrs, variable, value);
+		variableListSet(&dev->device.attrs, variable, value);
 
 		// CPU family
 		sprintf(variable, "%s.%s", "cpu", "family");
 		sprintf(value, "%02x", ((rega & 0xF00) >> 8));
-		kernelVariableListSet(&dev->device.attrs, variable, value);
+		variableListSet(&dev->device.attrs, variable, value);
 
 		// CPU model
 		sprintf(variable, "%s.%s", "cpu", "model");
 		sprintf(value, "%02x", ((rega & 0xF0) >> 4));
-		kernelVariableListSet(&dev->device.attrs, variable, value);
+		variableListSet(&dev->device.attrs, variable, value);
 
 		// CPU revision
 		sprintf(variable, "%s.%s", "cpu", "rev");
 		sprintf(value, "%02x", (rega & 0xF));
-		kernelVariableListSet(&dev->device.attrs, variable, value);
+		variableListSet(&dev->device.attrs, variable, value);
 
 		// CPU features
 		sprintf(variable, "%s.%s", "cpu", "features");
 		sprintf(value, "%08x", regd);
-		kernelVariableListSet(&dev->device.attrs, variable, value);
+		variableListSet(&dev->device.attrs, variable, value);
 	}
 
 	// See if there's extended CPUID info
@@ -188,8 +187,7 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 			}
 		}
 
-		kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_MODEL,
-			value);
+		variableListSet(&dev->device.attrs, DEVICEATTRNAME_MODEL, value);
 	}
 
 	// Complete the kernel device depending on what we detected
@@ -207,7 +205,7 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 	status = kernelDeviceAdd(parent, dev);
 	if (status < 0)
 	{
-		kernelVariableListDestroy(&dev->device.attrs);
+		variableListDestroy(&dev->device.attrs);
 		kernelFree(dev);
 		return (status);
 	}

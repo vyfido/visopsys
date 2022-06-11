@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelMemory.h
 //
 
-#if !defined(_KERNELMEMORY_H)
+#ifndef _KERNELMEMORY_H
+#define _KERNELMEMORY_H
 
 #include <sys/memory.h>
 
@@ -61,6 +62,5 @@ int kernelMemoryReleaseAllByProcId(int);
 int kernelMemoryGetStats(memoryStats *, int);
 int kernelMemoryGetBlocks(memoryBlock *, unsigned, int);
 
-#define _KERNELMEMORY_H
 #endif
 

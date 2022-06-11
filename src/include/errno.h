@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,8 @@
 
 // This is the Visopsys version of the standard header file errno.h
 
-#if !defined(_ERRNO_H)
+#ifndef _ERRNO_H
+#define _ERRNO_H
 
 // This is where we get all the error numbers that the Visopsys kernel
 // understands
@@ -92,6 +93,5 @@ extern int errno;
 // Synonyms -- compatibility
 #define EOPNOTSUPP ENOTSUP
 
-#define _ERRNO_H
 #endif
 

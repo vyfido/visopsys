@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,8 @@
 // This file is the Visopsys implementation of the standard C library header
 // file <sys/socket.h>.
 
-#if !defined(_SOCKET_H)
+#ifndef _SOCKET_H
+#define _SOCKET_H
 
 // Contains the size_t and ssize_t definitions
 #include <stddef.h>
@@ -108,6 +109,5 @@ ssize_t send(int, const void *, size_t, int);
 int shutdown(int, int);
 int socket(int, int, int);
 
-#define _SOCKET_H
 #endif
 

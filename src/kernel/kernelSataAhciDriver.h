@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,11 +21,13 @@
 
 // This header file contains definitions for the kernel's AHCI SATA driver
 
-#if !defined(_KERNELSATAAHCIDRIVER_H)
+#ifndef _KERNELSATAAHCIDRIVER_H
+#define _KERNELSATAAHCIDRIVER_H
 
 #include "kernelBus.h"
 #include "kernelDisk.h"
 #include "kernelSataDriver.h"
+#include <sys/lock.h>
 
 #define AHCI_VERSION_1_1	0x00010100
 #define AHCI_VERSION_1_2	0x00010200
@@ -299,7 +301,7 @@ typedef volatile struct {
 	ahciReceivedFises *recvFis;
 	int waitProcess;
 	unsigned interruptStatus;
-	lock lock;
+	spinLock lock;
 
 } ahciPort;
 
@@ -322,6 +324,5 @@ typedef volatile struct {
 
 } ahciController;
 
-#define _KERNELSATAAHCIDRIVER_H
 #endif
 

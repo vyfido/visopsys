@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,7 +21,8 @@
 
 // This is the header for the handling of GPT disk labels
 
-#if !defined(_GPT_H)
+#ifndef _GPT_H
+#define _GPT_H
 
 #include <sys/guid.h>
 #include <sys/types.h>
@@ -280,6 +281,5 @@ typedef struct {
 
 } __attribute__((packed)) gptEntry;
 
-#define _GPT_H
 #endif
 

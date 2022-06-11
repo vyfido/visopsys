@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2018 J. Andrew McLaughlin
+#  Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-03-03 03:09+0000\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -19,72 +19,72 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-9\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: disprops.c:55
+#: disprops.c:57
 msgid "Display Settings"
 msgstr "Ekran Ayarlari"
 
-#: disprops.c:56
+#: disprops.c:58
 msgid "Screen resolution:"
 msgstr "Ekran çözünürlügü:"
 
-#: disprops.c:57
+#: disprops.c:59
 msgid "Colors:"
 msgstr "Renkler:"
 
-#: disprops.c:58
+#: disprops.c:60
 msgid "Foreground"
 msgstr "Önplan"
 
-#: disprops.c:59
+#: disprops.c:61
 msgid "Background"
 msgstr "Arkaplan"
 
-#: disprops.c:60
+#: disprops.c:62
 msgid "Desktop"
 msgstr "Masaüstü"
 
-#: disprops.c:61
+#: disprops.c:63
 msgid "Change"
 msgstr "Degistir"
 
-#: disprops.c:62
+#: disprops.c:64
 msgid "Background wallpaper:"
 msgstr "Arkaplan duvar kagidi:"
 
-#: disprops.c:63
+#: disprops.c:65
 msgid "Choose"
 msgstr "Seç"
 
-#: disprops.c:64
+#: disprops.c:66
 msgid "Use background wallpaper"
 msgstr "Arkaplan duvar kagidini kullan"
 
-#: disprops.c:65
+#: disprops.c:67
 msgid "Miscellaneous:"
 msgstr "Çesitli:"
 
-#: disprops.c:66
+#: disprops.c:68
 msgid "Boot in graphics mode"
 msgstr "Grafik modda boot et"
 
-#: disprops.c:67
+#: disprops.c:69
 msgid "Show a clock on the desktop"
 msgstr "Masaüstünde saati göster"
 
-#: disprops.c:68
+#: disprops.c:70
 msgid "OK"
 msgstr "Tamam"
 
-#: disprops.c:69
+#: disprops.c:71
 msgid "Cancel"
 msgstr "Iptal"
 
-#: disprops.c:217
+#: disprops.c:219
 #, c-format
 msgid " %d x %d, %d bit "
 msgstr " %d x %d, %d Bit "
 
-#: disprops.c:683
+#: disprops.c:691
 #, c-format
 msgid ""
 "The resolution has been changed to %dx%d, %dbpp\n"
@@ -93,20 +93,20 @@ msgstr ""
 "Ekran çözünürlügü %dx%d 'e degistirildi, %dbpp\n"
 "Bir sonraki yeniden baslatmada uygulanacak."
 
-#: disprops.c:687
+#: disprops.c:695
 msgid "Changed"
 msgstr "Degistirildi"
 
-#: disprops.c:691
+#: disprops.c:699
 #, c-format
 msgid "Error %d setting mode"
 msgstr "%d modu ayarlanirken hata olustu"
 
-#: disprops.c:692
+#: disprops.c:700
 msgid "Error"
 msgstr "Hata"
 
-#: disprops.c:968
+#: disprops.c:980
 #, c-format
 msgid ""
 "\n"

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -100,10 +100,14 @@ static char *setCategory(const char *name, char *category, const char *locale)
 			free((void *) locale);
 		}
 		else
+		{
 			strcpy(category, _c_locale_name);
+		}
 	}
 	else
+	{
 		strncpy(category, locale, LOCALE_MAX_NAMELEN);
+	}
 
 	category[LOCALE_MAX_NAMELEN] = '\0';
 	return (category);
@@ -120,8 +124,8 @@ char *setlocale(int category, const char *locale)
 		return (returnLocale = NULL);
 	}
 
-	// Note that these calls are not redundant since each one of these
-	// flags can result in copying into different categories
+	// Note that these calls are not redundant since each one of these flags
+	// can result in copying into different categories
 
 	if ((category & LC_ALL) == LC_ALL)
 		returnLocale = setCategory("LC_ALL", _lc_all, locale);

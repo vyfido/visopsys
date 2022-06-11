@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,13 +21,13 @@
 
 // This is the Visopsys version of the header file endian.h
 
-#if !defined(_ENDIAN_H)
+#ifndef _ENDIAN_H
+#define _ENDIAN_H
 
 #define __LITTLE_ENDIAN  1234
 #define __BIG_ENDIAN     4321
 
 #define __BYTE_ORDER     __LITTLE_ENDIAN
 
-#define _ENDIAN_H
 #endif
 

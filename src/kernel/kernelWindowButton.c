@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -95,7 +95,7 @@ static void drawFocus(kernelWindowComponent *component, int focus)
 	color *drawColor = NULL;
 	int borderThickness = windowVariables->border.thickness;
 
-	if (component->flags & WINFLAG_CANFOCUS)
+	if (component->flags & WINDOW_COMP_FLAG_CANFOCUS)
 	{
 		if (focus)
 			drawColor = (color *) &component->params.foreground;
@@ -166,7 +166,7 @@ static int draw(kernelWindowComponent *component)
 			tmpYoff, component->width, component->height);
 	}
 
-	drawFocus(component, (component->flags & WINFLAG_HASFOCUS));
+	drawFocus(component, (component->flags & WINDOW_COMP_FLAG_HASFOCUS));
 
 	return (0);
 }
@@ -208,15 +208,15 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 {
 	kernelWindowButton *button = (kernelWindowButton *) component->data;
 
-	if ((event->type & EVENT_MOUSE_DOWN) || (event->type & EVENT_MOUSE_UP) ||
-		(event->type & EVENT_MOUSE_DRAG))
+	if ((event->type & WINDOW_EVENT_MOUSE_DOWN) || (event->type &
+		WINDOW_EVENT_MOUSE_UP) || (event->type & WINDOW_EVENT_MOUSE_DRAG))
 	{
-		if ((event->type == EVENT_MOUSE_LEFTUP) ||
-			(event->type == EVENT_MOUSE_DRAG))
+		if ((event->type == WINDOW_EVENT_MOUSE_LEFTUP) ||
+			(event->type == WINDOW_EVENT_MOUSE_DRAG))
 		{
 			button->state = 0;
 		}
-		else if (event->type == EVENT_MOUSE_LEFTDOWN)
+		else if (event->type == WINDOW_EVENT_MOUSE_LEFTDOWN)
 		{
 			button->state = 1;
 		}
@@ -239,16 +239,17 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 
 	// We're only looking for 'enter' key releases, which we turn into mouse
 	// button presses.
-	if ((event->type & EVENT_MASK_KEY) && (event->key == keyEnter))
+	if ((event->type & WINDOW_EVENT_MASK_KEY) &&
+		(event->key.scan == keyEnter))
 	{
 		// If the button is not pushed, ignore this
-		if ((event->type == EVENT_KEY_UP) && !button->state)
+		if ((event->type == WINDOW_EVENT_KEY_UP) && !button->state)
 			return (status = 0);
 
-		if (event->type == EVENT_KEY_DOWN)
-			event->type = EVENT_MOUSE_LEFTDOWN;
-		if (event->type == EVENT_KEY_UP)
-			event->type = EVENT_MOUSE_LEFTUP;
+		if (event->type == WINDOW_EVENT_KEY_DOWN)
+			event->type = WINDOW_EVENT_MOUSE_LEFTDOWN;
+		if (event->type == WINDOW_EVENT_KEY_UP)
+			event->type = WINDOW_EVENT_MOUSE_LEFTUP;
 
 		status = mouseEvent(component, event);
 	}
@@ -306,7 +307,8 @@ kernelWindowComponent *kernelWindowNewButton(objectKey parent,
 		return (component);
 
 	component->type = buttonComponentType;
-	component->flags |= (WINFLAG_CANFOCUS | WINFLAG_RESIZABLEX);
+	component->flags |= (WINDOW_COMP_FLAG_CANFOCUS |
+		WINDOW_COMP_FLAG_RESIZABLEX);
 
 	// Set the functions
 	component->draw = &draw;

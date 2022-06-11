@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -41,7 +41,7 @@ static int updaterPID = 0;
 
 static stream logStream;
 static fileStream * volatile logFileStream = NULL;
-static lock logLock;
+static spinLock logLock;
 
 
 static int flushLogStream(void)
@@ -159,7 +159,7 @@ int kernelLogInitialize(void)
 	// Make a note that we've been initialized
 	loggingInitialized = 1;
 
-	memset((void *) &logLock, 0, sizeof(lock));
+	memset((void *) &logLock, 0, sizeof(spinLock));
 
 	// Return success
 	return (status = 0);
@@ -210,7 +210,8 @@ int kernelLogSetFile(const char *logFileName)
 
 	// Make a logging thread
 	kernelDebug(debug_misc, "Log spawn logging thread");
-	updaterPID = kernelMultitaskerSpawn(logUpdater, "logging thread", 0, NULL);
+	updaterPID = kernelMultitaskerSpawn(logUpdater, "logging thread",
+		0 /* no args */, NULL /* no args */, 1 /* run */);
 	// Make sure we were successful
 	if (updaterPID < 0)
 	{
@@ -224,9 +225,11 @@ int kernelLogSetFile(const char *logFileName)
 	status = kernelMultitaskerSetProcessPriority(updaterPID,
 		(PRIORITY_LEVELS - 2));
 	if (status < 0)
+	{
 		// Oops, we couldn't make it low-priority.  This is probably
 		// bad, but not fatal.  Make a kernelError.
 		kernelError(kernel_warn, "Couldn't re-nice the logging thread");
+	}
 
 	// Return success
 	return (status = 0);
@@ -254,8 +257,8 @@ int kernelLog(const char *format, ...)
 
 	int status = 0;
 	va_list list;
-	char output[MAXSTRINGLENGTH];
-	char streamOutput[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
+	char streamOutput[MAXSTRINGLENGTH + 1];
 	struct tm theTime;
 
 	// Do not accept this call unless logging has been initialized

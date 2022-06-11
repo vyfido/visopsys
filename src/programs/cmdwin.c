@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -74,6 +74,9 @@ static void refreshWindow(void)
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window (not necessary if no components have changed)
+	//windowLayout(window);
 }
 
 
@@ -83,15 +86,19 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
+		{
 			refreshWindow();
+		}
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
+		{
 			// The window is being closed by a GUI event.  Just kill our shell
 			// process -- the main process will stop blocking and do the rest
 			// of the shutdown.
 			multitaskerKillProcess(shellProcessId, 0 /* no force */);
+		}
 	}
 }
 
@@ -142,7 +149,7 @@ int main(int argc, char *argv[])
 	params.padBottom = 1;
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
-	params.flags |= WINDOW_COMPFLAG_STICKYFOCUS;
+	params.flags |= COMP_PARAMS_FLAG_STICKYFOCUS;
 	params.font = fontGet(FONT_FAMILY_XTERM, FONT_STYLEFLAG_FIXED, 10, NULL);
 	if (!params.font)
 		// The default/system fonts can comfortably show more rows
@@ -154,11 +161,11 @@ int main(int argc, char *argv[])
 	// Use the text area for all our input and output
 	windowSetTextOutput(textArea);
 
-	// Go live.
-	windowSetVisible(window, 1);
-
 	// Register an event handler to catch window close events
 	windowRegisterEventHandler(window, &eventHandler);
+
+	// Go live.
+	windowSetVisible(window, 1);
 
 	// Run the GUI as a thread
 	windowGuiThread();

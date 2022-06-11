@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelFile.h
 //
 
-#if !defined(_KERNELFILE_H)
+#ifndef _KERNELFILE_H
+#define _KERNELFILE_H
 
 #include "kernelLock.h"
 #include <sys/disk.h>
@@ -34,7 +35,7 @@ struct _kernelDisk;
 
 // This structure defines a file or directory entry
 typedef volatile struct _kernelFileEntry {
-	char name[MAX_NAME_LENGTH];
+	char name[MAX_NAME_LENGTH + 1];
 	fileType type;
 	int flags;
 	unsigned creationTime;
@@ -50,7 +51,7 @@ typedef volatile struct _kernelFileEntry {
 	volatile struct _kernelDisk *disk;	// parent filesystem
 	void *driverData;					// private fs-driver-specific data
 	int openCount;
-	lock lock;
+	spinLock lock;
 
 	// Linked-list stuff.
 	volatile struct _kernelFileEntry *parentDirectory;
@@ -103,6 +104,5 @@ int kernelFileGetTempName(char *, unsigned);
 int kernelFileGetTemp(file *);
 int kernelFileGetFullPath(file *, char *, int);
 
-#define _KERNELFILE_H
 #endif
 

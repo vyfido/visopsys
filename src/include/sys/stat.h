@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,8 @@
 // This file is the Visopsys implementation of the standard <sys/stat.h>
 // file found in Unix.
 
-#if !defined(_STAT_H)
+#ifndef _STAT_H
+#define _STAT_H
 
 // Contains the time_t definition
 #include <time.h>
@@ -70,6 +71,5 @@ struct stat {
 int mkdir(const char *, mode_t);
 int stat(const char *, struct stat *);
 
-#define _STAT_H
 #endif
 

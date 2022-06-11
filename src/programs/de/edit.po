@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2018 J. Andrew McLaughlin
+#  Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,82 +17,82 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-15\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: edit.c:58
+#: edit.c:57
 msgid "Edit"
 msgstr "Bearbeiten"
 
-#: edit.c:59
+#: edit.c:58
 msgid "File"
 msgstr "Datei"
 
-#: edit.c:60
-msgid "Untitled"
-msgstr "Unbenannt"
-
-#: edit.c:61
-msgid "File has been modified.  Discard changes?"
-msgstr "Datei wurde verändert. Änderungen verwerfen?"
-
-#: edit.c:62
-msgid "Please enter the name of the file to edit:"
-msgstr "Bitte geben Sie den Namen der Datei ein die bearbeitet werden soll:"
-
-#: edit.c:110
+#: edit.c:59
 msgid "Open"
 msgstr "Öffnen"
 
-#: edit.c:111
+#: edit.c:60
 msgid "Save"
 msgstr "Speichern"
 
-#: edit.c:112
+#: edit.c:61
 msgid "Quit"
 msgstr "Beenden"
 
-#: edit.c:131
+#: edit.c:62
+msgid "Untitled"
+msgstr "Unbenannt"
+
+#: edit.c:63
+msgid "File has been modified.  Discard changes?"
+msgstr "Datei wurde verändert. Änderungen verwerfen?"
+
+#: edit.c:64
+msgid "Please enter the name of the file to edit:"
+msgstr "Bitte geben Sie den Namen der Datei ein die bearbeitet werden soll:"
+
+#: edit.c:133
 msgid "Error"
 msgstr "Fehler"
 
-#: edit.c:153 edit.c:156
+#: edit.c:156 edit.c:161
 msgid " (modified)"
 msgstr " (geändert)"
 
-#: edit.c:411
+#: edit.c:418
 msgid "Enter filename"
 msgstr "Dateiname eingeben"
 
-#: edit.c:966
+#: edit.c:977
 msgid "Discard changes?"
 msgstr "Änderungen verwerfen?"
 
-#: edit.c:967
+#: edit.c:978
 msgid "Discard"
 msgstr "Verwerfen"
 
-#: edit.c:967
+#: edit.c:978
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: edit.c:1002 edit.c:1330
+#: edit.c:1013 edit.c:1334
 msgid "Couldn't create file in a read-only filesystem"
 msgstr ""
 "Das Dateisystem ist schreibgeschützt, die Datei konnte nicht erstellt werden"
 
-#: edit.c:1004 edit.c:1332
+#: edit.c:1015 edit.c:1336
 #, c-format
 msgid "Error %d loading file"
 msgstr "Fehler %d beim laden der Datei"
 
-#: edit.c:1132
+#: edit.c:1135
 msgid "Unable to launch file dialog"
 msgstr "Datei-Fenster konnte nicht gestartet werden"
 
-#: edit.c:1144
+#: edit.c:1147
 #, c-format
 msgid "Error %d saving file"
 msgstr "Fehler %d beim speichern der Datei"
 
-#: edit.c:1277
+#: edit.c:1281
 #, c-format
 msgid ""
 "\n"
@@ -101,7 +101,7 @@ msgstr ""
 "\n"
 "Der Befehl \"%s\" funktioniert nur im Grafik-Modus \n"
 
-#: edit.c:1293
+#: edit.c:1297
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,7 +22,8 @@
 // This header file contains information about the information structure
 // passed to the kernel by the OS loader at startup.
 
-#if !defined(_OSLOADER_H)
+#ifndef _OSLOADER_H
+#define _OSLOADER_H
 
 #include <sys/graphic.h>
 
@@ -85,6 +86,5 @@ typedef struct {
 
 } __attribute__((packed)) loaderInfoStruct;
 
-#define _OSLOADER_H
 #endif
 

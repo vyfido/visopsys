@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelFilesystemFat.h
 //
 
-#if !defined(_KERNELFILESYSTEMFAT_H)
+#ifndef _KERNELFILESYSTEMFAT_H
+#define _KERNELFILESYSTEMFAT_H
 
 #include "kernelDisk.h"
 #include "kernelLock.h"
@@ -65,7 +66,7 @@ typedef volatile struct {
 	// Bitmap of free clusters
 	unsigned char *freeClusterBitmap;
 	unsigned freeClusters;
-	lock freeBitmapLock;
+	spinLock freeBitmapLock;
 
 	// Miscellany
 	kernelDisk *disk;
@@ -80,6 +81,5 @@ typedef volatile struct {
 #define fatClusterBytes(fatData) \
 	((fatData)->bpb.bytesPerSect * (fatData)->bpb.sectsPerClust)
 
-#define _KERNELFILESYSTEMFAT_H
 #endif
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,7 +37,6 @@
 #include "kernelParameters.h"
 #include "kernelRandom.h"
 #include "kernelSysTimer.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,6 +44,7 @@
 #include <sys/gpt.h>
 #include <sys/iso.h>
 #include <sys/msdos.h>
+#include <sys/vis.h>
 
 // All the disks
 static kernelPhysicalDisk *physicalDisks[DISK_MAXDEVICES];
@@ -53,7 +53,7 @@ static kernelDisk *logicalDisks[DISK_MAXDEVICES];
 static volatile int logicalDiskCounter = 0;
 
 // The name of the disk we booted from
-static char bootDisk[DISK_MAX_NAMELENGTH];
+static char bootDisk[DISK_MAX_NAMELENGTH + 1];
 
 // Modes for the readWriteSectors function
 #define IOMODE_READ		0x01
@@ -324,7 +324,7 @@ static int spawnDiskThread(void)
 	// Launches the disk thread
 
 	threadPid = kernelMultitaskerSpawnKernelThread(diskThread, "disk thread",
-		0, NULL);
+		0 /* no args */, NULL /* no args */, 1 /* run */);
 	if (threadPid < 0)
 		return (threadPid);
 
@@ -2305,20 +2305,20 @@ void kernelDiskAutoMount(kernelDisk *theDisk)
 	variableList mountConfig;
 	char variable[128];
 	const char *value = NULL;
-	char mountPoint[MAX_PATH_LENGTH];
+	char mountPoint[MAX_PATH_LENGTH + 1];
 
 	// Already mounted?
 	if (theDisk->filesystem.mounted)
 		return;
 
 	// Try reading the mount configuration file
-	status = kernelConfigRead(DISK_MOUNT_CONFIG, &mountConfig);
+	status = kernelConfigReadSystem(DISK_MOUNT_CONFIG, &mountConfig);
 	if (status < 0)
 		return;
 
 	// See if we're supposed to automount it.
 	snprintf(variable, 128, "%s.automount", theDisk->name);
-	value = kernelVariableListGet(&mountConfig, variable);
+	value = variableListGet(&mountConfig, variable);
 	if (!value)
 		goto out;
 
@@ -2337,7 +2337,7 @@ void kernelDiskAutoMount(kernelDisk *theDisk)
 
 	// See if a mount point is specified
 	snprintf(variable, 128, "%s.mountpoint", theDisk->name);
-	value = kernelVariableListGet(&mountConfig, variable);
+	value = variableListGet(&mountConfig, variable);
 	if (value)
 	{
 		status = kernelFileFixupPath(value, mountPoint);
@@ -2353,7 +2353,7 @@ void kernelDiskAutoMount(kernelDisk *theDisk)
 	kernelFilesystemMount((const char *) theDisk->name, mountPoint);
 
  out:
-	kernelVariableListDestroy(&mountConfig);
+	variableListDestroy(&mountConfig);
 	return;
 }
 

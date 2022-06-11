@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -48,7 +48,7 @@ char *getenv(const char *variable)
 	}
 
 	if (!value)
-		value = malloc(MAXSTRINGLENGTH);
+		value = malloc(MAXSTRINGLENGTH + 1);
 
 	if (value)
 	{

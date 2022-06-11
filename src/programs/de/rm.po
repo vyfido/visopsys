@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2013-11-02 13:28-0400\n"
 "Last-Translator: Jens León Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,24 +17,24 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.7\n"
 
-#: rm.c:67
+#: rm.c:66
 msgid "usage:\n"
 msgstr "Benutzung:\n"
 
-#: rm.c:68
+#: rm.c:67
 #, c-format
 msgid "%s [-R] [-S#] <file1> [file2] [...]\n"
 msgstr "%s [-R] [-S#] <datei1> [datei2] [...]\n"
 
-#: rm.c:111
+#: rm.c:110
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr "Unbekannte Option '%c'\n"
 
-#: rm.c:120
+#: rm.c:119
 msgid "Can't both recursively and securely delete\n"
 msgstr ""
 
-#: rm.c:126
+#: rm.c:125
 msgid "No file names to delete\n"
 msgstr "Keine Dateinamen zum Löschen\n"

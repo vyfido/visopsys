@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -88,7 +88,7 @@ static int setData(kernelWindowComponent *component, void *text, int length)
 		menu->mainContainer->layout(menu->mainContainer);
 
 		// If the menu is visible, draw it
-		if (menu->flags & WINFLAG_VISIBLE)
+		if (menu->flags & WINDOW_FLAG_VISIBLE)
 			menu->draw(menu);
 	}
 	else
@@ -163,7 +163,7 @@ kernelWindowComponent *kernelWindowNewMenuItem(kernelWindow *menu,
 
 	// We use a different default background color than the window list
 	// item component that the menu item is based upon
-	if (!(params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
+	if (!(params.flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND))
 	{
 		memcpy((color *) &component->params.background,
 			&windowVariables->color.background, sizeof(color));
@@ -176,7 +176,7 @@ kernelWindowComponent *kernelWindowNewMenuItem(kernelWindow *menu,
 	menu->mainContainer->layout(menu->mainContainer);
 
 	// If the menu is visible, draw it
-	if (menu->flags & WINFLAG_VISIBLE)
+	if (menu->flags & WINDOW_FLAG_VISIBLE)
 		menu->draw(menu);
 
 	return (component);

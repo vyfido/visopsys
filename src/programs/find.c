@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,7 +49,6 @@ of filesystem drivers (as a testing mechanism)
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
-#include <sys/vsh.h>
 
 
 static void recurseDirectory(const char *dirPath)
@@ -108,7 +107,7 @@ int main(int argc, char *argv[])
 	// Initialize the file structure
 	memset(&theFile, 0, sizeof(file));
 
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 	{
 		errno = ERR_MEMORY;

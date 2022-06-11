@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -88,7 +88,7 @@ static char *errorMessages[] = {
 
 static kernelPhysicalDisk disks[MAXFLOPPIES];
 static int numberFloppies = 0;
-static lock controllerLock;
+static spinLock controllerLock;
 static unsigned currentTrack = 0;
 static int readStatusOnInterrupt = 0;
 static int interruptReceived = 0;
@@ -854,7 +854,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	int count;
 
 	numberFloppies = 0;
-	memset((void *) &controllerLock, 0, sizeof(lock));
+	memset((void *) &controllerLock, 0, sizeof(spinLock));
 	memset(&xferArea, 0, sizeof(kernelIoMemory));
 
 	// Loop for each device reported by the BIOS

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -63,7 +63,7 @@ char *basename(char *path)
 	}
 
 	// Get the memory to return.  Always a maxed-out pathname.
-	newPath = malloc(MAX_NAME_LENGTH);
+	newPath = malloc(MAX_NAME_LENGTH + 1);
 	if (!newPath)
 	{
 		// Nothing much we can do here.

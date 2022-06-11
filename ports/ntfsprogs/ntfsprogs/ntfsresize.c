@@ -667,11 +667,11 @@ static void progress_message(ntfs_resize_t *resize, const char *fmt, ...)
 	vsprintf(tmp, fmt, ap);
 	va_end(ap);
 
-	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
+	if (resize->prog && (lockGet(&resize->prog->lock) >= 0))
 	  {
 	    strncpy((char *) resize->prog->statusMessage, tmp,
 		    PROGRESS_MAX_MESSAGELEN);
-	    lockRelease(&resize->prog->progLock);
+	    lockRelease(&resize->prog->lock);
 	  }
 
 	ntfs_log_debug("%s\n", tmp);
@@ -693,13 +693,13 @@ static void _err_printf(ntfs_resize_t *resize, const char *function,
 	vsprintf((tmp + strlen(tmp)), fmt, ap);
 	va_end(ap);
 
-	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
+	if (resize->prog && (lockGet(&resize->prog->lock) >= 0))
 	  {
 	    strncpy((char *) resize->prog->statusMessage, tmp,
 		    PROGRESS_MAX_MESSAGELEN);
 	    resize->prog->error = 1;
 
-	    lockRelease(&resize->prog->progLock);
+	    lockRelease(&resize->prog->lock);
 
 	    while (resize->prog->error)
 	      multitaskerYield();
@@ -1003,7 +1003,7 @@ void progress_update(progress *prog, int myPercentIndex, u64 current,
   unsigned finished = 0;
   int count;
 
-  if (prog && (lockGet(&prog->progLock) >= 0))
+  if (prog && (lockGet(&prog->lock) >= 0))
     {
       for (count = 0; count < myPercentIndex; count ++)
 	finished += progressPercentages[count];
@@ -1016,7 +1016,7 @@ void progress_update(progress *prog, int myPercentIndex, u64 current,
       prog->numFinished = finished;
       prog->percentFinished = finished;
 
-      lockRelease(&prog->progLock);
+      lockRelease(&prog->lock);
     }
 }
 
@@ -2861,12 +2861,12 @@ static int _resize(const char *diskName, uquad_t blocks, progress *prog,
 	opt.bytes = ((s64) blocks * (s64) theDisk.sectorSize);
 	opt.volume = theDisk.name;
 
-	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
+	if (resize->prog && (lockGet(&resize->prog->lock) >= 0))
 	  {
 	    // Set initial values
 	    resize->prog->numTotal = 100;
 	    resize->prog->canCancel = 1;
-	    lockRelease(&resize->prog->progLock);
+	    lockRelease(&resize->prog->lock);
 	  }
 
 	if ((vol = mount_volume(resize)) == NULL)
@@ -2971,10 +2971,10 @@ static int _resize(const char *diskName, uquad_t blocks, progress *prog,
 
 	CHECK_CANCEL();
 
-	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
+	if (resize->prog && (lockGet(&resize->prog->lock) >= 0))
 	  {
 	    resize->prog->canCancel = 0;
-	    lockRelease(&resize->prog->progLock);
+	    lockRelease(&resize->prog->lock);
 	  }
 
 	/* FIXME: performance - relocate logfile here if it's needed */
@@ -3013,18 +3013,18 @@ static int _resize(const char *diskName, uquad_t blocks, progress *prog,
 	progress_message(resize, _("Successfully resized NTFS on device '%s'."),
 			 vol->dev->d_name);
 
-	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
+	if (resize->prog && (lockGet(&resize->prog->lock) >= 0))
 	  {
 	    resize->prog->numFinished = resize->prog->numTotal;
 	    resize->prog->percentFinished = 100;
-	    lockRelease(&resize->prog->progLock);
+	    lockRelease(&resize->prog->lock);
 	  }
 
  out:
-	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
+	if (resize->prog && (lockGet(&resize->prog->lock) >= 0))
 	{
 		resize->prog->complete = 1;
-	    lockRelease(&resize->prog->progLock);
+	    lockRelease(&resize->prog->lock);
 	}
 
 	free(resize);

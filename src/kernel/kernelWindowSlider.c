@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -44,8 +44,8 @@ static int draw(kernelWindowComponent *component)
 			return (status);
 	}
 
-	if ((component->params.flags & WINDOW_COMPFLAG_HASBORDER) ||
-		(component->flags & WINFLAG_HASFOCUS))
+	if ((component->params.flags & COMP_PARAMS_FLAG_HASBORDER) ||
+		(component->flags & WINDOW_COMP_FLAG_HASFOCUS))
 	{
 		component->drawBorder(component, 1);
 	}
@@ -70,7 +70,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 {
 	// We just don't want the slider to respond to mouse scrolls.
 
-	if (event->type & EVENT_MOUSE_SCROLL)
+	if (event->type & WINDOW_EVENT_MOUSE_SCROLL)
 		return (0);
 
 	 if (saveMouseEvent)
@@ -83,9 +83,9 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 {
 	kernelWindowSlider *slider = component->data;
-	windowEvent eventCopy;
+	windowEvent tmpEvent;
 
-	if (event->type != EVENT_KEY_DOWN)
+	if (event->type != WINDOW_EVENT_KEY_DOWN)
 		return (0);
 
 	if (!component->mouseEvent)
@@ -95,36 +95,40 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 	// the appropriate kind of mouse event to make the scrollbar do what
 	// we want
 
-	memcpy(&eventCopy, event, sizeof(windowEvent));
+	memset(&tmpEvent, 0, sizeof(windowEvent));
 
-	eventCopy.xPosition = (component->window->xCoord + component->xCoord +
+	tmpEvent.coord.x = (component->window->xCoord + component->xCoord +
 		windowVariables->border.thickness);
-	eventCopy.yPosition = (component->window->yCoord + component->yCoord +
+	tmpEvent.coord.y = (component->window->yCoord + component->yCoord +
 		windowVariables->border.thickness);
 
-	switch (event->key)
+	switch (event->key.scan)
 	{
 		case keyLeftArrow:
 		case keyRightArrow:
 			if (slider->type == scrollbar_horizontal)
 			{
-				eventCopy.type = EVENT_MOUSE_DRAG;
-				eventCopy.xPosition += (slider->sliderX + 2);
-				component->mouseEvent(component, &eventCopy);
+				tmpEvent.type = WINDOW_EVENT_MOUSE_DRAG;
+				tmpEvent.coord.x += (slider->sliderX + 2);
+				component->mouseEvent(component, &tmpEvent);
 
-				if (event->key == keyLeftArrow)
-					// Cursor left, so we make it like it was dragged left by 1
-					// pixel
-					eventCopy.xPosition -= 1;
-				else
-					// Cursor right, so we make it like it was dragged right by
+				if (event->key.scan == keyLeftArrow)
+				{
+					// Cursor left, so we make it like it was dragged left by
 					// 1 pixel
-					eventCopy.xPosition += 1;
+					tmpEvent.coord.x -= 1;
+				}
+				else
+				{
+					// Cursor right, so we make it like it was dragged right
+					// by 1 pixel
+					tmpEvent.coord.x += 1;
+				}
 
-				eventCopy.type = EVENT_MOUSE_DRAG;
-				component->mouseEvent(component, &eventCopy);
-				eventCopy.type = EVENT_MOUSE_LEFTUP;
-				component->mouseEvent(component, &eventCopy);
+				tmpEvent.type = WINDOW_EVENT_MOUSE_DRAG;
+				component->mouseEvent(component, &tmpEvent);
+				tmpEvent.type = WINDOW_EVENT_MOUSE_LEFTUP;
+				component->mouseEvent(component, &tmpEvent);
 			}
 			break;
 
@@ -132,23 +136,27 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 		case keyDownArrow:
 			if (slider->type == scrollbar_vertical)
 			{
-				eventCopy.type = EVENT_MOUSE_DRAG;
-				eventCopy.yPosition += (slider->sliderY + 2);
-				component->mouseEvent(component, &eventCopy);
+				tmpEvent.type = WINDOW_EVENT_MOUSE_DRAG;
+				tmpEvent.coord.y += (slider->sliderY + 2);
+				component->mouseEvent(component, &tmpEvent);
 
-				if (event->key == keyUpArrow)
+				if (event->key.scan == keyUpArrow)
+				{
 					// Cursor up, so we make it like it was dragged up by 1
 					// pixel
-					eventCopy.yPosition -= 1;
+					tmpEvent.coord.y -= 1;
+				}
 				else
-					// Cursor down, so we make it like it was dragged down by 1
-					// pixel
-					eventCopy.yPosition += 1;
+				{
+					// Cursor down, so we make it like it was dragged down by
+					// 1 pixel
+					tmpEvent.coord.y += 1;
+				}
 
-				eventCopy.type = EVENT_MOUSE_DRAG;
-				component->mouseEvent(component, &eventCopy);
-				eventCopy.type = EVENT_MOUSE_LEFTUP;
-				component->mouseEvent(component, &eventCopy);
+				tmpEvent.type = WINDOW_EVENT_MOUSE_DRAG;
+				component->mouseEvent(component, &tmpEvent);
+				tmpEvent.type = WINDOW_EVENT_MOUSE_LEFTUP;
+				component->mouseEvent(component, &tmpEvent);
 			}
 			break;
 
@@ -156,17 +164,21 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 		case keyPgDn:
 			if (slider->type == scrollbar_vertical)
 			{
-				eventCopy.type = EVENT_MOUSE_LEFTDOWN;
+				tmpEvent.type = WINDOW_EVENT_MOUSE_LEFTDOWN;
 
-				if (event->key == keyPgUp)
+				if (event->key.scan == keyPgUp)
+				{
 					// Page up, so we make it like there was a click above
-					eventCopy.yPosition += 1;
+					tmpEvent.coord.y += 1;
+				}
 				else
+				{
 					// Page down, so we make it like there was a click below
-					eventCopy.yPosition +=
-						(slider->sliderY + slider->sliderHeight + 1);
+					tmpEvent.coord.y += (slider->sliderY +
+						slider->sliderHeight + 1);
+				}
 
-				component->mouseEvent(component, &eventCopy);
+				component->mouseEvent(component, &tmpEvent);
 			}
 			break;
 
@@ -193,7 +205,7 @@ kernelWindowComponent *kernelWindowNewSlider(objectKey parent,
 
 	kernelWindowComponent *component = NULL;
 
-	// Check parameters.
+	// Check params
 	if (!parent || !params)
 		return (component = NULL);
 
@@ -204,7 +216,7 @@ kernelWindowComponent *kernelWindowNewSlider(objectKey parent,
 
 	// Change applicable things
 	component->subType = sliderComponentType;
-	component->flags |= WINFLAG_CANFOCUS;
+	component->flags |= WINDOW_COMP_FLAG_CANFOCUS;
 
 	// The functions
 	saveDraw = component->draw;

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,8 +27,8 @@
 #include "kernelError.h"
 #include "kernelMalloc.h"
 #include "kernelMouse.h"
-#include "kernelVariableList.h"
 #include <string.h>
+#include <sys/vis.h>
 
 
 static void interrupt(usbDevice *usbDev, int interface, void *buffer,
@@ -333,7 +333,7 @@ static int hotplug(void *parent, int busType __attribute__((unused)),
 		kernelDeviceRemove(&mouseDev->dev);
 
 		// Free the device's attributes list
-		kernelVariableListDestroy(&mouseDev->dev.device.attrs);
+		variableListDestroy(&mouseDev->dev.device.attrs);
 
 		// Free the memory.
 		kernelFree(mouseDev);

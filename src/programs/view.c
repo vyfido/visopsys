@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -56,13 +56,15 @@ The currently-supported file formats are:
 #include <sys/env.h>
 #include <sys/font.h>
 #include <sys/paths.h>
-#include <sys/vsh.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
 #define gettext_noop(string) (string)
 
-#define WINDOW_TITLE  _("View \"%s\"")
+#define WINDOW_TITLE	_("View \"%s\"")
+#define ZOOM_IN			gettext_noop("Zoom in")
+#define ZOOM_OUT		gettext_noop("Zoom out")
+#define ACTUAL_SIZE		gettext_noop("Actual size")
 
 // Right-click menu for images
 #define IMAGEMENU_ZOOMIN		0
@@ -71,9 +73,9 @@ The currently-supported file formats are:
 static windowMenuContents imageMenuContents = {
 	3,
 	{
-		{ gettext_noop("Zoom in"), NULL },
-		{ gettext_noop("Zoom out"), NULL },
-		{ gettext_noop("Actual size"), NULL },
+		{ ZOOM_IN, NULL },
+		{ ZOOM_OUT, NULL },
+		{ ACTUAL_SIZE, NULL },
 	}
 };
 
@@ -93,7 +95,7 @@ static void error(const char *format, ...)
 	// Generic error message code for either text or graphics modes
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
@@ -149,6 +151,50 @@ static void printTextLines(char *data, int size)
 		else
 			textPutc(data[count]);
 	}
+}
+
+
+static void initMenuContents(void)
+{
+	strncpy(imageMenuContents.items[IMAGEMENU_ZOOMIN].text, gettext(ZOOM_IN),
+		WINDOW_MAX_LABEL_LENGTH);
+	strncpy(imageMenuContents.items[IMAGEMENU_ZOOMOUT].text,
+		gettext(ZOOM_OUT), WINDOW_MAX_LABEL_LENGTH);
+	strncpy(imageMenuContents.items[IMAGEMENU_ACTUAL].text,
+		gettext(ACTUAL_SIZE), WINDOW_MAX_LABEL_LENGTH);
+}
+
+
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language
+	// switch), so we need to update things
+
+	const char *charSet = NULL;
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv(ENV_LANG));
+	textdomain("view");
+
+	// Re-get the character set
+	charSet = getenv(ENV_CHARSET);
+
+	if (charSet)
+		windowSetCharSet(window, charSet);
+
+	// Refresh all the menu contents
+	initMenuContents();
+
+	// Refresh the image context menu
+	windowMenuUpdate(imageMenu, NULL /* name */, charSet, &imageMenuContents,
+		NULL /* params */);
+
+	// Refresh the window title
+	sprintf(windowTitle, WINDOW_TITLE, shortName);
+	windowSetTitle(window, windowTitle);
+
+	// Re-layout the window (not necessary if no components have changed)
+	//windowLayout(window);
 }
 
 
@@ -222,7 +268,12 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	if (key == window)
 	{
-		if (event->type == EVENT_WINDOW_CLOSE)
+		// Check for window refresh
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for the window being closed
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			windowGuiStop();
 	}
 
@@ -230,21 +281,30 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == imageMenuContents.items[IMAGEMENU_ZOOMIN].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 			resizeImage(imageScale * 1.25);
 	}
 
 	else if (key == imageMenuContents.items[IMAGEMENU_ZOOMOUT].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 			resizeImage(imageScale * 0.75);
 	}
 
 	else if (key == imageMenuContents.items[IMAGEMENU_ACTUAL].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 			resizeImage(1.0);
 	}
+}
+
+
+static void handleMenuEvents(windowMenuContents *contents)
+{
+	int count;
+
+	for (count = 0; count < contents->numItems; count ++)
+		windowRegisterEventHandler(contents->items[count].key, &eventHandler);
 }
 
 
@@ -256,7 +316,6 @@ static int viewImage(void)
 	double xScale = 1.0, yScale = 1.0;
 	objectKey bannerDialog = NULL;
 	componentParameters params;
-	int count;
 
 	memset(&origImage, 0, sizeof(image));
 
@@ -295,28 +354,26 @@ static int viewImage(void)
 	if (!windowImage)
 		return (status = ERR_NOCREATE);
 
+	initMenuContents();
+
 	imageMenu = windowNewMenu(window, NULL, _("Image"), &imageMenuContents,
 		&params);
 	if (imageMenu)
 	{
-		for (count = 0; count < imageMenuContents.numItems; count ++)
-		{
-			windowRegisterEventHandler(imageMenuContents.items[count].key,
-				&eventHandler);
-		}
-
+		handleMenuEvents(&imageMenuContents);
 		windowContextSet(windowImage, imageMenu);
 	}
 
 	// If the image is big, shrink it by default, to max 2/3 of the screen in
 	// either dimension.
-	if (origImage.width > ((screenWidth * 2) / 3))
+	if (origImage.width > ((screenWidth << 1) / 3))
 	{
-		xScale = ((double)((screenWidth * 2) / 3) / (double) origImage.width);
+		xScale = ((double)((screenWidth << 1) / 3) /
+			(double) origImage.width);
 	}
-	if (origImage.height > ((screenHeight * 2) / 3))
+	if (origImage.height > ((screenHeight << 1) / 3))
 	{
-		yScale = ((double)((screenHeight * 2) / 3) /
+		yScale = ((double)((screenHeight << 1) / 3) /
 			(double) origImage.height);
 	}
 
@@ -367,7 +424,7 @@ static int viewText(void)
 		rows = 40;
 
 	textAreaComponent = windowNewTextArea(window, 80, rows, textLines,
-		 &params);
+		&params);
 
 	// Put the data into the component
 	windowSetTextOutput(textAreaComponent);
@@ -399,8 +456,8 @@ int main(int argc, char *argv[])
 		return (status = ERR_NOTINITIALIZED);
 	}
 
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
-	windowTitle = malloc(MAX_PATH_NAME_LENGTH + 8);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
+	windowTitle = malloc(MAX_PATH_NAME_LENGTH + 9);
 	if (!fileName || !windowTitle)
 	{
 		status = ERR_MEMORY;
@@ -460,7 +517,9 @@ int main(int argc, char *argv[])
 	}
 
 	if (class.type & LOADERFILECLASS_IMAGE)
+	{
 		status = viewImage();
+	}
 	else if (class.type & LOADERFILECLASS_TEXT)
 		status = viewText();
 
@@ -482,14 +541,14 @@ int main(int argc, char *argv[])
 	status = 0;
 
 deallocate:
-	if (fileName)
-		free(fileName);
+	if (origImage.data)
+		imageFree(&origImage);
 	if (shortName)
 		free(shortName);
 	if (windowTitle)
 		free(windowTitle);
-	if (origImage.data)
-		imageFree(&origImage);
+	if (fileName)
+		free(fileName);
 
 	return (status);
 }

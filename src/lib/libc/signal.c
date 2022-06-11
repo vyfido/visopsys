@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -138,8 +138,8 @@ sighandler_t signal(int sig, sighandler_t handler)
 	if (!signalThreadPid || !multitaskerProcessIsAlive(signalThreadPid))
 	{
 		stop = 0;
-		signalThreadPid =
-			multitaskerSpawn(&signalThread, "signal thread", 0, NULL);
+		signalThreadPid = multitaskerSpawn(&signalThread, "signal thread",
+			0 /* no args */, NULL /* no args */, 1 /* run */);
 		if (signalThreadPid < 0)
 			return (SIG_ERR);
 	}

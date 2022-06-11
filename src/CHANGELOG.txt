@@ -1,4 +1,148 @@
 --------------
+ Version 0.84   15/05/2019
+--------------
+
+  Overview: This minor maintenance version consists of developer-oriented
+  features, stability and performance enhancements, and bug fixes.
+
+- Introduced login sessions (userSession in <sys/user.h>) in preparation for
+the implementation of multi-user operation.  Added a kernelUserGetSessions()
+function (userGetSessions() in user space) for getting a list of current login
+sessions, and a command-line 'who' program to show who's logged in.  For the
+time being, only one user can be logged in.
+- The 'help' command is now more intelligent about what commands it lists,
+simply by searching the PATH for the names of the binaries, for the time
+being.  If a command is not available, it won't be shown in the summary
+listing.
+- Created a new Visopsys library (libvis) with Visopsys-specific code that's
+useful in both kernel and user space.  Initially populated with the linked-
+list and variable list code that was previously in the kernel.  Definitions
+for these are now in <sys/vis.h>, and <sys/variable.h> has been removed.
+- Code hardening, to try and ensure that string buffers can - and will - be
+larger than their maximum lengths, while still being memory-aligned for best
+performance.
+- Added a <sys/crypt.h> header file for definitions and structures related to
+hashing and cryptography.
+- Upgraded the kernel multitasker's process queue, from a simple process array
+to a linkedList, to benefit from locking and more sophisticated management
+capabilities.
+- Upgraded the kernel's font cache, and the window library's event handlers,
+from simple arrays to linkedLists, to benefit from locking and more
+sophisticated management capabilities.
+- Enhanced the kernelGraphicCopyBuffer function so that it can copy a clip of
+one buffer into another - not necessarily the whole thing.
+- Added a kernelWindowGetList() (windowGetList() in user space) function that
+fills an array with the objectKeys of the current list of windows.
+- Added a user space 'windowInfo' structure for getting information about a
+window, and a kernelWindowGetInfo() (windowGetInfo() in user space) function
+to return it.  Removed the redundant functions kernelWindowGetSize() and
+kernelWindowGetLocation() (windowGetSize() and windowGetLocation() in user
+space).
+- Added a kernelWindowSetRoot() function (windowSetRoot() in user space) to
+set the attributes of a window so that it is always at the bottom level.
+- Added the kernelWindowMenuUpdate() (windowMenuUpdate() in user space)
+function for changing the title, character set, contents, or colours of a
+menu, and updated the window shell and most of the programs to do a better job
+at refreshing - e.g. in the case of a language switch.
+- Added a kernelWindowComponentLayout() function (windowComponentLayout() in
+user space) for (re-)doing layout of GUI container components.
+- Added kernelWindowContainerAdd() and kernelWindowContainerDelete()
+functions, for adding and removing components from generic container
+components, respectively.
+- Added a kernelWindowMenuDestroy() function (windowMenuDestroy() in user
+space) for destroying a window menu and properly removing it from any menu
+bars.
+- Added an optional window parameter to the kernelWindowToggleMenuBar()
+function, and exported it to user space as windowToggleMenuBar().
+- Added a draw_buffer window drawing operation type, initially for use with
+the windowCanvas widget.
+- Made the kernelWindowLogin() and kernelWindowLogout() (windowLogin() and
+windowLogout() in user space) functions 'wrap' the kernelUserLogin() and
+kernelUserLogout() (userLogin() and userLogout() in user space) functions,
+performing authentication and logging the user in to, or out of, the system,
+respectively.
+- Exported the kernelTouchAvailable(), which reports whether a touchscreen
+interface is available, to user space as touchAvailable().
+- Removed the notion of a window context menu - only window components can
+have them - and removed the unused kernelWindowContextAdd() (windowContextAdd
+in user space) function.
+- Altered kernelWindowShellDestroyTaskbarComp()
+(windowShellDestroyTaskbarComp() in user space) to return a status value.
+- De-exported the unused user space functions windowDrawAll(),
+windowProcessEvent(), windowRedrawArea(), and windowUpdateBuffer().
+- Changed the Visopsys library's linkedList functionality so that new items
+are added to the end of the list - rather than the start - and when iterating,
+the list is oldest-first.
+- Added a kernelUserGetCurrentLoginPid() function to return the process ID of
+the current user's login process.
+- Added a login process ID to the kenelUserLogin() (userLogin() in user space)
+function, so that a login session is tied to a particular process.  Removed
+the redundant kernelUserGetPid() and kernelUserSetPid() (userGetPid() and
+userSetPid() in user space) functions.
+- Added an optional login program name to the kernelConsoleLogin() function,
+and used that to clean up the kernelMain() function.
+- Mofified the kernelMultitaskerPropagateEnvironment() function so that the
+parent process whose environment is to be propagated is specified, rather than
+assumed to be the current process.
+- Exported the kernelWindowSetBackgroundImage() function to user space as
+windowSetBackgroundImage().
+- Enabled the login program to set up the environment of a user's login
+process without polluting its own.  Added a process ID argument to
+kernelEnvironmentLoad(), added the environment functions
+kernelEnvironmentProcessGet() and kernelEnvironmentProcessSet(), and added
+kernelMultitaskerGetProcessEnvironment() and
+kernelMultitaskerSetProcessCurrentDirectory() to the multitasker.
+- Added a 'run' parameter to kernelMultitaskerSpawn() (multitaskerSpawn() in
+user space) and kernelMultitaskerSpawnKernelThread() functions, so that the
+caller can choose whether the thread runs at the first opportunity, or waits
+until it is explicitly made runnable at a more appropriate time.
+- Exported the kernelFontGetSystem() function to userspace as fontGetSystem().
+Returns a default font that is built in to the kernel and always guaranteed to
+be available.
+- Packed the window event EVENT_* type flags to make room for more types, and
+separated the window and window component WINFLAG_* flags into WINDOW_FLAG_*
+(defined in user space) and WINDOW_COMP_FLAG_* (not defined in user space)
+respectively.  The user space componentParameters flags have been renamed from
+WINDOW_COMPFLAG_* to COMP_PARAMS_FLAG_*.
+- Packed the windowEvent structure with a union composed of discrete sections
+for - initially - coordinate and keyboard events, which should never coincide.
+- Removed the unused kernel function kernelPause(), and removed the kernel
+macro POW() in favour of the C library version.
+- Added vshPageBuffer() and vshPageFile() functions to the Visopsys shell
+library (libvsh), for showing the contents of a buffer or file, respectively,
+one screenfull at a time (like the 'more' command).
+- Removed the redundant Visopsys Shell library (libvsh) functions
+vshDeleteFile() and vshMoveFile().
+- Improved header file idempotency, and separated the definitions (including
+objectKey) from <sys/api.h> into <sys/apidefs.h>, to eliminate circular
+dependencies with, for example <sys/window.h>.
+- Renamed a number of things in the <sys/window.h> header for better namespace
+consistency.
+- Fixed: When a user with a touchscreen logs in, the virtual keyboard no
+longer briefly flashes up on the screen before iconifying.
+- Fixed: Restored the 'View' icon to the 'Programs' window -- missing since
+the 'Virtual Keyboard' icon was added for version 0.8!
+- Fixed: a spurious error condition parsing command line arguments in the
+'kill' program.
+- Fixed: the kernelMultitaskerPropagateEnvironment() function so that it
+propagates the environment to children of parent processes' threads.
+- Fixed: the kernelWindowLayout() (windowLayout() in user space) function for
+(re-)laying out fixed-size windows, such as the window shell's root window;
+switching languages on the fly would cause the root window's main container to
+shrink to minimum size.
+- Fixed: a window list iteration in the window thread.
+- Fixed: a linked list iteration in the kernelWindowLogout() (windowLogout()
+in user space) function, in which a failed kernelWindowDestroy() could
+theoretically cause a window to be left in the list.
+- Fixed: the kernel API parameter specification for the font objectKey in
+graphicDrawText().
+- Fixed: the way the C library function strcat() enforces the MAXSTRINGLENGTH
+limit on string lengths, so that the limit applies to the new concatenated
+destination string, rather than just the original strings.
+- Fixed: compilation issues when using an older gcc 4 compiler; most notably
+the 'lock' structure has been renamed to 'spinLock'.
+
+--------------
  Version 0.83   09/08/2018
 --------------
 

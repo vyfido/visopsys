@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,15 +48,11 @@
 #include "kernelRtc.h"
 #include "kernelShutdown.h"
 #include "kernelText.h"
+#include "kernelTouch.h"
 #include "kernelUser.h"
 #include "kernelWindow.h"
+#include <sys/apidefs.h>
 #include <sys/processor.h>
-
-// We do this so that <sys/api.h> won't complain about being included
-// in a kernel file
-#undef KERNEL
-	#include <sys/api.h>
-#define KERNEL
 
 // Function index arrays.  Grouped by category.
 
@@ -650,7 +646,8 @@ static kernelArgInfo args_multitaskerSpawn[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_val, API_ARG_ANYVAL },
-		{ 1, type_ptr, API_ARG_USERPTR } };
+		{ 1, type_ptr, API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_ANYVAL } };
 static kernelArgInfo args_multitaskerGetProcess[] =
 	{ { 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
@@ -722,7 +719,7 @@ static kernelFunctionIndex multitaskerFunctionIndex[] = {
 	{ _fnum_multitaskerCreateProcess, kernelMultitaskerCreateProcess,
 		PRIVILEGE_USER, 3, args_multitaskerCreateProcess, type_val },
 	{ _fnum_multitaskerSpawn, kernelMultitaskerSpawn,
-		PRIVILEGE_USER, 4, args_multitaskerSpawn, type_val },
+		PRIVILEGE_USER, 5, args_multitaskerSpawn, type_val },
 	{ _fnum_multitaskerGetCurrentProcessId, kernelMultitaskerGetCurrentProcessId,
 		PRIVILEGE_USER, 0, NULL, type_val },
 	{ _fnum_multitaskerGetProcess, kernelMultitaskerGetProcess,
@@ -904,38 +901,9 @@ static kernelFunctionIndex randomFunctionIndex[] = {
 		PRIVILEGE_USER, 2, args_randomBytes, type_void }
 };
 
-// Variable list functions (0xA000-0xAFFF range)
-static kernelArgInfo args_variableListCreate[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
-static kernelArgInfo args_variableListDestroy[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
-static kernelArgInfo args_variableListGetVariable[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_val, API_ARG_POSINTVAL } };
-static kernelArgInfo args_variableListGet[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
-static kernelArgInfo args_variableListSet[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
-static kernelArgInfo args_variableListUnset[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
-
+// Former variable list functions (0xA000-0xAFFF range)
 static kernelFunctionIndex variableListFunctionIndex[] = {
-	{ _fnum_variableListCreate, kernelVariableListCreate,
-		PRIVILEGE_USER, 1, args_variableListCreate, type_val },
-	{ _fnum_variableListDestroy, kernelVariableListDestroy,
-		PRIVILEGE_USER, 1, args_variableListDestroy, type_val },
-	{ _fnum_variableListGetVariable, kernelVariableListGetVariable,
-		PRIVILEGE_USER, 2, args_variableListGetVariable, type_ptr },
-	{ _fnum_variableListGet, kernelVariableListGet,
-		PRIVILEGE_USER, 2, args_variableListGet, type_ptr },
-	{ _fnum_variableListSet, kernelVariableListSet,
-		PRIVILEGE_USER, 3, args_variableListSet, type_val },
-	{ _fnum_variableListUnset, kernelVariableListUnset,
-		PRIVILEGE_USER, 2, args_variableListUnset, type_val }
+	{ 0 , NULL, 0, 0, NULL, 0 }
 };
 
 // Environment functions (0xB000-0xBFFF range)
@@ -1030,7 +998,7 @@ static kernelArgInfo args_graphicDrawText[] =
 	{ { 1, type_ptr, API_ARG_ANYPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_ANYPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_val, API_ARG_ANYVAL },
@@ -1168,6 +1136,8 @@ static kernelArgInfo args_fontGetHeight[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_ANYPTR } };
 
 static kernelFunctionIndex fontFunctionIndex[] = {
+	{ _fnum_fontGetSystem, kernelFontGetSystem,
+		PRIVILEGE_USER, 0, NULL, type_ptr },
 	{ _fnum_fontGet, kernelFontGet,
 		PRIVILEGE_USER, 4, args_fontGet, type_ptr },
 	{ _fnum_fontGetPrintedWidth, kernelFontGetPrintedWidth,
@@ -1181,6 +1151,9 @@ static kernelFunctionIndex fontFunctionIndex[] = {
 // Window system functions (0xF000-0xFFFF range)
 
 static kernelArgInfo args_windowLogin[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+static kernelArgInfo args_windowLogout[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowNew[] =
 	{ { 1, type_val, API_ARG_ANYVAL },
@@ -1190,30 +1163,22 @@ static kernelArgInfo args_windowNewDialog[] =
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowDestroy[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
-static kernelArgInfo args_windowUpdateBuffer[] =
+static kernelArgInfo args_windowGetList[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_POSINTVAL } };
+static kernelArgInfo args_windowGetInfo[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
-		{ 1, type_val, API_ARG_ANYVAL },
-		{ 1, type_val, API_ARG_ANYVAL },
-		{ 1, type_val, API_ARG_ANYVAL },
-		{ 1, type_val, API_ARG_ANYVAL } };
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowSetCharSet[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowSetTitle[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
-static kernelArgInfo args_windowGetSize[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowSetSize[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_val, API_ARG_ANYVAL } };
-static kernelArgInfo args_windowGetLocation[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowSetLocation[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_val, API_ARG_ANYVAL },
@@ -1237,6 +1202,8 @@ static kernelArgInfo args_windowSetResizable[] =
 static kernelArgInfo args_windowSetFocusable[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_val, API_ARG_ANYVAL } };
+static kernelArgInfo args_windowSetRoot[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
 static kernelArgInfo args_windowRemoveMinimizeButton[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
 static kernelArgInfo args_windowRemoveCloseButton[] =
@@ -1249,23 +1216,19 @@ static kernelArgInfo args_windowSetMinimized[] =
 		{ 1, type_val, API_ARG_ANYVAL } };
 static kernelArgInfo args_windowAddConsoleTextArea[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
-static kernelArgInfo args_windowRedrawArea[] =
-	{ { 1, type_val, API_ARG_ANYVAL },
-		{ 1, type_val, API_ARG_ANYVAL },
-		{ 1, type_val, API_ARG_ANYVAL },
-		{ 1, type_val, API_ARG_ANYVAL } };
 static kernelArgInfo args_windowGetColor[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowSetColor[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
-static kernelArgInfo args_windowProcessEvent[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowComponentEventGet[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowSetBackgroundColor[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
+		{ 1, type_ptr, API_ARG_USERPTR } };
+static kernelArgInfo args_windowSetBackgroundImage[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_USERPTR } };
 static kernelArgInfo args_windowShellTileBackground[] =
@@ -1292,15 +1255,14 @@ static kernelArgInfo args_windowLayout[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
 static kernelArgInfo args_windowDebugLayout[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
-static kernelArgInfo args_windowContextAdd[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowContextSet[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
 static kernelArgInfo args_windowSwitchPointer[] =
 	{ { 1, type_ptr, API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+static kernelArgInfo args_windowToggleMenuBar[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
 static kernelArgInfo args_windowComponentDestroy[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
 static kernelArgInfo args_windowComponentSetCharSet[] =
@@ -1325,6 +1287,8 @@ static kernelArgInfo args_windowComponentSetHeight[] =
 static kernelArgInfo args_windowComponentFocus[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
 static kernelArgInfo args_windowComponentUnfocus[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
+static kernelArgInfo args_windowComponentLayout[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
 static kernelArgInfo args_windowComponentDraw[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
@@ -1452,30 +1416,36 @@ static kernelArgInfo args_windowNewTree[] =
 		{ 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+static kernelArgInfo args_windowMenuUpdate[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
+		{ 1, type_ptr, API_ARG_USERPTR },
+		{ 1, type_ptr, API_ARG_USERPTR },
+		{ 1, type_ptr, API_ARG_USERPTR },
+		{ 1, type_ptr, API_ARG_USERPTR } };
+static kernelArgInfo args_windowMenuDestroy[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
 
 static kernelFunctionIndex windowFunctionIndex[] = {
 	{ _fnum_windowLogin, kernelWindowLogin,
-		PRIVILEGE_SUPERVISOR, 1, args_windowLogin, type_val },
+		PRIVILEGE_SUPERVISOR, 2, args_windowLogin, type_val },
 	{ _fnum_windowLogout, kernelWindowLogout,
-		PRIVILEGE_USER, 0, NULL, type_val },
+		PRIVILEGE_USER, 1, args_windowLogout, type_val },
 	{ _fnum_windowNew, kernelWindowNew,
 		PRIVILEGE_USER, 2, args_windowNew, type_ptr },
 	{ _fnum_windowNewDialog, kernelWindowNewDialog,
 		PRIVILEGE_USER, 2, args_windowNewDialog, type_ptr },
 	{ _fnum_windowDestroy, kernelWindowDestroy,
 		PRIVILEGE_USER, 1, args_windowDestroy, type_val },
-	{ _fnum_windowUpdateBuffer, kernelWindowUpdateBuffer,
-		PRIVILEGE_USER, 5, args_windowUpdateBuffer, type_val },
+	{ _fnum_windowGetList, kernelWindowGetList,
+		PRIVILEGE_USER, 2, args_windowGetList, type_val },
+	{ _fnum_windowGetInfo, kernelWindowGetInfo,
+		PRIVILEGE_USER, 2, args_windowGetInfo, type_val },
 	{ _fnum_windowSetCharSet, kernelWindowSetCharSet,
 		PRIVILEGE_USER, 2, args_windowSetCharSet, type_val },
 	{ _fnum_windowSetTitle, kernelWindowSetTitle,
 		PRIVILEGE_USER, 2, args_windowSetTitle, type_val },
-	{ _fnum_windowGetSize, kernelWindowGetSize,
-		PRIVILEGE_USER, 3, args_windowGetSize, type_val },
 	{ _fnum_windowSetSize, kernelWindowSetSize,
 		PRIVILEGE_USER, 3, args_windowSetSize, type_val },
-	{ _fnum_windowGetLocation, kernelWindowGetLocation,
-		PRIVILEGE_USER, 3, args_windowGetLocation, type_val },
 	{ _fnum_windowSetLocation, kernelWindowSetLocation,
 		PRIVILEGE_USER, 3, args_windowSetLocation, type_val },
 	{ _fnum_windowCenter, kernelWindowCenter,
@@ -1492,6 +1462,8 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 		PRIVILEGE_USER, 2, args_windowSetResizable, type_val },
 	{ _fnum_windowSetFocusable, kernelWindowSetFocusable,
 		PRIVILEGE_USER, 2, args_windowSetFocusable, type_val },
+	{ _fnum_windowSetRoot, kernelWindowSetRoot,
+		PRIVILEGE_USER, 1, args_windowSetRoot, type_val },
 	{ _fnum_windowRemoveMinimizeButton, kernelWindowRemoveMinimizeButton,
 		PRIVILEGE_USER, 1, args_windowRemoveMinimizeButton, type_val },
 	{ _fnum_windowRemoveCloseButton, kernelWindowRemoveCloseButton,
@@ -1502,22 +1474,18 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 		PRIVILEGE_USER, 2, args_windowSetMinimized, type_void },
 	{ _fnum_windowAddConsoleTextArea, kernelWindowAddConsoleTextArea,
 		PRIVILEGE_USER, 1, args_windowAddConsoleTextArea, type_val },
-	{ _fnum_windowRedrawArea, kernelWindowRedrawArea,
-		PRIVILEGE_USER, 4, args_windowRedrawArea, type_void },
-	{ _fnum_windowDrawAll, kernelWindowDrawAll,
-		PRIVILEGE_USER, 0, NULL, type_void },
 	{ _fnum_windowGetColor, kernelWindowGetColor,
 		PRIVILEGE_USER, 2, args_windowGetColor, type_val },
 	{ _fnum_windowSetColor, kernelWindowSetColor,
 		PRIVILEGE_USER, 2, args_windowSetColor, type_val },
 	{ _fnum_windowResetColors, kernelWindowResetColors,
 		PRIVILEGE_USER, 0, NULL, type_void },
-	{ _fnum_windowProcessEvent, kernelWindowProcessEvent,
-		PRIVILEGE_USER, 1, args_windowProcessEvent, type_void },
 	{ _fnum_windowComponentEventGet, kernelWindowComponentEventGet,
 		PRIVILEGE_USER, 2, args_windowComponentEventGet, type_val },
 	{ _fnum_windowSetBackgroundColor, kernelWindowSetBackgroundColor,
 		PRIVILEGE_USER, 2, args_windowSetBackgroundColor, type_val },
+	{ _fnum_windowSetBackgroundImage, kernelWindowSetBackgroundImage,
+		PRIVILEGE_USER, 2, args_windowSetBackgroundImage, type_val },
 	{ _fnum_windowShellTileBackground, kernelWindowShellTileBackground,
 		PRIVILEGE_USER, 1, args_windowShellTileBackground, type_val },
 	{ _fnum_windowShellCenterBackground, kernelWindowShellCenterBackground,
@@ -1528,7 +1496,7 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 		kernelWindowShellNewTaskbarTextLabel,
 		PRIVILEGE_USER, 1, args_windowShellNewTaskbarTextLabel, type_ptr },
 	{ _fnum_windowShellDestroyTaskbarComp, kernelWindowShellDestroyTaskbarComp,
-		PRIVILEGE_USER, 1, args_windowShellDestroyTaskbarComp, type_void },
+		PRIVILEGE_USER, 1, args_windowShellDestroyTaskbarComp, type_val },
 	{ _fnum_windowShellIconify, kernelWindowShellIconify,
 		PRIVILEGE_USER, 3, args_windowShellIconify, type_ptr },
 	{ _fnum_windowScreenShot, kernelWindowScreenShot,
@@ -1541,12 +1509,12 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 		PRIVILEGE_USER, 1, args_windowLayout, type_val },
 	{ _fnum_windowDebugLayout, kernelWindowDebugLayout,
 		PRIVILEGE_USER, 1, args_windowDebugLayout, type_void },
-	{ _fnum_windowContextAdd, kernelWindowContextAdd,
-		PRIVILEGE_USER, 2, args_windowContextAdd, type_val },
 	{ _fnum_windowContextSet, kernelWindowContextSet,
 		PRIVILEGE_USER, 2, args_windowContextSet, type_val },
 	{ _fnum_windowSwitchPointer, kernelWindowSwitchPointer,
 		PRIVILEGE_USER, 2, args_windowSwitchPointer, type_val },
+	{ _fnum_windowToggleMenuBar, kernelWindowToggleMenuBar,
+		PRIVILEGE_USER, 1, args_windowToggleMenuBar, type_val },
 	{ _fnum_windowRefresh, kernelWindowRefresh,
 		PRIVILEGE_USER, 0, NULL, type_val },
 	{ _fnum_windowComponentDestroy, kernelWindowComponentDestroy,
@@ -1569,6 +1537,8 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 		PRIVILEGE_USER, 1, args_windowComponentFocus, type_val },
 	{ _fnum_windowComponentUnfocus, kernelWindowComponentUnfocus,
 		PRIVILEGE_USER, 1, args_windowComponentUnfocus, type_val },
+	{ _fnum_windowComponentLayout, kernelWindowComponentLayout,
+		PRIVILEGE_USER, 1, args_windowComponentLayout, type_val },
 	{ _fnum_windowComponentDraw, kernelWindowComponentDraw,
 		PRIVILEGE_USER, 1, args_windowComponentDraw, type_val },
 	{ _fnum_windowComponentGetData, kernelWindowComponentGetData,
@@ -1622,7 +1592,11 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 	{ _fnum_windowNewTextLabel, kernelWindowNewTextLabel,
 		PRIVILEGE_USER, 3, args_windowNewTextLabel, type_ptr },
 	{ _fnum_windowNewTree, kernelWindowNewTree,
-		PRIVILEGE_USER, 5, args_windowNewTree, type_ptr }
+		PRIVILEGE_USER, 5, args_windowNewTree, type_ptr },
+	{ _fnum_windowMenuUpdate, kernelWindowMenuUpdate,
+		PRIVILEGE_USER, 5, args_windowMenuUpdate, type_val },
+	{ _fnum_windowMenuDestroy, kernelWindowMenuDestroy,
+		PRIVILEGE_USER, 1, args_windowMenuDestroy, type_val }
 };
 
 // User functions (0x10000-0x10FFF range)
@@ -1632,14 +1606,15 @@ static kernelArgInfo args_userAuthenticate[] =
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_userLogin[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_POSINTVAL } };
 static kernelArgInfo args_userLogout[] =
 	{ { 1, type_ptr, API_ARG_USERPTR } };
 static kernelArgInfo args_userExists[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_userGetNames[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_val, API_ARG_ANYVAL } };
+		{ 1, type_val, API_ARG_NONZEROVAL } };
 static kernelArgInfo args_userAdd[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
@@ -1651,12 +1626,12 @@ static kernelArgInfo args_userSetPassword[] =
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_userGetCurrent[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_val, API_ARG_POSINTVAL } };
+		{ 1, type_val, API_ARG_NONZEROVAL } };
 static kernelArgInfo args_userGetPrivilege[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
-static kernelArgInfo args_userSetPid[] =
+static kernelArgInfo args_userGetSessions[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_val, API_ARG_ANYVAL } };
+		{ 1, type_val, API_ARG_POSINTVAL } };
 static kernelArgInfo args_userFileAdd[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
@@ -1674,7 +1649,7 @@ static kernelFunctionIndex userFunctionIndex[] = {
 	{ _fnum_userAuthenticate, kernelUserAuthenticate,
 		PRIVILEGE_USER, 2, args_userAuthenticate, type_val },
 	{ _fnum_userLogin, kernelUserLogin,
-		PRIVILEGE_SUPERVISOR, 2, args_userLogin, type_val },
+		PRIVILEGE_SUPERVISOR, 3, args_userLogin, type_val },
 	{ _fnum_userLogout, kernelUserLogout,
 		PRIVILEGE_USER, 1, args_userLogout, type_val },
 	{ _fnum_userExists, kernelUserExists,
@@ -1691,10 +1666,8 @@ static kernelFunctionIndex userFunctionIndex[] = {
 		PRIVILEGE_USER, 2, args_userGetCurrent, type_val },
 	{ _fnum_userGetPrivilege, kernelUserGetPrivilege,
 		PRIVILEGE_USER, 1, args_userGetPrivilege, type_val },
-	{ _fnum_userGetPid, kernelUserGetPid,
-		PRIVILEGE_USER, 0, NULL, type_val },
-	{ _fnum_userSetPid, kernelUserSetPid,
-		PRIVILEGE_SUPERVISOR, 2, args_userSetPid, type_val },
+	{ _fnum_userGetSessions, kernelUserGetSessions,
+		PRIVILEGE_USER, 2, args_userGetSessions, type_val },
 	{ _fnum_userFileAdd, kernelUserFileAdd,
 		PRIVILEGE_SUPERVISOR, 3, args_userFileAdd, type_val },
 	{ _fnum_userFileDelete, kernelUserFileDelete,
@@ -1926,7 +1899,9 @@ static kernelFunctionIndex miscFunctionIndex[] = {
 	{ _fnum_cpuGetMs, kernelCpuGetMs,
 		PRIVILEGE_USER, 0, NULL, type_val },
 	{ _fnum_cpuSpinMs, kernelCpuSpinMs,
-		PRIVILEGE_USER, 1, args_cpuSpinMs, type_void }
+		PRIVILEGE_USER, 1, args_cpuSpinMs, type_void },
+	{ _fnum_touchAvailable, kernelTouchAvailable,
+		PRIVILEGE_USER, 0, NULL, type_val }
 };
 
 static kernelFunctionIndex *functionIndex[] = {
@@ -1940,7 +1915,7 @@ static kernelFunctionIndex *functionIndex[] = {
 	loaderFunctionIndex,
 	rtcFunctionIndex,
 	randomFunctionIndex,
-	variableListFunctionIndex,
+	variableListFunctionIndex,	// removed/unused
 	environmentFunctionIndex,
 	graphicFunctionIndex,
 	imageFunctionIndex,

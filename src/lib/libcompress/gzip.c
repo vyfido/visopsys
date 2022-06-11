@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -299,12 +299,12 @@ int gzipAddMember(FILE *inStream, FILE *outStream, const char *memberName,
 		goto out;
 	}
 
-	if (prog && (lockGet(&prog->progLock) >= 0))
+	if (prog && (lockGet(&prog->lock) >= 0))
 	{
 		fflush(outStream);
 		sprintf((char *) prog->statusMessage, "Compressed size %u",
 			outStream->f.size);
-		lockRelease(&prog->progLock);
+		lockRelease(&prog->lock);
 	}
 
 	// Return success
@@ -332,7 +332,7 @@ int gzipCompressFile(const char *inFileName, const char *outFileName,
 	loaderFileClass class;
 	int textFile = 0;
 	FILE *inStream = NULL;
-	char constOutFileName[MAX_NAME_LENGTH];
+	char constOutFileName[MAX_NAME_LENGTH + 1];
 	FILE *outStream = NULL;
 
 	if (visopsys_in_kernel)
@@ -513,7 +513,7 @@ int gzipExtractNextMember(FILE *inStream, int memberNum,
 
 	int status = 0;
 	archiveMemberInfo info;
-	char constOutFileName[MAX_NAME_LENGTH];
+	char constOutFileName[MAX_NAME_LENGTH + 1];
 	FILE *outStream = NULL;
 	deflateState *deflate = NULL;
 	unsigned fileCrc32Sum = 0;
@@ -585,12 +585,12 @@ int gzipExtractNextMember(FILE *inStream, int memberNum,
 	// Decompress the data
 	status = deflateDecompressFileData(deflate, inStream, outStream, prog);
 
-	if (prog && (lockGet(&prog->progLock) >= 0))
+	if (prog && (lockGet(&prog->lock) >= 0))
 	{
 		fflush(outStream);
 		sprintf((char *) prog->statusMessage, "Decompressed size %u",
 			outStream->f.size);
-		lockRelease(&prog->progLock);
+		lockRelease(&prog->lock);
 	}
 
 	fclose(outStream);
@@ -801,7 +801,7 @@ int gzipDeleteMember(const char *inFileName, const char *memberName,
 
 	int status = 0;
 	FILE *inStream = NULL;
-	char outFileName[MAX_PATH_NAME_LENGTH];
+	char outFileName[MAX_PATH_NAME_LENGTH + 1];
 	FILE *outStream = NULL;
 	archiveMemberInfo info;
 	unsigned outputSize = 0;
@@ -893,12 +893,12 @@ int gzipDeleteMember(const char *inFileName, const char *memberName,
 
 		archiveInfoContentsFree(&info);
 
-		if (prog)
+		if (prog && (lockGet(&prog->lock) >= 0))
 		{
 			prog->numFinished = ftell(inStream);
 			prog->percentFinished = ((prog->numFinished * 100) /
 				prog->numTotal);
-			lockRelease(&prog->progLock);
+			lockRelease(&prog->lock);
 		}
 	}
 

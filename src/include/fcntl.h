@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,7 +26,8 @@
 // This header defines the following requests and arguments for use by the
 // functions fcntl() and open().
 
-#if !defined(_FCNTL_H)
+#ifndef _FCNTL_H
+#define _FCNTL_H
 
 // Values for cmd used by fcntl() (the following values are unique):
 #define F_DUPFD     0x01  // Duplicate file descriptor
@@ -92,6 +93,5 @@ typedef struct {
 // The following functions are supported
 int open(const char *, int);
 
-#define _FCNTL_H
 #endif
 

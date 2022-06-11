@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelShutdown.h
 //
 
-#if !defined(_KERNELSHUTDOWN_H)
+#ifndef _KERNELSHUTDOWN_H
+#define _KERNELSHUTDOWN_H
 
 // Functions exported by kernelShutdown.c
 int kernelSystemShutdown(int, int);
@@ -29,6 +30,5 @@ void kernelPanicOutput(const char *, const char *, int, const char *, ...)
 #define kernelPanic(message, arg...) \
   kernelPanicOutput(__FILE__, __FUNCTION__, __LINE__, message, ##arg)
 
-#define _KERNELSHUTDOWN_H
 #endif
 

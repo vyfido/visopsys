@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -42,7 +42,7 @@
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-int kernelLockGet(lock *getLock)
+int kernelLockGet(spinLock *lock)
 {
 	// This function is used to obtain a lock for exclusive use by a
 	// particular process.  Usually the lock will be part of a data structure
@@ -76,7 +76,7 @@ int kernelLockGet(lock *getLock)
 	int currentProcId = 0;
 
 	// Make sure the pointer we were given is not NULL
-	if (!getLock)
+	if (!lock)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get the process Id of the current process
@@ -86,7 +86,7 @@ int kernelLockGet(lock *getLock)
 
 	// Check whether the process already has the lock.  We'll allow this for
 	// now but later we want to make a process wait against even its own locks
-	if (getLock->processId == currentProcId)
+	if (lock->processId == currentProcId)
 		return (status = 0);
 
 	while (1)
@@ -98,23 +98,23 @@ int kernelLockGet(lock *getLock)
 		// or released out from under us.
 		processorSuspendInts(interrupts);
 
-		processorLock(getLock->processId, currentProcId);
+		processorLock(lock->processId, currentProcId);
 
 		processorRestoreInts(interrupts);
 
-		if (getLock->processId == currentProcId)
+		if (lock->processId == currentProcId)
 			break;
 
 		// Some other process has locked the resource.  Make sure the process
 		// is still alive, and that it is not sleeping, and that it has not
 		// become stopped or zombie.  If it has, we will remove the lock given
 		// to that process.
-		if (!kernelLockVerify(getLock))
+		if (!kernelLockVerify(lock))
 		{
 			// We might give the lock to the requesting process at the the
 			// start of the next loop.  Clear the current lock and restart the
 			// loop.
-			getLock->processId = 0;
+			lock->processId = 0;
 			continue;
 		}
 
@@ -138,7 +138,7 @@ int kernelLockGet(lock *getLock)
 }
 
 
-int kernelLockRelease(lock *relLock)
+int kernelLockRelease(spinLock *lock)
 {
 	// This function corresponds to the lock function.  It enables a
 	// process to release a resource that it had previously locked.
@@ -147,7 +147,7 @@ int kernelLockRelease(lock *relLock)
 	int currentProcId = 0;
 
 	// Make sure the pointer we were given is not NULL
-	if (!relLock)
+	if (!lock)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get the process Id of the current process
@@ -159,18 +159,20 @@ int kernelLockRelease(lock *relLock)
 
 	// Make sure that the current lock, if any, really belongs to this process.
 
-	if (relLock->processId == currentProcId)
+	if (lock->processId == currentProcId)
 	{
-		relLock->processId = 0;
+		lock->processId = 0;
 		return (status = 0);
 	}
 	else
+	{
 		// It is not locked by this process
 		return (status = ERR_NOLOCK);
+	}
 }
 
 
-int kernelLockVerify(lock *verLock)
+int kernelLockVerify(spinLock *lock)
 {
 	// This function should be used to determine whether a lock is still
 	// valid.  This means checking to see whether the locking process still
@@ -182,15 +184,15 @@ int kernelLockVerify(lock *verLock)
 	processState tmpState;
 
 	// Make sure the pointer we were given is not NULL
-	if (!verLock)
+	if (!lock)
 		return (status = ERR_NULLPARAMETER);
 
 	// Make sure there's really a lock here
-	if (!verLock->processId)
+	if (!lock->processId)
 		return (status = 0);
 
 	// Get the current state of the owning process
-	status = kernelMultitaskerGetProcessState(verLock->processId, &tmpState);
+	status = kernelMultitaskerGetProcessState(lock->processId, &tmpState);
 
 	// Is the process that holds the lock still valid?
 	if ((status < 0) ||
@@ -202,7 +204,9 @@ int kernelLockVerify(lock *verLock)
 		return (status = 0);
 	}
 	else
+	{
 		// It's a valid lock
 		return (status = 1);
+	}
 }
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -59,6 +59,7 @@ Options:
 #include <sys/ascii.h>
 #include <sys/env.h>
 #include <sys/errors.h>
+#include <sys/font.h>
 #include <sys/lang.h>
 #include <sys/paths.h>
 #include <sys/window.h>
@@ -96,8 +97,8 @@ typedef enum {
 static void setDefaults(void)
 {
 	char language[6];
-	char charsetName[CHARSET_NAME_LEN];
-	char keyMapName[KEYMAP_NAMELEN];
+	char charsetName[CHARSET_NAME_LEN + 1];
+	char keyMapName[KEYMAP_NAMELEN + 1];
 	char keyMapFile[MAX_PATH_NAME_LENGTH + 1];
 
 	if (getenv(ENV_LANG))
@@ -217,7 +218,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 {
 	static int stage = 0;
 
-	if (event->type == EVENT_MOUSE_LEFTUP)
+	if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 	{
 		if (key == rebootButton)
 			systemShutdown(reboot, 0);
@@ -226,7 +227,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 			systemShutdown(halt, 0);
 	}
 
-	else if ((event->type == EVENT_KEY_DOWN) && (event->key == keyEnter))
+	else if ((event->type == WINDOW_EVENT_KEY_DOWN) && (event->key.scan ==
+		keyEnter))
 	{
 		// Get the data from our field
 		if (!stage)
@@ -268,7 +270,7 @@ static void constructWindow(int myProcessId)
 	// from previous calls
 	windowClearEventHandlers();
 
-	// Create a new window, with small, arbitrary size and location
+	// Create a new window
 	window = windowNew(myProcessId, _("Login"));
 	if (!window)
 		return;
@@ -290,8 +292,8 @@ static void constructWindow(int myProcessId)
 	params.orientationX = orient_center;
 	params.orientationY = orient_top;
 
+	// Try to load a splash image to go at the top of the window
 	if (!splashImage.data && (fileFind(splashName, NULL) >= 0))
-		// Try to load a splash image to go at the top of the window
 		imageLoad(splashName, 0, 0, &splashImage);
 
 	if (splashImage.data)
@@ -300,15 +302,16 @@ static void constructWindow(int myProcessId)
 
 	// Put text labels in the window to prompt the user
 	params.gridY += 1;
-	params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
-		WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+	params.flags = (COMP_PARAMS_FLAG_CUSTOMFOREGROUND |
+		COMP_PARAMS_FLAG_CUSTOMBACKGROUND);
 	params.foreground = COLOR_WHITE;
 	memcpy(&params.background, &background, sizeof(color));
 	textLabel = windowNewTextLabel(window, LOGINNAME, &params);
 
 	// Add a login field
 	params.gridY += 1;
-	params.flags = (WINDOW_COMPFLAG_FIXEDHEIGHT | WINDOW_COMPFLAG_FIXEDWIDTH);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDHEIGHT |
+		COMP_PARAMS_FLAG_FIXEDWIDTH);
 	params.font = fontGet(FONT_FAMILY_LIBMONO, (FONT_STYLEFLAG_BOLD |
 		FONT_STYLEFLAG_FIXED), 10, NULL);
 	loginField = windowNewTextField(window, 30, &params);
@@ -485,9 +488,8 @@ skipOpts:
 
 			skipLogin = 0;
 
-			// We have a login name to process.  Authenticate the user and
-			// log them into the system
-			status = userLogin(login, password);
+			// We have a login name to process.  Authenticate the user.
+			status = userAuthenticate(login, password);
 			if (status < 0)
 			{
 				if (graphics)
@@ -507,11 +509,11 @@ skipOpts:
 		if (graphics)
 		{
 			if (window)
-				// Get rid of the login window.
+				// Get rid of the login window
 				windowDestroy(window);
 
-			// Log the user into the window manager.
-			shellPid = windowLogin(login);
+			// Log the user into the window manager
+			shellPid = windowLogin(login, password);
 			if (shellPid < 0)
 			{
 				windowNewErrorDialog(window, _("Login Failed"),
@@ -519,44 +521,46 @@ skipOpts:
 				continue;
 			}
 
-			// Set the PID to the window manager thread.
-			userSetPid(login, shellPid);
-
 			if (readOnly)
 				windowNewInfoDialog(NULL, _("Read Only"), READONLY);
 
-			// Block on the window manager thread PID we were passed.
-			multitaskerBlock(shellPid);
+			// Run the window shell and block on it
+			loaderExecProgram(shellPid, 1 /* block */);
 
 			// If we return to here, the login session is over.  Log the user
 			// out of the window manager.
-			windowLogout();
+			windowLogout(login);
 		}
 		else
 		{
 			// Load a shell process
-			shellPid = loaderLoadProgram(LOGIN_SHELL, userGetPrivilege(login));
+			shellPid = loaderLoadProgram(LOGIN_SHELL,
+				userGetPrivilege(login));
 			if (shellPid < 0)
 			{
 				printf(_("Couldn't load login shell %s!"), LOGIN_SHELL);
 				continue;
 			}
 
-			// Set the PID to the shell process.
-			userSetPid(login, shellPid);
+			status = userLogin(login, password, shellPid);
+			if (status < 0)
+			{
+				multitaskerKillProcess(shellPid, 1 /* force */);
+				printf("%s", _("Login Failed"));
+				continue;
+			}
 
 			printf(_("\nWelcome %s\n"), login);
 			if (readOnly)
 				printf("\n%s\n", READONLY);
 
-			// Run the text shell and block on it.
+			// Run the text shell and block on it
 			loaderExecProgram(shellPid, 1 /* block */);
 
-			// If we return to here, the login session is over.
+			// If we return to here, the login session is over. Log the user
+			// out of the system.
+			userLogout(login);
 		}
-
-		// Log the user out of the system.
-		userLogout(login);
 	}
 
 	// This function never returns under normal conditions.

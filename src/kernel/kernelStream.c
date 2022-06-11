@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -158,7 +158,7 @@ static int appendBytes(stream *theStream, unsigned number,
 	unsigned added = 0;
 	unsigned doBytes = 0;
 
-	// Check parameters
+	// Check params
 	if (!theStream || !buffer)
 		return (status = ERR_NULLPARAMETER);
 
@@ -217,7 +217,7 @@ static int appendDwords(stream *theStream, unsigned number, unsigned *buffer)
 	unsigned added = 0;
 	unsigned doDwords = 0;
 
-	// Check parameters
+	// Check params
 	if (!theStream || !buffer)
 		return (status = ERR_NULLPARAMETER);
 
@@ -274,7 +274,7 @@ static int getByte(stream *theStream, unsigned char *byte, int pop)
 
 	int status = 0;
 
-	// Check parameters
+	// Check params
 	if (!theStream || !byte)
 		return (status = ERR_NULLPARAMETER);
 
@@ -332,7 +332,7 @@ static int getDword(stream *theStream, unsigned *dword, int pop)
 
 	int status = 0;
 
-	// Check parameters
+	// Check params
 	if (!theStream || !dword)
 		return (status = ERR_NULLPARAMETER);
 
@@ -497,7 +497,7 @@ int kernelStreamNew(stream *theStream, unsigned size, streamItemSize itemSize)
 
 	int status = 0;
 
-	// Check parameters
+	// Check params
 	if (!theStream)
 		return (status = ERR_NULLPARAMETER);
 
@@ -590,7 +590,7 @@ int kernelStreamDestroy(stream *theStream)
 	int status = 0;
 	void *buffer = theStream->buffer;
 
-	// Check parameters
+	// Check params
 	if (!theStream)
 		return (status = ERR_NULLPARAMETER);
 

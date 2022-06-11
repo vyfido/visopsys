@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,17 +21,17 @@
 
 // This goes with the file kernelWindow.c
 
-#if !defined(_KERNELWINDOW_H)
+#ifndef _KERNELWINDOW_H
+#define _KERNELWINDOW_H
 
 #include "kernelCharset.h"
 #include "kernelGraphic.h"
-#include "kernelLinkedList.h"
 #include "kernelMouse.h"
 #include "kernelText.h"
-#include "kernelVariableList.h"
 #include <string.h>
 #include <sys/font.h>
 #include <sys/paths.h>
+#include <sys/vis.h>
 #include <sys/window.h>
 
 // Definitions
@@ -63,19 +63,13 @@
 #define WINDOW_DEFAULT_VARFONT_MEDIUM_POINTS	12
 #define WINDOW_MAX_CHILDREN						32
 
-#define WINFLAG_ICONIFIED						0x0800
-#define WINFLAG_VISIBLE							0x0400
-#define WINFLAG_ENABLED							0x0200
-#define WINFLAG_MOVABLE							0x0100
-#define WINFLAG_RESIZABLE						0x00C0
-#define WINFLAG_RESIZABLEX						0x0080
-#define WINFLAG_RESIZABLEY						0x0040
-#define WINFLAG_HASBORDER						0x0020
-#define WINFLAG_CANFOCUS						0x0010
-#define WINFLAG_HASFOCUS						0x0008
-#define WINFLAG_ROOTWINDOW						0x0004
-#define WINFLAG_BACKGROUNDTILED					0x0002
-#define WINFLAG_DEBUGLAYOUT						0x0001
+#define WINDOW_COMP_FLAG_VISIBLE				0x0020
+#define WINDOW_COMP_FLAG_ENABLED				0x0010
+#define WINDOW_COMP_FLAG_RESIZABLE				0x000C
+#define WINDOW_COMP_FLAG_RESIZABLEX				0x0008
+#define WINDOW_COMP_FLAG_RESIZABLEY				0x0004
+#define WINDOW_COMP_FLAG_CANFOCUS				0x0002
+#define WINDOW_COMP_FLAG_HASFOCUS				0x0001
 
 #define WINNAME_TEMPCONSOLE						"temp console window"
 #define WINNAME_ROOTWINDOW						"root window"
@@ -119,13 +113,13 @@ typedef struct {
 		kernelFont *defaultFont;
 		struct {
 			struct {
-				char family[FONT_FAMILY_LEN];
+				char family[FONT_FAMILY_LEN + 1];
 				unsigned flags;
 				int points;
 				kernelFont *font;
 			} small;
 			struct {
-				char family[FONT_FAMILY_LEN];
+				char family[FONT_FAMILY_LEN + 1];
 				unsigned flags;
 				int points;
 				kernelFont *font;
@@ -133,13 +127,13 @@ typedef struct {
 		} fixWidth;
 		struct {
 			struct {
-				char family[FONT_FAMILY_LEN];
+				char family[FONT_FAMILY_LEN + 1];
 				unsigned flags;
 				int points;
 				kernelFont *font;
 			} small;
 			struct {
-				char family[FONT_FAMILY_LEN];
+				char family[FONT_FAMILY_LEN + 1];
 				unsigned flags;
 				int points;
 				kernelFont *font;
@@ -184,7 +178,7 @@ typedef volatile struct _kernelWindowComponent {
 	volatile struct _kernelWindow *window;
 	volatile struct _kernelWindowComponent *container;
 	volatile struct _kernelWindow *contextMenu;
-	char charSet[CHARSET_NAME_LEN];
+	char charSet[CHARSET_NAME_LEN + 1];
 	graphicBuffer *buffer;
 	int xCoord;
 	int yCoord;
@@ -212,8 +206,7 @@ typedef volatile struct _kernelWindowComponent {
 	// Functions that should be implemented by components that 'contain'
 	// or instantiate other components
 	int (*add)(volatile struct _kernelWindowComponent *, objectKey);
-	int (*delete)(volatile struct _kernelWindowComponent *,
-			volatile struct _kernelWindowComponent *);
+	int (*delete)(volatile struct _kernelWindowComponent *, objectKey);
 	int (*numComps)(volatile struct _kernelWindowComponent *);
 	int (*flatten)(volatile struct _kernelWindowComponent *,
 		volatile struct _kernelWindowComponent **, int *, unsigned);
@@ -281,7 +274,7 @@ typedef volatile struct {
 	char *labelLine[WINDOW_MAX_LABEL_LINES];
 	int labelLines;
 	int labelWidth;
-	char command[MAX_PATH_NAME_LENGTH];
+	char command[MAX_PATH_NAME_LENGTH + 1];
 
 } kernelWindowIcon;
 
@@ -323,11 +316,15 @@ typedef volatile struct {
 } kernelWindowListItem;
 
 typedef volatile struct {
+	volatile struct _kernelWindow *menu;
+	int xCoord;
+	int titleWidth;
+
+} kernelWindowMenuInfo;
+
+typedef volatile struct {
 	volatile struct _kernelWindow *raisedMenu;
-	volatile struct _kernelWindow *menu[WINDOW_MAX_CHILDREN];
-	int menuXCoord[WINDOW_MAX_CHILDREN];
-	int menuTitleWidth[WINDOW_MAX_CHILDREN];
-	int numMenus;
+	linkedList menuList;
 	kernelWindowComponent *container;
 
 } kernelWindowMenuBar;
@@ -407,8 +404,8 @@ typedef volatile struct {
 typedef volatile struct _kernelWindow {
 	kernelWindowObjectType type;	// Must be first
 	int processId;
-	char charSet[CHARSET_NAME_LEN];
 	char title[WINDOW_MAX_TITLE_LENGTH];
+	char charSet[CHARSET_NAME_LEN + 1];
 	int xCoord;
 	int yCoord;
 	int level;
@@ -417,11 +414,10 @@ typedef volatile struct _kernelWindow {
 	image backgroundImage;
 	color background;
 	windowEventStream events;
+	kernelWindowComponent *sysContainer;
 	kernelWindowComponent *titleBar;
 	kernelWindowComponent *borders[4];
 	kernelWindowComponent *menuBar;
-	volatile struct _kernelWindow *contextMenu;
-	kernelWindowComponent *sysContainer;
 	kernelWindowComponent *mainContainer;
 	kernelWindowComponent *focusComponent;
 	kernelWindowComponent *mouseInComponent;
@@ -429,6 +425,7 @@ typedef volatile struct _kernelWindow {
 
 	// Parent-child relationships
 	volatile struct _kernelWindow *parentWindow;
+	kernelWindowComponent *parentMenuBar; // when it's a menu
 	volatile struct _kernelWindow *child[WINDOW_MAX_CHILDREN];
 	int numChildren;
 	volatile struct _kernelWindow *dialogWindow;
@@ -527,17 +524,9 @@ static inline int doAreasIntersect(screenArea *firstArea,
 	}
 	else
 	{
-		// Nope, not intersecting
+		// Not intersecting
 		return (0);
 	}
-}
-
-static inline void removeFromContainer(kernelWindowComponent *component)
-{
-	// Remove the component from its parent container
-	if (component->container && component->container->delete)
-		component->container->delete(component->container, component);
-	component->container = NULL;
 }
 
 #ifdef DEBUG
@@ -595,18 +584,18 @@ static inline const char *componentTypeString(kernelWindowObjectType type)
 // Functions exported by kernelWindow.c
 int kernelWindowInitialize(void);
 int kernelWindowStart(void);
-int kernelWindowLogin(const char *);
-int kernelWindowLogout(void);
+int kernelWindowLogin(const char *, const char *);
+int kernelWindowLogout(const char *);
 kernelWindow *kernelWindowNew(int, const char *);
 kernelWindow *kernelWindowNewChild(kernelWindow *, const char *);
 kernelWindow *kernelWindowNewDialog(kernelWindow *, const char *);
 int kernelWindowDestroy(kernelWindow *);
 int kernelWindowUpdateBuffer(graphicBuffer *, int, int, int, int);
+int kernelWindowGetList(kernelWindow **, int);
+int kernelWindowGetInfo(kernelWindow *, windowInfo *);
 int kernelWindowSetCharSet(kernelWindow *, const char *);
 int kernelWindowSetTitle(kernelWindow *, const char *);
-int kernelWindowGetSize(kernelWindow *, int *, int *);
 int kernelWindowSetSize(kernelWindow *, int, int);
-int kernelWindowGetLocation(kernelWindow *, int *, int *);
 int kernelWindowSetLocation(kernelWindow *, int, int);
 int kernelWindowCenter(kernelWindow *);
 int kernelWindowSnapIcons(objectKey);
@@ -615,6 +604,7 @@ int kernelWindowSetHasTitleBar(kernelWindow *, int);
 int kernelWindowSetMovable(kernelWindow *, int);
 int kernelWindowSetResizable(kernelWindow *, int);
 int kernelWindowSetFocusable(kernelWindow *, int);
+int kernelWindowSetRoot(kernelWindow *);
 int kernelWindowRemoveMinimizeButton(kernelWindow *);
 int kernelWindowRemoveCloseButton(kernelWindow *);
 int kernelWindowFocus(kernelWindow *);
@@ -638,23 +628,22 @@ int kernelWindowSaveScreenShot(const char *);
 int kernelWindowSetTextOutput(kernelWindowComponent *);
 int kernelWindowLayout(kernelWindow *);
 void kernelWindowDebugLayout(kernelWindow *);
-int kernelWindowContextAdd(objectKey, windowMenuContents *);
-int kernelWindowContextSet(objectKey, kernelWindow *);
+int kernelWindowContextSet(kernelWindowComponent *, kernelWindow *);
 int kernelWindowSwitchPointer(objectKey, const char *);
 void kernelWindowMoveConsoleTextArea(kernelWindow *, kernelWindow *);
-int kernelWindowToggleMenuBar(void);
+int kernelWindowToggleMenuBar(kernelWindow *);
 int kernelWindowRefresh(void);
 
 // Window shell functions
 int kernelWindowShell(const char *);
-void kernelWindowShellUpdateList(kernelLinkedList *);
+void kernelWindowShellUpdateList(linkedList *);
 void kernelWindowShellRefresh(void);
 int kernelWindowShellTileBackground(const char *);
 int kernelWindowShellCenterBackground(const char *);
 int kernelWindowShellRaiseWindowMenu(void);
 kernelWindowComponent *kernelWindowShellNewTaskbarIcon(image *);
 kernelWindowComponent *kernelWindowShellNewTaskbarTextLabel(const char *);
-void kernelWindowShellDestroyTaskbarComp(kernelWindowComponent *);
+int kernelWindowShellDestroyTaskbarComp(kernelWindowComponent *);
 kernelWindowComponent *kernelWindowShellIconify(kernelWindow *, int, image *);
 
 // Functions for managing components.  This first batch is from
@@ -671,6 +660,7 @@ int kernelWindowComponentGetHeight(kernelWindowComponent *);
 int kernelWindowComponentSetHeight(kernelWindowComponent *, int);
 int kernelWindowComponentFocus(kernelWindowComponent *);
 int kernelWindowComponentUnfocus(kernelWindowComponent *);
+int kernelWindowComponentLayout(kernelWindowComponent *);
 int kernelWindowComponentDraw(kernelWindowComponent *);
 int kernelWindowComponentGetData(kernelWindowComponent *, void *, int);
 int kernelWindowComponentSetData(kernelWindowComponent *, void *, int, int);
@@ -729,6 +719,12 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *,
 kernelWindowComponent *kernelWindowNewTree(objectKey, windowTreeItem *, int,
 	int, componentParameters *);
 
-#define _KERNELWINDOW_H
+// Additional component-specific functions
+int kernelWindowContainerAdd(kernelWindowComponent *, objectKey);
+int kernelWindowContainerDelete(kernelWindowComponent *, objectKey);
+int kernelWindowMenuUpdate(kernelWindow *, const char *, const char *,
+	windowMenuContents *, componentParameters *);
+int kernelWindowMenuDestroy(kernelWindow *);
+
 #endif
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -35,10 +35,10 @@
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelPciDriver.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/processor.h>
+#include <sys/vis.h>
 
 static struct {
 	unsigned version;
@@ -663,31 +663,29 @@ static int driverDetect(void *parent __attribute__((unused)),
 		pcNet->chipVersion |=
 			((readCSR(pcNet, PCNET_CSR_MODEL1) & 0xF000) >> 12);
 
-		status = kernelVariableListCreate(&dev->device.attrs);
+		status = variableListCreateSystem(&dev->device.attrs);
 		if (status >= 0)
 		{
 			// Record the vendor name and model
-			kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR,
+			variableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR,
 				"unknown");
-			kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_MODEL,
+			variableListSet(&dev->device.attrs, DEVICEATTRNAME_MODEL,
 				"PCNET");
 			for (count = 0; pcNetVendorModel[count].version; count ++)
 			{
 				if (pcNetVendorModel[count].version == pcNet->chipVersion)
 				{
-					kernelVariableListSet(&dev->device.attrs,
-						DEVICEATTRNAME_VENDOR,
+					variableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR,
 						pcNetVendorModel[count].vendor);
-					kernelVariableListSet(&dev->device.attrs,
-						DEVICEATTRNAME_MODEL, pcNetVendorModel[count].model);
+					variableListSet(&dev->device.attrs, DEVICEATTRNAME_MODEL,
+						pcNetVendorModel[count].model);
 					break;
 				}
 			}
 
 			// Record the interrupt number
 			sprintf(value, "%d", netDev->device.interruptNum);
-			kernelVariableListSet(&dev->device.attrs, "device.interrupt",
-				value);
+			variableListSet(&dev->device.attrs, "device.interrupt", value);
 
 			// Record the MAC address
 			sprintf(value, "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -697,7 +695,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 				netDev->device.hardwareAddress.byte[3],
 				netDev->device.hardwareAddress.byte[4],
 				netDev->device.hardwareAddress.byte[5]);
-			kernelVariableListSet(&dev->device.attrs, "mac.address", value);
+			variableListSet(&dev->device.attrs, "mac.address", value);
 			kernelDebug(debug_net, "PcNet MAC address %s",value);
 		}
 

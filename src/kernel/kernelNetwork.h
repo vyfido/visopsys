@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,12 +19,13 @@
 //  kernelNetwork.h
 //
 
-#if !defined(_KERNELNETWORK_H)
+#ifndef _KERNELNETWORK_H
+#define _KERNELNETWORK_H
 
 #include "kernelStream.h"
-#include "kernelLinkedList.h"
 #include "kernelLock.h"
 #include <sys/network.h>
+#include <sys/vis.h>
 
 #define NETWORK_DEVICE_TIMEOUT_MS			30000
 #define NETWORK_PACKETS_PER_STREAM			256
@@ -96,15 +97,15 @@ typedef struct {
 typedef volatile struct {
 	networkDevice device;
 	kernelDhcpConfig dhcpConfig;
-	lock lock;
+	spinLock lock;
 	kernelArpCacheItem arpCache[NETWORK_ARPCACHE_SIZE];
 	int numArpCaches;
 	kernelNetworkPacketStream inputStream;
 	kernelNetworkPacketStream outputStream;
 	kernelNetworkPacketPool packetPool;
-	kernelLinkedList connections;
-	kernelLinkedList inputHooks;
-	kernelLinkedList outputHooks;
+	linkedList connections;
+	linkedList inputHooks;
+	linkedList outputHooks;
 
 	// Driver-specific private data.
 	void *data;
@@ -168,6 +169,5 @@ int kernelNetworkSetHostName(const char *, int);
 int kernelNetworkGetDomainName(char *, int);
 int kernelNetworkSetDomainName(const char *, int);
 
-#define _KERNELNETWORK_H
 #endif
 

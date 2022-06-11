@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelPage.h
 //
 
-#if !defined(_KERNELPAGE_H)
+#ifndef _KERNELPAGE_H
+#define _KERNELPAGE_H
 
 #include "kernelLock.h"
 
@@ -65,7 +66,7 @@ typedef volatile struct {
 	int privilege;
 	kernelPageDirPhysicalMem *physical;
 	kernelPageDirVirtualMem *virtual;
-	lock dirLock;
+	spinLock lock;
 
 } kernelPageDirectory;
 
@@ -104,6 +105,5 @@ int kernelPageSetAttrs(int, int, unsigned char, void *, unsigned);
 void kernelPageTableDebug(int);
 #endif
 
-#define _KERNELPAGE_H
 #endif
 

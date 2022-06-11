@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,6 +23,7 @@
 
 #include "libcompress.h"
 #include <errno.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
@@ -286,11 +287,11 @@ int archiveCopyFileData(FILE *inStream, FILE *outStream, unsigned totalBytes,
 
 		doneBytes += maxBytes;
 
-		if (prog && (lockGet(&prog->progLock) >= 0))
+		if (prog && (lockGet(&prog->lock) >= 0))
 		{
 			prog->numFinished = doneBytes;
 			prog->percentFinished = ((doneBytes * 100) / totalBytes);
-			lockRelease(&prog->progLock);
+			lockRelease(&prog->lock);
 		}
 	}
 

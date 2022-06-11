@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2018 J. Andrew McLaughlin
+# Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: users\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2015-05-08 02:44+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -18,114 +18,114 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
-#: users.c:63
+#: users.c:64
 msgid "User Manager"
 msgstr "Менеджер пользователей"
 
-#: users.c:64 users.c:683
+#: users.c:65 users.c:692
 msgid "Add User"
 msgstr "Добавить пользователя"
 
-#: users.c:65
+#: users.c:66
 msgid "Delete User"
 msgstr "Удалить пользователя"
 
-#: users.c:66
+#: users.c:67
 msgid "Set Password"
 msgstr "Назначить пароль"
 
-#: users.c:67
+#: users.c:68
 msgid "Set Language"
 msgstr ""
 
-#: users.c:95
+#: users.c:96
 msgid "Error"
 msgstr "Ошибка"
 
-#: users.c:113
+#: users.c:114
 msgid "Error getting user names"
 msgstr "Ошибка при получении имен пользователей"
 
-#: users.c:189
+#: users.c:190
 #, c-format
 msgid "User name: %s"
 msgstr "Имя пользователя: %s"
 
-#: users.c:202
+#: users.c:203
 msgid "Old password:"
 msgstr "Старый пароль"
 
-#: users.c:216
+#: users.c:217
 msgid "New password:"
 msgstr "Новый пароль:"
 
-#: users.c:233
+#: users.c:234
 msgid "Confirm password:"
 msgstr "Подтвердите пароль:"
 
-#: users.c:247 users.c:418
+#: users.c:248 users.c:424
 msgid "Passwords do not match"
 msgstr "Пароли не совпадают"
 
-#: users.c:251
+#: users.c:252
 msgid "Password should be longer"
 msgstr ""
 
-#: users.c:263
+#: users.c:264
 msgid "OK"
 msgstr "ОК"
 
-#: users.c:268
+#: users.c:269
 msgid "Cancel"
 msgstr "Отмена"
 
-#: users.c:412 users.c:515
+#: users.c:418 users.c:520
 msgid "Permission denied"
 msgstr "Доступ запрещен"
 
-#: users.c:414
+#: users.c:420
 msgid "Error setting password"
 msgstr "Ошибка при назначении пароля"
 
-#: users.c:465
+#: users.c:470
 #, c-format
 msgid "User \"%s\" already exists."
 msgstr "Пользователь \"%s\" уже существует."
 
-#: users.c:473
+#: users.c:478
 msgid "Error adding user"
 msgstr "Ошибка при добавлении пользователя"
 
-#: users.c:483
+#: users.c:488
 msgid "Warning: couldn't create user directory"
 msgstr ""
 
-#: users.c:517
+#: users.c:522
 msgid "Error deleting user"
 msgstr "Ошибка при удалении пользователя"
 
-#: users.c:684
+#: users.c:693
 msgid "Enter the user name:"
 msgstr "Введите имя пользователя:"
 
-#: users.c:702
+#: users.c:712
 #, c-format
 msgid "Delete user %s?"
 msgstr "Удалить пользователя %s?"
 
-#: users.c:704
+#: users.c:714
 msgid "Delete?"
 msgstr "Удалить?"
 
-#: users.c:708
+#: users.c:719
 msgid "Can't delete the last user"
 msgstr "Не могу удалить последнего пользователя"
 
-#: users.c:732
+#: users.c:746
 msgid "Couldn't save the language choice"
 msgstr ""
 
-#: users.c:831
+#: users.c:846
 #, c-format
 msgid ""
 "\n"
@@ -134,20 +134,25 @@ msgstr ""
 "\n"
 "Команда \"%s\" работает только в графическом режиме\n"
 
-#: users.c:848
+#: users.c:863
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr ""
 
-#: users.c:888
+#: users.c:880
+#, fuzzy
+msgid "Couldn't determine the current user"
+msgstr "Не могу удалить последнего пользователя"
+
+#: users.c:908
 #, c-format
 msgid "No such user \"%s\""
 msgstr "Нет такого пользователя \"%s\""
 
-#: users.c:892
+#: users.c:913
 msgid "Done"
 msgstr "Готово"
 
-#: users.c:892
+#: users.c:913
 msgid "Password set"
 msgstr "Пароль назначен"

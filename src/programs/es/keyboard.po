@@ -1,8 +1,8 @@
-#: keyboard.c:55
+#: keyboard.c:51
 msgid "Quit"
 msgstr ""
 
-#: keyboard.c:232
+#: keyboard.c:257
 #, c-format
 msgid ""
 "\n"
@@ -11,7 +11,7 @@ msgstr ""
 "\n"
 "El comando \"%s\" funciona solamente en modo grfico\n"
 
-#: keyboard.c:248
+#: keyboard.c:273
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr ""

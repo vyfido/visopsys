@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,7 +23,8 @@
 // part on a driver contributed by Jonas Zaddach: See the files in the
 // directory contrib/jonas-net
 
-#if !defined(_KERNELNETWORKPCNETDRIVER_H)
+#ifndef _KERNELNETWORKPCNETDRIVER_H
+#define _KERNELNETWORKPCNETDRIVER_H
 
 // The standard PCI device identifiers
 #define PCNET_VENDOR_ID					0x1022
@@ -212,6 +213,5 @@ typedef struct {
 
 } __attribute__((packed)) pcNetInitBlock16;
 
-#define _KERNELNETWORKPCNETDRIVER_H
 #endif
 

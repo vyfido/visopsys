@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,10 +19,11 @@
 //  kernelUsbUhciDriver.h
 //
 
-#if !defined(_KERNELUSBUHCIDRIVER_H)
+#ifndef _KERNELUSBUHCIDRIVER_H
+#define _KERNELUSBUHCIDRIVER_H
 
-#include "kernelLinkedList.h"
 #include "kernelMemory.h"
+#include <sys/vis.h>
 
 // USB UHCI Host controller port offsets
 #define UHCI_PORTOFFSET_CMD			0x00
@@ -159,10 +160,9 @@ typedef struct {
 	kernelIoMemory frameList;
 	uhciQueueHead *queueHeads[UHCI_NUM_QUEUEHEADS];
 	uhciTransDesc *termTransDesc;
-	kernelLinkedList intrRegs;
+	linkedList intrRegs;
 
 } uhciData;
 
-#define _KERNELUSBUHCIDRIVER_H
 #endif
 

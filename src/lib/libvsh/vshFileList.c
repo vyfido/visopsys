@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -118,7 +118,7 @@ _X_ int vshFileList(const char *itemName)
 	if (status < 0)
 		return (errno = status);
 
-	lineBuffer = malloc(MAXSTRINGLENGTH);
+	lineBuffer = malloc(MAXSTRINGLENGTH + 1);
 	if (!lineBuffer)
 		return (errno = ERR_MEMORY);
 

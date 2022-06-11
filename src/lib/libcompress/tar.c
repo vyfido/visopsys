@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -308,7 +308,7 @@ int tarAddMember(const char *inFileName, const char *outFileName,
 	struct stat st;
 	loaderFileClass class;
 	FILE *inStream = NULL;
-	char constOutFileName[MAX_NAME_LENGTH];
+	char constOutFileName[MAX_NAME_LENGTH + 1];
 	FILE *outStream = NULL;
 	tarHeader header;
 
@@ -774,7 +774,7 @@ int tarDeleteMember(const char *inFileName, const char *memberName,
 
 	int status = 0;
 	FILE *inStream = NULL;
-	char outFileName[MAX_PATH_NAME_LENGTH];
+	char outFileName[MAX_PATH_NAME_LENGTH + 1];
 	FILE *outStream = NULL;
 	archiveMemberInfo info;
 	unsigned outputSize = 0;
@@ -866,12 +866,12 @@ int tarDeleteMember(const char *inFileName, const char *memberName,
 
 		archiveInfoContentsFree(&info);
 
-		if (prog)
+		if (prog && (lockGet(&prog->lock) >= 0))
 		{
 			prog->numFinished = ftell(inStream);
 			prog->percentFinished = ((prog->numFinished * 100) /
 				prog->numTotal);
-			lockRelease(&prog->progLock);
+			lockRelease(&prog->lock);
 		}
 	}
 

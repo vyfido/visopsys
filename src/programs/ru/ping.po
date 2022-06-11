@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2018 J. Andrew McLaughlin
+# Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ping\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-03-03 03:09+0000\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2014-08-13 22:35+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -18,15 +18,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.6.4\n"
 
-#: ping.c:64
+#: ping.c:65
 msgid "Ping"
 msgstr ""
 
-#: ping.c:98
+#: ping.c:99
 msgid "Error"
 msgstr "Ошибка"
 
-#: ping.c:106
+#: ping.c:107
 #, c-format
 msgid ""
 "usage:\n"
@@ -35,74 +35,74 @@ msgstr ""
 "использование:\n"
 "%s [-T] <адрес | хост>\n"
 
-#: ping.c:183
+#: ping.c:184
 #, c-format
 msgid "%d bytes from %d.%d.%d.%d: icmp_seq=%d ttl=%d time=%llu ms\n"
 msgstr "%d байт от %d.%d.%d.%d: icmp_seq=%d ttl=%d время=%llu ms\n"
 
-#: ping.c:283
+#: ping.c:290
 msgid "Stop"
 msgstr "Стоп"
 
-#: ping.c:345
+#: ping.c:352
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ping.c:354
+#: ping.c:361
 msgid "Networking is not currently enabled"
 msgstr "Сеть не запущена"
 
-#: ping.c:370
+#: ping.c:377
 msgid "Enter Address"
 msgstr "Введите адрес"
 
-#: ping.c:371
+#: ping.c:378
 msgid "Enter the network address to ping:"
 msgstr "Введите адрес для пинга:"
 
-#: ping.c:384
+#: ping.c:391
 msgid "Couldn't determine destination address"
 msgstr ""
 
-#: ping.c:400
+#: ping.c:407
 msgid "Error opening network connection"
 msgstr "Ошибка открытия сетевого соединения"
 
-#: ping.c:404
+#: ping.c:411
 #, c-format
 msgid "Ping %d.%d.%d.%d %d(%d) bytes of data"
 msgstr "Ping %d.%d.%d.%d %d(%d) байт данных"
 
-#: ping.c:418
+#: ping.c:425
 msgid "Error setting signal handler"
 msgstr ""
 
-#: ping.c:431
+#: ping.c:438
 msgid "Error starting response thread"
 msgstr ""
 
-#: ping.c:439 ping.c:451
+#: ping.c:446 ping.c:458
 msgid "Memory allocation error"
 msgstr "Ошибка распределения памяти"
 
-#: ping.c:465
+#: ping.c:472
 msgid "Error pinging host"
 msgstr "Ошибка пингования хоста"
 
-#: ping.c:483
+#: ping.c:490
 #, c-format
 msgid ""
 "\n"
 "--- %d.%d.%d.%d ping statistics ---\n"
 msgstr ""
 
-#: ping.c:485
+#: ping.c:492
 #, c-format
 msgid "%d packets transmitted, %d received, %d%% packet loss, time %llums\n"
 msgstr "%d пакетов отправлено, %d получено, %d%% потеряно, время %llums\n"
 
-#: ping.c:489
+#: ping.c:496
 #, c-format
 msgid "rtt min/avg/max = %llu/%llu/%llu ms\n"
 msgstr ""

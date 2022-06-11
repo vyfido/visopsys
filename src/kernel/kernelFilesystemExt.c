@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,10 +29,12 @@
 #include "kernelError.h"
 #include "kernelFile.h"
 #include "kernelFilesystem.h"
+#include "kernelLock.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include "kernelSysTimer.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -285,7 +287,7 @@ static int isSuperGroup(int groupNumber)
 	{
 		if (do3)
 		{
-			tmp3 = POW(3, count);
+			tmp3 = pow(3, count);
 			if (tmp3 == groupNumber)
 				return (1);
 			if (tmp3 > groupNumber)
@@ -294,7 +296,7 @@ static int isSuperGroup(int groupNumber)
 
 		if (do5)
 		{
-			tmp5 = POW(5, count);
+			tmp5 = pow(5, count);
 			if (tmp5 == groupNumber)
 				return (1);
 			if (tmp5 > groupNumber)
@@ -303,7 +305,7 @@ static int isSuperGroup(int groupNumber)
 
 		if (do7)
 		{
-			tmp7 = POW(7, count);
+			tmp7 = pow(7, count);
 			if (tmp7 == groupNumber)
 				return (1);
 			if (tmp7 > groupNumber)
@@ -1126,10 +1128,10 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		goto out;
 	}
 
-	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	if (prog && (kernelLockGet(&prog->lock) >= 0))
 	{
 		strcpy((char *) prog->statusMessage, "Calculating parameters");
-		kernelLockRelease(&prog->progLock);
+		kernelLockRelease(&prog->lock);
 	}
 
 	// Clear memory
@@ -1196,10 +1198,10 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		goto out;
 	}
 
-	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	if (prog && (kernelLockGet(&prog->lock) >= 0))
 	{
 		strcpy((char *) prog->statusMessage, "Creating group descriptors");
-		kernelLockRelease(&prog->progLock);
+		kernelLockRelease(&prog->lock);
 	}
 
 	// Create the group descriptors
@@ -1253,10 +1255,10 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		superblock.free_inodes_count += groupDescs[count1].free_inodes_count;
 	}
 
-	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	if (prog && (kernelLockGet(&prog->lock) >= 0))
 	{
 		strcpy((char *) prog->statusMessage, "Writing block groups");
-		kernelLockRelease(&prog->progLock);
+		kernelLockRelease(&prog->lock);
 	}
 
 	// Clear/write the blocks of all control sectors, block groups, etc
@@ -1349,17 +1351,17 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		kernelDiskWriteSectors((char *) theDisk->name, CURRENTSECTOR,
 			(inodeTableBlocks * sectsPerBlock), inodeTable);
 
-		if (prog && (kernelLockGet(&prog->progLock) >= 0))
+		if (prog && (kernelLockGet(&prog->lock) >= 0))
 		{
 			prog->percentFinished = ((count1 * 100) / blockGroups);
-			kernelLockRelease(&prog->progLock);
+			kernelLockRelease(&prog->lock);
 		}
 	}
 
-	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	if (prog && (kernelLockGet(&prog->lock) >= 0))
 	{
 		strcpy((char *) prog->statusMessage, "Initializing inodes");
-		kernelLockRelease(&prog->progLock);
+		kernelLockRelease(&prog->lock);
 	}
 
 	// Create the root inode
@@ -1390,10 +1392,10 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	kernelDiskWriteSectors((char *) theDisk->name,
 		((3 + groupDescBlocks) * sectsPerBlock), sectsPerBlock, inodeTable);
 
-	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	if (prog && (kernelLockGet(&prog->lock) >= 0))
 	{
 		strcpy((char *) prog->statusMessage, "Creating directories");
-		kernelLockRelease(&prog->progLock);
+		kernelLockRelease(&prog->lock);
 	}
 
 	// Create the root directory
@@ -1458,10 +1460,10 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
 	strcpy((char *) theDisk->fsType, FSNAME_EXT"2");
 
-	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	if (prog && (kernelLockGet(&prog->lock) >= 0))
 	{
 		strcpy((char *) prog->statusMessage, "Syncing disk");
-		kernelLockRelease(&prog->progLock);
+		kernelLockRelease(&prog->lock);
 	}
 
 	kernelLog("Format: Type: %s  Total blocks: %u  Bytes per block: %u  "
@@ -1481,10 +1483,10 @@ out:
 	if (groupDescs)
 		kernelFree(groupDescs);
 
-	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	if (prog && (kernelLockGet(&prog->lock) >= 0))
 	{
 		prog->complete = 1;
-		kernelLockRelease(&prog->progLock);
+		kernelLockRelease(&prog->lock);
 	}
 
 	return (status);
@@ -1499,7 +1501,7 @@ static int clobber(kernelDisk *theDisk)
 	int status = 0;
 	extSuperblock superblock;
 
-	// Check params.
+	// Check params
 	if (!theDisk)
 	{
 		kernelError(kernel_error, "NULL parameter");
@@ -1774,8 +1776,8 @@ static int resolveLink(kernelFileEntry *linkEntry)
 	int status = 0;
 	extInternalData *extData = NULL;
 	extInode *inode = NULL;
-	char fileName[MAX_PATH_NAME_LENGTH];
-	char tmpName[MAX_PATH_NAME_LENGTH];
+	char fileName[MAX_PATH_NAME_LENGTH + 1];
+	char tmpName[MAX_PATH_NAME_LENGTH + 1];
 	kernelFileEntry *targetEntry = NULL;
 	char *buffer = NULL;
 
@@ -1836,7 +1838,7 @@ static int resolveLink(kernelFileEntry *linkEntry)
 	// Need to make sure it's an absolute pathname.
 	if (fileName[0] != '/')
 	{
-		char tmpPath[MAX_PATH_LENGTH];
+		char tmpPath[MAX_PATH_LENGTH + 1];
 		kernelFileGetFullName(linkEntry->parentDirectory, tmpPath,
 			MAX_PATH_LENGTH);
 		sprintf(tmpName, "%s/%s", tmpPath, fileName);

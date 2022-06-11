@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -42,13 +42,13 @@ static int numFiles = 0;
 
 static char *getFilePath(const char *domain)
 {
-	// Return the path to the appropriate messages file for the current messages
-	// category and domain name.
+	// Return the path to the appropriate messages file for the current
+	// messages category and domain name.
 
 	char *path = NULL;
 
 	// Allocate memory for the full pathname
-	path = calloc(MAX_PATH_NAME_LENGTH, 1);
+	path = calloc((MAX_PATH_NAME_LENGTH + 1), 1);
 	if (!path)
 		return (path);
 
@@ -157,7 +157,8 @@ static int loadMessageFile(const char *domain)
 	}
 
 	msgfile->origTable = (msgfile->buffer + msgfile->header->origTableOffset);
-	msgfile->transTable = (msgfile->buffer + msgfile->header->transTableOffset);
+	msgfile->transTable = (msgfile->buffer +
+		msgfile->header->transTableOffset);
 
 	msgFiles = realloc(msgFiles, ((numFiles + 1) * sizeof(messages *)));
 	if (!msgFiles)
@@ -197,8 +198,8 @@ void _getMessageFiles(messages **msgs[], int *num)
 
 char *textdomain(const char *domain)
 {
-	// Sets the 'domain' for messages.  This means the filename of the messages
-	// file.
+	// Sets the 'domain' for messages.  This means the filename of the
+	// messages file.
 
 	if (!domain)
 	{

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,61 +17,61 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: nm.c:59
+#: nm.c:58
 msgid "local"
 msgstr ""
 
-#: nm.c:60
+#: nm.c:59
 msgid "global"
 msgstr ""
 
-#: nm.c:61
+#: nm.c:60
 msgid "weak"
 msgstr ""
 
-#: nm.c:65
+#: nm.c:64
 msgid "none"
 msgstr ""
 
-#: nm.c:66
+#: nm.c:65
 msgid "object"
 msgstr ""
 
-#: nm.c:67
+#: nm.c:66
 msgid "function"
 msgstr ""
 
-#: nm.c:68
+#: nm.c:67
 msgid "section"
 msgstr ""
 
-#: nm.c:69
+#: nm.c:68
 msgid "file"
 msgstr ""
 
-#: nm.c:75
+#: nm.c:74
 #, c-format
 msgid ""
 "usage:\n"
 "%s <file1> [file2] [...]\n"
 msgstr ""
 
-#: nm.c:111
+#: nm.c:110
 #, c-format
 msgid "Can't load file \"%s\"\n"
 msgstr ""
 
-#: nm.c:118
+#: nm.c:117
 #, c-format
 msgid "File type of \"%s\" is unknown\n"
 msgstr ""
 
-#: nm.c:127
+#: nm.c:126
 #, c-format
 msgid "\"%s\" is not an executable or dynamic library\n"
 msgstr ""
 
-#: nm.c:140
+#: nm.c:139
 #, c-format
 msgid "Unable to get dynamic symbols from \"%s\".\n"
 msgstr ""

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -135,12 +135,13 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 	params.padRight = 0;
 	params.padTop = 0;
 	params.orientationX = orient_left;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	windowNewTextLabel(container, message, &params);
 
 	// Add a text field for the value
 	params.gridY++;
-	params.flags = WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags = COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	field = windowNewTextField(container, columns, &params);
 	sprintf(buffer, "%d", defaultVal);
 	windowComponentSetData(field, buffer, columns, 1 /* redraw */);
@@ -163,7 +164,8 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 	params.padRight = 2;
 	params.padBottom = 0;
 	params.orientationX = orient_right;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	okButton = windowNewButton(container, _("OK"), NULL, &params);
 
 	// Create the Cancel button
@@ -182,9 +184,9 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 		{
 			// Check for keyboard events
 			if ((windowComponentEventGet(field, &event) > 0) &&
-				(event.type == EVENT_KEY_DOWN))
+				(event.type == WINDOW_EVENT_KEY_DOWN))
 			{
-				if (event.key == keyEnter)
+				if (event.key.scan == keyEnter)
 				{
 					status = 0;
 					break;
@@ -206,8 +208,8 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 			// Check for slider changes
 			if (windowComponentEventGet(slider, &event) > 0)
 			{
-				if (event.type & (EVENT_MOUSE_LEFTDOWN | EVENT_MOUSE_DRAG |
-					EVENT_KEY_DOWN))
+				if (event.type & (WINDOW_EVENT_MOUSE_LEFTDOWN |
+					WINDOW_EVENT_MOUSE_DRAG | WINDOW_EVENT_KEY_DOWN))
 				{
 					windowComponentGetData(slider, &sliderState,
 						sizeof(scrollBarState));
@@ -220,7 +222,7 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 
 			// Check for the OK button
 			if ((windowComponentEventGet(okButton, &event) > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP))
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 			{
 				status = 0;
 				break;
@@ -228,9 +230,9 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 
 			// Check for the Cancel button and window close events
 			if (((windowComponentEventGet(cancelButton, &event) > 0) &&
-					(event.type == EVENT_MOUSE_LEFTUP)) ||
+					(event.type == WINDOW_EVENT_MOUSE_LEFTUP)) ||
 				((windowComponentEventGet(dialogWindow, &event) > 0) &&
-					(event.type == EVENT_WINDOW_CLOSE)))
+					(event.type == WINDOW_EVENT_WINDOW_CLOSE)))
 			{
 				status = ERR_CANCELLED;
 				break;

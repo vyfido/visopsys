@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2018 J. Andrew McLaughlin
+# Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ps\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2014-08-13 22:29+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -25,9 +25,9 @@ msgid "Process list:\n"
 msgstr "Список процессов:\n"
 
 #: ps.c:92
-#, c-format
+#, fuzzy, c-format
 msgid ""
-"\"%s\"  PID=%d UID=%d priority=%d priv=%d parent=%d\n"
+"\"%s\"  PID=%d UID=%s priority=%d priv=%d parent=%d\n"
 "        %d%% CPU State="
 msgstr ""
 "\"%s\"  PID=%d UID=%d priority=%d priv=%d parent=%d\n"

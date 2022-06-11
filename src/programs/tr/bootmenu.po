@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2018 J. Andrew McLaughlin
+#  Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -19,19 +19,19 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-9\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: bootmenu.c:62
+#: bootmenu.c:61
 msgid "Boot Menu Installer"
 msgstr "Boot Menü yukleyicisi"
 
-#: bootmenu.c:67
+#: bootmenu.c:66
 msgid ""
 "Visopsys Boot Menu Installer\n"
-"Copyright (C) 1998-2018 J. Andrew McLaughlin"
+"Copyright (C) 1998-2019 J. Andrew McLaughlin"
 msgstr ""
 "Visopsys Boot Menü Yükleyici\n"
-"Copyright (C) 1998-2018 J. Andrew McLaughlin"
+"Copyright (C) 1998-2019 J. Andrew McLaughlin"
 
-#: bootmenu.c:69
+#: bootmenu.c:68
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
@@ -39,43 +39,43 @@ msgstr ""
 "Bu komutu kullanabilmek için ayricalikli kullanici olmalisiniz.\n"
 "(\"admin\" kullanicisi olarak giris yapmayi deneyin)"
 
-#: bootmenu.c:71
+#: bootmenu.c:70
 msgid "Partitions on the disk:"
 msgstr "Disk üzerindeki Bölümler:"
 
-#: bootmenu.c:72
+#: bootmenu.c:71
 msgid "Chain-loadable entries for the boot menu:"
 msgstr "Boot menü için zincir-yüklemeli girdiler:"
 
-#: bootmenu.c:73
+#: bootmenu.c:72
 msgid "Edit"
 msgstr "Düzenle"
 
-#: bootmenu.c:74
+#: bootmenu.c:73
 msgid "Default"
 msgstr "Varsayilan"
 
-#: bootmenu.c:75
+#: bootmenu.c:74
 msgid "Delete"
 msgstr "Sil"
 
-#: bootmenu.c:76
+#: bootmenu.c:75
 msgid "Automatically boot default selection after (seconds)"
 msgstr "Otomatik olarak varsayilan seçim boot edilecek (saniye)"
 
-#: bootmenu.c:78
+#: bootmenu.c:77
 msgid "OK"
 msgstr "Tamam"
 
-#: bootmenu.c:79
+#: bootmenu.c:78
 msgid "Cancel"
 msgstr "Iptal"
 
-#: bootmenu.c:80
+#: bootmenu.c:79
 msgid "Boot menu written."
 msgstr "Boot menüsü yazildi"
 
-#: bootmenu.c:121
+#: bootmenu.c:120
 #, c-format
 msgid ""
 "usage:\n"
@@ -84,15 +84,15 @@ msgstr ""
 "Kullanim:\n"
 "%s <disk ismi>\n"
 
-#: bootmenu.c:139
+#: bootmenu.c:138
 msgid "Error"
 msgstr "Hata"
 
-#: bootmenu.c:218
+#: bootmenu.c:217
 msgid "Edit entry label"
 msgstr "Isim girdisini düzenle"
 
-#: bootmenu.c:290
+#: bootmenu.c:289
 #, c-format
 msgid ""
 "Enter new label (%d characters max.):\n"
@@ -103,31 +103,31 @@ msgstr ""
 " [%s]\n"
 " ["
 
-#: bootmenu.c:371
+#: bootmenu.c:370
 msgid "Can't get memory for the logical disk list"
 msgstr "Mantiksal disk listesi için bellek alinamiyor"
 
-#: bootmenu.c:378
+#: bootmenu.c:377
 #, fuzzy
 msgid "Can't get the logical disk list"
 msgstr "Mantiksal disk listesi alinamiyor\n"
 
-#: bootmenu.c:409
+#: bootmenu.c:408
 #, fuzzy, c-format
 msgid "Can't open %s file"
 msgstr "%s dosyasi açilamiyor\n"
 
-#: bootmenu.c:416
+#: bootmenu.c:415
 #, fuzzy
 msgid "Can't get buffer memory"
 msgstr "Korumali bellek alinamiyor\n"
 
-#: bootmenu.c:423
+#: bootmenu.c:422
 #, fuzzy, c-format
 msgid "Can't read %s file"
 msgstr "%s dosyasi okunamiyor\n"
 
-#: bootmenu.c:493
+#: bootmenu.c:492
 #, c-format
 msgid ""
 "Disk %s\n"
@@ -142,48 +142,48 @@ msgstr ""
 "  zincir-yüklemelilik: %s\n"
 "\n"
 
-#: bootmenu.c:496
+#: bootmenu.c:495
 msgid "yes"
 msgstr "evet"
 
-#: bootmenu.c:496
+#: bootmenu.c:495
 msgid "no"
 msgstr "hayir"
 
-#: bootmenu.c:700
+#: bootmenu.c:706
 #, fuzzy
 msgid "Can't write boot menu"
 msgstr "Boot menü yazilamiyor\n"
 
-#: bootmenu.c:712
+#: bootmenu.c:718
 #, fuzzy, c-format
 msgid "Can't write MBR %s to %s"
 msgstr "MBR %s 'den %s 'ye yazilamiyor\n"
 
-#: bootmenu.c:753
+#: bootmenu.c:759
 msgid "Permission Denied"
 msgstr "Erisim Reddedildi"
 
-#: bootmenu.c:764
+#: bootmenu.c:770
 #, fuzzy, c-format
 msgid "Can't get disk %s"
 msgstr "Disk %s alinamiyor\n"
 
-#: bootmenu.c:773
+#: bootmenu.c:779
 #, fuzzy, c-format
 msgid "Disk %s is not a physical hard disk device"
 msgstr "Disk %s fiziksel hard disk aygiti degil\n"
 
-#: bootmenu.c:781
+#: bootmenu.c:787
 msgid "Can't get the list of logical disks"
 msgstr "Mantiksal disklerin listesi alinamiyor"
 
-#: bootmenu.c:836
+#: bootmenu.c:842
 #, c-format
 msgid "\"%s\" [Filesystem: %s]"
 msgstr "\"%s\" [Dosya sistemi: %s]"
 
-#: bootmenu.c:861
+#: bootmenu.c:867
 #, fuzzy
 msgid "There are no chain-loadable operating systems on this disk."
 msgstr ""
@@ -191,7 +191,7 @@ msgstr ""
 "Bu disk üzerinde hiç zincir-yüklemeli isletim sistemi bulunmuyor.\n"
 "\n"
 
-#: bootmenu.c:905
+#: bootmenu.c:911
 msgid ""
 "\n"
 "  [Cursor up/down to select, 'e' edit, '*' default\n"
@@ -202,11 +202,11 @@ msgstr ""
 "   Düzenlemek için \"e\" , Varsayilan için \"*\" \n"
 "   Silmek için \"d\", Kabul etmek için \"Enter\", Çikmak için \"q\"]"
 
-#: bootmenu.c:972
+#: bootmenu.c:978
 #, fuzzy
 msgid "Can't write boot menu or MBR"
 msgstr "Boot menüye yada MBR'ye yazilamiyor\n"
 
-#: bootmenu.c:980
+#: bootmenu.c:986
 msgid "Done"
 msgstr "Bitti"

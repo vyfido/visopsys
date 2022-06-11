@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,6 +18,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 #: help.c:154
+msgid "There is no general help available\n"
+msgstr ""
+
+#: help.c:213 help.c:254
+#, c-format
+msgid "--More--(%d%%)"
+msgstr ""
+
+#: help.c:249
 #, c-format
 msgid "There is no help available for \"%s\"\n"
 msgstr ""

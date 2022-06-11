@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,8 @@
 
 // This is the Visopsys version of the standard header file assert.h
 
-#if !defined(_ASSERT_H)
+#ifndef _ASSERT_H
+#define _ASSERT_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,6 +37,5 @@
 	#define assert(expression) ((void) 0)
 #endif
 
-#define _ASSERT_H
 #endif
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,8 @@
 // This file is the Visopsys implementation of the standard C library header
 // file <netinet/in.h>.
 
-#if !defined(_IN_H)
+#ifndef _IN_H
+#define _IN_H
 
 #define INET_ADDRSTRLEN			16
 #define INET6_ADDRSTRLEN		46
@@ -42,6 +43,5 @@ struct in6_addr {
 	unsigned char s6_addr[16]; // 16 bytes
 };
 
-#define _IN_H
 #endif
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,8 +26,8 @@
 #include "kernelError.h"
 #include "kernelMalloc.h"
 #include "kernelUsbDriver.h"
-#include "kernelVariableList.h"
 #include <stdlib.h>
+#include <sys/vis.h>
 
 
 static int detectTarget(void *parent, int target, void *driver)
@@ -94,7 +94,7 @@ out:
 
 	if (status < 0)
 	{
-		kernelVariableListDestroy(&dev->device.attrs);
+		variableListDestroy(&dev->device.attrs);
 
 		if (dev)
 			kernelFree(dev);
@@ -185,7 +185,7 @@ static int hotplug(void *parent, int busType __attribute__((unused)),
 		kernelDeviceRemove(dev);
 
 		// Free the device's attributes list
-		kernelVariableListDestroy(&dev->device.attrs);
+		variableListDestroy(&dev->device.attrs);
 
 		kernelFree(dev);
 	}

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,7 +21,8 @@
 
 // Describes the generic interface for hardware device drivers.
 
-#if !defined(_KERNELDRIVER_H)
+#ifndef _KERNELDRIVER_H
+#define _KERNELDRIVER_H
 
 // The generic device driver structure
 typedef struct _kernelDriver {
@@ -84,6 +85,5 @@ void kernelUsbKeyboardDriverRegister(kernelDriver *);
 void kernelUsbMouseDriverRegister(kernelDriver *);
 void kernelUsbTouchscreenDriverRegister(kernelDriver *);
 
-#define _KERNELDRIVER_H
 #endif
 

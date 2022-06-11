@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,7 +62,7 @@ static int getData(kernelWindowComponent *component, void *buffer, int size)
 	// supplied buffer.
 	kernelWindowTextArea *textArea = component->data;
 
-	size = min(size, (MAXSTRINGLENGTH - 1));
+	size = min(size, (MAXSTRINGLENGTH + 1));
 
 	memcpy(buffer, textArea->fieldBuffer, size);
 
@@ -101,7 +101,7 @@ static int setData(kernelWindowComponent *component, void *buffer, int size)
 	// text area.
 	kernelWindowTextArea *textArea = component->data;
 
-	size = min(size, (MAXSTRINGLENGTH - 1));
+	size = min(size, MAXSTRINGLENGTH);
 
 	memcpy(textArea->fieldBuffer, buffer, size);
 	textArea->fieldBuffer[size] = '\0';
@@ -116,9 +116,9 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 	kernelTextArea *area = textArea->area;
 	int bufferChars = strlen(textArea->fieldBuffer);
 
-	if (event->type == EVENT_KEY_DOWN)
+	if (event->type == WINDOW_EVENT_KEY_DOWN)
 	{
-		if (event->key == keyBackSpace)
+		if (event->key.scan == keyBackSpace)
 		{
 			if (bufferChars <= 0)
 				return (0);
@@ -131,14 +131,14 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 				showScrolled(component);
 		}
 
-		else if (event->ascii >= ASCII_SPACE)
+		else if (event->key.ascii >= ASCII_SPACE)
 		{
 			if (bufferChars >= (MAXSTRINGLENGTH - 1))
 				return (0);
 
-			textArea->fieldBuffer[bufferChars++] = event->ascii;
+			textArea->fieldBuffer[bufferChars++] = event->key.ascii;
 			textArea->fieldBuffer[bufferChars++] = '\0';
-			kernelTextStreamPutc(area->outputStream, event->ascii);
+			kernelTextStreamPutc(area->outputStream, event->key.ascii);
 
 			// Do we need to do any horizontal scrolling?
 			if (bufferChars >= (area->columns - 1))
@@ -200,7 +200,7 @@ kernelWindowComponent *kernelWindowNewTextField(objectKey parent, int columns,
 	area = textArea->area;
 
 	// Allocate our private buffer for the line contents
-	textArea->fieldBuffer = kernelMalloc(MAXSTRINGLENGTH);
+	textArea->fieldBuffer = kernelMalloc(MAXSTRINGLENGTH + 1);
 	if (!textArea->fieldBuffer)
 	{
 		if (component->destroy)
@@ -209,7 +209,7 @@ kernelWindowComponent *kernelWindowNewTextField(objectKey parent, int columns,
 	}
 
 	// Only X-resizable
-	component->flags &= ~WINFLAG_RESIZABLEY;
+	component->flags &= ~WINDOW_COMP_FLAG_RESIZABLEY;
 
 	// Turn off the cursor until we get the focus
 	area->cursorState = 0;

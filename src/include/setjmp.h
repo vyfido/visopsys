@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,10 +21,10 @@
 
 // This is the Visopsys version of the standard header file setjmp.h
 
-#if !defined(_SETJMP_H)
+#ifndef _SETJMP_H
+#define _SETJMP_H
 
 #warning "setjmp.h functions are not currently implemented in this library."
 
-#define _SETJMP_H
 #endif
 

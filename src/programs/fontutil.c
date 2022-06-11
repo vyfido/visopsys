@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -140,7 +140,7 @@ static void error(const char *format, ...)
 	// Generic error message code for either text or graphics modes
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
@@ -1216,8 +1216,8 @@ static int convert(const char *v1FileName, const char *v2FileName)
 	vbfFileHeader *v2CharSetHeader = NULL;
 	unsigned char *v2AsciiData = NULL;
 	unsigned char *v2CharSetData = NULL;
-	char v2AsciiFileName[MAX_PATH_NAME_LENGTH];
-	char v2CharSetFileName[MAX_PATH_NAME_LENGTH];
+	char v2AsciiFileName[MAX_PATH_NAME_LENGTH + 1];
+	char v2CharSetFileName[MAX_PATH_NAME_LENGTH + 1];
 	FILE *v2AsciiFile = NULL;
 	FILE *v2CharSetFile = NULL;
 	size_t written = 0;
@@ -1469,7 +1469,7 @@ static int getFontNames(char *nameBuffer)
 	int bufferChar = 0;
 	int count;
 
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 		return (status = ERR_MEMORY);
 
@@ -1644,7 +1644,7 @@ static int selectListFont(int selected)
 
 	freeGlyphListParams();
 
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 		return (status = ERR_MEMORY);
 
@@ -1698,8 +1698,8 @@ static int editGlyph(int selected)
 
 	fileClose(&imageFile);
 
-	imageFileName = malloc(MAX_PATH_NAME_LENGTH);
-	command = malloc(MAX_PATH_NAME_LENGTH);
+	imageFileName = malloc(MAX_PATH_NAME_LENGTH + 1);
+	command = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!imageFileName || !command)
 	{
 		status = ERR_MEMORY;
@@ -1765,7 +1765,7 @@ static int save(int selected)
 			(selectedFont->data + (count * glyphBytes)));
 	}
 
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 		return (status = ERR_MEMORY);
 
@@ -1808,6 +1808,9 @@ static void refreshWindow(void)
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window (not necessary if no components have changed)
+	//windowLayout(window);
 }
 
 
@@ -1819,15 +1822,15 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			windowGuiStop();
 	}
 
-	else if ((key == fontList) && (event->type & EVENT_SELECTION))
+	else if ((key == fontList) && (event->type & WINDOW_EVENT_SELECTION))
 	{
 		if (windowComponentGetSelected(fontList, &selected) < 0)
 			return;
@@ -1839,9 +1842,10 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == glyphList)
 	{
-		if ((event->type & EVENT_SELECTION) &&
-			((event->type & EVENT_MOUSE_LEFTUP) ||
-			((event->type & EVENT_KEY_DOWN) && (event->key == keyEnter))))
+		if ((event->type & WINDOW_EVENT_SELECTION) &&
+			((event->type & WINDOW_EVENT_MOUSE_LEFTUP) ||
+				((event->type & WINDOW_EVENT_KEY_DOWN) &&
+					(event->key.scan == keyEnter))))
 		{
 			if (windowComponentGetSelected(glyphList, &selected) < 0)
 				return;
@@ -1852,7 +1856,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == saveButton)
 	{
-		if (event->type & EVENT_MOUSE_LEFTUP)
+		if (event->type & WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			if (windowComponentGetSelected(fontList, &selected) < 0)
 				return;
@@ -1902,7 +1906,7 @@ static int constructWindow(const char *vbfFileName)
 	params.padLeft = 5;
 	params.orientationX = orient_left;
 	params.orientationY = orient_top;
-	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags = COMP_PARAMS_FLAG_FIXEDWIDTH;
 
 	// Create a list component for the font names
 	fontList = windowNewList(window, windowlist_textonly, 10, 1, 0,
@@ -1927,7 +1931,8 @@ static int constructWindow(const char *vbfFileName)
 	// Make a container for the buttons
 	params.gridX += 1;
 	params.padRight = 5;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	buttonContainer = windowNewContainer(window, "buttonContainer", &params);
 	if (!buttonContainer)
 		return (status = ERR_NOCREATE);

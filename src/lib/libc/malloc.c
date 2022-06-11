@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,12 +23,14 @@
 // upon the kernelMemory code, and does similar things, but instead of whole
 // memory pages, it allocates arbitrary-sized chunks.
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/memory.h>
 #include <sys/api.h>
+#include <sys/lock.h>
+#include <sys/vis.h>
 
 static mallocBlock *usedBlockList = NULL;
 static mallocBlock *freeBlockList = NULL;
@@ -37,10 +39,9 @@ static volatile unsigned totalBlocks = 0;
 static volatile unsigned vacantBlocks = 0;
 static volatile unsigned totalMemory = 0;
 static volatile unsigned usedMemory = 0;
-static lock blocksLock;
+static spinLock blocksLock;
 
 unsigned mallocHeapMultiple = USER_MEMORY_HEAP_MULTIPLE;
-mallocKernelOps mallocKernOps;
 
 #define USEDLIST_REF (&usedBlockList)
 #define FREELIST_REF (&freeBlockList)
@@ -52,11 +53,11 @@ mallocKernelOps mallocKernOps;
 #if defined(DEBUG)
 #define debug(message, arg...) do { \
 	if (visopsys_in_kernel) { \
-		if (mallocKernOps.debug) \
-			mallocKernOps.debug(__FILE__, __FUNCTION__, __LINE__, \
+		if (kernLibOps.debug) \
+			kernLibOps.debug(__FILE__, __FUNCTION__, __LINE__, \
 				debug_memory, message, ##arg); \
 	} else { \
-		printf("DEBUG: %s:%s(%d): ", __FILE__, __FUNCTION__, __LINE__); \
+		printf("DEBUG %s:%s(%d): ", __FILE__, __FUNCTION__, __LINE__); \
 		printf(message, ##arg); \
 		printf("\n"); \
 	} } while (0)
@@ -66,7 +67,7 @@ mallocKernelOps mallocKernOps;
 
 #define error(message, arg...) do { \
 	if (visopsys_in_kernel) { \
-		mallocKernOps.error(__FILE__, __FUNCTION__, __LINE__, kernel_error, \
+		kernLibOps.error(__FILE__, __FUNCTION__, __LINE__, kernel_error, \
 			message, ##arg); \
 	} else { \
 		printf("Error: %s:%s(%d): ", __FILE__, __FUNCTION__, __LINE__); \
@@ -75,10 +76,10 @@ mallocKernelOps mallocKernOps;
 	} } while (0)
 
 
-static inline int procid(void)
+static inline int process_id(void)
 {
 	if (visopsys_in_kernel)
-		return (mallocKernOps.multitaskerGetCurrentProcessId());
+		return (kernLibOps.multitaskerGetCurrentProcessId());
 	else
 		return (multitaskerGetCurrentProcessId());
 }
@@ -88,7 +89,7 @@ static inline void *memory_get(unsigned size, const char *desc)
 {
 	debug("Request memory block of size %u", size);
 	if (visopsys_in_kernel)
-		return (mallocKernOps.memoryGet(size, desc));
+		return (kernLibOps.memoryGetSystem(size, desc));
 	else
 		return (memoryGet(size, desc));
 }
@@ -98,27 +99,27 @@ static inline int memory_release(void *start)
 {
 	debug("Release memory block at %p", start);
 	if (visopsys_in_kernel)
-		return (mallocKernOps.memoryRelease(start));
+		return (kernLibOps.memoryReleaseSystem(start));
 	else
 		return (memoryRelease(start));
 }
 
 
-static inline int lock_get(lock *lk)
+static inline int lock_get(spinLock *lock)
 {
 	if (visopsys_in_kernel)
-		return (mallocKernOps.lockGet(lk));
+		return (kernLibOps.lockGet(lock));
 	else
-		return (lockGet(lk));
+		return (lockGet(lock));
 }
 
 
-static inline void lock_release(lock *lk)
+static inline void lock_release(spinLock *lock)
 {
 	if (visopsys_in_kernel)
-		mallocKernOps.lockRelease(lk);
+		kernLibOps.lockRelease(lock);
 	else
-		lockRelease(lk);
+		lockRelease(lock);
 }
 
 
@@ -466,7 +467,7 @@ static void *allocateBlock(unsigned size, const char *function)
 	removeBlock(FREELIST_REF, block);
 
 	block->function = function;
-	block->process = procid();
+	block->process = process_id();
 
 	// Add it to the used block list
 	sortInsertBlock(USEDLIST_REF, block);
@@ -592,7 +593,7 @@ static inline void mallocBlock2MemoryBlock(mallocBlock *maBlock,
 {
 	meBlock->processId = maBlock->process;
 	strncpy(meBlock->description, maBlock->function, MEMORY_MAX_DESC_LENGTH);
-	meBlock->description[MEMORY_MAX_DESC_LENGTH - 1] = '\0';
+	meBlock->description[MEMORY_MAX_DESC_LENGTH] = '\0';
 	meBlock->startLocation = maBlock->start;
 	meBlock->endLocation = blockEnd(maBlock);
 }

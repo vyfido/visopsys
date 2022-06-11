@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -98,7 +98,7 @@ Options:
 
 static int graphics = 0;
 static char *cwd = NULL;
-static char currentName[KEYMAP_NAMELEN];
+static char currentName[KEYMAP_NAMELEN + 1];
 static keyMap *selectedMap = NULL;
 static listItemParameters *mapListParams = NULL;
 static int numMapNames = 0;
@@ -157,7 +157,7 @@ static void error(const char *format, ...)
 	// Generic error message code for either text or graphics modes
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
@@ -234,9 +234,14 @@ static int findMapFile(const char *mapName, char *fileName)
 			continue;
 
 		if (strcmp(cwd, "/"))
-			snprintf(fileName, MAX_PATH_NAME_LENGTH, "%s/%s", cwd, theFile.name);
+		{
+			snprintf(fileName, MAX_PATH_NAME_LENGTH, "%s/%s", cwd,
+				theFile.name);
+		}
 		else
+		{
 			snprintf(fileName, MAX_PATH_NAME_LENGTH, "/%s", theFile.name);
+		}
 
 		status = readMap(fileName, map);
 		if (status < 0)
@@ -261,14 +266,14 @@ out:
 
 static int setMap(const char *mapName)
 {
-	// Change the current mapping in the kernel, and also change the config for
-	// persistence at the next reboot
+	// Change the current mapping in the kernel, and also change the config
+	// for persistence at the next reboot
 
 	int status = 0;
 	char *fileName = NULL;
 	disk confDisk;
 
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 		return (status = ERR_MEMORY);
 
@@ -319,7 +324,7 @@ static int loadMap(const char *mapName)
 	keyMap *newMap = NULL;
 	int count;
 
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 		return (status = ERR_MEMORY);
 
@@ -413,7 +418,8 @@ static int saveMap(const char *fileName)
 		return (status);
 	}
 
-	status = fileStreamWrite(&theStream, sizeof(keyMap), (char *) selectedMap);
+	status = fileStreamWrite(&theStream, sizeof(keyMap), (char *)
+		selectedMap);
 
 	fileStreamClose(&theStream);
 
@@ -435,7 +441,7 @@ static int getMapNames(char *nameBuffer)
 	int bufferChar = 0;
 	int count;
 
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	map = malloc(sizeof(keyMap));
 	if (!fileName || !map)
 		return (status = ERR_MEMORY);
@@ -562,6 +568,9 @@ static void refreshWindow(void)
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -585,7 +594,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 {
 	int status = 0;
 	int selected = 0;
-	char charsetName[CHARSET_NAME_LEN];
+	char charsetName[CHARSET_NAME_LEN + 1];
 	char *fullName = NULL;
 	char *dirName = NULL;
 
@@ -593,16 +602,16 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			windowGuiStop();
 	}
 
-	else if ((key == mapList) && (event->type & EVENT_SELECTION) &&
-		(event->type & EVENT_MOUSE_DOWN))
+	else if ((key == mapList) && (event->type & WINDOW_EVENT_SELECTION) &&
+		(event->type & WINDOW_EVENT_MOUSE_DOWN))
 	{
 		if (windowComponentGetSelected(mapList, &selected) < 0)
 			return;
@@ -634,9 +643,10 @@ static void eventHandler(objectKey key, windowEvent *event)
 		keyboard->eventHandler(keyboard, event);
 	}
 
-	else if ((key == saveButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == saveButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
-		fullName = malloc(MAX_PATH_NAME_LENGTH);
+		fullName = malloc(MAX_PATH_NAME_LENGTH + 1);
 		if (!fullName)
 			return;
 
@@ -679,7 +689,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 		windowNewInfoDialog(window, _("Saved"), _("Map saved"));
 	}
 
-	else if ((key == defaultButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == defaultButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		if (windowComponentGetSelected(mapList, &selected) < 0)
 			return;
@@ -690,8 +701,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 	}
 
 	// Check for the window being closed by a GUI event.
-	else if ((key == closeButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == closeButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
+	{
 		windowGuiStop();
+	}
 }
 
 
@@ -746,12 +760,12 @@ static int selectCharDialog(objectKey parentWindow)
 	params.padLeft = params.padRight = params.padTop = params.padBottom = 5;
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
-	params.flags = WINDOW_COMPFLAG_CUSTOMBACKGROUND;
+	params.flags = COMP_PARAMS_FLAG_CUSTOMBACKGROUND;
 	windowGetColor(COLOR_SETTING_DESKTOP, &params.background);
 
 	// Make a canvas for drawing characters on
-	canvas = windowNewCanvas(dialogWindow, (charWidth * 16), (charHeight * 16),
-		&params);
+	canvas = windowNewCanvas(dialogWindow, (charWidth * 16),
+		(charHeight * 16), &params);
 	if (!canvas)
 	{
 		selected = ERR_NOCREATE;
@@ -852,17 +866,17 @@ static int selectCharDialog(objectKey parentWindow)
 	{
 		// Check for window close events
 		if ((windowComponentEventGet(dialogWindow, &event) > 0) &&
-			(event.type == EVENT_WINDOW_CLOSE))
+			(event.type == WINDOW_EVENT_WINDOW_CLOSE))
 		{
 			selected = ERR_CANCELLED;
 			break;
 		}
 
 		else if ((windowComponentEventGet(canvas, &event) > 0) &&
-			(event.type == EVENT_MOUSE_LEFTUP))
+			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
-			selected = (((event.yPosition / charHeight) * 16) +
-				(event.xPosition / charWidth));
+			selected = (((event.coord.y / charHeight) * 16) +
+				(event.coord.x / charWidth));
 			break;
 		}
 
@@ -1014,8 +1028,8 @@ static int changeKeyDialog(keyScan scanCode)
 	params.gridY += 1;
 	params.orientationY = orient_middle;
 	params.font = largeFont;
-	params.flags |= (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
-		WINDOW_COMPFLAG_CUSTOMBACKGROUND | WINDOW_COMPFLAG_HASBORDER);
+	params.flags |= (COMP_PARAMS_FLAG_CUSTOMFOREGROUND |
+		COMP_PARAMS_FLAG_CUSTOMBACKGROUND | COMP_PARAMS_FLAG_HASBORDER);
 	regCharLabel = windowNewTextLabel(dialogWindow, "@", &params);
 	windowComponentSetCharSet(regCharLabel, keyboard->charsetName);
 	sprintf(string, "%c", charsetFromUnicode(keyboard->charsetName,
@@ -1098,7 +1112,7 @@ static int changeKeyDialog(keyScan scanCode)
 	params.gridY += 1;
 	params.gridWidth = 5;
 	params.padBottom = 5;
-	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags = COMP_PARAMS_FLAG_FIXEDWIDTH;
 	params.font = NULL;
 	buttonContainer = windowNewContainer(dialogWindow, "buttonContainer",
 		&params);
@@ -1127,60 +1141,60 @@ static int changeKeyDialog(keyScan scanCode)
 	{
 		// Check for Cancel button or window close events
 		if (((windowComponentEventGet(_cancelButton, &event) > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP)) ||
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)) ||
 			((windowComponentEventGet(dialogWindow, &event) > 0) &&
-				(event.type == EVENT_WINDOW_CLOSE)))
+				(event.type == WINDOW_EVENT_WINDOW_CLOSE)))
 		{
 			break;
 		}
 
 		// Check for the OK button
 		else if ((windowComponentEventGet(_okButton, &event) > 0) &&
-			(event.type == EVENT_MOUSE_LEFTUP))
+			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			commit = 1;
 		}
 
 		// Clicks in the 'normal' character label
 		else if ((windowComponentEventGet(regCharLabel, &event) > 0) &&
-			(event.type == EVENT_MOUSE_LEFTUP))
+			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			selectKeyValue(dialogWindow, regField, regCharLabel);
 		}
 
 		// Clicks in the 'shifted' character label
 		else if ((windowComponentEventGet(shiftCharLabel, &event) > 0) &&
-			(event.type == EVENT_MOUSE_LEFTUP))
+			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			selectKeyValue(dialogWindow, shiftField, shiftCharLabel);
 		}
 
 		// Clicks in the 'AltGr' character label
 		else if ((windowComponentEventGet(altGrCharLabel, &event) > 0) &&
-			(event.type == EVENT_MOUSE_LEFTUP))
+			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			selectKeyValue(dialogWindow, altGrField, altGrCharLabel);
 		}
 
 		// Clicks in the 'Shift-AltGr' character label
 		else if ((windowComponentEventGet(shiftAltGrCharLabel, &event) > 0) &&
-			(event.type == EVENT_MOUSE_LEFTUP))
+			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			selectKeyValue(dialogWindow, shiftAltGrField, shiftAltGrCharLabel);
 		}
 
 		// Clicks in the 'control' character label
 		else if ((windowComponentEventGet(ctrlCharLabel, &event) > 0) &&
-			(event.type == EVENT_MOUSE_LEFTUP))
+			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			selectKeyValue(dialogWindow, ctrlField, ctrlCharLabel);
 		}
 
 		// Key presses in the 'normal' field
 		else if ((windowComponentEventGet(regField, &event) > 0) &&
-			(event.type == EVENT_KEY_DOWN))
+			(event.type == WINDOW_EVENT_KEY_DOWN))
 		{
-			if (event.key == keyEnter)
+			if (event.key.scan == keyEnter)
 				commit = 1;
 			else
 				typedKeyValue(regField, regCharLabel);
@@ -1188,9 +1202,9 @@ static int changeKeyDialog(keyScan scanCode)
 
 		// Key presses in the 'shifted' field
 		else if ((windowComponentEventGet(shiftField, &event) > 0) &&
-			(event.type == EVENT_KEY_DOWN))
+			(event.type == WINDOW_EVENT_KEY_DOWN))
 		{
-			if (event.key == keyEnter)
+			if (event.key.scan == keyEnter)
 				commit = 1;
 			else
 				typedKeyValue(shiftField, shiftCharLabel);
@@ -1198,9 +1212,9 @@ static int changeKeyDialog(keyScan scanCode)
 
 		// Key presses in the 'AltGr' field
 		else if ((windowComponentEventGet(altGrField, &event) > 0) &&
-			(event.type == EVENT_KEY_DOWN))
+			(event.type == WINDOW_EVENT_KEY_DOWN))
 		{
-			if (event.key == keyEnter)
+			if (event.key.scan == keyEnter)
 				commit = 1;
 			else
 				typedKeyValue(altGrField, altGrCharLabel);
@@ -1208,9 +1222,9 @@ static int changeKeyDialog(keyScan scanCode)
 
 		// Key presses in the 'Shift-AltGr' field
 		else if ((windowComponentEventGet(shiftAltGrField, &event) > 0) &&
-			(event.type == EVENT_KEY_DOWN))
+			(event.type == WINDOW_EVENT_KEY_DOWN))
 		{
-			if (event.key == keyEnter)
+			if (event.key.scan == keyEnter)
 				commit = 1;
 			else
 				typedKeyValue(shiftAltGrField, shiftAltGrCharLabel);
@@ -1218,9 +1232,9 @@ static int changeKeyDialog(keyScan scanCode)
 
 		// Key presses in the 'control' field
 		else if ((windowComponentEventGet(ctrlField, &event) > 0) &&
-			(event.type == EVENT_KEY_DOWN))
+			(event.type == WINDOW_EVENT_KEY_DOWN))
 		{
-			if (event.key == keyEnter)
+			if (event.key.scan == keyEnter)
 				commit = 1;
 			else
 				typedKeyValue(ctrlField, ctrlCharLabel);
@@ -1261,7 +1275,7 @@ static int changeKeyDialog(keyScan scanCode)
 
 static int keyCallback(int eventType, keyScan scanCode)
 {
-	if (eventType == EVENT_KEY_UP)
+	if (eventType == WINDOW_EVENT_KEY_UP)
 	{
 		switch (scanCode)
 		{
@@ -1326,10 +1340,12 @@ static void constructWindow(void)
 	// Create labels for the current keymap
 	params.gridX = 0;
 	params.gridY = 0;
-	params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags |= (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	currentLabel = windowNewTextLabel(rightContainer, CURRENT, &params);
 	params.gridY += 1;
-	currentNameLabel = windowNewTextLabel(rightContainer, currentName, &params);
+	currentNameLabel = windowNewTextLabel(rightContainer, currentName,
+		&params);
 
 	// Make a container for the name and language
 	params.gridX = 0;
@@ -1361,15 +1377,16 @@ static void constructWindow(void)
 	params.gridY += 1;
 	params.gridWidth = 2;
 	params.orientationX = orient_center;
-	keyboard = windowNewKeyboard(window, 0 /* min width */, 0 /* min height */,
-		&keyCallback, &params);
+	keyboard = windowNewKeyboard(window, 0 /* min width */,
+		0 /* min height */, &keyCallback, &params);
 
 	// Register an event handler to catch keyboard events
 	windowRegisterEventHandler(keyboard->canvas, &eventHandler);
 
 	params.gridY += 1;
 	params.padBottom = 5;
-	params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags |= (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	bottomContainer = windowNewContainer(window, "bottomContainer", &params);
 
 	// Create a 'Save' button
@@ -1459,7 +1476,7 @@ static void printKeyboard(void)
 {
 	// Print out the detail of the selected keymap
 
-	char charsetName[CHARSET_NAME_LEN];
+	char charsetName[CHARSET_NAME_LEN + 1];
 
 	// Try to get the character set for the keymap language
 	if (configGet(PATH_SYSTEM_CONFIG "/charset.conf",
@@ -1513,8 +1530,8 @@ int main(int argc, char *argv[])
 				// Save the map to a file
 				if (!optarg)
 				{
-					fprintf(stderr, "%s", _("Missing filename argument for -s "
-						"option\n"));
+					fprintf(stderr, "%s", _("Missing filename argument for "
+						"-s option\n"));
 					usage(argv[0]);
 					return (status = ERR_NULLPARAMETER);
 				}
@@ -1544,7 +1561,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	cwd = malloc(MAX_PATH_LENGTH);
+	cwd = malloc(MAX_PATH_LENGTH + 1);
 	selectedMap = malloc(sizeof(keyMap));
 	if (!cwd || !selectedMap)
 	{

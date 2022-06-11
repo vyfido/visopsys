@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2018 J. Andrew McLaughlin
+#  Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,7 +21,7 @@ msgstr ""
 msgid "Console Window"
 msgstr "Konsolen-Fenster"
 
-#: console.c:104
+#: console.c:107
 #, c-format
 msgid ""
 "\n"
@@ -30,14 +30,14 @@ msgstr ""
 "\n"
 "Der Befehl \"%s\" funktioniert nur im Grafik-Modus\n"
 
-#: console.c:120 console.c:125
+#: console.c:123 console.c:128
 msgid "Error"
 msgstr "Fehler"
 
-#: console.c:120
+#: console.c:123
 msgid "Cannot open more than one console window!"
 msgstr "Mehr als ein Konsolen-Fenster kann nicht geöffnet werden!"
 
-#: console.c:125
+#: console.c:128
 msgid "Error opening the console window!"
 msgstr "Fehler beim öffnen des Konsolen-Fensters!"

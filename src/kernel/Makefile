@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2018 J. Andrew McLaughlin
+##  Copyright (C) 1998-2019 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -65,7 +65,6 @@ NAMES = kernelMain \
 	kernelInitialize \
 	kernelInterrupt \
 	kernelKeyboard \
-	kernelLinkedList \
 	kernelLoader \
 	kernelLoaderClass \
 	kernelLoaderElf \
@@ -97,7 +96,6 @@ NAMES = kernelMain \
 	kernelText \
 	kernelTouch \
 	kernelUser \
-	kernelVariableList \
 	kernelWindow \
 	kernelWindowBorder \
 	kernelWindowButton \
@@ -178,7 +176,7 @@ target-dirs:
 	mkdir -p ${BUILDDIR}
 
 ${KERNEL}: ${OBJS}
-	${CC} ${CFLAGS} ${LFLAGS} ${OBJS} -lc -lgcc -o $@
+	${CC} ${CFLAGS} ${LFLAGS} ${OBJS} -lvis -lc -lgcc -o $@
 
 strip: ${KERNEL}
 	${STRIP}

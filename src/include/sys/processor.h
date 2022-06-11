@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  processor.h
 //
 
-#if !defined(_PROCESSOR_H)
+#ifndef _PROCESSOR_H
+#define _PROCESSOR_H
 
 // This file contains macros for processor-specific operations.  At the moment
 // it's only for X86 processors.
@@ -416,6 +417,5 @@ static inline unsigned processorSwap32(unsigned variable)
 	processorHalt(); \
 } while (0)
 
-#define _PROCESSOR_H
 #endif
 

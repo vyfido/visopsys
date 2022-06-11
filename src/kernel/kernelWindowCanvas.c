@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -56,10 +56,11 @@ static int draw(kernelWindowComponent *component)
 
 	kernelDebug(debug_gui, "WindowCanvas draw");
 
-	kernelGraphicCopyBuffer(&canvas->buffer, component->buffer,
-		component->xCoord, component->yCoord);
+	kernelGraphicCopyBuffer(&canvas->buffer, 0 /* xCoord */, 0 /* yCoord */,
+		component->buffer, component->xCoord, component->yCoord,
+		canvas->buffer.width, canvas->buffer.height);
 
-	if (component->flags & WINFLAG_HASFOCUS)
+	if (component->flags & WINDOW_COMP_FLAG_HASFOCUS)
 		drawFocus(component, 1);
 
 	return (status = 0);
@@ -175,9 +176,9 @@ static int setData(kernelWindowComponent *component, void *data, int size
 				if (!kernelFontHasCharSet((kernelFont *) params->font,
 					(char *) component->charSet))
 				{
-					kernelFontGet(((kernelFont *) params->font)->family,
-						((kernelFont *) params->font)->flags,
-						((kernelFont *) params->font)->points,
+					kernelFontGet(((kernelFont *) params->font)->info.family,
+						((kernelFont *) params->font)->info.flags,
+						((kernelFont *) params->font)->info.points,
 						(char *) component->charSet);
 				}
 
@@ -189,13 +190,22 @@ static int setData(kernelWindowComponent *component, void *data, int size
 			}
 			break;
 
+		case draw_buffer:
+			status = kernelGraphicCopyBuffer((graphicBuffer *) params->data,
+				params->xCoord1, params->yCoord1, &canvas->buffer,
+				params->xCoord2, params->yCoord2, params->width,
+				params->height);
+			break;
+
 		default:
 			break;
 	}
 
 	if (!params->buffer)
+	{
 		component->window->update(component->window, component->xCoord,
 			component->yCoord, component->width, component->height);
+	}
 
 	return (status);
 }
@@ -254,7 +264,7 @@ kernelWindowComponent *kernelWindowNewCanvas(objectKey parent, int width,
 	component->height = height;
 	component->minWidth = component->width;
 	component->minHeight = component->height;
-	component->flags |= WINFLAG_RESIZABLE;
+	component->flags |= WINDOW_COMP_FLAG_RESIZABLE;
 
 	// Set the functions
 	component->draw = &draw;
@@ -285,7 +295,7 @@ kernelWindowComponent *kernelWindowNewCanvas(objectKey parent, int width,
 	component->data = (void *) canvas;
 
 	// If a custom background was specified, fill it with that color
-	if (params->flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
+	if (params->flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND)
 	{
 		kernelGraphicDrawRect(&canvas->buffer, &params->background,
 			draw_normal, 0, 0, width, height, 1 /* thickness */,

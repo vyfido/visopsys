@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,10 +29,10 @@
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
-#include "kernelVariableList.h"
 #include "kernelWindow.h"
 #include <string.h>
 #include <sys/kernconf.h>
+#include <sys/vis.h>
 
 // The graphics environment
 static int screenWidth = 0;
@@ -87,8 +87,8 @@ static inline void erase(void)
 static inline void status2event(int eventType, windowEvent *event)
 {
 	event->type = eventType;
-	event->xPosition = mouseStatus.xPosition;
-	event->yPosition = mouseStatus.yPosition;
+	event->coord.x = mouseStatus.xPosition;
+	event->coord.y = mouseStatus.yPosition;
 }
 
 
@@ -117,11 +117,11 @@ static void mouseThread(void)
 			if (mouseStatus.button1Pressed || mouseStatus.button2Pressed ||
 				mouseStatus.button3Pressed)
 			{
-				eventType = EVENT_MOUSE_DRAG;
+				eventType = WINDOW_EVENT_MOUSE_DRAG;
 			}
 			else
 			{
-				eventType = EVENT_MOUSE_MOVE;
+				eventType = WINDOW_EVENT_MOUSE_MOVE;
 			}
 
 			mouseStatus.xyChange = 0;
@@ -140,27 +140,27 @@ static void mouseThread(void)
 					mouseStatus.button1Pressed =
 						mouseStatus.changeButtonPressed;
 					if (mouseStatus.changeButtonPressed)
-						eventType = EVENT_MOUSE_LEFTDOWN;
+						eventType = WINDOW_EVENT_MOUSE_LEFTDOWN;
 					else
-						eventType = EVENT_MOUSE_LEFTUP;
+						eventType = WINDOW_EVENT_MOUSE_LEFTUP;
 					break;
 
 				case 2:
 					mouseStatus.button2Pressed =
 						mouseStatus.changeButtonPressed;
 					if (mouseStatus.changeButtonPressed)
-						eventType = EVENT_MOUSE_MIDDLEDOWN;
+						eventType = WINDOW_EVENT_MOUSE_MIDDLEDOWN;
 					else
-						eventType = EVENT_MOUSE_MIDDLEUP;
+						eventType = WINDOW_EVENT_MOUSE_MIDDLEUP;
 					break;
 
 				case 3:
 					mouseStatus.button3Pressed =
 						mouseStatus.changeButtonPressed;
 					if (mouseStatus.changeButtonPressed)
-						eventType = EVENT_MOUSE_RIGHTDOWN;
+						eventType = WINDOW_EVENT_MOUSE_RIGHTDOWN;
 					else
-						eventType = EVENT_MOUSE_RIGHTUP;
+						eventType = WINDOW_EVENT_MOUSE_RIGHTUP;
 					break;
 			}
 
@@ -175,11 +175,11 @@ static void mouseThread(void)
 		{
 			// Set up our event
 			if (mouseStatus.zChange < 0)
-				eventType = EVENT_MOUSE_SCROLLUP;
+				eventType = WINDOW_EVENT_MOUSE_SCROLLUP;
 			else if (mouseStatus.zChange > 0)
-				eventType = EVENT_MOUSE_SCROLLDOWN;
+				eventType = WINDOW_EVENT_MOUSE_SCROLLDOWN;
 			else
-				eventType = EVENT_MOUSE_SCROLL; // ??
+				eventType = WINDOW_EVENT_MOUSE_SCROLL; // ??
 
 			mouseStatus.zChange = 0;
 
@@ -376,16 +376,15 @@ int kernelMouseInitialize(void)
 	// Load the mouse pointers
 	for (count = 0; mousePointerTypes[count][0]; count ++)
 	{
-		value = kernelVariableListGet(kernelVariables,
-			mousePointerTypes[count][1]);
+		value = variableListGet(kernelVariables, mousePointerTypes[count][1]);
 		if (!value)
 		{
 			// Nothing specified.  Use the default.
 			value = mousePointerTypes[count][2];
 
 			// Save it
-			kernelVariableListSet(kernelVariables,
-				mousePointerTypes[count][1], value);
+			variableListSet(kernelVariables, mousePointerTypes[count][1],
+				value);
 		}
 
 		status = kernelMouseLoadPointer(mousePointerTypes[count][0], value);
@@ -408,7 +407,8 @@ int kernelMouseInitialize(void)
 	}
 
 	// Spawn the mouse thread
-	threadPid = kernelMultitaskerSpawn(mouseThread, "mouse thread", 0, NULL);
+	threadPid = kernelMultitaskerSpawn(mouseThread, "mouse thread",
+		0 /* no args */, NULL /* no args */, 1 /* run */);
 	if (threadPid < 0)
 		kernelError(kernel_warn, "Unable to start mouse thread");
 
@@ -448,7 +448,7 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Check parameters
+	// Check params
 	if (!pointerName || !fileName)
 		return (status = ERR_NULLPARAMETER);
 
@@ -521,7 +521,7 @@ kernelMousePointer *kernelMouseGetPointer(const char *pointerName)
 	if (!initialized)
 		return (pointer = NULL);
 
-	// Check parameters
+	// Check params
 	if (!pointerName)
 	{
 		kernelError(kernel_error, "NULL parameter");
@@ -550,7 +550,7 @@ int kernelMouseSetPointer(kernelMousePointer *pointer)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Check parameters
+	// Check params
 	if (!pointer)
 	{
 		kernelError(kernel_error, "NULL parameter");

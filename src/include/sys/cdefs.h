@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,8 @@
 
 // This is the Visopsys version of the standard header file cdefs.h
 
-#if !defined(_CDEFS_H)
+#ifndef _CDEFS_H
+#define _CDEFS_H
 
 #include <stdarg.h>
 #include <sys/types.h>
@@ -51,6 +52,5 @@ void _num2str(unsigned, char *, int, int);
 unsigned long long _str2num(const char *, unsigned, int, int *);
 int _xpndfmt(char *, int, const char *, va_list);
 
-#define _CDEFS_H
 #endif
 

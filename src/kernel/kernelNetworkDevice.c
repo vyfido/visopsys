@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -40,6 +40,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <sys/processor.h>
+#include <sys/vis.h>
 
 // An array of pointers to all network devices.
 static kernelDevice *devices[NETWORK_MAX_DEVICES];
@@ -116,25 +117,25 @@ static kernelNetworkPacket *poolPacketGet(kernelNetworkDevice *netDev)
 static void processHooks(kernelNetworkDevice *netDev,
 	kernelNetworkPacket *packet, int input)
 {
-	kernelLinkedList *list = NULL;
+	linkedList *list = NULL;
 	kernelNetworkPacketStream *theStream = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 
 	// If there are hooks on this device, emit the raw packet data
 
 	if (input)
-		list = (kernelLinkedList *) &netDev->inputHooks;
+		list = (linkedList *) &netDev->inputHooks;
 	else
-		list = (kernelLinkedList *) &netDev->outputHooks;
+		list = (linkedList *) &netDev->outputHooks;
 
-	theStream = kernelLinkedListIterStart(list, &iter);
+	theStream = linkedListIterStart(list, &iter);
 	if (!theStream)
 		return;
 
 	while (theStream)
 	{
 		kernelNetworkPacketStreamWrite(theStream, packet);
-		theStream = kernelLinkedListIterNext(list, &iter);
+		theStream = linkedListIterNext(list, &iter);
 	}
 }
 
@@ -466,8 +467,8 @@ int kernelNetworkDeviceStart(const char *name, int reconfigure)
 	int status = 0;
 	kernelDevice *dev = NULL;
 	kernelNetworkDevice *netDev = NULL;
-	char hostName[NETWORK_MAX_HOSTNAMELENGTH];
-	char domainName[NETWORK_MAX_DOMAINNAMELENGTH];
+	char hostName[NETWORK_MAX_HOSTNAMELENGTH + 1];
+	char domainName[NETWORK_MAX_DOMAINNAMELENGTH + 1];
 
 	// Check params
 	if (!name)
@@ -957,7 +958,7 @@ int kernelNetworkDeviceHook(const char *name, void **streamPtr, int input)
 	kernelDevice *kernelDev = NULL;
 	kernelNetworkDevice *netDev = NULL;
 	kernelNetworkPacketStream *theStream = NULL;
-	kernelLinkedList *list = NULL;
+	linkedList *list = NULL;
 
 	// Check params
 	if (!name || !streamPtr)
@@ -996,12 +997,12 @@ int kernelNetworkDeviceHook(const char *name, void **streamPtr, int input)
 
 	// Which list are we adding to?
 	if (input)
-		list = (kernelLinkedList *) &netDev->inputHooks;
+		list = (linkedList *) &netDev->inputHooks;
 	else
-		list = (kernelLinkedList *) &netDev->outputHooks;
+		list = (linkedList *) &netDev->outputHooks;
 
 	// Add it to the list
-	status = kernelLinkedListAdd(list, *streamPtr);
+	status = linkedListAdd(list, *streamPtr);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Couldn't link network packet stream");
@@ -1023,7 +1024,7 @@ int kernelNetworkDeviceUnhook(const char *name, void *streamPtr, int input)
 	kernelDevice *kernelDev = NULL;
 	kernelNetworkDevice *netDev = NULL;
 	kernelNetworkPacketStream *theStream = streamPtr;
-	kernelLinkedList *list = NULL;
+	linkedList *list = NULL;
 
 	// Check params
 	if (!name || !streamPtr)
@@ -1044,12 +1045,12 @@ int kernelNetworkDeviceUnhook(const char *name, void *streamPtr, int input)
 
 	// Which list are we removing from?
 	if (input)
-		list = (kernelLinkedList *) &netDev->inputHooks;
+		list = (linkedList *) &netDev->inputHooks;
 	else
-		list = (kernelLinkedList *) &netDev->outputHooks;
+		list = (linkedList *) &netDev->outputHooks;
 
 	// Remove it from the list
-	status = kernelLinkedListRemove(list, streamPtr);
+	status = linkedListRemove(list, streamPtr);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Couldn't unlink network packet stream");

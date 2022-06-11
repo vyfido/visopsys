@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -96,10 +96,11 @@ _X_ int windowNewRadioDialog(objectKey parentWindow, const char *title, const ch
 	params.padTop = 0;
 	params.orientationX = orient_right;
 	params.orientationY = orient_top;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 
 	// Try to load the 'question' image
-	status = imageLoad(QUESTIMAGE_NAME, 64, 64, &iconImage);
+	status = imageLoad(WINDOW_QUESTIMAGE_NAME, 64, 64, &iconImage);
 	if (!status && iconImage.data)
 	{
 		iconImage.transColor.green = 0xFF;
@@ -182,7 +183,7 @@ _X_ int windowNewRadioDialog(objectKey parentWindow, const char *title, const ch
 	{
 		// Check for the OK button
 		if ((windowComponentEventGet(okButton, &event) > 0) &&
-			(event.type == EVENT_MOUSE_LEFTUP))
+			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			status = windowComponentGetSelected(radioButton, &choice);
 			if (status < 0)
@@ -192,9 +193,9 @@ _X_ int windowNewRadioDialog(objectKey parentWindow, const char *title, const ch
 
 		// Check for our Cancel button or window close events
 		if (((windowComponentEventGet(dialogWindow, &event) > 0) &&
-				(event.type == EVENT_WINDOW_CLOSE)) ||
+				(event.type == WINDOW_EVENT_WINDOW_CLOSE)) ||
 			((windowComponentEventGet(cancelButton, &event) > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP)))
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 		{
 			choice = ERR_CANCELLED;
 			break;

@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2018 J. Andrew McLaughlin
+#  Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-03-03 03:09+0000\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,15 +17,15 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-15\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ping.c:64
+#: ping.c:65
 msgid "Ping"
 msgstr "Ping"
 
-#: ping.c:98
+#: ping.c:99
 msgid "Error"
 msgstr "Fehler"
 
-#: ping.c:106
+#: ping.c:107
 #, c-format
 msgid ""
 "usage:\n"
@@ -34,63 +34,63 @@ msgstr ""
 "Benutzung:\n"
 "%s [-T] <address | hostname>\n"
 
-#: ping.c:183
+#: ping.c:184
 #, c-format
 msgid "%d bytes from %d.%d.%d.%d: icmp_seq=%d ttl=%d time=%llu ms\n"
 msgstr "%d Byte von %d.%d.%d.%d: icmp_seq=%d ttl=%d Zeit=%llu ms\n"
 
-#: ping.c:283
+#: ping.c:290
 msgid "Stop"
 msgstr "Stopp"
 
-#: ping.c:345
+#: ping.c:352
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ping.c:354
+#: ping.c:361
 msgid "Networking is not currently enabled"
 msgstr "Das Arbeiten im Netzwerk ist derzeit nicht aktiviert"
 
-#: ping.c:370
+#: ping.c:377
 msgid "Enter Address"
 msgstr "Addresse angeben"
 
-#: ping.c:371
+#: ping.c:378
 msgid "Enter the network address to ping:"
 msgstr ""
 "Geben Sie die Netzwerkadresse ein an die ein Ping geschickt werden soll:"
 
-#: ping.c:384
+#: ping.c:391
 msgid "Couldn't determine destination address"
 msgstr ""
 
-#: ping.c:400
+#: ping.c:407
 msgid "Error opening network connection"
 msgstr "Fehler beim öffnen der Netzwerkverbindung"
 
-#: ping.c:404
+#: ping.c:411
 #, c-format
 msgid "Ping %d.%d.%d.%d %d(%d) bytes of data"
 msgstr "Ping %d.%d.%d.%d %d(%d) Byte an Daten"
 
-#: ping.c:418
+#: ping.c:425
 msgid "Error setting signal handler"
 msgstr "Fehler beim setzen des Signal-Handlers"
 
-#: ping.c:431
+#: ping.c:438
 msgid "Error starting response thread"
 msgstr "Fehler beim starten des Antwort-Eintrages"
 
-#: ping.c:439 ping.c:451
+#: ping.c:446 ping.c:458
 msgid "Memory allocation error"
 msgstr "Fehler bei der Speicherverteilung"
 
-#: ping.c:465
+#: ping.c:472
 msgid "Error pinging host"
 msgstr "Fehler beim anpingen des Hosts"
 
-#: ping.c:483
+#: ping.c:490
 #, c-format
 msgid ""
 "\n"
@@ -99,12 +99,12 @@ msgstr ""
 "\n"
 "--- %d.%d.%d.%d Ping-Statistiken ---\n"
 
-#: ping.c:485
+#: ping.c:492
 #, c-format
 msgid "%d packets transmitted, %d received, %d%% packet loss, time %llums\n"
 msgstr "%d Pakete übertragen, %d empfangen, %d%% verloren, Zeit %llums\n"
 
-#: ping.c:489
+#: ping.c:496
 #, c-format
 msgid "rtt min/avg/max = %llu/%llu/%llu ms\n"
 msgstr ""

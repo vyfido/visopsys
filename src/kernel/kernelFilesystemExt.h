@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelFilesystemExt.h
 //
 
-#if !defined(_KERNELFILESYSTEMEXT_H)
+#ifndef _KERNELFILESYSTEMEXT_H
+#define _KERNELFILESYSTEMEXT_H
 
 #include "kernelDisk.h"
 #include <sys/ext.h>
@@ -36,6 +37,5 @@ typedef volatile struct {
 
 } extInternalData;
 
-#define _KERNELFILESYSTEMEXT_H
 #endif
 

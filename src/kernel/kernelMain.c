@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,22 +21,18 @@
 
 #include "kernelMain.h"
 #include "kernelCpu.h"
-#include "kernelEnvironment.h"
 #include "kernelError.h"
-#include "kernelGraphic.h"
 #include "kernelInitialize.h"
-#include "kernelLoader.h"
-#include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
 #include "kernelText.h"
-#include "kernelVariableList.h"
 #include <string.h>
 #include <time.h>
 #include <sys/kernconf.h>
 #include <sys/osloader.h>
 #include <sys/processor.h>
+#include <sys/vis.h>
 
 // This is the global 'errno' error status variable for the kernel
 int errno = 0;
@@ -68,12 +64,11 @@ variableList *kernelVariables = &variables;
 void kernelMain(unsigned kernelMemory, void *kernelStack,
 	unsigned kernelStackSize, loaderInfoStruct *info)
 {
-	// This is the kernel entry point -- and main function --
-	// which starts the entire show and, of course, never returns.
+	// This is the kernel entry point -- and main function -- which starts the
+	// entire show and, of course, never returns.
 
 	int status = 0;
-	int pid = -1;
-	const char *value = NULL;
+	const char *startProgram = NULL;
 
 	// Copy the OS loader info structure into kernel memory
 	memcpy(kernelOsLoaderInfo, info, sizeof(loaderInfoStruct));
@@ -99,42 +94,21 @@ void kernelMain(unsigned kernelMemory, void *kernelStack,
 		processorReboot();
 	}
 
+	// Find out whether an initial program to launch was specified
 	if (kernelVariables)
 	{
-		// Find out which initial program to launch
-		value = kernelVariableListGet(kernelVariables,
+		startProgram = variableListGet(kernelVariables,
 			KERNELVAR_START_PROGRAM);
-		if (value)
-		{
-			// If the start program is our standard login program, use a custom
-			// function to launch a login process
-			if (strncmp(value, DEFAULT_KERNEL_STARTPROGRAM, 128))
-			{
-				// Try to load the login process
-				pid = kernelLoaderLoadProgram(value, PRIVILEGE_SUPERVISOR);
-				if (pid < 0)
-				{
-					// Don't fail, but make a warning message
-					kernelError(kernel_warn, "Couldn't load start program "
-						"\"%s\"", value);
-				}
-				else
-				{
-					// Attach the start program to the console text streams
-					kernelMultitaskerDuplicateIo(KERNELPROCID, pid, 1); // Clear
 
-					// Execute the start program.  Don't block.
-					kernelLoaderExecProgram(pid, 0);
-				}
-			}
-		}
+		if (startProgram)
+			status = kernelConsoleLogin(startProgram);
 	}
 
 	// If the kernel config file wasn't found, or the start program wasn't
 	// specified, or loading the start program failed, assume we're going to
 	// use the standard default login program
-	if (pid < 0)
-		kernelConsoleLogin();
+	if (!startProgram || (startProgram && (status < 0)))
+		kernelConsoleLogin(DEFAULT_KERNEL_STARTPROGRAM);
 
 	while (1)
 	{
@@ -143,14 +117,19 @@ void kernelMain(unsigned kernelMemory, void *kernelStack,
 		// the kernel process itself; it just needs to remain resident in
 		// memory.  Changing to a 'sleeping' state means that it won't get
 		// invoked again by the scheduler.
-		status = kernelMultitaskerSetProcessState(KERNELPROCID, proc_sleeping);
+		status = kernelMultitaskerSetProcessState(KERNELPROCID,
+			proc_sleeping);
 		if (status < 0)
-			kernelError(kernel_error, "The kernel process could not go to sleep.");
+		{
+			kernelError(kernel_error, "The kernel process could not go to "
+				"sleep.");
+		}
 
 		// Yield the rest of this time slice back to the scheduler
 		kernelMultitaskerYield();
 
-		// We should never get here.  But we put it inside a while loop anyway.
+		// We should never get here.  But we put it inside a while loop
+		// anyway.
 		kernelError(kernel_error, "The kernel was unexpectedly woken up");
 	}
 }

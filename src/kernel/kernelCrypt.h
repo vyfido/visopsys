@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,10 +21,12 @@
 
 // Declarations for any crypto/hashing code
 
-#if !defined(_KERNELCRYPT_H)
+#ifndef _KERNELCRYPT_H
+#define _KERNELCRYPT_H
+
+#include <sys/crypt.h>
 
 int kernelCryptHashMd5(const unsigned char *, unsigned, unsigned char *);
 
-#define _KERNELCRYPT_H
 #endif
 

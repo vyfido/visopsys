@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -54,6 +54,7 @@ Options:
 #include <netinet/in.h>
 #include <sys/api.h>
 #include <sys/env.h>
+#include <sys/font.h>
 #include <sys/network.h>
 #include <sys/paths.h>
 #include <sys/socket.h>
@@ -88,7 +89,7 @@ static void error(const char *format, ...)
 	// Generic error message code for either text or graphics modes
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
@@ -223,6 +224,9 @@ static void refreshWindow(void)
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window (not necessary if no components have changed)
+	//windowLayout(window);
 }
 
 
@@ -232,16 +236,19 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			quit(0);
 	}
 
-	else if ((key == stopButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == stopButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
+	{
 		stop = 1;
+	}
 }
 
 
@@ -278,7 +285,7 @@ static void constructWindow(void)
 	params.gridY = 2;
 	params.padBottom = 5;
 	params.orientationX = orient_center;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	params.font = NULL;
 	stopButton = windowNewButton(window, _("Stop"), NULL, &params);
 	windowRegisterEventHandler(stopButton, &eventHandler);
@@ -424,8 +431,8 @@ int main(int argc, char *argv[])
 
 	// Launch our thread to read response packets from the connection we just
 	// opened
-	threadPid = multitaskerSpawn(responseThread, "ping receive thread", 0,
-		NULL);
+	threadPid = multitaskerSpawn(responseThread, "ping receive thread",
+		0 /* no args */, NULL /* no args */, 1 /* run */);
 	if (threadPid < 0)
 	{
 		error("%s", _("Error starting response thread"));

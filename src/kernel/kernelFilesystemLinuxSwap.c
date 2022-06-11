@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,6 +25,7 @@
 #include "kernelFilesystem.h"
 #include "kernelDriver.h"
 #include "kernelError.h"
+#include "kernelLock.h"
 #include "kernelMalloc.h"
 #include <string.h>
 #include <sys/linuxswap.h>
@@ -104,10 +105,10 @@ static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
 		return (status = ERR_INVALID);
 	}
 
-	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	if (prog && (kernelLockGet(&prog->lock) >= 0))
 	{
 		strcpy((char *) prog->statusMessage, "Formatting");
-		kernelLockRelease(&prog->progLock);
+		kernelLockRelease(&prog->lock);
 	}
 
 	// Get memory for the signature page
@@ -141,10 +142,10 @@ static int formatSectors(kernelDisk *theDisk, unsigned sectors, progress *prog)
 
 	strcpy((char *) theDisk->fsType, FSNAME_LINUXSWAP);
 
-	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	if (prog && (kernelLockGet(&prog->lock) >= 0))
 	{
 		strcpy((char *) prog->statusMessage, "Syncing disk");
-		kernelLockRelease(&prog->progLock);
+		kernelLockRelease(&prog->lock);
 	}
 
 	return (status = 0);
@@ -223,10 +224,10 @@ static int format(kernelDisk *theDisk, const char *type,
 
 	status = formatSectors(theDisk, theDisk->numSectors, prog);
 
-	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	if (prog && (kernelLockGet(&prog->lock) >= 0))
 	{
 		prog->complete = 1;
-		kernelLockRelease(&prog->progLock);
+		kernelLockRelease(&prog->lock);
 	}
 
 	return (status);
@@ -276,10 +277,10 @@ static int resizeConstraints(kernelDisk *theDisk, uquad_t *minSectors,
 	*maxSectors = ((MEMORY_PAGE_SIZE / physicalDisk->sectorSize) *
 		LINUXSWAP_MAXPAGES);
 
-	if (prog && (kernelLockGet(&prog->progLock) >= 0))
+	if (prog && (kernelLockGet(&prog->lock) >= 0))
 	{
 		prog->complete = 1;
-		kernelLockRelease(&prog->progLock);
+		kernelLockRelease(&prog->lock);
 	}
 
 	return (status = 0);

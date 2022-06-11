@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -50,6 +50,7 @@ usage.  It is a graphical utility combining the same functionalities as the
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/env.h>
+#include <sys/font.h>
 #include <sys/paths.h>
 #include <sys/vsh.h>
 
@@ -63,8 +64,19 @@ usage.  It is a graphical utility combining the same functionalities as the
 #define READPERF_STRING			_("Read: ")
 #define WRITEPERF_STRING		_("Write: ")
 #define IORATE_STRING			_("K/sec")
+#define SHOW_THREADS			_("Show all sub-processes")
+#define RUN_PROGRAM				_("Run program")
+#define SET_PRIORITY			_("Set priority")
+#define KILL_PROCESS			_("Kill process")
 #define SHOW_MAX_PROCESSES		100
-#define PROCESS_STRING_LENGTH	64
+
+#define COL_PID		25
+#define COL_PPID	29
+#define COL_UID		34
+#define COL_PRI		43
+#define COL_PRIV	47
+#define COL_CPU		52
+#define COL_STATE	57
 
 static int processId = 0;
 static int privilege = 0;
@@ -93,7 +105,7 @@ static void error(const char *format, ...)
 	// Generic error message code for either text or graphics modes
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
@@ -274,49 +286,50 @@ static int getUpdate(void)
 		bufferPointer = processListParams[count].text;
 		tmpProcess = &processes[count];
 
-		sprintf(bufferPointer, "%s%s",
-			((tmpProcess->type == proc_thread)? " - " : ""), tmpProcess->name);
+		sprintf(bufferPointer, "%s%s", ((tmpProcess->type == proc_thread)?
+			" - " : ""), tmpProcess->name);
 		bufferPointer[strlen(bufferPointer)] = ' ';
-		sprintf((bufferPointer + 26), "%d", tmpProcess->processId);
+		sprintf((bufferPointer + COL_PID), " %d", tmpProcess->processId);
 		bufferPointer[strlen(bufferPointer)] = ' ';
-		sprintf((bufferPointer + 30), "%d", tmpProcess->parentProcessId);
+		sprintf((bufferPointer + COL_PPID), " %d",
+			tmpProcess->parentProcessId);
 		bufferPointer[strlen(bufferPointer)] = ' ';
-		sprintf((bufferPointer + 35), "%d", tmpProcess->userId);
+		sprintf((bufferPointer + COL_UID), " %s", tmpProcess->userId);
 		bufferPointer[strlen(bufferPointer)] = ' ';
-		sprintf((bufferPointer + 39), "%d", tmpProcess->priority);
+		sprintf((bufferPointer + COL_PRI), " %d", tmpProcess->priority);
 		bufferPointer[strlen(bufferPointer)] = ' ';
-		sprintf((bufferPointer + 43), "%d", tmpProcess->privilege);
+		sprintf((bufferPointer + COL_PRIV), " %d", tmpProcess->privilege);
 		bufferPointer[strlen(bufferPointer)] = ' ';
-		sprintf((bufferPointer + 48), "%d", tmpProcess->cpuPercent);
+		sprintf((bufferPointer + COL_CPU), " %d", tmpProcess->cpuPercent);
 		bufferPointer[strlen(bufferPointer)] = ' ';
 
 		// Get the state
 		switch(tmpProcess->state)
 		{
 			case proc_running:
-				strcpy((bufferPointer + 53), _("running "));
+				sprintf((bufferPointer + COL_STATE), " %s", _("running "));
 				break;
 			case proc_ready:
 			case proc_ioready:
-				strcpy((bufferPointer + 53), _("ready "));
+				sprintf((bufferPointer + COL_STATE), " %s", _("ready "));
 				break;
 			case proc_waiting:
-				strcpy((bufferPointer + 53), _("waiting "));
+				sprintf((bufferPointer + COL_STATE), " %s", _("waiting "));
 				break;
 			case proc_sleeping:
-				strcpy((bufferPointer + 53), _("sleeping "));
+				sprintf((bufferPointer + COL_STATE), " %s", _("sleeping "));
 				break;
 			case proc_stopped:
-				strcpy((bufferPointer + 53), _("stopped "));
+				sprintf((bufferPointer + COL_STATE), " %s", _("stopped "));
 				break;
 			case proc_finished:
-				strcpy((bufferPointer + 53), _("finished "));
+				sprintf((bufferPointer + COL_STATE), " %s", _("finished "));
 				break;
 			case proc_zombie:
-				strcpy((bufferPointer + 53), _("zombie "));
+				sprintf((bufferPointer + COL_STATE), " %s", _("zombie "));
 				break;
 			default:
-				strcpy((bufferPointer + 53), _("unknown "));
+				sprintf((bufferPointer + COL_STATE), " %s", _("unknown "));
 				break;
 		}
 	}
@@ -330,9 +343,9 @@ static void runProgram(void)
 	// Prompts the user for a program to run.
 
 	int status = 0;
-	char commandLine[MAX_PATH_NAME_LENGTH];
-	char command[MAX_PATH_NAME_LENGTH];
-	char fullCommand[MAX_PATH_NAME_LENGTH];
+	char commandLine[MAX_PATH_NAME_LENGTH + 1];
+	char command[MAX_PATH_NAME_LENGTH + 1];
+	char fullCommand[MAX_PATH_NAME_LENGTH + 1];
 	int argc = 0;
 	char *argv[64];
 	int count;
@@ -459,8 +472,27 @@ static void refreshWindow(void)
 	windowComponentSetData(diskPerfLabel, DISKPERF_STRING,
 		strlen(DISKPERF_STRING), 1 /* redraw */);
 
+	// Refresh the 'show threads' checkbox
+	windowComponentSetData(showThreadsCheckbox, SHOW_THREADS,
+		strlen(SHOW_THREADS), 1 /* redraw */);
+
+	// Refresh the 'run program' button
+	windowComponentSetData(runProgramButton, RUN_PROGRAM, strlen(RUN_PROGRAM),
+		1 /* redraw */);
+
+	// Refresh the 'set priority' button
+	windowComponentSetData(setPriorityButton, SET_PRIORITY,
+		strlen(SET_PRIORITY), 1 /* redraw */);
+
+	// Refresh the 'kill process' button
+	windowComponentSetData(killProcessButton, KILL_PROCESS,
+		strlen(KILL_PROCESS), 1 /* redraw */);
+
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -472,11 +504,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 		{
 			stop = 1;
 			windowGuiStop();
@@ -484,7 +516,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 	}
 
-	else if ((key == showThreadsCheckbox) && (event->type & EVENT_SELECTION))
+	else if ((key == showThreadsCheckbox) && (event->type &
+		WINDOW_EVENT_SELECTION))
 	{
 		windowComponentGetSelected(showThreadsCheckbox, &showThreads);
 		getUpdate();
@@ -498,20 +531,24 @@ static void eventHandler(objectKey key, windowEvent *event)
 		if (processNumber < 0)
 			return;
 
-		if ((key == runProgramButton) && (event->type == EVENT_MOUSE_LEFTUP))
+		if ((key == runProgramButton) && (event->type ==
+			WINDOW_EVENT_MOUSE_LEFTUP))
 		{
-			if (multitaskerSpawn(&runProgram, "run program", 0, NULL) < 0)
+			if (multitaskerSpawn(&runProgram, "run program", 0 /* no args */,
+				NULL /* no args */, 1 /* run */) < 0)
+			{
 				error("%s", _("Unable to launch file dialog"));
+			}
 		}
 
-		else if ((key == setPriorityButton) &&
-			(event->type == EVENT_MOUSE_LEFTUP))
+		else if ((key == setPriorityButton) && (event->type ==
+			WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			setPriority(processNumber);
 		}
 
-		else if ((key == killProcessButton) &&
-			(event->type == EVENT_MOUSE_LEFTUP))
+		else if ((key == killProcessButton) && (event->type ==
+			WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			killProcess(processNumber);
 		}
@@ -542,24 +579,24 @@ static void constructWindow(void)
 	params.padTop = 5;
 	params.orientationX = orient_left;
 	params.orientationY = orient_top;
-	params.flags = WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags = COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	params.font = fontGet(FONT_FAMILY_ARIAL, FONT_STYLEFLAG_BOLD, 10, NULL);
 
 	// A container for the memory and disk statistics
 	container = windowNewContainer(window, "stats", &params);
 
 	params.padLeft = params.padRight = params.padTop = 0;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
-	sprintf(tmp, "%sXXX", USEDBLOCKS_STRING);
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDHEIGHT;
+	snprintf(tmp, sizeof(tmp), "%sXXX", USEDBLOCKS_STRING);
 	memoryBlocksLabel = windowNewTextLabel(container, tmp, &params);
 
 	params.gridY += 1;
 	params.padTop = 5;
-	sprintf(tmp, "%sXXXXXXX Kb - XX%%", USEDMEM_STRING);
+	snprintf(tmp, sizeof(tmp), "%sXXXXXXX Kb - XX%%", USEDMEM_STRING);
 	memoryUsedLabel = windowNewTextLabel(container, tmp, &params);
 
 	params.gridY += 1;
-	sprintf(tmp, "%sXXXXXXX Kb - XX%%", FREEMEM_STRING);
+	snprintf(tmp, sizeof(tmp), "%sXXXXXXX Kb - XX%%", FREEMEM_STRING);
 	memoryFreeLabel = windowNewTextLabel(container, FREEMEM_STRING, &params);
 
 	params.gridX += 1;
@@ -570,11 +607,11 @@ static void constructWindow(void)
 
 	params.gridY += 1;
 	params.padTop = 5;
-	sprintf(tmp, "%sXXXX%s", READPERF_STRING, IORATE_STRING);
+	snprintf(tmp, sizeof(tmp), "%sXXXX%s", READPERF_STRING, IORATE_STRING);
 	diskReadPerfLabel = windowNewTextLabel(container, tmp, &params);
 
 	params.gridY += 1;
-	sprintf(tmp, "%sXXXX%s", WRITEPERF_STRING, IORATE_STRING);
+	snprintf(tmp, sizeof(tmp), "%sXXXX%s", WRITEPERF_STRING, IORATE_STRING);
 	diskWritePerfLabel = windowNewTextLabel(container, tmp, &params);
 
 	// Create the label of column headers for the list below
@@ -583,7 +620,7 @@ static void constructWindow(void)
 	params.padLeft = params.padTop = params.padRight = 5;
 	params.font = fontGet(FONT_FAMILY_LIBMONO, FONT_STYLEFLAG_FIXED, 8, NULL);
 	windowNewTextLabel(window, _("Process                   "
-		"PID PPID UID Pri Priv CPU% STATE   "), &params);
+		"PID PPID UID      Pri Priv CPU% STATE   "), &params);
 
 	// A container for the process list
 	params.gridY = ++containersGridY;
@@ -598,12 +635,11 @@ static void constructWindow(void)
 		processListParams, numProcesses, &params);
 	windowComponentFocus(processList);
 
-	// Create a 'show sub-processes' checkbox
+	// Create a 'show threads' checkbox
 	params.gridY += 1;
 	params.padTop = 5;
 	params.font = NULL;
-	showThreadsCheckbox = windowNewCheckbox(container,
-		_("Show all sub-processes"), &params);
+	showThreadsCheckbox = windowNewCheckbox(container, SHOW_THREADS, &params);
 	windowComponentSetSelected(showThreadsCheckbox, 1);
 	windowRegisterEventHandler(showThreadsCheckbox, &eventHandler);
 
@@ -611,29 +647,28 @@ static void constructWindow(void)
 	params.gridX += 1;
 	params.gridY = containersGridY;
 	params.padLeft = params.padRight = params.padBottom = 5;
-	params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH |
-		WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags |= (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	container = windowNewContainer(window, "buttons", &params);
 
 	// Create a 'run program' button
 	params.gridX = 0;
 	params.gridY = 0;
 	params.padLeft = params.padRight = params.padTop = params.padBottom = 0;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
-	runProgramButton = windowNewButton(container, _("Run program"), NULL,
-		&params);
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDWIDTH;
+	runProgramButton = windowNewButton(container, RUN_PROGRAM, NULL, &params);
 	windowRegisterEventHandler(runProgramButton, &eventHandler);
 
 	// Create a 'set priority' button
 	params.gridY += 1;
 	params.padTop = 5;
-	setPriorityButton = windowNewButton(container, _("Set priority"), NULL,
+	setPriorityButton = windowNewButton(container, SET_PRIORITY, NULL,
 		&params);
 	windowRegisterEventHandler(setPriorityButton, &eventHandler);
 
 	// Create a 'kill process' button
 	params.gridY += 1;
-	killProcessButton = windowNewButton(container, _("Kill process"), NULL,
+	killProcessButton = windowNewButton(container, KILL_PROCESS, NULL,
 		&params);
 	windowRegisterEventHandler(killProcessButton, &eventHandler);
 

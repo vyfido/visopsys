@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,18 +48,57 @@ The -i flag means run in an 'iconified' mode.
 #define _(string) gettext(string)
 #define gettext_noop(string) (string)
 
+#define QUIT			gettext_noop("Quit")
+
 #define ICONMENU_QUIT	0
 static windowMenuContents iconMenuContents = {
 	1,
 	{
-		{ gettext_noop("Quit"), NULL }
+		{ QUIT, NULL }
 	}
 };
 
 static int iconify = 0;
-static objectKey keybIcon = NULL;
 static objectKey window = NULL;
 static windowKeyboard *keyboard = NULL;
+static objectKey keybIcon = NULL;
+static objectKey iconMenu = NULL;
+
+
+static void initMenuContents(void)
+{
+	strncpy(iconMenuContents.items[ICONMENU_QUIT].text, gettext(QUIT),
+		WINDOW_MAX_LABEL_LENGTH);
+}
+
+
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language
+	// switch), so we need to update things
+
+	const char *charSet = NULL;
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv(ENV_LANG));
+	textdomain("keyboard");
+
+	// Re-get the character set
+	charSet = getenv(ENV_CHARSET);
+
+	if (charSet)
+		windowSetCharSet(window, charSet);
+
+	// Refresh all the menu contents
+	initMenuContents();
+
+	// Refresh the icon context menu
+	windowMenuUpdate(iconMenu, NULL /* name */, charSet, &iconMenuContents,
+		NULL /* params */);
+
+	// Re-layout the window (not necessary if no components have changed)
+	//windowLayout(window);
+}
 
 
 static void eventHandler(objectKey key, windowEvent *event)
@@ -67,8 +106,12 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Check for window events.
 	if (key == window)
 	{
+		// Check for window refresh
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
 		// Check for the window being closed
-		if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			windowGuiStop();
 	}
 
@@ -81,7 +124,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Taskbar icon events
 	else if (key == keybIcon)
 	{
-		if (event->type & EVENT_MOUSE_LEFTUP)
+		if (event->type & WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			iconify ^= 1;
 			windowShellIconify(window, iconify, NULL /* no new icon */);
@@ -91,21 +134,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Taskbar icon context menu events
 	else if (key == iconMenuContents.items[ICONMENU_QUIT].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 			windowGuiStop();
-	}
-}
-
-
-static void initMenuContents(windowMenuContents *contents)
-{
-	int count;
-
-	for (count = 0; count < contents->numItems; count ++)
-	{
-		strncpy(contents->items[count].text, _(contents->items[count].text),
-			WINDOW_MAX_LABEL_LENGTH);
-		contents->items[count].text[WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
 	}
 }
 
@@ -124,12 +154,10 @@ static int constructWindow(void)
 	// If we are in graphics mode, make a window rather than operating on the
 	// command line.
 
-	int windowWidth = 0, windowHeight = 0;
-	int windowXcoord = 0, windowYcoord = 0;
 	color foreground = { 255, 255, 255 };
 	color background = { 230, 60, 35 };
-	objectKey iconMenu = NULL;
 	componentParameters params;
+	windowInfo winInfo;
 	image img;
 
 	// Create a new window
@@ -149,8 +177,8 @@ static int constructWindow(void)
 	params.padBottom = 5;
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
-	params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
-		WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+	params.flags = (COMP_PARAMS_FLAG_CUSTOMFOREGROUND |
+		COMP_PARAMS_FLAG_CUSTOMBACKGROUND);
 	memcpy(&params.foreground, &foreground, sizeof(color));
 	memcpy(&params.background, &background, sizeof(color));
 
@@ -158,7 +186,8 @@ static int constructWindow(void)
 	// keyboard's callback function directly to the kernel API function for
 	// virtual keyboard input.
 	keyboard = windowNewKeyboard(window, ((graphicGetScreenWidth() * 8) / 10),
-		((graphicGetScreenHeight() * 3) / 10), &keyboardVirtualInput, &params);
+		((graphicGetScreenHeight() * 3) / 10), &keyboardVirtualInput,
+		&params);
 	if (!keyboard)
 		return (ERR_NOCREATE);
 
@@ -168,18 +197,14 @@ static int constructWindow(void)
 	// Register an event handler to catch window close events
 	windowRegisterEventHandler(window, &eventHandler);
 
-	// Mark it as not visible, initially.
-	windowSetVisible(window, 0);
-
 	// Do window layout, so we can get its size
 	windowLayout(window);
 
 	// Put it at the bottom of the screen
-	if ((windowGetSize(window, &windowWidth, &windowHeight) >= 0) &&
-		(windowGetLocation(window, &windowXcoord, &windowYcoord) >= 0))
+	if (windowGetInfo(window, &winInfo) >= 0)
 	{
-		windowSetLocation(window, windowXcoord, (graphicGetScreenHeight() -
-			(windowHeight + 3)));
+		windowSetLocation(window, ((graphicGetScreenWidth() - winInfo.width) /
+			2), (graphicGetScreenHeight() - (winInfo.height + 3)));
 	}
 
 	// We don't want the keyboard window to focus
@@ -197,7 +222,7 @@ static int constructWindow(void)
 		{
 			// Set up the context menu for the icon
 			memset(&params, 0, sizeof(componentParameters));
-			initMenuContents(&iconMenuContents);
+			initMenuContents();
 			iconMenu = windowNewMenu(window, NULL, "icon menu",
 				&iconMenuContents, &params);
 			if (iconMenu)

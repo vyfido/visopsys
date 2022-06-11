@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,67 +17,67 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: filesys.c:52
+#: filesys.c:53
 msgid "File systems"
 msgstr ""
 
-#: filesys.c:53
+#: filesys.c:54
 msgid "Mount point:"
 msgstr ""
 
-#: filesys.c:54
+#: filesys.c:55
 msgid "Mount automatically at boot"
 msgstr ""
 
-#: filesys.c:55
+#: filesys.c:56
 msgid "Unsaved changes"
 msgstr ""
 
-#: filesys.c:56
+#: filesys.c:57
 msgid "Quit without writing changes?"
 msgstr ""
 
-#: filesys.c:57
+#: filesys.c:58
 msgid "Quit"
 msgstr ""
 
-#: filesys.c:58
+#: filesys.c:59
 msgid "Cancel"
 msgstr ""
 
-#: filesys.c:59
+#: filesys.c:60
 msgid "Save"
 msgstr ""
 
-#: filesys.c:102 filesys.c:120
+#: filesys.c:103 filesys.c:121
 msgid "Error"
 msgstr ""
 
-#: filesys.c:117
+#: filesys.c:118
 msgid "  Quitting."
 msgstr ""
 
-#: filesys.c:143
+#: filesys.c:144
 msgid "No disks to work with."
 msgstr ""
 
-#: filesys.c:148
+#: filesys.c:149
 msgid "Memory allocation error."
 msgstr ""
 
-#: filesys.c:153
+#: filesys.c:154
 msgid "Unable to get disk information."
 msgstr ""
 
-#: filesys.c:174
+#: filesys.c:175
 msgid "Can't read/create the mount configuration"
 msgstr ""
 
-#: filesys.c:186
+#: filesys.c:187
 msgid "Can't write the mount configuration"
 msgstr ""
 
-#: filesys.c:470
+#: filesys.c:477
 #, c-format
 msgid ""
 "\n"

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -200,11 +200,11 @@ int deflateCompressFileData(deflateState *deflate, FILE *inStream,
 		if (doneBytes < totalBytes)
 		{
 			DEBUGMSG("Reading %u bytes\n", maxInBytes);
-			if (prog && (lockGet(&prog->progLock) >= 0))
+			if (prog && (lockGet(&prog->lock) >= 0))
 			{
 				sprintf((char *) prog->statusMessage, "Reading %u bytes",
 					maxInBytes);
-				lockRelease(&prog->progLock);
+				lockRelease(&prog->lock);
 			}
 
 			if (fread((void *)(deflate->inBuffer + deflate->inByte), 1,
@@ -221,11 +221,11 @@ int deflateCompressFileData(deflateState *deflate, FILE *inStream,
 		deflate->outByte = 0;
 
 		DEBUGMSG("Compressing %u bytes\n", deflate->inBytes);
-		if (prog && (lockGet(&prog->progLock) >= 0))
+		if (prog && (lockGet(&prog->lock) >= 0))
 		{
 			sprintf((char *) prog->statusMessage, "Compressing %u bytes",
 				deflate->inBytes);
-			lockRelease(&prog->progLock);
+			lockRelease(&prog->lock);
 		}
 
 		status = deflateCompress(deflate);
@@ -236,11 +236,11 @@ int deflateCompressFileData(deflateState *deflate, FILE *inStream,
 		}
 
 		DEBUGMSG("Writing %u bytes\n", deflate->outByte);
-		if (prog && (lockGet(&prog->progLock) >= 0))
+		if (prog && (lockGet(&prog->lock) >= 0))
 		{
 			sprintf((char *) prog->statusMessage, "Writing %u bytes",
 				deflate->outByte);
-			lockRelease(&prog->progLock);
+			lockRelease(&prog->lock);
 		}
 
 		if (fwrite((void *) deflate->outBuffer, 1, deflate->outByte,
@@ -253,14 +253,14 @@ int deflateCompressFileData(deflateState *deflate, FILE *inStream,
 
 		doneBytes += maxInBytes;
 
-		if (prog && (lockGet(&prog->progLock) >= 0))
+		if (prog && (lockGet(&prog->lock) >= 0))
 		{
 			prog->numFinished = doneBytes;
 			if (totalBytes)
 				prog->percentFinished = ((doneBytes * 100) / totalBytes);
 			else
 				prog->percentFinished = 100;
-			lockRelease(&prog->progLock);
+			lockRelease(&prog->lock);
 		}
 
 		if (!deflate->final)
@@ -336,11 +336,11 @@ int deflateDecompressFileData(deflateState *deflate, FILE *inStream,
 			deflate->inBytes);
 
 		DEBUGMSG("Reading %u bytes\n", maxInBytes);
-		if (prog && (lockGet(&prog->progLock) >= 0))
+		if (prog && (lockGet(&prog->lock) >= 0))
 		{
 			sprintf((char *) prog->statusMessage, "Reading %u bytes",
 				maxInBytes);
-			lockRelease(&prog->progLock);
+			lockRelease(&prog->lock);
 		}
 
 		maxInBytes = (fread((void *)(deflate->inBuffer + deflate->inBytes), 1,
@@ -359,11 +359,11 @@ int deflateDecompressFileData(deflateState *deflate, FILE *inStream,
 		deflate->outByte = skipOutBytes;
 
 		DEBUGMSG("Decompressing %u bytes\n", deflate->inBytes);
-		if (prog && (lockGet(&prog->progLock) >= 0))
+		if (prog && (lockGet(&prog->lock) >= 0))
 		{
 			sprintf((char *) prog->statusMessage, "Decompressing %u bytes",
 				deflate->inBytes);
-			lockRelease(&prog->progLock);
+			lockRelease(&prog->lock);
 		}
 
 		status = deflateDecompress(deflate);
@@ -376,11 +376,11 @@ int deflateDecompressFileData(deflateState *deflate, FILE *inStream,
 		if (outStream)
 		{
 			DEBUGMSG("Writing %u bytes\n", (deflate->outByte - skipOutBytes));
-			if (prog && (lockGet(&prog->progLock) >= 0))
+			if (prog && (lockGet(&prog->lock) >= 0))
 			{
 				sprintf((char *) prog->statusMessage, "Writing %u bytes",
 					(deflate->outByte - skipOutBytes));
-				lockRelease(&prog->progLock);
+				lockRelease(&prog->lock);
 			}
 
 			if (fwrite((void *)(deflate->outBuffer + skipOutBytes), 1,
@@ -395,11 +395,11 @@ int deflateDecompressFileData(deflateState *deflate, FILE *inStream,
 
 		doneBytes += (maxInBytes - deflate->inBytes);
 
-		if (prog && (lockGet(&prog->progLock) >= 0))
+		if (prog && (lockGet(&prog->lock) >= 0))
 		{
 			prog->numFinished = doneBytes;
 			prog->percentFinished = ((doneBytes * 100) / totalBytes);
-			lockRelease(&prog->progLock);
+			lockRelease(&prog->lock);
 		}
 
 		if (deflate->final)

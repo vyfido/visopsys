@@ -1,12 +1,12 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2018 J. Andrew McLaughlin
+#  Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2014-01-22 17:56-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,67 +16,67 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: filesys.c:52
+#: filesys.c:53
 msgid "File systems"
 msgstr "Sistemas de archivos"
 
-#: filesys.c:53
+#: filesys.c:54
 msgid "Mount point:"
 msgstr "Punto de montaje:"
 
-#: filesys.c:54
+#: filesys.c:55
 msgid "Mount automatically at boot"
 msgstr "Montar automáticamente al iniciar"
 
-#: filesys.c:55
+#: filesys.c:56
 msgid "Unsaved changes"
 msgstr "Cambios no guardados"
 
-#: filesys.c:56
+#: filesys.c:57
 msgid "Quit without writing changes?"
 msgstr "Salir sin guardar los cambios?"
 
-#: filesys.c:57
+#: filesys.c:58
 msgid "Quit"
 msgstr "Salir"
 
-#: filesys.c:58
+#: filesys.c:59
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: filesys.c:59
+#: filesys.c:60
 msgid "Save"
 msgstr "Guardar"
 
-#: filesys.c:102 filesys.c:120
+#: filesys.c:103 filesys.c:121
 msgid "Error"
 msgstr "Error"
 
-#: filesys.c:117
+#: filesys.c:118
 msgid "  Quitting."
 msgstr "  Cerrando."
 
-#: filesys.c:143
+#: filesys.c:144
 msgid "No disks to work with."
 msgstr "Sin discos con los que trabajar."
 
-#: filesys.c:148
+#: filesys.c:149
 msgid "Memory allocation error."
 msgstr "Error de memoria."
 
-#: filesys.c:153
+#: filesys.c:154
 msgid "Unable to get disk information."
 msgstr "Información del disco no disponible."
 
-#: filesys.c:174
+#: filesys.c:175
 msgid "Can't read/create the mount configuration"
 msgstr "no se puede leer/guardar la configuaración de montaje"
 
-#: filesys.c:186
+#: filesys.c:187
 msgid "Can't write the mount configuration"
 msgstr "No se puede guardar la configuración de montaje"
 
-#: filesys.c:470
+#: filesys.c:477
 #, c-format
 msgid ""
 "\n"

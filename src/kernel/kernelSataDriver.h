@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,7 +21,8 @@
 
 // This header file contains generic definitions for SATA drivers
 
-#if !defined(_KERNELSATADRIVER_H)
+#ifndef _KERNELSATADRIVER_H
+#define _KERNELSATADRIVER_H
 
 // FIS types
 #define SATA_FIS_REGH2D		0x27
@@ -119,6 +120,5 @@ typedef volatile struct {
 
 } __attribute__((packed)) sataFisDevBits;
 
-#define _KERNELSATADRIVER_H
 #endif
 

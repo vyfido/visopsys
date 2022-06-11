@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,7 +21,8 @@
 
 // This is the header for the handling of MS-DOS disk labels
 
-#if !defined(_MSDOS_H)
+#ifndef _MSDOS_H
+#define _MSDOS_H
 
 #define MSDOS_BOOT_CODE_SIZE		440
 #define MSDOS_BOOT_SIGNATURE		0xAA55
@@ -92,6 +93,5 @@ typedef struct {
 
 } __attribute__((packed)) msdosMbr;
 
-#define _MSDOS_H
 #endif
 

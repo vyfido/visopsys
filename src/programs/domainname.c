@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,7 +46,7 @@ has not been enabled, this command has no effect.
 
 int main(int argc, char *argv[])
 {
-	char buffer[NETWORK_MAX_DOMAINNAMELENGTH];
+	char buffer[NETWORK_MAX_DOMAINNAMELENGTH + 1];
 
 	int status = 0;
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,13 +21,14 @@
 
 // This goes with the file kernelMouse.c
 
-#if !defined(_KERNELMOUSE_H)
+#ifndef _KERNELMOUSE_H
+#define _KERNELMOUSE_H
 
 #include <sys/image.h>
 #include <sys/mouse.h>
 
 typedef struct {
-	char name[MOUSE_POINTER_NAMELEN];
+	char name[MOUSE_POINTER_NAMELEN + 1];
 	image pointerImage;
 
 } kernelMousePointer;
@@ -46,6 +47,5 @@ void kernelMouseScroll(int);
 int kernelMouseGetX(void);
 int kernelMouseGetY(void);
 
-#define _KERNELMOUSE_H
 #endif
 

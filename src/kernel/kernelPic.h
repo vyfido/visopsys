@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelPic.h
 //
 
-#if !defined(_KERNELPIC_H)
+#ifndef _KERNELPIC_H
+#define _KERNELPIC_H
 
 #include "kernelDriver.h"
 
@@ -58,6 +59,5 @@ int kernelPicEndOfInterrupt(int);
 int kernelPicMask(int, int);
 int kernelPicGetActive(void);
 
-#define _KERNELPIC_H
 #endif
 

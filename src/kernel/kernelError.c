@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -59,7 +59,8 @@ static int errorDialogDetails(kernelWindow *parent, const char *details)
 	params.padLeft = 5;
 	params.padRight = 5;
 	params.padTop = 5;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
@@ -93,12 +94,12 @@ static int errorDialogDetails(kernelWindow *parent, const char *details)
 	{
 		// Check for our OK button
 		status = kernelWindowComponentEventGet((objectKey) okButton, &event);
-		if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+		if ((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 			break;
 
 		// Check for window close events
 		status = kernelWindowComponentEventGet((objectKey) dialog, &event);
-		if ((status > 0) && (event.type == EVENT_WINDOW_CLOSE))
+		if ((status > 0) && (event.type == WINDOW_EVENT_WINDOW_CLOSE))
 			break;
 
 		// Done
@@ -157,7 +158,8 @@ static void errorDialogThread(int argc, void *argv[])
 	params.padLeft = 5;
 	params.padRight = 5;
 	params.padTop = 5;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 	messageContainer = kernelWindowNewContainer(window, "messageContainer",
@@ -169,7 +171,7 @@ static void errorDialogThread(int argc, void *argv[])
 	}
 
 	params.orientationX = orient_right;
-	status = kernelImageLoad(ERRORIMAGE_NAME, 64, 64, &errorImage);
+	status = kernelImageLoad(WINDOW_ERRORIMAGE_NAME, 64, 64, &errorImage);
 	if (!status)
 	{
 		errorImage.transColor.green = 0xFF;
@@ -225,13 +227,13 @@ static void errorDialogThread(int argc, void *argv[])
 	{
 		// Check for our OK button
 		status = kernelWindowComponentEventGet((objectKey) okButton, &event);
-		if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+		if ((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 			break;
 
 		// Check for our details button
-		status =
-			kernelWindowComponentEventGet((objectKey) detailsButton, &event);
-		if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+		status = kernelWindowComponentEventGet((objectKey) detailsButton,
+			&event);
+		if ((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			status = errorDialogDetails(window, details);
 			if (status < 0)
@@ -242,7 +244,7 @@ static void errorDialogThread(int argc, void *argv[])
 
 		// Check for window close events
 		status = kernelWindowComponentEventGet((objectKey) window, &event);
-		if ((status > 0) && (event.type == EVENT_WINDOW_CLOSE))
+		if ((status > 0) && (event.type == WINDOW_EVENT_WINDOW_CLOSE))
 			break;
 
 		// Done
@@ -276,8 +278,8 @@ void kernelErrorOutput(const char *fileName, const char *function, int line,
 	int printErrors = !kernelLogGetToConsole();
 	va_list list;
 	const char *errorType = NULL;
-	char processName[MAX_PROCNAME_LENGTH];
-	char errorText[MAX_ERRORTEXT_LENGTH];
+	char processName[MAX_PROCNAME_LENGTH + 1];
+	char errorText[MAX_ERRORTEXT_LENGTH + 1];
 
 	// Copy the kind of the error
 	switch(kind)
@@ -298,10 +300,14 @@ void kernelErrorOutput(const char *fileName, const char *function, int line,
 
 	processName[0] = '\0';
 	if (kernelProcessingInterrupt())
+	{
 		sprintf(processName, "interrupt %d", kernelInterruptGetCurrent());
+	}
 	else if (kernelCurrentProcess)
+	{
 		strncpy(processName, (char *) kernelCurrentProcess->name,
 			MAX_PROCNAME_LENGTH);
+	}
 
 	sprintf(errorText, "%s:%s:%s:%s(%d):", errorType, processName, fileName,
 		function, line);
@@ -349,7 +355,7 @@ void kernelErrorDialog(const char *title, const char *message,
 		return;
 
 	kernelMultitaskerSpawnKernelThread(&errorDialogThread,
-		ERRORDIALOG_THREADNAME, 3, args);
+		ERRORDIALOG_THREADNAME, 3, args, 1 /* run */);
 	return;
 }
 

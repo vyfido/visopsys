@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,7 +28,6 @@
 #include "kernelFile.h"
 #include "kernelGraphic.h"
 #include "kernelImage.h"
-#include "kernelLinkedList.h"
 #include "kernelLoader.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
@@ -37,16 +36,16 @@
 #include "kernelParameters.h"
 #include "kernelTouch.h"
 #include "kernelUser.h"
-#include "kernelVariableList.h"
 #include "kernelWindowEventStream.h"
 #include <locale.h>
 #include <string.h>
 #include <sys/deskconf.h>
 #include <sys/paths.h>
+#include <sys/vis.h>
 
 typedef struct {
 	kernelWindowComponent *itemComponent;
-	char command[MAX_PATH_NAME_LENGTH];
+	char command[MAX_PATH_NAME_LENGTH + 1];
 	kernelWindow *window;
 
 } menuItemData;
@@ -61,17 +60,17 @@ static volatile struct {
 	char userName[USER_MAX_NAMELENGTH + 1];
 	int privilege;
 	int processId;
+	userSession *session;
 	kernelWindow *rootWindow;
 	kernelWindowComponent *menuBar;
-	kernelWindow **menus;
-	int numMenus;
+	linkedList menusList;
 	kernelWindow *windowMenu;
-	kernelLinkedList menuItemsList;
-	kernelLinkedList winMenuItemsList;
-	kernelLinkedList menuBarCompsList;
+	linkedList menuItemsList;
+	linkedList winMenuItemsList;
+	linkedList menuBarCompsList;
 	kernelWindowComponent **icons;
 	int numIcons;
-	kernelLinkedList *windowList;
+	linkedList *windowList;
 	int refresh;
 
 } shellData;
@@ -83,15 +82,15 @@ static void menuEvent(kernelWindowComponent *component, windowEvent *event)
 {
 	int status = 0;
 	menuItemData *itemData = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 
 	kernelDebug(debug_gui, "WindowShell taskbar menu event");
 
-	if (event->type & EVENT_SELECTION)
+	if (event->type & WINDOW_EVENT_SELECTION)
 	{
 		kernelDebug(debug_gui, "WindowShell taskbar menu selection");
 
-		itemData = kernelLinkedListIterStart((kernelLinkedList *)
+		itemData = linkedListIterStart((linkedList *)
 			&shellData.menuItemsList, &iter);
 
 		while (itemData)
@@ -111,14 +110,16 @@ static void menuEvent(kernelWindowComponent *component, windowEvent *event)
 						MOUSE_POINTER_DEFAULT);
 
 					if (status < 0)
+					{
 						kernelError(kernel_error, "Unable to execute program "
 							"%s", itemData->command);
+					}
 				}
 
 				break;
 			}
 
-			itemData = kernelLinkedListIterNext((kernelLinkedList *)
+			itemData = linkedListIterNext((linkedList *)
 				&shellData.menuItemsList, &iter);
 		}
 	}
@@ -131,12 +132,12 @@ static void iconEvent(kernelWindowComponent *component, windowEvent *event)
 	kernelWindowIcon *iconComponent = component->data;
 	static int dragging = 0;
 
-	if (event->type & EVENT_MOUSE_DRAG)
+	if (event->type & WINDOW_EVENT_MOUSE_DRAG)
 	{
 		dragging = 1;
 	}
 
-	else if (event->type & EVENT_MOUSE_LEFTUP)
+	else if (event->type & WINDOW_EVENT_MOUSE_LEFTUP)
 	{
 		if (dragging)
 		{
@@ -150,14 +151,17 @@ static void iconEvent(kernelWindowComponent *component, windowEvent *event)
 		kernelWindowSwitchPointer(shellData.rootWindow, MOUSE_POINTER_BUSY);
 
 		// Run the command
-		status = kernelLoaderLoadAndExec((const char *) iconComponent->command,
-			shellData.privilege, 0 /* no block */);
+		status = kernelLoaderLoadAndExec((const char *)
+			iconComponent->command, shellData.privilege, 0 /* no block */);
 
-		kernelWindowSwitchPointer(shellData.rootWindow, MOUSE_POINTER_DEFAULT);
+		kernelWindowSwitchPointer(shellData.rootWindow,
+			MOUSE_POINTER_DEFAULT);
 
 		if (status < 0)
+		{
 			kernelError(kernel_error, "Unable to execute program %s",
 				iconComponent->command);
+		}
 	}
 }
 
@@ -175,7 +179,7 @@ static int readFileConfig(const char *fileName, variableList *settings)
 	if (status < 0)
 		return (status);
 
-	status = kernelConfigRead(fileName, settings);
+	status = kernelConfigReadSystem(fileName, settings);
 
 	return (status);
 }
@@ -187,7 +191,7 @@ static int readConfig(variableList *settings)
 	// settings we read from various config files.
 
 	int status = 0;
-	char fileName[MAX_PATH_NAME_LENGTH];
+	char fileName[MAX_PATH_NAME_LENGTH + 1];
 	variableList userConfig;
 	const char *variable = NULL;
 	const char *value = NULL;
@@ -206,7 +210,7 @@ static int readConfig(variableList *settings)
 	if (status < 0)
 	{
 		// Argh.  No file?  Create an empty list for us to use
-		status = kernelVariableListCreate(settings);
+		status = variableListCreateSystem(settings);
 		if (status < 0)
 			return (status);
 	}
@@ -223,12 +227,12 @@ static int readConfig(variableList *settings)
 			// We got one.  Override values.
 			for (count = 0; count < userConfig.numVariables; count ++)
 			{
-				variable = kernelVariableListGetVariable(&userConfig, count);
+				variable = variableListGetVariable(&userConfig, count);
 				if (variable)
 				{
-					value = kernelVariableListGet(&userConfig, variable);
+					value = variableListGet(&userConfig, variable);
 					if (value)
-						kernelVariableListSet(settings, variable, value);
+						variableListSet(settings, variable, value);
 				}
 			}
 		}
@@ -245,21 +249,22 @@ static int readConfig(variableList *settings)
 		status = kernelFileFind(fileName, NULL);
 		if (status >= 0)
 		{
-			status = kernelConfigRead(fileName, &langConfig);
+			status = kernelConfigReadSystem(fileName, &langConfig);
 			if (status >= 0)
 			{
 				// We got one.  Override values.
 				for (count = 0; count < langConfig.numVariables; count ++)
 				{
-					variable = kernelVariableListGetVariable(&langConfig,
-						count);
+					variable = variableListGetVariable(&langConfig, count);
 					if (variable)
 					{
-						value = kernelVariableListGet(&langConfig, variable);
+						value = variableListGet(&langConfig, variable);
 						if (value)
-							kernelVariableListSet(settings, variable, value);
+							variableListSet(settings, variable, value);
 					}
 				}
+
+				variableListDestroy(&langConfig);
 			}
 		}
 	}
@@ -270,7 +275,7 @@ static int readConfig(variableList *settings)
 
 static int makeMenuBar(variableList *settings)
 {
-	// Make a menu bar at the top
+	// Make or re-create a menu bar at the top
 
 	int status = 0;
 	const char *variable = NULL;
@@ -288,51 +293,55 @@ static int makeMenuBar(variableList *settings)
 	kernelDebug(debug_gui, "WindowShell make menu bar");
 
 	memset(&params, 0, sizeof(componentParameters));
-	params.foreground.red = 255;
-	params.foreground.green = 255;
-	params.foreground.blue = 255;
-	params.background.red = windowVariables->color.foreground.red;
-	params.background.green = windowVariables->color.foreground.green;
-	params.background.blue = windowVariables->color.foreground.blue;
-	params.flags |= (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
-		WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+
+	memcpy(&params.foreground, &COLOR_WHITE, sizeof(color));
+	memcpy(&params.background, &windowVariables->color.foreground,
+		sizeof(color));
+	params.flags |= (COMP_PARAMS_FLAG_CUSTOMFOREGROUND |
+		COMP_PARAMS_FLAG_CUSTOMBACKGROUND);
 	params.font = windowVariables->font.varWidth.medium.font;
 
-	shellData.menuBar = kernelWindowNewMenuBar(shellData.rootWindow, &params);
+	if (!shellData.menuBar)
+	{
+		shellData.menuBar = kernelWindowNewMenuBar(shellData.rootWindow,
+			&params);
+	}
 
 	// Try to load menu bar menus and menu items
 
 	// Loop for variables starting with DESKTOP_TASKBAR_MENU
 	for (count1 = 0; count1 < settings->numVariables; count1 ++)
 	{
-		variable = kernelVariableListGetVariable(settings, count1);
+		variable = variableListGetVariable(settings, count1);
 		if (variable && !strncmp(variable, DESKVAR_TASKBAR_MENU,
 			strlen(DESKVAR_TASKBAR_MENU)))
 		{
 			menuName = (variable + strlen(DESKVAR_TASKBAR_MENU));
-			menuLabel = kernelVariableListGet(settings, variable);
+			menuLabel = variableListGet(settings, variable);
 
-			menu = kernelWindowNewMenu(shellData.rootWindow, shellData.menuBar,
-				menuLabel, NULL, &params);
+			menu = kernelWindowNewMenu(shellData.rootWindow,
+				shellData.menuBar, menuLabel, NULL, &params);
 
 			// Add it to our list
-			shellData.menus = kernelRealloc(shellData.menus,
-				((shellData.numMenus + 1) * sizeof(kernelWindow *)));
-			if (!shellData.menus)
-				return (status = ERR_MEMORY);
 
-			shellData.menus[shellData.numMenus++] = menu;
+			status = linkedListAdd((linkedList *) &shellData.menusList,
+				(void *) menu);
+			if (status < 0)
+			{
+				kernelWindowDestroy(menu);
+				return (status = ERR_MEMORY);
+			}
 
 			// Now loop and get any components for this menu
 			for (count2 = 0; count2 < settings->numVariables; count2 ++)
 			{
 				sprintf(propertyName, DESKVAR_TASKBAR_MENUITEM, menuName);
 
-				variable = kernelVariableListGetVariable(settings, count2);
+				variable = variableListGetVariable(settings, count2);
 				if (!strncmp(variable, propertyName, strlen(propertyName)))
 				{
 					itemName = (variable + strlen(propertyName));
-					itemLabel = kernelVariableListGet(settings, variable);
+					itemLabel = variableListGet(settings, variable);
 
 					if (!itemLabel)
 						continue;
@@ -340,7 +349,7 @@ static int makeMenuBar(variableList *settings)
 					// See if there's an associated command
 					sprintf(propertyName, DESKVAR_TASKBAR_MENUITEM_CMD,
 						menuName, itemName);
-					value = kernelVariableListGet(settings, propertyName);
+					value = variableListGet(settings, propertyName);
 					if (!value || (kernelLoaderCheckCommand(value) < 0))
 						// No such command.  Don't show this one.
 						continue;
@@ -362,7 +371,7 @@ static int makeMenuBar(variableList *settings)
 					strncpy(itemData->command, value, MAX_PATH_NAME_LENGTH);
 
 					// Add it to our list
-					status = kernelLinkedListAdd((kernelLinkedList *)
+					status = linkedListAdd((linkedList *)
 						&shellData.menuItemsList, itemData);
 					if (status < 0)
 					{
@@ -417,37 +426,38 @@ static int makeIcons(variableList *settings)
 	params.padLeft = 5;
 	params.padRight = 5;
 	params.padTop = 5;
-	params.flags = (WINDOW_COMPFLAG_CANDRAG |
-		WINDOW_COMPFLAG_CUSTOMFOREGROUND | WINDOW_COMPFLAG_CUSTOMBACKGROUND |
-		WINDOW_COMPFLAG_CANFOCUS | WINDOW_COMPFLAG_FIXEDWIDTH |
-		WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_CANDRAG |
+		COMP_PARAMS_FLAG_CUSTOMFOREGROUND |
+		COMP_PARAMS_FLAG_CUSTOMBACKGROUND | COMP_PARAMS_FLAG_CANFOCUS |
+		COMP_PARAMS_FLAG_FIXEDWIDTH | COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	memcpy(&params.foreground, &COLOR_WHITE, sizeof(color));
-	memcpy(&params.background, &windowVariables->color.desktop, sizeof(color));
+	memcpy(&params.background, &windowVariables->color.desktop,
+		sizeof(color));
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
 	// Loop for variables starting with DESKTOP_ICON_NAME
 	for (count = 0; count < settings->numVariables; count ++)
 	{
-		variable = kernelVariableListGetVariable(settings, count);
+		variable = variableListGetVariable(settings, count);
 		if (variable && !strncmp(variable, DESKVAR_ICON_NAME,
 			strlen(DESKVAR_ICON_NAME)))
 		{
 			iconName = (variable + strlen(DESKVAR_ICON_NAME));
-			iconLabel = kernelVariableListGet(settings, variable);
+			iconLabel = variableListGet(settings, variable);
 
 			// Get the rest of the recognized properties for this icon.
 
 			// See if there's a command associated with this, and make sure
 			// the program exists.
 			sprintf(propertyName, DESKVAR_ICON_COMMAND, iconName);
-			command = kernelVariableListGet(settings, propertyName);
+			command = variableListGet(settings, propertyName);
 			if (!command || (kernelLoaderCheckCommand(command) < 0))
 				continue;
 
 			// Get the image name, make sure it exists, and try to load it.
 			sprintf(propertyName, DESKVAR_ICON_IMAGE, iconName);
-			imageFile = kernelVariableListGet(settings, propertyName);
+			imageFile = variableListGet(settings, propertyName);
 			if (!imageFile || (kernelFileFind(imageFile, NULL) < 0) ||
 				(kernelImageLoad(imageFile, 64, 64, &tmpImage) < 0))
 			{
@@ -508,8 +518,9 @@ static int makeRootWindow(void)
 
 	// The window will have no border, title bar or close button, is not
 	// movable or resizable, and we mark it as a root window
-	shellData.rootWindow->flags &= ~(WINFLAG_MOVABLE | WINFLAG_RESIZABLE);
-	shellData.rootWindow->flags |= WINFLAG_ROOTWINDOW;
+	kernelWindowSetMovable(shellData.rootWindow, 0);
+	kernelWindowSetResizable(shellData.rootWindow, 0);
+	kernelWindowSetRoot(shellData.rootWindow);
 	kernelWindowSetHasTitleBar(shellData.rootWindow, 0);
 	kernelWindowSetHasBorder(shellData.rootWindow, 0);
 
@@ -527,7 +538,7 @@ static int makeRootWindow(void)
 		return (status);
 
 	// Try to load the background image
-	imageFile = kernelVariableListGet(&settings, DESKVAR_BACKGROUND_IMAGE);
+	imageFile = variableListGet(&settings, DESKVAR_BACKGROUND_IMAGE);
 	if (imageFile)
 	{
 		kernelDebug(debug_gui, "WindowShell loading background image \"%s\"",
@@ -558,7 +569,7 @@ static int makeRootWindow(void)
 	status = makeMenuBar(&settings);
 	if (status < 0)
 	{
-		kernelVariableListDestroy(&settings);
+		variableListDestroy(&settings);
 		return (status);
 	}
 
@@ -566,11 +577,11 @@ static int makeRootWindow(void)
 	status = makeIcons(&settings);
 	if (status < 0)
 	{
-		kernelVariableListDestroy(&settings);
+		variableListDestroy(&settings);
 		return (status);
 	}
 
-	kernelVariableListDestroy(&settings);
+	variableListDestroy(&settings);
 
 	// Location in the top corner
 	status = kernelWindowSetLocation(shellData.rootWindow, 0, 0);
@@ -582,9 +593,6 @@ static int makeRootWindow(void)
 		kernelGraphicGetScreenWidth(), kernelGraphicGetScreenHeight());
 	if (status < 0)
 		return (status);
-
-	// The window is always at the bottom level
-	shellData.rootWindow->level = WINDOW_MAXWINDOWS;
 
 	kernelWindowSetVisible(shellData.rootWindow, 1);
 
@@ -610,18 +618,20 @@ static void runPrograms(void)
 	// Loop for variables starting with DESKVAR_PROGRAM
 	for (count = 0; count < settings.numVariables; count ++)
 	{
-		variable = kernelVariableListGetVariable(&settings, count);
+		variable = variableListGetVariable(&settings, count);
 		if (variable && !strncmp(variable, DESKVAR_PROGRAM,
 			strlen(DESKVAR_PROGRAM)))
 		{
-			programName = kernelVariableListGet(&settings, variable);
+			programName = variableListGet(&settings, variable);
 			if (programName)
+			{
 				// Try to run the program
 				kernelLoaderLoadAndExec(programName, shellData.privilege, 0);
+			}
 		}
 	}
 
-	kernelVariableListDestroy(&settings);
+	variableListDestroy(&settings);
 
 	// If touch support is available, we will also run the virtual keyboard
 	// program in 'iconified' mode
@@ -634,16 +644,16 @@ static void runPrograms(void)
 }
 
 
-static void scanMenuItemEvents(kernelLinkedList *list)
+static void scanMenuItemEvents(linkedList *list)
 {
 	// Scan through events in a list of our menu items
 
 	menuItemData *itemData = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	kernelWindowComponent *component = NULL;
 	windowEvent event;
 
-	itemData = kernelLinkedListIterStart(list, &iter);
+	itemData = linkedListIterStart(list, &iter);
 	while (itemData)
 	{
 		component = itemData->itemComponent;
@@ -656,7 +666,7 @@ static void scanMenuItemEvents(kernelLinkedList *list)
 			component->eventHandler(component, &event);
 		}
 
-		itemData = kernelLinkedListIterNext(list, &iter);
+		itemData = linkedListIterNext(list, &iter);
 	}
 }
 
@@ -691,7 +701,8 @@ static void scanContainerEvents(kernelWindowContainer *container)
 static void destroy(void)
 {
 	menuItemData *itemData = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
+	kernelWindow *menu = NULL;
 	int count;
 
 	// Destroy icons
@@ -705,52 +716,53 @@ static void destroy(void)
 	// Don't destroy menu bar components, since they're 'owned' by other
 	// processes.
 
-	// Destroy (static) menu items
+	// Deallocate (static) menu item data structures
 
-	itemData = kernelLinkedListIterStart((kernelLinkedList *)
-		&shellData.menuItemsList, &iter);
+	itemData = linkedListIterStart((linkedList *) &shellData.menuItemsList,
+		&iter);
 
 	while (itemData)
 	{
-		kernelWindowComponentDestroy(itemData->itemComponent);
 		kernelFree(itemData);
 
-		itemData = kernelLinkedListIterNext((kernelLinkedList *)
-			&shellData.menuItemsList, &iter);
+		itemData = linkedListIterNext((linkedList *) &shellData.menuItemsList,
+			&iter);
 	}
 
-	kernelLinkedListClear((kernelLinkedList *) &shellData.menuItemsList);
+	linkedListClear((linkedList *) &shellData.menuItemsList);
 
-	// Destroy window menu items
+	// Deallocate window menu item data structures
 
-	itemData = kernelLinkedListIterStart((kernelLinkedList *)
-		&shellData.winMenuItemsList, &iter);
+	itemData = linkedListIterStart((linkedList *) &shellData.winMenuItemsList,
+		&iter);
 
 	while (itemData)
 	{
-		kernelWindowComponentDestroy(itemData->itemComponent);
 		kernelFree(itemData);
 
-		itemData = kernelLinkedListIterNext((kernelLinkedList *)
+		itemData = linkedListIterNext((linkedList *)
 			&shellData.winMenuItemsList, &iter);
 	}
 
-	kernelLinkedListClear((kernelLinkedList *) &shellData.winMenuItemsList);
+	linkedListClear((linkedList *) &shellData.winMenuItemsList);
 
 	// Do this before destroying menus (because menus are windows, and
 	// kernelWindowShellUpdateList() will get called)
 	shellData.windowMenu = NULL;
 
-	// Destroy menus (but not the window menu)
-	for (count = 0; count < shellData.numMenus; count ++)
-		kernelWindowDestroy(shellData.menus[count]);
+	// Destroy menus
 
-	shellData.numMenus = 0;
-	kernelFree(shellData.menus);
-	shellData.menus = NULL;
+	menu = linkedListIterStart((linkedList *) &shellData.menusList, &iter);
 
-	// Destroy the menu bar
-	kernelWindowComponentDestroy(shellData.menuBar);
+	while (menu)
+	{
+		kernelWindowMenuDestroy(menu);
+		menu = linkedListIterNext((linkedList *) &shellData.menusList, &iter);
+	}
+
+	linkedListClear((linkedList *) &shellData.menusList);
+
+	// Don't destroy the menu bar
 }
 
 
@@ -758,17 +770,53 @@ static void refresh(void)
 {
 	// Refresh the desktop environment
 
+	kernelWindow *listWindow = NULL;
+	linkedListItem *iter = NULL;
+	process windowProcess;
+	char charSet[CHARSET_NAME_LEN + 1];
 	variableList settings;
 	windowEvent event;
-	kernelWindow *listWindow = NULL;
-	kernelLinkedListItem *iter = NULL;
 
 	kernelDebug(debug_gui, "WindowShell refresh");
 
+	// This is a dodgy hack: If any windows' parent processes are no longer
+	// alive, make the window shell process be their parents.  This is so that
+	// the environment propagation, below, reaches all the windows' processes.
+	// Ideally the multitasker would implement a way of tracking the lineage
+	// of these processes back to their shell ancestor.
+	listWindow = linkedListIterStart(shellData.windowList, &iter);
+	while (listWindow)
+	{
+		if ((listWindow != shellData.rootWindow) &&
+			(kernelMultitaskerGetProcess(listWindow->processId,
+				&windowProcess) >= 0))
+		{
+			if ((windowProcess.type != proc_thread) &&
+				!kernelMultitaskerProcessIsAlive(windowProcess.
+					parentProcessId))
+			{
+				kernelMultitaskerSetProcessParent(listWindow->processId,
+					shellData.processId);
+			}
+		}
+
+		listWindow = linkedListIterNext(shellData.windowList, &iter);
+	}
+
 	// Reload the user environment
-	if (kernelEnvironmentLoad((char *) shellData.userName) >= 0)
-		// Propagate it to all of our child processes
-		kernelMultitaskerPropagateEnvironment(NULL);
+	if (kernelEnvironmentLoad((char *) shellData.userName,
+		shellData.processId) >= 0)
+	{
+		// Propagate it to all the shell's child processes
+		kernelMultitaskerPropagateEnvironment(shellData.processId, NULL);
+	}
+
+	// Re-get the character set
+	if (shellData.rootWindow && (kernelEnvironmentGet(ENV_CHARSET, charSet,
+		CHARSET_NAME_LEN) >= 0))
+	{
+		kernelWindowSetCharSet(shellData.rootWindow, charSet);
+	}
 
 	// Read the desktop config file(s)
 	if (readConfig(&settings) >= 0)
@@ -782,49 +830,36 @@ static void refresh(void)
 		// Re-load the icons
 		makeIcons(&settings);
 
-		kernelVariableListDestroy(&settings);
+		variableListDestroy(&settings);
 
 		if (shellData.rootWindow)
-		{
-			// Re-do root window layout.  Don't use kernelWindowLayout() for
-			// now, since it automatically re-sizes and messes things up
-			kernelWindowSetVisible(shellData.rootWindow, 0);
-
-			if (shellData.rootWindow->sysContainer &&
-				shellData.rootWindow->sysContainer->layout)
-			{
-				shellData.rootWindow->sysContainer->
-					layout(shellData.rootWindow->sysContainer);
-			}
-
-			if (shellData.rootWindow->mainContainer &&
-				shellData.rootWindow->mainContainer->layout)
-			{
-				shellData.rootWindow->mainContainer->
-					layout(shellData.rootWindow->mainContainer);
-			}
-
-			kernelWindowSetVisible(shellData.rootWindow, 1);
-		}
+			// Re-do root window layout
+			kernelWindowLayout(shellData.rootWindow);
 	}
 
 	// Send a 'window refresh' event to every window
 	if (shellData.windowList)
 	{
 		memset(&event, 0, sizeof(windowEvent));
-		event.type = EVENT_WINDOW_REFRESH;
+		event.type = WINDOW_EVENT_WINDOW_REFRESH;
 
-		listWindow = kernelLinkedListIterStart(shellData.windowList, &iter);
+		listWindow = linkedListIterStart(shellData.windowList, &iter);
 		while (listWindow)
 		{
-			kernelWindowEventStreamWrite(&listWindow->events, &event);
+			if (kernelMultitaskerGetProcessUserSession(
+				listWindow->processId) == shellData.session)
+			{
+				kernelWindowEventStreamWrite(&listWindow->events, &event);
 
-			listWindow = kernelLinkedListIterNext(shellData.windowList, &iter);
+				// Yield after sending each one; hopefully this will allow
+				// them all a chance to update before we update the window
+				// list.
+				kernelMultitaskerYield();
+			}
+
+			listWindow = linkedListIterNext(shellData.windowList, &iter);
 		}
 	}
-
-	// Let them update
-	kernelMultitaskerYield();
 
 	// Update the window menu
 	kernelWindowShellUpdateList(shellData.windowList);
@@ -842,12 +877,20 @@ static void windowShellThread(void)
 
 	int status = 0;
 	menuBarComponent *menuBarComp = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 
 	// Create the root window
 	status = makeRootWindow();
 	if (status < 0)
 		kernelMultitaskerTerminate(status);
+
+	shellData.session =
+		kernelMultitaskerGetProcessUserSession(shellData.processId);
+	if (!shellData.session)
+	{
+		kernelError(kernel_error, "Unable to get the user session");
+		kernelMultitaskerTerminate(status = ERR_NOSUCHUSER);
+	}
 
 	// Run any programs that we're supposed to run after login
 	runPrograms();
@@ -858,8 +901,8 @@ static void windowShellThread(void)
 		if (shellData.refresh)
 			refresh();
 
-		scanMenuItemEvents((kernelLinkedList *) &shellData.winMenuItemsList);
-		scanMenuItemEvents((kernelLinkedList *) &shellData.menuItemsList);
+		scanMenuItemEvents((linkedList *) &shellData.winMenuItemsList);
+		scanMenuItemEvents((linkedList *) &shellData.menuItemsList);
 
 		scanContainerEvents(((kernelWindowMenuBar *)
 			shellData.menuBar->data)->container->data);
@@ -868,7 +911,7 @@ static void windowShellThread(void)
 
 		// Make sure the owners of any menu bar components are still alive
 
-		menuBarComp = kernelLinkedListIterStart((kernelLinkedList *)
+		menuBarComp = linkedListIterStart((linkedList *)
 			&shellData.menuBarCompsList, &iter);
 
 		while (menuBarComp)
@@ -876,7 +919,7 @@ static void windowShellThread(void)
 			if (!kernelMultitaskerProcessIsAlive(menuBarComp->processId))
 				kernelWindowShellDestroyTaskbarComp(menuBarComp->component);
 
-			menuBarComp = kernelLinkedListIterNext((kernelLinkedList *)
+			menuBarComp = linkedListIterNext((linkedList *)
 				&shellData.menuBarCompsList, &iter);
 		}
 
@@ -890,15 +933,15 @@ static void windowMenuEvent(kernelWindowComponent *component,
 	windowEvent *event)
 {
 	menuItemData *itemData = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 
 	kernelDebug(debug_gui, "WindowShell taskbar window menu event");
 
-	if (shellData.windowMenu && (event->type & EVENT_SELECTION))
+	if (shellData.windowMenu && (event->type & WINDOW_EVENT_SELECTION))
 	{
 		kernelDebug(debug_gui, "WindowShell taskbar window menu selection");
 
-		itemData = kernelLinkedListIterStart((kernelLinkedList *)
+		itemData = linkedListIterStart((linkedList *)
 			&shellData.winMenuItemsList, &iter);
 
 		while (itemData)
@@ -912,13 +955,15 @@ static void windowMenuEvent(kernelWindowComponent *component,
 
 				// If it has a dialog box, restore that too
 				if (itemData->window->dialogWindow)
+				{
 					kernelWindowSetMinimized(itemData->window->dialogWindow,
 						0);
+				}
 
 				break;
 			}
 
-			itemData = kernelLinkedListIterNext((kernelLinkedList *)
+			itemData = linkedListIterNext((linkedList *)
 				&shellData.winMenuItemsList, &iter);
 		}
 	}
@@ -956,8 +1001,8 @@ static int addMenuBarComponent(kernelWindowComponent *component)
 	menuBarComp->processId = kernelMultitaskerGetCurrentProcessId();
 	menuBarComp->component = component;
 
-	status = kernelLinkedListAdd((kernelLinkedList *)
-		&shellData.menuBarCompsList, menuBarComp);
+	status = linkedListAdd((linkedList *) &shellData.menuBarCompsList,
+		menuBarComp);
 	if (status < 0)
 	{
 		kernelFree(menuBarComp);
@@ -987,7 +1032,7 @@ int kernelWindowShell(const char *user)
 
 	// Check params
 	if (!user)
-		return (shellData.processId = ERR_NULLPARAMETER);
+		return (ERR_NULLPARAMETER);
 
 	memset((void *) &shellData, 0, sizeof(shellData));
 
@@ -996,22 +1041,22 @@ int kernelWindowShell(const char *user)
 
 	// Spawn the window shell thread
 	shellData.processId = kernelMultitaskerSpawn(windowShellThread,
-		"window shell", 0, NULL);
+		"window shell", 0 /* no args */, NULL /* no args */,
+		0 /* don't run */);
 
 	return (shellData.processId);
 }
 
 
-void kernelWindowShellUpdateList(kernelLinkedList *list)
+void kernelWindowShellUpdateList(linkedList *list)
 {
 	// When the list of open windows has changed, the window environment can
 	// call this function so we can update our taskbar.
 
 	componentParameters params;
 	menuItemData *itemData = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	kernelWindow *listWindow = NULL;
-	process windowProcess;
 
 	// Check params
 	if (!list)
@@ -1029,30 +1074,29 @@ void kernelWindowShellUpdateList(kernelLinkedList *list)
 	{
 		// Destroy all the menu items in the menu
 
-		itemData = kernelLinkedListIterStart((kernelLinkedList *)
+		itemData = linkedListIterStart((linkedList *)
 			&shellData.winMenuItemsList, &iter);
 
 		while (itemData)
 		{
-			kernelLinkedListRemove((kernelLinkedList *)
-				&shellData.winMenuItemsList, itemData);
+			linkedListRemove((linkedList *) &shellData.winMenuItemsList,
+				itemData);
 
 			kernelWindowComponentDestroy(itemData->itemComponent);
 
 			kernelFree(itemData);
 
-			itemData = kernelLinkedListIterNext((kernelLinkedList *)
+			itemData = linkedListIterNext((linkedList *)
 				&shellData.winMenuItemsList, &iter);
 		}
 
-		kernelLinkedListClear((kernelLinkedList *)
-			&shellData.winMenuItemsList);
+		linkedListClear((linkedList *) &shellData.winMenuItemsList);
 
 		// Copy the parameters from the menu to use
 		memcpy(&params, (void *) &shellData.menuBar->params,
 			sizeof(componentParameters));
 
-		listWindow = kernelLinkedListIterStart(shellData.windowList, &iter);
+		listWindow = linkedListIterStart(shellData.windowList, &iter);
 		while (listWindow)
 		{
 			// Skip windows we don't want to include
@@ -1063,13 +1107,12 @@ void kernelWindowShellUpdateList(kernelLinkedList *list)
 				// Skip any temporary console window
 				!strcmp((char *) listWindow->title, WINNAME_TEMPCONSOLE) ||
 				// Skip any iconified windows
-				(listWindow->flags & WINFLAG_ICONIFIED) ||
+				(listWindow->flags & WINDOW_FLAG_ICONIFIED) ||
 				// Skip child windows too
 				listWindow->parentWindow
 			)
 			{
-				listWindow = kernelLinkedListIterNext(shellData.windowList,
-					&iter);
+				listWindow = linkedListIterNext(shellData.windowList, &iter);
 				continue;
 			}
 
@@ -1082,35 +1125,14 @@ void kernelWindowShellUpdateList(kernelLinkedList *list)
 					(char *) listWindow->title, &params);
 			itemData->window = listWindow;
 
-			kernelLinkedListAdd((kernelLinkedList *)
-				&shellData.winMenuItemsList, itemData);
+			linkedListAdd((linkedList *) &shellData.winMenuItemsList,
+				itemData);
 
 			kernelWindowRegisterEventHandler(itemData->itemComponent,
 				&windowMenuEvent);
 
-			listWindow = kernelLinkedListIterNext(shellData.windowList, &iter);
+			listWindow = linkedListIterNext(shellData.windowList, &iter);
 		}
-	}
-
-	// If any windows' parent processes are no longer alive, make the window
-	// shell be its parent.
-	listWindow = kernelLinkedListIterStart(shellData.windowList, &iter);
-	while (listWindow)
-	{
-		if ((listWindow != shellData.rootWindow) &&
-			(kernelMultitaskerGetProcess(listWindow->processId,
-				&windowProcess) >= 0))
-		{
-			if ((windowProcess.type != proc_thread) &&
-				!kernelMultitaskerProcessIsAlive(windowProcess.
-					parentProcessId))
-			{
-				kernelMultitaskerSetProcessParent(listWindow->processId,
-					shellData.processId);
-			}
-		}
-
-		listWindow = kernelLinkedListIterNext(shellData.windowList, &iter);
 	}
 }
 
@@ -1202,11 +1224,9 @@ int kernelWindowShellRaiseWindowMenu(void)
 	kernelDebug(debug_gui, "WindowShell toggle root window menu bar");
 
 	if (shellData.rootWindow &&
-		(shellData.rootWindow->flags & WINFLAG_VISIBLE))
+		(shellData.rootWindow->flags & WINDOW_FLAG_VISIBLE))
 	{
-		kernelWindowFocus(shellData.rootWindow);
-
-		status = kernelWindowToggleMenuBar();
+		status = kernelWindowToggleMenuBar(shellData.rootWindow);
 	}
 
 	return (status);
@@ -1229,7 +1249,7 @@ kernelWindowComponent *kernelWindowShellNewTaskbarIcon(image *img)
 		return (iconComponent = NULL);
 
 	memset(&params, 0, sizeof(componentParameters));
-	params.flags = WINDOW_COMPFLAG_CANFOCUS;
+	params.flags = COMP_PARAMS_FLAG_CANFOCUS;
 
 	// Create the menu bar icon
 	iconComponent = kernelWindowNewMenuBarIcon(shellData.menuBar, img,
@@ -1266,8 +1286,8 @@ kernelWindowComponent *kernelWindowShellNewTaskbarTextLabel(const char *text)
 	memset(&params, 0, sizeof(componentParameters));
 	params.foreground = shellData.menuBar->params.foreground;
 	params.background = shellData.menuBar->params.background;
-	params.flags |= (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
-		WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+	params.flags |= (COMP_PARAMS_FLAG_CUSTOMFOREGROUND |
+		COMP_PARAMS_FLAG_CUSTOMBACKGROUND);
 	params.font = windowVariables->font.varWidth.small.font;
 
 	// Create the menu bar label
@@ -1287,39 +1307,43 @@ kernelWindowComponent *kernelWindowShellNewTaskbarTextLabel(const char *text)
 }
 
 
-void kernelWindowShellDestroyTaskbarComp(kernelWindowComponent *component)
+int kernelWindowShellDestroyTaskbarComp(kernelWindowComponent *component)
 {
 	// Destroy a component in the shell's top menu bar.
 
+	int status = 0;
 	menuBarComponent *menuBarComp = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 
 	// Check params
 	if (!component)
-		return;
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
 
 	// Make sure we have a root window and menu bar
 	if (!shellData.rootWindow || !shellData.menuBar)
-		return;
+		return (status = ERR_NOSUCHENTRY);
 
 	// Remove it from the list
 
-	menuBarComp = kernelLinkedListIterStart((kernelLinkedList *)
+	menuBarComp = linkedListIterStart((linkedList *)
 		&shellData.menuBarCompsList, &iter);
 
 	while (menuBarComp)
 	{
 		if (menuBarComp->component == component)
 		{
-			kernelLinkedListRemove((kernelLinkedList *)
-				&shellData.menuBarCompsList, menuBarComp);
+			linkedListRemove((linkedList *) &shellData.menuBarCompsList,
+				menuBarComp);
 
 			kernelFree(menuBarComp);
 
 			break;
 		}
 
-		menuBarComp = kernelLinkedListIterNext((kernelLinkedList *)
+		menuBarComp = linkedListIterNext((linkedList *)
 			&shellData.menuBarCompsList, &iter);
 	}
 
@@ -1328,6 +1352,8 @@ void kernelWindowShellDestroyTaskbarComp(kernelWindowComponent *component)
 
 	// Re-draw the menu bar
 	updateMenuBarComponents();
+
+	return (status = 0);
 }
 
 
@@ -1348,9 +1374,9 @@ kernelWindowComponent *kernelWindowShellIconify(kernelWindow *window,
 	}
 
 	if (iconify)
-		window->flags |= WINFLAG_ICONIFIED;
+		window->flags |= WINDOW_FLAG_ICONIFIED;
 	else
-		window->flags &= ~WINFLAG_ICONIFIED;
+		window->flags &= ~WINDOW_FLAG_ICONIFIED;
 
 	kernelWindowSetVisible(window, !iconify);
 

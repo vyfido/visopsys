@@ -1,0 +1,8 @@
+
+ -- who --
+
+Show who is logged in.
+
+Usage:
+  who
+

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -56,7 +56,8 @@ kernel.conf, and the window manager configuration, window.conf.
 #include <sys/env.h>
 #include <sys/font.h>
 #include <sys/paths.h>
-#include <sys/vsh.h>
+#include <sys/vis.h>
+#include <sys/window.h>
 
 #define _(string) gettext(string)
 #define gettext_noop(string) (string)
@@ -71,7 +72,7 @@ kernel.conf, and the window manager configuration, window.conf.
 
 static int processId = 0;
 static int privilege = 0;
-static char fileName[MAX_PATH_NAME_LENGTH];
+static char fileName[MAX_PATH_NAME_LENGTH + 1];
 static int readOnly = 1;
 static variableList list;
 static listItemParameters *listItemParams = NULL;
@@ -100,7 +101,7 @@ static void error(const char *format, ...)
 	// Generic error message code
 
 	va_list args;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(args, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, args);
@@ -269,7 +270,7 @@ static void setVariableDialog(char *variable)
 	params.padBottom = 5;
 	params.padRight = 0;
 	params.orientationX = orient_right;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	okButton = windowNewButton(dialogWindow, _("OK"), NULL, &params);
 
 	// Create the Cancel button
@@ -285,13 +286,13 @@ static void setVariableDialog(char *variable)
 	{
 		// Check for the OK button
 		status = windowComponentEventGet(okButton, &event);
-		if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+		if ((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 			okay = 1;
 
 		// Check for pressing enter in either of the text fields
 		status = windowComponentEventGet(valueField, &event);
-		if ((status > 0) && (event.type == EVENT_KEY_DOWN) &&
-			(event.key == keyEnter))
+		if ((status > 0) && (event.type == WINDOW_EVENT_KEY_DOWN) &&
+			(event.key.scan == keyEnter))
 		{
 			okay = 1;
 		}
@@ -299,8 +300,8 @@ static void setVariableDialog(char *variable)
 		if (!variable)
 		{
 			status = windowComponentEventGet(variableField, &event);
-			if ((status > 0) && (event.type == EVENT_KEY_DOWN) &&
-				(event.key == keyEnter))
+			if ((status > 0) && (event.type == WINDOW_EVENT_KEY_DOWN) &&
+				(event.key.scan == keyEnter))
 			{
 				okay = 1;
 			}
@@ -342,12 +343,12 @@ static void setVariableDialog(char *variable)
 
 		// Check for the Cancel button
 		status = windowComponentEventGet(cancelButton, &event);
-		if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+		if ((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 			break;
 
 		// Check for window close events
 		status = windowComponentEventGet(dialogWindow, &event);
-		if ((status > 0) && (event.type == EVENT_WINDOW_CLOSE))
+		if ((status > 0) && (event.type == WINDOW_EVENT_WINDOW_CLOSE))
 			break;
 
 		// Done
@@ -389,38 +390,29 @@ static void initMenuContents(void)
 }
 
 
-static void refreshMenuContents(void)
-{
-	int count;
-
-	initMenuContents();
-
-	for (count = 0; count < fileMenuContents.numItems; count ++)
-		windowComponentSetData(fileMenuContents.items[count].key,
-			fileMenuContents.items[count].text,
-			strlen(fileMenuContents.items[count].text),
-			(count == (fileMenuContents.numItems - 1)));
-}
-
-
 static void refreshWindow(void)
 {
 	// We got a 'window refresh' event (probably because of a language
 	// switch), so we need to update things
+
+	const char *charSet = NULL;
 
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("confedit");
 
 	// Re-get the character set
-	if (getenv(ENV_CHARSET))
-		windowSetCharSet(window, getenv(ENV_CHARSET));
+	charSet = getenv(ENV_CHARSET);
+
+	if (charSet)
+		windowSetCharSet(window, charSet);
 
 	// Refresh all the menu contents
-	refreshMenuContents();
+	initMenuContents();
 
 	// Refresh the 'file' menu
-	windowSetTitle(fileMenu, FILE_MENU);
+	windowMenuUpdate(fileMenu, FILE_MENU, charSet, &fileMenuContents,
+		NULL /* params */);
 
 	// Refresh the 'add' button
 	windowComponentSetData(addVariableButton, ADD_VARIABLE,
@@ -436,6 +428,9 @@ static void refreshWindow(void)
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -447,11 +442,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			quit();
 	}
 
@@ -459,25 +454,25 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == fileMenuContents.items[FILEMENU_SAVE].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 			writeConfigFile();
 	}
 
 	else if (key == fileMenuContents.items[FILEMENU_QUIT].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 			quit();
 	}
 
 	else if (key == addVariableButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 			setVariableDialog(NULL);
 	}
 
 	else if (key == changeVariableButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			windowComponentGetSelected(listList, &selected);
 			setVariableDialog((char *) variableListGetVariable(&list,
@@ -487,14 +482,15 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	else if (key == deleteVariableButton)
 	{
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			windowComponentGetSelected(listList, &selected);
-			variableListUnset(&list, variableListGetVariable(&list, selected));
+			variableListUnset(&list, variableListGetVariable(&list,
+				selected));
 			changesPending += 1;
 			fillList();
-			windowComponentSetData(listList, listItemParams, list.numVariables,
-				1 /* redraw */);
+			windowComponentSetData(listList, listItemParams,
+				list.numVariables, 1 /* redraw */);
 		}
 	}
 }
@@ -534,8 +530,10 @@ static void constructWindow(void)
 		&params);
 	handleMenuEvents(&fileMenuContents);
 	if (privilege || readOnly)
+	{
 		windowComponentSetEnabled(fileMenuContents.items[FILEMENU_SAVE].key,
 			0);
+	}
 
 	params.gridWidth = 1;
 	params.gridHeight = 1;
@@ -546,9 +544,8 @@ static void constructWindow(void)
 	params.orientationY = orient_middle;
 
 	params.font = fontGet(FONT_FAMILY_ARIAL, FONT_STYLEFLAG_BOLD, 10, NULL);
-	listList = windowNewList(window, windowlist_textonly,
-		min(10, list.numVariables), 1, 0, listItemParams, list.numVariables,
-		&params);
+	listList = windowNewList(window, windowlist_textonly, min(10,
+		list.numVariables), 1, 0, listItemParams, list.numVariables, &params);
 	windowComponentFocus(listList);
 
 	// Make a container component for the buttons
@@ -556,7 +553,8 @@ static void constructWindow(void)
 	params.padRight = 5;
 	params.orientationX = orient_left;
 	params.orientationY = orient_top;
-	params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags |= (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	params.font = NULL;
 	buttonContainer = windowNewContainer(window, "buttonContainer", &params);
 
@@ -567,24 +565,24 @@ static void constructWindow(void)
 	params.padRight = 0;
 	params.padTop = 0;
 	params.padBottom = 0;
-	params.flags &= ~(WINDOW_COMPFLAG_FIXEDWIDTH |
-		WINDOW_COMPFLAG_FIXEDHEIGHT);
-	addVariableButton =
-		windowNewButton(buttonContainer, ADD_VARIABLE, NULL, &params);
+	params.flags &= ~(COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
+	addVariableButton = windowNewButton(buttonContainer, ADD_VARIABLE, NULL,
+		&params);
 	windowRegisterEventHandler(addVariableButton, &eventHandler);
 
 	// Create a 'change variable' button
 	params.gridY += 1;
 	params.padTop = 5;
-	changeVariableButton =
-	windowNewButton(buttonContainer, CHANGE_VARIABLE, NULL, &params);
+	changeVariableButton = windowNewButton(buttonContainer, CHANGE_VARIABLE,
+		NULL, &params);
 	windowRegisterEventHandler(changeVariableButton, &eventHandler);
 	windowComponentSetEnabled(changeVariableButton, list.numVariables);
 
 	// Create a 'delete variable' button
 	params.gridY += 1;
-	deleteVariableButton =
-		windowNewButton(buttonContainer, DELETE_VARIABLE, NULL, &params);
+	deleteVariableButton = windowNewButton(buttonContainer, DELETE_VARIABLE,
+		NULL, &params);
 	windowRegisterEventHandler(deleteVariableButton, &eventHandler);
 	windowComponentSetEnabled(deleteVariableButton, list.numVariables);
 
@@ -592,8 +590,6 @@ static void constructWindow(void)
 	windowRegisterEventHandler(window, &eventHandler);
 
 	windowSetVisible(window, 1);
-
-	return;
 }
 
 

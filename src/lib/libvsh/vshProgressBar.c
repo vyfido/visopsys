@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -115,23 +115,29 @@ static void setMessage(volatile char *message, int pause, int confirm)
 
 	int tempColumn = textGetColumn();
 	int tempRow = textGetRow();
-	char output[PROGRESS_MAX_MESSAGELEN];
+	char output[PROGRESS_MAX_MESSAGELEN + 1];
 	char c = '\0';
 
-	memset(output, ' ', (PROGRESS_MAX_MESSAGELEN - 1));
-	output[PROGRESS_MAX_MESSAGELEN - 1] = '\0';
+	memset(output, ' ', PROGRESS_MAX_MESSAGELEN);
+	output[PROGRESS_MAX_MESSAGELEN] = '\0';
 
 	textSetRow(textProgressBarRow + 2);
 	textSetColumn(0);
 	printf("%s", output);
 
 	if (pause)
-		snprintf(output, PROGRESS_MAX_MESSAGELEN, "%s\nPress any key to continue.",
-			message);
+	{
+		snprintf(output, PROGRESS_MAX_MESSAGELEN, "%s\nPress any key to "
+			"continue.", message);
+	}
 	else if (confirm)
+	{
 		snprintf(output, PROGRESS_MAX_MESSAGELEN, "%s (y/n): ", message);
+	}
 	else
+	{
 		strncpy(output, (char *) message, PROGRESS_MAX_MESSAGELEN);
+	}
 
 	textSetRow(textProgressBarRow + 2);
 	textSetColumn(0);
@@ -188,19 +194,19 @@ static void progressThread(void)
 	char character = '\0';
 
 	memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
-	if (lockGet(&prog->progLock) >= 0)
+	if (lockGet(&prog->lock) >= 0)
 	{
 		// Set initial display values.  After this we only watch for changes to
 		// these.
 		setPercent(prog->percentFinished);
 		setMessage(prog->statusMessage, 0, 0);
-		lockRelease(&prog->progLock);
+		lockRelease(&prog->lock);
 	}
 
 	while (1)
 	{
 		// Try to get a lock on the progress structure
-		if (lockGet(&prog->progLock) >= 0)
+		if (lockGet(&prog->lock) >= 0)
 		{
 			if (prog->canCancel && textInputCount())
 			{
@@ -249,14 +255,14 @@ static void progressThread(void)
 				memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
 			}
 
-			lockRelease(&prog->progLock);
+			lockRelease(&prog->lock);
 		}
 
 		// Done
 		multitaskerYield();
 	}
 
-	lockRelease(&prog->progLock);
+	lockRelease(&prog->lock);
 
 	// Exit.
 	multitaskerTerminate(0);
@@ -285,7 +291,8 @@ _X_ int vshProgressBar(progress *tmpProg)
 	prog = tmpProg;
 
 	// Spawn our thread to monitor the progress
-	threadPid = multitaskerSpawn(progressThread, "progress thread", 0, NULL);
+	threadPid = multitaskerSpawn(progressThread, "progress thread",
+		0 /* no args */, NULL /* no args */, 1 /* run */);
 	if (threadPid < 0)
 		return (threadPid);
 
@@ -308,7 +315,7 @@ _X_ int vshProgressBarDestroy(progress *tmpProg)
 	if (prog)
 	{
 		// Get a final lock on the progress structure
-		status = lockGet(&prog->progLock);
+		status = lockGet(&prog->lock);
 		if (status < 0)
 			return (status);
 
@@ -321,7 +328,7 @@ _X_ int vshProgressBarDestroy(progress *tmpProg)
 		status = multitaskerKillProcess(threadPid, 1);
 
 	if (prog)
-		lockRelease(&prog->progLock);
+		lockRelease(&prog->lock);
 
 	prog = NULL;
 	textProgressBarRow = 0;

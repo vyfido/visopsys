@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -35,7 +35,6 @@
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelText.h"
-#include "kernelVariableList.h"
 #include "kernelWindow.h"
 #include <stdlib.h>
 #include <string.h>
@@ -242,7 +241,7 @@ int kernelGraphicInitialize(kernelDevice *dev)
 	}
 
 	// Assign the built-in system font to our console text area
-	kernelFontGetSystem((kernelFont **) &tmpConsole->font);
+	tmpConsole->font = kernelFontGetSystem();
 
 	// Switch the console
 	kernelTextSwitchToGraphics(tmpConsole);
@@ -364,7 +363,7 @@ int kernelGraphicClearScreen(color *background)
 	if (!systemAdapter)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Check params.
+	// Check params
 	if (!background)
 		return (status = ERR_NULLPARAMETER);
 
@@ -393,7 +392,7 @@ int kernelGraphicDrawPixel(graphicBuffer *buffer, color *foreground,
 	if (!systemAdapter)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Check parameters.  'buffer' is allowed to be NULL.
+	// Check params.  'buffer' is allowed to be NULL.
 	if (!foreground)
 		return (status = ERR_NULLPARAMETER);
 
@@ -422,7 +421,7 @@ int kernelGraphicDrawLine(graphicBuffer *buffer, color *foreground,
 	if (!systemAdapter)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Check parameters.  'buffer' is allowed to be NULL.
+	// Check params.  'buffer' is allowed to be NULL.
 	if (!foreground)
 		return (status = ERR_NULLPARAMETER);
 
@@ -460,7 +459,7 @@ int kernelGraphicDrawRect(graphicBuffer *buffer, color *foreground,
 	if (!systemAdapter)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Check parameters.  'buffer' is allowed to be NULL.
+	// Check params.  'buffer' is allowed to be NULL.
 	if (!foreground)
 		return (status = ERR_NULLPARAMETER);
 
@@ -506,7 +505,7 @@ int kernelGraphicDrawOval(graphicBuffer *buffer, color *foreground,
 	if (!systemAdapter)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Check parameters.  'buffer' is allowed to be NULL.
+	// Check params.  'buffer' is allowed to be NULL.
 	if (!foreground)
 		return (status = ERR_NULLPARAMETER);
 
@@ -552,7 +551,7 @@ int kernelGraphicGetImage(graphicBuffer *buffer, image *getImage, int xCoord,
 	if (!systemAdapter)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Check parameters.  'buffer' is allowed to be NULL.
+	// Check params.  'buffer' is allowed to be NULL.
 	if (!getImage)
 		return (status = ERR_NULLPARAMETER);
 
@@ -583,7 +582,7 @@ int kernelGraphicDrawImage(graphicBuffer *buffer, image *drawImage,
 	if (!systemAdapter)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Check parameters.  'buffer' is allowed to be NULL.
+	// Check params.  'buffer' is allowed to be NULL.
 	if (!drawImage)
 		return (status = ERR_NULLPARAMETER);
 
@@ -626,7 +625,7 @@ int kernelGraphicDrawText(graphicBuffer *buffer, color *foreground,
 	if (!systemAdapter)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Check parameters.  'buffer' and 'charSet' are allowed to be NULL.
+	// Check params.  'buffer' and 'charSet' are allowed to be NULL.
 	if (!foreground || !background || !font || !text)
 		return (status = ERR_NULLPARAMETER);
 
@@ -720,13 +719,15 @@ int kernelGraphicClearArea(graphicBuffer *buffer, color *background,
 }
 
 
-int kernelGraphicCopyBuffer(graphicBuffer *srcBuffer,
-	graphicBuffer *destBuffer, int xCoord, int yCoord)
+int kernelGraphicCopyBuffer(graphicBuffer *srcBuffer, int srcXCoord,
+	int srcYCoord, graphicBuffer *destBuffer, int destXCoord, int destYCoord,
+	int width, int height)
 {
-	// Copy the source graphicBuffer into the destination graphicBuffer at the
-	// specified destination coordinates.
+	// Copy from the source graphicBuffer into the destination graphicBuffer
+	// at the specified coordinates.
 
 	int status = 0;
+	int copyWidth = 0;
 	int srcWidth = 0;
 	int destWidth = 0;
 	void *srcPointer = NULL;
@@ -737,16 +738,31 @@ int kernelGraphicCopyBuffer(graphicBuffer *srcBuffer,
 	if (!systemAdapter)
 		return (status = ERR_NOTINITIALIZED);
 
+	// Check params
+	if (!srcBuffer || !destBuffer)
+		return (status = ERR_NULLPARAMETER);
+
+	if ((srcXCoord + width) > srcBuffer->width)
+		width -= ((srcXCoord + width) - srcBuffer->width);
+	if ((srcYCoord + height) > srcBuffer->height)
+		height -= ((srcYCoord + height) - srcBuffer->height);
+	if ((destXCoord + width) > destBuffer->width)
+		width -= ((destXCoord + width) - destBuffer->width);
+	if ((destYCoord + height) > destBuffer->height)
+		height -= ((destYCoord + height) - destBuffer->height);
+
+	copyWidth = (width * adapterDevice->bytesPerPixel);
 	srcWidth = (srcBuffer->width * adapterDevice->bytesPerPixel);
 	destWidth = (destBuffer->width * adapterDevice->bytesPerPixel);
 
-	srcPointer = srcBuffer->data;
-	destPointer = (destBuffer->data + (yCoord * destWidth) + (xCoord *
+	srcPointer = (srcBuffer->data + (srcYCoord * srcWidth) + (srcXCoord *
+		adapterDevice->bytesPerPixel));
+	destPointer = (destBuffer->data + (destYCoord * destWidth) + (destXCoord *
 		adapterDevice->bytesPerPixel));
 
-	for (rowCount = 0; rowCount < srcBuffer->height; rowCount ++)
+	for (rowCount = 0; rowCount < height; rowCount ++)
 	{
-		memcpy(destPointer, srcPointer, srcWidth);
+		memcpy(destPointer, srcPointer, copyWidth);
 		srcPointer += srcWidth;
 		destPointer += destWidth;
 	}

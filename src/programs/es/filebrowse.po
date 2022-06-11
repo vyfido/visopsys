@@ -1,12 +1,12 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2018 J. Andrew McLaughlin
+#  Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-03-03 03:09+0000\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2014-01-22 17:57-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,36 +16,36 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: filebrowse.c:62
+#: filebrowse.c:61
 msgid "File Browser"
 msgstr "Navegador de Archivos"
 
-#: filebrowse.c:63
+#: filebrowse.c:62
 msgid "File"
 msgstr "Archivo"
+
+#: filebrowse.c:63
+msgid "Quit"
+msgstr "Cerrar"
 
 #: filebrowse.c:64
 msgid "View"
 msgstr "Vista"
 
-#: filebrowse.c:75
-msgid "Quit"
-msgstr "Cerrar"
-
-#: filebrowse.c:83
+#: filebrowse.c:65
 msgid "Refresh"
 msgstr "Actualizar"
 
-#: filebrowse.c:125
+#: filebrowse.c:126
 msgid "Error"
 msgstr "Error"
 
-#: filebrowse.c:275
+#: filebrowse.c:276
 #, c-format
 msgid "Couldn't execute command \"%s\""
 msgstr ""
 
-#: filebrowse.c:482
+#: filebrowse.c:474
 #, c-format
 msgid ""
 "\n"
@@ -54,15 +54,15 @@ msgstr ""
 "\n"
 "El comando \"%s\" funciona solamente en modo gráfico\n"
 
-#: filebrowse.c:496
+#: filebrowse.c:488
 msgid "Memory allocation error"
 msgstr "Error de memoria"
 
-#: filebrowse.c:511
+#: filebrowse.c:503
 #, c-format
 msgid "Can't change to directory \"%s\""
 msgstr "No se puede cambiar al directorio \"%s\""
 
-#: filebrowse.c:518
+#: filebrowse.c:510
 msgid "Can't determine current directory"
 msgstr "No se puede determinar el directorio actual"

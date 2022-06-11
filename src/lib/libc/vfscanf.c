@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -32,7 +32,7 @@ int vfscanf(FILE *theStream, const char *format, va_list list)
 {
 	int status = 0;
 	int matchItems = 0;
-	char input[MAXSTRINGLENGTH];
+	char input[MAXSTRINGLENGTH + 1];
 
 	if (visopsys_in_kernel)
 		return (errno = ERR_BUG);

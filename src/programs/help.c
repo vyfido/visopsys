@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -85,6 +85,7 @@ uname             Print system information
 unzip             Decompress and extract files from a compressed archive file
 uptime            Time since last boot
 vsh               Start a new command shell
+who               Show who is logged in
 zip               Compress and archive files
 
  -- Additional (graphics mode only) --
@@ -113,6 +114,7 @@ wallpaper         Load a new background wallpaper image
 </help>
 */
 
+#include <ctype.h>
 #include <errno.h>
 #include <libintl.h>
 #include <locale.h>
@@ -120,15 +122,106 @@ wallpaper         Load a new background wallpaper image
 #include <stdlib.h>
 #include <sys/api.h>
 #include <sys/env.h>
+#include <sys/file.h>
 #include <sys/paths.h>
+#include <sys/vsh.h>
 
 #define _(string) gettext(string)
+#define MAX_LINELEN 128
+
+
+static int generalHelp(void)
+{
+	int status = 0;
+	const char *fileName = PATH_PROGRAMS_HELPFILES "/help.txt";
+	file theFile;
+	char *helpBuffer = NULL;
+	fileStream helpFileStream;
+	char lineBuffer[MAX_LINELEN];
+	unsigned helpLen = 0;
+	char command[MAX_LINELEN];
+	char commandPath[MAX_PATH_NAME_LENGTH + 1];
+	int count;
+
+	// Initialize stack data
+	memset(&theFile, 0, sizeof(file));
+	memset(&helpFileStream, 0, sizeof(fileStream));
+
+	// See if we can get the help file
+	status = fileFind(fileName, &theFile);
+	if ((status < 0) || !theFile.size)
+	{
+		printf("%s", _("There is no general help available\n"));
+		return (status);
+	}
+
+	// Get a buffer for the output
+	helpBuffer = calloc(theFile.size, 1);
+	if (!helpBuffer)
+		return (status = ERR_MEMORY);
+
+	// Open the help file as a file stream
+	status = fileStreamOpen(fileName, OPENMODE_READ, &helpFileStream);
+	if (status < 0)
+	{
+		free(helpBuffer);
+		return (status);
+	}
+
+	// Read line by line
+	while (1)
+	{
+		status = fileStreamReadLine(&helpFileStream, MAX_LINELEN, lineBuffer);
+		if (status < 0)
+			// End of file?
+			break;
+
+		if (lineBuffer[0])
+		{
+			// If the line starts with whitespace, just show it
+			if (isspace(lineBuffer[0]))
+			{
+				strcpy((helpBuffer + helpLen), lineBuffer);
+				helpLen += strlen(lineBuffer);
+			}
+			else
+			{
+				// This line should represent a command.  Isolate the initial,
+				// non-whitespace part.
+				for (count = 0; !isspace(lineBuffer[count]); count ++)
+					command[count] = lineBuffer[count];
+				command[count] = '\0';
+
+				// Search the path for it
+				if (vshSearchPath(command, commandPath) < 0)
+					// Doesn't seem to be present
+					continue;
+
+				strcpy((helpBuffer + helpLen), lineBuffer);
+				helpLen += strlen(lineBuffer);
+			}
+		}
+
+		strcpy((helpBuffer + helpLen++), "\n");
+	}
+
+	strcpy((helpBuffer + helpLen++), "\n");
+
+	fileStreamClose(&helpFileStream);
+
+	// Show the buffer
+	status = vshPageBuffer(helpBuffer, helpLen, _("--More--(%d%%)"));
+
+	free(helpBuffer);
+
+	return (status);
+}
 
 
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char command[MAX_PATH_NAME_LENGTH];
+	char helpFile[MAX_PATH_NAME_LENGTH + 1];
 	int count;
 
 	setlocale(LC_ALL, getenv(ENV_LANG));
@@ -137,17 +230,19 @@ int main(int argc, char *argv[])
 	if (argc < 2)
 	{
 		// If there are no arguments, print the general help file
-		status = system(PATH_PROGRAMS "/more " PATH_PROGRAMS_HELPFILES
-			"/help.txt");
+		status = generalHelp();
 	}
 	else
 	{
+		// For each argument, look for a help file whose name matches
 		for (count = 1; count < argc; count ++)
 		{
 			// See if there is a help file for the argument
-			sprintf(command, "%s/%s.txt", PATH_PROGRAMS_HELPFILES,
+
+			sprintf(helpFile, "%s/%s.txt", PATH_PROGRAMS_HELPFILES,
 				argv[count]);
-			status = fileFind(command, NULL);
+
+			status = fileFind(helpFile, NULL);
 			if (status < 0)
 			{
 				// No help file
@@ -156,12 +251,7 @@ int main(int argc, char *argv[])
 				return (status = ERR_NOSUCHFILE);
 			}
 
-			// For each argument, look for a help file whose name matches
-			sprintf(command, PATH_PROGRAMS "/more %s/%s.txt",
-				PATH_PROGRAMS_HELPFILES, argv[count]);
-
-			// Search
-			status = system(command);
+			status = vshPageFile(helpFile, _("--More--(%d%%)"));
 			if (status < 0)
 				break;
 		}

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -97,13 +97,14 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 	params.padLeft = params.padRight = params.padTop = params.padBottom = 0;
 	params.orientationX = orient_left;
 	params.orientationY = orient_top;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	windowNewTextLabel(container, message, &params);
 
 	// Make the text field(s)
 	params.gridY++;
 	params.padTop = 5;
-	params.flags = WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags = COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	if (type == passwordDialog)
 	{
 		field = windowNewPasswordField(container, columns, &params);
@@ -130,7 +131,8 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 	params.padLeft = 2;
 	params.padRight = 2;
 	params.orientationX = orient_right;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	okButton = windowNewButton(container, _("OK"), NULL, &params);
 	if (!okButton)
 	{
@@ -161,7 +163,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 		{
 			break;
 		}
-		else if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+		else if ((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			status = windowComponentGetData(field, buffer, (rows * columns));
 			if (status < 0)
@@ -174,7 +176,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 		// Check for the Cancel button
 		status = windowComponentEventGet(cancelButton, &event);
 		if ((status < 0) ||
-			((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
+			((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 		{
 			status = 0;
 			break;
@@ -183,7 +185,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 		// Check for window close events
 		status = windowComponentEventGet(dialogWindow, &event);
 		if ((status < 0) ||
-			((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
+			((status > 0) && (event.type == WINDOW_EVENT_WINDOW_CLOSE)))
 		{
 			status = 0;
 			break;
@@ -195,7 +197,8 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 		{
 			break;
 		}
-		else if ((event.type == EVENT_KEY_DOWN) && (event.key == keyEnter))
+		else if ((event.type == WINDOW_EVENT_KEY_DOWN) &&
+			(event.key.scan == keyEnter))
 		{
 			status = windowComponentGetData(field, buffer, (rows * columns));
 			if (status < 0)

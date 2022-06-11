@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,7 +21,8 @@
 
 // This is the header file to go with the kernel's interrupt handlers
 
-#if !defined(_KERNELINTERRUPT_H)
+#ifndef _KERNELINTERRUPT_H
+#define _KERNELINTERRUPT_H
 
 #include "kernelDescriptor.h"
 
@@ -53,6 +54,5 @@ int kernelInterruptGetCurrent(void);
 void kernelInterruptSetCurrent(int);
 void kernelInterruptClearCurrent(void);
 
-#define _KERNELINTERRUPT_H
 #endif
 

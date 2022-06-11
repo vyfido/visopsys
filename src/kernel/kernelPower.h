@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelPower.h
 //
 
-#if !defined(_KERNELPOWER_H)
+#ifndef _KERNELPOWER_H
+#define _KERNELPOWER_H
 
 #include "kernelDevice.h"
 
@@ -34,6 +35,5 @@ typedef struct {
 int kernelPowerInitialize(kernelDevice *);
 int kernelPowerOff(void);
 
-#define _KERNELRTC_H
 #endif
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelAcpiDriver.h
 //
 
-#if !defined(_KERNELACPIDRIVER_H)
+#ifndef _KERNELACPIDRIVER_H
+#define _KERNELACPIDRIVER_H
 
 #include <sys/acpi.h>
 
@@ -32,6 +33,5 @@ typedef struct {
 
 } kernelAcpi;
 
-#define _KERNELACPIDRIVER_H
 #endif
 

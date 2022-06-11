@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,7 +25,8 @@
 // Info gathered from
 // https://www.gnu.org/software/tar/manual/html_node/Standard.html
 
-#if !defined(_TAR_H)
+#ifndef _TAR_H
+#define _TAR_H
 
 #define TAR_MAGIC				"ustar"
 #define TAR_OLDMAGIC			"ustar  "
@@ -97,6 +98,5 @@ typedef struct {
 
 } __attribute__((packed)) tarHeader;
 
-#define _TAR_H
 #endif
 

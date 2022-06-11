@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -199,8 +199,8 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	int eventY = 0;
 
 	// Get X and Y coordinates relative to the component
-	eventX = (event->xPosition - component->window->xCoord - component->xCoord);
-	eventY = (event->yPosition - component->window->yCoord - component->yCoord);
+	eventX = (event->coord.x - component->window->xCoord - component->xCoord);
+	eventY = (event->coord.y - component->window->yCoord - component->yCoord);
 
 	// Is the mouse event in the slider, or a mouse scroll?
 	if (scrollBar->dragging ||
@@ -208,9 +208,9 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		(eventX < (scrollBar->sliderX + scrollBar->sliderWidth)) &&
 		(eventY >= scrollBar->sliderY) &&
 		(eventY < (scrollBar->sliderY + scrollBar->sliderHeight))) ||
-		(event->type & EVENT_MOUSE_SCROLL))
+		(event->type & WINDOW_EVENT_MOUSE_SCROLL))
 	{
-		if (event->type == EVENT_MOUSE_DRAG)
+		if (event->type == WINDOW_EVENT_MOUSE_DRAG)
 		{
 			if (scrollBar->dragging)
 			{
@@ -233,11 +233,11 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 		else
 		{
-			if (event->type & EVENT_MOUSE_SCROLL)
+			if (event->type & WINDOW_EVENT_MOUSE_SCROLL)
 			{
 				if (scrollBar->type == scrollbar_horizontal)
 				{
-					if (event->type == EVENT_MOUSE_SCROLLUP)
+					if (event->type == WINDOW_EVENT_MOUSE_SCROLLUP)
 					{
 						scrollBar->sliderX -=
 							max(1, (scrollBar->sliderWidth / 3));
@@ -251,7 +251,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 				else if (scrollBar->type == scrollbar_vertical)
 				{
-					if (event->type == EVENT_MOUSE_SCROLLUP)
+					if (event->type == WINDOW_EVENT_MOUSE_SCROLLUP)
 					{
 						scrollBar->sliderY -=
 							max(1, (scrollBar->sliderHeight / 3));
@@ -275,14 +275,14 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	{
 		// Is it in the space on either side of the slider?
 
-		if ((event->type == EVENT_MOUSE_LEFTDOWN) &&
+		if ((event->type == WINDOW_EVENT_MOUSE_LEFTDOWN) &&
 			(eventX > 0) && (eventX < scrollBar->sliderX))
 		{
 			// It's to the left of the slider
 			scrollBar->sliderX -= scrollBar->sliderWidth;
 		}
 
-		else if ((event->type == EVENT_MOUSE_LEFTDOWN) &&
+		else if ((event->type == WINDOW_EVENT_MOUSE_LEFTDOWN) &&
 			(eventX >= (scrollBar->sliderX + scrollBar->sliderWidth)) &&
 			(eventX < (component->width - windowVariables->border.thickness)))
 		{
@@ -301,16 +301,17 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	{
 		// Is it in the space above or below the slider?
 
-		if ((event->type == EVENT_MOUSE_LEFTDOWN) &&
+		if ((event->type == WINDOW_EVENT_MOUSE_LEFTDOWN) &&
 			(eventY > 0) && (eventY < scrollBar->sliderY))
 		{
 			// It's above the slider
 			scrollBar->sliderY -= scrollBar->sliderHeight;
 		}
 
-		else if ((event->type == EVENT_MOUSE_LEFTDOWN) &&
+		else if ((event->type == WINDOW_EVENT_MOUSE_LEFTDOWN) &&
 			(eventY >= (scrollBar->sliderY + scrollBar->sliderHeight)) &&
-			(eventY < (component->height - windowVariables->border.thickness)))
+			(eventY < (component->height -
+				windowVariables->border.thickness)))
 		{
 			// It's below the slider
 			scrollBar->sliderY += scrollBar->sliderHeight;
@@ -407,7 +408,7 @@ kernelWindowComponent *kernelWindowNewScrollBar(objectKey parent,
 		return (component);
 
 	component->type = scrollBarComponentType;
-	component->flags |= WINFLAG_RESIZABLE;
+	component->flags |= WINDOW_COMP_FLAG_RESIZABLE;
 
 	// Set the functions
 	component->draw = &draw;
@@ -419,7 +420,7 @@ kernelWindowComponent *kernelWindowNewScrollBar(objectKey parent,
 
 	// If default colors were requested, override the standard foreground color
 	// with a slightly lighter one
-	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
+	if (!(component->params.flags & COMP_PARAMS_FLAG_CUSTOMFOREGROUND))
 	{
 		component->params.foreground.red = min(0xFF,
 			(((int) component->params.foreground.red * 4) / 3));

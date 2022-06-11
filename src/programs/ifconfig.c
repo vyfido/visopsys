@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,6 +62,7 @@ Options:
 #include <sys/env.h>
 #include <sys/kernconf.h>
 #include <sys/paths.h>
+#include <sys/vis.h>
 
 #define _(string) gettext(string)
 
@@ -84,7 +85,7 @@ typedef struct {
 } devStringItem;
 
 typedef struct {
-	char name[NETWORK_DEVICE_MAX_NAMELENGTH];
+	char name[NETWORK_DEVICE_MAX_NAMELENGTH + 1];
 	devStringItem linkEncap;
 	devStringItem hwAddr;
 	devStringItem inetAddr;
@@ -135,7 +136,7 @@ static void error(const char *format, ...)
 	// Generic error message code for either text or graphics modes
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
@@ -301,8 +302,8 @@ static int getDevString(char *name, char *buffer)
 static int printDevices(char *devName)
 {
 	int status = 0;
-	char name[NETWORK_DEVICE_MAX_NAMELENGTH];
-	char buffer[MAXSTRINGLENGTH];
+	char name[NETWORK_DEVICE_MAX_NAMELENGTH + 1];
+	char buffer[MAXSTRINGLENGTH + 1];
 	int count;
 
 	// Did the user specify a list of device names?
@@ -369,7 +370,7 @@ static void updateSelectedDevice(void)
 
 	windowComponentSetEnabled(deviceEnableButton, enabled);
 
-	buffer = malloc(MAXSTRINGLENGTH);
+	buffer = malloc(MAXSTRINGLENGTH + 1);
 	if (!buffer)
 		return;
 
@@ -406,8 +407,8 @@ static void updateEnabled(void)
 
 static void updateHostName(void)
 {
-	char hostName[NETWORK_MAX_HOSTNAMELENGTH];
-	char domainName[NETWORK_MAX_DOMAINNAMELENGTH];
+	char hostName[NETWORK_MAX_HOSTNAMELENGTH + 1];
+	char domainName[NETWORK_MAX_DOMAINNAMELENGTH + 1];
 	const char *value = NULL;
 	variableList kernelConf;
 
@@ -492,6 +493,9 @@ static void refreshWindow(void)
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -530,18 +534,18 @@ static void eventHandler(objectKey key, windowEvent *event)
 	objectKey enableDialog = NULL;
 	int selected = 0;
 	variableList kernelConf;
-	char hostName[NETWORK_MAX_HOSTNAMELENGTH];
-	char domainName[NETWORK_MAX_DOMAINNAMELENGTH];
+	char hostName[NETWORK_MAX_HOSTNAMELENGTH + 1];
+	char domainName[NETWORK_MAX_DOMAINNAMELENGTH + 1];
 
 	// Check for window events.
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 		{
 			windowGuiStop();
 			windowDestroy(window);
@@ -549,7 +553,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	}
 
 	// Check for the user clicking the enable/disable networking button
-	else if ((key == enableButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == enableButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		// The user wants to enable or disable networking.  Make a little
 		// dialog while we're doing this because enabling can take a few
@@ -571,22 +576,22 @@ static void eventHandler(objectKey key, windowEvent *event)
 	}
 
 	// Check for the user changing the selected device
-	else if ((key == deviceList) && ((event->type & EVENT_MOUSE_DOWN) ||
-		(event->type & EVENT_KEY_DOWN)))
+	else if ((key == deviceList) && ((event->type &
+		WINDOW_EVENT_MOUSE_DOWN) || (event->type & WINDOW_EVENT_KEY_DOWN)))
 	{
 		updateSelectedDevice();
 	}
 
 	// Check for the user enabling/disabling a device
 	else if ((key == deviceEnableButton) &&
-		(event->type == EVENT_MOUSE_LEFTUP))
+		(event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		toggleDeviceEnable();
 		updateSelectedDevice();
 	}
 
 	// Check for the user clicking the 'OK' button
-	else if ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == okButton) && (event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		windowComponentGetSelected(enableCheckbox, &selected);
 		windowComponentGetData(hostField, hostName,
@@ -615,7 +620,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	}
 
 	// Check for the user clicking the 'cancel' button
-	else if ((key == cancelButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == cancelButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		windowGuiStop();
 		windowDestroy(window);
@@ -629,7 +635,7 @@ static int constructWindow(char *devName)
 	componentParameters params;
 	int containersGridY = 0;
 	objectKey container = NULL;
-	char name[NETWORK_DEVICE_MAX_NAMELENGTH];
+	char name[NETWORK_DEVICE_MAX_NAMELENGTH + 1];
 	networkDevice dev;
 	char tmp[8];
 	int count;
@@ -653,7 +659,7 @@ static int constructWindow(char *devName)
 
 	// Make a label showing the status of networking
 	params.padTop = params.padRight = 0;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	enabledLabel = windowNewTextLabel(container, _("Networking is disabled"),
 		&params);
 
@@ -686,7 +692,7 @@ static int constructWindow(char *devName)
 	params.gridX = 0;
 	params.gridY = ++containersGridY;
 	params.padTop = params.padRight = 5;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDWIDTH;
 	container = windowNewContainer(window, "hostname", &params);
 
 	params.gridY = 0;
@@ -759,7 +765,7 @@ static int constructWindow(char *devName)
 	// An enable/disable button
 	params.gridX += 1;
 	params.orientationY = orient_top;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	deviceEnableButton = windowNewButton(container, DISABLE, NULL, &params);
 	windowRegisterEventHandler(deviceEnableButton, &eventHandler);
 
@@ -784,7 +790,7 @@ static int constructWindow(char *devName)
 	params.padTop = 15;
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDWIDTH;
 	deviceStringLabel = windowNewTextLabel(container, NO_DEVICES, &params);
 
 	// Also calls updateSelectedDevice()
@@ -795,7 +801,7 @@ static int constructWindow(char *devName)
 	params.gridWidth = 1;
 	params.padRight = params.padTop = params.padBottom = 5;
 	params.orientationX = orient_center;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	container = windowNewContainer(window, "buttons", &params);
 
 	// Create an 'OK' button

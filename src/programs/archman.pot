@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -79,111 +79,111 @@ msgstr ""
 msgid "Couldn't create working directory"
 msgstr ""
 
-#: archman.c:558
+#: archman.c:561
 msgid "Save changes?"
 msgstr ""
 
-#: archman.c:559
+#: archman.c:562
 msgid "Archive has been modified.  Save changes?"
 msgstr ""
 
-#: archman.c:560
+#: archman.c:563
 msgid "Save"
 msgstr ""
 
-#: archman.c:560
+#: archman.c:563
 msgid "Discard"
 msgstr ""
 
-#: archman.c:565
+#: archman.c:568
 msgid "Choose archive type"
 msgstr ""
 
-#: archman.c:566
+#: archman.c:569
 msgid "What format should the archive be saved as?"
 msgstr ""
 
-#: archman.c:567
+#: archman.c:570
 msgid "TAR archive (.tar)"
 msgstr ""
 
-#: archman.c:568
+#: archman.c:571
 msgid "Gzip-compressed TAR archive (.tar.gz)"
 msgstr ""
 
-#: archman.c:580
+#: archman.c:583
 msgid "Save as"
 msgstr ""
 
-#: archman.c:581
+#: archman.c:584
 msgid "Please enter a destination file:"
 msgstr ""
 
-#: archman.c:647
+#: archman.c:650
 msgid "Compressing"
 msgstr ""
 
-#: archman.c:659
+#: archman.c:662
 #, c-format
 msgid "Error %d compressing archive"
 msgstr ""
 
-#: archman.c:825
+#: archman.c:828
 msgid "Choose file"
 msgstr ""
 
-#: archman.c:826
+#: archman.c:829
 msgid "Please enter a file to open:"
 msgstr ""
 
-#: archman.c:888
+#: archman.c:891
 msgid "Enter directory"
 msgstr ""
 
-#: archman.c:889
+#: archman.c:892
 msgid "Please enter a directory to extract to:"
 msgstr ""
 
-#: archman.c:936
+#: archman.c:939
 msgid "Extracting"
 msgstr ""
 
-#: archman.c:1018
+#: archman.c:1021
 msgid "Choose item"
 msgstr ""
 
-#: archman.c:1019
+#: archman.c:1022
 msgid "Please enter a file or directory to add:"
 msgstr ""
 
-#: archman.c:1030
+#: archman.c:1033
 msgid "Adding"
 msgstr ""
 
-#: archman.c:1038
+#: archman.c:1041
 #, c-format
 msgid "Error %d adding %s"
 msgstr ""
 
-#: archman.c:1051 archman.c:1114
+#: archman.c:1054 archman.c:1117
 #, c-format
 msgid "Error %d adding to parent archive"
 msgstr ""
 
-#: archman.c:1091
+#: archman.c:1094
 msgid "Deleting"
 msgstr ""
 
-#: archman.c:1099
+#: archman.c:1102
 #, c-format
 msgid "Error %d deleting %s"
 msgstr ""
 
-#: archman.c:1254
+#: archman.c:1261
 msgid "Up"
 msgstr ""
 
-#: archman.c:1389
+#: archman.c:1397
 #, c-format
 msgid ""
 "\n"

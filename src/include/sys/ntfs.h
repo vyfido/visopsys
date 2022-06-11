@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,8 @@
 // This file contains definitions and structures for using and manipulating
 // the Microsoft(R) NTFS filesystem in Visopsys.
 
-#if !defined(_NTFS_H)
+#ifndef _NTFS_H
+#define _NTFS_H
 
 #include <stdint.h>
 #include <sys/disk.h>
@@ -171,6 +172,5 @@ int ntfsFormat(const char *, const char *, int, progress *);
 int ntfsGetResizeConstraints(const char *, uquad_t *, uquad_t *, progress *);
 int ntfsResize(const char *, uquad_t, progress *);
 
-#define _NTFS_H
 #endif
 

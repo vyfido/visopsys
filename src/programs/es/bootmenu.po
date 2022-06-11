@@ -1,12 +1,12 @@
 # Visopsys
-# Copyright (C) 1998-2018 J. Andrew McLaughlin
+# Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 # Spanish Translation - 2013 - marianopbernacki@gmail.com
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,19 +15,19 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-15\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: bootmenu.c:62
+#: bootmenu.c:61
 msgid "Boot Menu Installer"
 msgstr "Instalador del menu de arranque"
 
-#: bootmenu.c:67
+#: bootmenu.c:66
 msgid ""
 "Visopsys Boot Menu Installer\n"
-"Copyright (C) 1998-2018 J. Andrew McLaughlin"
+"Copyright (C) 1998-2019 J. Andrew McLaughlin"
 msgstr ""
 "Visopsys - Instalador del menu de arranque\n"
-"Copyright (C) 1998-2018 J. Andrew McLaughlin"
+"Copyright (C) 1998-2019 J. Andrew McLaughlin"
 
-#: bootmenu.c:69
+#: bootmenu.c:68
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
@@ -36,43 +36,43 @@ msgstr ""
 "comando.\n"
 "(Intente iniciar sesion con el usuario \"admin\")"
 
-#: bootmenu.c:71
+#: bootmenu.c:70
 msgid "Partitions on the disk:"
 msgstr "Particiones en el disco:"
 
-#: bootmenu.c:72
+#: bootmenu.c:71
 msgid "Chain-loadable entries for the boot menu:"
 msgstr "Entradas de cadenas cargables para el menu de arranque:"
 
-#: bootmenu.c:73
+#: bootmenu.c:72
 msgid "Edit"
 msgstr "Editar"
 
-#: bootmenu.c:74
+#: bootmenu.c:73
 msgid "Default"
 msgstr "Por defecto"
 
-#: bootmenu.c:75
+#: bootmenu.c:74
 msgid "Delete"
 msgstr "Eliminar"
 
-#: bootmenu.c:76
+#: bootmenu.c:75
 msgid "Automatically boot default selection after (seconds)"
 msgstr "Automaticamente iniciar la seleccion por defecto luego de (segundos)"
 
-#: bootmenu.c:78
+#: bootmenu.c:77
 msgid "OK"
 msgstr "OK"
 
-#: bootmenu.c:79
+#: bootmenu.c:78
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: bootmenu.c:80
+#: bootmenu.c:79
 msgid "Boot menu written."
 msgstr "Menu de arranque escrito."
 
-#: bootmenu.c:121
+#: bootmenu.c:120
 #, c-format
 msgid ""
 "usage:\n"
@@ -81,15 +81,15 @@ msgstr ""
 "Uso:\n"
 "%s <Nombre de disco>\n"
 
-#: bootmenu.c:139
+#: bootmenu.c:138
 msgid "Error"
 msgstr "Error"
 
-#: bootmenu.c:218
+#: bootmenu.c:217
 msgid "Edit entry label"
 msgstr "Editar etiqueta inicial"
 
-#: bootmenu.c:290
+#: bootmenu.c:289
 #, c-format
 msgid ""
 "Enter new label (%d characters max.):\n"
@@ -100,29 +100,29 @@ msgstr ""
 " [%s]\n"
 " ["
 
-#: bootmenu.c:371
+#: bootmenu.c:370
 msgid "Can't get memory for the logical disk list"
 msgstr "No se pudo obtener memoria para la lista de discos logicos"
 
-#: bootmenu.c:378
+#: bootmenu.c:377
 msgid "Can't get the logical disk list"
 msgstr "No se pudo obtener la lista de disco logico"
 
-#: bootmenu.c:409
+#: bootmenu.c:408
 #, c-format
 msgid "Can't open %s file"
 msgstr "No se puede abrir el archivo %s"
 
-#: bootmenu.c:416
+#: bootmenu.c:415
 msgid "Can't get buffer memory"
 msgstr "No se pudo obtener memoria bufer"
 
-#: bootmenu.c:423
+#: bootmenu.c:422
 #, c-format
 msgid "Can't read %s file"
 msgstr "No se pudo leer el archivo %s"
 
-#: bootmenu.c:493
+#: bootmenu.c:492
 #, c-format
 msgid ""
 "Disk %s\n"
@@ -137,51 +137,51 @@ msgstr ""
 "  Cargable por cadena: %s\n"
 "\n"
 
-#: bootmenu.c:496
+#: bootmenu.c:495
 msgid "yes"
 msgstr "si"
 
-#: bootmenu.c:496
+#: bootmenu.c:495
 msgid "no"
 msgstr "No"
 
-#: bootmenu.c:700
+#: bootmenu.c:706
 msgid "Can't write boot menu"
 msgstr "No se pudo escribir el menu de arranque"
 
-#: bootmenu.c:712
+#: bootmenu.c:718
 #, c-format
 msgid "Can't write MBR %s to %s"
 msgstr "No se pudo escribir MBR %s en %s"
 
-#: bootmenu.c:753
+#: bootmenu.c:759
 msgid "Permission Denied"
 msgstr "Permiso denegado"
 
-#: bootmenu.c:764
+#: bootmenu.c:770
 #, c-format
 msgid "Can't get disk %s"
 msgstr "No se pudo acceder al disco %s"
 
-#: bootmenu.c:773
+#: bootmenu.c:779
 #, c-format
 msgid "Disk %s is not a physical hard disk device"
 msgstr "El disco %s no es un disco duro fisico"
 
-#: bootmenu.c:781
+#: bootmenu.c:787
 msgid "Can't get the list of logical disks"
 msgstr "No se pudo obtener la lista de discos logicos"
 
-#: bootmenu.c:836
+#: bootmenu.c:842
 #, c-format
 msgid "\"%s\" [Filesystem: %s]"
 msgstr "\"%s\" [Sistema de archivos: %s]"
 
-#: bootmenu.c:861
+#: bootmenu.c:867
 msgid "There are no chain-loadable operating systems on this disk."
 msgstr "No existen sistemas operativos con arranque por cadena en este disco."
 
-#: bootmenu.c:905
+#: bootmenu.c:911
 msgid ""
 "\n"
 "  [Cursor up/down to select, 'e' edit, '*' default\n"
@@ -191,10 +191,10 @@ msgstr ""
 "  [Cursor arriba/abajo para seleccionar, 'e' edita,\n"
 "   '*' valores por defecto, Enter para aceptar y Esc para salir ]"
 
-#: bootmenu.c:972
+#: bootmenu.c:978
 msgid "Can't write boot menu or MBR"
 msgstr "No se puede escribir el menu de arranque o MBR"
 
-#: bootmenu.c:980
+#: bootmenu.c:986
 msgid "Done"
 msgstr "Listo"

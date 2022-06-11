@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2018 J. Andrew McLaughlin
+#  Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -19,81 +19,81 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-9\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: confedit.c:64
+#: confedit.c:65
 msgid "Configuration Editor"
 msgstr "Konfigurasyon Editörü"
 
-#: confedit.c:65
+#: confedit.c:66
 msgid "File"
 msgstr "Dosya"
 
-#: confedit.c:66 confedit.c:370
+#: confedit.c:67 confedit.c:371
 msgid "Save"
 msgstr "Kaydet"
 
-#: confedit.c:67 confedit.c:370
+#: confedit.c:68 confedit.c:371
 msgid "Quit"
 msgstr "Çik"
 
-#: confedit.c:68
+#: confedit.c:69
 msgid "Add variable"
 msgstr "Degisken ekle"
 
-#: confedit.c:69
+#: confedit.c:70
 msgid "Change variable"
 msgstr "Degiskeni degistir"
 
-#: confedit.c:70
+#: confedit.c:71
 msgid "Delete variable"
 msgstr "Degiskeni sil"
 
-#: confedit.c:109
+#: confedit.c:110
 msgid "Error"
 msgstr "Hata"
 
-#: confedit.c:122
+#: confedit.c:123
 #, c-format
 msgid "Error %d reading configuration file."
 msgstr "%d konfigurasyon dosyasi okunurken hata."
 
-#: confedit.c:139
+#: confedit.c:140
 #, c-format
 msgid "Error %d writing configuration file."
 msgstr "%d konfigurasyon dosyasi yazilirken hata."
 
-#: confedit.c:208
+#: confedit.c:209
 msgid "Change Variable"
 msgstr "Degiskeni degistir"
 
-#: confedit.c:214
+#: confedit.c:215
 msgid "Add Variable"
 msgstr "Degisken ekle"
 
-#: confedit.c:230
+#: confedit.c:231
 msgid "Variable name:"
 msgstr "Degisken adi:"
 
-#: confedit.c:254
+#: confedit.c:255
 msgid "value:"
 msgstr "deger:"
 
-#: confedit.c:273
+#: confedit.c:274
 msgid "OK"
 msgstr "Tamam"
 
-#: confedit.c:279 confedit.c:370
+#: confedit.c:280 confedit.c:371
 msgid "Cancel"
 msgstr "Iptal"
 
-#: confedit.c:368
+#: confedit.c:369
 msgid "Unsaved changes"
 msgstr "Kaydedilmeyen degisiklikler"
 
-#: confedit.c:369
+#: confedit.c:370
 msgid "Quit without saving changes?"
 msgstr "Degisiklikleri kaydetmeden çikmak istiyor musunuz?"
 
-#: confedit.c:612
+#: confedit.c:608
 #, c-format
 msgid ""
 "\n"
@@ -102,15 +102,15 @@ msgstr ""
 "\n"
 "\"%s\" komutu sadece grafik modda çalisabilir\n"
 
-#: confedit.c:624
+#: confedit.c:620
 msgid "Enter filename"
 msgstr "Dosya ismi girin"
 
-#: confedit.c:625
+#: confedit.c:621
 msgid "Please enter a configuration file to edit:"
 msgstr "Lütfen düzenlemek istediginiz konfigurasyon dosyasini girin:"
 
-#: confedit.c:648
+#: confedit.c:644
 #, c-format
 msgid "Error %d creating new configuration file."
 msgstr "%d yeni konfigurasyon dosyasi olusturulurken hata."

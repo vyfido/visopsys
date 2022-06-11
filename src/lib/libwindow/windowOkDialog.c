@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,9 +23,9 @@
 
 #include <libintl.h>
 #include <string.h>
-#include <sys/window.h>
 #include <sys/api.h>
 #include <sys/errors.h>
+#include <sys/window.h>
 
 #define _(string) gettext(string)
 
@@ -91,13 +91,14 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
 	params.padTop = 0;
 	params.orientationX = orient_right;
 	params.orientationY = orient_top;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 
 	// Try to load the 'info' or 'error' image
 	if (type == infoDialog)
-		status = imageLoad(INFOIMAGE_NAME, 64, 64, &iconImage);
+		status = imageLoad(WINDOW_INFOIMAGE_NAME, 64, 64, &iconImage);
 	else
-		status = imageLoad(ERRORIMAGE_NAME, 64, 64, &iconImage);
+		status = imageLoad(WINDOW_ERRORIMAGE_NAME, 64, 64, &iconImage);
 
 	if (!status && iconImage.data)
 	{
@@ -142,7 +143,7 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
 		// Check for our OK button
 		status = windowComponentEventGet(okButton, &event);
 		if ((status < 0) || ((status > 0) &&
-			(event.type == EVENT_MOUSE_LEFTUP)))
+			(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 		{
 			break;
 		}
@@ -150,7 +151,7 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
 		// Check for window close events
 		status = windowComponentEventGet(dialogWindow, &event);
 		if ((status < 0) || ((status > 0) &&
-			(event.type == EVENT_WINDOW_CLOSE)))
+			(event.type == WINDOW_EVENT_WINDOW_CLOSE)))
 		{
 			break;
 		}

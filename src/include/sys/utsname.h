@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,27 +22,27 @@
 // This file is the Visopsys implementation of the standard <sys/utsname.h>
 // file found in Unix.
 
-#if !defined(_UTSNAME_H)
+#ifndef _UTSNAME_H
+#define _UTSNAME_H
 
 #include <sys/network.h>
 
-#define UTSNAME_MAX_SYSNAME_LENGTH	16
-#define UTSNAME_MAX_RELEASE_LENGTH	16
-#define UTSNAME_MAX_VERSION_LENGTH	32
-#define UTSNAME_MAX_MACHINE_LENGTH	16
+#define UTSNAME_MAX_SYSNAME_LENGTH	15
+#define UTSNAME_MAX_RELEASE_LENGTH	15
+#define UTSNAME_MAX_VERSION_LENGTH	31
+#define UTSNAME_MAX_MACHINE_LENGTH	15
 
 struct utsname {
-	char sysname[UTSNAME_MAX_SYSNAME_LENGTH];
-	char nodename[NETWORK_MAX_HOSTNAMELENGTH];
-	char release[UTSNAME_MAX_RELEASE_LENGTH];
-	char version[UTSNAME_MAX_VERSION_LENGTH];
-	char machine[UTSNAME_MAX_MACHINE_LENGTH];
-	char domainname[NETWORK_MAX_DOMAINNAMELENGTH];
+	char sysname[UTSNAME_MAX_SYSNAME_LENGTH + 1];
+	char nodename[NETWORK_MAX_HOSTNAMELENGTH + 1];
+	char release[UTSNAME_MAX_RELEASE_LENGTH + 1];
+	char version[UTSNAME_MAX_VERSION_LENGTH + 1];
+	char machine[UTSNAME_MAX_MACHINE_LENGTH + 1];
+	char domainname[NETWORK_MAX_DOMAINNAMELENGTH + 1];
 };
 
 // Functions
 int uname(struct utsname *);
 
-#define _UTSNAME_H
 #endif
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -130,7 +130,7 @@ int kernelImageNew(image *blankImage, unsigned width, unsigned height)
 	pixel *p = NULL;
 	unsigned count;
 
-	// Check parameters
+	// Check params
 	if (!blankImage)
 		return (status = ERR_NULLPARAMETER);
 
@@ -165,7 +165,7 @@ int kernelImageFree(image *freeImage)
 
 	int status = 0;
 
-	// Check parameters
+	// Check params
 	if (!freeImage)
 		return (status = ERR_NULLPARAMETER);
 
@@ -333,7 +333,7 @@ int kernelImageResize(image *resizeImage, unsigned width, unsigned height)
 	pixel *destPixels = NULL;
 	int kernImage = 0;
 
-	// Check parameters
+	// Check params
 	if (!resizeImage)
 		return (status = ERR_NULLPARAMETER);
 
@@ -455,7 +455,7 @@ int kernelImageCopy(image *srcImage, image *destImage)
 
 	int status = 0;
 
-	// Check parameters
+	// Check params
 	if (!srcImage || !destImage || !srcImage->data || !srcImage->dataLength)
 		return (status = ERR_NULLPARAMETER);
 
@@ -470,7 +470,7 @@ int kernelImageCopyToKernel(image *srcImage, image *destImage)
 
 	int status = 0;
 
-	// Check parameters
+	// Check params
 	if (!srcImage || !destImage || !srcImage->data || !srcImage->dataLength)
 		return (status = ERR_NULLPARAMETER);
 
@@ -486,7 +486,7 @@ int kernelImageFill(image *fillImage, color *fillColor)
 	pixel *p = NULL;
 	unsigned count;
 
-	// Check parameters
+	// Check params
 	if (!fillImage || !fillColor)
 		return (status = ERR_NULLPARAMETER);
 
@@ -517,7 +517,7 @@ int kernelImagePaste(image *srcImage, image *destImage, int xCoord,
 	int lineWidth = 0;
 	int lineCount;
 
-	// Check parameters
+	// Check params
 	if (!srcImage || !destImage)
 		return (status = ERR_NULLPARAMETER);
 

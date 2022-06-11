@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -73,8 +73,8 @@ static inline void erase(void)
 static inline void status2event(int eventType, windowEvent *event)
 {
 	event->type = eventType;
-	event->xPosition = touchStatus.xPosition;
-	event->yPosition = touchStatus.yPosition;
+	event->coord.x = touchStatus.xPosition;
+	event->coord.y = touchStatus.yPosition;
 }
 
 
@@ -101,7 +101,7 @@ static void touchThread(void)
 			erase();
 
 			// Set up our event
-			eventType = EVENT_MOUSE_LEFTUP;
+			eventType = WINDOW_EVENT_MOUSE_LEFTUP;
 		}
 		else
 		{
@@ -117,9 +117,9 @@ static void touchThread(void)
 
 			// Set up our event
 			if (touchStatus.touch)
-				eventType = EVENT_MOUSE_DRAG;
+				eventType = WINDOW_EVENT_MOUSE_DRAG;
 			else
-				eventType = EVENT_MOUSE_LEFTDOWN;
+				eventType = WINDOW_EVENT_MOUSE_LEFTDOWN;
 		}
 
 		// Tell the window manager
@@ -156,7 +156,8 @@ int kernelTouchInitialize(void)
 	initialized = 1;
 
 	// Spawn the touch thread
-	threadPid = kernelMultitaskerSpawn(touchThread, "touch thread", 0, NULL);
+	threadPid = kernelMultitaskerSpawn(touchThread, "touch thread",
+		0 /* no args */, NULL /* no args */, 1 /* run */);
 	if (threadPid < 0)
 		kernelError(kernel_error, "Unable to start touch thread");
 

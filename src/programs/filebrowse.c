@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,7 +53,6 @@ filebrowse will attempt to execute it -- etc.
 #include <sys/env.h>
 #include <sys/lock.h>
 #include <sys/paths.h>
-#include <sys/vsh.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
@@ -61,7 +60,9 @@ filebrowse will attempt to execute it -- etc.
 
 #define WINDOW_TITLE		_("File Browser")
 #define FILE_MENU			_("File")
+#define QUIT				gettext_noop("Quit")
 #define VIEW_MENU			_("View")
+#define REFRESH				gettext_noop("Refresh")
 #define EXECPROG_ARCHMAN	PATH_PROGRAMS "/archman"
 #define EXECPROG_CONFEDIT	PATH_PROGRAMS "/confedit"
 #define EXECPROG_FONTUTIL	PATH_PROGRAMS "/fontutil"
@@ -72,7 +73,7 @@ filebrowse will attempt to execute it -- etc.
 windowMenuContents fileMenuContents = {
 	1,
 	{
-		{ gettext_noop("Quit"), NULL }
+		{ QUIT, NULL }
 	}
 };
 
@@ -80,12 +81,12 @@ windowMenuContents fileMenuContents = {
 windowMenuContents viewMenuContents = {
 	1,
 	{
-		{ gettext_noop("Refresh"), NULL }
+		{ REFRESH, NULL }
 	}
 };
 
 typedef struct {
-	char name[MAX_PATH_LENGTH];
+	char name[MAX_PATH_LENGTH + 1];
 	time_t dirModified;
 	time_t fileModified;
 	unsigned filesSize;
@@ -102,7 +103,7 @@ static objectKey locationField = NULL;
 static windowFileList *fileList = NULL;
 static dirRecord *dirStack = NULL;
 static int dirStackCurr = 0;
-static lock dirStackLock;
+static spinLock dirStackLock;
 static int stop = 0;
 
 
@@ -114,7 +115,7 @@ static void error(const char *format, ...)
 	va_list list;
 	char *output = NULL;
 
-	output = malloc(MAXSTRINGLENGTH);
+	output = malloc(MAXSTRINGLENGTH + 1);
 	if (!output)
 		return;
 
@@ -219,7 +220,7 @@ static void execProgram(int argc, char *argv[])
 static void doFileSelection(windowFileList *list __attribute__((unused)),
 	file *theFile, char *fullName, loaderFileClass *loaderClass)
 {
-	char command[MAX_PATH_NAME_LENGTH];
+	char command[MAX_PATH_NAME_LENGTH + 1];
 	int pid = 0;
 
 	switch (theFile->type)
@@ -270,7 +271,7 @@ static void doFileSelection(windowFileList *list __attribute__((unused)),
 
 			// Run a thread to execute the command
 			pid = multitaskerSpawn(&execProgram, "exec program", 1,
-				(void *[]){ command } );
+				(void *[]){ command }, 1 /* run */);
 			if (pid < 0)
 				error(_("Couldn't execute command \"%s\""), command);
 			else
@@ -296,31 +297,12 @@ static void doFileSelection(windowFileList *list __attribute__((unused)),
 }
 
 
-static void initMenuContents(windowMenuContents *contents)
+static void initMenuContents(void)
 {
-	int count;
-
-	for (count = 0; count < contents->numItems; count ++)
-	{
-		strncpy(contents->items[count].text, _(contents->items[count].text),
-			WINDOW_MAX_LABEL_LENGTH);
-		contents->items[count].text[WINDOW_MAX_LABEL_LENGTH - 1] = '\0';
-	}
-}
-
-
-static void refreshMenuContents(windowMenuContents *contents)
-{
-	int count;
-
-	initMenuContents(contents);
-
-	for (count = 0; count < contents->numItems; count ++)
-	{
-		windowComponentSetData(contents->items[count].key,
-			contents->items[count].text, strlen(contents->items[count].text),
-			(count == (contents->numItems - 1)));
-	}
+	strncpy(fileMenuContents.items[FILEMENU_QUIT].text, gettext(QUIT),
+		WINDOW_MAX_LABEL_LENGTH);
+	strncpy(viewMenuContents.items[VIEWMENU_REFRESH].text, gettext(REFRESH),
+		WINDOW_MAX_LABEL_LENGTH);
 }
 
 
@@ -329,24 +311,34 @@ static void refreshWindow(void)
 	// We got a 'window refresh' event (probably because of a language
 	// switch), so we need to update things
 
+	const char *charSet = NULL;
+
 	// Re-get the language setting
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("filebrowse");
 
 	// Re-get the character set
-	if (getenv(ENV_CHARSET))
-		windowSetCharSet(window, getenv(ENV_CHARSET));
+	charSet = getenv(ENV_CHARSET);
+
+	if (charSet)
+		windowSetCharSet(window, charSet);
+
+	// Refresh all the menu contents
+	initMenuContents();
 
 	// Refresh the 'file' menu
-	refreshMenuContents(&fileMenuContents);
-	windowSetTitle(fileMenu, FILE_MENU);
+	windowMenuUpdate(fileMenu, FILE_MENU, charSet, &fileMenuContents,
+		NULL /* params */);
 
 	// Refresh the 'view' menu
-	refreshMenuContents(&viewMenuContents);
-	windowSetTitle(viewMenu, VIEW_MENU);
+	windowMenuUpdate(viewMenu, VIEW_MENU, charSet, &viewMenuContents,
+		NULL /* params */);
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -356,25 +348,25 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			stop = 1;
 	}
 
 	// Check for 'file' menu events
 	else if (key == fileMenuContents.items[FILEMENU_QUIT].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 			stop = 1;
 	}
 
 	// Check for 'view' menu events
 	else if (key == viewMenuContents.items[VIEWMENU_REFRESH].key)
 	{
-		if (event->type & EVENT_SELECTION)
+		if (event->type & WINDOW_EVENT_SELECTION)
 			// Manual refresh request
 			fileList->update(fileList);
 	}
@@ -382,8 +374,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Check for events to be passed to the file list widget
 	else if (key == fileList->key)
 	{
-		if ((event->type & EVENT_MOUSE_DOWN) ||
-			(event->type & EVENT_KEY_DOWN))
+		if ((event->type & WINDOW_EVENT_MOUSE_DOWN) ||
+			(event->type & WINDOW_EVENT_KEY_DOWN))
 		{
 			windowComponentGetSelected(fileList->key,
 				&dirStack[dirStackCurr].selected);
@@ -419,14 +411,14 @@ static int constructWindow(const char *directory)
 	// Create the top menu bar
 	menuBar = windowNewMenuBar(window, &params);
 
+	initMenuContents();
+
 	// Create the top 'file' menu
-	initMenuContents(&fileMenuContents);
 	fileMenu = windowNewMenu(window, menuBar, FILE_MENU, &fileMenuContents,
 		&params);
 	handleMenuEvents(&fileMenuContents);
 
 	// Create the top 'view' menu
-	initMenuContents(&viewMenuContents);
 	viewMenu = windowNewMenu(window, menuBar, VIEW_MENU, &viewMenuContents,
 		&params);
 	handleMenuEvents(&viewMenuContents);
@@ -450,7 +442,7 @@ static int constructWindow(const char *directory)
 	params.gridY += 1;
 	params.padBottom = 5;
 	fileList = windowNewFileList(window, windowlist_icononly, 5, 8, directory,
-		WINFILEBROWSE_ALL, doFileSelection, &params);
+		WINDOW_FILEBROWSE_ALL, doFileSelection, &params);
 	if (!fileList)
 		return (status = ERR_NOTINITIALIZED);
 
@@ -490,7 +482,7 @@ int main(int argc, char *argv[])
 	// What is my privilege level?
 	privilege = multitaskerGetProcessPrivilege(processId);
 
-	dirStack = malloc(MAX_PATH_LENGTH * sizeof(dirRecord));
+	dirStack = malloc((MAX_PATH_LENGTH + 1) * sizeof(dirRecord));
 	if (!dirStack)
 	{
 		error("%s", _("Memory allocation error"));

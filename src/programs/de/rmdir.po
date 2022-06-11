@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2013-11-02 13:26-0400\n"
 "Last-Translator: Jens León Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,11 +17,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.7\n"
 
-#: rmdir.c:54
+#: rmdir.c:53
 msgid "usage:\n"
 msgstr "Benutzung:\n"
 
-#: rmdir.c:55
+#: rmdir.c:54
 #, c-format
 msgid "%s <directory1> [directory2] [...]\n"
 msgstr "%s <verzeichnis1> [verzeichnis2] [...]\n"

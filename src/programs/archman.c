@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -105,7 +105,7 @@ static void error(const char *format, ...)
 	va_list list;
 	char *output = NULL;
 
-	output = malloc(MAXSTRINGLENGTH);
+	output = malloc(MAXSTRINGLENGTH + 1);
 	if (!output)
 		return;
 
@@ -248,7 +248,7 @@ static int openArchive(const char *fileName, int parent,
 
 	current->num = numArchives;
 
-	current->fileName = malloc(MAX_PATH_NAME_LENGTH);
+	current->fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!current->fileName)
 	{
 		status = ERR_MEMORY;
@@ -265,7 +265,7 @@ static int openArchive(const char *fileName, int parent,
 	{
 		current->parent = parent;
 
-		current->memberName = malloc(MAX_PATH_NAME_LENGTH);
+		current->memberName = malloc(MAX_PATH_NAME_LENGTH + 1);
 		if (!current->memberName)
 		{
 			status = ERR_MEMORY;
@@ -352,7 +352,7 @@ static int getTempDir(void)
 	if (!current->tempDir)
 	{
 		// Get memory for a temporary working directory name
-		current->tempDir = malloc(MAX_PATH_NAME_LENGTH);
+		current->tempDir = malloc(MAX_PATH_NAME_LENGTH + 1);
 		if (!current->tempDir)
 		{
 			status = ERR_MEMORY;
@@ -389,7 +389,7 @@ static int extractTemp(int memberNum)
 	// Extract an archive member to the temporary directory
 
 	int status = 0;
-	char cwd[MAX_PATH_LENGTH];
+	char cwd[MAX_PATH_LENGTH + 1];
 
 	status = multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
 	if (status < 0)
@@ -429,7 +429,7 @@ static void doMemberSelection(int memberNum)
 	if (status < 0)
 		goto out;
 
-	tmpFileName = malloc(MAX_PATH_NAME_LENGTH);
+	tmpFileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!tmpFileName)
 		goto out;
 
@@ -504,6 +504,9 @@ static void refreshWindow(void)
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -549,7 +552,7 @@ static int querySaveModified(void)
 	char *dirName = NULL;
 	char *baseName = NULL;
 	char *tmpName = NULL;
-	char cwd[MAX_PATH_LENGTH];
+	char cwd[MAX_PATH_LENGTH + 1];
 	objectKey progressDialog = NULL;
 	progress prog;
 
@@ -572,7 +575,7 @@ static int querySaveModified(void)
 	if (status == 1)
 		compress = 1;
 
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 		return (status = ERR_MEMORY);
 
@@ -600,7 +603,7 @@ static int querySaveModified(void)
 		baseName = basename(fileName);
 		if (baseName)
 		{
-			tmpName = malloc(MAX_PATH_NAME_LENGTH);
+			tmpName = malloc(MAX_PATH_NAME_LENGTH + 1);
 			if (tmpName)
 				sprintf(tmpName, "%s/%s", dirName, baseName);
 
@@ -764,7 +767,7 @@ static int new(void)
 	// Close all the archives
 	closeAll();
 
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 		return (status = ERR_MEMORY);
 
@@ -817,7 +820,7 @@ static int open(void)
 	int status = 0;
 	char *fileName = NULL;
 
-	fileName = malloc(MAX_PATH_NAME_LENGTH);
+	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
 		return (status = ERR_MEMORY);
 
@@ -878,7 +881,7 @@ static int queryExtractDir(void)
 	int status = 0;
 	char *newExtractDir = NULL;
 
-	newExtractDir = malloc(MAX_PATH_LENGTH);
+	newExtractDir = malloc(MAX_PATH_LENGTH + 1);
 	if (!newExtractDir)
 		return (status = ERR_MEMORY);
 
@@ -907,7 +910,7 @@ static int extract(int all)
 	// member of the archive, or the whole archive.
 
 	int status = 0;
-	char cwd[MAX_PATH_LENGTH];
+	char cwd[MAX_PATH_LENGTH + 1];
 	objectKey progressDialog = NULL;
 	progress prog;
 
@@ -962,7 +965,7 @@ static int reAddToParentRecursive(archive *arch)
 	// Remove an archive from its parent and re-add it
 
 	int status = 0;
-	char cwd[MAX_PATH_LENGTH];
+	char cwd[MAX_PATH_LENGTH + 1];
 	archive *parent = &archives[arch->parent];
 
 	status = multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
@@ -1010,7 +1013,7 @@ static int add(void)
 
 	memset((void *) &prog, 0, sizeof(progress));
 
-	addItem = malloc(MAX_PATH_NAME_LENGTH);
+	addItem = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!addItem)
 		return (status = ERR_MEMORY);
 
@@ -1152,11 +1155,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			windowGuiStop();
 	}
 
@@ -1166,49 +1169,53 @@ static void eventHandler(objectKey key, windowEvent *event)
 		archList->eventHandler(archList, event);
 	}
 
-	else if ((key == upButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == upButton) && (event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		status = up();
 		if (status < 0)
 			error("%s", strerror(status));
 	}
 
-	else if ((key == newButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == newButton) && (event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		status = new();
 		if (status < 0)
 			error("%s", strerror(status));
 	}
 
-	else if ((key == openButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == openButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		status = open();
 		if (status < 0)
 			error("%s", strerror(status));
 	}
 
-	else if ((key == extractAllButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == extractAllButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		status = extract(1 /* all */);
 		if (status < 0)
 			error("%s", strerror(status));
 	}
 
-	else if ((key == extractButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == extractButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		status = extract(0 /* current member */);
 		if (status < 0)
 			error("%s", strerror(status));
 	}
 
-	else if ((key == addButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == addButton) && (event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		status = add();
 		if (status < 0)
 			error("%s", strerror(status));
 	}
 
-	else if ((key == deleteButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == deleteButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		status = delete();
 		if (status < 0)
@@ -1237,7 +1244,7 @@ static int constructWindow(void)
 	params.padTop = params.padLeft = params.padRight = 5;
 	params.orientationX = orient_left;
 	params.orientationY = orient_top;
-	params.flags = WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags = COMP_PARAMS_FLAG_FIXEDHEIGHT;
 
 	// Create a container for the top components
 	topContainer = windowNewContainer(window, "topContainer", &params);
@@ -1247,7 +1254,7 @@ static int constructWindow(void)
 	// Create the up button
 	params.gridWidth = 1;
 	params.padTop = params.padLeft = params.padRight = 0;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	imageLoad(PATH_SYSTEM_ICONS "/arrowup.ico" , BUTTONIMAGE_SIZE,
 		BUTTONIMAGE_SIZE, &buttonImage);
 	upButton = windowNewButton(topContainer, (buttonImage.data? NULL :
@@ -1264,7 +1271,7 @@ static int constructWindow(void)
 	params.gridX += 1;
 	params.padLeft = 5;
 	params.orientationY = orient_middle;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDWIDTH;
 	locationField = windowNewTextField(topContainer, 40, &params);
 	if (!locationField)
 		return (status = ERR_NOCREATE);
@@ -1278,7 +1285,7 @@ static int constructWindow(void)
 	params.padTop = params.padLeft = params.padBottom = 5;
 	params.padRight = 0;
 	params.orientationY = orient_top;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	archList = windowNewArchiveList(window, windowlist_textonly, 20, 1,
 		current->members, current->numMembers, &doMemberSelection, &params);
 	if (!archList)
@@ -1293,7 +1300,8 @@ static int constructWindow(void)
 	// Create a container for the side buttons
 	params.gridX += 1;
 	params.padRight = 5;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	buttonContainer = windowNewContainer(window, "buttonContainer", &params);
 	if (!buttonContainer)
 		return (status = ERR_NOCREATE);
@@ -1378,7 +1386,7 @@ static int constructWindow(void)
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char fileName[MAX_PATH_NAME_LENGTH];
+	char fileName[MAX_PATH_NAME_LENGTH + 1];
 
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("archman");

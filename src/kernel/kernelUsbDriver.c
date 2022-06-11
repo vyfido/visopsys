@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,17 +24,16 @@
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelInterrupt.h"
-#include "kernelLinkedList.h"
 #include "kernelLocale.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
 #include "kernelPic.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/processor.h>
+#include <sys/vis.h>
 
 #define _(string) kernelGetText(string)
 
@@ -225,9 +224,9 @@ static usbClass usbClasses[] = {
 	{ USB_INVALID_CLASSCODE, "", NULL }
 };
 
-static kernelLinkedList controllerList;
-static kernelLinkedList hubList;
-static kernelLinkedList deviceList;
+static linkedList controllerList;
+static linkedList hubList;
+static linkedList deviceList;
 static int usbThreadId = 0;
 
 // Saved old interrupt handlers
@@ -242,7 +241,7 @@ static void usbInterrupt(void)
 	void *address = NULL;
 	int interruptNum = 0;
 	usbController *controller = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	int serviced = 0;
 
 	processorIsrEnter(address);
@@ -257,7 +256,7 @@ static void usbInterrupt(void)
 	//kernelDebug(debug_usb, "USB interrupt %d", interruptNum);
 
 	// Search for controllers registered with this interrupt number.
-	controller = kernelLinkedListIterStart(&controllerList, &iter);
+	controller = linkedListIterStart(&controllerList, &iter);
 	while (controller && !serviced)
 	{
 		if (controller->interruptNum == interruptNum)
@@ -275,7 +274,7 @@ static void usbInterrupt(void)
 			}
 		}
 
-		controller = kernelLinkedListIterNext(&controllerList, &iter);
+		controller = linkedListIterNext(&controllerList, &iter);
 	}
 
 	if (serviced)
@@ -310,7 +309,7 @@ out:
 __attribute__((noreturn))
 static void usbThread(void)
 {
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	usbHub *hub = NULL;
 
 	while (1)
@@ -318,13 +317,13 @@ static void usbThread(void)
 		kernelMultitaskerYield();
 
 		// Call applicable thread calls for all the hubs
-		hub = kernelLinkedListIterStart(&hubList, &iter);
+		hub = linkedListIterStart(&hubList, &iter);
 		while (hub)
 		{
 			if (hub->threadCall)
 				hub->threadCall(hub);
 
-			hub = kernelLinkedListIterNext(&hubList, &iter);
+			hub = linkedListIterNext(&hubList, &iter);
 		}
 	}
 }
@@ -365,7 +364,7 @@ static int driverGetTargets(kernelBus *bus, kernelBusTarget **pointer)
 {
 	// Generate the list of targets that reside on the given bus (controller).
 
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	usbDevice *usbDev = NULL;
 	int targetCount = 0;
 	kernelBusTarget *busTargets = NULL;
@@ -373,7 +372,7 @@ static int driverGetTargets(kernelBus *bus, kernelBusTarget **pointer)
 
 	// Count the number of USB devices attached to the controller that owns
 	// this bus
-	usbDev = kernelLinkedListIterStart(&deviceList, &iter);
+	usbDev = linkedListIterStart(&deviceList, &iter);
 	while (usbDev)
 	{
 		if (usbDev->controller && (usbDev->controller->bus == bus))
@@ -392,7 +391,7 @@ static int driverGetTargets(kernelBus *bus, kernelBusTarget **pointer)
 			}
 		}
 
-		usbDev = kernelLinkedListIterNext(&deviceList, &iter);
+		usbDev = linkedListIterNext(&deviceList, &iter);
 	}
 
 	*pointer = busTargets;
@@ -406,11 +405,11 @@ static int driverGetTargetInfo(kernelBusTarget *target, void *pointer)
 	// supplied memory pointer
 
 	int status = ERR_NOSUCHENTRY;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	usbDevice *usbDev = NULL;
 	int count;
 
-	usbDev = kernelLinkedListIterStart(&deviceList, &iter);
+	usbDev = linkedListIterStart(&deviceList, &iter);
 	while (usbDev)
 	{
 		for (count = 0; count < usbDev->numInterfaces; count ++)
@@ -423,7 +422,7 @@ static int driverGetTargetInfo(kernelBusTarget *target, void *pointer)
 			}
 		}
 
-		usbDev = kernelLinkedListIterNext(&deviceList, &iter);
+		usbDev = linkedListIterNext(&deviceList, &iter);
 	}
 
 	return (status);
@@ -486,13 +485,13 @@ static int addController(kernelDevice *dev, int numControllers,
 
 	// Add any values we want in the attributes list
 	sprintf(value, "%d", controller->interruptNum);
-	kernelVariableListSet(&dev->device.attrs, "controller.interrupt", value);
+	variableListSet(&dev->device.attrs, "controller.interrupt", value);
 	snprintf(value, 32, "%d.%d", ((controller->usbVersion & 0xF0) >> 4),
 		(controller->usbVersion & 0xF));
-	kernelVariableListSet(&dev->device.attrs, "controller.usbVersion", value);
+	variableListSet(&dev->device.attrs, "controller.usbVersion", value);
 
 	// Add it to our list of controllers
-	status = kernelLinkedListAdd(&controllerList, (void *) controller);
+	status = linkedListAdd(&controllerList, (void *) controller);
 	if (status < 0)
 		return (status);
 
@@ -566,12 +565,12 @@ static int driverDetect(void *parent __attribute__((unused)),
 	int numControllers = 0;
 	int deviceCount = 0;
 	kernelDevice *dev = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	usbController *controller = NULL;
 
-	memset(&controllerList, 0, sizeof(kernelLinkedList));
-	memset(&hubList, 0, sizeof(kernelLinkedList));
-	memset(&deviceList, 0, sizeof(kernelLinkedList));
+	memset(&controllerList, 0, sizeof(linkedList));
+	memset(&hubList, 0, sizeof(linkedList));
+	memset(&deviceList, 0, sizeof(linkedList));
 
 	// See if there are any USB controllers on the PCI bus.  This obviously
 	// depends upon PCI hardware detection occurring before USB detection.
@@ -647,7 +646,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 	// For each detected controller, enable its interrupt and register its
 	// root hub
-	controller = kernelLinkedListIterStart(&controllerList, &iter);
+	controller = linkedListIterStart(&controllerList, &iter);
 	while (controller)
 	{
 		if (controller->interruptNum != 0xFF)
@@ -658,7 +657,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 		// last step, and will trigger cold-plugged device detection
 		kernelUsbAddHub(&controller->hub, 0 /* no hotplug */);
 
-		controller = kernelLinkedListIterNext(&controllerList, &iter);
+		controller = linkedListIterNext(&controllerList, &iter);
 	}
 
 	return (status);
@@ -716,7 +715,7 @@ static void removeDeviceRecursive(usbController *controller, usbHub *hub,
 {
 	usbHub *removedHub = NULL;
 	usbDevice *connectedDev = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	usbClass *class = NULL;
 	usbSubClass *subClass = NULL;
 	int count;
@@ -727,14 +726,14 @@ static void removeDeviceRecursive(usbController *controller, usbHub *hub,
 		// Hubs only have one interface
 		removedHub = usbDev->interface[0].data;
 
-		connectedDev = kernelLinkedListIterStart((kernelLinkedList *)
+		connectedDev = linkedListIterStart((linkedList *)
 			&removedHub->devices, &iter);
 
 		while (connectedDev)
 		{
 			removeDeviceRecursive(controller, removedHub, connectedDev);
 
-			connectedDev = kernelLinkedListIterNext((kernelLinkedList *)
+			connectedDev = linkedListIterNext((linkedList *)
 				&removedHub->devices, &iter);
 		}
 	}
@@ -764,15 +763,14 @@ static void removeDeviceRecursive(usbController *controller, usbHub *hub,
 	}
 
 	// Remove the device from the device list.
-	kernelLinkedListRemove(&deviceList, (void *) usbDev);
+	linkedListRemove(&deviceList, (void *) usbDev);
 
 	// Remove the device from the hub's list
-	kernelLinkedListRemove((kernelLinkedList *) &hub->devices,
-		(void *) usbDev);
+	linkedListRemove((linkedList *) &hub->devices, (void *) usbDev);
 
 	// If the device was a hub, remove it from our list of hubs
 	if ((usbDev->classCode == 0x09) && !usbDev->subClassCode)
-		kernelLinkedListRemove(&hubList, (void *) usbDev->interface[0].data);
+		linkedListRemove(&hubList, (void *) usbDev->interface[0].data);
 
 	// Free the device memory
 	if (usbDev->configDesc)
@@ -821,12 +819,12 @@ int kernelUsbInitialize(void)
 {
 	// This gets called after multitasking is enabled.
 
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	usbDevice *usbDev = NULL;
 
 	// Loop through the devices that were detected at boot time, and see
 	// whether we have any that weren't claimed by a driver
-	usbDev = kernelLinkedListIterStart(&deviceList, &iter);
+	usbDev = linkedListIterStart(&deviceList, &iter);
 	while (usbDev)
 	{
 		kernelDebug(debug_usb, "USB device %p class=0x%02x sub=0x%02x "
@@ -834,14 +832,14 @@ int kernelUsbInitialize(void)
 			usbDev->subClassCode, usbDev->protocol,
 			((usbDev->interface[0].claimed)? "" : "not "));
 
-		usbDev = kernelLinkedListIterNext(&deviceList, &iter);
+		usbDev = linkedListIterNext(&deviceList, &iter);
 	}
 
 	// Spawn the USB thread
 	if (controllerList.numItems)
 	{
 		usbThreadId = kernelMultitaskerSpawnKernelThread(usbThread,
-			"usb thread", 0, NULL);
+			"usb thread", 0 /* no args */, NULL /* no args */, 1 /* run */);
 	}
 
 	return (0);
@@ -854,16 +852,16 @@ int kernelUsbShutdown(void)
 	// won't be remnants of transactions on the buses messing things up (for
 	// example if we're doing a soft reboot)
 
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	usbController *controller = NULL;
 
-	controller = kernelLinkedListIterStart(&controllerList, &iter);
+	controller = linkedListIterStart(&controllerList, &iter);
 	while (controller)
 	{
 		if (controller->reset)
 			controller->reset(controller);
 
-		controller = kernelLinkedListIterNext(&controllerList, &iter);
+		controller = linkedListIterNext(&controllerList, &iter);
 	}
 
 	return (0);
@@ -966,7 +964,7 @@ int kernelUsbGetClassName(int classCode, int subClassCode, int protocol,
 
 void kernelUsbAddHub(usbHub *hub, int hotplug)
 {
-	if (kernelLinkedListAdd(&hubList, (void *) hub) < 0)
+	if (linkedListAdd(&hubList, (void *) hub) < 0)
 	{
 		kernelDebugError("Couldn't add hub to list");
 		return;
@@ -1327,14 +1325,14 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 	// Ok, we will add this device.
 
 	kernelDebug(debug_usb, "USB add device");
-	status = kernelLinkedListAdd(&deviceList, (void *) usbDev);
+	status = linkedListAdd(&deviceList, (void *) usbDev);
 	if (status < 0)
 		goto err_out;
 
 	kernelDebug(debug_usb, "USB %d controllers, %d hubs, %d devices",
 		controllerList.numItems, hubList.numItems, deviceList.numItems);
 
-	status = kernelLinkedListAdd((kernelLinkedList *) &hub->devices,
+	status = linkedListAdd((linkedList *) &hub->devices,
 		(void *) usbDev);
 	if (status < 0)
 		goto err_out;
@@ -1397,7 +1395,7 @@ void kernelUsbDevDisconnect(usbController *controller, usbHub *hub, int port)
 	// If the port status(es) indicate that a device has disconnected, figure
 	// out which one it is and remove it from the root hub's list
 
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	usbDevice *usbDev = NULL;
 
 	kernelDebug(debug_usb, "USB device disconnection on controller %d hub %p "
@@ -1406,8 +1404,7 @@ void kernelUsbDevDisconnect(usbController *controller, usbHub *hub, int port)
 		hub->devices.numItems);
 
 	// Try to find the device
-	usbDev = kernelLinkedListIterStart((kernelLinkedList *) &hub->devices,
-		&iter);
+	usbDev = linkedListIterStart((linkedList *) &hub->devices, &iter);
 
 	while (usbDev)
 	{
@@ -1418,8 +1415,7 @@ void kernelUsbDevDisconnect(usbController *controller, usbHub *hub, int port)
 			break;
 		}
 
-		usbDev = kernelLinkedListIterNext((kernelLinkedList *) &hub->devices,
-			&iter);
+		usbDev = linkedListIterNext((linkedList *) &hub->devices, &iter);
 	}
 
 	if (usbDev)
@@ -1442,14 +1438,14 @@ usbDevice *kernelUsbGetDevice(int target)
 	int controllerNum = 0;
 	int address = 0;
 	int interface __attribute__((unused));
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	usbDevice *tmpUsbDev = NULL;
 
 	// Break out the target information
 	usbMakeContAddrIntr(target, controllerNum, address, interface);
 
 	// Try to find the device
-	tmpUsbDev = kernelLinkedListIterStart(&deviceList, &iter);
+	tmpUsbDev = linkedListIterStart(&deviceList, &iter);
 	while (tmpUsbDev)
 	{
 		if ((tmpUsbDev->controller->num == controllerNum) &&
@@ -1459,7 +1455,7 @@ usbDevice *kernelUsbGetDevice(int target)
 			break;
 		}
 
-		tmpUsbDev = kernelLinkedListIterNext(&deviceList, &iter);
+		tmpUsbDev = linkedListIterNext(&deviceList, &iter);
 	}
 
 	if (!usbDev)
@@ -1772,7 +1768,7 @@ int kernelUsbSetDeviceAttrs(usbDevice *usbDev, int interface,
 	char *subClassName = NULL;
 	char value[80];
 
-	status = kernelVariableListCreate(&dev->device.attrs);
+	status = variableListCreateSystem(&dev->device.attrs);
 	if (status < 0)
 		return (status);
 
@@ -1787,33 +1783,33 @@ int kernelUsbSetDeviceAttrs(usbDevice *usbDev, int interface,
 		&subClassName);
 
 	snprintf(value, 80, "0x%02x (%s)", class, className);
-	kernelVariableListSet(&dev->device.attrs, "usb.class", value);
+	variableListSet(&dev->device.attrs, "usb.class", value);
 
 	snprintf(value, 80, "0x%02x (%s)", subClass, subClassName);
-	kernelVariableListSet(&dev->device.attrs, "usb.subclass", value);
+	variableListSet(&dev->device.attrs, "usb.subclass", value);
 
 	snprintf(value, 80, "0x%02x", protocol);
-	kernelVariableListSet(&dev->device.attrs, "usb.protocol", value);
+	variableListSet(&dev->device.attrs, "usb.protocol", value);
 
 	snprintf(value, 80, "%d", (usbDev->rootPort + 1));
-	kernelVariableListSet(&dev->device.attrs, "usb.rootport", value);
+	variableListSet(&dev->device.attrs, "usb.rootport", value);
 
 	if (usbDev->hub->usbDev)
 	{
 		snprintf(value, 80, "%d", (usbDev->hubPort + 1));
-		kernelVariableListSet(&dev->device.attrs, "usb.hubport", value);
+		variableListSet(&dev->device.attrs, "usb.hubport", value);
 	}
 
 	snprintf(value, 80, "%d", usbDev->address);
-	kernelVariableListSet(&dev->device.attrs, "usb.address", value);
+	variableListSet(&dev->device.attrs, "usb.address", value);
 
-	kernelVariableListSet(&dev->device.attrs, "usb.speed",
+	variableListSet(&dev->device.attrs, "usb.speed",
 		usbDevSpeed2String(usbDev->speed));
 
 	snprintf(value, 80, "%d.%d", (usbDev->usbVersion >> 8),
 		((((usbDev->usbVersion >> 4) & 0xF) * 10) +
 			(usbDev->usbVersion & 0xF)));
-	kernelVariableListSet(&dev->device.attrs, "usb.version", value);
+	variableListSet(&dev->device.attrs, "usb.version", value);
 
 	return (status = 0);
 }

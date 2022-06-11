@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -59,7 +59,7 @@ Currently only the uncompressed, 24-bit bitmap format is supported.
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char fileName[MAX_PATH_NAME_LENGTH];
+	char fileName[MAX_PATH_NAME_LENGTH + 1];
 
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("screenshot");
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 			return (errno);
 		}
 	}
-	fileName[MAX_PATH_NAME_LENGTH - 1] = '\0';
+	fileName[MAX_PATH_NAME_LENGTH] = '\0';
 
 	status = windowSaveScreenShot(fileName);
 	if (status < 0)

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,26 +21,26 @@ msgstr ""
 msgid "Mines"
 msgstr ""
 
-#: mines.c:143
+#: mines.c:145
 msgid "Game over"
 msgstr ""
 
-#: mines.c:144
+#: mines.c:145
 msgid "You win!"
 msgstr ""
 
-#: mines.c:144
+#: mines.c:146
 msgid "You lose."
 msgstr ""
 
-#: mines.c:348
+#: mines.c:354
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: mines.c:357
+#: mines.c:363
 #, c-format
 msgid ""
 "\n"

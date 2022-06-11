@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -37,7 +37,7 @@ extern void libwindowInitialize(void);
 
 typedef struct {
 	objectKey window;
-	char cwd[MAX_PATH_LENGTH];
+	char cwd[MAX_PATH_LENGTH + 1];
 	fileType selectType;
 	objectKey thumbImage;
 	int doImageThumbs;
@@ -157,12 +157,12 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	params.padTop = 5;
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
-	params.flags = WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags = COMP_PARAMS_FLAG_FIXEDHEIGHT;
 
 	if (thumb)
 	{
-		params.flags |= (WINDOW_COMPFLAG_CUSTOMBACKGROUND |
-			WINDOW_COMPFLAG_HASBORDER);
+		params.flags |= (COMP_PARAMS_FLAG_CUSTOMBACKGROUND |
+			COMP_PARAMS_FLAG_HASBORDER);
 		params.background = COLOR_WHITE;
 		dialog->thumbImage = windowNewThumbImage(dialog->window, NULL,
 			MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION, 0 /* no stretch */,
@@ -181,8 +181,8 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	params.gridHeight = 1;
 	params.orientationX = orient_left;
 	params.orientationY = orient_top;
-	params.flags &= ~(WINDOW_COMPFLAG_CUSTOMBACKGROUND |
-		WINDOW_COMPFLAG_HASBORDER);
+	params.flags &= ~(COMP_PARAMS_FLAG_CUSTOMBACKGROUND |
+		COMP_PARAMS_FLAG_HASBORDER);
 	textLabel = windowNewTextLabel(dialog->window, message, &params);
 	if (!textLabel)
 	{
@@ -205,9 +205,10 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 
 	// Create the file list widget
 	params.gridY++;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	dialog->fileList = windowNewFileList(dialog->window, windowlist_icononly,
-		3, 4, dialog->cwd, WINFILEBROWSE_CAN_CD, doFileSelection, &params);
+		3, 4, dialog->cwd, WINDOW_FILEBROWSE_CAN_CD, doFileSelection,
+		&params);
 	if (!dialog->fileList)
 	{
 		status = ERR_NOCREATE;
@@ -218,7 +219,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 
 	// Create the text field for the user to type.
 	params.gridY++;
-	params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	dialog->textField = windowNewTextField(dialog->window, 30, &params);
 	if (!dialog->textField)
 	{
@@ -244,7 +245,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	params.padRight = 2;
 	params.padBottom = 5;
 	params.orientationX = orient_right;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	okButton = windowNewButton(dialog->window, _("OK"), NULL, &params);
 	if (!okButton)
 	{
@@ -275,9 +276,10 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 
 		// Check for the OK button, or 'enter' in the text field
 		if (((windowComponentEventGet(okButton, &event) > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP)) ||
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)) ||
 			((windowComponentEventGet(dialog->textField, &event) > 0) &&
-				(event.type == EVENT_KEY_DOWN) && (event.key == keyEnter)))
+				(event.type == WINDOW_EVENT_KEY_DOWN) &&
+				(event.key.scan == keyEnter)))
 		{
 			windowComponentGetData(dialog->textField, fileName, maxLength);
 
@@ -307,7 +309,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 		// Check for the Cancel button
 		status = windowComponentEventGet(cancelButton, &event);
 		if ((status < 0) ||
-			((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
+			((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 		{
 			fileName[0] = '\0';
 			status = 0;
@@ -317,7 +319,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 		// Check for window close events
 		status = windowComponentEventGet(dialog->window, &event);
 		if ((status < 0) ||
-			((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
+			((status > 0) && (event.type == WINDOW_EVENT_WINDOW_CLOSE)))
 		{
 			fileName[0] = '\0';
 			status = 0;

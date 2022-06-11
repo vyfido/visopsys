@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,8 @@
 
 // This is the Visopsys version of the standard header file dirent.h
 
-#if !defined(_DIRENT_H)
+#ifndef _DIRENT_H
+#define _DIRENT_H
 
 // Contains the fileType and dirStream definitions
 #include <sys/file.h>
@@ -43,9 +44,9 @@
 typedef dirStream DIR;
 
 struct dirent {
-	ino_t d_ino;					// inode
-	unsigned char d_type;			// file type
-	char d_name[MAX_NAME_LENGTH];	// name
+	ino_t d_ino;						// inode
+	unsigned char d_type;				// file type
+	char d_name[MAX_NAME_LENGTH + 1];	// name
 };
 
 int closedir(DIR *);
@@ -54,6 +55,5 @@ struct dirent *readdir(DIR *);
 int readdir_r(DIR *, struct dirent *, struct dirent **);
 void rewinddir(DIR *);
 
-#define _DIRENT_H
 #endif
 

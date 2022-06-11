@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -128,7 +128,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 	params.padTop = 5;
 	params.orientationX = orient_left;
 	params.orientationY = orient_top;
-	params.flags = WINDOW_COMPFLAG_HASBORDER;
+	params.flags = COMP_PARAMS_FLAG_HASBORDER;
 
 	// A canvas for drawing the color
 	canvas = windowNewCanvas(dialogWindow, CANVAS_WIDTH, CANVAS_HEIGHT,
@@ -148,7 +148,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 	params.padLeft = 0;
 	params.padTop = 0;
 	params.padBottom = 5;
-	params.flags = WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags = COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	windowNewTextLabel(sliderContainer, _("Red"), &params);
 
 	params.gridY++;
@@ -168,7 +168,8 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 
 	params.gridX++;
 	params.orientationY = orient_middle;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	redLabel = windowNewTextLabel(sliderContainer, "000", &params);
 	if (!redLabel)
 	{
@@ -199,7 +200,8 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 
 	params.gridX++;
 	params.orientationY = orient_middle;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	greenLabel = windowNewTextLabel(sliderContainer, "000", &params);
 	if (!greenLabel)
 	{
@@ -231,7 +233,8 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 
 	params.gridX++;
 	params.orientationY = orient_middle;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	blueLabel = windowNewTextLabel(sliderContainer, "000", &params);
 	if (!blueLabel)
 	{
@@ -248,7 +251,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 	params.padBottom = 5;
 	params.orientationX = orient_center;
 	params.orientationY = orient_top;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	buttonContainer = windowNewContainer(dialogWindow, "buttonContainer",
 		&params);
 	if (!buttonContainer)
@@ -299,8 +302,8 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 		status = windowComponentEventGet(redSlider, &event);
 		if (status > 0)
 		{
-			if (event.type & (EVENT_MOUSE_LEFTDOWN | EVENT_MOUSE_DRAG |
-				EVENT_KEY_DOWN))
+			if (event.type & (WINDOW_EVENT_MOUSE_LEFTDOWN |
+				WINDOW_EVENT_MOUSE_DRAG | WINDOW_EVENT_KEY_DOWN))
 			{
 				windowComponentGetData(redSlider, &scrollState,
 					sizeof(scrollBarState));
@@ -312,8 +315,8 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 		status = windowComponentEventGet(greenSlider, &event);
 		if (status > 0)
 		{
-			if (event.type & (EVENT_MOUSE_LEFTDOWN | EVENT_MOUSE_DRAG |
-				EVENT_KEY_DOWN))
+			if (event.type & (WINDOW_EVENT_MOUSE_LEFTDOWN |
+				WINDOW_EVENT_MOUSE_DRAG | WINDOW_EVENT_KEY_DOWN))
 			{
 				windowComponentGetData(greenSlider, &scrollState,
 					sizeof(scrollBarState));
@@ -325,8 +328,8 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 		status = windowComponentEventGet(blueSlider, &event);
 		if (status > 0)
 		{
-			if (event.type & (EVENT_MOUSE_LEFTDOWN | EVENT_MOUSE_DRAG |
-				EVENT_KEY_DOWN))
+			if (event.type & (WINDOW_EVENT_MOUSE_LEFTDOWN |
+				WINDOW_EVENT_MOUSE_DRAG | WINDOW_EVENT_KEY_DOWN))
 			{
 				windowComponentGetData(blueSlider, &scrollState,
 					sizeof(scrollBarState));
@@ -337,7 +340,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 
 		// Check for our OK button
 		status = windowComponentEventGet(okButton, &event);
-		if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+		if ((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			// Copy the temporary color into picked color
 			memcpy(pickedColor, &tmpColor, sizeof(color));
@@ -347,7 +350,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 		// Check for the cancel button
 		status = windowComponentEventGet(cancelButton, &event);
 		if ((status < 0) || ((status > 0) &&
-			(event.type == EVENT_MOUSE_LEFTUP)))
+			(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 		{
 			break;
 		}
@@ -356,9 +359,9 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 		status = windowComponentEventGet(dialogWindow, &event);
 		if (status > 0)
 		{
-			if (event.type == EVENT_WINDOW_CLOSE)
+			if (event.type == WINDOW_EVENT_WINDOW_CLOSE)
 				break;
-			else if (event.type == EVENT_WINDOW_RESIZE)
+			else if (event.type == WINDOW_EVENT_WINDOW_RESIZE)
 				drawColor(canvas, redLabel, greenLabel, blueLabel, &tmpColor);
 		}
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,21 +21,21 @@ msgstr ""
 msgid "Console Window"
 msgstr ""
 
-#: console.c:104
+#: console.c:107
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: console.c:120 console.c:125
+#: console.c:123 console.c:128
 msgid "Error"
 msgstr ""
 
-#: console.c:120
+#: console.c:123
 msgid "Cannot open more than one console window!"
 msgstr ""
 
-#: console.c:125
+#: console.c:128
 msgid "Error opening the console window!"
 msgstr ""

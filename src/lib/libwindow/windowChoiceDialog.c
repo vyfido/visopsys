@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,9 +22,9 @@
 // This contains functions for user programs to operate GUI components.
 
 #include <string.h>
-#include <sys/window.h>
 #include <sys/api.h>
 #include <sys/errors.h>
+#include <sys/window.h>
 
 extern int libwindow_initialized;
 extern void libwindowInitialize(void);
@@ -94,10 +94,11 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 	params.padTop = 0;
 	params.orientationX = orient_right;
 	params.orientationY = orient_top;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 
 	// Try to load the 'question' image
-	status = imageLoad(QUESTIMAGE_NAME, 64, 64, &iconImage);
+	status = imageLoad(WINDOW_QUESTIMAGE_NAME, 64, 64, &iconImage);
 	if (!status && iconImage.data)
 	{
 		iconImage.transColor.green = 0xFF;
@@ -160,7 +161,7 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 		for (count = 0; count < numChoices; count ++)
 		{
 			status = windowComponentEventGet(buttons[count], &event);
-			if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+			if ((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 			{
 				choice = count;
 				break;
@@ -170,7 +171,7 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 		// Check for selections or window close events
 		if ((choice >= 0) ||
 			((windowComponentEventGet(dialogWindow, &event) > 0) &&
-				(event.type == EVENT_WINDOW_CLOSE)))
+				(event.type == WINDOW_EVENT_WINDOW_CLOSE)))
 		{
 			status = choice;
 			break;

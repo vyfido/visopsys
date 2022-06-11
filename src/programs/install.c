@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,7 +62,7 @@ Options:
 #define gettext_noop(string) (string)
 
 #define WINDOW_TITLE		_("Install")
-#define TITLE_STRING		_("Visopsys Installer\nCopyright (C) 1998-2018 " \
+#define TITLE_STRING		_("Visopsys Installer\nCopyright (C) 1998-2019 " \
 	"J. Andrew McLaughlin")
 #define INSTALL_DISK		_("[ Installing on disk %s ]")
 #define BASIC_INSTALL		_("Basic install")
@@ -79,7 +79,7 @@ Options:
 typedef enum { install_basic, install_full } install_type;
 
 static int processId = 0;
-static char rootDisk[DISK_MAX_NAMELENGTH];
+static char rootDisk[DISK_MAX_NAMELENGTH + 1];
 static int numberDisks = 0;
 static disk diskInfo[DISK_MAXDEVICES];
 static char *diskName = NULL;
@@ -130,7 +130,7 @@ static void error(const char *format, ...)
 	// Generic error message code for either text or graphics modes
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
@@ -149,7 +149,7 @@ static void quit(int status, const char *message, ...)
 	// Shut everything down
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	if (message)
 	{
@@ -235,7 +235,7 @@ static void makeDiskList(void)
 static int loadFlagImage(const char *lang, image *img)
 {
 	int status = 0;
-	char path[MAX_PATH_LENGTH];
+	char path[MAX_PATH_LENGTH + 1];
 
 	sprintf(path, "%s/flag-%s.bmp", PATH_SYSTEM_LOCALE, lang);
 
@@ -260,8 +260,10 @@ static void chooseLanguage(void)
 			imageFree(&flagImage);
 
 		if (loadFlagImage(installLanguage, &flagImage) >= 0)
+		{
 			windowComponentSetData(langImage, &flagImage, sizeof(image),
 				1 /* redraw */);
+		}
 	}
 }
 
@@ -273,11 +275,12 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for the window being closed
-		if (event->type == EVENT_WINDOW_CLOSE)
+		if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			quit(0, NULL);
 	}
 
-	else if ((key == formatCheckbox) && (event->type & EVENT_SELECTION))
+	else if ((key == formatCheckbox) && (event->type &
+		WINDOW_EVENT_SELECTION))
 	{
 		windowComponentGetSelected(formatCheckbox, &doFormat);
 		if (!doFormat)
@@ -285,26 +288,30 @@ static void eventHandler(objectKey key, windowEvent *event)
 		windowComponentSetEnabled(fsTypeCheckbox, doFormat);
 	}
 
-	else if ((key == fsTypeCheckbox) && (event->type & EVENT_SELECTION))
+	else if ((key == fsTypeCheckbox) && (event->type &
+		WINDOW_EVENT_SELECTION))
 	{
 		windowComponentGetSelected(fsTypeCheckbox, &chooseFsType);
 	}
 
 	// Check the the 'language' button
-	else if ((key == langButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == langButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		chooseLanguage();
 	}
 
 	// Check for the 'install' button
-	else if ((key == installButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == installButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		// Stop the GUI here and the installation will commence
 		windowGuiStop();
 	}
 
 	// Check for the 'quit' button
-	else if ((key == quitButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == quitButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		quit(0, NULL);
 	}
@@ -360,7 +367,7 @@ static void constructWindow(void)
 	if (container1)
 	{
 		params.gridWidth = 1;
-		params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+		params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 		if (loadFlagImage(installLanguage, &flagImage) >= 0)
 		{
 			langImage = windowNewImage(container1, &flagImage, draw_normal,
@@ -383,7 +390,7 @@ static void constructWindow(void)
 	params.gridX = 0;
 	params.gridY++;
 	params.gridWidth = 2;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDWIDTH;
 	statusLabel = windowNewTextLabel(window, "", &params);
 	windowComponentSetWidth(statusLabel, windowComponentGetWidth(titleLabel));
 
@@ -395,7 +402,7 @@ static void constructWindow(void)
 	params.gridWidth = 1;
 	params.padBottom = 5;
 	params.orientationX = orient_right;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	installButton = windowNewButton(window, INSTALL, NULL, &params);
 	windowRegisterEventHandler(installButton, &eventHandler);
 	windowComponentSetEnabled(installButton, 0);
@@ -537,7 +544,7 @@ start:
 			// Check for our OK button
 			status = windowComponentEventGet(okButton, &event);
 			if ((status < 0) || ((status > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP)))
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 			{
 				windowComponentGetSelected(diskList, &diskNumber);
 				break;
@@ -546,7 +553,7 @@ start:
 			// Check for our 'partition' button
 			status = windowComponentEventGet(partButton, &event);
 			if ((status < 0) || ((status > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP)))
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 			{
 				// The user wants to repartition the disks.  Get rid of this
 				// window, run the disk manager, and start again
@@ -566,7 +573,7 @@ start:
 			// Check for our Cancel button
 			status = windowComponentEventGet(cancelButton, &event);
 			if ((status < 0) || ((status > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP)))
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 			{
 				break;
 			}
@@ -686,7 +693,8 @@ static int askFsType(void)
 	if (graphics)
 	{
 		selectedType = windowNewRadioDialog(window,
-			_("Choose Filesystem Type"), _("Supported types:"), fsTypes, 4, 0);
+			_("Choose Filesystem Type"), _("Supported types:"), fsTypes,
+			4, 0);
 	}
 	else
 	{
@@ -712,7 +720,7 @@ static void updateStatus(const char *message)
 
 	int statusLength = 0;
 
-	if (lockGet(&prog.progLock) >= 0)
+	if (lockGet(&prog.lock) >= 0)
 	{
 		if (strlen((char *) prog.statusMessage) &&
 			(prog.statusMessage[strlen((char *) prog.statusMessage) - 1] !=
@@ -741,7 +749,7 @@ static void updateStatus(const char *message)
 				statusLength, 1 /* redraw */);
 		}
 
-		lockRelease(&prog.progLock);
+		lockRelease(&prog.lock);
 	}
 }
 
@@ -780,8 +788,8 @@ static int copyBootSector(disk *theDisk)
 	// the target disk
 
 	int status = 0;
-	char bootSectFilename[MAX_PATH_NAME_LENGTH];
-	char command[MAX_PATH_NAME_LENGTH];
+	char bootSectFilename[MAX_PATH_NAME_LENGTH + 1];
+	char command[MAX_PATH_NAME_LENGTH + 1];
 
 	updateStatus(_("Copying boot sector...  "));
 
@@ -932,10 +940,10 @@ static int copyFiles(const char *installFileName)
 			windowComponentSetData(progressBar, (void *) percent, 1,
 				1 /* redraw */);
 		}
-		else if (lockGet(&prog.progLock) >= 0)
+		else if (lockGet(&prog.lock) >= 0)
 		{
 			prog.percentFinished = percent;
-			lockRelease(&prog.progLock);
+			lockRelease(&prog.lock);
 		}
 	}
 
@@ -1023,7 +1031,7 @@ static void setAdminPassword(void)
 		params.padBottom = 5;
 		params.padRight = 0;
 		params.orientationX = orient_right;
-		params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+		params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 		okButton = windowNewButton(dialogWindow, _("OK"), NULL, &params);
 
 		// Create the Cancel button
@@ -1042,7 +1050,7 @@ static void setAdminPassword(void)
 			// Check for window close events
 			status = windowComponentEventGet(dialogWindow, &event);
 			if ((status < 0) || ((status > 0) &&
-				(event.type == EVENT_WINDOW_CLOSE)))
+				(event.type == WINDOW_EVENT_WINDOW_CLOSE)))
 			{
 				error("%s", _("No password set.  It will be blank."));
 				windowDestroy(dialogWindow);
@@ -1051,13 +1059,13 @@ static void setAdminPassword(void)
 
 			// Check for the OK button
 			status = windowComponentEventGet(okButton, &event);
-			if ((status >= 0) && (event.type == EVENT_MOUSE_LEFTUP))
+			if ((status >= 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 				break;
 
 			// Check for the Cancel button
 			status = windowComponentEventGet(cancelButton, &event);
 			if ((status < 0) || ((status > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP)))
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 			{
 				error("%s", _("No password set.  It will be blank."));
 				windowDestroy(dialogWindow);
@@ -1065,11 +1073,11 @@ static void setAdminPassword(void)
 			}
 
 			if (((windowComponentEventGet(passwordField1, &event) > 0) &&
-					(event.type == EVENT_KEY_DOWN)) ||
+					(event.type == WINDOW_EVENT_KEY_DOWN)) ||
 				((windowComponentEventGet(passwordField2, &event) > 0) &&
-					(event.type == EVENT_KEY_DOWN)))
+					(event.type == WINDOW_EVENT_KEY_DOWN)))
 			{
-				if (event.key == keyEnter)
+				if (event.key.scan == keyEnter)
 				{
 					break;
 				}

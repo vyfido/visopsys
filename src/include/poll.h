@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,8 @@
 
 // This is the Visopsys version of the standard C library header file <poll.h>
 
-#if !defined(_POLL_H)
+#ifndef _POLL_H
+#define _POLL_H
 
 // Bitfields for the events and revents fields of struct pollfd
 #define POLLIN		0x0001	// data to read
@@ -42,6 +43,5 @@ struct pollfd {
 
 int poll(struct pollfd *, nfds_t, int);
 
-#define _POLL_H
 #endif
 

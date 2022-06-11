@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelMalloc.h
 //
 
-#if !defined(_KERNELMALLOC_H)
+#ifndef _KERNELMALLOC_H
+#define _KERNELMALLOC_H
 
 #include <sys/memory.h>
 
@@ -35,6 +36,5 @@ int kernelMallocGetBlocks(memoryBlock *, int);
 void _kernelMallocCheck(const char *, int);
 #define kernelMallocCheck() _kernelMallocCheck(__FILE__, __LINE__)
 
-#define _KERNELMALLOC_H
 #endif
 

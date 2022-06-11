@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -54,18 +54,6 @@ void *_kernelMalloc(unsigned size, const char *function)
 
 	if (!initialized)
 	{
-		// Set up malloc()'s kernel operations pointers
-		memset(&mallocKernOps, 0, sizeof(mallocKernelOps));
-		mallocKernOps.multitaskerGetCurrentProcessId =
-			&kernelMultitaskerGetCurrentProcessId;
-		mallocKernOps.memoryGet = &kernelMemoryGetSystem;
-		mallocKernOps.memoryRelease = &kernelMemoryReleaseSystem;
-		mallocKernOps.lockGet = &kernelLockGet;
-		mallocKernOps.lockRelease = &kernelLockRelease;
-	#if defined(DEBUG)
-		mallocKernOps.debug = &kernelDebugOutput;
-	#endif
-		mallocKernOps.error = &kernelErrorOutput;
 		mallocHeapMultiple = KERNEL_MEMORY_HEAP_MULTIPLE;
 		initialized = 1;
 	}

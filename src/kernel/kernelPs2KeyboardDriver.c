@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -396,9 +396,9 @@ static void readData(void)
 	}
 
 	if (release)
-		kernelKeyboardInput(&keyboard, EVENT_KEY_UP, scan);
+		kernelKeyboardInput(&keyboard, WINDOW_EVENT_KEY_UP, scan);
 	else
-		kernelKeyboardInput(&keyboard, EVENT_KEY_DOWN, scan);
+		kernelKeyboardInput(&keyboard, WINDOW_EVENT_KEY_DOWN, scan);
 
 	// Clear the extended flag
 	extended = 0;

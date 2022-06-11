@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,7 +23,8 @@
 // files using a 'streams' abstraction.  It's a convenience for dealing
 // with files.
 
-#if !defined(_KERNELFILESTREAM_H)
+#ifndef _KERNELFILESTREAM_H
+#define _KERNELFILESTREAM_H
 
 #include <sys/file.h>
 
@@ -39,6 +40,5 @@ int kernelFileStreamFlush(fileStream *);
 int kernelFileStreamClose(fileStream *);
 int kernelFileStreamGetTemp(fileStream *);
 
-#define _KERNELFILESTREAM_H
 #endif
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,10 +30,10 @@
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelPciDriver.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/vis.h>
 
 static int reset(usbController *);
 
@@ -378,8 +378,8 @@ static ohciEndpDesc *findEndpDesc(ohciData *ohci, usbDevice *usbDev,
 	// Search for an ED for a particular device+endpoint
 
 	ohciEndpDesc *endpDesc = NULL;
-	kernelLinkedList *usedList = &ohci->usedEndpDescs;
-	kernelLinkedListItem *iter = NULL;
+	linkedList *usedList = &ohci->usedEndpDescs;
+	linkedListItem *iter = NULL;
 
 	kernelDebug(debug_usb, "OHCI find ED for usbDev %p, endpoint 0x%02x",
 		usbDev, endpoint);
@@ -387,7 +387,7 @@ static ohciEndpDesc *findEndpDesc(ohciData *ohci, usbDevice *usbDev,
 	// Try searching for an existing ED
 	if (usedList->numItems)
 	{
-		endpDesc = kernelLinkedListIterStart(usedList, &iter);
+		endpDesc = linkedListIterStart(usedList, &iter);
 
 		while (endpDesc)
 		{
@@ -403,7 +403,7 @@ static ohciEndpDesc *findEndpDesc(ohciData *ohci, usbDevice *usbDev,
 				}
 			}
 
-			endpDesc = kernelLinkedListIterNext(usedList, &iter);
+			endpDesc = linkedListIterNext(usedList, &iter);
 		}
 
 		// Found it?
@@ -425,14 +425,14 @@ static int releaseEndpDesc(ohciData *ohci, ohciEndpDesc *endpDesc)
 	// list of 'free' ones.
 
 	int status = 0;
-	kernelLinkedList *usedList = &ohci->usedEndpDescs;
-	kernelLinkedList *freeList = &ohci->freeEndpDescs;
+	linkedList *usedList = &ohci->usedEndpDescs;
+	linkedList *freeList = &ohci->freeEndpDescs;
 
 	// Remove it from the used list
-	if (kernelLinkedListRemove(usedList, (void *) endpDesc) >= 0)
+	if (linkedListRemove(usedList, (void *) endpDesc) >= 0)
 	{
 		// Add it to the free list
-		if (kernelLinkedListAdd(freeList, (void *) endpDesc) < 0)
+		if (linkedListAdd(freeList, (void *) endpDesc) < 0)
 			kernelError(kernel_warn, "Couldn't add item to ED free list");
 	}
 	else
@@ -444,10 +444,10 @@ static int releaseEndpDesc(ohciData *ohci, ohciEndpDesc *endpDesc)
 }
 
 
-static int allocEndpDescs(kernelLinkedList *freeList)
+static int allocEndpDescs(linkedList *freeList)
 {
 	// Allocate a page worth of physical memory for ohciEndpDesc data
-	// structures, and add them to the supplied kernelLinkedList.
+	// structures, and add them to the supplied linkedList.
 
 	int status = 0;
 	kernelIoMemory ioMem;
@@ -472,7 +472,7 @@ static int allocEndpDescs(kernelLinkedList *freeList)
 	// Loop through all of them, and add them to the supplied free list
 	for (count = 0; count < numEndpDescs; count ++)
 	{
-		status = kernelLinkedListAdd(freeList, (void *) &endpDescs[count]);
+		status = linkedListAdd(freeList, (void *) &endpDescs[count]);
 		if (status < 0)
 		{
 			kernelError(kernel_error, "Couldn't add new EDs to free list");
@@ -500,10 +500,10 @@ static ohciEndpDesc *allocEndpDesc(ohciData *ohci, usbDevice *usbDev,
 	// on the endpoint type).  We also use EDs as generic heads for queues,
 	// so it's OK for usbDev and endpoint to be NULL.
 
-	kernelLinkedList *usedList = &ohci->usedEndpDescs;
-	kernelLinkedList *freeList = &ohci->freeEndpDescs;
+	linkedList *usedList = &ohci->usedEndpDescs;
+	linkedList *freeList = &ohci->freeEndpDescs;
 	ohciEndpDesc *endpDesc = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 
 	kernelDebug(debug_usb, "OHCI alloc ED");
 
@@ -519,7 +519,7 @@ static ohciEndpDesc *allocEndpDesc(ohciData *ohci, usbDevice *usbDev,
 	}
 
 	// Grab the first one from the free list
-	endpDesc = kernelLinkedListIterStart(freeList, &iter);
+	endpDesc = linkedListIterStart(freeList, &iter);
 	if (!endpDesc)
 	{
 		kernelError(kernel_error, "Couldn't get a new ED");
@@ -527,7 +527,7 @@ static ohciEndpDesc *allocEndpDesc(ohciData *ohci, usbDevice *usbDev,
 	}
 
 	// Remove it from the free list
-	if (kernelLinkedListRemove(freeList, (void *) endpDesc) < 0)
+	if (linkedListRemove(freeList, (void *) endpDesc) < 0)
 	{
 		kernelError(kernel_error, "Couldn't remove ED from free list");
 		goto err_out;
@@ -546,7 +546,7 @@ static ohciEndpDesc *allocEndpDesc(ohciData *ohci, usbDevice *usbDev,
 	}
 
 	// Add it to the used list
-	if (kernelLinkedListAdd(usedList, (void *) endpDesc) < 0)
+	if (linkedListAdd(usedList, (void *) endpDesc) < 0)
 	{
 		kernelError(kernel_error, "Couldn't add ED to used list");
 		goto err_out;
@@ -789,7 +789,7 @@ static void unregisterInterrupt(ohciData *ohci, ohciIntrReg *intrReg)
 {
 	// Remove an interrupt registration and deallocate resources
 
-	kernelLinkedListRemove(&ohci->intrRegs, intrReg);
+	linkedListRemove(&ohci->intrRegs, intrReg);
 
 	// Don't need to deallocate the ED
 
@@ -1320,7 +1320,7 @@ static int interrupt(usbController *controller)
 	int status = 0;
 	ohciData *ohci = NULL;
 	ohciIntrReg *intrReg = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	unsigned bytes = 0;
 	volatile unsigned char *dataToggle = NULL;
 
@@ -1351,12 +1351,12 @@ static int interrupt(usbController *controller)
 	{
 		// We need to check whether the done queue head points to one
 		// of our interrupt registrations
-		intrReg = kernelLinkedListIterStart(&ohci->intrRegs, &iter);
+		intrReg = linkedListIterStart(&ohci->intrRegs, &iter);
 		while (intrReg)
 		{
 			if ((ohci->hcca->doneHead & ~1) != intrReg->transDesc->physical)
 			{
-				intrReg = kernelLinkedListIterNext(&ohci->intrRegs, &iter);
+				intrReg = linkedListIterNext(&ohci->intrRegs, &iter);
 				continue;
 			}
 
@@ -1377,7 +1377,7 @@ static int interrupt(usbController *controller)
 				// interrupt handler, though)
 				kernelError(kernel_error, "USB interrupt device error - not "
 					"rescheduling");
-				kernelLinkedListRemove(&ohci->intrRegs, intrReg);
+				linkedListRemove(&ohci->intrRegs, intrReg);
 			}
 			else
 			{
@@ -1423,7 +1423,7 @@ static int interrupt(usbController *controller)
 			}
 
 			// Re-start the iteration
-			intrReg = kernelLinkedListIterStart(&ohci->intrRegs, &iter);
+			intrReg = linkedListIterStart(&ohci->intrRegs, &iter);
 		}
 	}
 
@@ -1885,7 +1885,7 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 		goto out;
 
 	// Add the interrupt registration to the controller's list.
-	status = kernelLinkedListAdd(&ohci->intrRegs, intrReg);
+	status = linkedListAdd(&ohci->intrRegs, intrReg);
 	if (status < 0)
 		goto out;
 
@@ -1904,8 +1904,8 @@ static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 	int status = 0;
 	ohciData *ohci = NULL;
 	ohciIntrReg *intrReg = NULL;
-	kernelLinkedListItem *iter = NULL;
-	kernelLinkedList *usedList = NULL;
+	linkedListItem *iter = NULL;
+	linkedList *usedList = NULL;
 	ohciEndpDesc *endpDesc = NULL;
 
 	// Check params
@@ -1920,31 +1920,31 @@ static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 	ohci = controller->data;
 
 	// Remove any interrupt registrations for the device
-	intrReg = kernelLinkedListIterStart(&ohci->intrRegs, &iter);
+	intrReg = linkedListIterStart(&ohci->intrRegs, &iter);
 	while (intrReg)
 	{
 		if (intrReg->usbDev != usbDev)
 		{
-			intrReg = kernelLinkedListIterNext(&ohci->intrRegs, &iter);
+			intrReg = linkedListIterNext(&ohci->intrRegs, &iter);
 			continue;
 		}
 
 		unregisterInterrupt(ohci, intrReg);
 
 		// Restart the iteration
-		intrReg = kernelLinkedListIterStart(&ohci->intrRegs, &iter);
+		intrReg = linkedListIterStart(&ohci->intrRegs, &iter);
 	}
 
 	// Find, unlink, and deallocate any EDs that we have for this device
 
 	usedList = &ohci->usedEndpDescs;
 
-	endpDesc = kernelLinkedListIterStart(usedList, &iter);
+	endpDesc = linkedListIterStart(usedList, &iter);
 	while (endpDesc)
 	{
 		if (endpDesc->usbDev != usbDev)
 		{
-			endpDesc = kernelLinkedListIterNext(usedList, &iter);
+			endpDesc = linkedListIterNext(usedList, &iter);
 			continue;
 		}
 
@@ -1953,7 +1953,7 @@ static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 		releaseEndpDesc(ohci, endpDesc);
 
 		// Restart the iteration
-		endpDesc = kernelLinkedListIterStart(usedList, &iter);
+		endpDesc = linkedListIterStart(usedList, &iter);
 	}
 
 	return (status = 0);
@@ -2184,13 +2184,12 @@ kernelDevice *kernelUsbOhciDetect(kernelBusTarget *busTarget,
 	dev->data = (void *) controller;
 
 	// Initialize the variable list for attributes of the controller
-	status = kernelVariableListCreate(&dev->device.attrs);
+	status = variableListCreateSystem(&dev->device.attrs);
 	if (status >= 0)
 	{
-		kernelVariableListSet(&dev->device.attrs, "controller.type", "OHCI");
+		variableListSet(&dev->device.attrs, "controller.type", "OHCI");
 		snprintf(value, 32, "%d", ohci->numPorts);
-		kernelVariableListSet(&dev->device.attrs, "controller.numPorts",
-			value);
+		variableListSet(&dev->device.attrs, "controller.numPorts", value);
 	}
 
 	// Claim the controller device in the list of PCI targets.

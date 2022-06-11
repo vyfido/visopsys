@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,8 @@
 
 // This is the Visopsys version of the standard header file arpa/inet.h
 
-#if !defined(_INET_H)
+#ifndef _INET_H
+#define _INET_H
 
 // Contains the processorSwap* definitions
 #include <sys/processor.h>
@@ -44,6 +45,5 @@
 int inet_pton(int af, const char *, void *);
 const char *inet_ntop(int, const void *, char *, socklen_t);
 
-#define _INET_H
 #endif
 

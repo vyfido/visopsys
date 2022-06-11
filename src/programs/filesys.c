@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,6 +46,7 @@ them at boot time.
 #include <sys/api.h>
 #include <sys/env.h>
 #include <sys/paths.h>
+#include <sys/vis.h>
 
 #define _(string) gettext(string)
 
@@ -93,7 +94,7 @@ static void error(const char *format, ...)
 	// Generic error message code
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
@@ -109,7 +110,7 @@ static void quit(int status, const char *message, ...)
 	// Shut everything down
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, message);
 	vsnprintf(output, MAXSTRINGLENGTH, message, list);
@@ -263,7 +264,7 @@ static void setMountPoint(int diskNumber, char *mountPoint)
 
 static void select(int diskNumber)
 {
-	char mountPoint[MAX_PATH_LENGTH];
+	char mountPoint[MAX_PATH_LENGTH + 1];
 
 	getMountPoint(diskNumber, mountPoint);
 	windowComponentSetData(mountPointField, mountPoint, MAX_PATH_LENGTH,
@@ -301,6 +302,9 @@ static void refreshWindow(void)
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -308,17 +312,17 @@ static void eventHandler(objectKey key, windowEvent *event)
 {
 	int selectedDisk = 0;
 	int selected = 0;
-	char mountPoint[MAX_PATH_LENGTH];
+	char mountPoint[MAX_PATH_LENGTH + 1];
 
 	// Check for window events.
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 		{
 			if (changesPending &&
 				windowNewChoiceDialog(window, UNSAVED_CHANGES,
@@ -331,15 +335,16 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 	}
 
-	else if ((key == diskList) && ((event->type & EVENT_MOUSE_DOWN) ||
-		(event->type & EVENT_KEY_DOWN)))
+	else if ((key == diskList) && ((event->type & WINDOW_EVENT_MOUSE_DOWN) ||
+		(event->type & WINDOW_EVENT_KEY_DOWN)))
 	{
 		windowComponentGetSelected(diskList, &selectedDisk);
 		if (selectedDisk >= 0)
 			select(selectedDisk);
 	}
 
-	else if ((key == mountPointField) && (event->type & EVENT_KEY_DOWN))
+	else if ((key == mountPointField) && (event->type &
+		WINDOW_EVENT_KEY_DOWN))
 	{
 		windowComponentGetSelected(diskList, &selectedDisk);
 		if (selectedDisk >= 0)
@@ -352,7 +357,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 	}
 
-	else if ((key == autoMountCheckbox) && (event->type & EVENT_SELECTION))
+	else if ((key == autoMountCheckbox) && (event->type &
+		WINDOW_EVENT_SELECTION))
 	{
 		windowComponentGetSelected(diskList, &selectedDisk);
 		if (selectedDisk >= 0)
@@ -363,16 +369,17 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 	}
 
-	else if ((key == saveButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == saveButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		saveMountConfig();
 	}
 
-	else if ((key == quitButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == quitButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
-		if (changesPending &&
-			windowNewChoiceDialog(window, UNSAVED_CHANGES, QUIT_WITHOUT_WRITE,
-				(char *[]){ QUIT, CANCEL }, 2, 0))
+		if (changesPending && windowNewChoiceDialog(window, UNSAVED_CHANGES,
+			QUIT_WITHOUT_WRITE, (char *[]){ QUIT, CANCEL }, 2, 0))
 		{
 			return;
 		}
@@ -435,7 +442,7 @@ static void constructWindow(void)
 	params.gridWidth = 1;
 	params.padBottom = 5;
 	params.orientationX = orient_right;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	saveButton = windowNewButton(window, SAVE, NULL, &params);
 	windowRegisterEventHandler(saveButton, &eventHandler);
 	windowComponentSetEnabled(saveButton, 0);

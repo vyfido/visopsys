@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  ascii.h
 //
 
-#if !defined(_ASCII_H)
+#ifndef _ASCII_H
+#define _ASCII_H
 
 // ASCII codes with special names
 #define ASCII_NULL			0	// Ctrl-@
@@ -146,6 +147,5 @@
     077   63    3F    ?                           177   127   7F    DEL
 */
 
-#define _ASCII_H
 #endif
 

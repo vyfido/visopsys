@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,10 +30,10 @@
 #include "kernelMalloc.h"
 #include "kernelRandom.h"
 #include "kernelScsiDriver.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/processor.h>
+#include <sys/vis.h>
 
 static kernelPhysicalDisk *disks[SCSI_MAX_DISKS];
 static int numDisks = 0;
@@ -838,10 +838,10 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType,
 	if (scsiDisk->usb.usbDev)
 		kernelUsbSetDeviceAttrs(scsiDisk->usb.usbDev, 0, &scsiDisk->dev);
 	else
-		kernelVariableListCreate(&scsiDisk->dev.device.attrs);
-	kernelVariableListSet((variableList *) &scsiDisk->dev.device.attrs,
+		variableListCreateSystem(&scsiDisk->dev.device.attrs);
+	variableListSet((variableList *) &scsiDisk->dev.device.attrs,
 		DEVICEATTRNAME_VENDOR, scsiDisk->vendorId);
-	kernelVariableListSet((variableList *) &scsiDisk->dev.device.attrs,
+	variableListSet((variableList *) &scsiDisk->dev.device.attrs,
 		DEVICEATTRNAME_MODEL, scsiDisk->productId);
 	scsiDisk->dev.driver = driver;
 	scsiDisk->dev.data = (void *) physicalDisk;

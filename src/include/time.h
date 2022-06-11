@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,8 @@
 
 // This is the Visopsys version of the standard header file time.h
 
-#if !defined(_TIME_H)
+#ifndef _TIME_H
+#define _TIME_H
 
 #define US_PER_MS		1000
 #define MS_PER_SEC		1000
@@ -69,6 +70,5 @@ struct tm *gmtime(time_t);
 time_t mktime(struct tm *);
 time_t time(time_t *t);
 
-#define _TIME_H
 #endif
 

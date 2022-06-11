@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -107,7 +107,7 @@ static int draw(kernelWindowComponent *component)
 		tmp += (strlen(tmp) + 1);
 	}
 
-	if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
+	if (component->params.flags & COMP_PARAMS_FLAG_HASBORDER)
 		component->drawBorder(component, 1);
 
 	return (status);
@@ -234,11 +234,11 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	kernelWindowRadioButton *radio = component->data;
 	int clickedItem = 0;
 
-	if (radio->numItems && (event->type == EVENT_MOUSE_LEFTDOWN))
+	if (radio->numItems && (event->type == WINDOW_EVENT_MOUSE_LEFTDOWN))
 	{
 		// Figure out which item was clicked based on the coordinates of the
 		// event
-		clickedItem = (event->yPosition - (component->window->yCoord +
+		clickedItem = (event->coord.y - (component->window->yCoord +
 			component->yCoord));
 
 		clickedItem /= radio->itemHeight;
@@ -255,7 +255,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 				component->yCoord, component->width, component->height);
 
 			// Make this also a 'selection' event
-			event->type |= EVENT_SELECTION;
+			event->type |= WINDOW_EVENT_SELECTION;
 		}
 	}
 
@@ -271,10 +271,11 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 
 	kernelWindowRadioButton *radio = component->data;
 
-	if ((event->type == EVENT_KEY_DOWN) &&
-		((event->key == keyUpArrow) || (event->key == keyDownArrow)))
+	if ((event->type == WINDOW_EVENT_KEY_DOWN) &&
+		((event->key.scan == keyUpArrow) ||
+			(event->key.scan == keyDownArrow)))
 	{
-		if (event->key == keyUpArrow)
+		if (event->key.scan == keyUpArrow)
 		{
 			// UP cursor
 			if (radio->selectedItem > 0)
@@ -294,7 +295,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 			component->yCoord, component->width, component->height);
 
 		// Make this also a 'selection' event
-		event->type |= EVENT_SELECTION;
+		event->type |= WINDOW_EVENT_SELECTION;
 	}
 
 	return (0);
@@ -339,7 +340,7 @@ kernelWindowComponent *kernelWindowNewRadioButton(objectKey parent,
 	kernelWindowComponent *component = NULL;
 	kernelWindowRadioButton *radioButton = NULL;
 
-	// Check parameters.
+	// Check params
 	if (!parent || !items || !params)
 	{
 		kernelError(kernel_error, "NULL parameter");
@@ -356,7 +357,7 @@ kernelWindowComponent *kernelWindowNewRadioButton(objectKey parent,
 		return (component);
 
 	component->type = radioButtonComponentType;
-	component->flags |= WINFLAG_CANFOCUS;
+	component->flags |= WINDOW_COMP_FLAG_CANFOCUS;
 
 	// Set the functions
 	component->draw = &draw;

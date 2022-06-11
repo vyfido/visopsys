@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2018 J. Andrew McLaughlin
+# Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: format\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2015-05-08 02:27+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -64,7 +64,7 @@ msgstr "Выберите диск"
 msgid "OK"
 msgstr "ОК"
 
-#: format.c:221 format.c:289
+#: format.c:221 format.c:288
 msgid "Cancel"
 msgstr "Отмена"
 
@@ -77,19 +77,19 @@ msgstr ""
 "Диск подключен как %s.  НАСТОЯТЕЛЬНО рекомендуем\n"
 "отключить его перед тем как продолжить"
 
-#: format.c:288
+#: format.c:287
 msgid "Disk is mounted"
 msgstr "Диск подключен"
 
-#: format.c:289
+#: format.c:288
 msgid "Ignore"
 msgstr "Игнорировать"
 
-#: format.c:289
+#: format.c:288
 msgid "Unmount"
 msgstr "Отключить"
 
-#: format.c:293
+#: format.c:292
 #, c-format
 msgid ""
 "\n"
@@ -98,76 +98,76 @@ msgstr ""
 "\n"
 "%s (I)игнорировать/(U)отключить/(C)отмена?: "
 
-#: format.c:302
+#: format.c:301
 msgid "Ignore\n"
 msgstr "Игнорировать\n"
 
-#: format.c:308
+#: format.c:307
 msgid "Unmount\n"
 msgstr "Отключить\n"
 
-#: format.c:314
+#: format.c:313
 msgid "Cancel\n"
 msgstr "Отмена\n"
 
-#: format.c:333
+#: format.c:332
 #, c-format
 msgid "Unable to unmount %s"
 msgstr "Невозможно отключить %s"
 
-#: format.c:366
+#: format.c:365
 #, c-format
 msgid "No boot sector available for filesystem type %s\n"
 msgstr "Нет загрузочного сектора для ФС %s\n"
 
-#: format.c:379
+#: format.c:378
 #, c-format
 msgid "Error %d copying boot sector \"%s\" to disk %s"
 msgstr "Ошибка  %d копирования загрузочного сектора \"%s\" to disk %s"
 
-#: format.c:390
+#: format.c:389
 msgid "usage:\n"
 msgstr "использование:\n"
 
-#: format.c:391
+#: format.c:390
 #, c-format
 msgid "%s [-l] [-s] [-t type] [-T] [disk_name]\n"
 msgstr "%s [-l] [-s] [-t тип] [-T] [имя_диска]\n"
 
-#: format.c:442
+#: format.c:441
 msgid "Missing volume name argument for '-n' option"
 msgstr "Пропущен аргумент 'Метка тома' для опции -n"
 
-#: format.c:459
+#: format.c:458
 msgid "Missing type argument for '-t' option"
 msgstr "Пропущен аргумент 'Тип' для опции -t"
 
-#: format.c:472
+#: format.c:471
 #, c-format
 msgid "Missing parameter for %s option"
 msgstr "Пропущен параметр для опции %s"
 
-#: format.c:477
+#: format.c:476
 #, c-format
 msgid "Unknown option '%c'"
 msgstr "Неизвестная опция '%c'"
 
-#: format.c:485
+#: format.c:484
 msgid "NTFS formatting is not available"
 msgstr ""
 
-#: format.c:500
+#: format.c:499
 #, fuzzy
 msgid ""
 "\n"
 "Visopsys FORMAT Utility\n"
-"Copyright (C) 1998-2018 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2019 J. Andrew McLaughlin\n"
 msgstr ""
 "\n"
 "Visopsys FORMAT Utility\n"
-"Copyright (C) 1998-2018 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2019 J. Andrew McLaughlin\n"
 
-#: format.c:523
+#: format.c:522
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
@@ -175,7 +175,7 @@ msgstr ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
 
-#: format.c:541
+#: format.c:540
 #, c-format
 msgid ""
 "Formatting disk %s as %s.  All data currenly on the disk will be lost.\n"
@@ -184,7 +184,7 @@ msgstr ""
 "Форматирование диска %s как %s.  Все данные на диске будут утеряны.\n"
 "Уверены?"
 
-#: format.c:546 format.c:570
+#: format.c:545 format.c:569
 msgid ""
 "\n"
 "Quitting.\n"
@@ -192,7 +192,7 @@ msgstr ""
 "\n"
 "Выходим.\n"
 
-#: format.c:564
+#: format.c:563
 msgid ""
 "\n"
 "YOU HAVE REQUESTED TO FORMAT YOUR ROOT DISK.  I probably shouldn't let you\n"
@@ -204,11 +204,11 @@ msgstr ""
 "После форматировани нужно выключить компьютер.\n"
 "Вы уверены?"
 
-#: format.c:580
+#: format.c:579
 msgid "Formatting..."
 msgstr "Форматирование..."
 
-#: format.c:621
+#: format.c:620
 msgid "Success"
 msgstr "Успех"
 

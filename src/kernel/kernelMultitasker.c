@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -40,12 +40,13 @@
 #include "kernelPic.h"
 #include "kernelShutdown.h"
 #include "kernelSysTimer.h"
-#include "kernelVariableList.h"
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/processor.h>
+#include <sys/user.h>
+#include <sys/vis.h>
 
 #define PROC_KILLABLE(proc) ((proc != kernelProc) && \
 	(proc != exceptionProc) && \
@@ -74,13 +75,12 @@ static kernelProcess *fpuProcess = NULL;
 // information about itself.
 kernelProcess *kernelCurrentProcess = NULL;
 
-// Process queue for CPU execution
-static kernelProcess *processQueue[MAX_PROCESSES];
-static volatile int numQueued = 0;
+// Process list for CPU execution
+static linkedList processList;
 
 // Things specific to the scheduler.  The scheduler process is just a
 // convenient place to keep things, we don't use all of it and it doesn't go
-// in the queue
+// in the process list.
 static kernelProcess *schedulerProc = NULL;
 static volatile int schedulerStop = 0;
 static void (*oldSysTimerHandler)(void) = NULL;
@@ -167,25 +167,26 @@ static void debugTSS(kernelProcess *proc, char *buffer, int len)
 
 static kernelProcess *getProcessById(int processId)
 {
-	// This function is used to find a process' pointer based on the process
+	// This function is used to find a process's pointer based on the process
 	// Id.  Nothing fancy -- it just searches through the list.  Maybe later
 	// it can be some kind of fancy sorting/searching procedure.  Returns NULL
 	// if the process doesn't exist
 
-	kernelProcess *theProcess = NULL;
-	int count;
+	kernelProcess *proc = NULL;
+	linkedListItem *iter = NULL;
 
-	for (count = 0; count < numQueued; count ++)
+	proc = linkedListIterStart(&processList, &iter);
+
+	while (proc)
 	{
-		if (processQueue[count]->processId == processId)
-		{
-			theProcess = processQueue[count];
-			break;
-		}
+		if (proc->processId == processId)
+			return (proc);
+
+		proc = linkedListIterNext(&processList, &iter);
 	}
 
-	// If we didn't find it, this will still be NULL
-	return (theProcess);
+	// Not found
+	return (proc = NULL);
 }
 
 
@@ -193,48 +194,49 @@ static kernelProcess *getProcessByName(const char *name)
 {
 	// As above, but searches by name
 
-	kernelProcess *theProcess = NULL;
-	int count;
+	kernelProcess *proc = NULL;
+	linkedListItem *iter = NULL;
 
-	for (count = 0; count < numQueued; count ++)
+	proc = linkedListIterStart(&processList, &iter);
+
+	while (proc)
 	{
-		if (!strcmp((char *) processQueue[count]->name, name))
-		{
-			theProcess = processQueue[count];
-			break;
-		}
+		if (!strcmp((char *) proc->name, name))
+			return (proc);
+
+		proc = linkedListIterNext(&processList, &iter);
 	}
 
-	// If we didn't find it, this will still be NULL
-	return (theProcess);
+	// Not found
+	return (proc = NULL);
 }
 
 
-static inline int requestProcess(kernelProcess **processPointer)
+static inline int requestProcess(kernelProcess **procPointer)
 {
 	// This function is used to allocate new process control memory.  It
 	// should be passed a reference to a pointer that will point to the new
 	// process, if allocated successfully.
 
 	int status = 0;
-	kernelProcess *newProcess = NULL;
+	kernelProcess *proc = NULL;
 
-	// Make sure the pointer->pointer parameter we were passed isn't NULL
-	if (!processPointer)
+	// Make sure the process pointer parameter we were passed isn't NULL
+	if (!procPointer)
 		// Oops.
 		return (status = ERR_NULLPARAMETER);
 
-	newProcess = kernelMalloc(sizeof(kernelProcess));
-	if (!newProcess)
+	proc = kernelMalloc(sizeof(kernelProcess));
+	if (!proc)
 		return (status = ERR_MEMORY);
 
 	// Success.  Set the pointer for the calling process
-	*processPointer = newProcess;
+	*procPointer = proc;
 	return (status = 0);
 }
 
 
-static inline int releaseProcess(kernelProcess *killProcess)
+static inline int releaseProcess(kernelProcess *proc)
 {
 	// This function is used to free process control memory.  It should be
 	// passed the process Id of the process to kill.  It returns 0 on success,
@@ -242,91 +244,98 @@ static inline int releaseProcess(kernelProcess *killProcess)
 
 	int status = 0;
 
-	status = kernelFree((void *) killProcess);
+	status = kernelFree((void *) proc);
 
 	return (status);
 }
 
 
-static int addProcessToQueue(kernelProcess *targetProcess)
+static int addProcessToList(kernelProcess *proc)
 {
-	// This function will add a process to the task queue.  It returns zero on
-	// success, negative otherwise
+	// This function will add a process to the process list.  It returns zero
+	// on success, negative otherwise
 
 	int status = 0;
-	int count;
+	kernelProcess *listProc = NULL;
+	linkedListItem *iter = NULL;
 
-	if (!targetProcess)
-		// The process does not exist, or is not accessible
-		return (status = ERR_NOSUCHPROCESS);
+	// Check params
+	if (!proc)
+		return (status = ERR_NULLPARAMETER);
 
 	// Make sure the priority is a legal value
-	if ((targetProcess->priority < 0) ||
-		(targetProcess->priority > (PRIORITY_LEVELS - 1)))
+	if ((proc->priority < 0) || (proc->priority > (PRIORITY_LEVELS - 1)))
 	{
-		// The process' priority is an illegal value
+		// The process's priority is an illegal value
 		return (status = ERR_INVALID);
 	}
 
-	// Search the process queue to make sure it isn't already present
-	for (count = 0; count < numQueued; count ++)
+	// Search the process list to make sure it isn't already present
+
+	listProc = linkedListIterStart(&processList, &iter);
+
+	while (listProc)
 	{
-		if (processQueue[count] == targetProcess)
+		if (listProc == proc)
+		{
 			// Oops, it's already there
 			return (status = ERR_ALREADY);
+		}
+
+		listProc = linkedListIterNext(&processList, &iter);
 	}
 
-	// OK, now we can add the process to the queue
-	processQueue[numQueued++] = targetProcess;
+	// OK, now we can add the process to the list
+	status = linkedListAdd(&processList, (void *) proc);
+	if (status < 0)
+		return (status);
 
 	// Done
 	return (status = 0);
 }
 
 
-static int removeProcessFromQueue(kernelProcess *targetProcess)
+static int removeProcessFromList(kernelProcess *proc)
 {
-	// This function will remove a process from the task queue.  It returns
+	// This function will remove a process from the process list.  It returns
 	// zero on success, negative otherwise
 
 	int status = 0;
-	int processPosition = 0;
-	int count;
+	kernelProcess *listProc = NULL;
+	linkedListItem *iter = NULL;
 
-	if (!targetProcess)
-		// The process does not exist, or is not accessible
-		return (status = ERR_NOSUCHPROCESS);
+	// Check params
+	if (!proc)
+		return (status = ERR_NULLPARAMETER);
 
-	// Search the queue for the matching process
-	for (count = 0; count < numQueued; count ++)
+	// Search the list for the matching process
+
+	listProc = linkedListIterStart(&processList, &iter);
+
+	while (listProc)
 	{
-		if (processQueue[count] == targetProcess)
-		{
-			processPosition = count;
+		if (listProc == proc)
 			break;
-		}
+
+		listProc = linkedListIterNext(&processList, &iter);
 	}
 
 	// Make sure we found the process
-	if (processQueue[processPosition] != targetProcess)
-		// The process is not in the task queue
+	if (listProc != proc)
+		// The process is not in the process list
 		return (status = ERR_NOSUCHPROCESS);
 
-	// Subtract one from the number of queued processes
-	numQueued -= 1;
-
-	// OK, now we can remove the process from the queue.  If there are one or
-	// more remaining processes in this queue, we will shorten the queue by
-	// moving the LAST process into the spot we're vacating
-	if ((numQueued > 0) && (processPosition != numQueued))
-		processQueue[processPosition] = processQueue[numQueued];
+	// OK, now we can remove the process from the list
+	status = linkedListRemove(&processList, (void *) proc);
+	if (status < 0)
+		return (status);
 
 	// Done
 	return (status = 0);
 }
 
 
-static int createTaskStateSegment(kernelProcess *theProcess)
+static int createTaskStateSegment(kernelProcess *proc)
 {
 	// This function will create a TSS (Task State Segment) for a new process
 	// based on the attributes of the process.  This function relies on the
@@ -335,16 +344,16 @@ static int createTaskStateSegment(kernelProcess *theProcess)
 
 	int status = 0;
 
-	// Get a free descriptor for the process' TSS
-	status = kernelDescriptorRequest(&theProcess->tssSelector);
-	if ((status < 0) || !theProcess->tssSelector)
+	// Get a free descriptor for the process's TSS
+	status = kernelDescriptorRequest(&proc->tssSelector);
+	if ((status < 0) || !proc->tssSelector)
 		// Crap.  An error getting a free descriptor.
 		return (status);
 
-	// Fill in the process' Task State Segment descriptor
+	// Fill in the process's Task State Segment descriptor
 	status = kernelDescriptorSet(
-		theProcess->tssSelector,	// TSS selector number
-		&theProcess->taskStateSegment, // Starts at...
+		proc->tssSelector,			// TSS selector number
+		&proc->taskStateSegment, 	// Starts at...
 		sizeof(kernelTSS),			// Limit of a TSS segment
 		1,							// Present in memory
 		PRIVILEGE_SUPERVISOR,		// TSSs are supervisor privilege level
@@ -355,7 +364,7 @@ static int createTaskStateSegment(kernelProcess *theProcess)
 	if (status < 0)
 	{
 		// Crap.  An error getting a free descriptor.
-		kernelDescriptorRelease(theProcess->tssSelector);
+		kernelDescriptorRelease(proc->tssSelector);
 		return (status);
 	}
 
@@ -363,46 +372,43 @@ static int createTaskStateSegment(kernelProcess *theProcess)
 	// of this will be different depending on whether this is a user or
 	// supervisor mode process
 
-	memset((void *) &theProcess->taskStateSegment, 0, sizeof(kernelTSS));
+	memset((void *) &proc->taskStateSegment, 0, sizeof(kernelTSS));
 
 	// Set the IO bitmap's offset
-	theProcess->taskStateSegment.IOMapBase = IOBITMAP_OFFSET;
+	proc->taskStateSegment.IOMapBase = IOBITMAP_OFFSET;
 
-	if (theProcess->processorPrivilege == PRIVILEGE_SUPERVISOR)
+	if (proc->processorPrivilege == PRIVILEGE_SUPERVISOR)
 	{
-		theProcess->taskStateSegment.CS = PRIV_CODE;
-		theProcess->taskStateSegment.DS = PRIV_DATA;
-		theProcess->taskStateSegment.SS = PRIV_STACK;
+		proc->taskStateSegment.CS = PRIV_CODE;
+		proc->taskStateSegment.DS = PRIV_DATA;
+		proc->taskStateSegment.SS = PRIV_STACK;
 	}
 	else
 	{
-		theProcess->taskStateSegment.CS = USER_CODE;
-		theProcess->taskStateSegment.DS = USER_DATA;
-		theProcess->taskStateSegment.SS = USER_STACK;
+		proc->taskStateSegment.CS = USER_CODE;
+		proc->taskStateSegment.DS = USER_DATA;
+		proc->taskStateSegment.SS = USER_STACK;
 
 		// Turn off access to all I/O ports by default
-		memset((void *) theProcess->taskStateSegment.IOMap, 0xFF,
-			PORTS_BYTES);
+		memset((void *) proc->taskStateSegment.IOMap, 0xFF, PORTS_BYTES);
 	}
 
 	// All other data segments same as DS
-	theProcess->taskStateSegment.ES = theProcess->taskStateSegment.FS =
-		theProcess->taskStateSegment.GS = theProcess->taskStateSegment.DS;
+	proc->taskStateSegment.ES = proc->taskStateSegment.FS =
+		proc->taskStateSegment.GS = proc->taskStateSegment.DS;
 
-	theProcess->taskStateSegment.ESP = ((unsigned) theProcess->userStack +
-		(theProcess->userStackSize - sizeof(void *)));
+	proc->taskStateSegment.ESP = ((unsigned) proc->userStack +
+		(proc->userStackSize - sizeof(void *)));
 
-	if (theProcess->processorPrivilege != PRIVILEGE_SUPERVISOR)
+	if (proc->processorPrivilege != PRIVILEGE_SUPERVISOR)
 	{
-		theProcess->taskStateSegment.SS0 = PRIV_STACK;
-		theProcess->taskStateSegment.ESP0 = ((unsigned)
-			theProcess->superStack + (theProcess->superStackSize -
-				sizeof(int)));
+		proc->taskStateSegment.SS0 = PRIV_STACK;
+		proc->taskStateSegment.ESP0 = ((unsigned) proc->superStack +
+			(proc->superStackSize - sizeof(int)));
 	}
 
-	theProcess->taskStateSegment.EFLAGS = 0x00000202; // Interrupts enabled
-	theProcess->taskStateSegment.CR3 = (unsigned)
-		theProcess->pageDirectory->physical;
+	proc->taskStateSegment.EFLAGS = 0x00000202; // Interrupts enabled
+	proc->taskStateSegment.CR3 = (unsigned) proc->pageDirectory->physical;
 
 	// All remaining values will be NULL from initialization.  Note that this
 	// includes the EIP.
@@ -415,15 +421,15 @@ static int createTaskStateSegment(kernelProcess *theProcess)
 static int createNewProcess(const char *name, int priority, int privilege,
 	processImage *execImage, int newPageDir)
 {
-	// This function is used to create a new process in the process queue.  It
-	// makes a "defaults" kind of process -- it sets up all of the process'
+	// This function is used to create a new process in the process list.  It
+	// makes a "defaults" kind of process -- it sets up all of the process's
 	// attributes with default values.  If the calling process wants something
 	// different, it should reset those attributes afterward.  If successful,
 	// it returns the processId of the new process.  Otherwise, it returns
 	// negative.
 
 	int status = 0;
-	kernelProcess *newProcess = NULL;
+	kernelProcess *proc = NULL;
 	void *stackMemoryAddr = NULL;
 	unsigned physicalCodeData = 0;
 	int argMemorySize = 0;
@@ -439,43 +445,42 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	// have done this already.
 
 	// We need to see if we can get some fresh process control memory
-	status = requestProcess(&newProcess);
+	status = requestProcess(&proc);
 	if (status < 0)
 		return (status);
 
-	if (!newProcess)
+	if (!proc)
 	{
 		kernelError(kernel_error, "New process structure is NULL");
 		return (status = ERR_NOFREE);
 	}
 
 	// Ok, we got a new, fresh process.  We need to start filling in some of
-	// the process' data (after initializing it, of course)
-	memset((void *) newProcess, 0, sizeof(kernelProcess));
+	// the process's data (after initializing it, of course)
+	memset((void *) proc, 0, sizeof(kernelProcess));
 
 	// Fill in the process name
-	strncpy((char *) newProcess->name, name, MAX_PROCNAME_LENGTH);
-	newProcess->name[MAX_PROCNAME_LENGTH - 1] = '\0';
+	strncpy((char *) proc->name, name, MAX_PROCNAME_LENGTH);
+	proc->name[MAX_PROCNAME_LENGTH] = '\0';
 
 	// Copy the process image data
-	memcpy((processImage *) &newProcess->execImage, &execImage,
+	memcpy((processImage *) &proc->execImage, &execImage,
 		sizeof(processImage));
 
-	// Fill in the process' Id number
-	newProcess->processId = processIdCounter++;
+	// Fill in the process's Id number
+	proc->processId = processIdCounter++;
 
-	// By default, the type is process
-	newProcess->type = proc_normal;
+	// By default, the type is a normal process
+	proc->type = proc_normal;
 
 	// Now, if the process Id is KERNELPROCID, then we are creating the kernel
 	// process, and it will be its own parent.  Otherwise, get the current
 	// process and make IT be the parent of this new process
-	if (newProcess->processId == KERNELPROCID)
+	if (proc->processId == KERNELPROCID)
 	{
-		newProcess->parentProcessId = newProcess->processId;
-		newProcess->userId = 1;   // Admin
+		proc->parentProcessId = proc->processId;
 		// Give it "/" as current working directory
-		strncpy((char *) newProcess->currentDirectory, "/", 2);
+		strncpy((char *) proc->currentDirectory, "/", 2);
 	}
 	else
 	{
@@ -487,37 +492,37 @@ static int createNewProcess(const char *name, int priority, int privilege,
 			goto out;
 		}
 
-		// Fill in the process' parent Id number
-		newProcess->parentProcessId = kernelCurrentProcess->processId;
-		// Fill in the process' user Id number
-		newProcess->userId = kernelCurrentProcess->userId;
+		// Inherit the parent process's user session (if any)
+		proc->session = kernelCurrentProcess->session;
+		// Fill in the process's parent Id number
+		proc->parentProcessId = kernelCurrentProcess->processId;
 		// Fill in the current working directory
-		strncpy((char *) newProcess->currentDirectory,
+		strncpy((char *) proc->currentDirectory,
 			(char *) kernelCurrentProcess->currentDirectory, MAX_PATH_LENGTH);
-		newProcess->currentDirectory[MAX_PATH_LENGTH - 1] = '\0';
+		proc->currentDirectory[MAX_PATH_LENGTH] = '\0';
 	}
 
-	// Fill in the process' priority level
-	newProcess->priority = priority;
+	// Fill in the process's priority level
+	proc->priority = priority;
 
-	// Fill in the process' privilege level
-	newProcess->privilege = privilege;
+	// Fill in the process's privilege level
+	proc->privilege = privilege;
 
-	// Fill in the process' processor privilege level.  The kernel and its
+	// Fill in the process's processor privilege level.  The kernel and its
 	// threads get PRIVILEGE_SUPERVISOR, all others get PRIVILEGE_USER.
 	if (execImage->virtualAddress >= (void *) KERNEL_VIRTUAL_ADDRESS)
-		newProcess->processorPrivilege = PRIVILEGE_SUPERVISOR;
+		proc->processorPrivilege = PRIVILEGE_SUPERVISOR;
 	else
-		newProcess->processorPrivilege = PRIVILEGE_USER;
+		proc->processorPrivilege = PRIVILEGE_USER;
 
 	// The thread's initial state will be "stopped"
-	newProcess->state = proc_stopped;
+	proc->state = proc_stopped;
 
-	// Add the process to the process queue so we can continue whilst doing
+	// Add the process to the process list so we can continue whilst doing
 	// things like changing memory ownerships
-	status = addProcessToQueue(newProcess);
+	status = addProcessToList(proc);
 	if (status < 0)
-		// Not able to queue the process.
+		// Not able to add the process
 		goto out;
 
 	// Do we need to create a new page directory and a set of page tables for
@@ -535,9 +540,8 @@ static int createNewProcess(const char *name, int priority, int privilege,
 		}
 
 		// We need to make a new page directory, etc.
-		newProcess->pageDirectory =
-			kernelPageNewDirectory(newProcess->processId);
-		if (!newProcess->pageDirectory)
+		proc->pageDirectory = kernelPageNewDirectory(proc->processId);
+		if (!proc->pageDirectory)
 		{
 			// Not able to setup a page directory
 			status = ERR_NOVIRTUAL;
@@ -545,36 +549,36 @@ static int createNewProcess(const char *name, int priority, int privilege,
 		}
 
 		// Get the physical address of the code/data
-		physicalCodeData = kernelPageGetPhysical(newProcess->parentProcessId,
+		physicalCodeData = kernelPageGetPhysical(proc->parentProcessId,
 			execImage->code);
 
 		// Make the process own its code/data memory.  Don't remap it yet
 		// because we want to map it at the requested virtual address.
-		status = kernelMemoryChangeOwner(newProcess->parentProcessId,
-			newProcess->processId, 0, execImage->code, NULL);
+		status = kernelMemoryChangeOwner(proc->parentProcessId,
+			proc->processId, 0, execImage->code, NULL);
 		if (status < 0)
 			// Couldn't make the process own its memory
 			goto out;
 
 		// Remap the code/data to the requested virtual address.
-		status = kernelPageMap(newProcess->processId, physicalCodeData,
+		status = kernelPageMap(proc->processId, physicalCodeData,
 			execImage->virtualAddress, execImage->imageSize);
 		if (status < 0)
 			// Couldn't map the process memory
 			goto out;
 
 		// Code should be read-only
-		status = kernelPageSetAttrs(newProcess->processId, 0,
-			PAGEFLAG_WRITABLE, execImage->virtualAddress, execImage->codeSize);
+		status = kernelPageSetAttrs(proc->processId, 0, PAGEFLAG_WRITABLE,
+			execImage->virtualAddress, execImage->codeSize);
 		if (status < 0)
 			goto out;
 	}
 	else
 	{
 		// This process will share a page directory with its parent
-		newProcess->pageDirectory = kernelPageShareDirectory(
-			newProcess->parentProcessId, newProcess->processId);
-		if (!newProcess->pageDirectory)
+		proc->pageDirectory = kernelPageShareDirectory(proc->parentProcessId,
+			proc->processId);
+		if (!proc->pageDirectory)
 		{
 			status = ERR_NOVIRTUAL;
 			goto out;
@@ -582,12 +586,12 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	}
 
 	// Give the process a stack
-	newProcess->userStackSize = DEFAULT_STACK_SIZE;
-	if (newProcess->processorPrivilege != PRIVILEGE_SUPERVISOR)
-		newProcess->superStackSize = DEFAULT_SUPER_STACK_SIZE;
+	proc->userStackSize = DEFAULT_STACK_SIZE;
+	if (proc->processorPrivilege != PRIVILEGE_SUPERVISOR)
+		proc->superStackSize = DEFAULT_SUPER_STACK_SIZE;
 
-	stackMemoryAddr = kernelMemoryGet((newProcess->userStackSize +
-		newProcess->superStackSize), "process stack");
+	stackMemoryAddr = kernelMemoryGet((proc->userStackSize +
+		proc->superStackSize), "process stack");
 	if (!stackMemoryAddr)
 	{
 		// We couldn't make a stack for the new process.  Maybe the system
@@ -596,7 +600,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
 		goto out;
 	}
 
-	// Copy 'argc' and 'argv' arguments to the new process' stack while we
+	// Copy 'argc' and 'argv' arguments to the new process's stack while we
 	// still own the stack memory.
 
 	// Calculate the amount of memory we need to allocate for argument data.
@@ -621,8 +625,8 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	// Change ownership to the new process.  If it has its own page directory,
 	// renap, and share it back with this process.
 
-	if (kernelMemoryChangeOwner(newProcess->parentProcessId,
-		newProcess->processId, (newPageDir? 1 : 0 /* remap */), argMemory,
+	if (kernelMemoryChangeOwner(proc->parentProcessId, proc->processId,
+		(newPageDir? 1 : 0 /* remap */), argMemory,
 		(newPageDir? (void **) &newArgPtr : NULL /* newVirtual */)) < 0)
 	{
 		status = ERR_MEMORY;
@@ -631,8 +635,8 @@ static int createNewProcess(const char *name, int priority, int privilege,
 
 	if (newPageDir)
 	{
-		if (kernelMemoryShare(newProcess->processId,
-			newProcess->parentProcessId, newArgPtr, (void **) &argMemory) < 0)
+		if (kernelMemoryShare(proc->processId, proc->parentProcessId,
+			newArgPtr, (void **) &argMemory) < 0)
 		{
 			status = ERR_MEMORY;
 			goto out;
@@ -646,8 +650,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	oldArgPtr = argMemory;
 
 	// Set pointers to the beginning stack location for the arguments
-	stackArgs = (stackMemoryAddr + newProcess->userStackSize -
-		(2 * sizeof(int)));
+	stackArgs = (stackMemoryAddr + proc->userStackSize - (2 * sizeof(int)));
 	stackArgs[0] = execImage->argc;
 	stackArgs[1] = (int) newArgPtr;
 
@@ -673,14 +676,13 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	if (newPageDir)
 	{
 		// Unmap the argument space from this process
-		kernelPageUnmap(newProcess->parentProcessId, argMemory, argMemorySize);
+		kernelPageUnmap(proc->parentProcessId, argMemory, argMemorySize);
 		argMemory = NULL;
 	}
 
 	// Make the process own its stack memory
-	status = kernelMemoryChangeOwner(newProcess->parentProcessId,
-		newProcess->processId, 1 /* remap */, stackMemoryAddr,
-		(void **) &newProcess->userStack);
+	status = kernelMemoryChangeOwner(proc->parentProcessId, proc->processId,
+		1 /* remap */, stackMemoryAddr, (void **) &proc->userStack);
 	if (status < 0)
 		// Couldn't make the process own its stack memory
 		goto out;
@@ -690,42 +692,42 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	// Make the topmost page of the user stack privileged, so that we have
 	// have a 'guard page' that produces a page fault in case of (userspace)
 	// stack overflow
-	kernelPageSetAttrs(newProcess->processId, 0 /* clear */, PAGEFLAG_USER,
-		newProcess->userStack, MEMORY_PAGE_SIZE);
+	kernelPageSetAttrs(proc->processId, 0 /* clear */, PAGEFLAG_USER,
+		proc->userStack, MEMORY_PAGE_SIZE);
 
-	if (newProcess->processorPrivilege != PRIVILEGE_SUPERVISOR)
+	if (proc->processorPrivilege != PRIVILEGE_SUPERVISOR)
 	{
 		// Get the new virtual address of supervisor stack
-		newProcess->superStack = (newProcess->userStack + DEFAULT_STACK_SIZE);
+		proc->superStack = (proc->userStack + DEFAULT_STACK_SIZE);
 
 		// Make the entire supervisor stack privileged
-		kernelPageSetAttrs(newProcess->processId, 0, PAGEFLAG_USER,
-			newProcess->superStack, newProcess->superStackSize);
+		kernelPageSetAttrs(proc->processId, 0, PAGEFLAG_USER,
+			proc->superStack, proc->superStackSize);
 	}
 
 	// Create the TSS (Task State Segment) for this process.
-	status = createTaskStateSegment(newProcess);
+	status = createTaskStateSegment(proc);
 	if (status < 0)
 		// Not able to create the TSS
 		goto out;
 
 	// Adjust the stack pointer to account for the arguments that we copied to
-	// the process' stack
-	newProcess->taskStateSegment.ESP -= sizeof(int);
+	// the process's stack
+	proc->taskStateSegment.ESP -= sizeof(int);
 
 	// Set the EIP to the entry point
-	newProcess->taskStateSegment.EIP = (unsigned) execImage->entryPoint;
+	proc->taskStateSegment.EIP = (unsigned) execImage->entryPoint;
 
 	// Get memory for the user process environment structure
-	newProcess->environment = kernelMalloc(sizeof(variableList));
-	if (!newProcess->environment)
+	proc->environment = kernelMalloc(sizeof(variableList));
+	if (!proc->environment)
 	{
 		status = ERR_MEMORY;
 		goto out;
 	}
 
 	// Return the processId on success.
-	status = newProcess->processId;
+	status = proc->processId;
 
 out:
 	if (status < 0)
@@ -736,15 +738,15 @@ out:
 		if (argMemory)
 			kernelMemoryRelease(argMemory);
 
-		removeProcessFromQueue(newProcess);
-		releaseProcess(newProcess);
+		removeProcessFromList(proc);
+		releaseProcess(proc);
 	}
 
 	return (status);
 }
 
 
-static int deleteProcess(kernelProcess *killProcess)
+static int deleteProcess(kernelProcess *proc)
 {
 	// Does all the work of actually destroyng a process when there's really
 	// no more use for it.  This occurs after all descendent threads have
@@ -753,18 +755,18 @@ static int deleteProcess(kernelProcess *killProcess)
 	int status = 0;
 
 	// Processes cannot delete themselves
-	if (killProcess == kernelCurrentProcess)
+	if (proc == kernelCurrentProcess)
 	{
 		kernelError(kernel_error, "Process %d cannot delete itself",
-			killProcess->processId);
+			proc->processId);
 		return (status = ERR_INVALID);
 	}
 
 	// We need to deallocate the TSS descriptor allocated to the process, if
 	// it has one
-	if (killProcess->tssSelector)
+	if (proc->tssSelector)
 	{
-		status = kernelDescriptorRelease(killProcess->tssSelector);
+		status = kernelDescriptorRelease(proc->tssSelector);
 		if (status < 0)
 		{
 			// If this was unsuccessful, we don't want to continue and "lose"
@@ -775,11 +777,11 @@ static int deleteProcess(kernelProcess *killProcess)
 	}
 
 	// If the process has a signal stream, destroy it
-	if (killProcess->signalStream.buffer)
-		kernelStreamDestroy(&killProcess->signalStream);
+	if (proc->signalStream.buffer)
+		kernelStreamDestroy(&proc->signalStream);
 
 	// Deallocate all memory owned by this process
-	status = kernelMemoryReleaseAllByProcId(killProcess->processId);
+	status = kernelMemoryReleaseAllByProcId(proc->processId);
 	if (status < 0)
 	{
 		// If this deallocation was unsuccessful, we don't want to deallocate
@@ -789,7 +791,7 @@ static int deleteProcess(kernelProcess *killProcess)
 	}
 
 	// Delete the page table we created for this process
-	status = kernelPageDeleteDirectory(killProcess->processId);
+	status = kernelPageDeleteDirectory(proc->processId);
 	if (status < 0)
 	{
 		// If this deletion was unsuccessful, we don't want to deallocate the
@@ -801,9 +803,11 @@ static int deleteProcess(kernelProcess *killProcess)
 
 	// If this is a normal process and it has an environment memory structure,
 	// deallocate it (threads share environment with their parents).
-	if ((killProcess->type == proc_normal) && killProcess->environment)
+	if ((proc->type == proc_normal) && proc->environment)
 	{
-		status = kernelFree(killProcess->environment);
+		variableListDestroy(proc->environment);
+
+		status = kernelFree(proc->environment);
 		if (status < 0)
 		{
 			kernelError(kernel_error, "Can't release environment structure");
@@ -813,9 +817,9 @@ static int deleteProcess(kernelProcess *killProcess)
 
 	// If this is a normal process and there's a symbol table for it,
 	// deallocate the table (threads share tables with their parents).
-	if ((killProcess->type == proc_normal) && killProcess->symbols)
+	if ((proc->type == proc_normal) && proc->symbols)
 	{
-		status = kernelFree(killProcess->symbols);
+		status = kernelFree(proc->symbols);
 		if (status < 0)
 		{
 			kernelError(kernel_error, "Can't release symbol table");
@@ -824,20 +828,20 @@ static int deleteProcess(kernelProcess *killProcess)
 	}
 
 	// If this process was using the FPU, it's not any more.
-	if (fpuProcess == killProcess)
+	if (fpuProcess == proc)
 		fpuProcess = NULL;
 
-	// Remove the process from the multitasker's process queue.
-	status = removeProcessFromQueue(killProcess);
+	// Remove the process from the multitasker's process list
+	status = removeProcessFromList(proc);
 	if (status < 0)
 	{
 		// Not able to remove the process
-		kernelError(kernel_error, "Can't dequeue process");
+		kernelError(kernel_error, "Can't delist process");
 		return (status);
 	}
 
 	// Finally, release the process structure
-	status = releaseProcess(killProcess);
+	status = releaseProcess(proc);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Can't release process structure");
@@ -857,14 +861,14 @@ static void exceptionHandler(void)
 	// woken up.
 
 	int status = 0;
-	kernelProcess *targetProc = NULL;
+	kernelProcess *proc = NULL;
 	char *message = NULL;
 	char *details = NULL;
 	const char *symbolName = NULL;
 	const char *kernOrApp = NULL;
 
-	message = kernelMalloc(MAXSTRINGLENGTH);
-	details = kernelMalloc(MAXSTRINGLENGTH);
+	message = kernelMalloc(MAXSTRINGLENGTH + 1);
+	details = kernelMalloc(MAXSTRINGLENGTH + 1);
 	if (!message || !details)
 	{
 		status = ERR_MEMORY;
@@ -875,12 +879,12 @@ static void exceptionHandler(void)
 	{
 		// We got an exception.
 
-		targetProc = kernelCurrentProcess;
+		proc = kernelCurrentProcess;
 		kernelCurrentProcess = exceptionProc;
 
 		if (multitaskingEnabled)
 		{
-			if (!targetProc)
+			if (!proc)
 			{
 				// We have to make an error here.  We can't return to the
 				// program that caused the exception, and we can't tell the
@@ -890,14 +894,14 @@ static void exceptionHandler(void)
 			}
 			else
 			{
-				targetProc->state = proc_stopped;
+				proc->state = proc_stopped;
 			}
 		}
 
-		if (!multitaskingEnabled || (targetProc == kernelProc))
+		if (!multitaskingEnabled || (proc == kernelProc))
 			sprintf(message, "The kernel has experienced");
 		else
-			sprintf(message, "Process \"%s\" caused", targetProc->name);
+			sprintf(message, "Process \"%s\" caused", proc->name);
 
 		sprintf((message + strlen(message)), " %s %s exception",
 			exceptionVector[processingException].a,
@@ -911,8 +915,8 @@ static void exceptionHandler(void)
 		if (multitaskingEnabled)
 		{
 			// Find roughly the symbolic address where the exception happened
-			symbolName = kernelLookupClosestSymbol(targetProc,
-				(void *) exceptionAddress);
+			symbolName = kernelLookupClosestSymbol(proc, (void *)
+				exceptionAddress);
 		}
 
 		if (symbolName)
@@ -944,31 +948,31 @@ static void exceptionHandler(void)
 		if (multitaskingEnabled)
 		{
 			// Get process info
-			debugTSS(targetProc, details, MAXSTRINGLENGTH);
+			debugTSS(proc, details, MAXSTRINGLENGTH);
 
 			// Try a stack trace
-			kernelStackTrace(targetProc, (details + strlen(details)),
+			kernelStackTrace(proc, (details + strlen(details)),
 				(MAXSTRINGLENGTH - strlen(details)));
 
 			// Output to the console
 			kernelTextPrintLine("%s", details);
 		}
 
-		if (!multitaskingEnabled || (targetProc == kernelProc))
+		if (!multitaskingEnabled || (proc == kernelProc))
 			// If it's the kernel, we're finished
 			kernelPanic("%s", message);
 
 		// If we're in graphics mode, make an error dialog (but don't get into
 		// an endless loop if the crashed process was an error dialog thread
 		// itself).
-		if (kernelGraphicsAreEnabled() && strcmp((char *) targetProc->name,
+		if (kernelGraphicsAreEnabled() && strcmp((char *) proc->name,
 			ERRORDIALOG_THREADNAME))
 		{
 			kernelErrorDialog("Application Exception", message, details);
 		}
 
 		// The scheduler may now dismantle the process
-		targetProc->state = proc_finished;
+		proc->state = proc_finished;
 
 		kernelInterruptClearCurrent();
 		processingException = 0;
@@ -998,8 +1002,8 @@ static int spawnExceptionThread(void)
 	int procId = 0;
 
 	// Create the kernel's exception handler thread.
-	procId = kernelMultitaskerSpawn(&exceptionHandler, "exception thread", 0,
-		NULL);
+	procId = kernelMultitaskerSpawn(&exceptionHandler, "exception thread",
+		0 /* no args */, NULL /* no args */, 0 /* don't run */);
 	if (procId < 0)
 		return (status = procId);
 
@@ -1034,12 +1038,13 @@ static int spawnExceptionThread(void)
 __attribute__((noreturn))
 static void idleThread(void)
 {
-	// This is the idle task.  It runs in this loop whenever no other
+	// This is the idle thread.  It runs in this loop whenever no other
 	// processes need the CPU.  This should be run at the absolute lowest
-	// possible priority so that it will not be run unless there is absolutely
-	// nothing else in the other queues that is ready.
+	// possible priority so that it will not be chosen to run unless there is
+	// nothing else.
 
-	int count;
+	kernelProcess *proc = NULL;
+	linkedListItem *iter = NULL;
 
 	while (1)
 	{
@@ -1048,13 +1053,18 @@ static void idleThread(void)
 
 		// Loop through the process list looking for any that have changed
 		// state to "I/O ready".
-		for (count = 0; count < numQueued; count ++)
+
+		proc = linkedListIterStart(&processList, &iter);
+
+		while (proc)
 		{
-			if (processQueue[count]->state == proc_ioready)
+			if (proc->state == proc_ioready)
 			{
 				kernelMultitaskerYield();
 				break;
 			}
+
+			proc = linkedListIterNext(&processList, &iter);
 		}
 	}
 }
@@ -1069,7 +1079,8 @@ static int spawnIdleThread(void)
 	int idleProcId = 0;
 
 	// The idle thread needs to be a child of the kernel
-	idleProcId = kernelMultitaskerSpawn(idleThread, "idle thread", 0, NULL);
+	idleProcId = kernelMultitaskerSpawn(idleThread, "idle thread",
+		0 /* no args */, NULL /* no args */, 1 /* run */);
 	if (idleProcId < 0)
 		return (idleProcId);
 
@@ -1165,18 +1176,18 @@ static int schedulerShutdown(void)
 
 static kernelProcess *chooseNextProcess(void)
 {
-	// Loops through the process queue, and determines which process to run
+	// Loops through the process list, and determines which process to run
 	// next
 
 	unsigned long long theTime = 0;
-	kernelProcess *miscProcess = NULL;
-	kernelProcess *nextProcess = NULL;
+	kernelProcess *miscProc = NULL;
+	kernelProcess *nextProc = NULL;
+	linkedListItem *iter = NULL;
 	unsigned processWeight = 0;
 	unsigned topProcessWeight = 0;
-	int count;
 
-	// Here is where we make decisions about which tasks to schedule, and when.
-	// Below is a brief description of the scheduling algorithm.
+	// Here is where we make decisions about which tasks to schedule, and
+	// when.  Below is a brief description of the scheduling algorithm.
 
 	// Priority level 0 (highest-priority) processes will be "real time"
 	// scheduled.  When there are any processes running and ready at this
@@ -1238,79 +1249,73 @@ static kernelProcess *chooseNextProcess(void)
 	// give higher-priority processes no advantage over lower-priority, and
 	// waiting time would determine execution order.
 	//
-	// A tie beteen the highest-weighted tasks is broken based on queue order.
-	// The queue is neither FIFO nor LIFO, but closer to LIFO.
+	// A tie beteen the highest-weighted tasks is broken based on list order.
+	// The list is neither FIFO nor LIFO (it's unordered), but closer to LIFO.
 
 	// Get the CPU time
 	theTime = kernelCpuGetMs();
 
-	for (count = 0; count < numQueued; count ++)
-	{
-		// Get a pointer to the process' main process
-		miscProcess = processQueue[count];
+	miscProc = linkedListIterStart(&processList, &iter);
 
-		if (miscProcess->state == proc_waiting)
+	while (miscProc)
+	{
+		if (miscProc->state == proc_waiting)
 		{
 			// This will change the state of a waiting process to "ready"
 			// if the specified "waiting reason" has come to pass
 
 			// If the process is waiting for a specified time.  Has the
 			// requested time come?
-			if (miscProcess->waitUntil && (miscProcess->waitUntil < theTime))
+			if (miscProc->waitUntil && (miscProc->waitUntil < theTime))
 			{
 				// The process is ready to run
-				miscProcess->state = proc_ready;
+				miscProc->state = proc_ready;
 			}
 			else
 			{
 				// The process must continue waiting
-				continue;
+				goto checkNext;
 			}
 		}
 
-		if (miscProcess->state == proc_finished)
+		if (miscProc->state == proc_finished)
 		{
 			// This will dismantle any process that has identified itself as
-			// finished
-			kernelMultitaskerKillProcess(miscProcess->processId, 0);
-
-			// This removed it from the queue and placed another process in
-			// its place.  Decrement the current loop counter
-			count--;
-
-			continue;
+			// finished, and remove it from the list.
+			kernelMultitaskerKillProcess(miscProc->processId, 0);
+			goto checkNext;
 		}
 
-		if ((miscProcess->state != proc_ready) &&
-			(miscProcess->state != proc_ioready))
+		if ((miscProc->state != proc_ready) &&
+			(miscProc->state != proc_ioready))
 		{
 			// This process is not ready (might be stopped, sleeping, or
 			// zombie)
-			continue;
+			goto checkNext;
 		}
 
 		// This process is ready to run.  Determine its weight.
 
-		if (!miscProcess->priority)
+		if (!miscProc->priority)
 		{
 			// If the process is of the highest (real-time) priority, it
 			// should get an infinite weight
 			processWeight = 0xFFFFFFFF;
 		}
-		else if (miscProcess->priority == (PRIORITY_LEVELS - 1))
+		else if (miscProc->priority == (PRIORITY_LEVELS - 1))
 		{
 			// Else if the process is of the lowest priority, it should get a
 			// weight of zero
 			processWeight = 0;
 		}
-		else if (miscProcess->state == proc_ioready)
+		else if (miscProc->state == proc_ioready)
 		{
 			// If this process was waiting for I/O which has now arrived, give
 			// it a high (1) temporary priority level
 			processWeight = (((PRIORITY_LEVELS - 1) * PRIORITY_RATIO) +
-				miscProcess->waitTime);
+				miscProc->waitTime);
 		}
-		else if (schedulerSwitchedByCall && (miscProcess->lastSlice ==
+		else if (schedulerSwitchedByCall && (miscProc->lastSlice ==
 			schedulerTimeslices))
 		{
 			// If this process has yielded this timeslice already, we should
@@ -1322,8 +1327,8 @@ static kernelProcess *chooseNextProcess(void)
 		{
 			// Otherwise, calculate the weight of this task, using the
 			// algorithm described above
-			processWeight = (((PRIORITY_LEVELS - miscProcess->priority) *
-				PRIORITY_RATIO) + miscProcess->waitTime);
+			processWeight = (((PRIORITY_LEVELS - miscProc->priority) *
+				PRIORITY_RATIO) + miscProc->waitTime);
 		}
 
 		// Did this process win?
@@ -1332,35 +1337,38 @@ static kernelProcess *chooseNextProcess(void)
 		{
 			// No.  Increase the waiting time of this process, since it's not
 			// the one we're selecting
-			miscProcess->waitTime += 1;
+			miscProc->waitTime += 1;
 		}
 		else
 		{
-			if (nextProcess)
+			if (nextProc)
 			{
 				if ((processWeight == topProcessWeight) &&
-					(nextProcess->waitTime >= miscProcess->waitTime))
+					(nextProc->waitTime >= miscProc->waitTime))
 				{
-					// If the process' weight is tied with that of the
+					// If the process's weight is tied with that of the
 					// previously winning process, it will NOT win if the
 					// other process has been waiting as long or longer
-					miscProcess->waitTime += 1;
-					continue;
+					miscProc->waitTime += 1;
+					goto checkNext;
 				}
 				else
 				{
 					// We have a new winning process.  Increase the waiting
 					// time of the previous winner this one is replacing
-					nextProcess->waitTime += 1;
+					nextProc->waitTime += 1;
 				}
 			}
 
 			topProcessWeight = processWeight;
-			nextProcess = miscProcess;
+			nextProc = miscProc;
 		}
+
+	checkNext:
+		miscProc = linkedListIterNext(&processList, &iter);
 	}
 
-	return (nextProcess);
+	return (nextProc);
 }
 
 
@@ -1368,15 +1376,16 @@ static int scheduler(void)
 {
 	// This is the kernel multitasker's scheduler thread.  This little program
 	// will run continually in a loop, handing out time slices to all
-	// processes, including the kernel itself.
+	// processes, including the kernel itself, initially, before it goes to
+	// sleep.
 
 	// By the time this scheduler is invoked, the kernel should already have
-	// created itself a process in the task queue.  Thus, the scheduler can
+	// created itself a process in the process list.  Thus, the scheduler can
 	// begin by simply handing all time slices to the kernel.
 
 	// Additional processes will be created with calls to the kernel, which
-	// will create them and place them in the queue.  Thus, when the scheduler
-	// regains control after a time slice has expired, the queue of processes
+	// will create them and place them in the list.  Thus, when the scheduler
+	// regains control after a time slice has expired, the list of processes
 	// that it examines will have the new process added.
 
 	int status = 0;
@@ -1385,11 +1394,12 @@ static int scheduler(void)
 	unsigned schedulerTime = 0;
 	unsigned sliceCount = 0;
 	unsigned oldSliceCount = 0;
-	int count;
+	kernelProcess *listProc = NULL;
+	linkedListItem *iter = NULL;
 
 	// This is info about the processes we run
-	kernelProcess *nextProcess = NULL;
-	kernelProcess *previousProcess = NULL;
+	kernelProcess *nextProc = NULL;
+	kernelProcess *prevProc = NULL;
 
 	// Here is the scheduler's big loop
 
@@ -1438,44 +1448,49 @@ static int scheduler(void)
 		}
 
 		// Remember the previous process we ran
-		previousProcess = nextProcess;
+		prevProc = nextProc;
 
-		if (previousProcess)
+		if (prevProc)
 		{
-			if (previousProcess->state == proc_running)
+			if (prevProc->state == proc_running)
 			{
 				// Change the state of the previous process to ready, since it
 				// was interrupted while still on the CPU.
-				previousProcess->state = proc_ready;
+				prevProc->state = proc_ready;
 			}
 
-			// Add the last timeslice to the process' CPU time
-			previousProcess->cpuTime += timeUsed;
+			// Add the last timeslice to the process's CPU time
+			prevProc->cpuTime += timeUsed;
 
 			// Record the current timeslice number, so we can remember when
 			// this process was last active (see chooseNextProcess())
-			previousProcess->lastSlice = schedulerTimeslices;
+			prevProc->lastSlice = schedulerTimeslices;
 		}
 
 		// Every CPU_PERCENT_TIMESLICES timeslices we will update the %CPU
-		// value for each process currently in the queue
+		// value for each process currently in the list
 		if (sliceCount >= CPU_PERCENT_TIMESLICES)
 		{
-			for (count = 0; count < numQueued; count ++)
+			// Calculate the CPU percentage
+
+			listProc = linkedListIterStart(&processList, &iter);
+
+			while (listProc)
 			{
-				// Calculate the CPU percentage.
 				if (!schedulerTime)
 				{
-					processQueue[count]->cpuPercent = 0;
+					listProc->cpuPercent = 0;
 				}
 				else
 				{
-					processQueue[count]->cpuPercent =
-						((processQueue[count]->cpuTime * 100) / schedulerTime);
+					listProc->cpuPercent = ((listProc->cpuTime * 100) /
+						schedulerTime);
 				}
 
-				// Reset the process' cpuTime counter
-				processQueue[count]->cpuTime = 0;
+				// Reset the process's cpuTime counter
+				listProc->cpuTime = 0;
+
+				listProc = linkedListIterNext(&processList, &iter);
 			}
 
 			// Reset the schedulerTime and slice counters
@@ -1484,31 +1499,31 @@ static int scheduler(void)
 
 		if (processingException)
 		{
-			// If we were processing an exception (either the exception process
-			// or another exception handler), keep it active
-			nextProcess = previousProcess;
+			// If we were processing an exception (either the exception
+			// process or another exception handler), keep it active
+			nextProc = prevProc;
 			kernelDebugError("Scheduler interrupt while processing "
 				"exception");
 		}
 		else
 		{
 			// Choose the next process to run
-			nextProcess = chooseNextProcess();
+			nextProc = chooseNextProcess();
 		}
 
 		// We should now have selected a process to run.  If not, we should
 		// re-start the old one.  This should only be likely to happen if some
 		// goombah kills the idle thread.
-		if (!nextProcess)
-			nextProcess = kernelCurrentProcess;
+		if (!nextProc)
+			nextProc = kernelCurrentProcess;
 
 		// Update some info about the next process
-		nextProcess->waitTime = 0;
-		nextProcess->state = proc_running;
+		nextProc->waitTime = 0;
+		nextProc->state = proc_running;
 
 		// Export (to the rest of the multitasker) the pointer to the
 		// currently selected process.
-		kernelCurrentProcess = nextProcess;
+		kernelCurrentProcess = nextProc;
 
 		if (!schedulerSwitchedByCall)
 			// Acknowledge the timer interrupt if one occurred
@@ -1534,8 +1549,8 @@ static int scheduler(void)
 		markTaskBusy(schedulerProc->tssSelector, 0);
 
 		// Mark the next task as not busy and jump to it.
-		markTaskBusy(nextProcess->tssSelector, 0);
-		processorFarJump(nextProcess->tssSelector);
+		markTaskBusy(nextProc->tssSelector, 0);
+		processorFarJump(nextProc->tssSelector);
 
 		// Continue to loop
 	}
@@ -1573,8 +1588,8 @@ static int schedulerInitialize(void)
 
 	schedulerProc = getProcessById(status);
 
-	// The scheduler process doesn't sit in the normal process queue
-	removeProcessFromQueue(schedulerProc);
+	// The scheduler process doesn't sit in the normal process list
+	removeProcessFromList(schedulerProc);
 
 	// Interrupts should always be disabled for this task
 	schedulerProc->taskStateSegment.EFLAGS = 0x00000002;
@@ -1693,71 +1708,70 @@ static int createKernelProcess(void *kernelStack, unsigned kernelStackSize)
 }
 
 
-static void incrementDescendents(kernelProcess *theProcess)
+static void incrementDescendents(kernelProcess *proc)
 {
 	// This will walk up a chain of dependent child threads, incrementing the
 	// descendent count of each parent
 
-	kernelProcess *parentProcess = NULL;
+	kernelProcess *parentProc = NULL;
 
-	if (theProcess->processId == KERNELPROCID)
+	if (proc->processId == KERNELPROCID)
 		// The kernel is its own parent
 		return;
 
-	parentProcess = getProcessById(theProcess->parentProcessId);
-	if (!parentProcess)
+	parentProc = getProcessById(proc->parentProcessId);
+	if (!parentProc)
 		// No worries.  Probably not a problem
 		return;
 
-	parentProcess->descendentThreads++;
+	parentProc->descendentThreads++;
 
-	if (parentProcess->type == proc_thread)
+	if (parentProc->type == proc_thread)
 		// Do a recursion to walk up the chain
-		incrementDescendents(parentProcess);
+		incrementDescendents(parentProc);
 }
 
 
-static void decrementDescendents(kernelProcess *theProcess)
+static void decrementDescendents(kernelProcess *proc)
 {
 	// This will walk up a chain of dependent child threads, decrementing the
 	// descendent count of each parent
 
-	kernelProcess *parentProcess = NULL;
+	kernelProcess *parentProc = NULL;
 
-	if (theProcess->processId == KERNELPROCID)
+	if (proc->processId == KERNELPROCID)
 		// The kernel is its own parent
 		return;
 
-	parentProcess = getProcessById(theProcess->parentProcessId);
-	if (!parentProcess)
+	parentProc = getProcessById(proc->parentProcessId);
+	if (!parentProc)
 		// No worries.  Probably not a problem
 		return;
 
-	parentProcess->descendentThreads--;
+	parentProc->descendentThreads--;
 
-	if (parentProcess->type == proc_thread)
+	if (parentProc->type == proc_thread)
 		// Do a recursion to walk up the chain
-		decrementDescendents(parentProcess);
+		decrementDescendents(parentProc);
 }
 
 
-static void kernelProcess2Process(kernelProcess *kernProcess,
-	process *userProcess)
+static void kernelProcess2Process(kernelProcess *kernProc, process *userProc)
 {
 	// Given a kernel-space process structure, create the corresponding
 	// user-space version.
 
-	strncpy(userProcess->name, (char *) kernProcess->name,
-		MAX_PROCNAME_LENGTH);
-	userProcess->userId = kernProcess->userId;
-	userProcess->processId = kernProcess->processId;
-	userProcess->type = kernProcess->type;
-	userProcess->priority = kernProcess->priority;
-	userProcess->privilege = kernProcess->privilege;
-	userProcess->parentProcessId = kernProcess->parentProcessId;
-	userProcess->descendentThreads = kernProcess->descendentThreads;
-	userProcess->cpuPercent = kernProcess->cpuPercent;
-	userProcess->state = kernProcess->state;
+	strncpy(userProc->name, (char *) kernProc->name, MAX_PROCNAME_LENGTH);
+	strncpy(userProc->userId, (kernProc->session?
+		kernProc->session->name : ""), USER_MAX_NAMELENGTH);
+	userProc->processId = kernProc->processId;
+	userProc->type = kernProc->type;
+	userProc->priority = kernProc->priority;
+	userProc->privilege = kernProc->privilege;
+	userProc->parentProcessId = kernProc->parentProcessId;
+	userProc->descendentThreads = kernProc->descendentThreads;
+	userProc->cpuPercent = kernProc->cpuPercent;
+	userProc->state = kernProc->state;
 }
 
 
@@ -1836,7 +1850,7 @@ static int fpuExceptionHandler(void)
 }
 
 
-static int propagateEnvironmentRecursive(kernelProcess *parentProcess,
+static int propagateEnvironmentRecursive(kernelProcess *parentProc,
 	variableList *srcEnv, const char *variable)
 {
 	// Recursive propagation of the value of environment variables to child
@@ -1846,71 +1860,53 @@ static int propagateEnvironmentRecursive(kernelProcess *parentProcess,
 	// are unaffected.
 
 	int status = 0;
-	kernelProcess *childProcess = NULL;
-	void *childEnvMemory = NULL;
+	kernelProcess *childProc = NULL;
+	linkedListItem *iter = NULL;
 	const char *currentVariable = NULL;
 	const char *value = NULL;
-	int count1, count2;
+	int count;
 
-	for (count1 = 0; count1 < numQueued; count1 ++)
+	childProc = linkedListIterStart(&processList, &iter);
+
+	while (childProc)
 	{
-		if ((processQueue[count1]->type != proc_thread) &&
-			(processQueue[count1]->parentProcessId ==
-				parentProcess->processId))
+		if (childProc->parentProcessId == parentProc->processId)
 		{
-			childProcess = processQueue[count1];
-
-			kernelDebug(debug_multitasker, "Multitasker propagate "
-				"environment from %s to %s", parentProcess->name,
-				childProcess->name);
-
-			// Set variables.
-			for (count2 = 0; count2 < srcEnv->numVariables;	count2 ++)
+			if (childProc->type != proc_thread)
 			{
-				currentVariable = kernelVariableListGetVariable(srcEnv,
-					count2);
+				kernelDebug(debug_multitasker, "Multitasker propagate "
+					"environment from %s to %s", parentProc->name,
+					childProc->name);
 
-				if (!variable || !strcmp(variable, currentVariable))
+				// Set variables.
+				for (count = 0; count < srcEnv->numVariables; count ++)
 				{
-					// We have to do this for every iteration, since the
-					// variable list code might have to expand the memory
-					// allocation.
+					currentVariable = variableListGetVariable(srcEnv, count);
 
-					// Remember the child process' environment memory
-					childEnvMemory = childProcess->environment->memory;
+					if (!variable || !strcmp(variable, currentVariable))
+					{
+						value = variableListGet(srcEnv, currentVariable);
 
-					// Share the child process' environment memory with the
-					// current process.
-					status = kernelMemoryShare(childProcess->processId,
-						kernelCurrentProcess->processId,
-						childProcess->environment->memory,
-						(void **) &childProcess->environment->memory);
-					if (status < 0)
-						// Couldn't share the memory.
-						return (status);
+						if (value)
+						{
+							variableListSet(childProc->environment,
+								currentVariable, value);
+						}
 
-					value = kernelVariableListGet(srcEnv, currentVariable);
-
-					kernelVariableListSet(childProcess->environment,
-						currentVariable, value);
-
-					// Unmap the child process' environment memory from the
-					// current process' address space
-					kernelPageUnmap(kernelCurrentProcess->processId,
-						childProcess->environment->memory,
-						childProcess->environment->memorySize);
-
-					// Restore the child's memory pointer
-					childProcess->environment->memory = childEnvMemory;
+						if (variable)
+							break;
+					}
 				}
 			}
 
-			// Recurse to propagate to the child process' children
-			status = propagateEnvironmentRecursive(childProcess, srcEnv,
+			// Recurse to propagate to the child process's children
+			status = propagateEnvironmentRecursive(childProc, srcEnv,
 				variable);
 			if (status < 0)
 				return (status);
 		}
+
+		childProc = linkedListIterNext(&processList, &iter);
 	}
 
 	return (status = 0);
@@ -1936,9 +1932,8 @@ int kernelMultitaskerInitialize(void *kernelStack, unsigned kernelStackSize)
 	if (multitaskingEnabled)
 		return (status = ERR_ALREADY);
 
-	// Now we must initialize the process queue
-	memset(processQueue, 0, (MAX_PROCESSES * sizeof(kernelProcess *)));
-	numQueued = 0;
+	// Initialize the process list
+	memset(&processList, 0, sizeof(linkedList));
 
 	// Initialize the CPU for floating point operation.  We set
 	// CR0[EM]=0 (no emulation)
@@ -2061,9 +2056,9 @@ void kernelMultitaskerDumpProcessList(void)
 	// process to the output.
 
 	kernelTextOutputStream *currentOutput = NULL;
-	kernelProcess *tmpProcess = NULL;
+	kernelProcess *proc = NULL;
+	linkedListItem *iter = NULL;
 	char buffer[1024];
-	int count;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -2072,23 +2067,22 @@ void kernelMultitaskerDumpProcessList(void)
 	// Get the current output stream
 	currentOutput = kernelTextGetCurrentOutput();
 
-	if (numQueued > 0)
+	if (processList.numItems > 0)
 	{
 		kernelTextStreamPrintLine(currentOutput, "Process list:");
 
-		for (count = 0; count < numQueued; count ++)
-		{
-			tmpProcess = processQueue[count];
+		proc = linkedListIterStart(&processList, &iter);
 
-			sprintf(buffer, "\"%s\"  PID=%d UID=%d priority=%d priv=%d "
+		while (proc)
+		{
+			sprintf(buffer, "\"%s\"  PID=%d UID=%s priority=%d priv=%d "
 				"parent=%d\n        %d%% CPU State=",
-				(char *) tmpProcess->name, tmpProcess->processId,
-				tmpProcess->userId, tmpProcess->priority,
-				tmpProcess->privilege, tmpProcess->parentProcessId,
-				tmpProcess->cpuPercent);
+				(char *) proc->name, proc->processId, (proc->session?
+				proc->session->name : ""), proc->priority, proc->privilege,
+				proc->parentProcessId, proc->cpuPercent);
 
 			// Get the state
-			switch(tmpProcess->state)
+			switch(proc->state)
 			{
 				case proc_running:
 					strcat(buffer, "running");
@@ -2125,6 +2119,8 @@ void kernelMultitaskerDumpProcessList(void)
 			}
 
 			kernelTextStreamPrintLine(currentOutput, buffer);
+
+			proc = linkedListIterNext(&processList, &iter);
 		}
 	}
 	else
@@ -2151,7 +2147,7 @@ int kernelMultitaskerCreateProcess(const char *name, int privilege,
 
 	int status = 0;
 	int processId = 0;
-	kernelProcess *newProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -2174,16 +2170,18 @@ int kernelMultitaskerCreateProcess(const char *name, int privilege,
 	// Create the new process
 	processId = createNewProcess(name, PRIORITY_DEFAULT, privilege, execImage,
 		1 /* create page directory */);
+	if (processId < 0)
+		return (status = processId);
 
 	// Get the pointer to the new process from its process Id
-	newProcess = getProcessById(processId);
-	if (!newProcess)
+	proc = getProcessById(processId);
+	if (!proc)
 		// We couldn't get access to the new process
 		return (status = ERR_NOCREATE);
 
-	// Create the process' environment
-	status = kernelEnvironmentCreate(newProcess->processId,
-		newProcess->environment, kernelCurrentProcess->environment);
+	// Create the process's environment
+	status = kernelEnvironmentCreate(proc->processId, proc->environment,
+		kernelCurrentProcess->environment);
 	if (status < 0)
 		// Couldn't create an environment structure for this process
 		return (status);
@@ -2198,16 +2196,18 @@ int kernelMultitaskerCreateProcess(const char *name, int privilege,
 
 
 int kernelMultitaskerSpawn(void *startAddress, const char *name, int argc,
-	void *argv[])
+	void *argv[], int run)
 {
 	// This function is used to spawn a new thread from the current process.
 	// The function needs to be told the starting address of the code to
-	// execute, and an optional argument to pass to the spawned function.  It
-	// returns the new process Id on success, negative otherwise.
+	// execute, the name to use for the thread, and optional command-line
+	// arguments to pass to the thread.  If 'run' is non-zero, the thread
+	// state will be set to ready.  It returns the new process ID on success,
+	// negative otherwise.
 
 	int status = 0;
 	int processId = 0;
-	kernelProcess *newProcess = NULL;
+	kernelProcess *proc = NULL;
 	processImage execImage;
 	int count;
 
@@ -2246,56 +2246,64 @@ int kernelMultitaskerSpawn(void *startAddress, const char *name, int argc,
 		return (status = processId);
 
 	// Get the pointer to the new process from its process Id
-	newProcess = getProcessById(processId);
+	proc = getProcessById(processId);
 
 	// Make sure it's valid
-	if (!newProcess)
+	if (!proc)
 		// We couldn't get access to the new process
 		return (status = ERR_NOCREATE);
 
 	// Change the type to thread
-	newProcess->type = proc_thread;
+	proc->type = proc_thread;
 
 	// Increment the descendent counts
-	incrementDescendents(newProcess);
+	incrementDescendents(proc);
 
 	// Since we assume that the thread is invoked as a function call, subtract
 	// additional bytes from the stack pointer to account for the space where
 	// the return address would normally go.
-	newProcess->taskStateSegment.ESP -= sizeof(void *);
+	proc->taskStateSegment.ESP -= sizeof(void *);
 
 	// Share the environment of the parent
-	if (newProcess->environment)
-		kernelFree(newProcess->environment);
-	newProcess->environment = kernelCurrentProcess->environment;
+
+	if (proc->environment)
+	{
+		variableListDestroy(proc->environment);
+		kernelFree(proc->environment);
+	}
+
+	proc->environment = kernelCurrentProcess->environment;
 
 	// Share the symbols
-	newProcess->symbols = kernelCurrentProcess->symbols;
+	proc->symbols = kernelCurrentProcess->symbols;
 
 	// The new process should share (but not own) the same text streams as the
 	// parent
 
-	newProcess->textInputStream = kernelCurrentProcess->textInputStream;
+	proc->textInputStream = kernelCurrentProcess->textInputStream;
 
-	if (newProcess->textInputStream)
+	if (proc->textInputStream)
 	{
-		memcpy((void *) &newProcess->oldInputAttrs,
-			(void *) &newProcess->textInputStream->attrs,
+		memcpy((void *) &proc->oldInputAttrs,
+			(void *) &proc->textInputStream->attrs,
 			sizeof(kernelTextInputStreamAttrs));
 	}
 
-	newProcess->textOutputStream = kernelCurrentProcess->textOutputStream;
+	proc->textOutputStream = kernelCurrentProcess->textOutputStream;
 
-	// Make the new thread runnable
-	newProcess->state = proc_ready;
+	if (run)
+	{
+		// Make the new thread runnable
+		proc->state = proc_ready;
+	}
 
-	// Return the new process' Id.
-	return (newProcess->processId);
+	// Return the new process's Id.
+	return (proc->processId);
 }
 
 
 int kernelMultitaskerSpawnKernelThread(void *startAddress, const char *name,
-	int argc, void *argv[])
+	int argc, void *argv[], int run)
 {
 	// This function is a wrapper around the regular spawn() call, which
 	// causes threads to be spawned as children of the kernel, instead of
@@ -2304,14 +2312,14 @@ int kernelMultitaskerSpawnKernelThread(void *startAddress, const char *name,
 
 	int status = 0;
 	int interrupts = 0;
-	kernelProcess *myProcess;
+	kernelProcess *proc;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
 		return (status = ERR_NOTINITIALIZED);
 
 	// What is the current process?
-	myProcess = kernelCurrentProcess;
+	proc = kernelCurrentProcess;
 
 	// Disable interrupts while we're monkeying
 	processorSuspendInts(interrupts);
@@ -2320,10 +2328,10 @@ int kernelMultitaskerSpawnKernelThread(void *startAddress, const char *name,
 	kernelCurrentProcess = kernelProc;
 
 	// Spawn
-	status = kernelMultitaskerSpawn(startAddress, name, argc, argv);
+	status = kernelMultitaskerSpawn(startAddress, name, argc, argv, run);
 
 	// Reset the current process
-	kernelCurrentProcess = myProcess;
+	kernelCurrentProcess = proc;
 
 	// Reenable interrupts
 	processorRestoreInts(interrupts);
@@ -2338,7 +2346,7 @@ int kernelMultitaskerGetProcess(int processId, process *userProcess)
 	// Return the requested process.
 
 	int status = 0;
-	kernelProcess *kernProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -2350,13 +2358,13 @@ int kernelMultitaskerGetProcess(int processId, process *userProcess)
 
 	// Try to match the requested process Id number with a real live process
 	// structure
-	kernProcess = getProcessById(processId);
-	if (!kernProcess)
+	proc = getProcessById(processId);
+	if (!proc)
 		// That means there's no such process
 		return (status = ERR_NOSUCHENTRY);
 
 	// Make it into a user space process
-	kernelProcess2Process(kernProcess, userProcess);
+	kernelProcess2Process(proc, userProcess);
 	return (status = 0);
 }
 
@@ -2367,7 +2375,7 @@ int kernelMultitaskerGetProcessByName(const char *processName,
 	// Return the requested process.
 
 	int status = 0;
-	kernelProcess *kernProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -2379,13 +2387,13 @@ int kernelMultitaskerGetProcessByName(const char *processName,
 
 	// Try to match the requested process Id number with a real live process
 	// structure
-	kernProcess = getProcessByName(processName);
-	if (!kernProcess)
+	proc = getProcessByName(processName);
+	if (!proc)
 		// That means there's no such process
 		return (status = ERR_NOSUCHENTRY);
 
 	// Make it into a user space process
-	kernelProcess2Process(kernProcess, userProcess);
+	kernelProcess2Process(proc, userProcess);
 	return (status = 0);
 }
 
@@ -2395,7 +2403,8 @@ int kernelMultitaskerGetProcesses(void *buffer, unsigned buffSize)
 	// Return user-space process structures into the supplied buffer
 
 	int status = 0;
-	kernelProcess *kernProcess = NULL;
+	kernelProcess *proc = NULL;
+	linkedListItem *iter = NULL;
 	process *userProcess = NULL;
 
 	// Make sure multitasking has been enabled
@@ -2406,14 +2415,20 @@ int kernelMultitaskerGetProcesses(void *buffer, unsigned buffSize)
 	if (!buffer)
 		return (status = ERR_NULLPARAMETER);
 
-	for (status = 0; status < numQueued; status ++)
+	proc = linkedListIterStart(&processList, &iter);
+
+	while (proc)
 	{
-		kernProcess = processQueue[status];
 		userProcess = (buffer + (status * sizeof(process)));
 		if ((void *) userProcess >= (buffer + buffSize))
 			break;
 
-		kernelProcess2Process(kernProcess, userProcess);
+		// Increase the count we're returning
+		status += 1;
+
+		kernelProcess2Process(proc, userProcess);
+
+		proc = linkedListIterNext(&processList, &iter);
 	}
 
 	return (status);
@@ -2442,6 +2457,59 @@ int kernelMultitaskerGetCurrentProcessId(void)
 }
 
 
+userSession *kernelMultitaskerGetProcessUserSession(int processId)
+{
+	userSession *session = NULL;
+	kernelProcess *proc = NULL;
+
+	// Make sure multitasking has been enabled
+	if (!multitaskingEnabled)
+		return (session = NULL);
+
+	// We need to find the process structure based on the process Id
+	proc = getProcessById(processId);
+
+	if (!proc)
+		// The process does not exist
+		return (session = NULL);
+
+	return (proc->session);
+}
+
+
+int kernelMultitaskerSetProcessUserSession(int processId,
+	userSession *session)
+{
+	int status = 0;
+	kernelProcess *proc = NULL;
+
+	// Make sure multitasking has been enabled
+	if (!multitaskingEnabled)
+		return (status = ERR_NOTINITIALIZED);
+
+	// Check params
+	if (!session)
+		return (status = ERR_NULLPARAMETER);
+
+	// We need to find the process structure based on the process Id
+	proc = getProcessById(processId);
+
+	if (!proc)
+		// The process does not exist
+		return (status = ERR_NOSUCHPROCESS);
+
+	// Permission check.  Only a privileged process can change the user
+	// session.
+	if (kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR)
+		return (status = ERR_PERMISSION);
+
+	// Set it
+	proc->session = session;
+
+	return (status = 0);
+}
+
+
 int kernelMultitaskerGetProcessState(int processId, processState *state)
 {
 	// This is a very simple function that can be called by external programs
@@ -2449,7 +2517,7 @@ int kernelMultitaskerGetProcessState(int processId, processState *state)
 	// functions can perform this action very easily themselves.
 
 	int status = 0;
-	kernelProcess *theProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Check params
 	if (!state)
@@ -2470,14 +2538,14 @@ int kernelMultitaskerGetProcessState(int processId, processState *state)
 	}
 
 	// We need to find the process structure based on the process Id
-	theProcess = getProcessById(processId);
+	proc = getProcessById(processId);
 
-	if (!theProcess)
+	if (!proc)
 		// The process does not exist
 		return (status = ERR_NOSUCHPROCESS);
 
 	// Set the state value of the process
-	*state = theProcess->state;
+	*state = proc->state;
 
 	return (status = 0);
 }
@@ -2490,26 +2558,27 @@ int kernelMultitaskerSetProcessState(int processId, processState newState)
 	// functions can perform this action very easily themselves.
 
 	int status = 0;
-	kernelProcess *changeProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
 		return (status = ERR_NOTINITIALIZED);
 
 	// We need to find the process structure based on the process Id
-	changeProcess = getProcessById(processId);
+	proc = getProcessById(processId);
 
-	if (!changeProcess)
+	if (!proc)
 		// The process does not exist
 		return (status = ERR_NOSUCHPROCESS);
 
 	// Permission check.  A privileged process can change the state of any
 	// other process, but a non-privileged process can only change the state
 	// of processes owned by the same user
-	if (kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR)
+	if ((kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR) &&
+		(!kernelCurrentProcess->session || !proc->session ||
+		strcmp(kernelCurrentProcess->session->name, proc->session->name)))
 	{
-		if (kernelCurrentProcess->userId != changeProcess->userId)
-			return (status = ERR_PERMISSION);
+		return (status = ERR_PERMISSION);
 	}
 
 	// Make sure the new state is a legal one
@@ -2532,7 +2601,7 @@ int kernelMultitaskerSetProcessState(int processId, processState newState)
 	}
 
 	// Set the state value of the process
-	changeProcess->state = newState;
+	proc->state = newState;
 
 	return (status);
 }
@@ -2542,7 +2611,7 @@ int kernelMultitaskerProcessIsAlive(int processId)
 {
 	// Returns 1 if a process exists and has not finished (or been terminated)
 
-	kernelProcess *targetProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -2555,10 +2624,10 @@ int kernelMultitaskerProcessIsAlive(int processId)
 
 	// Try to match the requested process Id number with a real live process
 	// structure
-	targetProcess = getProcessById(processId);
+	proc = getProcessById(processId);
 
-	if (targetProcess && (targetProcess->state != proc_finished) &&
-		(targetProcess->state != proc_zombie))
+	if (proc && (proc->state != proc_finished) && (proc->state !=
+		proc_zombie))
 	{
 		return (1);
 	}
@@ -2576,7 +2645,7 @@ int kernelMultitaskerGetProcessPriority(int processId)
 	// perform this action very easily themselves.
 
 	int status = 0;
-	kernelProcess *getProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -2588,16 +2657,16 @@ int kernelMultitaskerGetProcessPriority(int processId)
 	}
 
 	// We need to find the process structure based on the process Id
-	getProcess = getProcessById(processId);
+	proc = getProcessById(processId);
 
-	if (!getProcess)
+	if (!proc)
 		// The process does not exist
 		return (status = ERR_NOSUCHPROCESS);
 
 	// No permission check necessary here
 
 	// Return the privilege value of the process
-	return (getProcess->priority);
+	return (proc->priority);
 }
 
 
@@ -2608,16 +2677,16 @@ int kernelMultitaskerSetProcessPriority(int processId, int newPriority)
 	// perform this action very easily themselves.
 
 	int status = 0;
-	kernelProcess *changeProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
 		return (status = ERR_NOTINITIALIZED);
 
 	// We need to find the process structure based on the process Id
-	changeProcess = getProcessById(processId);
+	proc = getProcessById(processId);
 
-	if (!changeProcess)
+	if (!proc)
 		// The process does not exist
 		return (status = ERR_NOSUCHPROCESS);
 
@@ -2626,13 +2695,12 @@ int kernelMultitaskerSetProcessPriority(int processId, int newPriority)
 	// priority of processes owned by the same user.  Additionally, a
 	// non-privileged process can only set the new priority to a value equal
 	// to or lower than its own priority.
-	if (kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR)
+	if ((kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR) &&
+		(!kernelCurrentProcess->session || !proc->session ||
+		strcmp(kernelCurrentProcess->session->name, proc->session->name) ||
+		(newPriority < kernelCurrentProcess->priority)))
 	{
-		if ((kernelCurrentProcess->userId != changeProcess->userId) ||
-			(newPriority < kernelCurrentProcess->priority))
-		{
-			return (status = ERR_PERMISSION);
-		}
+		return (status = ERR_PERMISSION);
 	}
 
 	// Make sure the new priority is a legal one
@@ -2641,7 +2709,7 @@ int kernelMultitaskerSetProcessPriority(int processId, int newPriority)
 		return (status = ERR_INVALID);
 
 	// Set the priority value of the process
-	changeProcess->priority = newPriority;
+	proc->priority = newPriority;
 
 	return (status = 0);
 }
@@ -2654,7 +2722,7 @@ int kernelMultitaskerGetProcessPrivilege(int processId)
 	// functions can perform this action very easily themselves.
 
 	int status = 0;
-	kernelProcess *theProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -2666,14 +2734,14 @@ int kernelMultitaskerGetProcessPrivilege(int processId)
 	}
 
 	// We need to find the process structure based on the process Id
-	theProcess = getProcessById(processId);
+	proc = getProcessById(processId);
 
-	if (!theProcess)
+	if (!proc)
 		// The process does not exist
 		return (status = ERR_NOSUCHPROCESS);
 
 	// Return the nominal privilege value of the process
-	return (theProcess->privilege);
+	return (proc->privilege);
 }
 
 
@@ -2684,7 +2752,7 @@ int kernelMultitaskerGetProcessParent(int processId)
 	// perform this action very easily themselves.
 
 	int status = 0;
-	kernelProcess *getProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -2696,16 +2764,16 @@ int kernelMultitaskerGetProcessParent(int processId)
 	}
 
 	// We need to find the process structure based on the process Id
-	getProcess = getProcessById(processId);
+	proc = getProcessById(processId);
 
-	if (!getProcess)
+	if (!proc)
 		// The process does not exist
 		return (status = ERR_NOSUCHPROCESS);
 
 	// No permission check necessary here
 
 	// Return the parent value of the process
-	return (getProcess->parentProcessId);
+	return (proc->parentProcessId);
 }
 
 
@@ -2716,24 +2784,25 @@ int kernelMultitaskerSetProcessParent(int processId, int parentProcessId)
 	// perform this action very easily themselves.
 
 	int status = 0;
-	kernelProcess *changeProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
 		return (status = ERR_NOTINITIALIZED);
 
 	// We need to find the process structure based on the process Id
-	changeProcess = getProcessById(processId);
+	proc = getProcessById(processId);
 
-	if (!changeProcess)
+	if (!proc)
 		// The process does not exist
 		return (status = ERR_NOSUCHPROCESS);
 
 	// Permission check.  A privileged process can set the parent of any other
-	// process, but a non-privileged process can only change the priority of
+	// process, but a non-privileged process can only change the parent of
 	// processes owned by the same user.
 	if ((kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR) &&
-		(kernelCurrentProcess->userId != changeProcess->userId))
+		(!kernelCurrentProcess->session || !proc->session ||
+		strcmp(kernelCurrentProcess->session->name, proc->session->name)))
 	{
 		return (status = ERR_PERMISSION);
 	}
@@ -2744,9 +2813,41 @@ int kernelMultitaskerSetProcessParent(int processId, int parentProcessId)
 		return (status = ERR_NOSUCHPROCESS);
 
 	// Set the parent value of the process
-	changeProcess->parentProcessId = parentProcessId;
+	proc->parentProcessId = parentProcessId;
 
 	return (status = 0);
+}
+
+
+variableList *kernelMultitaskerGetProcessEnvironment(int processId)
+{
+	// Subject to permissions, return a pointer to the requested process's
+	// environment variable list structure.
+
+	kernelProcess *proc = NULL;
+
+	// Make sure multitasking has been enabled
+	if (!multitaskingEnabled)
+		return (NULL);
+
+	// We need to find the process structure based on the process Id
+	proc = getProcessById(processId);
+
+	if (!proc)
+		// The process does not exist
+		return (NULL);
+
+	// Permission check.  A privileged process can get the environment of any
+	// other process, but a non-privileged process can only get the
+	// environment of processes owned by the same user.
+	if ((kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR) &&
+		(!kernelCurrentProcess->session || !proc->session ||
+		strcmp(kernelCurrentProcess->session->name, proc->session->name)))
+	{
+		return (NULL);
+	}
+
+	return (proc->environment);
 }
 
 
@@ -2783,12 +2884,14 @@ int kernelMultitaskerGetCurrentDirectory(char *buffer, int buffSize)
 }
 
 
-int kernelMultitaskerSetCurrentDirectory(const char *newDirName)
+int kernelMultitaskerSetProcessCurrentDirectory(int processId,
+	const char *newDirName)
 {
-	// This function will change the current directory of the current process.
-	// Returns 0 on success, negative otherwise.
+	// This function will change the current directory of the requested
+	// process.  Returns 0 on success, negative otherwise.
 
 	int status = 0;
+	kernelProcess *proc = NULL;
 	kernelFileEntry *newDir = NULL;
 
 	// Make sure multitasking has been enabled
@@ -2798,6 +2901,23 @@ int kernelMultitaskerSetCurrentDirectory(const char *newDirName)
 	// Check params
 	if (!newDirName)
 		return (status = ERR_NULLPARAMETER);
+
+	// We need to find the process structure based on the process Id
+	proc = getProcessById(processId);
+
+	if (!proc)
+		// The process does not exist
+		return (status = ERR_NOSUCHPROCESS);
+
+	// Permission check.  A privileged process can set the current directory
+	// of any other process, but a non-privileged process can only change the
+	// current directory of processes owned by the same user.
+	if ((kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR) &&
+		(!kernelCurrentProcess->session || !proc->session ||
+		strcmp(kernelCurrentProcess->session->name, proc->session->name)))
+	{
+		return (status = ERR_PERMISSION);
+	}
 
 	// Call the appropriate filesystem function to find this supposed new
 	// directory.
@@ -2810,11 +2930,27 @@ int kernelMultitaskerSetCurrentDirectory(const char *newDirName)
 		return (status = ERR_NOTADIR);
 
 	// Okay, copy the full name of the directory into the process
-	kernelFileGetFullName(newDir, (char *)
-		kernelCurrentProcess->currentDirectory, MAX_PATH_LENGTH);
+	kernelFileGetFullName(newDir, (char *) proc->currentDirectory,
+		MAX_PATH_LENGTH);
 
 	// Return success
 	return (status = 0);
+}
+
+
+int kernelMultitaskerSetCurrentDirectory(const char *newDirName)
+{
+	// This function will change the current directory of the current process.
+	// Returns 0 on success, negative otherwise.
+
+	int status = 0;
+
+	// Make sure multitasking has been enabled
+	if (!multitaskingEnabled)
+		return (status = ERR_NOTINITIALIZED);
+
+	return (status = kernelMultitaskerSetProcessCurrentDirectory(
+		kernelCurrentProcess->processId, newDirName));
 }
 
 
@@ -2839,8 +2975,9 @@ int kernelMultitaskerSetTextInput(int processId,
 	// Change the input stream of the process
 
 	int status = 0;
-	kernelProcess *theProcess = NULL;
-	int count;
+	kernelProcess *proc = NULL;
+	kernelProcess *childProc = NULL;
+	linkedListItem *iter = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -2848,35 +2985,39 @@ int kernelMultitaskerSetTextInput(int processId,
 
 	// theStream is allowed to be NULL.
 
-	theProcess = getProcessById(processId);
-	if (!theProcess)
+	proc = getProcessById(processId);
+	if (!proc)
 		return (status = ERR_NOSUCHPROCESS);
 
-	theProcess->textInputStream = theStream;
+	proc->textInputStream = theStream;
 
 	if (theStream)
 	{
-		if (theProcess->type == proc_normal)
-			theStream->ownerPid = theProcess->processId;
+		if (proc->type == proc_normal)
+			theStream->ownerPid = proc->processId;
 
 		// Remember the current input attributes
-		memcpy((void *) &theProcess->oldInputAttrs, (void *) &theStream->attrs,
+		memcpy((void *) &proc->oldInputAttrs, (void *) &theStream->attrs,
 			sizeof(kernelTextInputStreamAttrs));
 	}
 
 	// Do any child threads recursively as well.
-	if (theProcess->descendentThreads)
+	if (proc->descendentThreads)
 	{
-		for (count = 0; count < numQueued; count ++)
+		childProc = linkedListIterStart(&processList, &iter);
+
+		while (childProc)
 		{
-			if ((processQueue[count]->parentProcessId == processId) &&
-				(processQueue[count]->type == proc_thread))
+			if ((childProc->parentProcessId == processId) &&
+				(childProc->type == proc_thread))
 			{
-				status = kernelMultitaskerSetTextInput(processQueue[count]
-					->processId, theStream);
+				status = kernelMultitaskerSetTextInput(childProc->processId,
+					theStream);
 				if (status < 0)
 					return (status);
 			}
+
+			childProc = linkedListIterNext(&processList, &iter);
 		}
 	}
 
@@ -2905,8 +3046,9 @@ int kernelMultitaskerSetTextOutput(int processId,
 	// Change the output stream of the process
 
 	int status = 0;
-	kernelProcess *theProcess = NULL;
-	int count;
+	kernelProcess *proc = NULL;
+	kernelProcess *childProc = NULL;
+	linkedListItem *iter = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -2914,25 +3056,29 @@ int kernelMultitaskerSetTextOutput(int processId,
 
 	// theStream is allowed to be NULL.
 
-	theProcess = getProcessById(processId);
-	if (!theProcess)
+	proc = getProcessById(processId);
+	if (!proc)
 		return (status = ERR_NOSUCHPROCESS);
 
-	theProcess->textOutputStream = theStream;
+	proc->textOutputStream = theStream;
 
 	// Do any child threads recursively as well.
-	if (theProcess->descendentThreads)
+	if (proc->descendentThreads)
 	{
-		for (count = 0; count < numQueued; count ++)
+		childProc = linkedListIterStart(&processList, &iter);
+
+		while (childProc)
 		{
-			if ((processQueue[count]->parentProcessId == processId) &&
-				(processQueue[count]->type == proc_thread))
+			if ((childProc->parentProcessId == processId) &&
+				(childProc->type == proc_thread))
 			{
-				status = kernelMultitaskerSetTextOutput(processQueue[count]
-					->processId, theStream);
+				status = kernelMultitaskerSetTextOutput(childProc->processId,
+					theStream);
 				if (status < 0)
 					return (status);
 			}
+
+			childProc = linkedListIterNext(&processList, &iter);
 		}
 	}
 
@@ -2946,8 +3092,8 @@ int kernelMultitaskerDuplicateIo(int firstPid, int secondPid, int clear)
 	// process.
 
 	int status = 0;
-	kernelProcess *firstProcess = NULL;
-	kernelProcess *secondProcess = NULL;
+	kernelProcess *firstProc = NULL;
+	kernelProcess *secondProc = NULL;
 	kernelTextInputStream *input = NULL;
 	kernelTextOutputStream *output = NULL;
 
@@ -2955,22 +3101,22 @@ int kernelMultitaskerDuplicateIo(int firstPid, int secondPid, int clear)
 	if (!multitaskingEnabled)
 		return (status = ERR_NOTINITIALIZED);
 
-	firstProcess = getProcessById(firstPid);
-	secondProcess = getProcessById(secondPid);
+	firstProc = getProcessById(firstPid);
+	secondProc = getProcessById(secondPid);
 
-	if (!firstProcess || !secondProcess)
+	if (!firstProc || !secondProc)
 		return (status = ERR_NOSUCHPROCESS);
 
-	input = firstProcess->textInputStream;
-	output = firstProcess->textOutputStream;
+	input = firstProc->textInputStream;
+	output = firstProc->textOutputStream;
 
 	if (input)
 	{
-		secondProcess->textInputStream = input;
+		secondProc->textInputStream = input;
 		input->ownerPid = secondPid;
 
 		// Remember the current input attributes
-		memcpy((void *) &secondProcess->oldInputAttrs, (void *) &input->attrs,
+		memcpy((void *) &secondProc->oldInputAttrs, (void *) &input->attrs,
 			sizeof(kernelTextInputStreamAttrs));
 
 		if (clear)
@@ -2978,7 +3124,7 @@ int kernelMultitaskerDuplicateIo(int firstPid, int secondPid, int clear)
 	}
 
 	if (output)
-		secondProcess->textOutputStream = output;
+		secondProc->textOutputStream = output;
 
 	return (status = 0);
 }
@@ -3007,7 +3153,7 @@ int kernelMultitaskerGetProcessorTime(clock_t *clk)
 
 void kernelMultitaskerYield(void)
 {
-	// This function will yield control from the current running thread back
+	// This function will yield control from the current running process back
 	// to the scheduler.
 
 	// Make sure multitasking has been enabled
@@ -3076,7 +3222,7 @@ int kernelMultitaskerBlock(int processId)
 	// requested blocking process has completed
 
 	int status = 0;
-	kernelProcess *blockProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -3091,8 +3237,8 @@ int kernelMultitaskerBlock(int processId)
 	}
 
 	// Get the process that we're supposed to block on
-	blockProcess = getProcessById(processId);
-	if (!blockProcess)
+	proc = getProcessById(processId);
+	if (!proc)
 	{
 		// The process does not exist.
 		kernelError(kernel_error, "The process on which to block does not "
@@ -3133,7 +3279,7 @@ int kernelMultitaskerDetach(void)
 	// if the parent process is blocking.
 
 	int status = 0;
-	kernelProcess *parentProcess = NULL;
+	kernelProcess *parentProc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -3152,19 +3298,19 @@ int kernelMultitaskerDetach(void)
 		0 /* don't clear */);
 
 	// Get the process that's blocking on this one, if any
-	parentProcess = getProcessById(kernelCurrentProcess->parentProcessId);
+	parentProc = getProcessById(kernelCurrentProcess->parentProcessId);
 
-	if (parentProcess && (parentProcess->waitForProcess ==
+	if (parentProc && (parentProc->waitForProcess ==
 		kernelCurrentProcess->processId))
 	{
 		// Clear the return code of the parent process
-		parentProcess->blockingExitCode = 0;
+		parentProc->blockingExitCode = 0;
 
 		// Clear the parent's wait for process value
-		parentProcess->waitForProcess = 0;
+		parentProc->waitForProcess = 0;
 
 		// Make it runnable
-		parentProcess->state = proc_ready;
+		parentProc->state = proc_ready;
 	}
 
 	return (status = 0);
@@ -3180,34 +3326,36 @@ int kernelMultitaskerKillProcess(int processId, int force)
 	// children.  Returns 0 on success, negative on error.
 
 	int status = 0;
-	kernelProcess *killProcess = NULL;
-	int count;
+	kernelProcess *proc = NULL;
+	kernelProcess *listProc = NULL;
+	linkedListItem *iter = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Find the process structure based on the Id we were passed
-	killProcess = getProcessById(processId);
-	if (!killProcess)
+	proc = getProcessById(processId);
+	if (!proc)
 		// There's no such process
 		return (status = ERR_NOSUCHPROCESS);
 
 	// Processes are not allowed to actually kill themselves.  They must use
 	// the terminate function to do it normally.
-	if (killProcess == kernelCurrentProcess)
+	if (proc == kernelCurrentProcess)
 		kernelMultitaskerTerminate(0);
 
 	// Permission check.  A privileged process can kill any other process, but
 	// a non-privileged process can only kill processes owned by the same user
-	if (kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR)
+	if ((kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR) &&
+		(!kernelCurrentProcess->session || !proc->session ||
+		strcmp(kernelCurrentProcess->session->name, proc->session->name)))
 	{
-		if (kernelCurrentProcess->userId != killProcess->userId)
-			return (status = ERR_PERMISSION);
+		return (status = ERR_PERMISSION);
 	}
 
 	// You can't kill the kernel on purpose
-	if (killProcess == kernelProc)
+	if (proc == kernelProc)
 	{
 		kernelError(kernel_error, "It's not possible to kill the kernel "
 			"process");
@@ -3215,7 +3363,7 @@ int kernelMultitaskerKillProcess(int processId, int force)
 	}
 
 	// You can't kill the exception handler thread on purpose
-	if (killProcess == exceptionProc)
+	if (proc == exceptionProc)
 	{
 		kernelError(kernel_error, "It's not possible to kill the exception "
 			"thread");
@@ -3228,71 +3376,70 @@ int kernelMultitaskerKillProcess(int processId, int force)
 	if ((kernelCurrentProcess->type == proc_thread) &&
 		(processId == kernelCurrentProcess->parentProcessId))
 	{
-		killProcess->state = proc_finished;
+		proc->state = proc_finished;
 		while (1)
 			kernelMultitaskerYield();
 	}
 
 	// The request is legitimate.
 
-	// Mark the process as stopped in the process queue, so that the scheduler
+	// Mark the process as stopped in the process list, so that the scheduler
 	// will not inadvertently select it to run while we're destroying it.
-	killProcess->state = proc_stopped;
+	proc->state = proc_stopped;
 
-	// We must loop through the list of existing processes, looking for any
+	// We must iterate through the list of existing processes, looking for any
 	// other processes whose states depend on this one (such as child threads
 	// who don't have a page directory).  If we remove a process, we need to
 	// call this function recursively to kill it (and any of its own dependant
-	// children) and then reset the counter, stepping through the list again
-	// (since the list will be different after the recursion)
+	// children).
 
-	for (count = 0; count < numQueued; count ++)
+	listProc = linkedListIterStart(&processList, &iter);
+
+	while (listProc)
 	{
 		// Is this process blocking on the process we're killing?
-		if (processQueue[count]->waitForProcess == processId)
+		if (listProc->waitForProcess == processId)
 		{
 			// This process is blocking on the process we're killing.  If the
 			// process being killed was not, in turn, blocking on another
 			// process, the blocked process will be made runnable.  Otherwise,
 			// the blocked process will be forced to block on the same
 			// process as the one being killed.
-			if (killProcess->waitForProcess)
+			if (proc->waitForProcess)
 			{
-				processQueue[count]->waitForProcess =
-					killProcess->waitForProcess;
+				listProc->waitForProcess = proc->waitForProcess;
 			}
 			else
 			{
-				processQueue[count]->blockingExitCode = ERR_KILLED;
-				processQueue[count]->waitForProcess = 0;
-				processQueue[count]->state = proc_ready;
+				listProc->blockingExitCode = ERR_KILLED;
+				listProc->waitForProcess = 0;
+				listProc->state = proc_ready;
 			}
 
-			continue;
+			goto checkNext;
 		}
 
 		// If this process is a child thread of the process we're killing, or
 		// if the process we're killing was blocking on this process, kill it
 		// first.
-		if ((processQueue[count]->state != proc_finished) &&
-			(processQueue[count]->parentProcessId == killProcess->processId) &&
-			((processQueue[count]->type == proc_thread) ||
-				(killProcess->waitForProcess ==
-					processQueue[count]->processId)))
+		if ((listProc->state != proc_finished) &&
+			(listProc->parentProcessId == proc->processId) &&
+			((listProc->type == proc_thread) ||
+				(proc->waitForProcess == listProc->processId)))
 		{
-			status = kernelMultitaskerKillProcess(processQueue[count]
-				->processId, force);
+			status = kernelMultitaskerKillProcess(listProc->processId, force);
 			if (status < 0)
 			{
-				kernelError(kernel_warn, "Unable to kill child process \"%s\" "
-					"of parent process \"%s\"", processQueue[count]->name,
-					killProcess->name);
+				kernelError(kernel_warn, "Unable to kill child process "
+					"\"%s\" of parent process \"%s\"", listProc->name,
+					proc->name);
 			}
 
-			// Restart the loop
-			count = 0;
-			continue;
+			goto checkNext;
 		}
+
+	checkNext:
+		listProc = linkedListIterNext(&processList, &iter);
 	}
 
 	// Now we look after killing the process with the Id we were passed
@@ -3300,39 +3447,39 @@ int kernelMultitaskerKillProcess(int processId, int force)
 	if (kernelNetworkEnabled())
 	{
 		// Try to close all network connections owned by this process
-		status = kernelNetworkCloseAll(killProcess->processId);
+		status = kernelNetworkCloseAll(proc->processId);
 		if (status < 0)
 			kernelError(kernel_warn, "Can't release network connections");
 	}
 
 	// Restore previous attrubutes to the input stream, if applicable
-	if (killProcess->textInputStream)
+	if (proc->textInputStream)
 	{
-		memcpy((void *) &killProcess->textInputStream->attrs,
-			(void *) &killProcess->oldInputAttrs,
+		memcpy((void *) &proc->textInputStream->attrs,
+			(void *) &proc->oldInputAttrs,
 			sizeof(kernelTextInputStreamAttrs));
 	}
 
 	// If this process is a thread, decrement the count of descendent threads
 	// of its parent
-	if (killProcess->type == proc_thread)
-		decrementDescendents(killProcess);
+	if (proc->type == proc_thread)
+		decrementDescendents(proc);
 
 	// Dismantle the process
-	status = deleteProcess(killProcess);
+	status = deleteProcess(proc);
 	if (status < 0)
 	{
 		// Eek, there was a problem deallocating something, we guess.  Simply
 		// mark the process as a zombie so that it won't be run any more, but
 		// its resources won't be 'lost'
 		kernelError(kernel_error, "Couldn't delete process %d: \"%s\"",
-			killProcess->processId, killProcess->name);
-		killProcess->state = proc_zombie;
+			proc->processId, proc->name);
+		proc->state = proc_zombie;
 		return (status);
 	}
 
 	// If the target process is the idle process, spawn another one
-	if (killProcess == idleProc)
+	if (proc == idleProc)
 		spawnIdleThread();
 
 	// Done.  Return success
@@ -3345,14 +3492,18 @@ int kernelMultitaskerKillByName(const char *name, int force)
 	// Try to kill all processes whose names match the one supplied
 
 	int status = 0;
-	kernelProcess *killProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
 		return (status = ERR_NOTINITIALIZED);
 
-	while ((killProcess = getProcessByName(name)))
-		status = kernelMultitaskerKillProcess(killProcess->processId, force);
+	// Check params
+	if (!name)
+		return (status = ERR_NULLPARAMETER);
+
+	while ((proc = getProcessByName(name)))
+		status = kernelMultitaskerKillProcess(proc->processId, force);
 
 	return (status);
 }
@@ -3365,49 +3516,52 @@ int kernelMultitaskerKillAll(void)
 	// success, negative otherwise.
 
 	int status = 0;
-	kernelProcess *killProcess = NULL;
-	int count;
+	kernelProcess *proc = NULL;
+	linkedListItem *iter = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
 		return (status = ERR_NOTINITIALIZED);
 
+	// Stop all processes, except the kernel process, and the current
+	// process
+
+	proc = linkedListIterStart(&processList, &iter);
+
+	while (proc)
+	{
+		if (PROC_KILLABLE(proc))
+			proc->state = proc_stopped;
+
+		proc = linkedListIterNext(&processList, &iter);
+	}
+
 	// Kill all of the processes, except the kernel process and the current
 	// process.  This won't kill the scheduler's task either.
 
-	// Stop all processes, except the kernel process, and the current process.
-	for (count = 0; count < numQueued; count ++)
+	proc = linkedListIterStart(&processList, &iter);
+
+	while (proc)
 	{
-		if (PROC_KILLABLE(processQueue[count]))
-			processQueue[count]->state = proc_stopped;
-	}
-
-	for (count = 0; count < numQueued; )
-	{
-		if (!PROC_KILLABLE(processQueue[count]))
+		if (PROC_KILLABLE(proc))
 		{
-			count++;
-			continue;
-		}
-
-		killProcess = processQueue[count];
-
-		// Attempt to kill it.
-		status = kernelMultitaskerKillProcess(killProcess->processId,
-			0 /* no force */);
-		if (status < 0)
-		{
-			// Try it with a force
-			status = kernelMultitaskerKillProcess(killProcess->processId,
-				1 /* force */);
+			// Attempt to kill it.
+			status = kernelMultitaskerKillProcess(proc->processId,
+				0 /* no force */);
 			if (status < 0)
 			{
-				// Still errors?  The process will still be in the queue.
-				// We need to skip past it.
-				count++;
-				continue;
+				// Try it with a force
+				status = kernelMultitaskerKillProcess(proc->processId,
+					1 /* force */);
+				if (status < 0)
+				{
+					// Still errors?  The process will still be in the list.
+					// We need to skip past it.
+				}
 			}
 		}
+
+		proc = linkedListIterNext(&processList, &iter);
 	}
 
 	// Return success
@@ -3423,7 +3577,7 @@ int kernelMultitaskerTerminate(int retCode)
 	// doesn't return at all.
 
 	int status = 0;
-	kernelProcess *parent = NULL;
+	kernelProcess *parentProc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -3437,18 +3591,17 @@ int kernelMultitaskerTerminate(int retCode)
 	}
 
 	// Find the parent process before we terminate ourselves
-	parent = getProcessById(kernelCurrentProcess->parentProcessId);
-
-	if (parent)
+	parentProc = getProcessById(kernelCurrentProcess->parentProcessId);
+	if (parentProc)
 	{
 		// We found our parent process.  Is it blocking, waiting for us?
-		if (parent->waitForProcess == kernelCurrentProcess->processId)
+		if (parentProc->waitForProcess == kernelCurrentProcess->processId)
 		{
 			// It's waiting for us to finish.  Put our return code into
 			// its blockingExitCode field
-			parent->blockingExitCode = retCode;
-			parent->waitForProcess = 0;
-			parent->state = proc_ready;
+			parentProc->blockingExitCode = retCode;
+			parentProc->waitForProcess = 0;
+			parentProc->state = proc_ready;
 
 			// Done.
 		}
@@ -3459,8 +3612,10 @@ int kernelMultitaskerTerminate(int retCode)
 		// If we still have threads out there, we don't dismantle until they
 		// are finished
 		if (!kernelCurrentProcess->descendentThreads)
+		{
 			// Terminate
 			kernelCurrentProcess->state = proc_finished;
+		}
 
 		kernelMultitaskerYield();
 	}
@@ -3472,7 +3627,7 @@ int kernelMultitaskerSignalSet(int processId, int sig, int on)
 	// Set signal handling enabled (on) or disabled for the specified signal
 
 	int status = 0;
-	kernelProcess *signalProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -3486,8 +3641,8 @@ int kernelMultitaskerSignalSet(int processId, int sig, int on)
 	}
 
 	// Try to find the process
-	signalProcess = getProcessById(processId);
-	if (!signalProcess)
+	proc = getProcessById(processId);
+	if (!proc)
 	{
 		// There's no such process
 		kernelError(kernel_error, "No process %d to signal", processId);
@@ -3496,18 +3651,17 @@ int kernelMultitaskerSignalSet(int processId, int sig, int on)
 
 	// If there is not yet a signal stream allocated for this process, do it
 	// now.
-	if (!(signalProcess->signalStream.buffer))
+	if (!(proc->signalStream.buffer))
 	{
-		status = kernelStreamNew(&signalProcess->signalStream, 16,
-			itemsize_dword);
+		status = kernelStreamNew(&proc->signalStream, 16, itemsize_dword);
 		if (status < 0)
 			return (status);
 	}
 
 	if (on)
-		signalProcess->signalMask |= (1 << sig);
+		proc->signalMask |= (1 << sig);
 	else
-		signalProcess->signalMask &= ~(1 << sig);
+		proc->signalMask &= ~(1 << sig);
 
 	return (status = 0);
 }
@@ -3516,7 +3670,7 @@ int kernelMultitaskerSignalSet(int processId, int sig, int on)
 int kernelMultitaskerSignal(int processId, int sig)
 {
 	int status = 0;
-	kernelProcess *signalProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
@@ -3530,8 +3684,8 @@ int kernelMultitaskerSignal(int processId, int sig)
 	}
 
 	// Try to find the process
-	signalProcess = getProcessById(processId);
-	if (!signalProcess)
+	proc = getProcessById(processId);
+	if (!proc)
 	{
 		// There's no such process
 		kernelError(kernel_error, "No process %d to signal", processId);
@@ -3539,17 +3693,15 @@ int kernelMultitaskerSignal(int processId, int sig)
 	}
 
 	// See if the signal is handled, and make sure there's a signal stream
-	if (!(signalProcess->signalMask & (1 << sig)) ||
-		!(signalProcess->signalStream.buffer))
+	if (!(proc->signalMask & (1 << sig)) || !proc->signalStream.buffer)
 	{
 		// Not handled.  Terminate the process.
-		signalProcess->state = proc_finished;
+		proc->state = proc_finished;
 		return (status = 0);
 	}
 
 	// Put the signal into the signal stream
-	status = signalProcess->signalStream.append(&signalProcess->signalStream,
-		sig);
+	status = proc->signalStream.append(&proc->signalStream, sig);
 
 	return (status);
 }
@@ -3558,7 +3710,7 @@ int kernelMultitaskerSignal(int processId, int sig)
 int kernelMultitaskerSignalRead(int processId)
 {
 	int status = 0;
-	kernelProcess *signalProcess = NULL;
+	kernelProcess *proc = NULL;
 	int sig;
 
 	// Make sure multitasking has been enabled
@@ -3566,8 +3718,8 @@ int kernelMultitaskerSignalRead(int processId)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Try to find the process
-	signalProcess = getProcessById(processId);
-	if (!signalProcess)
+	proc = getProcessById(processId);
+	if (!proc)
 	{
 		// There's no such process
 		kernelError(kernel_error, "No process %d to signal", processId);
@@ -3575,21 +3727,20 @@ int kernelMultitaskerSignalRead(int processId)
 	}
 
 	// Any signals handled?
-	if (!(signalProcess->signalMask))
+	if (!(proc->signalMask))
 		return (status = 0);
 
 	// Make sure there's a signal stream
-	if (!(signalProcess->signalStream.buffer))
+	if (!(proc->signalStream.buffer))
 	{
 		kernelError(kernel_error, "Process has no signal stream");
 		return (status = ERR_NOTINITIALIZED);
 	}
 
-	if (!signalProcess->signalStream.count)
+	if (!proc->signalStream.count)
 		return (sig = 0);
 
-	status = signalProcess->signalStream.pop(&signalProcess->signalStream,
-		&sig);
+	status = proc->signalStream.pop(&proc->signalStream, &sig);
 
 	if (status < 0)
 		return (status);
@@ -3604,14 +3755,14 @@ int kernelMultitaskerGetIoPerm(int processId, int portNum)
 	// permission is allowed.
 
 	int status = 0;
-	kernelProcess *ioProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
 		return (status = ERR_NOTINITIALIZED);
 
-	ioProcess = getProcessById(processId);
-	if (!ioProcess)
+	proc = getProcessById(processId);
+	if (!proc)
 	{
 		// There's no such process
 		kernelError(kernel_error, "No process %d to get I/O permissions",
@@ -3623,7 +3774,7 @@ int kernelMultitaskerGetIoPerm(int processId, int portNum)
 		return (status = ERR_BOUNDS);
 
 	// If the bit is set, permission is not granted.
-	if (GET_PORT_BIT(ioProcess->taskStateSegment.IOMap, portNum))
+	if (GET_PORT_BIT(proc->taskStateSegment.IOMap, portNum))
 		return (status = 0);
 	else
 		return (status = 1);
@@ -3635,14 +3786,14 @@ int kernelMultitaskerSetIoPerm(int processId, int portNum, int yesNo)
 	// Allow or deny I/O port permission to the given process.
 
 	int status = 0;
-	kernelProcess *ioProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
 		return (status = ERR_NOTINITIALIZED);
 
-	ioProcess= getProcessById(processId);
-	if (!ioProcess)
+	proc= getProcessById(processId);
+	if (!proc)
 	{
 		// There's no such process
 		kernelError(kernel_error, "No process %d to set I/O permissions",
@@ -3654,9 +3805,9 @@ int kernelMultitaskerSetIoPerm(int processId, int portNum, int yesNo)
 		return (status = ERR_BOUNDS);
 
 	if (yesNo)
-		UNSET_PORT_BIT(ioProcess->taskStateSegment.IOMap, portNum);
+		UNSET_PORT_BIT(proc->taskStateSegment.IOMap, portNum);
 	else
-		SET_PORT_BIT(ioProcess->taskStateSegment.IOMap, portNum);
+		SET_PORT_BIT(proc->taskStateSegment.IOMap, portNum);
 
 	return (status = 0);
 }
@@ -3664,14 +3815,14 @@ int kernelMultitaskerSetIoPerm(int processId, int portNum, int yesNo)
 
 kernelPageDirectory *kernelMultitaskerGetPageDir(int processId)
 {
-	kernelProcess *dirProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
 		return (NULL);
 
-	dirProcess = getProcessById(processId);
-	if (!dirProcess)
+	proc = getProcessById(processId);
+	if (!proc)
 	{
 		// There's no such process
 		kernelError(kernel_error, "No process %d to get page directory",
@@ -3679,7 +3830,7 @@ kernelPageDirectory *kernelMultitaskerGetPageDir(int processId)
 		return (NULL);
 	}
 
-	return (dirProcess->pageDirectory);
+	return (proc->pageDirectory);
 }
 
 
@@ -3687,21 +3838,21 @@ loaderSymbolTable *kernelMultitaskerGetSymbols(int processId)
 {
 	// Given a process ID, return the symbol table of the process.
 
-	kernelProcess *symProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
 		return (NULL);
 
-	symProcess = getProcessById(processId);
-	if (!symProcess)
+	proc = getProcessById(processId);
+	if (!proc)
 	{
 		// There's no such process
 		kernelError(kernel_error, "No process %d to get symbols", processId);
 		return (NULL);
 	}
 
-	return (symProcess->symbols);
+	return (proc->symbols);
 }
 
 
@@ -3711,21 +3862,21 @@ int kernelMultitaskerSetSymbols(int processId, loaderSymbolTable *symbols)
 	// process.
 
 	int status = 0;
-	kernelProcess *symProcess = NULL;
+	kernelProcess *proc = NULL;
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
 		return (status = ERR_NOTINITIALIZED);
 
-	symProcess = getProcessById(processId);
-	if (!symProcess)
+	proc = getProcessById(processId);
+	if (!proc)
 	{
 		// There's no such process
 		kernelError(kernel_error, "No process %d to set symbols", processId);
 		return (status = ERR_NOSUCHPROCESS);
 	}
 
-	symProcess->symbols = symbols;
+	proc->symbols = symbols;
 	return (status = 0);
 }
 
@@ -3735,16 +3886,16 @@ int kernelMultitaskerStackTrace(int processId)
 	// Locate the process by ID and do a stack trace of it.
 
 	int status = 0;
-	kernelProcess *traceProcess = NULL;
-	char buffer[MAXSTRINGLENGTH];
+	kernelProcess *proc = NULL;
+	char buffer[MAXSTRINGLENGTH + 1];
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Locate the process
-	traceProcess = getProcessById(processId);
-	if (!traceProcess)
+	proc = getProcessById(processId);
+	if (!proc)
 	{
 		// There's no such process
 		kernelError(kernel_error, "No process %d to trace", processId);
@@ -3752,7 +3903,7 @@ int kernelMultitaskerStackTrace(int processId)
 	}
 
 	// Do the stack trace
-	status = kernelStackTrace(traceProcess, buffer, MAXSTRINGLENGTH);
+	status = kernelStackTrace(proc, buffer, MAXSTRINGLENGTH);
 
 	if (status >= 0)
 		kernelTextPrint("%s", buffer);
@@ -3761,15 +3912,15 @@ int kernelMultitaskerStackTrace(int processId)
 }
 
 
-int kernelMultitaskerPropagateEnvironment(const char *variable)
+int kernelMultitaskerPropagateEnvironment(int processId, const char *variable)
 {
-	// Allows the current process to set and overwrite its descendent
-	// processes' environment variables.  If 'variable' is set, only the named
-	// variable will propagate.  Otherwise, all variables will propagate.
-	// Variables in the childrens' environments that don't exist in the parent
-	// process are unaffected.
+	// Set and overwrite descendent processes' environment variables.  If
+	// 'variable' is set, only the named variable will propagate.  Otherwise,
+	// all variables will propagate.  Variables in the descendents'
+	// environments that don't exist in the parent process are unaffected.
 
 	int status = 0;
+	kernelProcess *proc = NULL;
 
 	kernelDebug(debug_multitasker, "Multitasker propagate environment");
 
@@ -3777,15 +3928,17 @@ int kernelMultitaskerPropagateEnvironment(const char *variable)
 	if (!multitaskingEnabled)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Make sure the current process isn't NULL
-	if (!kernelCurrentProcess)
+	// Locate the process
+	proc = getProcessById(processId);
+	if (!proc)
 	{
-		kernelError(kernel_error, "Can't determine the current process");
-		return (status = ERR_BUG);
+		// There's no such process
+		kernelError(kernel_error, "No process %d to propagate environment",
+			processId);
+		return (status = ERR_NOSUCHPROCESS);
 	}
 
-	status = propagateEnvironmentRecursive(kernelCurrentProcess,
-		kernelCurrentProcess->environment, variable);
+	status = propagateEnvironmentRecursive(proc, proc->environment, variable);
 
 	return (status);
 }

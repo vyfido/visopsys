@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,6 +24,7 @@
 #include "kernelCpu.h"
 #include "kernelDebug.h"
 #include "kernelError.h"
+#include "kernelLock.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
@@ -31,11 +32,11 @@
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelPciDriver.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/processor.h>
+#include <sys/vis.h>
 
 static int reset(usbController *);
 
@@ -137,7 +138,7 @@ static void debugTransError(uhciTransDesc *desc)
 	char *errorText = NULL;
 	char *transString = NULL;
 
-	errorText = kernelMalloc(MAXSTRINGLENGTH);
+	errorText = kernelMalloc(MAXSTRINGLENGTH + 1);
 	if (errorText)
 	{
 		switch (desc->tdToken & UHCI_TDTOKEN_PID)
@@ -290,7 +291,7 @@ static void unregisterInterrupt(usbController *controller,
 	kernelDebug(debug_usb, "UHCI remove interrupt registration for device %d, "
 		"endpoint 0x%02x", intrReg->usbDev->address, intrReg->endpoint);
 
-	kernelLinkedListRemove(&uhci->intrRegs, intrReg);
+	linkedListRemove(&uhci->intrRegs, intrReg);
 
 	if (intrReg->queueHead && intrReg->transDesc)
 		deQueueDescriptors(controller, intrReg->queueHead, intrReg->transDesc,
@@ -1133,7 +1134,7 @@ static int reset(usbController *controller)
 	writeCommand(uhci, command);
 
 	// Clear the lock
-	memset((void *) &controller->lock, 0, sizeof(lock));
+	memset((void *) &controller->lock, 0, sizeof(spinLock));
 
 	kernelDebug(debug_usb, "UHCI controller reset");
 	return (0);
@@ -1147,7 +1148,7 @@ static int interrupt(usbController *controller)
 	unsigned char status = 0;
 	uhciData *uhci = NULL;
 	uhciIntrReg *intrReg = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	unsigned bytes = 0;
 
 	// Check params
@@ -1169,7 +1170,7 @@ static int interrupt(usbController *controller)
 
 		// Loop through the registered interrupts for ones that are no longer
 		// active.
-		intrReg = kernelLinkedListIterStart(&uhci->intrRegs, &iter);
+		intrReg = linkedListIterStart(&uhci->intrRegs, &iter);
 		while (intrReg)
 		{
 			// If the transfer descriptor is no longer active, there might be
@@ -1182,8 +1183,7 @@ static int interrupt(usbController *controller)
 					unregisterInterrupt(controller, intrReg);
 
 					// Restart list iteration
-					intrReg = kernelLinkedListIterStart(&uhci->intrRegs,
-						&iter);
+					intrReg = linkedListIterStart(&uhci->intrRegs, &iter);
 					continue;
 				}
 
@@ -1209,7 +1209,7 @@ static int interrupt(usbController *controller)
 				intrReg->queueHead->element = intrReg->queueHead->saveElement;
 			}
 
-			intrReg = kernelLinkedListIterNext(&uhci->intrRegs, &iter);
+			intrReg = linkedListIterNext(&uhci->intrRegs, &iter);
 		}
 	}
 
@@ -1551,7 +1551,7 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	intrReg->callback = callback;
 
 	// Add the interrupt registration to the controller's list.
-	status = kernelLinkedListAdd(&uhci->intrRegs, intrReg);
+	status = linkedListAdd(&uhci->intrRegs, intrReg);
 	if (status < 0)
 	{
 		kernelFree(intrReg);
@@ -1576,7 +1576,7 @@ static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 	int status = 0;
 	uhciData *uhci = NULL;
 	uhciIntrReg *intrReg = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 
 	// Check params
 	if (!controller || !usbDev)
@@ -1590,19 +1590,19 @@ static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 	uhci = controller->data;
 
 	// Remove any interrupt registrations for the device
-	intrReg = kernelLinkedListIterStart(&uhci->intrRegs, &iter);
+	intrReg = linkedListIterStart(&uhci->intrRegs, &iter);
 	while (intrReg)
 	{
 		if (intrReg->usbDev != usbDev)
 		{
-			intrReg = kernelLinkedListIterNext(&uhci->intrRegs, &iter);
+			intrReg = linkedListIterNext(&uhci->intrRegs, &iter);
 			continue;
 		}
 
 		unregisterInterrupt(controller, intrReg);
 
 		// Restart the iteration
-		intrReg = kernelLinkedListIterStart(&uhci->intrRegs, &iter);
+		intrReg = linkedListIterStart(&uhci->intrRegs, &iter);
 	}
 
 	return (status = 0);
@@ -1777,11 +1777,11 @@ kernelDevice *kernelUsbUhciDetect(kernelBusTarget *busTarget,
 	dev->data = (void *) controller;
 
 	// Initialize the variable list for attributes of the controller
-	status = kernelVariableListCreate(&dev->device.attrs);
+	status = variableListCreateSystem(&dev->device.attrs);
 	if (status >= 0)
 	{
-		kernelVariableListSet(&dev->device.attrs, "controller.type", "UHCI");
-		kernelVariableListSet(&dev->device.attrs, "controller.numPorts", "2");
+		variableListSet(&dev->device.attrs, "controller.type", "UHCI");
+		variableListSet(&dev->device.attrs, "controller.numPorts", "2");
 	}
 
 	// Claim the controller device in the list of PCI targets.

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,6 +23,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/api.h>
 #include <sys/image.h>
 #include <sys/window.h>
@@ -106,7 +107,7 @@ static void draw(windowPixelEditor *editor)
 	// bars' position percentage.
 	editor->startHoriz = ((((int) editor->img->width - editor->horizPixels) *
 		editor->horiz.positionPercent) / 100);
-	editor-> startVert = ((((int) editor->img->height - editor->vertPixels) *
+	editor->startVert = ((((int) editor->img->height - editor->vertPixels) *
 		editor->vert.positionPercent) / 100);
 
 	// Calculate a new pixel size.
@@ -176,7 +177,7 @@ static void draw(windowPixelEditor *editor)
 
 static int resize(windowPixelEditor *editor)
 {
-	// Check params.
+	// Check params
 	if (!editor)
 		return (errno = ERR_NULLPARAMETER);
 
@@ -203,19 +204,20 @@ static int eventHandler(windowPixelEditor *editor, windowEvent *event)
 	pixel *pixels = (pixel *) editor->img->data;
 	windowDrawParameters params;
 
-	// Check params.
+	// Check params
 	if (!editor || !event)
 		return (errno = ERR_NULLPARAMETER);
 
 	// Calculate which pixel this event is happening in
-	pixelX = ((event->xPosition / editor->pixelSize) + editor->startHoriz);
-	pixelY = ((event->yPosition / editor->pixelSize) + editor->startVert);
+	pixelX = ((event->coord.x / editor->pixelSize) + editor->startHoriz);
+	pixelY = ((event->coord.y / editor->pixelSize) + editor->startVert);
 
 	if (editor->mode == pixedmode_draw)
 	{
 		if (editor->drawing.operation == draw_pixel)
 		{
-			if (event->type & (EVENT_MOUSE_LEFTDOWN | EVENT_MOUSE_DRAG))
+			if (event->type & (WINDOW_EVENT_MOUSE_LEFTDOWN |
+				WINDOW_EVENT_MOUSE_DRAG))
 			{
 				graphicDrawPixel(&editor->buffer, &editor->drawing.foreground,
 					editor->drawing.mode, pixelX, pixelY);
@@ -224,16 +226,16 @@ static int eventHandler(windowPixelEditor *editor, windowEvent *event)
 		}
 		else if (editor->drawing.operation == draw_line)
 		{
-			if (event->type == EVENT_MOUSE_LEFTDOWN)
+			if (event->type == WINDOW_EVENT_MOUSE_LEFTDOWN)
 			{
 				editor->drawing.xCoord1 = pixelX;
 				editor->drawing.yCoord1 = pixelY;
 
-				clickX = event->xPosition;
-				clickY = event->yPosition;
+				clickX = event->coord.x;
+				clickY = event->coord.y;
 			}
-			else if ((event->type == EVENT_MOUSE_DRAG) ||
-				(event->type == EVENT_MOUSE_LEFTUP))
+			else if ((event->type == WINDOW_EVENT_MOUSE_DRAG) ||
+				(event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 			{
 				memset(&params, 0, sizeof(windowDrawParameters));
 				params.operation = editor->drawing.operation;
@@ -241,7 +243,8 @@ static int eventHandler(windowPixelEditor *editor, windowEvent *event)
 				params.xCoord1 = clickX;
 				params.yCoord1 = clickY;
 				params.thickness = 1;
-				memcpy(&params.foreground, &editor->background, sizeof(color));
+				memcpy(&params.foreground, &editor->background,
+					sizeof(color));
 
 				if (xoring)
 				{
@@ -252,15 +255,15 @@ static int eventHandler(windowPixelEditor *editor, windowEvent *event)
 					xoring = 0;
 				}
 
-				if (event->type == EVENT_MOUSE_DRAG)
+				if (event->type == WINDOW_EVENT_MOUSE_DRAG)
 				{
-					params.xCoord2 = event->xPosition;
-					params.yCoord2 = event->yPosition;
+					params.xCoord2 = event->coord.x;
+					params.yCoord2 = event->coord.y;
 					windowComponentSetData(editor->canvas, &params, 1,
 						1 /* redraw */);
 
-					editor->drawing.xCoord2 = event->xPosition;
-					editor->drawing.yCoord2 = event->yPosition;
+					editor->drawing.xCoord2 = event->coord.x;
+					editor->drawing.yCoord2 = event->coord.y;
 					xoring = 1;
 				}
 				else
@@ -276,22 +279,23 @@ static int eventHandler(windowPixelEditor *editor, windowEvent *event)
 		}
 		else if (editor->drawing.operation == draw_rect)
 		{
-			if (event->type == EVENT_MOUSE_LEFTDOWN)
+			if (event->type == WINDOW_EVENT_MOUSE_LEFTDOWN)
 			{
 				editor->drawing.xCoord1 = pixelX;
 				editor->drawing.yCoord1 = pixelY;
 
-				clickX = event->xPosition;
-				clickY = event->yPosition;
+				clickX = event->coord.x;
+				clickY = event->coord.y;
 			}
-			else if ((event->type == EVENT_MOUSE_DRAG) ||
-				(event->type == EVENT_MOUSE_LEFTUP))
+			else if ((event->type == WINDOW_EVENT_MOUSE_DRAG) ||
+				(event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 			{
 				memset(&params, 0, sizeof(windowDrawParameters));
 				params.operation = editor->drawing.operation;
 				params.mode = draw_xor;
 				params.thickness = 1;
-				memcpy(&params.foreground, &editor->background, sizeof(color));
+				memcpy(&params.foreground, &editor->background,
+					sizeof(color));
 
 				if (xoring)
 				{
@@ -305,17 +309,17 @@ static int eventHandler(windowPixelEditor *editor, windowEvent *event)
 					xoring = 0;
 				}
 
-				if (event->type == EVENT_MOUSE_DRAG)
+				if (event->type == WINDOW_EVENT_MOUSE_DRAG)
 				{
-					params.xCoord1 = min(clickX, event->xPosition);
-					params.yCoord1 = min(clickY, event->yPosition);
-					params.width = (abs(clickX - event->xPosition) + 1);
-					params.height = (abs(clickY - event->yPosition) + 1);
+					params.xCoord1 = min(clickX, event->coord.x);
+					params.yCoord1 = min(clickY, event->coord.y);
+					params.width = (abs(clickX - event->coord.x) + 1);
+					params.height = (abs(clickY - event->coord.y) + 1);
 					windowComponentSetData(editor->canvas, &params, 1,
 						1 /* redraw */);
 
-					editor->drawing.xCoord2 = event->xPosition;
-					editor->drawing.yCoord2 = event->yPosition;
+					editor->drawing.xCoord2 = event->coord.x;
+					editor->drawing.yCoord2 = event->coord.y;
 					xoring = 1;
 				}
 				else
@@ -334,22 +338,23 @@ static int eventHandler(windowPixelEditor *editor, windowEvent *event)
 		}
 		else if (editor->drawing.operation == draw_oval)
 		{
-			if (event->type == EVENT_MOUSE_LEFTDOWN)
+			if (event->type == WINDOW_EVENT_MOUSE_LEFTDOWN)
 			{
 				editor->drawing.xCoord1 = pixelX;
 				editor->drawing.yCoord1 = pixelY;
 
-				clickX = event->xPosition;
-				clickY = event->yPosition;
+				clickX = event->coord.x;
+				clickY = event->coord.y;
 			}
-			else if ((event->type == EVENT_MOUSE_DRAG) ||
-				(event->type == EVENT_MOUSE_LEFTUP))
+			else if ((event->type == WINDOW_EVENT_MOUSE_DRAG) ||
+				(event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 			{
 				memset(&params, 0, sizeof(windowDrawParameters));
 				params.operation = editor->drawing.operation;
 				params.mode = draw_xor;
 				params.thickness = 1;
-				memcpy(&params.foreground, &editor->background, sizeof(color));
+				memcpy(&params.foreground, &editor->background,
+					sizeof(color));
 
 				if (xoring)
 				{
@@ -367,22 +372,22 @@ static int eventHandler(windowPixelEditor *editor, windowEvent *event)
 					xoring = 0;
 				}
 
-				if (event->type == EVENT_MOUSE_DRAG)
+				if (event->type == WINDOW_EVENT_MOUSE_DRAG)
 				{
 					// The framebuffer graphics driver currently only supports
 					// circles
-					width = (((abs(clickX - event->xPosition) + 1) +
-						(abs(clickY - event->yPosition) + 1)) / 2);
+					width = (((abs(clickX - event->coord.x) + 1) +
+						(abs(clickY - event->coord.y) + 1)) / 2);
 
-					params.xCoord1 = min(clickX, event->xPosition);
-					params.yCoord1 = min(clickY, event->yPosition);
+					params.xCoord1 = min(clickX, event->coord.x);
+					params.yCoord1 = min(clickY, event->coord.y);
 					params.width = width;
 					params.height = width;
 					windowComponentSetData(editor->canvas, &params, 1,
 						1 /* redraw */);
 
-					editor->drawing.xCoord2 = event->xPosition;
-					editor->drawing.yCoord2 = event->yPosition;
+					editor->drawing.xCoord2 = event->coord.x;
+					editor->drawing.yCoord2 = event->coord.y;
 					xoring = 1;
 				}
 				else
@@ -417,7 +422,8 @@ static int eventHandler(windowPixelEditor *editor, windowEvent *event)
 
 	else if (editor->mode == pixedmode_pick)
 	{
-		if (event->type & (EVENT_MOUSE_LEFTDOWN | EVENT_MOUSE_DRAG))
+		if (event->type & (WINDOW_EVENT_MOUSE_LEFTDOWN |
+			WINDOW_EVENT_MOUSE_DRAG))
 		{
 			memcpy(&editor->drawing.foreground,
 				&pixels[(pixelY * editor->img->width) + pixelX],
@@ -438,7 +444,7 @@ static int zoom(windowPixelEditor *editor, int value)
 	int origHorizPixels = 0;
 	int origVertPixels = 0;
 
-	// Check params.
+	// Check params
 	if (!editor || !value)
 		return (ERR_NULLPARAMETER);
 
@@ -485,7 +491,7 @@ static int zoom(windowPixelEditor *editor, int value)
 
 static int scrollHoriz(windowPixelEditor *editor, int percent)
 {
-	// Check params.
+	// Check params
 	if (!editor)
 		return (ERR_NULLPARAMETER);
 
@@ -501,7 +507,7 @@ static int scrollHoriz(windowPixelEditor *editor, int percent)
 
 static int scrollVert(windowPixelEditor *editor, int percent)
 {
-	// Check params.
+	// Check params
 	if (!editor)
 		return (ERR_NULLPARAMETER);
 
@@ -517,9 +523,9 @@ static int scrollVert(windowPixelEditor *editor, int percent)
 
 static int destroy(windowPixelEditor *editor)
 {
-	// Detroy and deallocate the file list.
+	// Detroy and deallocate the pixel editor.
 
-	// Check params.
+	// Check params
 	if (!editor)
 		return (ERR_NULLPARAMETER);
 
@@ -550,7 +556,7 @@ _X_ windowPixelEditor *windowNewPixelEditor(objectKey parent, int width, int hei
 	if (!libwindow_initialized)
 		libwindowInitialize();
 
-	// Check params.
+	// Check params
 	if (!parent || !width || !height || !img || !params)
 	{
 		errno = ERR_NULLPARAMETER;
@@ -562,7 +568,7 @@ _X_ windowPixelEditor *windowNewPixelEditor(objectKey parent, int width, int hei
 	if (!editor)
 	{
 		errno = ERR_MEMORY;
-		return (editor = NULL);
+		return (editor);
 	}
 
 	// Create the editor's main canvas
@@ -626,7 +632,7 @@ _X_ windowPixelEditor *windowNewPixelEditor(objectKey parent, int width, int hei
 	calcDisplayPercentage(editor);
 
 	// Was a foreground color specified?
-	if (params->flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND)
+	if (params->flags & COMP_PARAMS_FLAG_CUSTOMFOREGROUND)
 	{
 		// Use the one we were given
 		memcpy(&editor->foreground, &params->foreground, sizeof(color));
@@ -638,7 +644,7 @@ _X_ windowPixelEditor *windowNewPixelEditor(objectKey parent, int width, int hei
 	}
 
 	// Was a background color specified?
-	if (params->flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
+	if (params->flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND)
 	{
 		// Use the one we were given
 		memcpy(&editor->background, &params->background, sizeof(color));

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,7 +21,8 @@
 
 // This is the header file to go with the kernel's loader
 
-#if !defined(_KERNELLOADER_H)
+#ifndef _KERNELLOADER_H
+#define _KERNELLOADER_H
 
 #include "kernelFont.h"
 #include <sys/loader.h>
@@ -113,7 +114,7 @@ typedef struct {
 			int (*save)(const char *, image *);
 		} image;
 		struct {
-			int (*getInfo)(const char *, kernelFont *);
+			int (*getInfo)(const char *, fontInfo *);
 			int (*load)(unsigned char *, int, kernelFont *, int);
 		} font;
 	};
@@ -122,7 +123,7 @@ typedef struct {
 
 // The structure that describes a dynamic library ready for use by the loader
 typedef struct _kernelDynamicLibrary {
-	char name[MAX_NAME_LENGTH];
+	char name[MAX_NAME_LENGTH + 1];
 	void *code;
 	void *codeVirtual;
 	unsigned codePhysical;
@@ -155,7 +156,8 @@ void *kernelLoaderGetSymbol(const char *);
 int kernelLoaderExecProgram(int, int);
 int kernelLoaderLoadAndExec(const char *, int, int);
 
-// These are format-specific file class functions
+// These are format-specific file class functions, exported by
+// kernelLoaderClass.c
 kernelFileClass *kernelFileClassBmp(void);
 kernelFileClass *kernelFileClassIco(void);
 kernelFileClass *kernelFileClassJpg(void);
@@ -185,6 +187,5 @@ kernelFileClass *kernelFileClassHtml(void);
 kernelFileClass *kernelFileClassText(void);
 kernelFileClass *kernelFileClassBinary(void);
 
-#define _KERNELLOADER_H
 #endif
 

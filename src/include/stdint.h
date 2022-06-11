@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,8 @@
 
 // This is the Visopsys version of the header file stdint.h
 
-#if !defined(_STDINT_H)
+#ifndef _STDINT_H
+#define _STDINT_H
 
 typedef unsigned char		uint8_t;
 typedef unsigned short		uint16_t;
@@ -32,6 +33,5 @@ typedef short				int16_t;
 typedef int					int32_t;
 typedef long long			int64_t;
 
-#define _STDINT_H
 #endif
 

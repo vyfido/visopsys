@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -46,8 +46,8 @@ _X_ int vshSearchPath(const char *orig, char *new)
 	if ((orig[0] == '/') || (orig[0] == '\\'))
 		return (errno = ERR_NOSUCHFILE);
 
-	path = malloc(MAX_PATH_LENGTH);
-	pathElement = malloc(MAX_PATH_NAME_LENGTH);
+	path = malloc(MAX_PATH_LENGTH + 1);
+	pathElement = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!path || !pathElement)
 		return (errno = ERR_MEMORY);
 

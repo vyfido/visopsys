@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelNetworkDevice.h
 //
 
-#if !defined(_KERNELNETWORKDEVICE_H)
+#ifndef _KERNELNETWORKDEVICE_H
+#define _KERNELNETWORKDEVICE_H
 
 #include "kernelNetwork.h"
 #include "kernelDevice.h"
@@ -48,6 +49,5 @@ int kernelNetworkDeviceHook(const char *, void **, int);
 int kernelNetworkDeviceUnhook(const char *, void *, int);
 unsigned kernelNetworkDeviceSniff(void *, unsigned char *, unsigned);
 
-#define _KERNELNETWORKDEVICE_H
 #endif
 

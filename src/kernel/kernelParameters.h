@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelParameters.h
 //
 
-#if !defined(_KERNELPARAMETERS_H)
+#ifndef _KERNELPARAMETERS_H
+#define _KERNELPARAMETERS_H
 
 #include <sys/paths.h>
 
@@ -56,6 +57,5 @@
 // Other
 #define MAX_SERIAL_PORTS			4
 
-#define _KERNELPARAMETERS_H
 #endif
 

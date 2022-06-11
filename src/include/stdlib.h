@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,8 @@
 
 // This is the Visopsys version of the standard header file stdlib.h
 
-#if !defined(_STDLIB_H)
+#ifndef _STDLIB_H
+#define _STDLIB_H
 
 #include <limits.h>
 #include <stddef.h>
@@ -94,6 +95,5 @@ int wctomb(char *, wchar_t);
 #define ulltoa(num, string) _lnum2str(num, string, 10, 0)
 #define utoa(num, string) _num2str(num, string, 10, 0)
 
-#define _STDLIB_H
 #endif
 

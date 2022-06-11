@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -32,10 +32,10 @@
 #include "kernelParameters.h"
 #include "kernelPciDriver.h"
 #include "kernelText.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/vis.h>
 
 #define ENDPOINT_INDEX(endpoint) (((endpoint) & (USB_MAX_ENDPOINTS - 1)) << 1)
 #define TRANSRING_INDEX(endpoint) \
@@ -828,7 +828,7 @@ static int getHighSpeedHubSlotPort(xhciData *xhci, usbDevice *usbDev,
 	usbDevice *hubDev = NULL;
 	usbDevice *parentHub = NULL;
 	int hubPort = 0;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	xhciSlot *slot = NULL;
 
 	// First, look upstream for the hub
@@ -852,7 +852,7 @@ static int getHighSpeedHubSlotPort(xhciData *xhci, usbDevice *usbDev,
 		return (ERR_NOSUCHENTRY);
 
 	// Found the hub, now look for its slot
-	slot = kernelLinkedListIterStart(&xhci->slots, &iter);
+	slot = linkedListIterStart(&xhci->slots, &iter);
 	while (slot)
 	{
 		if (slot->usbDev == hubDev)
@@ -862,7 +862,7 @@ static int getHighSpeedHubSlotPort(xhciData *xhci, usbDevice *usbDev,
 			return (0);
 		}
 
-		slot = kernelLinkedListIterNext(&xhci->slots, &iter);
+		slot = linkedListIterNext(&xhci->slots, &iter);
 	}
 
 	return (ERR_NOSUCHENTRY);
@@ -1058,7 +1058,7 @@ static int deallocSlot(xhciData *xhci, xhciSlot *slot)
 	kernelDebug(debug_usb, "XHCI de-allocate device slot");
 
 	// Remove it from the controller's list
-	status = kernelLinkedListRemove(&xhci->slots, slot);
+	status = linkedListRemove(&xhci->slots, slot);
 	if (status < 0)
 		return (status);
 
@@ -1296,7 +1296,7 @@ static xhciSlot *allocSlot(xhciData *xhci, usbDevice *usbDev)
 	xhci->devCtxtPhysPtrs[slot->num] = slot->devCtxtPhysical;
 
 	// Add it to the list
-	if (kernelLinkedListAdd(&xhci->slots, slot) < 0)
+	if (linkedListAdd(&xhci->slots, slot) < 0)
 		goto err_out;
 
 	return (slot);
@@ -1428,18 +1428,18 @@ static xhciSlot *getDevSlot(xhciData *xhci, usbDevice *usbDev)
 	// allocate and intitialize a new one.
 
 	xhciSlot *slot = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 
 	kernelDebug(debug_usb, "XHCI get device slot for device %d",
 		usbDev->address);
 
-	slot = kernelLinkedListIterStart(&xhci->slots, &iter);
+	slot = linkedListIterStart(&xhci->slots, &iter);
 	while (slot)
 	{
 		if (slot->usbDev == usbDev)
 			return (slot);
 
-		slot = kernelLinkedListIterNext(&xhci->slots, &iter);
+		slot = linkedListIterNext(&xhci->slots, &iter);
 	}
 
 	// Not found.  Allocate a new one.
@@ -1520,7 +1520,7 @@ static int transferEventInterrupt(xhciData *xhci, xhciTrb *eventTrb)
 {
 	int slotNum = 0;
 	int endpoint = 0;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	xhciIntrReg *intrReg = NULL;
 	xhciSlot *slot = NULL;
 	unsigned bytes = 0;
@@ -1534,7 +1534,7 @@ static int transferEventInterrupt(xhciData *xhci, xhciTrb *eventTrb)
 
 	// Loop through this controller's interrupt registrations, to find out
 	// whether one of them caused this interrupt.
-	intrReg = kernelLinkedListIterStart(&xhci->intrRegs, &iter);
+	intrReg = linkedListIterStart(&xhci->intrRegs, &iter);
 	while (intrReg)
 	{
 		kernelDebug(debug_usb, "XHCI examine interrupt reg for slot %d, "
@@ -1574,7 +1574,7 @@ static int transferEventInterrupt(xhciData *xhci, xhciTrb *eventTrb)
 			}
 		}
 
-		intrReg = kernelLinkedListIterNext(&xhci->intrRegs, &iter);
+		intrReg = linkedListIterNext(&xhci->intrRegs, &iter);
 	}
 
 	// If we did a callback, consume the event.  Otherwise, leave the event
@@ -2398,7 +2398,7 @@ static int interruptTransfer(xhciData *xhci, usbDevice *usbDev, int interface,
 	intrReg->callback = callback;
 
 	// Add the interrupt registration to the controller's list.
-	status = kernelLinkedListAdd(&xhci->intrRegs, intrReg);
+	status = linkedListAdd(&xhci->intrRegs, intrReg);
 	if (status < 0)
 		goto out;
 
@@ -2432,7 +2432,7 @@ static void unregisterInterrupt(xhciData *xhci, xhciIntrReg *intrReg)
 		"endpoint 0x%02x", intrReg->usbDev->address, intrReg->endpoint);
 
 	// Remove it from the list
-	kernelLinkedListRemove(&xhci->intrRegs, intrReg);
+	linkedListRemove(&xhci->intrRegs, intrReg);
 
 	// Deallocate it
 	if (intrReg->buffer)
@@ -3492,7 +3492,7 @@ static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 	xhciData *xhci = controller->data;
 	xhciSlot *slot = NULL;
 	xhciIntrReg *intrReg = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 
 	// Check params
 	if (!controller || !usbDev)
@@ -3516,19 +3516,19 @@ static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 		return (status);
 
 	// Remove any interrupt registrations for the device
-	intrReg = kernelLinkedListIterStart(&xhci->intrRegs, &iter);
+	intrReg = linkedListIterStart(&xhci->intrRegs, &iter);
 	while (intrReg)
 	{
 		if (intrReg->usbDev != usbDev)
 		{
-			intrReg = kernelLinkedListIterNext(&xhci->intrRegs, &iter);
+			intrReg = linkedListIterNext(&xhci->intrRegs, &iter);
 			continue;
 		}
 
 		unregisterInterrupt(xhci, intrReg);
 
 		// Restart the iteration
-		intrReg = kernelLinkedListIterStart(&xhci->intrRegs, &iter);
+		intrReg = linkedListIterStart(&xhci->intrRegs, &iter);
 	}
 
 	return (status = 0);
@@ -3908,13 +3908,12 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *busTarget,
 	dev->data = (void *) controller;
 
 	// Initialize the variable list for attributes of the controller
-	status = kernelVariableListCreate(&dev->device.attrs);
+	status = variableListCreateSystem(&dev->device.attrs);
 	if (status >= 0)
 	{
-		kernelVariableListSet(&dev->device.attrs, "controller.type", "XHCI");
+		variableListSet(&dev->device.attrs, "controller.type", "XHCI");
 		snprintf(value, 32, "%d", xhci->numPorts);
-		kernelVariableListSet(&dev->device.attrs, "controller.numPorts",
-			value);
+		variableListSet(&dev->device.attrs, "controller.numPorts", value);
 	}
 
 	// Claim the controller device in the list of PCI targets.

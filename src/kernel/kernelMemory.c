@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -38,7 +38,7 @@
 #include <string.h>
 
 static volatile int initialized = 0;
-static lock memoryLock;
+static spinLock memoryLock;
 static volatile unsigned totalMemory = 0;
 static memoryBlock * volatile usedBlockList[MAXMEMORYBLOCKS];
 static volatile int usedBlocks = 0;
@@ -117,7 +117,7 @@ static int allocateBlock(int processId, unsigned start, unsigned end,
 		strncpy((char *) usedBlockList[usedBlocks]->description,
 			description, MEMORY_MAX_DESC_LENGTH);
 		usedBlockList[usedBlocks]
-			->description[MEMORY_MAX_DESC_LENGTH - 1] = '\0';
+			->description[MEMORY_MAX_DESC_LENGTH] = '\0';
 	}
 	else
 		usedBlockList[usedBlocks]->description[0] = '\0';
@@ -387,7 +387,7 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 		return (status = ERR_ALREADY);
 
 	// Clear the static memory manager lock
-	memset((void *) &memoryLock, 0, sizeof(lock));
+	memset((void *) &memoryLock, 0, sizeof(spinLock));
 
 	// Calculate the amount of total memory we're managing.  First, count
 	// 1024 kilobytes for standard and high memory (first "megabyte")
@@ -746,7 +746,7 @@ int kernelMemoryGetIo(unsigned size, unsigned alignment, int lowMem,
 	//	d) make it non-cacheable
 
 	int status = 0;
-	char desc[MEMORY_MAX_DESC_LENGTH];
+	char desc[MEMORY_MAX_DESC_LENGTH + 1];
 
 	// Make sure the memory manager has been initialized
 	if (!initialized)

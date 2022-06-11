@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelUsbMouseDriver.h
 //
 
-#if !defined(_KERNELUSBMOUSEDRIVER_H)
+#ifndef _KERNELUSBMOUSEDRIVER_H
+#define _KERNELUSBMOUSEDRIVER_H
 
 #include "kernelUsbDriver.h"
 
@@ -43,6 +44,5 @@ typedef struct {
 
 } usbMouse;
 
-#define _KERNELUSBMOUSEDRIVER_H
 #endif
 

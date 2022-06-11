@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2018 J. Andrew McLaughlin
+##  Copyright (C) 1998-2019 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -42,7 +42,7 @@ target-dirs:
 	mkdir -p ${BUILDDIR}
 
 ${FDISK}: ${OBJS}
-	${CC} ${CFLAGS} ${LFLAGS} ${OBJS} -lintl -lwindow -lvsh -ldl -lc -lgcc -o $@
+	${CC} ${CFLAGS} ${LFLAGS} ${OBJS} -lintl -lwindow -lvis -lvsh -ldl -lc -lgcc -o $@
 
 strip: ${FDISK}
 	${STRIP}

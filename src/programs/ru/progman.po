@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2018 J. Andrew McLaughlin
+# Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: progman\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2014-08-13 22:29+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -18,120 +18,120 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.6.4\n"
 
-#: progman.c:58
+#: progman.c:59
 msgid "Program Manager"
 msgstr "Менеджер программ"
 
-#: progman.c:59
+#: progman.c:60
 msgid "Memory blocks: "
 msgstr "Блоков памяти:"
 
-#: progman.c:60
+#: progman.c:61
 msgid "Used memory: "
 msgstr "Памяти использовано:"
 
-#: progman.c:61
+#: progman.c:62
 msgid "Free memory: "
 msgstr "Свободной памяти:"
 
-#: progman.c:62
+#: progman.c:63
 msgid "Disk performance:"
 msgstr "Производительность диска:"
 
-#: progman.c:63
+#: progman.c:64
 msgid "Read: "
 msgstr "Чтение:"
 
-#: progman.c:64
+#: progman.c:65
 msgid "Write: "
 msgstr "Запись:"
 
-#: progman.c:65
+#: progman.c:66
 msgid "K/sec"
 msgstr "K/сек"
 
-#: progman.c:102
-msgid "Error"
-msgstr "Ошибка"
-
-#: progman.c:233
-msgid "Can't get temporary memory for processes"
-msgstr "Не удается получить временную память для процессов"
-
-#: progman.c:297
-msgid "running "
-msgstr "запущен"
-
-#: progman.c:301
-msgid "ready "
-msgstr "готов"
-
-#: progman.c:304
-msgid "waiting "
-msgstr "ожидает"
-
-#: progman.c:307
-msgid "sleeping "
-msgstr "спит"
-
-#: progman.c:310
-msgid "stopped "
-msgstr "остановлен"
-
-#: progman.c:313
-msgid "finished "
-msgstr "завершен"
-
-#: progman.c:316
-msgid "zombie "
-msgstr "зомби"
-
-#: progman.c:319
-msgid "unknown "
-msgstr "неизвестно"
-
-#: progman.c:340
-msgid "Enter command"
-msgstr "Введите команду"
-
-#: progman.c:341
-msgid "Please enter a command to run:"
-msgstr "Введите команду для запуска:"
-
-#: progman.c:370
-msgid "Unable to execute program"
-msgstr "Невозможно запустить программу"
-
-#: progman.c:407 progman.c:630
-msgid "Set priority"
-msgstr "Установить приоритет"
-
-#: progman.c:408
-msgid "Please enter the desired priority"
-msgstr "Введите желаемый приоритет"
-
-#: progman.c:504
-msgid "Unable to launch file dialog"
-msgstr "Невозможно запустить файловый диалог"
-
-#: progman.c:585
-#, c-format
-msgid "Process                   PID PPID UID Pri Priv CPU% STATE   "
-msgstr "Process                   PID PPID UID Pri Priv CPU% STATE   "
-
-#: progman.c:606
+#: progman.c:67
 msgid "Show all sub-processes"
 msgstr "Показать все под-процессы"
 
-#: progman.c:623
+#: progman.c:68
 msgid "Run program"
 msgstr "Запустить программу"
 
-#: progman.c:636
+#: progman.c:69 progman.c:420
+msgid "Set priority"
+msgstr "Установить приоритет"
+
+#: progman.c:70
 msgid "Kill process"
 msgstr "Убить процесс"
 
-#: progman.c:658
+#: progman.c:114
+msgid "Error"
+msgstr "Ошибка"
+
+#: progman.c:245
+msgid "Can't get temporary memory for processes"
+msgstr "Не удается получить временную память для процессов"
+
+#: progman.c:310
+msgid "running "
+msgstr "запущен"
+
+#: progman.c:314
+msgid "ready "
+msgstr "готов"
+
+#: progman.c:317
+msgid "waiting "
+msgstr "ожидает"
+
+#: progman.c:320
+msgid "sleeping "
+msgstr "спит"
+
+#: progman.c:323
+msgid "stopped "
+msgstr "остановлен"
+
+#: progman.c:326
+msgid "finished "
+msgstr "завершен"
+
+#: progman.c:329
+msgid "zombie "
+msgstr "зомби"
+
+#: progman.c:332
+msgid "unknown "
+msgstr "неизвестно"
+
+#: progman.c:353
+msgid "Enter command"
+msgstr "Введите команду"
+
+#: progman.c:354
+msgid "Please enter a command to run:"
+msgstr "Введите команду для запуска:"
+
+#: progman.c:383
+msgid "Unable to execute program"
+msgstr "Невозможно запустить программу"
+
+#: progman.c:421
+msgid "Please enter the desired priority"
+msgstr "Введите желаемый приоритет"
+
+#: progman.c:540
+msgid "Unable to launch file dialog"
+msgstr "Невозможно запустить файловый диалог"
+
+#: progman.c:622
+#, fuzzy, c-format
+msgid "Process                   PID PPID UID      Pri Priv CPU% STATE   "
+msgstr "Process                   PID PPID UID Pri Priv CPU% STATE   "
+
+#: progman.c:693
 #, c-format
 msgid ""
 "\n"
@@ -140,6 +140,6 @@ msgstr ""
 "\n"
 "Команда \"%s\" работает только в графическом режиме\n"
 
-#: progman.c:677
+#: progman.c:712
 msgid "Error getting memory"
 msgstr "Ошибка получения памяти"

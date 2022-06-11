@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelNetworkUdp.h
 //
 
-#if !defined(_KERNELNETWORKUDP_H)
+#ifndef _KERNELNETWORKUDP_H
+#define _KERNELNETWORKUDP_H
 
 #include "kernelNetwork.h"
 
@@ -29,6 +30,5 @@ void kernelNetworkUdpPrependHeader(kernelNetworkPacket *);
 void kernelNetworkUdpFinalizeSendPacket(kernelNetworkPacket *);
 void kernelNetworkUdpDebug(unsigned char *);
 
-#define _KERNELNETWORKUDP_H
 #endif
 

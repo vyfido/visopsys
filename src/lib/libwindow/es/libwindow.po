@@ -1,12 +1,12 @@
 # Visopsys
-# Copyright (C) 1998-2018 J. Andrew McLaughlin
+# Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 # Spanish Translation - 2013 - marianopbernacki@gmail.com
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,11 +15,11 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-15\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: windowArchiveList.c:55 windowFileList.c:198 windowProgressDialog.c:127
+#: windowArchiveList.c:55 windowFileList.c:199 windowProgressDialog.c:127
 msgid "Error"
 msgstr "Error"
 
-#: windowArchiveList.c:78 windowFileList.c:501
+#: windowArchiveList.c:78 windowFileList.c:502
 msgid "Memory allocation error creating icon parameters"
 msgstr "Error de alocacion de memoria al crear parametros de iconos"
 
@@ -31,55 +31,55 @@ msgstr "Selector de Color"
 msgid "Red"
 msgstr "Rojo"
 
-#: windowColorDialog.c:184
+#: windowColorDialog.c:185
 msgid "Green"
 msgstr "Verde"
 
-#: windowColorDialog.c:215
+#: windowColorDialog.c:217
 msgid "Blue"
 msgstr "Azul"
 
-#: windowColorDialog.c:268 windowFileDialog.c:248 windowLanguageDialog.c:199
-#: windowNumberDialog.c:167 windowOkDialog.c:126 windowPromptDialog.c:134
-#: windowQueryDialog.c:57 windowRadioDialog.c:153
+#: windowColorDialog.c:271 windowFileDialog.c:249 windowLanguageDialog.c:200
+#: windowNumberDialog.c:169 windowOkDialog.c:127 windowPromptDialog.c:136
+#: windowQueryDialog.c:57 windowRadioDialog.c:154
 msgid "OK"
 msgstr "OK"
 
-#: windowColorDialog.c:278 windowFileDialog.c:258 windowLanguageDialog.c:209
-#: windowNumberDialog.c:172 windowProgressDialog.c:258 windowPromptDialog.c:144
-#: windowQueryDialog.c:57 windowRadioDialog.c:165
+#: windowColorDialog.c:281 windowFileDialog.c:259 windowLanguageDialog.c:210
+#: windowNumberDialog.c:174 windowProgressDialog.c:260 windowPromptDialog.c:146
+#: windowQueryDialog.c:57 windowRadioDialog.c:166
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: windowFileList.c:217
+#: windowFileList.c:218
 #, c-format
 msgid "Can't locate configuration file %s"
 msgstr "No se pudo encontrar el archivo de configuracion en %s"
 
-#: windowFileList.c:342 windowFileList.c:375
+#: windowFileList.c:343 windowFileList.c:376
 msgid "(up)"
 msgstr "(arriba)"
 
-#: windowFileList.c:432
+#: windowFileList.c:433
 #, c-format
 msgid "Can't get directory \"%s\" file count"
 msgstr "No se pudo obtener el numero de archivos en el directorio %s"
 
-#: windowFileList.c:443
+#: windowFileList.c:444
 msgid "Memory allocation error"
 msgstr "Error de alocacion de memoria"
 
-#: windowFileList.c:456
+#: windowFileList.c:457
 #, c-format
 msgid "Error reading files in \"%s\""
 msgstr "Error al leer archivos en \"%s\""
 
-#: windowFileList.c:834
+#: windowFileList.c:836
 #, c-format
 msgid "Can't change to directory %s"
 msgstr "Imposible ir al directorio %s"
 
-#: windowFileList.c:861
+#: windowFileList.c:864
 #, c-format
 msgid "Error deleting file %s"
 msgstr "Error al borrar el archivo %s"

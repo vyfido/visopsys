@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelNetworkArp.h
 //
 
-#if !defined(_KERNELNETWORKARP_H)
+#ifndef _KERNELNETWORKARP_H
+#define _KERNELNETWORKARP_H
 
 #include "kernelNetwork.h"
 
@@ -31,6 +32,5 @@ int kernelNetworkArpProcessPacket(kernelNetworkDevice *,
 int kernelNetworkArpSend(kernelNetworkDevice *, networkAddress *,
 	networkAddress *, int, int);
 
-#define _KERNELNETWORKARP_H
 #endif
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelApi.h
 //
 
-#if !defined(_KERNELAPI_H)
+#ifndef _KERNELAPI_H
+#define _KERNELAPI_H
 
 // Pointer argument types
 #define API_ARG_NONNULLPTR	0x04
@@ -57,6 +58,5 @@ typedef struct {
 // Functions exported from kernelApi.c
 void kernelApi(unsigned, unsigned *);
 
-#define _KERNELAPI_H
 #endif
 

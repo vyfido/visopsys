@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -206,7 +206,7 @@ void kernelDebugOutput(const char *fileName, const char *function, int line,
 	// depending on a couple of filtering parameters.
 
 	va_list list;
-	char debugText[MAX_DEBUGTEXT_LENGTH];
+	char debugText[MAX_DEBUGTEXT_LENGTH + 1];
 	kernelTextOutputStream *console = kernelTextGetConsoleOutput();
 	int interrupt = 0;
 
@@ -264,7 +264,7 @@ void kernelDebugOutput(const char *fileName, const char *function, int line,
 void kernelDebugHexOutput(const char *fileName, void *ptr, unsigned length)
 {
 	unsigned char *buff = ptr;
-	char debugText[MAX_DEBUGTEXT_LENGTH];
+	char debugText[MAX_DEBUGTEXT_LENGTH + 1];
 	unsigned char tmp = 0;
 	kernelTextOutputStream *console = kernelTextGetConsoleOutput();
 	unsigned count1, count2;
@@ -313,7 +313,7 @@ void kernelDebugHexDwordsOutput(const char *fileName, void *ptr,
 	unsigned length)
 {
 	unsigned *buff = ptr;
-	char debugText[MAX_DEBUGTEXT_LENGTH];
+	char debugText[MAX_DEBUGTEXT_LENGTH + 1];
 	kernelTextOutputStream *console = kernelTextGetConsoleOutput();
 	unsigned count1, count2;
 
@@ -342,7 +342,7 @@ void kernelDebugBinaryOutput(const char *fileName, void *ptr, unsigned length)
 {
 	unsigned char *buff = ptr;
 	char tmp = 0;
-	char debugText[MAX_DEBUGTEXT_LENGTH];
+	char debugText[MAX_DEBUGTEXT_LENGTH + 1];
 	kernelTextOutputStream *console = kernelTextGetConsoleOutput();
 	unsigned count1, count2, count3;
 
@@ -377,7 +377,7 @@ void kernelDebugStack(void *stackMemory, unsigned stackSize, void *stackPtr,
 	long memoryOffset, unsigned showMax)
 {
 	void *stackBase = (stackMemory + stackSize - sizeof(void *));
-	char debugText[MAX_DEBUGTEXT_LENGTH];
+	char debugText[MAX_DEBUGTEXT_LENGTH + 1];
 	kernelTextOutputStream *console = kernelTextGetConsoleOutput();
 	unsigned count;
 

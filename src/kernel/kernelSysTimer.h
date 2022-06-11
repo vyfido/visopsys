@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelSysTimer.h
 //
 
-#if !defined(_KERNELSYSTIMER_H)
+#ifndef _KERNELSYSTIMER_H
+#define _KERNELSYSTIMER_H
 
 #include "kernelDevice.h"
 
@@ -47,6 +48,5 @@ int kernelSysTimerSetupTimer(int, int, int);
 int kernelSysTimerGetOutput(int);
 void kernelSysTimerWaitTicks(int);
 
-#define _KERNELSYSTIMER_H
 #endif
 

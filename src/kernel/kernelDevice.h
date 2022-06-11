@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,7 +22,8 @@
 // Describes the generic description/classification mechanism for hardware
 // devices.
 
-#if !defined(_KERNELDEVICE_H)
+#ifndef _KERNELDEVICE_H
+#define _KERNELDEVICE_H
 
 #include "kernelDriver.h"
 #include <sys/device.h>
@@ -76,6 +77,5 @@ int kernelDeviceTreeGetRoot(device *);
 int kernelDeviceTreeGetChild(device *, device *);
 int kernelDeviceTreeGetNext(device *);
 
-#define _KERNELDEVICE_H
 #endif
 

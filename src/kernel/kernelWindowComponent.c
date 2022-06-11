@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/env.h>
+#include <sys/vis.h>
 
 extern kernelWindowVariables *windowVariables;
 
@@ -136,33 +137,35 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
 
 	// Use the window's character set by default
 	if (component->window)
-		strncpy((char *) component->charSet,
-			(char *) component->window->charSet, CHARSET_NAME_LEN);
+	{
+		strncpy((char *) component->charSet, (char *)
+			component->window->charSet, CHARSET_NAME_LEN);
+	}
 
 	// Use the window's buffer by default
 	if (component->window)
 		component->buffer = &component->window->buffer;
 
 	// Visible and enabled by default
-	component->flags |= (WINFLAG_VISIBLE | WINFLAG_ENABLED);
+	component->flags |= (WINDOW_COMP_FLAG_VISIBLE | WINDOW_COMP_FLAG_ENABLED);
 
 	// If the parameter flags indicate the component should be focusable,
 	// set the appropriate component flag
-	if (params->flags & WINDOW_COMPFLAG_CANFOCUS)
-		component->flags |= WINFLAG_CANFOCUS;
+	if (params->flags & COMP_PARAMS_FLAG_CANFOCUS)
+		component->flags |= WINDOW_COMP_FLAG_CANFOCUS;
 
 	// Copy the parameters into the component
 	memcpy((void *) &component->params, params, sizeof(componentParameters));
 
 	// If the default colors are requested, copy them into the component
 	// parameters
-	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
+	if (!(component->params.flags & COMP_PARAMS_FLAG_CUSTOMFOREGROUND))
 	{
 		memcpy((void *) &component->params.foreground,
 			&windowVariables->color.foreground, sizeof(color));
 	}
 
-	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
+	if (!(component->params.flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND))
 	{
 		memcpy((void *) &component->params.background,
 			&windowVariables->color.background, sizeof(color));
@@ -171,7 +174,7 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
 	// Try to make sure we have the required character set.
 	if (params->font && kernelCurrentProcess)
 	{
-		charSet = kernelVariableListGet(kernelCurrentProcess->environment,
+		charSet = variableListGet(kernelCurrentProcess->environment,
 			ENV_CHARSET);
 
 		if (charSet)
@@ -210,8 +213,8 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
 		return (component = NULL);
 	}
 
-	if (parentComponent && parentComponent->add)
-		status = parentComponent->add(parentComponent, component);
+	if (parentComponent)
+		status = kernelWindowContainerAdd(parentComponent, component);
 
 	if (status < 0)
 	{
@@ -231,12 +234,13 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
 	extern kernelWindow *consoleWindow;
 	extern kernelWindowComponent *consoleTextArea;
 
-	// Check params.
+	// Check params
 	if (!component)
 		return;
 
 	// Make sure the component is removed from any containers it's in
-	removeFromContainer(component);
+	if (component->container)
+		kernelWindowContainerDelete(component->container, component);
 
 	// Never destroy the console text area.  If this is the console text area,
 	// move it back to our console window
@@ -305,9 +309,9 @@ int kernelWindowComponentSetCharSet(kernelWindowComponent *component,
 	if (component->params.font &&
 		!kernelFontHasCharSet((kernelFont *) component->params.font, charSet))
 	{
-		kernelFontGet(((kernelFont *) component->params.font)->family,
-			((kernelFont *) component->params.font)->flags,
-			((kernelFont *) component->params.font)->points, charSet);
+		kernelFontGet(((kernelFont *) component->params.font)->info.family,
+			((kernelFont *) component->params.font)->info.flags,
+			((kernelFont *) component->params.font)->info.points, charSet);
 	}
 
 	// Return success
@@ -355,7 +359,7 @@ int kernelWindowComponentSetVisible(kernelWindowComponent *component,
 
 		if (visible)
 		{
-			tmpComponent->flags |= WINFLAG_VISIBLE;
+			tmpComponent->flags |= WINDOW_COMP_FLAG_VISIBLE;
 			if (tmpComponent->draw)
 				tmpComponent->draw(tmpComponent);
 		}
@@ -364,11 +368,11 @@ int kernelWindowComponentSetVisible(kernelWindowComponent *component,
 			if (window->focusComponent == tmpComponent)
 			{
 				// Make sure it doesn't have the focus
-				tmpComponent->flags &= ~WINFLAG_HASFOCUS;
+				tmpComponent->flags &= ~WINDOW_COMP_FLAG_HASFOCUS;
 				window->focusComponent = NULL;
 			}
 
-			tmpComponent->flags &= ~WINFLAG_VISIBLE;
+			tmpComponent->flags &= ~WINDOW_COMP_FLAG_VISIBLE;
 			if (tmpComponent->erase)
 				tmpComponent->erase(tmpComponent);
 		}
@@ -427,8 +431,8 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
 	{
 		tmpComponent = array[count];
 
-		if ((enabled && !(tmpComponent->flags & WINFLAG_ENABLED)) ||
-			(!enabled && (tmpComponent->flags & WINFLAG_ENABLED)))
+		if ((enabled && !(tmpComponent->flags & WINDOW_COMP_FLAG_ENABLED)) ||
+			(!enabled && (tmpComponent->flags & WINDOW_COMP_FLAG_ENABLED)))
 		{
 			// Swap the 'draw' and 'grey' function pointers
 			tmpDraw = tmpComponent->grey;
@@ -438,16 +442,16 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
 
 		if (enabled)
 		{
-			tmpComponent->flags |= WINFLAG_ENABLED;
+			tmpComponent->flags |= WINDOW_COMP_FLAG_ENABLED;
 		}
 		else // disabled
 		{
-			tmpComponent->flags &= ~WINFLAG_ENABLED;
+			tmpComponent->flags &= ~WINDOW_COMP_FLAG_ENABLED;
 
 			if (window->focusComponent == tmpComponent)
 			{
 				// Make sure it doesn't have the focus
-				tmpComponent->flags &= ~WINFLAG_HASFOCUS;
+				tmpComponent->flags &= ~WINDOW_COMP_FLAG_HASFOCUS;
 				window->focusComponent = NULL;
 			}
 		}
@@ -455,7 +459,7 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
 
 	kernelFree(array);
 
-	if (component->flags & WINFLAG_VISIBLE)
+	if (component->flags & WINDOW_COMP_FLAG_VISIBLE)
 		renderComponent(component);
 
 	return (status = 0);
@@ -485,11 +489,12 @@ int kernelWindowComponentSetWidth(kernelWindowComponent *component, int width)
 	if (component->resize)
 		status = component->resize(component, width, component->height);
 
-	if ((width < component->width) && (component->flags & WINFLAG_VISIBLE))
+	if ((width < component->width) && (component->flags &
+		WINDOW_COMP_FLAG_VISIBLE))
 	{
-		component->flags &= ~WINFLAG_VISIBLE;
+		component->flags &= ~WINDOW_COMP_FLAG_VISIBLE;
 		renderComponent(component);
-		component->flags |= WINFLAG_VISIBLE;
+		component->flags |= WINDOW_COMP_FLAG_VISIBLE;
 	}
 
 	component->width = width;
@@ -524,11 +529,12 @@ int kernelWindowComponentSetHeight(kernelWindowComponent *component,
 	if (component->resize)
 		status = component->resize(component, component->width, height);
 
-	if ((height < component->height) && (component->flags & WINFLAG_VISIBLE))
+	if ((height < component->height) && (component->flags &
+		WINDOW_COMP_FLAG_VISIBLE))
 	{
-		component->flags &= ~WINFLAG_VISIBLE;
+		component->flags &= ~WINDOW_COMP_FLAG_VISIBLE;
 		renderComponent(component);
-		component->flags |= WINFLAG_VISIBLE;
+		component->flags |= WINDOW_COMP_FLAG_VISIBLE;
 	}
 
 	component->height = height;
@@ -586,9 +592,26 @@ int kernelWindowComponentUnfocus(kernelWindowComponent *component)
 }
 
 
+int kernelWindowComponentLayout(kernelWindowComponent *component)
+{
+	// Lay out a component
+
+	int status = 0;
+
+	// Check params
+	if (!component)
+		return (status = ERR_NULLPARAMETER);
+
+	if (!component->layout)
+		return (status = ERR_NOTIMPLEMENTED);
+
+	return (component->layout(component));
+}
+
+
 int kernelWindowComponentDraw(kernelWindowComponent *component)
 {
-	// Draw  a component
+	// Draw a component
 
 	int status = 0;
 
@@ -649,7 +672,7 @@ int kernelWindowComponentGetSelected(kernelWindowComponent *component,
 {
 	// Calls the 'get selected' method of the component, if applicable
 
-	// Check parameters
+	// Check params
 	if (!component || !selection)
 		return (ERR_NULLPARAMETER);
 
@@ -665,7 +688,7 @@ int kernelWindowComponentSetSelected(kernelWindowComponent *component,
 {
 	// Calls the 'set selected' method of the component, if applicable
 
-	// Check parameters
+	// Check params
 	if (!component)
 		return (ERR_NULLPARAMETER);
 

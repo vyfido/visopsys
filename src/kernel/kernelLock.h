@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,15 +22,15 @@
 // This header file contains definitions for the kernel's standard
 // locking facilities.
 
+#ifndef _KERNELLOCK_H
+#define _KERNELLOCK_H
+
 #include <sys/lock.h>
 
-#if !defined(_KERNELLOCK_H)
-
 // Functions exported by kernelLock.c
-int kernelLockGet(lock *);
-int kernelLockRelease(lock *);
-int kernelLockVerify(lock *);
+int kernelLockGet(spinLock *);
+int kernelLockRelease(spinLock *);
+int kernelLockVerify(spinLock *);
 
-#define _KERNELLOCK_H
 #endif
 

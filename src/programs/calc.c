@@ -71,7 +71,7 @@ static const int modeButton_modes[3] = { 10, 16, 8 };
 static int modeButton_pos = 0;
 static objectKey result_label;
 static char buttonName[2];
-static objectKey window;
+static objectKey window = NULL;
 static volatile int program_exit = 0;
 static int current_display_base;
 static double number_field;
@@ -178,6 +178,9 @@ static void refreshWindow(void)
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window (not necessary if no components have changed)
+	//windowLayout(window);
 }
 
 
@@ -187,7 +190,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	for (x = 0; x < 16; x++)
 	{
-		if (key == calculatorButtons[x] && event->type == EVENT_MOUSE_LEFTUP)
+		if (key == calculatorButtons[x] && (event->type ==
+			WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			if (last_op == calc_op_result)
 				calc_first = 1;
@@ -218,7 +222,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	for (x = 0; x < 7; x++)
 	{
-		if (key == opButton[x] && event->type == EVENT_MOUSE_LEFTUP)
+		if (key == opButton[x] && (event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			if (calc_entered)
 			{
@@ -227,7 +231,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 					case calc_op_divide:
 						if (!number_field)
 						{
-							windowNewErrorDialog(window, _("Division by zero"),
+							windowNewErrorDialog(window,
+								_("Division by zero"),
 								_("Error: division by zero!"));
 							reset_calculator();
 							return;
@@ -250,7 +255,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 					case calc_op_module:
 						if (!number_field)
 						{
-							windowNewErrorDialog(window, _("Division by zero"),
+							windowNewErrorDialog(window,
+								_("Division by zero"),
 								_("Error: division by zero!"));
 							reset_calculator();
 							return;
@@ -283,19 +289,19 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 	}
 
-	if (key == acButton && event->type == EVENT_MOUSE_LEFTUP)
+	if (key == acButton && event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 	{
 		reset_calculator();
 	}
 
-	else if (key == ceButton && event->type == EVENT_MOUSE_LEFTUP)
+	else if (key == ceButton && event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 	{
 		number_field = 0;
 		calc_entered = 0;
 		windowComponentSetData(result_label, "0", 1, 1 /* redraw */);
 	}
 
-	else if (key == plminButton && event->type == EVENT_MOUSE_LEFTUP)
+	else if (key == plminButton && event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 	{
 		double *number = calc_entered ? &number_field : &calc_result;
 
@@ -306,7 +312,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 	}
 
-	else if (key == modeButton && event->type == EVENT_MOUSE_LEFTUP)
+	else if (key == modeButton && event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 	{
 		modeButton_pos = (modeButton_pos + 1) % 3;
 		switch_number_base(modeButton_modes[modeButton_pos]);
@@ -314,7 +320,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		update_calculator_display(calc_entered ? number_field : calc_result);
 	}
 
-	else if (key == floatButton && event->type == EVENT_MOUSE_LEFTUP)
+	else if (key == floatButton && event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 	{
 		if (calc_float == -1 && current_display_base == 10)
 		{
@@ -324,7 +330,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 	}
 
-	else if (key == sqrtButton && event->type == EVENT_MOUSE_LEFTUP)
+	else if (key == sqrtButton && event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 	{
 		double root = sqrt(calc_entered ? number_field : calc_result);
 
@@ -332,7 +338,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		update_calculator_display((number_field = calc_result = root));
 	}
 
-	else if (key == factButton && event->type == EVENT_MOUSE_LEFTUP)
+	else if (key == factButton && event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 	{
 		double fact = calc_entered ? number_field : calc_result;
 
@@ -371,11 +377,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 	else if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 		{
 			program_exit = 1;
 			windowGuiStop();

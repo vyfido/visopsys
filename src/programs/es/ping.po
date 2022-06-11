@@ -1,12 +1,12 @@
 # Visopsys
-# Copyright (C) 1998-2018 J. Andrew McLaughlin
+# Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 # Spanish Translation - 2013 - marianopbernacki@gmail.com
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-03-03 03:09+0000\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,15 +15,15 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-15\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ping.c:64
+#: ping.c:65
 msgid "Ping"
 msgstr "Ping"
 
-#: ping.c:98
+#: ping.c:99
 msgid "Error"
 msgstr "Error"
 
-#: ping.c:106
+#: ping.c:107
 #, c-format
 msgid ""
 "usage:\n"
@@ -32,62 +32,62 @@ msgstr ""
 "Uso:\n"
 "%s [-T] <direccion | host>\n"
 
-#: ping.c:183
+#: ping.c:184
 #, c-format
 msgid "%d bytes from %d.%d.%d.%d: icmp_seq=%d ttl=%d time=%llu ms\n"
 msgstr "%d bytes desde %d.%d.%d.%d: icmp_seq=%d ttl=%d tiempo=%llu ms\n"
 
-#: ping.c:283
+#: ping.c:290
 msgid "Stop"
 msgstr "Detener"
 
-#: ping.c:345
+#: ping.c:352
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ping.c:354
+#: ping.c:361
 msgid "Networking is not currently enabled"
 msgstr "La red no está habilitada"
 
-#: ping.c:370
+#: ping.c:377
 msgid "Enter Address"
 msgstr "Direccion"
 
-#: ping.c:371
+#: ping.c:378
 msgid "Enter the network address to ping:"
 msgstr "Ingrese la direccion de red:"
 
-#: ping.c:384
+#: ping.c:391
 msgid "Couldn't determine destination address"
 msgstr ""
 
-#: ping.c:400
+#: ping.c:407
 msgid "Error opening network connection"
 msgstr "Error al abrir conexion de red"
 
-#: ping.c:404
+#: ping.c:411
 #, c-format
 msgid "Ping %d.%d.%d.%d %d(%d) bytes of data"
 msgstr "Ping %d.%d.%d.%d %d(%d) bytes de datos"
 
-#: ping.c:418
+#: ping.c:425
 msgid "Error setting signal handler"
 msgstr "Error preparando el señalero"
 
-#: ping.c:431
+#: ping.c:438
 msgid "Error starting response thread"
 msgstr "Error al iniciar hilo de respuesta"
 
-#: ping.c:439 ping.c:451
+#: ping.c:446 ping.c:458
 msgid "Memory allocation error"
 msgstr "Error al reservar memoria"
 
-#: ping.c:465
+#: ping.c:472
 msgid "Error pinging host"
 msgstr "Error al hacer ping al host"
 
-#: ping.c:483
+#: ping.c:490
 #, c-format
 msgid ""
 "\n"
@@ -96,14 +96,14 @@ msgstr ""
 "\n"
 "--- %d.%d.%d.%d estadisticas de ping ---\n"
 
-#: ping.c:485
+#: ping.c:492
 #, c-format
 msgid "%d packets transmitted, %d received, %d%% packet loss, time %llums\n"
 msgstr ""
 "%d paquetes transmitidos, %d recibidos, %d%% paquetes perdidos, tiempo "
 "%llums\n"
 
-#: ping.c:489
+#: ping.c:496
 #, c-format
 msgid "rtt min/avg/max = %llu/%llu/%llu ms\n"
 msgstr ""

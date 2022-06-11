@@ -243,7 +243,7 @@ static void format_progress_update(int myPercentIndex, u64 current, u64 total)
   unsigned finished = 0;
   int count;
 
-  if (opts.prog && (lockGet(&opts.prog->progLock) >= 0))
+  if (opts.prog && (lockGet(&opts.prog->lock) >= 0))
     {
       for (count = 0; count < myPercentIndex; count ++)
 	finished += progressPercentages[count];
@@ -256,7 +256,7 @@ static void format_progress_update(int myPercentIndex, u64 current, u64 total)
       opts.prog->numFinished = finished;
       opts.prog->percentFinished = finished;
 
-      lockRelease(&opts.prog->progLock);
+      lockRelease(&opts.prog->lock);
     }
 }
 
@@ -271,13 +271,13 @@ static void progress_message(const char *fmt, ...)
 	vsprintf(tmp, fmt, ap);
 	va_end(ap);
 
-	if (opts.prog && (lockGet(&opts.prog->progLock) >= 0))
+	if (opts.prog && (lockGet(&opts.prog->lock) >= 0))
 	  {
 	    length = min((strlen(tmp) + 1), PROGRESS_MAX_MESSAGELEN);
 	    if (tmp[length - 1] == '\n')
 	      tmp[length - 1] ='\0';
 	    strncpy((char *) opts.prog->statusMessage, tmp, length);
-	    lockRelease(&opts.prog->progLock);
+	    lockRelease(&opts.prog->lock);
 	  }
 
 	ntfs_log_debug("%s\n", tmp);
@@ -299,7 +299,7 @@ static void _error(const char *function, const char *fmt, ...)
 	vsprintf((tmp + strlen(tmp)), fmt, ap);
 	va_end(ap);
 
-	if (opts.prog && (lockGet(&opts.prog->progLock) >= 0))
+	if (opts.prog && (lockGet(&opts.prog->lock) >= 0))
 	  {
 	    length = min((strlen(tmp) + 1), PROGRESS_MAX_MESSAGELEN);
 	    if (tmp[length - 1] == '\n')
@@ -307,7 +307,7 @@ static void _error(const char *function, const char *fmt, ...)
 	    strncpy((char *) opts.prog->statusMessage, tmp, length);
 	    opts.prog->error = 1;
 
-	    lockRelease(&opts.prog->progLock);
+	    lockRelease(&opts.prog->lock);
 
 	    while (opts.prog->error)
 	      multitaskerYield();
@@ -5354,12 +5354,12 @@ int ntfsFormat(const char *diskName, const char *volName, int longFormat,
       format_progress_update(RSZPCNT_FILES, 25, 25);
     }
 
-  if (prog && (lockGet(&prog->progLock) >= 0))
+  if (prog && (lockGet(&prog->lock) >= 0))
     {
       prog->numFinished = prog->numTotal;
       prog->percentFinished = 100;
 	  prog->complete = 1;
-      lockRelease(&prog->progLock);
+      lockRelease(&prog->lock);
     }
 
   return (status);

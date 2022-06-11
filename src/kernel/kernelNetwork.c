@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,7 +23,6 @@
 #include "kernelCpu.h"
 #include "kernelDebug.h"
 #include "kernelError.h"
-#include "kernelLinkedList.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
@@ -37,10 +36,10 @@
 #include "kernelNetworkStream.h"
 #include "kernelNetworkUdp.h"
 #include "kernelRtc.h"
-#include "kernelVariableList.h"
 #include <stdlib.h>
 #include <string.h>
 #include <sys/kernconf.h>
+#include <sys/vis.h>
 
 static char *hostName = NULL;
 static char *domainName = NULL;
@@ -189,9 +188,8 @@ static kernelNetworkDevice *getDevice(networkAddress *dest)
 }
 
 
-static kernelNetworkConnection *findMatchFilter(
-	volatile kernelLinkedList *list, kernelLinkedListItem **iter,
-	kernelNetworkPacket *packet)
+static kernelNetworkConnection *findMatchFilter(volatile linkedList *list,
+	linkedListItem **iter, kernelNetworkPacket *packet)
 {
 	// Given a starting connection, loop through them until we find one whose
 	// filter matches the supplied packet.
@@ -202,15 +200,9 @@ static kernelNetworkConnection *findMatchFilter(
 	while (1)
 	{
 		if (!(*iter))
-		{
-			connection = kernelLinkedListIterStart((kernelLinkedList *) list,
-				iter);
-		}
+			connection = linkedListIterStart((linkedList *) list, iter);
 		else
-		{
-			connection = kernelLinkedListIterNext((kernelLinkedList *) list,
-				iter);
-		}
+			connection = linkedListIterNext((linkedList *) list, iter);
 
 		if (!connection)
 			break;
@@ -284,7 +276,7 @@ static void networkThread(void)
 	kernelNetworkDevice *netDev = NULL;
 	kernelNetworkPacket *packet = NULL;
 	kernelNetworkConnection *connection = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	int count;
 
 	while (!networkStop)
@@ -434,7 +426,8 @@ static void checkSpawnNetworkThread(void)
 		(kernelMultitaskerGetProcessState(netThreadPid, &tmpState) < 0))
 	{
 		netThreadPid = kernelMultitaskerSpawnKernelThread(networkThread,
-			"network thread", 0, NULL);
+			"network thread", 0 /* no args */, NULL /* no args */,
+			1 /* run */);
 	}
 }
 
@@ -445,14 +438,14 @@ static int connectionExists(kernelNetworkConnection *connection)
 
 	kernelNetworkDevice *netDev = NULL;
 	kernelNetworkConnection *tmpConnection = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	int count;
 
 	for (count = 0; count < numDevices; count ++)
 	{
 		netDev = devices[count];
 
-		tmpConnection = kernelLinkedListIterStart((kernelLinkedList *)
+		tmpConnection = linkedListIterStart((linkedList *)
 			&netDev->connections, &iter);
 
 		while (tmpConnection)
@@ -460,7 +453,7 @@ static int connectionExists(kernelNetworkConnection *connection)
 			if (tmpConnection == connection)
 				return (1);
 
-			tmpConnection = kernelLinkedListIterNext((kernelLinkedList *)
+			tmpConnection = linkedListIterNext((linkedList *)
 				&netDev->connections, &iter);
 		}
 	}
@@ -508,7 +501,7 @@ int kernelNetworkInitialize(void)
 		// Nothing to do.  No error.
 		return (status = 0);
 
-	hostName = kernelMalloc(NETWORK_MAX_HOSTNAMELENGTH);
+	hostName = kernelMalloc(NETWORK_MAX_HOSTNAMELENGTH + 1);
 	if (!hostName)
 		return (status = ERR_MEMORY);
 
@@ -518,16 +511,16 @@ int kernelNetworkInitialize(void)
 	if (kernelVariables)
 	{
 		// Check for a user-specified host name.
-		if (kernelVariableListGet(kernelVariables, KERNELVAR_NET_HOSTNAME))
+		if (variableListGet(kernelVariables, KERNELVAR_NET_HOSTNAME))
 		{
-			strncpy(hostName, kernelVariableListGet(kernelVariables,
+			strncpy(hostName, variableListGet(kernelVariables,
 				KERNELVAR_NET_HOSTNAME), NETWORK_MAX_HOSTNAMELENGTH);
 		}
 	}
 
 	kernelDebug(debug_net, "NET hostName=%s", hostName);
 
-	domainName = kernelMalloc(NETWORK_MAX_DOMAINNAMELENGTH);
+	domainName = kernelMalloc(NETWORK_MAX_DOMAINNAMELENGTH + 1);
 	if (!domainName)
 		return (status = ERR_MEMORY);
 
@@ -537,9 +530,9 @@ int kernelNetworkInitialize(void)
 	if (kernelVariables)
 	{
 		// Check for a user-specified domain name.
-		if (kernelVariableListGet(kernelVariables, KERNELVAR_NET_DOMAINNAME))
+		if (variableListGet(kernelVariables, KERNELVAR_NET_DOMAINNAME))
 		{
-			strncpy(domainName, kernelVariableListGet(kernelVariables,
+			strncpy(domainName, variableListGet(kernelVariables,
 				KERNELVAR_NET_DOMAINNAME), NETWORK_MAX_DOMAINNAMELENGTH);
 		}
 	}
@@ -684,8 +677,7 @@ kernelNetworkConnection *kernelNetworkConnectionOpen(
 
 	// Add the connection to the device's list
 	connection->netDev = netDev;
-	kernelLinkedListAdd((kernelLinkedList *) &netDev->connections,
-		(void *) connection);
+	linkedListAdd((linkedList *) &netDev->connections, (void *) connection);
 
 	return (connection);
 }
@@ -710,8 +702,8 @@ int kernelNetworkConnectionClose(kernelNetworkConnection *connection,
 		kernelStreamDestroy(&connection->inputStream);
 
 	// Remove the connection from the device's list.
-	kernelLinkedListRemove((kernelLinkedList *) &netDev->connections,
-		(void *) connection);
+	linkedListRemove((linkedList *) &netDev->connections, (void *)
+		connection);
 
 	// Deallocate it
 	memset((void *) connection, 0, sizeof(kernelNetworkConnection));
@@ -1153,7 +1145,7 @@ int kernelNetworkEnable(void)
 	if (kernelVariables)
 	{
 		// Check for a user-specified host name.
-		newHostName = kernelVariableListGet(kernelVariables,
+		newHostName = variableListGet(kernelVariables,
 			KERNELVAR_NET_HOSTNAME);
 
 		if (newHostName && strncmp(hostName, newHostName,
@@ -1164,7 +1156,7 @@ int kernelNetworkEnable(void)
 		}
 
 		// Check for a user-specified domain name.
-		newDomainName = kernelVariableListGet(kernelVariables,
+		newDomainName = variableListGet(kernelVariables,
 			KERNELVAR_NET_DOMAINNAME);
 
 		if (newDomainName && strncmp(domainName, newDomainName,
@@ -1183,7 +1175,8 @@ int kernelNetworkEnable(void)
 
 	// Start a thread to configure the network devices
 	kernelMultitaskerSpawnKernelThread(deviceStartThread,
-		"network device thread", 0, NULL);
+		"network device thread", 0 /* no args */, NULL /* no args */,
+		1 /* run */);
 
 	kernelLog("Networking enabled.  Host name is \"%s\".", hostName);
 	return (status = 0);
@@ -1196,7 +1189,7 @@ int kernelNetworkDisable(void)
 
 	int status = 0;
 	kernelNetworkConnection *connection = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	int count;
 
 	if (!enabled)
@@ -1206,14 +1199,14 @@ int kernelNetworkDisable(void)
 	// Close all connections
 	for (count = 0; count < numDevices; count ++)
 	{
-		connection = kernelLinkedListIterStart((kernelLinkedList *)
+		connection = linkedListIterStart((linkedList *)
 			&devices[count]->connections, &iter);
 
 		while (connection)
 		{
 			kernelNetworkClose(connection);
 
-			connection = kernelLinkedListIterNext((kernelLinkedList *)
+			connection = linkedListIterNext((linkedList *)
 				&devices[count]->connections, &iter);
 		}
 	}
@@ -1257,7 +1250,7 @@ kernelNetworkConnection *kernelNetworkOpen(int mode, networkAddress *address,
 	// Make sure the network thread is running
 	checkSpawnNetworkThread();
 
-	// Check params.
+	// Check params
 
 	if (!mode)
 	{
@@ -1345,7 +1338,7 @@ int kernelNetworkCloseAll(int processId)
 
 	int status = 0;
 	kernelNetworkConnection *connection = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	int count;
 
 	if (!enabled)
@@ -1359,7 +1352,7 @@ int kernelNetworkCloseAll(int processId)
 
 	for (count = 0; count < numDevices; count ++)
 	{
-		connection = kernelLinkedListIterStart((kernelLinkedList *)
+		connection = linkedListIterStart((linkedList *)
 			&devices[count]->connections, &iter);
 
 		while (connection)
@@ -1367,7 +1360,7 @@ int kernelNetworkCloseAll(int processId)
 			if (connection->processId == processId)
 				kernelNetworkConnectionClose(connection, 0 /* not polite */);
 
-			connection = kernelLinkedListIterNext((kernelLinkedList *)
+			connection = linkedListIterNext((linkedList *)
 				&devices[count]->connections, &iter);
 		}
 	}

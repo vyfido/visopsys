@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,9 +28,9 @@
 #include "kernelError.h"
 #include "kernelKeyboard.h"
 #include "kernelMalloc.h"
-#include "kernelVariableList.h"
 #include <stdlib.h>
 #include <string.h>
+#include <sys/vis.h>
 #include <sys/window.h>
 
 // Flags for keyboard shift state
@@ -148,7 +148,7 @@ static void keyboardThreadCall(kernelKeyboard *keyboard)
 
 		if (currentTime >= keyboard->repeatTime)
 		{
-			kernelKeyboardInput(&keyDev->keyboard, EVENT_KEY_DOWN,
+			kernelKeyboardInput(&keyDev->keyboard, WINDOW_EVENT_KEY_DOWN,
 				keyboard->repeatKey);
 			keyboard->repeatTime = (currentTime + 32);
 		}
@@ -182,7 +182,7 @@ static void interrupt(usbDevice *usbDev, int interface, void *buffer,
 		{
 			kernelKeyboardInput(&keyDev->keyboard,
 				((keyboardData->modifier & RALT_FLAG)?
-					EVENT_KEY_DOWN : EVENT_KEY_UP), keyA2);
+					WINDOW_EVENT_KEY_DOWN : WINDOW_EVENT_KEY_UP), keyA2);
 		}
 
 		if ((keyboardData->modifier & RSHIFT_FLAG) !=
@@ -190,7 +190,7 @@ static void interrupt(usbDevice *usbDev, int interface, void *buffer,
 		{
 			kernelKeyboardInput(&keyDev->keyboard,
 				((keyboardData->modifier & RSHIFT_FLAG)?
-					EVENT_KEY_DOWN : EVENT_KEY_UP), keyRShift);
+					WINDOW_EVENT_KEY_DOWN : WINDOW_EVENT_KEY_UP), keyRShift);
 		}
 
 		if ((keyboardData->modifier & RCONTROL_FLAG) !=
@@ -198,7 +198,7 @@ static void interrupt(usbDevice *usbDev, int interface, void *buffer,
 		{
 			kernelKeyboardInput(&keyDev->keyboard,
 				((keyboardData->modifier & RCONTROL_FLAG)?
-					EVENT_KEY_DOWN : EVENT_KEY_UP), keyRCtrl);
+					WINDOW_EVENT_KEY_DOWN : WINDOW_EVENT_KEY_UP), keyRCtrl);
 		}
 
 		if ((keyboardData->modifier & LALT_FLAG) !=
@@ -206,7 +206,7 @@ static void interrupt(usbDevice *usbDev, int interface, void *buffer,
 		{
 			kernelKeyboardInput(&keyDev->keyboard,
 				((keyboardData->modifier & LALT_FLAG)?
-					EVENT_KEY_DOWN : EVENT_KEY_UP), keyLAlt);
+					WINDOW_EVENT_KEY_DOWN : WINDOW_EVENT_KEY_UP), keyLAlt);
 		}
 
 		if ((keyboardData->modifier & LSHIFT_FLAG) !=
@@ -214,7 +214,7 @@ static void interrupt(usbDevice *usbDev, int interface, void *buffer,
 		{
 			kernelKeyboardInput(&keyDev->keyboard,
 				((keyboardData->modifier & LSHIFT_FLAG)?
-					EVENT_KEY_DOWN : EVENT_KEY_UP), keyLShift);
+					WINDOW_EVENT_KEY_DOWN : WINDOW_EVENT_KEY_UP), keyLShift);
 		}
 
 		if ((keyboardData->modifier & LCONTROL_FLAG) !=
@@ -222,7 +222,7 @@ static void interrupt(usbDevice *usbDev, int interface, void *buffer,
 		{
 			kernelKeyboardInput(&keyDev->keyboard,
 				((keyboardData->modifier & LCONTROL_FLAG)?
-					EVENT_KEY_DOWN : EVENT_KEY_UP), keyLCtrl);
+					WINDOW_EVENT_KEY_DOWN : WINDOW_EVENT_KEY_UP), keyLCtrl);
 		}
 	}
 
@@ -252,7 +252,7 @@ static void interrupt(usbDevice *usbDev, int interface, void *buffer,
 
 		scan = usbScan2Scan[keyDev->oldKeyboardData.code[count1]];
 
-		kernelKeyboardInput(&keyDev->keyboard, EVENT_KEY_UP, scan);
+		kernelKeyboardInput(&keyDev->keyboard, WINDOW_EVENT_KEY_UP, scan);
 
 		if (keyDev->keyboard.repeatKey == scan)
 			keyDev->keyboard.repeatKey = 0;
@@ -284,7 +284,7 @@ static void interrupt(usbDevice *usbDev, int interface, void *buffer,
 
 		scan = usbScan2Scan[keyboardData->code[count1]];
 
-		kernelKeyboardInput(&keyDev->keyboard, EVENT_KEY_DOWN, scan);
+		kernelKeyboardInput(&keyDev->keyboard, WINDOW_EVENT_KEY_DOWN, scan);
 
 		keyDev->keyboard.repeatKey = scan;
 		keyDev->keyboard.repeatTime = (kernelCpuGetMs() + 500);
@@ -555,7 +555,7 @@ static int hotplug(void *parent, int busType __attribute__((unused)),
 		kernelDeviceRemove(&keyDev->dev);
 
 		// Free the device's attributes list
-		kernelVariableListDestroy(&keyDev->dev.device.attrs);
+		variableListDestroy(&keyDev->dev.device.attrs);
 
 		// Free the memory.
 		if (keyDev->busTarget)

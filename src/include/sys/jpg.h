@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,7 +21,8 @@
 
 // This defines things for manipulating JPG image files
 
-#if !defined(_JPG_H)
+#ifndef _JPG_H
+#define _JPG_H
 
 // Constants
 
@@ -172,6 +173,5 @@ typedef struct {
 
 } __attribute__((packed)) jpgScanHeader;
 
-#define _JPG_H
 #endif
 

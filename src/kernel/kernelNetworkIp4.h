@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelNetworkIp4.h
 //
 
-#if !defined(_KERNELNETWORKIP4_H)
+#ifndef _KERNELNETWORKIP4_H
+#define _KERNELNETWORKIP4_H
 
 #include "kernelNetwork.h"
 
@@ -30,6 +31,5 @@ void kernelNetworkIp4PrependHeader(kernelNetworkPacket *);
 void kernelNetworkIp4FinalizeSendPacket(kernelNetworkIpState *,
 	kernelNetworkPacket *);
 
-#define _KERNELNETWORKIP4_H
 #endif
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,8 @@
 // This file contains public definitions and structures used by the
 // compression/decompression library.
 
-#if !defined(_COMPRESS_H)
+#ifndef _COMPRESS_H
+#define _COMPRESS_H
 
 #include <stdio.h>
 #include <sys/deflate.h>
@@ -225,6 +226,5 @@ int archiveExtractMember(const char *, const char *, int, const char *,
 int archiveExtract(const char *, progress *);
 int archiveDeleteMember(const char *, const char *, int, progress *);
 
-#define _COMPRESS_H
 #endif
 

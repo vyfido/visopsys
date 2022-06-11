@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -55,7 +55,6 @@ choices for the first hard disk, hd0.
 #include <sys/ascii.h>
 #include <sys/env.h>
 #include <sys/paths.h>
-#include <sys/vsh.h>
 
 #define _(string) gettext(string)
 
@@ -65,7 +64,7 @@ choices for the first hard disk, hd0.
 #define VBM_MAGIC			"VBM2"
 #define SLICESTRING_LENGTH	60
 #define TITLE				_("Visopsys Boot Menu Installer\n" \
-	"Copyright (C) 1998-2018 J. Andrew McLaughlin")
+	"Copyright (C) 1998-2019 J. Andrew McLaughlin")
 #define PERM				_("You must be a privileged user to use this " \
 	"command.\n(Try logging in as user \"admin\")")
 #define PARTITIONS			_("Partitions on the disk:")
@@ -129,7 +128,7 @@ static void error(const char *format, ...)
 	// Generic error message code for either text or graphics modes
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
@@ -241,7 +240,7 @@ static void editEntryLabel(int entryNumber)
 		params.padBottom = 5;
 		params.padRight = 0;
 		params.orientationX = orient_right;
-		params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+		params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 		okBut = windowNewButton(dialogWindow, OK, NULL, &params);
 
 		// Create the Cancel button
@@ -257,19 +256,19 @@ static void editEntryLabel(int entryNumber)
 		{
 			// Check for the OK button
 			if (((windowComponentEventGet(newLabelField, &event) > 0) &&
-				(event.key == keyEnter) &&
-				(event.type == EVENT_KEY_DOWN)) ||
+					(event.type == WINDOW_EVENT_KEY_DOWN) &&
+						(event.key.scan == keyEnter)) ||
 				((windowComponentEventGet(okBut, &event) > 0) &&
-					(event.type == EVENT_MOUSE_LEFTUP)))
+					(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 			{
 				break;
 			}
 
 			// Check for window close or cancel button events
 			if (((windowComponentEventGet(dialogWindow, &event) > 0) &&
-					(event.type == EVENT_WINDOW_CLOSE)) ||
+					(event.type == WINDOW_EVENT_WINDOW_CLOSE)) ||
 				((windowComponentEventGet(cancelBut, &event) > 0) &&
-					(event.type == EVENT_MOUSE_LEFTUP)))
+					(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 			{
 				windowDestroy(dialogWindow);
 				return;
@@ -505,44 +504,49 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for the window being closed
-		if (event->type == EVENT_WINDOW_CLOSE)
+		if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 		{
 			quit();
 			exit(0);
 		}
 	}
 
-	else if ((key == timeoutCheckbox) && (event->type & EVENT_SELECTION))
+	else if ((key == timeoutCheckbox) && (event->type &
+		WINDOW_EVENT_SELECTION))
 	{
 		windowComponentGetSelected(timeoutCheckbox, &selected);
 		windowComponentSetEnabled(timeoutValueField, selected);
 	}
 
-	else if ((key == editButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == editButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		windowComponentGetSelected(entryList, &selected);
 		if (selected >= 0)
 		editEntryLabel(selected);
 	}
 
-	else if ((key == defaultButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == defaultButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		windowComponentGetSelected(entryList, &selected);
 		entryArray->defaultEntry = selected;
 		refreshList();
 	}
 
-	else if ((key == deleteButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == deleteButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		windowComponentGetSelected(entryList, &selected);
 		if (selected >= 0)
 			deleteEntryLabel(selected);
 	}
 
-	else if ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == okButton) && (event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 		windowGuiStop();
 
-	else if ((key == cancelButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == cancelButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		quit();
 		exit(0);
@@ -597,9 +601,9 @@ static void constructWindow(void)
 		sprintf(entryParams[count].text, "%s%s",
 			((count == entryArray->defaultEntry)? " * " : "   "),
 			entryArray->entries[count].string);
-	entryList =
-		windowNewList(window, windowlist_textonly, DISK_MAX_PRIMARY_PARTITIONS,
-			1, 0, entryParams, entryArray->numberEntries, &params);
+	entryList = windowNewList(window, windowlist_textonly,
+		DISK_MAX_PRIMARY_PARTITIONS, 1, 0, entryParams,
+		entryArray->numberEntries, &params);
 	windowComponentFocus(entryList);
 
 	params.gridX = 1;
@@ -618,15 +622,15 @@ static void constructWindow(void)
 
 	params.gridX = 0;
 	params.gridY = 6;
-	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags = COMP_PARAMS_FLAG_FIXEDWIDTH;
 	timeoutContainer = windowNewContainer(window, "timeout container",
 		&params);
 
 	params.gridX = 0;
 	params.gridY = 0;
 	params.gridWidth = 1;
-	timeoutCheckbox =
-		windowNewCheckbox(timeoutContainer, AUTOMATICALLY, &params);
+	timeoutCheckbox = windowNewCheckbox(timeoutContainer, AUTOMATICALLY,
+		&params);
 	windowComponentSetSelected(timeoutCheckbox, 1);
 	windowRegisterEventHandler(timeoutCheckbox, &eventHandler);
 
@@ -688,7 +692,9 @@ static int writeOut(unsigned numSectors, disk *physicalDisk)
 			}
 		}
 		else
+		{
 			entryArray->timeoutSeconds = 0;
+		}
 	}
 
 	// Stick the magic number in

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -73,9 +73,9 @@ _X_ void vshCompleteFilename(char *buffer)
 	}
 
 	// Get memory
-	prefixPath = malloc(MAX_PATH_LENGTH);
-	fileName = malloc(MAX_NAME_LENGTH);
-	matchName = malloc(MAX_NAME_LENGTH);
+	prefixPath = malloc(MAX_PATH_LENGTH + 1);
+	fileName = malloc(MAX_NAME_LENGTH + 1);
+	matchName = malloc(MAX_NAME_LENGTH + 1);
 
 	if (!prefixPath || !fileName || !matchName)
 	{

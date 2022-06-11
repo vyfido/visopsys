@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -47,7 +47,7 @@ static int getLanguages(void)
 	int status = 0;
 	file langDir;
 	file f;
-	char path[MAX_PATH_LENGTH];
+	char path[MAX_PATH_LENGTH + 1];
 	char codes[32][6];
 	int count;
 
@@ -181,7 +181,8 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 	params.gridY++;
 	params.padTop = 1;
 	params.padBottom = 4;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	buttonContainer = windowNewContainer(dialogWindow, "buttonContainer",
 		&params);
 	if (!buttonContainer)
@@ -227,7 +228,7 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 	{
 		// Check for our OK button
 		status = windowComponentEventGet(okButton, &event);
-		if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+		if ((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			status = windowComponentGetSelected(langList, &selected);
 			if (status >= 0)
@@ -242,7 +243,7 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 		// Check for the cancel button
 		status = windowComponentEventGet(cancelButton, &event);
 		if ((status < 0) ||
-			((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
+			((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 		{
 			status = ERR_CANCELLED;
 			break;
@@ -252,7 +253,7 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 		status = windowComponentEventGet(dialogWindow, &event);
 		if (status > 0)
 		{
-			if (event.type == EVENT_WINDOW_CLOSE)
+			if (event.type == WINDOW_EVENT_WINDOW_CLOSE)
 			{
 				status = ERR_CANCELLED;
 				break;

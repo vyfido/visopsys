@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,8 @@
 // This file contains definitions and structures for using and manipulating
 // streams in Visopsys.
 
-#if !defined(_STREAM_H)
+#ifndef _STREAM_H
+#define _STREAM_H
 
 #include <sys/lock.h>
 
@@ -40,7 +41,7 @@ typedef volatile struct _stream {
 	unsigned first;
 	unsigned last;
 	unsigned count;
-	lock lock;
+	spinLock lock;
 
 	// Stream functions.  These are not for calling from user space.
 	int (*clear)(volatile struct _stream *);
@@ -57,6 +58,5 @@ typedef volatile struct _stream {
 
 typedef stream networkStream;
 
-#define _STREAM_H
 #endif
 

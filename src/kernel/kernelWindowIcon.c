@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -252,7 +252,7 @@ static int draw(kernelWindowComponent *component)
 		}
 	}
 
-	if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
+	if (component->params.flags & COMP_PARAMS_FLAG_HASBORDER)
 		component->drawBorder(component, 1);
 
 	return (0);
@@ -320,7 +320,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	// Is the icon being dragged around?
 	if (dragging)
 	{
-		if (event->type == EVENT_MOUSE_DRAG)
+		if (event->type == WINDOW_EVENT_MOUSE_DRAG)
 		{
 			// The icon is still moving
 
@@ -330,8 +330,8 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 				component->yCoord), component->width, component->height);
 
 			// Set the new position
-			component->xCoord += (event->xPosition - dragEvent.xPosition);
-			component->yCoord += (event->yPosition - dragEvent.yPosition);
+			component->xCoord += (event->coord.x - dragEvent.coord.x);
+			component->yCoord += (event->coord.y - dragEvent.coord.y);
 
 			// Draw the moving image.
 			kernelGraphicDrawImage(NULL, (image *) &icon->selectedImage,
@@ -346,7 +346,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		{
 			// The move is finished
 
-			component->flags |= WINFLAG_VISIBLE;
+			component->flags |= WINDOW_COMP_FLAG_VISIBLE;
 
 			// Erase the moving image
 			kernelWindowRedrawArea((component->window->xCoord +
@@ -390,13 +390,13 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		kernelMouseDraw();
 	}
 
-	else if ((event->type == EVENT_MOUSE_DRAG) &&
-		(component->params.flags & WINDOW_COMPFLAG_CANDRAG))
+	else if ((event->type == WINDOW_EVENT_MOUSE_DRAG) &&
+		(component->params.flags & COMP_PARAMS_FLAG_CANDRAG))
 	{
 		// The icon has started moving
 
 		// Don't show it while it's moving
-		component->flags &= ~WINFLAG_VISIBLE;
+		component->flags &= ~WINDOW_COMP_FLAG_VISIBLE;
 
 		if (component->window->drawClip)
 			component->window->drawClip(component->window, component->xCoord,
@@ -412,12 +412,12 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		dragging = 1;
 	}
 
-	else if ((event->type == EVENT_MOUSE_LEFTDOWN) ||
-		(event->type == EVENT_MOUSE_LEFTUP))
+	else if ((event->type == WINDOW_EVENT_MOUSE_LEFTDOWN) ||
+		(event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		// Just a click
 
-		if (event->type == EVENT_MOUSE_LEFTDOWN)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTDOWN)
 		{
 			kernelDebug(debug_gui, "WindowIcon mouse click");
 
@@ -428,7 +428,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			icon->selected = 1;
 		}
 
-		else if (event->type == EVENT_MOUSE_LEFTUP)
+		else if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 		{
 			kernelDebug(debug_gui, "WindowIcon mouse unclick");
 
@@ -459,12 +459,13 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 
 	// We're only looking for 'enter' key releases, which we turn into mouse
 	// button presses.
-	if ((event->type & EVENT_MASK_KEY) && (event->key == keyEnter))
+	if ((event->type & WINDOW_EVENT_MASK_KEY) &&
+		(event->key.scan == keyEnter))
 	{
-		if (event->type == EVENT_KEY_DOWN)
-			event->type = EVENT_MOUSE_LEFTDOWN;
-		if (event->type == EVENT_KEY_UP)
-			event->type = EVENT_MOUSE_LEFTUP;
+		if (event->type == WINDOW_EVENT_KEY_DOWN)
+			event->type = WINDOW_EVENT_MOUSE_LEFTDOWN;
+		if (event->type == WINDOW_EVENT_KEY_UP)
+			event->type = WINDOW_EVENT_MOUSE_LEFTUP;
 
 		status = mouseEvent(component, event);
 	}
@@ -540,14 +541,14 @@ kernelWindowComponent *kernelWindowNewIcon(objectKey parent, image *origImage,
 	// If default colors are requested, override the standard component colors
 	// with the ones we prefer
 
-	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
+	if (!(component->params.flags & COMP_PARAMS_FLAG_CUSTOMFOREGROUND))
 	{
 		// Use default foreground color
 		memcpy((void *) &component->params.foreground,
 			&windowVariables->color.foreground, sizeof(color));
 	}
 
-	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
+	if (!(component->params.flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND))
 	{
 		memcpy((color *) &component->params.background, &COLOR_WHITE,
 			sizeof(color));

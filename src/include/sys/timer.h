@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,8 @@
 // This file contains definitions and structures for using the performance
 // timer in Visopsys.
 
-#if !defined(_TIMER_H)
+#ifndef _TIMER_H
+#define _TIMER_H
 
 #include <sys/types.h>
 
@@ -48,6 +49,5 @@ void timerExit(const char *);
 void timerGetSummary(timerFunctionEntry *, int );
 void timerPrintSummary(int);
 
-#define _TIMER_H
 #endif
 

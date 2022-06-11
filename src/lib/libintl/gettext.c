@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -39,11 +39,12 @@ char *gettext(const char *msgid)
 	_getMessageFiles(&msgFiles, &numFiles);
 
 	// No hashing, just loop and search.  If we can ensure later that they're
-	// ordered alphabetically, then we can replace this with a binary search for
-	// speed.
+	// ordered alphabetically, then we can replace this with a binary search
+	// for speed.
 	for (count1 = 0; count1 < numFiles; count1 ++)
 	{
-		if (!strcmp(msgFiles[count1]->locale, _getLocaleCategory(LC_MESSAGES)))
+		if (!strcmp(msgFiles[count1]->locale,
+			_getLocaleCategory(LC_MESSAGES)))
 		{
 			for (count2 = 0; count2 < msgFiles[count1]->header->numStrings;
 				count2 ++)

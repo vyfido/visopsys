@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelRtc.h
 //
 
-#if !defined(_KERNELRTC_H)
+#ifndef _KERNELRTC_H
+#define _KERNELRTC_H
 
 #include "kernelDevice.h"
 #include <time.h>
@@ -51,6 +52,5 @@ int kernelRtcDayOfWeek(unsigned, unsigned, unsigned);
 int kernelRtcDateTime(struct tm *);
 int kernelRtcDateTime2Tm(unsigned, unsigned, struct tm *);
 
-#define _KERNELRTC_H
 #endif
 

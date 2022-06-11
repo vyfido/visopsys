@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,8 @@
 
 // This is the Visopsys version of the header file types.h
 
-#if !defined(_TYPES_H)
+#ifndef _TYPES_H
+#define _TYPES_H
 
 typedef int					dev_t;
 typedef int					ino_t;
@@ -36,6 +37,5 @@ typedef unsigned			blkcnt_t;
 typedef long long			quad_t;
 typedef unsigned long long	uquad_t;
 
-#define _TYPES_H
 #endif
 

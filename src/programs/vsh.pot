@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,53 +17,53 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: vsh.c:199 vsh.c:218
+#: vsh.c:199 vsh.c:228
 #, c-format
 msgid "Usage: %s <file1> [file2] [...]\n"
 msgstr ""
 
-#: vsh.c:234 vsh.c:251
+#: vsh.c:244 vsh.c:271
 #, c-format
 msgid "Usage: %s <source file> <destination file>\n"
 msgstr ""
 
-#: vsh.c:286 vsh.c:327
+#: vsh.c:306 vsh.c:347
 #, c-format
 msgid "Usage: %s <variable_name>\n"
 msgstr ""
 
-#: vsh.c:295
+#: vsh.c:315
 msgid "Shouldn't set an env variable that long\n"
 msgstr ""
 
-#: vsh.c:308
+#: vsh.c:328
 #, c-format
 msgid "Usage: %s <variable_name> <variable_value>\n"
 msgstr ""
 
-#: vsh.c:363
+#: vsh.c:383
 #, c-format
 msgid "Unknown command \"%s\".\n"
 msgstr ""
 
-#: vsh.c:667
+#: vsh.c:687
 msgid "logout\n"
 msgstr ""
 
-#: vsh.c:792
+#: vsh.c:812
 msgid ""
 "\n"
 "Visopsys Shell.\n"
 msgstr ""
 
-#: vsh.c:793
+#: vsh.c:813
 msgid "Type \"help\" for commands.\n"
 msgstr ""
 
-#: vsh.c:808
+#: vsh.c:828
 msgid "Can't determine current directory\n"
 msgstr ""
 
-#: vsh.c:821
+#: vsh.c:841
 msgid "exiting.\n"
 msgstr ""

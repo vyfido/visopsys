@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2018 J. Andrew McLaughlin
+#  Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -55,12 +55,12 @@ msgstr "Çikartiliyor"
 msgid "Error"
 msgstr "Hata"
 
-#: shutdown.c:349
+#: shutdown.c:354
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr ""
 
-#: shutdown.c:377
+#: shutdown.c:382
 #, c-format
 msgid "Use \"%s -f\" to force.\n"
 msgstr "Zorlamak için \"%s -f\" 'i kullanin.\n"

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelUsbTouchscreenDriver.h
 //
 
-#if !defined(_KERNELUSBTOUCHSCREENDRIVER_H)
+#ifndef _KERNELUSBTOUCHSCREENDRIVER_H
+#define _KERNELUSBTOUCHSCREENDRIVER_H
 
 #include "kernelDevice.h"
 #include "kernelTouch.h"
@@ -59,6 +60,5 @@ typedef struct {
 
 } touchDevice;
 
-#define _KERNELUSBTOUCHSCREENDRIVER_H
 #endif
 

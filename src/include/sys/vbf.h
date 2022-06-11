@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  vbf.h
 //
 
-#if !defined(_VBF_H)
+#ifndef _VBF_H
+#define _VBF_H
 
 #include <sys/font.h>
 
@@ -27,17 +28,17 @@
 #define VBF_MAGIC_LEN		4
 #define VBF_VERSION1		0x00010000
 #define VBF_VERSION2		0x00020000
-#define VBF_NAME_LEN		32
-#define VBF_CHARSET_LEN		16
+#define VBF_NAME_LEN		31
+#define VBF_CHARSET_LEN		15
 #define VBF_FAMILY_LEN		32
 
 // Older (version 1) header
 typedef struct {
 	char magic[VBF_MAGIC_LEN];		// VBF_MAGIC
 	int version;					// VBF_VERSION (bcd VBF_VERSION1)
-	char name[VBF_NAME_LEN];		// Font name
+	char name[VBF_NAME_LEN + 1];	// Font name
 	int points;						// Size in points (e.g. 10, 12, 20)
-	char charSet[VBF_CHARSET_LEN];	// e.g. ISO-8859-15
+	char charSet[VBF_CHARSET_LEN + 1]; // e.g. ISO-8859-15
 	int numGlyphs;					// Number of glyphs in file
 	int glyphWidth;					// Fixed width of all glyphs
 	int glyphHeight;				// Fixed height of all glyphs
@@ -55,7 +56,7 @@ typedef struct {
 	char family[VBF_FAMILY_LEN];	// Font family (e.g. arial, courier, ...)
 	unsigned flags;					// See FONT_STYLEFLAG_* in <sys/font.h>
 	int points;						// Size in points (e.g. 10, 12, 20)
-	char charSet[VBF_CHARSET_LEN];	// e.g. ASCII, ISO-8859-15, etc.
+	char charSet[VBF_CHARSET_LEN + 1]; // e.g. ASCII, ISO-8859-15, etc.
 	int numGlyphs;					// Number of glyphs in file
 	int glyphWidth;					// Fixed width of all glyphs
 	int glyphHeight;				// Fixed height of all glyphs
@@ -77,6 +78,5 @@ typedef union {
 
 } __attribute__((packed)) vbfMultiVerHeader;
 
-#define _VBF_H
 #endif
 

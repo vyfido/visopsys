@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -51,6 +51,7 @@
 #include <string.h>
 #include <sys/kernconf.h>
 #include <sys/paths.h>
+#include <sys/vis.h>
 
 #define _(string) kernelGetText(string)
 
@@ -194,8 +195,8 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	textScreen screen;
 	int graphics = 0;
 	char welcomeMessage[512];
-	static char rootDiskName[DISK_MAX_NAMELENGTH];
-	char tmpRootDiskName[DISK_MAX_NAMELENGTH];
+	static char rootDiskName[DISK_MAX_NAMELENGTH + 1];
+	char tmpRootDiskName[DISK_MAX_NAMELENGTH + 1];
 	kernelDisk *rootDisk = NULL;
 	const char *value = NULL;
 	int networking = 0;
@@ -210,6 +211,24 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	extern color kernelDefaultForeground;
 	extern color kernelDefaultBackground;
 	extern color kernelDefaultDesktop;
+
+	// Initialize function pointers for libraries used by both userspace and
+	// the kernel
+	memset(&kernLibOps, 0, sizeof(kernelLibOps));
+#if defined(DEBUG)
+	kernLibOps.debug = &kernelDebugOutput;
+#endif
+	kernLibOps.error = &kernelErrorOutput;
+	kernLibOps._free = &_kernelFree;
+	kernLibOps.lockGet = &kernelLockGet;
+	kernLibOps.lockRelease = &kernelLockRelease;
+	kernLibOps._malloc = &_kernelMalloc;
+	kernLibOps.memoryGet = &kernelMemoryGet;
+	kernLibOps.memoryGetSystem = &kernelMemoryGetSystem;
+	kernLibOps.memoryRelease = &kernelMemoryRelease;
+	kernLibOps.memoryReleaseSystem = &kernelMemoryReleaseSystem;
+	kernLibOps.multitaskerGetCurrentProcessId =
+		&kernelMultitaskerGetCurrentProcessId;
 
 	// Initialize the page manager
 	status = kernelPageInitialize(kernelMemory);
@@ -285,7 +304,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	kernelLogSetToConsole(0);
 
 	// Log a starting message
-	sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2018 J. Andrew "
+	sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2019 J. Andrew "
 		"McLaughlin", kernelVersion[0], kernelVersion[1]);
 	kernelLog("%s", welcomeMessage);
 
@@ -416,7 +435,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	// Try to read the default system environment.conf for the kernel's
 	// environment.
 	kernelDebug(debug_misc, "Reading kernel environment");
-	kernelConfigRead(PATH_SYSTEM_CONFIG "/environment.conf",
+	kernelConfigReadSystem(PATH_SYSTEM_CONFIG "/environment.conf",
 		kernelCurrentProcess->environment);
 
 	// Are we in a graphics mode?
@@ -424,21 +443,19 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 
 	// Read the kernel config file
 	kernelDebug(debug_misc, "Reading kernel variables");
-	status = kernelConfigRead(KERNEL_DEFAULT_CONFIG, kernelVariables);
+	status = kernelConfigReadSystem(KERNEL_DEFAULT_CONFIG, kernelVariables);
 	if (status < 0)
 		kernelVariables = NULL;
 
 	if (kernelVariables)
 	{
 		// Get the keyboard mapping
-		value = kernelVariableListGet(kernelVariables,
-			KERNELVAR_KEYBOARD_MAP);
+		value = variableListGet(kernelVariables, KERNELVAR_KEYBOARD_MAP);
 		if (value)
 			kernelKeyboardSetMap(value);
 
 		// Get the messages locale
-		value = kernelVariableListGet(kernelVariables,
-			KERNELVAR_LOCALE_MESSAGES);
+		value = variableListGet(kernelVariables, KERNELVAR_LOCALE_MESSAGES);
 		if (value)
 			kernelSetLocale(LC_ALL, value);
 
@@ -446,53 +463,47 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 		{
 			// Get the default color values, if they're set in this file
 
-			value = kernelVariableListGet(kernelVariables,
-				KERNELVAR_COLOR_FG_RED);
+			value = variableListGet(kernelVariables, KERNELVAR_COLOR_FG_RED);
 			if (value)
 				kernelDefaultForeground.red = atoi(value);
 
-			value = kernelVariableListGet(kernelVariables,
+			value = variableListGet(kernelVariables,
 				KERNELVAR_COLOR_FG_GREEN);
 			if (value)
 				kernelDefaultForeground.green = atoi(value);
 
-			value = kernelVariableListGet(kernelVariables,
-				KERNELVAR_COLOR_FG_BLUE);
+			value = variableListGet(kernelVariables, KERNELVAR_COLOR_FG_BLUE);
 			if (value)
 				kernelDefaultForeground.blue = atoi(value);
 
-			value = kernelVariableListGet(kernelVariables,
-				KERNELVAR_COLOR_BG_RED);
+			value = variableListGet(kernelVariables, KERNELVAR_COLOR_BG_RED);
 			if (value)
 				kernelDefaultBackground.red = atoi(value);
 
-			value = kernelVariableListGet(kernelVariables,
+			value = variableListGet(kernelVariables,
 				KERNELVAR_COLOR_BG_GREEN);
 			if (value)
 				kernelDefaultBackground.green = atoi(value);
 
-			value = kernelVariableListGet(kernelVariables,
-				KERNELVAR_COLOR_BG_BLUE);
+			value = variableListGet(kernelVariables, KERNELVAR_COLOR_BG_BLUE);
 			if (value)
 				kernelDefaultBackground.blue = atoi(value);
 
-			value = kernelVariableListGet(kernelVariables,
-				KERNELVAR_COLOR_DT_RED);
+			value = variableListGet(kernelVariables, KERNELVAR_COLOR_DT_RED);
 			if (value)
 				kernelDefaultDesktop.red = atoi(value);
 
-			value = kernelVariableListGet(kernelVariables,
+			value = variableListGet(kernelVariables,
 				KERNELVAR_COLOR_DT_GREEN);
 			if (value)
 				kernelDefaultDesktop.green = atoi(value);
 
-			value = kernelVariableListGet(kernelVariables,
-				KERNELVAR_COLOR_DT_BLUE);
+			value = variableListGet(kernelVariables, KERNELVAR_COLOR_DT_BLUE);
 			if (value)
 				kernelDefaultDesktop.blue = atoi(value);
 		}
 
-		value = kernelVariableListGet(kernelVariables, KERNELVAR_NETWORK);
+		value = variableListGet(kernelVariables, KERNELVAR_NETWORK);
 		if (value && !strcmp(value, "yes"))
 			networking = 1;
 	}

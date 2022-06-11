@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,6 +26,7 @@
 #include "kernelRandom.h"
 #include <string.h>
 #include <arpa/inet.h>
+#include <sys/vis.h>
 
 
 static int ipPortInUse(kernelNetworkDevice *netDev, int portNumber)
@@ -33,11 +34,11 @@ static int ipPortInUse(kernelNetworkDevice *netDev, int portNumber)
 	// Returns 1 if there is a connection using the specified local IP port
 	// number
 
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	kernelNetworkConnection *connection = NULL;
 
-	connection = kernelLinkedListIterStart((kernelLinkedList *)
-		&netDev->connections, &iter);
+	connection = linkedListIterStart((linkedList *) &netDev->connections,
+		&iter);
 
 	while (connection)
 	{
@@ -47,8 +48,8 @@ static int ipPortInUse(kernelNetworkDevice *netDev, int portNumber)
 			return (1);
 		}
 
-		connection = kernelLinkedListIterNext((kernelLinkedList *)
-			&netDev->connections, &iter);
+		connection = linkedListIterNext((linkedList *) &netDev->connections,
+			&iter);
 	}
 
 	return (0);

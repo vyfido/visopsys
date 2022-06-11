@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,11 +47,11 @@ static int isMouseInButton(windowEvent *event, kernelWindowComponent *button)
 	// We use this to determine whether a mouse event is inside one of our
 	// buttons
 
-	if (((event->xPosition >= (button->window->xCoord + button->xCoord)) &&
-		(event->xPosition < (button->window->xCoord + button->xCoord +
+	if (((event->coord.x >= (button->window->xCoord + button->xCoord)) &&
+		(event->coord.x < (button->window->xCoord + button->xCoord +
 			button->width)) &&
-		((event->yPosition >= (button->window->yCoord + button->yCoord)) &&
-		(event->yPosition < (button->window->yCoord + button->yCoord +
+		((event->coord.y >= (button->window->yCoord + button->yCoord)) &&
+		(event->coord.y < (button->window->yCoord + button->yCoord +
 			button->height)))))
 	{
 		return (1);
@@ -139,7 +139,7 @@ static void minimizeWindow(kernelWindow *window, windowEvent *event)
 
 	// Transfer this event into the window's event stream, so the application
 	// can find out about it.
-	event->type = EVENT_WINDOW_MINIMIZE;
+	event->type = WINDOW_EVENT_WINDOW_MINIMIZE;
 	kernelWindowEventStreamWrite(&window->events, event);
 }
 
@@ -150,7 +150,7 @@ static void closeWindow(kernelWindow *window, windowEvent *event)
 
 	// Transfer this event into the window's event stream, so the application
 	// can find out about it.
-	event->type = EVENT_WINDOW_CLOSE;
+	event->type = WINDOW_EVENT_WINDOW_CLOSE;
 	kernelWindowEventStreamWrite(&window->events, event);
 }
 
@@ -171,7 +171,7 @@ static int draw(kernelWindowComponent *component)
 
 	// The color will be different depending on whether the window has the
 	// focus
-	if (!(component->window->flags & WINFLAG_HASFOCUS))
+	if (!(component->window->flags & WINDOW_FLAG_HASFOCUS))
 	{
 		backgroundColor.red = (((int) backgroundColor.red * 2) / 3);
 		backgroundColor.green = (((int) backgroundColor.green * 2) / 3);
@@ -369,7 +369,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 	if (dragging)
 	{
-		if (event->type == EVENT_MOUSE_DRAG)
+		if (event->type == WINDOW_EVENT_MOUSE_DRAG)
 		{
 			// The window is still moving
 
@@ -390,10 +390,8 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 				component->window->buffer.width, 1);
 
 			// Set the new position
-			component->window->xCoord += (event->xPosition -
-				dragEvent.xPosition);
-			component->window->yCoord += (event->yPosition -
-				dragEvent.yPosition);
+			component->window->xCoord += (event->coord.x - dragEvent.coord.x);
+			component->window->yCoord += (event->coord.y - dragEvent.coord.y);
 
 			// Draw an xor'ed outline
 			kernelGraphicDrawRect(NULL, &((color){ 255, 255, 255 }), draw_xor,
@@ -418,7 +416,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			component->window->xCoord = newWindowX;
 			component->window->yCoord = newWindowY;
 
-			component->window->flags |= WINFLAG_VISIBLE;
+			component->window->flags |= WINDOW_FLAG_VISIBLE;
 
 			// Re-render it at the new location
 			kernelWindowRedrawArea(component->window->xCoord,
@@ -445,7 +443,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		}
 
 		// Minimize the window
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 			minimizeWindow(component->window, event);
 
 		return (status = 0);
@@ -459,15 +457,15 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			titleBar->closeButton->mouseEvent(titleBar->closeButton, event);
 
 		// Close the window
-		if (event->type == EVENT_MOUSE_LEFTUP)
+		if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 			closeWindow(component->window, event);
 
 		return (status = 0);
 	}
 
-	else if (event->type == EVENT_MOUSE_DRAG)
+	else if (event->type == WINDOW_EVENT_MOUSE_DRAG)
 	{
-		if (component->window->flags & WINFLAG_MOVABLE)
+		if (component->window->flags & WINDOW_FLAG_MOVABLE)
 		{
 			// The user has started dragging the window
 
@@ -475,7 +473,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			oldWindowY = component->window->yCoord;
 
 			// Don't show it while it's moving
-			component->window->flags &= ~WINFLAG_VISIBLE;
+			component->window->flags &= ~WINDOW_FLAG_VISIBLE;
 			kernelWindowRedrawArea(component->window->xCoord,
 				component->window->yCoord, component->window->buffer.width,
 				component->window->buffer.height);
@@ -546,7 +544,7 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 	int titleBarHeight = windowVariables->titleBar.height;
 	componentParameters buttonParams;
 
-	// Check parameters
+	// Check params
 	if (!window || !params)
 	{
 		kernelError(kernel_error, "NULL parameter");
@@ -571,7 +569,7 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 		return (component);
 
 	component->type = titleBarComponentType;
-	component->flags &= ~WINFLAG_CANFOCUS;
+	component->flags &= ~WINDOW_COMP_FLAG_CANFOCUS;
 
 	// Set the functions
 	component->draw = &draw;
@@ -583,14 +581,14 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 	// If default colors are requested, override the standard component colors
 	// with the ones we prefer
 
-	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
+	if (!(component->params.flags & COMP_PARAMS_FLAG_CUSTOMFOREGROUND))
 	{
 		// Use default white
 		memcpy((color *) &component->params.foreground, &COLOR_WHITE,
 			sizeof(color));
 	}
 
-	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
+	if (!(component->params.flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND))
 	{
 		// Use the default foreground color as the background color
 		memcpy((void *) &component->params.background,
@@ -633,10 +631,11 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 			titleBar->minimizeButton->height;
 
 		// We don't want minimize buttons to get the focus
-		titleBar->minimizeButton->flags &= ~WINFLAG_CANFOCUS;
+		titleBar->minimizeButton->flags &= ~WINDOW_COMP_FLAG_CANFOCUS;
 
-		// Remove it from the system container
-		removeFromContainer(titleBar->minimizeButton);
+		// Remove it from the parent container
+		kernelWindowContainerDelete(titleBar->minimizeButton->container,
+			titleBar->minimizeButton);
 	}
 
 	titleBar->closeButton = kernelWindowNewButton(window->sysContainer, NULL,
@@ -650,10 +649,11 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 		titleBar->closeButton->minHeight = titleBar->closeButton->height;
 
 		// We don't want close buttons to get the focus
-		titleBar->closeButton->flags &= ~WINFLAG_CANFOCUS;
+		titleBar->closeButton->flags &= ~WINDOW_COMP_FLAG_CANFOCUS;
 
-		// Remove it from the system container
-		removeFromContainer(titleBar->closeButton);
+		// Remove it from the parent container
+		kernelWindowContainerDelete(titleBar->closeButton->container,
+			titleBar->closeButton);
 	}
 
 	return (component);

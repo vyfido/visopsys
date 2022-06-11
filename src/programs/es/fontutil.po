@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2014-01-22 17:48-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -279,77 +279,77 @@ msgstr ""
 msgid "Can't open %s for writing"
 msgstr ""
 
-#: fontutil.c:1884
+#: fontutil.c:1888
 msgid "No supported font files found"
 msgstr ""
 
-#: fontutil.c:1942
+#: fontutil.c:1947
 msgid "Save"
 msgstr ""
 
-#: fontutil.c:1989
+#: fontutil.c:1994
 msgid "Couldn't get working memory"
 msgstr ""
 
-#: fontutil.c:2008 fontutil.c:2207
+#: fontutil.c:2013 fontutil.c:2212
 #, c-format
 msgid "Missing parameter for %s option"
 msgstr ""
 
-#: fontutil.c:2014 fontutil.c:2213
+#: fontutil.c:2019 fontutil.c:2218
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: fontutil.c:2044
+#: fontutil.c:2049
 msgid "Missing code argument for '-a' option"
 msgstr ""
 
-#: fontutil.c:2057
+#: fontutil.c:2062
 msgid "Missing charset argument for '-c' option"
 msgstr ""
 
-#: fontutil.c:2079
+#: fontutil.c:2084
 msgid "Missing image filename argument for '-e' option"
 msgstr ""
 
-#: fontutil.c:2092
+#: fontutil.c:2097
 msgid "Missing filename argument for '-f' option"
 msgstr ""
 
-#: fontutil.c:2104
+#: fontutil.c:2109
 msgid "Missing image filename argument for '-i' option"
 msgstr ""
 
-#: fontutil.c:2117
+#: fontutil.c:2122
 msgid "Missing family name argument for '-n' option"
 msgstr ""
 
-#: fontutil.c:2132
+#: fontutil.c:2137
 msgid "Missing points argument for '-p' option"
 msgstr ""
 
-#: fontutil.c:2146
+#: fontutil.c:2151
 msgid "Missing code argument for '-r' option"
 msgstr ""
 
-#: fontutil.c:2159
+#: fontutil.c:2164
 msgid "Missing style argument for '-s' option"
 msgstr ""
 
-#: fontutil.c:2178
+#: fontutil.c:2183
 #, c-format
 msgid "Unknown style argument %s"
 msgstr ""
 
-#: fontutil.c:2197
+#: fontutil.c:2202
 msgid "Missing filename argument for '-x' option"
 msgstr ""
 
-#: fontutil.c:2244
+#: fontutil.c:2249
 msgid "Missing image file (-f) argument to add (-a) operation"
 msgstr ""
 
-#: fontutil.c:2258
+#: fontutil.c:2263
 msgid "No operation specified"
 msgstr ""

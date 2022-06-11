@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,7 +21,8 @@
 
 // This goes with the file kernelTouch.c
 
-#if !defined(_KERNELTOUCH_H)
+#ifndef _KERNELTOUCH_H
+#define _KERNELTOUCH_H
 
 #define TOUCH_POINTER_SIZE		21
 #define TOUCH_SCALING_FACTOR	10
@@ -44,6 +45,5 @@ void kernelTouchDetected(void);
 int kernelTouchAvailable(void);
 void kernelTouchInput(kernelTouchReport *);
 
-#define _KERNELTOUCH_H
 #endif
 

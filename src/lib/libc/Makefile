@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2018 J. Andrew McLaughlin
+##  Copyright (C) 1998-2019 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -17,8 +17,7 @@ else
 	STRIP = strip -s ${SHAREDLIB}
 endif
 
-STDDEPS = ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
-	${INCDIR}/sys/*.h
+STDDEPS = ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h ${INCDIR}/sys/*.h
 INCLUDE = -nostdinc -I${INCDIR}
 CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
 
@@ -220,7 +219,8 @@ UNISTDNAMES = \
 	unlink \
 	write
 
-MISCNAMES = readline \
+MISCNAMES = _data \
+	readline \
 	sched_yield \
 	uname
 

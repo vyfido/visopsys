@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2018 J. Andrew McLaughlin
+#  Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-03-03 03:09+0000\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -72,7 +72,7 @@ msgstr ""
 "Fehler: %s\n"
 "\n"
 
-#: keymap.c:183 keymap.c:412
+#: keymap.c:183 keymap.c:417
 #, c-format
 msgid "Couldn't open file %s"
 msgstr "Datei %s kann nicht geöffnet werden"
@@ -82,25 +82,25 @@ msgstr "Datei %s kann nicht geöffnet werden"
 msgid "Couldn't read file %s"
 msgstr "Datei %s kann nicht gelesen werden"
 
-#: keymap.c:278 keymap.c:330
+#: keymap.c:283 keymap.c:335
 #, c-format
 msgid "Couldn't find keyboard map %s"
 msgstr "Tastaturbelegung %s kann nicht gefunden werden"
 
-#: keymap.c:285
+#: keymap.c:290
 #, c-format
 msgid "Couldn't set keyboard map to %s"
 msgstr "Tastaturbelegung konnte nicht auf %s umgestellt werden"
 
-#: keymap.c:292
+#: keymap.c:297
 msgid "Couldn't get current keyboard map"
 msgstr "Derzeitige Tastaturbelegung kann nicht geladen werden"
 
-#: keymap.c:305
+#: keymap.c:310
 msgid "Couldn't write keyboard map setting"
 msgstr "Einstellung der Tastaturbelegung kann nicht geschrieben werden"
 
-#: keymap.c:396
+#: keymap.c:401
 #, c-format
 msgid ""
 "Can't write %s:\n"
@@ -109,94 +109,94 @@ msgstr ""
 "%s kann nicht geschrieben werden:\n"
 "Das Dateisystem kann nur gelesen werden"
 
-#: keymap.c:421
+#: keymap.c:427
 #, c-format
 msgid "Couldn't write file %s"
 msgstr "Datei %s kann nicht geschrieben werden"
 
-#: keymap.c:645
+#: keymap.c:655
 msgid "Save as"
 msgstr "Speichern unter"
 
-#: keymap.c:646
+#: keymap.c:656
 msgid "Choose the output file:"
 msgstr "Wählen Sie die auszugebende Datei:"
 
-#: keymap.c:679
+#: keymap.c:689
 msgid "Saved"
 msgstr "Gespeichert"
 
-#: keymap.c:679
+#: keymap.c:689
 msgid "Map saved"
 msgstr "Tastaturbelegung gespeichert"
 
-#: keymap.c:716
+#: keymap.c:730
 msgid "Select character"
 msgstr ""
 
-#: keymap.c:958
+#: keymap.c:972
 msgid "Change key settings"
 msgstr "Tastatureinstellungen ändern"
 
-#: keymap.c:982
+#: keymap.c:996
 #, fuzzy, c-format
 msgid "Scan code: 0x%02x (%s)"
 msgstr "Scan-Code: %d (0x%02x)"
 
-#: keymap.c:988
+#: keymap.c:1002
 msgid "Unicode"
 msgstr ""
 
-#: keymap.c:996
+#: keymap.c:1010
 msgid "Normal"
 msgstr ""
 
-#: keymap.c:999 keymap.c:1005
+#: keymap.c:1013 keymap.c:1019
 #, fuzzy
 msgid "Shift"
 msgstr "Code für Umschalten:"
 
-#: keymap.c:1002 keymap.c:1005
+#: keymap.c:1016 keymap.c:1019
 msgid "AltGr"
 msgstr ""
 
-#: keymap.c:1009
+#: keymap.c:1023
 msgid "Ctrl"
 msgstr ""
 
-#: keymap.c:1114
+#: keymap.c:1128
 msgid "OK"
 msgstr "OK"
 
-#: keymap.c:1119
+#: keymap.c:1133
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: keymap.c:1442
+#: keymap.c:1459
 msgid "1st row"
 msgstr ""
 
-#: keymap.c:1444
+#: keymap.c:1461
 msgid "2nd row"
 msgstr ""
 
-#: keymap.c:1446
+#: keymap.c:1463
 msgid "3rd row"
 msgstr ""
 
-#: keymap.c:1448
+#: keymap.c:1465
 msgid "4th row"
 msgstr ""
 
-#: keymap.c:1450
+#: keymap.c:1467
 msgid "5th row"
 msgstr ""
 
-#: keymap.c:1452
+#: keymap.c:1469
 msgid "6th row"
 msgstr ""
 
-#: keymap.c:1471
+#: keymap.c:1488
 #, c-format
 msgid ""
 "\n"
@@ -204,44 +204,44 @@ msgid ""
 "\n"
 msgstr ""
 
-#: keymap.c:1472
+#: keymap.c:1489
 #, fuzzy
 msgid "Regular map"
 msgstr "Normaler Code:"
 
-#: keymap.c:1474
+#: keymap.c:1491
 #, fuzzy
 msgid "Shift map"
 msgstr "Code für Umschalten:"
 
-#: keymap.c:1476
+#: keymap.c:1493
 msgid "Ctrl map"
 msgstr ""
 
-#: keymap.c:1478
+#: keymap.c:1495
 msgid "AltGr map"
 msgstr ""
 
-#: keymap.c:1480
+#: keymap.c:1497
 #, fuzzy
 msgid "Shift-AltGr map"
 msgstr "Code für Umschalten:"
 
-#: keymap.c:1516
+#: keymap.c:1533
 msgid "Missing filename argument for -s option\n"
 msgstr "Fehlendes Argument beim Dateinamen für die Option -s\n"
 
-#: keymap.c:1535
+#: keymap.c:1552
 #, c-format
 msgid "Missing parameter for %s option\n"
 msgstr "Fehlender Parameter für die Option %s\n"
 
-#: keymap.c:1541
+#: keymap.c:1558
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr "Unbekannte Option '%c'\n"
 
-#: keymap.c:1646
+#: keymap.c:1663
 msgid " (current)"
 msgstr " (aktuell)"
 

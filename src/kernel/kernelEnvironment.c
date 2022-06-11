@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,13 +28,105 @@
 #include "kernelFile.h"
 #include "kernelParameters.h"
 #include "kernelPage.h"
-#include "kernelVariableList.h"
 #include "kernelMemory.h"
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include <stdio.h>
 #include <sys/paths.h>
 #include <sys/user.h>
+#include <sys/vis.h>
+
+#define environmentSet	variableListSet
+
+
+static int environmentGet(variableList *envList, const char *variable,
+	char *buffer, unsigned buffSize)
+{
+	// Get a variable's value from the current process' environment space.
+
+	const char *value = NULL;
+
+	// Check params
+	if (!envList || !buffer)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (ERR_NULLPARAMETER);
+	}
+
+	value = variableListGet(envList, variable);
+
+	if (value)
+	{
+		strncpy(buffer, value, buffSize);
+		return (0);
+	}
+	else
+	{
+		buffer[0] = '\0';
+		return (ERR_NOSUCHENTRY);
+	}
+}
+
+
+static int environmentLoad(const char *userName, variableList *envList)
+{
+	// Given a user name, load variables from the system's environment.conf
+	// file into the environment space, then try to load more from the user's
+	// home directory, if applicable.
+
+	int status = ERR_NOSUCHFILE;
+	char fileName[MAX_PATH_NAME_LENGTH + 1];
+	variableList tmpList;
+	const char *variable = NULL;
+	int count;
+
+	// Check params
+	if (!userName || !envList)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	memset(&tmpList, 0, sizeof(variableList));
+
+	// Try to load environment variables from the system configuration
+	// directory
+	strcpy(fileName, PATH_SYSTEM_CONFIG "/environment.conf");
+	if (kernelConfigReadSystem(fileName, &tmpList) >= 0)
+	{
+		for (count = 0; count < tmpList.numVariables; count ++)
+		{
+			variable = variableListGetVariable(&tmpList, count);
+			environmentSet(envList, variable, variableListGet(&tmpList,
+				variable));
+		}
+
+		variableListDestroy(&tmpList);
+		status = 0;
+	}
+
+	if (strncmp(userName, USER_ADMIN, USER_MAX_NAMELENGTH))
+	{
+		// Try to load more environment variables from the user's home
+		// directory
+		sprintf(fileName, PATH_USERS_CONFIG "/environment.conf", userName);
+		if (kernelFileLookup(fileName) &&
+			(kernelConfigReadSystem(fileName, &tmpList) >= 0))
+		{
+			for (count = 0; count < tmpList.numVariables; count ++)
+			{
+				variable = variableListGetVariable(&tmpList, count);
+				environmentSet(envList, variable, variableListGet(&tmpList,
+					variable));
+			}
+
+			variableListDestroy(&tmpList);
+			status = 0;
+		}
+	}
+
+	return (status);
+}
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -56,17 +148,14 @@ int kernelEnvironmentCreate(int processId, variableList *env,
 	const char *value = NULL;
 	int count;
 
-	// Check params
+	// Check params.  It's OK for the 'copy' pointer to be NULL.
 	if (!env)
 	{
 		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	// It's OK for the 'copy' pointer to be NULL, but if it is not, it is
-	// assumed that it is in the current process' address space.
-
-	status = kernelVariableListCreate(env);
+	status = variableListCreateSystem(env);
 	if (status < 0)
 		// Eek.  Couldn't get environment space.
 		return (status);
@@ -79,24 +168,14 @@ int kernelEnvironmentCreate(int processId, variableList *env,
 	{
 		for (count = 0; count < copy->numVariables; count ++)
 		{
-			variable = kernelVariableListGetVariable(copy, count);
+			variable = variableListGetVariable(copy, count);
 			if (variable)
 			{
-				value = kernelVariableListGet(copy, variable);
+				value = variableListGet(copy, variable);
 				if (value)
-					kernelVariableListSet(env, variable, value);
+					variableListSet(env, variable, value);
 			}
 		}
-	}
-
-	// Change the memory ownership.
-	status = kernelMemoryChangeOwner(kernelMultitaskerGetCurrentProcessId(),
-		processId, 1 /* remap */, env->memory, &env->memory);
-	if (status < 0)
-	{
-		// Eek.  Couldn't chown the memory.
-		kernelVariableListDestroy(env);
-		return (status);
 	}
 
 	// Return success
@@ -104,55 +183,21 @@ int kernelEnvironmentCreate(int processId, variableList *env,
 }
 
 
-int kernelEnvironmentLoad(const char *userName)
+int kernelEnvironmentLoad(const char *userName, int processId)
 {
-	// Given a user name, load variables from the system's environment.conf
-	// file into the current process' environment space, then try to load more
-	// from the user's home directory, if applicable.
+	// Given a user name and a process ID, get the process environment and
+	// call environmentLoad() to load the environment.
 
-	int status = ERR_NOSUCHFILE;
-	char fileName[MAX_PATH_NAME_LENGTH];
-	variableList envList;
-	const char *variable = NULL;
-	int count;
+	variableList *envList = NULL;
 
-	// Try to load environment variables from the system configuration
-	// directory
-	strcpy(fileName, PATH_SYSTEM_CONFIG "/environment.conf");
-	if (kernelConfigRead(fileName, &envList) >= 0)
+	envList = kernelMultitaskerGetProcessEnvironment(processId);
+	if (!envList)
 	{
-		for (count = 0; count < envList.numVariables; count ++)
-		{
-			variable = kernelVariableListGetVariable(&envList, count);
-			kernelEnvironmentSet(variable,
-				kernelVariableListGet(&envList, variable));
-		}
-
-		kernelVariableListDestroy(&envList);
-		status = 0;
+		kernelError(kernel_error, "No such process %d", processId);
+		return (ERR_NOSUCHPROCESS);
 	}
 
-	if (strncmp(userName, USER_ADMIN, USER_MAX_NAMELENGTH))
-	{
-		// Try to load more environment variables from the user's home
-		// directory
-		sprintf(fileName, PATH_USERS_CONFIG "/environment.conf", userName);
-		if (kernelFileLookup(fileName) &&
-			(kernelConfigRead(fileName, &envList) >= 0))
-		{
-			for (count = 0; count < envList.numVariables; count ++)
-			{
-				variable = kernelVariableListGetVariable(&envList, count);
-				kernelEnvironmentSet(variable,
-					kernelVariableListGet(&envList, variable));
-			}
-
-			kernelVariableListDestroy(&envList);
-			status = 0;
-		}
-	}
-
-	return (status);
+	return (environmentLoad(userName, envList));
 }
 
 
@@ -161,29 +206,29 @@ int kernelEnvironmentGet(const char *variable, char *buffer,
 {
 	// Get a variable's value from the current process' environment space.
 
-	const char *value = NULL;
+	if (!kernelCurrentProcess)
+		return (ERR_NOSUCHPROCESS);
 
-	// Check params
-	if (!buffer)
+	return (environmentGet(kernelCurrentProcess->environment, variable,
+		buffer, buffSize));
+}
+
+
+int kernelEnvironmentProcessGet(int processId, const char *variable,
+	char *buffer, unsigned buffSize)
+{
+	// Get a variable's value from the process' environment space.
+
+	variableList *envList = NULL;
+
+	envList = kernelMultitaskerGetProcessEnvironment(processId);
+	if (!envList)
 	{
-		kernelError(kernel_error, "NULL parameter");
-		return (ERR_NULLPARAMETER);
+		kernelError(kernel_error, "No such process %d", processId);
+		return (ERR_NOSUCHPROCESS);
 	}
 
-	if (kernelCurrentProcess)
-		value = kernelVariableListGet(kernelCurrentProcess->environment,
-			variable);
-
-	if (value)
-	{
-		strncpy(buffer, value, buffSize);
-		return (0);
-	}
-	else
-	{
-		buffer[0] = '\0';
-		return (ERR_NOSUCHENTRY);
-	}
+	return (environmentGet(envList, variable, buffer, buffSize));
 }
 
 
@@ -194,8 +239,26 @@ int kernelEnvironmentSet(const char *variable, const char *value)
 	if (!kernelCurrentProcess)
 		return (ERR_NOSUCHPROCESS);
 
-	return (kernelVariableListSet(kernelCurrentProcess->environment,
-		variable, value));
+	return (environmentSet(kernelCurrentProcess->environment, variable,
+		value));
+}
+
+
+int kernelEnvironmentProcessSet(int processId, const char *variable,
+	const char *value)
+{
+	// Set a variable's value in the process' environment space.
+
+	variableList *envList = NULL;
+
+	envList = kernelMultitaskerGetProcessEnvironment(processId);
+	if (!envList)
+	{
+		kernelError(kernel_error, "No such process %d", processId);
+		return (ERR_NOSUCHPROCESS);
+	}
+
+	return (environmentSet(envList, variable, value));
 }
 
 
@@ -206,8 +269,7 @@ int kernelEnvironmentUnset(const char *variable)
 	if (!kernelCurrentProcess)
 		return (ERR_NOSUCHPROCESS);
 
-	return (kernelVariableListUnset(kernelCurrentProcess->environment,
-		variable));
+	return (variableListUnset(kernelCurrentProcess->environment, variable));
 }
 
 
@@ -218,7 +280,7 @@ int kernelEnvironmentClear(void)
 	if (!kernelCurrentProcess)
 		return (ERR_NOSUCHPROCESS);
 
-	return (kernelVariableListClear(kernelCurrentProcess->environment));
+	return (variableListClear(kernelCurrentProcess->environment));
 }
 
 
@@ -238,10 +300,12 @@ void kernelEnvironmentDump(void)
 
 	for (count = 0; count < list->numVariables; count ++)
 	{
-		variable = kernelVariableListGetVariable(list, count);
+		variable = variableListGetVariable(list, count);
 		if (variable)
-			kernelTextPrintLine("%s=%s", variable,
-				kernelVariableListGet(list, variable));
+		{
+			kernelTextPrintLine("%s=%s", variable, variableListGet(list,
+				variable));
+		}
 	}
 
 	return;

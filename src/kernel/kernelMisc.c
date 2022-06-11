@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,20 +23,27 @@
 
 #include "kernelMisc.h"
 #include "kernelDebug.h"
+#include "kernelDevice.h"
 #include "kernelError.h"
 #include "kernelFile.h"
 #include "kernelFileStream.h"
 #include "kernelLoader.h"
+#include "kernelLock.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
+#include "kernelMultitasker.h"
 #include "kernelNetwork.h"
 #include "kernelParameters.h"
 #include "kernelRandom.h"
 #include "kernelRtc.h"
-#include "kernelText.h"
 #include <ctype.h>
 #include <stdio.h>
+#include <string.h>
+#include <time.h>
+#include <sys/guid.h>
 #include <sys/processor.h>
+#include <sys/utsname.h>
+#include <sys/vis.h>
 
 static unsigned long  crcTable[256] = {
 	0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA, 0x076DC419, 0x706AF48F,
@@ -129,15 +136,99 @@ static void walkStack(kernelProcess *traceProcess, void *stackMemory,
 }
 
 
-static inline void eraseLine(void)
+static int configRead(const char *fileName, variableList *list, int system)
 {
-	int cursorPos = 0;
+	// Read a config file into the supplied variable list structure.
 
-	// Erase the current line that the cursor is sitting on
-	for (cursorPos = kernelTextGetColumn(); cursorPos > 0; cursorPos--)
-		kernelTextBackSpace();
+	int status = 0;
+	fileStream *configFile = NULL;
+	char lineBuffer[256];
+	int hasContent = 0;
+	char *variable = NULL;
+	char *value = NULL;
+	int count;
 
-	return;
+	// Check params
+	if (!fileName || !list)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	configFile = kernelMalloc(sizeof(fileStream));
+	if (!configFile)
+		return (status = ERR_MEMORY);
+
+	status = kernelFileStreamOpen(fileName, OPENMODE_READ, configFile);
+	if (status < 0)
+	{
+		kernelError(kernel_warn, "Unable to read the configuration file "
+			"\"%s\"", fileName);
+		kernelFree(configFile);
+		return (status);
+	}
+
+	// Create the list
+	if (system)
+		status = variableListCreateSystem(list);
+	else
+		status = variableListCreate(list);
+
+	if (status < 0)
+	{
+		kernelError(kernel_warn, "Unable to create a variable list for "
+			"configuration file \"%s\"", fileName);
+		kernelFileStreamClose(configFile);
+		kernelFree(configFile);
+		return (status);
+	}
+
+	// Read line by line
+	while (1)
+	{
+		status = kernelFileStreamReadLine(configFile, 256, lineBuffer);
+		if (status < 0)
+			// End of file?
+			break;
+
+		// See if there's anything but whitespace, or comment here
+		hasContent = 0;
+		for (count = 0; count < status; count ++)
+		{
+			if (isspace(lineBuffer[count]))
+			{
+				continue;
+			}
+			else
+			{
+				if (lineBuffer[count] != '#')
+					hasContent = 1;
+				break;
+			}
+		}
+
+		if (!hasContent)
+			continue;
+
+		variable = lineBuffer;
+		for (count = 0; (lineBuffer[count] != '=') && (count < 255);
+			count ++);
+		{
+			lineBuffer[count] = '\0';
+		}
+
+		if (strlen(variable) < 255)
+			// Everything after the '=' is the value
+			value = (lineBuffer + count + 1);
+
+		// Store it
+		variableListSet(list, variable, value);
+	}
+
+	kernelFileStreamClose(configFile);
+	kernelFree(configFile);
+
+	return (status = 0);
 }
 
 
@@ -256,7 +347,9 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 	// but a non-privileged process can only trace processes owned by the
 	// same user
 	if ((kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR) &&
-		(kernelCurrentProcess->userId != traceProcess->userId))
+		(!kernelCurrentProcess->session || !traceProcess->session ||
+		strcmp(kernelCurrentProcess->session->name,
+			traceProcess->session->name)))
 	{
 		kernelError(kernel_error, "Current process does not have supervisor "
 			"privilege and user does not own the process");
@@ -346,14 +439,18 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 }
 
 
-void kernelConsoleLogin(void)
+int kernelConsoleLogin(const char *loginProgram)
 {
-	// This function will launch a login process on the console.  This should
-	// normally be called by the kernel's kernelMain() function, above, but
+	// This function will launch a 'login program' on the console.  This
+	// should normally be called by the kernel's kernelMain() function, but
 	// also possibly by the keyboard driver when some hot-key is pressed.
 
+	int status = 0;
 	static int loginPid = 0;
 	processState tmp;
+
+	if (!loginProgram)
+		loginProgram = DEFAULT_KERNEL_STARTPROGRAM;
 
 	// Try to make sure we don't start multiple logins at once
 	if (loginPid)
@@ -364,24 +461,22 @@ void kernelConsoleLogin(void)
 			kernelMultitaskerKillProcess(loginPid, 1);
 	}
 
-	// Try to load the login process
-	loginPid = kernelLoaderLoadProgram(DEFAULT_KERNEL_STARTPROGRAM,
-		PRIVILEGE_SUPERVISOR);
+	// Try to load the login program
+	loginPid = kernelLoaderLoadProgram(loginProgram, PRIVILEGE_SUPERVISOR);
 	if (loginPid < 0)
 	{
-		// Don't fail, but make a warning message
-		kernelError(kernel_warn, "Couldn't start a login process");
-		return;
+		kernelError(kernel_error, "Couldn't start login program %s",
+			loginProgram);
+		return (status = loginPid);
 	}
 
 	// Attach the login process to the console text streams
-	kernelMultitaskerDuplicateIo(KERNELPROCID, loginPid, 1); // clear
+	kernelMultitaskerDuplicateIo(KERNELPROCID, loginPid, 1 /* clear */);
 
-	// Execute the login process.  Don't block.
-	kernelLoaderExecProgram(loginPid, 0);
+	// Execute the login program.  Don't block.
+	status = kernelLoaderExecProgram(loginPid, 0 /* no block */);
 
-	// Done
-	return;
+	return (status);
 }
 
 
@@ -389,91 +484,16 @@ int kernelConfigRead(const char *fileName, variableList *list)
 {
 	// Read a config file into the supplied variable list structure.
 
-	int status = 0;
-	fileStream *configFile = NULL;
-	char lineBuffer[256];
-	int hasContent = 0;
-	char *variable = NULL;
-	char *value = NULL;
-	int count;
+	return (configRead(fileName, list, 0 /* not system memory */));
+}
 
-	// Check params
-	if (!fileName || !list)
-	{
-		kernelError(kernel_error, "NULL parameter");
-		return (status = ERR_NULLPARAMETER);
-	}
 
-	configFile = kernelMalloc(sizeof(fileStream));
-	if (!configFile)
-		return (status = ERR_MEMORY);
+int kernelConfigReadSystem(const char *fileName, variableList *list)
+{
+	// Read a config file into the supplied variable list structure, with
+	// memory allocated from kernel system memory.
 
-	status = kernelFileStreamOpen(fileName, OPENMODE_READ, configFile);
-	if (status < 0)
-	{
-		kernelError(kernel_warn, "Unable to read the configuration file "
-			"\"%s\"", fileName);
-		kernelFree(configFile);
-		return (status);
-	}
-
-	// Create the list
-	status = kernelVariableListCreate(list);
-	if (status < 0)
-	{
-		kernelError(kernel_warn, "Unable to create a variable list for "
-			"configuration file \"%s\"", fileName);
-		kernelFileStreamClose(configFile);
-		kernelFree(configFile);
-		return (status);
-	}
-
-	// Read line by line
-	while (1)
-	{
-		status = kernelFileStreamReadLine(configFile, 256, lineBuffer);
-		if (status < 0)
-			// End of file?
-			break;
-
-		// See if there's anything but whitespace, or comment here
-		hasContent = 0;
-		for (count = 0; count < status; count ++)
-		{
-			if (isspace(lineBuffer[count]))
-			{
-				continue;
-			}
-			else
-			{
-				if (lineBuffer[count] != '#')
-					hasContent = 1;
-				break;
-			}
-		}
-
-		if (!hasContent)
-			continue;
-
-		variable = lineBuffer;
-		for (count = 0; (lineBuffer[count] != '=') && (count < 255);
-			count ++);
-		{
-			lineBuffer[count] = '\0';
-		}
-
-		if (strlen(variable) < 255)
-			// Everything after the '=' is the value
-			value = (lineBuffer + count + 1);
-
-		// Store it
-		kernelVariableListSet(list, variable, value);
-	}
-
-	kernelFileStreamClose(configFile);
-	kernelFree(configFile);
-
-	return (status = 0);
+	return (configRead(fileName, list, 1 /* system memory */));
 }
 
 
@@ -484,7 +504,7 @@ int kernelConfigWrite(const char *fileName, variableList *list)
 	// blank lines are (hopefully) preserved.
 
 	int status = 0;
-	char tmpName[MAX_PATH_NAME_LENGTH];
+	char tmpName[MAX_PATH_NAME_LENGTH + 1];
 	fileStream *oldFileStream = NULL;
 	fileStream *newFileStream = NULL;
 	char lineBuffer[256];
@@ -599,8 +619,8 @@ int kernelConfigWrite(const char *fileName, variableList *list)
 			}
 		}
 
-		variable = kernelVariableListGetVariable(list, count1);
-		value = kernelVariableListGet(list, variable);
+		variable = variableListGetVariable(list, count1);
+		value = variableListGet(list, variable);
 
 		sprintf(lineBuffer, "%s=%s", variable, value);
 
@@ -645,8 +665,8 @@ int kernelConfigGet(const char *fileName, const char *variable, char *buffer,
 	unsigned buffSize)
 {
 	// This is a convenience function giving the ability to quickly get a
-	// single variable value from a config file.  Uses the kernelConfigRead
-	// function, above.
+	// single variable value from a config file.  Uses the
+	// kernelConfigReadSystem() function, above.
 
 	int status = 0;
 	variableList list;
@@ -657,12 +677,12 @@ int kernelConfigGet(const char *fileName, const char *variable, char *buffer,
 		return (status = ERR_NULLPARAMETER);
 
 	// Try to read in the config file
-	status = kernelConfigRead(fileName, &list);
+	status = kernelConfigReadSystem(fileName, &list);
 	if (status < 0)
 		return (status);
 
 	// Try to get the value
-	value = kernelVariableListGet(&list, variable);
+	value = variableListGet(&list, variable);
 
 	if (value)
 	{
@@ -676,7 +696,7 @@ int kernelConfigGet(const char *fileName, const char *variable, char *buffer,
 	}
 
 	// Deallocate the list.
-	kernelVariableListDestroy(&list);
+	variableListDestroy(&list);
 
 	return (status);
 }
@@ -685,9 +705,9 @@ int kernelConfigGet(const char *fileName, const char *variable, char *buffer,
 int kernelConfigSet(const char *fileName, const char *variable,
 	const char *value)
 {
-	// This is a convenience function giving the ability to quickly set a single
-	// variable value in a config file.  Uses the kernelConfigRead and
-	// kernelConfigWrite functions, above.
+	// This is a convenience function giving the ability to quickly set a
+	// single variable value in a config file.  Uses the
+	// kernelConfigReadSystem() and kernelConfigWrite() functions, above.
 
 	int status = 0;
 	variableList list;
@@ -697,12 +717,12 @@ int kernelConfigSet(const char *fileName, const char *variable,
 		return (status = ERR_NULLPARAMETER);
 
 	// Try to read in the config file
-	status = kernelConfigRead(fileName, &list);
+	status = kernelConfigReadSystem(fileName, &list);
 	if (status < 0)
 		return (status);
 
 	// Try to set the value
-	status = kernelVariableListSet(&list, variable, value);
+	status = variableListSet(&list, variable, value);
 	if (status < 0)
 		goto out;
 
@@ -711,7 +731,7 @@ int kernelConfigSet(const char *fileName, const char *variable,
 
 out:
 	// Deallocate the list.
-	kernelVariableListDestroy(&list);
+	variableListDestroy(&list);
 	return (status);
 }
 
@@ -719,8 +739,8 @@ out:
 int kernelConfigUnset(const char *fileName, const char *variable)
 {
 	// This is a convenience function giving the ability to quickly unset a
-	// single variable value in a config file.  Uses the kernelConfigRead and
-	// kernelConfigWrite functions, above.
+	// single variable value in a config file.  Uses the
+	// kernelConfigReadSystem() and kernelConfigWrite() functions, above.
 
 	int status = 0;
 	variableList list;
@@ -730,12 +750,12 @@ int kernelConfigUnset(const char *fileName, const char *variable)
 		return (status = ERR_NULLPARAMETER);
 
 	// Try to read in the config file
-	status = kernelConfigRead(fileName, &list);
+	status = kernelConfigReadSystem(fileName, &list);
 	if (status < 0)
 		return (status);
 
 	// Try to unset the value
-	status = kernelVariableListUnset(&list, variable);
+	status = variableListUnset(&list, variable);
 	if (status < 0)
 		goto out;
 
@@ -744,7 +764,7 @@ int kernelConfigUnset(const char *fileName, const char *variable)
 
 out:
 	// Deallocate the list.
-	kernelVariableListDestroy(&list);
+	variableListDestroy(&list);
 	return (status);
 }
 
@@ -809,7 +829,7 @@ int kernelGuidGenerate(guid *g)
 	int status = 0;
 	unsigned long long longTime = 0;
 	static unsigned clockSeq = 0;
-	static lock globalLock;
+	static spinLock globalLock;
 	static int initialized = 0;
 
 	// Check params
@@ -822,7 +842,7 @@ int kernelGuidGenerate(guid *g)
 	if (!initialized)
 	{
 		clockSeq = kernelRandomUnformatted();
-		memset((void *) &globalLock, 0, sizeof(lock));
+		memset((void *) &globalLock, 0, sizeof(spinLock));
 		initialized = 1;
 	}
 
@@ -878,53 +898,5 @@ unsigned kernelCrc32(void *buff, unsigned len, unsigned *lastCrc)
 		*lastCrc = crc;
 
 	return (crc ^ ~0U);
-}
-
-
-void kernelPause(int seconds)
-{
-	// Print a message, and wait for a key press, or else the specified number
-	// of seconds
-
-	char buffer[32];
-	int currentSeconds = 0;
-	textAttrs attrs;
-
-	memset(&attrs, 0, sizeof(textAttrs));
-	attrs.flags = TEXT_ATTRS_REVERSE;
-
-	kernelTextInputSetEcho(0);
-
-	if (seconds)
- 	{
-		for (currentSeconds = kernelRtcReadSeconds(); seconds > 0; seconds--)
-		{
-			snprintf(buffer, 32, " --- Pausing for %d seconds ---", seconds);
-			kernelTextPrintAttrs(&attrs, "%s", buffer);
-
-			while (kernelRtcReadSeconds() == currentSeconds)
-				kernelMultitaskerYield();
-
-			currentSeconds = kernelRtcReadSeconds();
-			eraseLine();
-		}
-	}
-	else
-	{
-		kernelTextPrintAttrs(&attrs, " --- Press any key to continue ---");
-
-		// Do a loop, manually polling the keyboard input buffer, looking for
-		// the key press.
-		while (!kernelTextInputCount())
-			kernelMultitaskerYield();
-
-		kernelTextInputRemoveAll();
-
-		eraseLine();
-	}
-
-	kernelTextInputSetEcho(1);
-
-	return;
 }
 

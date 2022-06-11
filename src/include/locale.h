@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,9 +21,10 @@
 
 // This is the Visopsys version of the standard header file locale.h
 
-#if !defined(_LOCALE_H)
+#ifndef _LOCALE_H
+#define _LOCALE_H
 
-#define LOCALE_MAX_NAMELEN	16
+#define LOCALE_MAX_NAMELEN	15
 
 struct lconv {
     char *currency_symbol;
@@ -57,6 +58,5 @@ struct lconv {
 
 char *setlocale(int, const char *);
 
-#define _LOCALE_H
 #endif
 

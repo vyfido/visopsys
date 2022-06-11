@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,18 +27,19 @@
 #include "kernelFile.h"
 #include "kernelMalloc.h"
 #include <libintl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/message.h>
 
 // Locale categories
-static char _lc_all[16];
-static char _lc_collate[16];
-static char _lc_ctype[16];
-static char _lc_messages[16];
-static char _lc_monetary[16];
-static char _lc_numeric[16];
-static char _lc_time[16];
+static char _lc_all[LOCALE_MAX_NAMELEN + 1];
+static char _lc_collate[LOCALE_MAX_NAMELEN + 1];
+static char _lc_ctype[LOCALE_MAX_NAMELEN + 1];
+static char _lc_messages[LOCALE_MAX_NAMELEN + 1];
+static char _lc_monetary[LOCALE_MAX_NAMELEN + 1];
+static char _lc_numeric[LOCALE_MAX_NAMELEN + 1];
+static char _lc_time[LOCALE_MAX_NAMELEN + 1];
 
 static messages *msgFile = NULL;
 
@@ -60,7 +61,9 @@ static char *setCategory(const char *name, char *category, const char *locale)
 			strcpy(category, C_LOCALE_NAME);
 	}
 	else
+	{
 		strncpy(category, locale, LOCALE_MAX_NAMELEN);
+	}
 
 	category[LOCALE_MAX_NAMELEN] = '\0';
 	return (category);
@@ -89,7 +92,7 @@ static int loadMessageFile(void)
 	memset(&fileStructure, 0, sizeof(file));
 
 	// Allocate memory for the full pathname
-	path = kernelMalloc(MAX_PATH_NAME_LENGTH);
+	path = kernelMalloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!path)
 	{
 		status = ERR_MEMORY;
@@ -111,8 +114,10 @@ static int loadMessageFile(void)
 	// Get memory for the msgfile structure and its buffer
 	msgFile = kernelMalloc(sizeof(messages));
 	if (msgFile)
-		msgFile->buffer =
-			kernelMalloc(fileStructure.blocks * fileStructure.blockSize);
+	{
+		msgFile->buffer = kernelMalloc(fileStructure.blocks *
+			fileStructure.blockSize);
+	}
 	if (!msgFile || !msgFile->buffer)
 	{
 		status = ERR_MEMORY;
@@ -142,7 +147,8 @@ static int loadMessageFile(void)
 	}
 
 	msgFile->origTable = (msgFile->buffer + msgFile->header->origTableOffset);
-	msgFile->transTable = (msgFile->buffer + msgFile->header->transTableOffset);
+	msgFile->transTable = (msgFile->buffer +
+		msgFile->header->transTableOffset);
 
 	status = 0;
 
@@ -168,7 +174,6 @@ out:
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 char *kernelSetLocale(int category, const char *locale)
 {
 	char *returnLocale = NULL;
@@ -176,8 +181,8 @@ char *kernelSetLocale(int category, const char *locale)
 	if (!locale)
 		return (returnLocale = NULL);
 
-	// Note that these calls are not redundant since each one of these
-	// flags can result in copying into different categories
+	// Note that these calls are not redundant since each one of these flags
+	// can result in copying into different categories
 
 	if ((category & LC_ALL) == LC_ALL)
 		returnLocale = setCategory("LC_ALL", _lc_all, locale);
@@ -231,8 +236,8 @@ char *kernelGetText(const char *msgid)
 		return (trans);
 
 	// No hashing, just loop and search.  If we can ensure later that they're
-	// ordered alphabetically, then we can replace this with a binary search for
-	// speed.
+	// ordered alphabetically, then we can replace this with a binary search
+	// for speed.
 	if (!strcmp(msgFile->locale, _lc_messages))
 	{
 		for (count = 0; count < msgFile->header->numStrings; count ++)

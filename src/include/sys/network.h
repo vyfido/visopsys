@@ -1,20 +1,20 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
-//  This library is free software; you can redistribute it and/or modify it
-//  under the terms of the GNU Lesser General Public License as published by
-//  the Free Software Foundation; either version 2.1 of the License, or (at
-//  your option) any later version.
+//  This program is free software; you can redistribute it and/or modify it
+//  under the terms of the GNU General Public License as published by the Free
+//  Software Foundation; either version 2 of the License, or (at your option)
+//  any later version.
 //
-//  This library is distributed in the hope that it will be useful, but
-//  WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-//  General Public License for more details.
+//  This program is distributed in the hope that it will be useful, but
+//  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+//  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+//  for more details.
 //
-//  You should have received a copy of the GNU Lesser General Public License
-//  along with this library; if not, write to the Free Software Foundation,
-//  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+//  You should have received a copy of the GNU General Public License along
+//  with this program; if not, write to the Free Software Foundation, Inc.,
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  network.h
 //
@@ -22,12 +22,13 @@
 // This file contains definitions and structures for using network functions
 // in Visopsys.
 
-#if !defined(_NETWORK_H)
+#ifndef _NETWORK_H
+#define _NETWORK_H
 
-#define NETWORK_MAX_HOSTNAMELENGTH			32
-#define NETWORK_MAX_DOMAINNAMELENGTH		(256 - NETWORK_MAX_HOSTNAMELENGTH)
+#define NETWORK_MAX_HOSTNAMELENGTH			31
+#define NETWORK_MAX_DOMAINNAMELENGTH		(255 - NETWORK_MAX_HOSTNAMELENGTH)
 #define NETWORK_MAX_DEVICES					16
-#define NETWORK_DEVICE_MAX_NAMELENGTH		32
+#define NETWORK_DEVICE_MAX_NAMELENGTH		31
 
 // Flags for network devices
 #define NETWORK_DEVICEFLAG_INITIALIZED		0x10000
@@ -253,7 +254,7 @@ typedef union {
 
 // A network device
 typedef struct {
-	char name[NETWORK_DEVICE_MAX_NAMELENGTH];
+	char name[NETWORK_DEVICE_MAX_NAMELENGTH + 1];
 	unsigned flags;
 	// Physical network address
 	networkAddress hardwareAddress;
@@ -432,6 +433,5 @@ typedef struct {
 
 } __attribute__((packed)) networkPingPacket;
 
-#define _NETWORK_H
 #endif
 

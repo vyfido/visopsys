@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,6 +57,7 @@ Options:
 #include <sys/keyboard.h>
 #include <sys/paths.h>
 #include <sys/user.h>
+#include <sys/vis.h>
 
 #define _(string) gettext(string)
 
@@ -86,7 +87,7 @@ static void error(const char *format, ...)
 	// Generic error message code for either text or graphics modes
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
@@ -259,7 +260,7 @@ static int setPasswordDialog(int userNumber)
 	params.padLeft = 5;
 	params.padRight = 5;
 	params.orientationX = orient_right;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	okButton = windowNewButton(dialogWindow, _("OK"), NULL, &params);
 
 	// Create the Cancel button
@@ -276,13 +277,13 @@ static int setPasswordDialog(int userNumber)
 		status = windowComponentEventGet(okButton, &event);
 		if (status < 0)
 			goto out;
-		else if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+		else if ((status > 0) && (event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 			break;
 
 		// Check for the Cancel button
 		status = windowComponentEventGet(cancelButton, &event);
-		if ((status < 0) || ((status > 0) &&
-			(event.type == EVENT_MOUSE_LEFTUP)))
+		if ((status < 0) || ((status > 0) && (event.type ==
+			WINDOW_EVENT_MOUSE_LEFTUP)))
 		{
 			windowDestroy(dialogWindow);
 			return (status = ERR_NODATA);
@@ -290,8 +291,8 @@ static int setPasswordDialog(int userNumber)
 
 		// Check for window close events
 		status = windowComponentEventGet(dialogWindow, &event);
-		if ((status < 0) || ((status > 0) &&
-			(event.type == EVENT_WINDOW_CLOSE)))
+		if ((status < 0) || ((status > 0) && (event.type ==
+			WINDOW_EVENT_WINDOW_CLOSE)))
 		{
 			windowDestroy(dialogWindow);
 			return (status = ERR_NODATA);
@@ -301,8 +302,8 @@ static int setPasswordDialog(int userNumber)
 		if (oldPasswordField)
 		{
 			status = windowComponentEventGet(oldPasswordField, &event);
-			if ((status > 0) && (event.type == EVENT_KEY_DOWN) &&
-				(event.key == keyEnter))
+			if ((status > 0) && (event.type == WINDOW_EVENT_KEY_DOWN) &&
+				(event.key.scan == keyEnter))
 			{
 				break;
 			}
@@ -310,9 +311,9 @@ static int setPasswordDialog(int userNumber)
 
 		// Read the old password field and check for changes
 		status = windowComponentEventGet(passwordField1, &event);
-		if ((status > 0) && (event.type == EVENT_KEY_DOWN))
+		if ((status > 0) && (event.type == WINDOW_EVENT_KEY_DOWN))
 		{
-			if (event.key == keyEnter)
+			if (event.key.scan == keyEnter)
 				break;
 
 			// Clear all existing labels
@@ -349,9 +350,9 @@ static int setPasswordDialog(int userNumber)
 
 		// Read the new password field and check for changes
 		status = windowComponentEventGet(passwordField2, &event);
-		if ((status > 0) && (event.type == EVENT_KEY_DOWN))
+		if ((status > 0) && (event.type == WINDOW_EVENT_KEY_DOWN))
 		{
-			if (event.key == keyEnter)
+			if (event.key.scan == keyEnter)
 				break;
 
 			// Clear all existing labels
@@ -391,12 +392,17 @@ static int setPasswordDialog(int userNumber)
 	}
 
 	if (oldPasswordField)
+	{
 		windowComponentGetData(oldPasswordField, oldPassword,
 			USER_MAX_PASSWDLENGTH);
+	}
 	else
+	{
 		oldPassword[0] = '\0';
+	}
 
-	windowComponentGetData(passwordField1, newPassword, USER_MAX_PASSWDLENGTH);
+	windowComponentGetData(passwordField1, newPassword,
+		USER_MAX_PASSWDLENGTH);
 	windowComponentGetData(passwordField2, confirmPassword,
 		USER_MAX_PASSWDLENGTH);
 
@@ -443,12 +449,11 @@ static void enableButtons(void)
 
 	windowComponentSetEnabled(deleteUserButton, (!readOnly && !privilege));
 
-	windowComponentSetEnabled(setPasswordButton,
-		(!readOnly && (!privilege || isCurrentUser)));
+	windowComponentSetEnabled(setPasswordButton, (!readOnly && (!privilege ||
+		isCurrentUser)));
 
-	windowComponentSetEnabled(setLanguageButton,
-		(!isAdmin && (!privilege || isCurrentUser) &&
-			(fileFind(PATH_SYSTEM_LOCALE, NULL) >= 0)));
+	windowComponentSetEnabled(setLanguageButton, (!isAdmin && (!privilege ||
+		isCurrentUser) && (fileFind(PATH_SYSTEM_LOCALE, NULL) >= 0)));
 }
 
 
@@ -457,7 +462,7 @@ static int addUser(const char *userName, const char *password)
 	// Tells the kernel to add the requested user name and password
 
 	int status = 0;
-	char userDir[MAX_PATH_NAME_LENGTH];
+	char userDir[MAX_PATH_NAME_LENGTH + 1];
 
 	// Make sure the user doesn't already exist
 	if (userExists(userName))
@@ -541,9 +546,9 @@ static int setLanguage(const char *userName, const char *language)
 	// Try to set the user's language choice in its environment settings
 
 	int status = 0;
-	char fileName[MAX_PATH_NAME_LENGTH];
-	char charsetName[CHARSET_NAME_LEN];
-	char keyMapName[KEYMAP_NAMELEN];
+	char fileName[MAX_PATH_NAME_LENGTH + 1];
+	char charsetName[CHARSET_NAME_LEN + 1];
+	char keyMapName[KEYMAP_NAMELEN + 1];
 	variableList envList;
 
 	// The user 'admin' doesn't have user settings
@@ -632,9 +637,6 @@ static void refreshWindow(void)
 	if (getenv(ENV_CHARSET))
 		windowSetCharSet(window, getenv(ENV_CHARSET));
 
-	// Refresh the window title
-	windowSetTitle(window, WINDOW_TITLE);
-
 	// Refresh the 'add user' button
 	windowComponentSetData(addUserButton, ADD_USER, strlen(ADD_USER),
 		1 /* redraw */);
@@ -650,6 +652,12 @@ static void refreshWindow(void)
 	// Refresh the 'set language' button
 	windowComponentSetData(setLanguageButton, SET_LANGUAGE,
 		strlen(SET_LANGUAGE), 1 /* redraw */);
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -664,21 +672,22 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			windowGuiStop();
 	}
 
-	else if ((key == userList) && (event->type & EVENT_SELECTION))
+	else if ((key == userList) && (event->type & WINDOW_EVENT_SELECTION))
 	{
 		// Enable/disable buttons
 		enableButtons();
 	}
 
-	else if ((key == addUserButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == addUserButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		if (windowNewPromptDialog(window, _("Add User"),
 			_("Enter the user name:"), 1, USER_MAX_NAMELENGTH, userName) > 0)
@@ -689,7 +698,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 	}
 
-	else if ((key == deleteUserButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == deleteUserButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		// Don't try to delete the last user
 		if (numUserNames > 1)
@@ -705,10 +715,13 @@ static void eventHandler(objectKey key, windowEvent *event)
 				deleteUser(userListParams[userNumber].text);
 		}
 		else
+		{
 			error("%s", _("Can't delete the last user"));
+		}
 	}
 
-	else if ((key == setPasswordButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == setPasswordButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		windowComponentGetSelected(userList, &userNumber);
 		if (userNumber < 0)
@@ -717,7 +730,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 		setPasswordDialog(userNumber);
 	}
 
-	else if ((key == setLanguageButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == setLanguageButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		windowComponentGetSelected(userList, &userNumber);
 		if (userNumber < 0)
@@ -772,14 +786,15 @@ static void constructWindow(void)
 	// A container for the buttons
 	params.gridX += 1;
 	params.padRight = 5;
-	params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags |= (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	container = windowNewContainer(window, "button container", &params);
 
 	// Create an 'add user' button
 	params.gridX = 0;
 	params.padLeft = params.padRight = params.padTop = 0;
 	params.padBottom = 2;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDWIDTH;
 	addUserButton = windowNewButton(container, ADD_USER, NULL, &params);
 	windowRegisterEventHandler(addUserButton, &eventHandler);
 
@@ -858,7 +873,11 @@ int main(int argc, char *argv[])
 
 	processId = multitaskerGetCurrentProcessId();
 	privilege = multitaskerGetProcessPrivilege(processId);
-	userGetCurrent(currentUser, USER_MAX_NAMELENGTH);
+
+	// Get the name of the current user
+	status = userGetCurrent(currentUser, USER_MAX_NAMELENGTH);
+	if (status < 0)
+		error("%s", _("Couldn't determine the current user"));
 
 	// Get the list of user names
 	status = getUserNames();
@@ -885,7 +904,9 @@ int main(int argc, char *argv[])
 		}
 
 		if (userNumber < 0)
+		{
 			error(_("No such user \"%s\""), userName);
+		}
 		else
 		{
 			if (!setPasswordDialog(userNumber))

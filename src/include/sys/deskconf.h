@@ -1,20 +1,20 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
-//  This library is free software; you can redistribute it and/or modify it
-//  under the terms of the GNU Lesser General Public License as published by
-//  the Free Software Foundation; either version 2.1 of the License, or (at
-//  your option) any later version.
+//  This program is free software; you can redistribute it and/or modify it
+//  under the terms of the GNU General Public License as published by the Free
+//  Software Foundation; either version 2 of the License, or (at your option)
+//  any later version.
 //
-//  This library is distributed in the hope that it will be useful, but
-//  WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-//  General Public License for more details.
+//  This program is distributed in the hope that it will be useful, but
+//  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+//  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+//  for more details.
 //
-//  You should have received a copy of the GNU Lesser General Public License
-//  along with this library; if not, write to the Free Software Foundation,
-//  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+//  You should have received a copy of the GNU General Public License along
+//  with this program; if not, write to the Free Software Foundation, Inc.,
+//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 //  deskconf.h
 //
@@ -22,7 +22,8 @@
 // This file contains definitions for accessing standard variables in the
 // various Visopsys desktop.conf files
 
-#if !defined(_DESKCONF_H)
+#ifndef _DESKCONF_H
+#define _DESKCONF_H
 
 #define DESKTOP_CONFIG					"desktop.conf"
 
@@ -49,6 +50,5 @@
 #define DESKVAR_ICON_IMAGE				DESKVAR_ICON ".%s." DESKVAR_IMAGE
 #define DESKVAR_BACKGROUND_NONE			DESKVAR_NONE
 
-#define _DESKCONF_H
 #endif
 

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,26 +25,26 @@ msgstr ""
 msgid "Use cursor keys to change direction"
 msgstr ""
 
-#: snake.c:949
+#: snake.c:952
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr ""
 
-#: snake.c:973
+#: snake.c:976
 #, c-format
 msgid ""
 "%s\n"
 "Score %d.\n"
 msgstr ""
 
-#: snake.c:974
+#: snake.c:977
 msgid "You WIN!"
 msgstr ""
 
-#: snake.c:974
+#: snake.c:977
 msgid "Dead."
 msgstr ""
 
-#: snake.c:979
+#: snake.c:982
 msgid "Game over"
 msgstr ""

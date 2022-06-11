@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2018 J. Andrew McLaughlin
+#  Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -19,120 +19,120 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-9\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: progman.c:58
+#: progman.c:59
 msgid "Program Manager"
 msgstr "Program Yönetici"
 
-#: progman.c:59
+#: progman.c:60
 msgid "Memory blocks: "
 msgstr "Bellek bloklari: "
 
-#: progman.c:60
+#: progman.c:61
 msgid "Used memory: "
 msgstr "Kullanilan bellek: "
 
-#: progman.c:61
+#: progman.c:62
 msgid "Free memory: "
 msgstr "Bos bellek: "
 
-#: progman.c:62
+#: progman.c:63
 msgid "Disk performance:"
 msgstr "Disk performansi: "
 
-#: progman.c:63
+#: progman.c:64
 msgid "Read: "
 msgstr "Okuma: "
 
-#: progman.c:64
+#: progman.c:65
 msgid "Write: "
 msgstr "Yazma: "
 
-#: progman.c:65
+#: progman.c:66
 msgid "K/sec"
 msgstr "K/san"
 
-#: progman.c:102
-msgid "Error"
-msgstr "Hata"
-
-#: progman.c:233
-msgid "Can't get temporary memory for processes"
-msgstr "Islemler için geçici bellek alinamiyor"
-
-#: progman.c:297
-msgid "running "
-msgstr "çalisiyor "
-
-#: progman.c:301
-msgid "ready "
-msgstr "hazir "
-
-#: progman.c:304
-msgid "waiting "
-msgstr "bekleniyor "
-
-#: progman.c:307
-msgid "sleeping "
-msgstr "uykuda "
-
-#: progman.c:310
-msgid "stopped "
-msgstr "durdu "
-
-#: progman.c:313
-msgid "finished "
-msgstr "tamamlandi "
-
-#: progman.c:316
-msgid "zombie "
-msgstr "zombi "
-
-#: progman.c:319
-msgid "unknown "
-msgstr "bilinmeyen "
-
-#: progman.c:340
-msgid "Enter command"
-msgstr "Komut girin"
-
-#: progman.c:341
-msgid "Please enter a command to run:"
-msgstr "Lütfen çalistirilacak komutu girin:"
-
-#: progman.c:370
-msgid "Unable to execute program"
-msgstr "Program çalistirilamiyor"
-
-#: progman.c:407 progman.c:630
-msgid "Set priority"
-msgstr "Önem seviyesini ayarla"
-
-#: progman.c:408
-msgid "Please enter the desired priority"
-msgstr "Lütfen belirlenen önem seviyesini girin"
-
-#: progman.c:504
-msgid "Unable to launch file dialog"
-msgstr "Dosya diyalogu baslatilamadi"
-
-#: progman.c:585
-#, c-format
-msgid "Process                   PID PPID UID Pri Priv CPU% STATE   "
-msgstr "Islem                   PID PPID UID Pri Priv CPU% DURUMU   "
-
-#: progman.c:606
+#: progman.c:67
 msgid "Show all sub-processes"
 msgstr "Tüm alt islemleri göster"
 
-#: progman.c:623
+#: progman.c:68
 msgid "Run program"
 msgstr "Program çalistir"
 
-#: progman.c:636
+#: progman.c:69 progman.c:420
+msgid "Set priority"
+msgstr "Önem seviyesini ayarla"
+
+#: progman.c:70
 msgid "Kill process"
 msgstr "Islemi durdur(KILL)"
 
-#: progman.c:658
+#: progman.c:114
+msgid "Error"
+msgstr "Hata"
+
+#: progman.c:245
+msgid "Can't get temporary memory for processes"
+msgstr "Islemler için geçici bellek alinamiyor"
+
+#: progman.c:310
+msgid "running "
+msgstr "çalisiyor "
+
+#: progman.c:314
+msgid "ready "
+msgstr "hazir "
+
+#: progman.c:317
+msgid "waiting "
+msgstr "bekleniyor "
+
+#: progman.c:320
+msgid "sleeping "
+msgstr "uykuda "
+
+#: progman.c:323
+msgid "stopped "
+msgstr "durdu "
+
+#: progman.c:326
+msgid "finished "
+msgstr "tamamlandi "
+
+#: progman.c:329
+msgid "zombie "
+msgstr "zombi "
+
+#: progman.c:332
+msgid "unknown "
+msgstr "bilinmeyen "
+
+#: progman.c:353
+msgid "Enter command"
+msgstr "Komut girin"
+
+#: progman.c:354
+msgid "Please enter a command to run:"
+msgstr "Lütfen çalistirilacak komutu girin:"
+
+#: progman.c:383
+msgid "Unable to execute program"
+msgstr "Program çalistirilamiyor"
+
+#: progman.c:421
+msgid "Please enter the desired priority"
+msgstr "Lütfen belirlenen önem seviyesini girin"
+
+#: progman.c:540
+msgid "Unable to launch file dialog"
+msgstr "Dosya diyalogu baslatilamadi"
+
+#: progman.c:622
+#, fuzzy, c-format
+msgid "Process                   PID PPID UID      Pri Priv CPU% STATE   "
+msgstr "Islem                   PID PPID UID Pri Priv CPU% DURUMU   "
+
+#: progman.c:693
 #, c-format
 msgid ""
 "\n"
@@ -141,6 +141,6 @@ msgstr ""
 "\n"
 "\"%s\" komutu sadece grafik modda çalisabilir\n"
 
-#: progman.c:677
+#: progman.c:712
 msgid "Error getting memory"
 msgstr "Bellege alinirken hata"

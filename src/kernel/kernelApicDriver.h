@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelApicDriver.h
 //
 
-#if !defined(_KERNELAPICDRIVER_H)
+#ifndef _KERNELAPICDRIVER_H
+#define _KERNELAPICDRIVER_H
 
 #define APIC_LOCALREG_APICID		0x20
 #define APIC_LOCALREG_VERSION		0x30
@@ -51,6 +52,5 @@ typedef struct {
 
 void kernelApicDebug(void);
 
-#define _KERNELAPICDRIVER_H
 #endif
 

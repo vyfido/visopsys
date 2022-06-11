@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,7 +22,8 @@
 // These are the generic functions for DMA access.  These are above the
 // level of the actual DMA driver.
 
-#if !defined(_KERNELDMA_H)
+#ifndef _KERNELDMA_H
+#define _KERNELDMA_H
 
 #include "kernelDevice.h"
 
@@ -46,6 +47,5 @@ int kernelDmaInitialize(kernelDevice *);
 int kernelDmaOpenChannel(int, void *, int, int);
 int kernelDmaCloseChannel(int);
 
-#define _KERNELDMA_H
 #endif
 

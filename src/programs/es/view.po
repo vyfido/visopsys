@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: 2014-01-22 04:40-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,59 +17,59 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: view.c:65
+#: view.c:64
 #, c-format
 msgid "View \"%s\""
 msgstr ""
 
-#: view.c:74
+#: view.c:65
 msgid "Zoom in"
 msgstr "Zoom in"
 
-#: view.c:75
+#: view.c:66
 msgid "Zoom out"
 msgstr "Zoom out"
 
-#: view.c:76
+#: view.c:67
 msgid "Actual size"
 msgstr "Tamaño actual"
 
-#: view.c:102
+#: view.c:104
 msgid "Error"
 msgstr "Error"
 
-#: view.c:174
+#: view.c:220
 msgid "Failed to resize image"
 msgstr ""
 
-#: view.c:263
+#: view.c:322
 msgid "Loading"
 msgstr "Cargando"
 
-#: view.c:264
+#: view.c:323
 msgid "Loading image..."
 msgstr "Cargando imágen..."
 
-#: view.c:276
+#: view.c:335
 #, c-format
 msgid "Error loading the image \"%s\"\n"
 msgstr "Error al cargar la imágen \"%s\"\n"
 
-#: view.c:281
+#: view.c:340
 #, c-format
 msgid "Unable to load the image \"%s\"\n"
 msgstr "No se puede cargar la imágen \"%s\"\n"
 
-#: view.c:298
+#: view.c:359
 msgid "Image"
 msgstr "Imágen"
 
-#: view.c:351
+#: view.c:408
 #, c-format
 msgid "Unable to load the file \"%s\"\n"
 msgstr "No se puede cargar el archivo \"%s\"\n"
 
-#: view.c:397
+#: view.c:454
 #, c-format
 msgid ""
 "\n"
@@ -78,25 +78,25 @@ msgstr ""
 "\n"
 "El comando \"%s\" funciona solamente en modo gráfico\n"
 
-#: view.c:413
+#: view.c:470
 msgid "Enter filename"
 msgstr "Ingrese un nombre de archivo"
 
-#: view.c:414
+#: view.c:471
 msgid "Please choose the file to view:"
 msgstr "Selecciona un archivo para mostrar:"
 
-#: view.c:432
+#: view.c:489
 #, c-format
 msgid "The file \"%s\" was not found"
 msgstr "Archivo \"%s\" no encontrado"
 
-#: view.c:441
+#: view.c:498
 #, c-format
 msgid "Unable to classify the file \"%s\""
 msgstr "No se puede clasificar el archivo \"%s\""
 
-#: view.c:448
+#: view.c:505
 #, c-format
 msgid "Can't display the file type of \"%s\" (%s)"
 msgstr "El tipo de archivo \"%s\" no se puede mostrar (%s)"

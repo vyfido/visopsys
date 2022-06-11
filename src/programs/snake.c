@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -709,6 +709,9 @@ static void refreshWindow(void)
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -718,20 +721,20 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 		{
 			run = 0;
 			windowGuiStop();
 		}
 	}
 
-	else if ((key == canvas) && (event->type == EVENT_KEY_DOWN))
+	else if ((key == canvas) && (event->type == WINDOW_EVENT_KEY_DOWN))
 	{
-		switch (event->key)
+		switch (event->key.scan)
 		{
 			case keyUpArrow:
 				// Cursor up
@@ -800,19 +803,19 @@ static int constructWindow(void)
 	params.padBottom = 5;
 	params.orientationX = orient_left;
 	params.orientationY = orient_middle;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	scoreLabel = windowNewTextLabel(window, "0000", &params);
 
 	params.gridX += 1;
 	params.orientationX = orient_right;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDWIDTH;
 	treatImage = windowNewImage(window, &images[image_treat],
 		draw_translucent, &params);
 	windowComponentSetVisible(treatImage, 0);
 
 	params.gridX += 1;
 	params.orientationX = orient_right;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	treatLabel = windowNewTextLabel(window, "00", &params);
 	windowComponentSetVisible(treatLabel, 0);
 
@@ -820,9 +823,9 @@ static int constructWindow(void)
 	params.gridY += 1;
 	params.gridWidth = 3;
 	params.orientationX = orient_center;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
-	params.flags |= (WINDOW_COMPFLAG_CUSTOMBACKGROUND |
-		WINDOW_COMPFLAG_HASBORDER | WINDOW_COMPFLAG_CANFOCUS);
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDWIDTH;
+	params.flags |= (COMP_PARAMS_FLAG_CUSTOMBACKGROUND |
+		COMP_PARAMS_FLAG_HASBORDER | COMP_PARAMS_FLAG_CANFOCUS);
 	params.background.red = 255;
 	params.background.green = 255;
 	params.background.blue = 255;
@@ -832,8 +835,8 @@ static int constructWindow(void)
 
 	params.gridY += 1;
 	params.orientationX = orient_left;
-	params.flags &= ~(WINDOW_COMPFLAG_CUSTOMBACKGROUND |
-		WINDOW_COMPFLAG_HASBORDER | WINDOW_COMPFLAG_CANFOCUS);
+	params.flags &= ~(COMP_PARAMS_FLAG_CUSTOMBACKGROUND |
+		COMP_PARAMS_FLAG_HASBORDER | COMP_PARAMS_FLAG_CANFOCUS);
 	changeDirLabel = windowNewTextLabel(window, CHANGE_DIRECTION, &params);
 
 	// Register an event handler to catch window close events

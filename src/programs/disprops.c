@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,7 +48,9 @@ the background wallpaper, and the base colors used by the window manager.
 #include <sys/env.h>
 #include <sys/paths.h>
 #include <sys/user.h>
+#include <sys/vis.h>
 #include <sys/winconf.h>
+#include <sys/window.h>
 
 #define _(string) gettext(string)
 
@@ -265,7 +267,7 @@ static void getColors(void)
 {
 	// Get the current color scheme from the window config(s).
 
-	char fileName[MAX_PATH_NAME_LENGTH];
+	char fileName[MAX_PATH_NAME_LENGTH + 1];
 
 	// First read the values from the system config.
 	sprintf(fileName, PATH_SYSTEM_CONFIG "/" WINDOW_CONFIG);
@@ -285,7 +287,7 @@ static void setColors(void)
 {
 	// Set the current color scheme.
 
-	char fileName[MAX_PATH_NAME_LENGTH];
+	char fileName[MAX_PATH_NAME_LENGTH + 1];
 	variableList list;
 	char value[16];
 
@@ -446,6 +448,9 @@ static void refreshWindow(void)
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -477,7 +482,7 @@ static int readDesktopVariable(const char *variable, char *value, int len)
 	// Get the variable from the desktop config.
 
 	int status = 0;
-	char fileName[MAX_PATH_NAME_LENGTH];
+	char fileName[MAX_PATH_NAME_LENGTH + 1];
 
 	if (strcmp(currentUser, USER_ADMIN))
 	{
@@ -507,7 +512,7 @@ static int writeDesktopVariable(const char *variable, char *value)
 	// Get the variable from the desktop config.
 
 	int status = 0;
-	char fileName[MAX_PATH_NAME_LENGTH];
+	char fileName[MAX_PATH_NAME_LENGTH + 1];
 	file f;
 
 	if (readOnly)
@@ -565,7 +570,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	color *selectedColor = getSelectedColor();
 	int mode = 0;
 	int clockSelected = 0;
-	char string[160];
+	char string[MAX_PATH_NAME_LENGTH + 1];
 	int selected = 0;
 	file f;
 
@@ -573,20 +578,21 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for window resize
-		else if (event->type == EVENT_WINDOW_RESIZE)
+		else if (event->type == WINDOW_EVENT_WINDOW_RESIZE)
 			// Redraw the canvas
 			drawColor(selectedColor);
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			windowGuiStop();
 	}
 
-	else if ((key == wallpaperCheckbox) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == wallpaperCheckbox) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		windowComponentGetSelected(wallpaperCheckbox, &selected);
 		windowComponentSetEnabled(wallpaperButton, selected);
@@ -608,7 +614,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 	}
 
-	else if ((key == wallpaperButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == wallpaperButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		loaderLoadAndExec(WALLPAPER_PROGRAM, privilege, 1);
 
@@ -616,29 +623,30 @@ static void eventHandler(objectKey key, windowEvent *event)
 				sizeof(string)) >= 0) &&
 			(fileFind(string, NULL) >= 0))
 		{
-			windowThumbImageUpdate(wallpaperImage, string, wallpaperImageWidth,
-				MAX_IMAGE_DIMENSION, 1 /* stretch */,
+			windowThumbImageUpdate(wallpaperImage, string,
+				wallpaperImageWidth, MAX_IMAGE_DIMENSION, 1 /* stretch */,
 				NULL /* no background color */);
 		}
 	}
 
 	else if ((key == colorsRadio) || (key == changeColorsButton))
 	{
-		if ((key == changeColorsButton) && (event->type == EVENT_MOUSE_LEFTUP))
+		if ((key == changeColorsButton) && (event->type ==
+			WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			windowNewColorDialog(window, selectedColor);
 			colorsChanged = 1;
 		}
 
 		if (((key == changeColorsButton) &&
-				(event->type == EVENT_MOUSE_LEFTUP)) ||
-			((key == colorsRadio) && (event->type & EVENT_SELECTION)))
+				(event->type == WINDOW_EVENT_MOUSE_LEFTUP)) ||
+			((key == colorsRadio) && (event->type & WINDOW_EVENT_SELECTION)))
 		{
 			drawColor(selectedColor);
 		}
 	}
 
-	else if ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == okButton) && (event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		// Does the user not want to boot in graphics mode?
 		windowComponentGetSelected(bootGraphicsCheckbox, &selected);
@@ -709,8 +717,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 		windowGuiStop();
 	}
 
-	else if ((key == cancelButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	else if ((key == cancelButton) && (event->type ==
+		WINDOW_EVENT_MOUSE_LEFTUP))
+	{
 		windowGuiStop();
+	}
 
 	return;
 }
@@ -747,13 +758,13 @@ static void constructWindow(void)
 	params.padTop = 5;
 	params.padLeft = 5;
 	params.padRight = 5;
-	params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	resolutionLabel = windowNewTextLabel(container, SCREEN_RESOLUTION,
 		&params);
 
 	// Make a list with all the available graphics modes
 	params.gridY++;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	modeList = windowNewList(container, windowlist_textonly, 5, 1, 0,
 		listItemParams, numberModes, &params);
 
@@ -773,7 +784,7 @@ static void constructWindow(void)
 	// A label for the colors
 	params.gridY++;
 	params.padTop = 10;
-	params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	colorsLabel = windowNewTextLabel(container, COLORS, &params);
 
 	// Create the colors radio button
@@ -781,7 +792,7 @@ static void constructWindow(void)
 	params.gridWidth = 1;
 	params.gridHeight = 2;
 	params.padTop = 5;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	colorsRadio = windowNewRadioButton(container, 3, 1,
 		(char *[]){ FOREGROUND, BACKGROUND, DESKTOP }, 3 , &params);
 	windowRegisterEventHandler(colorsRadio, &eventHandler);
@@ -789,14 +800,14 @@ static void constructWindow(void)
 	// The canvas to show the current color
 	params.gridX++;
 	params.gridHeight = 1;
-	params.flags &= ~(WINDOW_COMPFLAG_FIXEDWIDTH |
-		WINDOW_COMPFLAG_FIXEDHEIGHT);
-	params.flags |= WINDOW_COMPFLAG_HASBORDER;
+	params.flags &= ~(COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
+	params.flags |= COMP_PARAMS_FLAG_HASBORDER;
 	canvas = windowNewCanvas(container, 50, 50, &params);
 
 	// Create the change color button
 	params.gridY++;
-	params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
+	params.flags &= ~COMP_PARAMS_FLAG_HASBORDER;
 	changeColorsButton = windowNewButton(container, CHANGE, NULL, &params);
 	windowRegisterEventHandler(changeColorsButton, &eventHandler);
 
@@ -808,7 +819,7 @@ static void constructWindow(void)
 	params.gridX = 1;
 	params.gridY = 0;
 	params.orientationX = orient_center;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	windowNewDivider(window, divider_vertical, &params);
 
 	// Make a container for the right hand side components
@@ -817,7 +828,7 @@ static void constructWindow(void)
 	params.padLeft = 0;
 	params.padRight = 0;
 	params.orientationX = orient_left;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDWIDTH;
 	container = windowNewContainer(window, "rightContainer", &params);
 
 	// A label for the background wallpaper
@@ -825,7 +836,7 @@ static void constructWindow(void)
 	params.padTop = 5;
 	params.padLeft = 5;
 	params.padRight = 5;
-	params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	wallpaperLabel = windowNewTextLabel(container, BACKGROUND_WALLPAPER,
 		&params);
 
@@ -839,14 +850,14 @@ static void constructWindow(void)
 		wallpaperImageWidth = (int)((float) currentMode.xRes * scale);
 
 	params.gridY++;
-	params.flags |= WINDOW_COMPFLAG_HASBORDER;
+	params.flags |= COMP_PARAMS_FLAG_HASBORDER;
 	wallpaperImage = windowNewThumbImage(container, NULL, wallpaperImageWidth,
 		MAX_IMAGE_DIMENSION, 1 /* stretch */, &params);
 
 	// Create the background wallpaper button
 	params.gridY++;
-	params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags &= ~COMP_PARAMS_FLAG_HASBORDER;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	wallpaperButton = windowNewButton(container, CHOOSE, NULL, &params);
 	windowRegisterEventHandler(wallpaperButton, &eventHandler);
 
@@ -881,12 +892,12 @@ static void constructWindow(void)
 
 	// A little divider
 	params.gridY++;
-	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags &= ~COMP_PARAMS_FLAG_FIXEDWIDTH;
 	windowNewDivider(container, divider_horizontal, &params);
 
 	// A label for the miscellaneous stuff
 	params.gridY++;
-	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	miscLabel = windowNewTextLabel(container, MISCELLANEOUS, &params);
 
 	// Make a checkbox for whether to boot in graphics mode
@@ -920,7 +931,8 @@ static void constructWindow(void)
 	params.padLeft = 0;
 	params.padRight = 0;
 	params.orientationX = orient_center;
-	params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags |= (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	container = windowNewContainer(window, "bottomContainer", &params);
 
 	// Create the OK button

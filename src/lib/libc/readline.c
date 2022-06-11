@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -54,7 +54,7 @@ char *readline(const char *prompt)
 	}
 
 	// Allocate an array to hold the data
-	returnString = malloc(MAXSTRINGLENGTH);
+	returnString = malloc(MAXSTRINGLENGTH + 1);
 	if (!returnString)
 		return (returnString);
 

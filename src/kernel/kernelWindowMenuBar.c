@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,18 +37,17 @@ static int (*saveMenuKeyEvent)(kernelWindow *, kernelWindowComponent *,
 extern kernelWindowVariables *windowVariables;
 
 
-static inline int menuTitleWidth(kernelWindowComponent *component, int num)
+static inline int menuTitleWidth(kernelWindowComponent *component,
+	kernelWindowMenuInfo *menuInfo)
 {
-	kernelWindowMenuBar *menuBar = component->data;
 	kernelFont *font = (kernelFont *) component->params.font;
-	kernelWindow *menu = menuBar->menu[num];
 
 	int width = (windowVariables->border.thickness * 4);
 
 	if (font)
 	{
 		width += kernelFontGetPrintedWidth(font, (char *) component->charSet,
-			(char *) menu->title);
+			(char *) menuInfo->menu->title);
 	}
 
 	return (width);
@@ -85,25 +84,32 @@ static void layoutSized(kernelWindowComponent *component, int width)
 	// Do layout for the menu bar.
 
 	kernelWindowMenuBar *menuBar = component->data;
+	kernelWindowMenuInfo *menuInfo = NULL;
+	linkedListItem *iter = NULL;
+	int xCoord = 0;
 	int titlesWidth = 0;
 	kernelWindowContainer *container = menuBar->container->data;
-	int xCoord = 0;
 	int count;
 
 	kernelDebug(debug_gui, "WindowMenuBar layoutSized width=%d", width);
 
 	// First do the menu titles
-	for (count = 0; count < menuBar->numMenus; count ++)
+
+	menuInfo = linkedListIterStart((linkedList *) &menuBar->menuList, &iter);
+
+	while (menuInfo)
 	{
-		if (count)
-		{
-			menuBar->menuXCoord[count] = (menuBar->menuXCoord[count - 1] +
-				menuBar->menuTitleWidth[count - 1]);
-		}
+		// This will leave the first menu location unchanged
+		if (xCoord)
+			menuInfo->xCoord = xCoord;
 
-		menuBar->menuTitleWidth[count] = menuTitleWidth(component, count);
+		menuInfo->titleWidth = menuTitleWidth(component, menuInfo);
 
-		titlesWidth += menuBar->menuTitleWidth[count];
+		titlesWidth += menuInfo->titleWidth;
+		xCoord = (menuInfo->xCoord + menuInfo->titleWidth);
+
+		menuInfo = linkedListIterNext((linkedList *) &menuBar->menuList,
+			&iter);
 	}
 
 	// Now lay out our container
@@ -186,7 +192,7 @@ static int menuMouseEvent(kernelWindow *menu,
 		status = saveMenuMouseEvent(menu, itemComponent, event);
 
 	// Now determine whether the menu went away
-	if (!(menu->flags & WINFLAG_HASFOCUS))
+	if (!(menu->flags & WINDOW_FLAG_HASFOCUS))
 		menuBar->raisedMenu = NULL;
 
 	return (status);
@@ -199,10 +205,12 @@ static int menuKeyEvent(kernelWindow *menu,
 	int status = 0;
 	kernelWindowComponent *menuBarComponent = menu->parentWindow->menuBar;
 	kernelWindowMenuBar *menuBar = menuBarComponent->data;
-	int menuNumber = -1;
+	kernelWindowMenuInfo *menuInfo = NULL;
+	linkedListItem *iter = NULL;
+	kernelWindowMenuInfo *newMenuInfo = NULL;
+	kernelWindowMenuInfo *prevMenuInfo = NULL;
 	kernelWindow *newMenu = NULL;
 	kernelWindowContainer *menuContainer = NULL;
-	int count;
 
 	kernelDebug(debug_gui, "WindowMenuBar menu key event");
 
@@ -211,47 +219,54 @@ static int menuKeyEvent(kernelWindow *menu,
 		status = saveMenuKeyEvent(menu, itemComponent, event);
 
 	// Now determine whether the menu went away
-	if (!(menu->flags & WINFLAG_HASFOCUS))
+	if (!(menu->flags & WINDOW_FLAG_HASFOCUS))
 	{
 		menuBar->raisedMenu = NULL;
 		return (status);
 	}
 
-	if (event->type != EVENT_KEY_DOWN)
+	if (event->type != WINDOW_EVENT_KEY_DOWN)
 		// Not interested
 		return (status);
 
 	// If the user has pressed the left or right cursor keys, that means they
 	// want to switch menus
-	if ((event->key == keyLeftArrow) || (event->key == keyRightArrow))
+	if ((event->key.scan == keyLeftArrow) ||
+		(event->key.scan == keyRightArrow))
 	{
 		// Find out where the menu is in our list
-		for (count = 0; count < menuBar->numMenus; count ++)
+
+		menuInfo = linkedListIterStart((linkedList *) &menuBar->menuList,
+			&iter);
+
+		while (menuInfo)
 		{
-			if (menuBar->menu[count] == menu)
+			if (menuInfo->menu == menu)
 			{
-				menuNumber = count;
+				if (event->key.scan == keyLeftArrow)
+				{
+					// Cursor left
+					newMenuInfo = prevMenuInfo;
+				}
+				else
+				{
+					// Cursor right
+					newMenuInfo = linkedListIterNext((linkedList *)
+						&menuBar->menuList, &iter);
+				}
+
 				break;
 			}
+
+			prevMenuInfo = menuInfo;
+
+			menuInfo = linkedListIterNext((linkedList *) &menuBar->menuList,
+				&iter);
 		}
 
-		if (event->key == keyLeftArrow)
+		if (newMenuInfo && (newMenuInfo->menu != menu))
 		{
-			// Cursor left
-			if (menuNumber > 0)
-				menuNumber -= 1;
-		}
-		else
-		{
-			// Cursor right
-			if (menuNumber < (menuBar->numMenus - 1))
-				menuNumber += 1;
-		}
-
-		newMenu = menuBar->menu[menuNumber];
-
-		if (newMenu != menu)
-		{
+			newMenu = newMenuInfo->menu;
 			menuContainer = newMenu->mainContainer->data;
 
 			if (menuContainer->numComponents)
@@ -263,15 +278,14 @@ static int menuKeyEvent(kernelWindow *menu,
 				kernelWindowSetVisible(menu, 0);
 
 				newMenu->xCoord = (menu->parentWindow->xCoord +
-					menuBarComponent->xCoord +
-					menuBar->menuXCoord[menuNumber]);
+					menuBarComponent->xCoord + newMenuInfo->xCoord);
 				newMenu->yCoord = (menu->parentWindow->yCoord +
 					menuBarComponent->yCoord +
 					menuTitleHeight(menuBarComponent));
 
 				// Set the new one visible
 				kernelWindowSetVisible(newMenu, 1);
-				menuBar->raisedMenu = menu;
+				menuBar->raisedMenu = newMenu;
 
 				changedVisible(menuBarComponent);
 			}
@@ -284,12 +298,13 @@ static int menuKeyEvent(kernelWindow *menu,
 
 static int add(kernelWindowComponent *menuBarComponent, objectKey obj)
 {
-	// Add the supplied menu or object to the menu bar.
+	// Add the supplied menu or object to the menu bar
 
 	int status = 0;
 	kernelWindowMenuBar *menuBar = menuBarComponent->data;
 	kernelWindow *menu = NULL;
-	kernelWindowComponent *otherComponent = NULL;
+	kernelWindowMenuInfo *menuInfo = NULL;
+	kernelWindowComponent *component = NULL;
 
 	// If the object is a window, then we treat it as a menu.
 	if (((kernelWindow *) obj)->type == windowType)
@@ -311,22 +326,84 @@ static int add(kernelWindowComponent *menuBarComponent, objectKey obj)
 		menu->mouseEvent = &menuMouseEvent;
 		menu->keyEvent = &menuKeyEvent;
 
-		menuBar->menu[menuBar->numMenus++] = menu;
+		menuInfo = kernelMalloc(sizeof(kernelWindowMenuInfo));
+		if (!menuInfo)
+			return (status = ERR_MEMORY);
+
+		menuInfo->menu = menu;
+
+		status = linkedListAdd((linkedList *) &menuBar->menuList,
+			(void *) menuInfo);
+		if (status < 0)
+			return (status);
 	}
 	else
 	{
 		// Other things get added to our container
-		otherComponent = obj;
+		component = obj;
 
 		kernelDebug(debug_gui, "WindowMenuBar add component");
 
-		if (menuBar->container->add)
+		status = kernelWindowContainerAdd(menuBar->container, component);
+		if (status < 0)
+			return (status);
+	}
+
+	return (status = 0);
+}
+
+
+static int delete(kernelWindowComponent *menuBarComponent, objectKey obj)
+{
+	// Deletes the supplied menu or object from the menu bar
+
+	int status = 0;
+	kernelWindowMenuBar *menuBar = menuBarComponent->data;
+	kernelWindow *menu = NULL;
+	kernelWindowMenuInfo *menuInfo = NULL;
+	linkedListItem *iter = NULL;
+	kernelWindowComponent *component = NULL;
+
+	// If the object is a window, then we treat it as a menu.
+	if (((kernelWindow *) obj)->type == windowType)
+	{
+		menu = obj;
+
+		kernelDebug(debug_gui, "WindowMenuBar delete menu %s", menu->title);
+
+		// We need to find the corresponding kernelWindowMenuInfo and delete
+		// that.
+
+		menuInfo = linkedListIterStart((linkedList *) &menuBar->menuList,
+			&iter);
+
+		while (menuInfo)
 		{
-			status = menuBar->container->add(menuBar->container,
-				otherComponent);
-			if (status < 0)
-				return (status);
+			if (menuInfo->menu == menu)
+			{
+				status = linkedListRemove((linkedList *) &menuBar->menuList,
+					(void *) menuInfo);
+				if (status < 0)
+					return (status);
+
+				kernelFree((void *) menuInfo);
+				break;
+			}
+
+			menuInfo = linkedListIterNext((linkedList *) &menuBar->menuList,
+				&iter);
 		}
+	}
+	else
+	{
+		// Other things that have been added to our container
+		component = obj;
+
+		kernelDebug(debug_gui, "WindowMenuBar delete component");
+
+		status = kernelWindowContainerDelete(menuBar->container, component);
+		if (status < 0)
+			return (status);
 	}
 
 	return (status = 0);
@@ -430,10 +507,10 @@ static int draw(kernelWindowComponent *component)
 
 	int status = 0;
 	kernelWindowMenuBar *menuBar = component->data;
-	kernelWindowContainer *container = menuBar->container->data;
+	kernelWindowMenuInfo *menuInfo = NULL;
+	linkedListItem *iter = NULL;
 	kernelFont *font = (kernelFont *) component->params.font;
-	kernelWindow *menu = NULL;
-	int xCoord = 0, titleWidth = 0, titleHeight = 0;
+	kernelWindowContainer *container = menuBar->container->data;
 	int count;
 
 	kernelDebug(debug_gui, "WindowMenuBar draw '%s' menu bar",
@@ -445,26 +522,24 @@ static int draw(kernelWindowComponent *component)
 	layoutSized(component, component->width);
 
 	// Draw the background of the menu bar
-	kernelGraphicDrawRect(component->buffer,
-		(color *) &component->params.background, draw_normal,
-		component->xCoord, component->yCoord, component->width,
-		component->height, 1, 1);
+	kernelGraphicDrawRect(component->buffer, (color *)
+		&component->params.background, draw_normal, component->xCoord,
+		component->yCoord, component->width, component->height, 1, 1);
 
 	// Loop through all the menus and draw their names on the menu bar
-	for (count = 0; count < menuBar->numMenus; count ++)
-	{
-		menu = menuBar->menu[count];
-		xCoord = menuBar->menuXCoord[count];
-		titleWidth = menuBar->menuTitleWidth[count];
-		titleHeight = menuTitleHeight(component);
 
-		if (menu->flags & WINFLAG_VISIBLE)
+	menuInfo = linkedListIterStart((linkedList *) &menuBar->menuList, &iter);
+
+	while (menuInfo)
+	{
+		if (menuInfo->menu->flags & WINDOW_FLAG_VISIBLE)
 		{
-			kernelDebug(debug_gui, "WindowMenuBar title %d '%s' is visible",
-				count, menu->title);
+			kernelDebug(debug_gui, "WindowMenuBar title '%s' is visible",
+				menuInfo->menu->title);
 			kernelGraphicDrawGradientBorder(component->buffer,
-				(component->xCoord + xCoord), component->yCoord, titleWidth,
-				titleHeight, windowVariables->border.thickness,
+				(component->xCoord + menuInfo->xCoord), component->yCoord,
+				menuInfo->titleWidth, menuTitleHeight(component),
+				windowVariables->border.thickness,
 				(color *) &component->params.background,
 				windowVariables->border.shadingIncrement, draw_normal,
 				border_all);
@@ -475,17 +550,22 @@ static int draw(kernelWindowComponent *component)
 			kernelGraphicDrawText(component->buffer,
 				(color *) &component->params.foreground,
 				(color *) &component->params.background,
-				font, (char *) component->charSet, (char *) menu->title,
-				draw_normal, (component->xCoord + xCoord +
+				font, (char *) component->charSet, (char *)
+				menuInfo->menu->title, draw_normal,
+				(component->xCoord + menuInfo->xCoord +
 					(windowVariables->border.thickness * 2)),
 				(component->yCoord + (windowVariables->border.thickness * 2)));
 		}
+
+		menuInfo = linkedListIterNext((linkedList *) &menuBar->menuList,
+			&iter);
 	}
 
 	// Draw any components in our container
 	for (count = 0; count < container->numComponents; count ++)
 	{
-		if ((container->components[count]->flags & WINFLAG_VISIBLE) &&
+		if ((container->components[count]->flags &
+				WINDOW_COMP_FLAG_VISIBLE) &&
 			(container->components[count]->draw))
 		{
 			container->components[count]->draw(container->components[count]);
@@ -573,44 +653,43 @@ static int focus(kernelWindowComponent *component, int got)
 static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 {
 	kernelWindowMenuBar *menuBar = component->data;
+	kernelWindowMenuInfo *menuInfo = NULL;
+	linkedListItem *iter = NULL;
 	kernelWindow *menu = NULL;
 	kernelWindowContainer *menuContainer = NULL;
 	int xCoord = 0, width = 0;
-	int count;
-
-	// If there are no menu components, quit here
-	if (!menuBar->numMenus)
-		return (0);
 
 	// Events other than left mouse down are not interesting
-	if (event->type != EVENT_MOUSE_LEFTDOWN)
+	if (event->type != WINDOW_EVENT_MOUSE_LEFTDOWN)
 		return (0);
 
 	kernelDebug(debug_gui, "WindowMenuBar mouse event");
 
 	// Determine whether to set a menu visible now by figuring out whether a
 	// menu title was clicked.
-	for (count = 0; count < menuBar->numMenus; count ++)
+
+	menuInfo = linkedListIterStart((linkedList *) &menuBar->menuList, &iter);
+
+	while (menuInfo)
 	{
-		menu = menuBar->menu[count];
+		menu = menuInfo->menu;
 		menuContainer = menu->mainContainer->data;
 
 		xCoord = (component->window->xCoord + component->xCoord +
-			menuBar->menuXCoord[count]);
-		width = menuBar->menuTitleWidth[count];
+			menuInfo->xCoord);
+		width = menuInfo->titleWidth;
 
-		if ((event->xPosition >= xCoord) &&
-			(event->xPosition < (xCoord + width)))
+		if ((event->coord.x >= xCoord) && (event->coord.x < (xCoord + width)))
 		{
 			if (menu != menuBar->raisedMenu)
 			{
 				// The menu was not previously raised, so we will show it.
-				kernelDebug(debug_gui, "WindowMenuBar show menu %d '%s'",
-					count, menu->title);
+				kernelDebug(debug_gui, "WindowMenuBar show menu '%s'",
+					menu->title);
 
 				menu->xCoord = xCoord;
-				menu->yCoord = (component->window->yCoord + component->yCoord +
-					menuTitleHeight(component));
+				menu->yCoord = (component->window->yCoord +
+					component->yCoord + menuTitleHeight(component));
 
 				if (menuContainer->numComponents)
 					kernelWindowSetVisible(menu, 1);
@@ -620,8 +699,8 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			else
 			{
 				// The menu was previously visible, so we won't re-show it.
-				kernelDebug(debug_gui, "WindowMenuBar menu %d '%s' re-clicked",
-					count, menu->title);
+				kernelDebug(debug_gui, "WindowMenuBar menu '%s' re-clicked",
+					menu->title);
 
 				menuBar->raisedMenu = NULL;
 			}
@@ -629,6 +708,9 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			changedVisible(component);
 			break;
 		}
+
+		menuInfo = linkedListIterNext((linkedList *) &menuBar->menuList,
+			&iter);
 	}
 
 	return (0);
@@ -638,6 +720,8 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 static int destroy(kernelWindowComponent *component)
 {
 	kernelWindowMenuBar *menuBar = component->data;
+	kernelWindowMenuInfo *menuInfo = NULL;
+	linkedListItem *iter = NULL;
 
 	kernelDebug(debug_gui, "WindowMenuBar destroy");
 
@@ -647,6 +731,16 @@ static int destroy(kernelWindowComponent *component)
 	// Release all our memory
 	if (menuBar)
 	{
+		menuInfo = linkedListIterStart((linkedList *) &menuBar->menuList,
+			&iter);
+
+		while (menuInfo)
+		{
+			kernelFree((void *) menuInfo);
+			menuInfo = linkedListIterNext((linkedList *) &menuBar->menuList,
+				&iter);
+		}
+
 		if (menuBar->container)
 			kernelWindowComponentDestroy(menuBar->container);
 
@@ -693,12 +787,14 @@ kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *window,
 		return (component);
 
 	component->type = menuBarComponentType;
-	component->flags |= WINFLAG_CANFOCUS;
+	component->subType = containerComponentType;
+	component->flags |= WINDOW_COMP_FLAG_CANFOCUS;
 	// Only want this to be resizable horizontally
-	component->flags &= ~WINFLAG_RESIZABLEY;
+	component->flags &= ~WINDOW_COMP_FLAG_RESIZABLEY;
 
 	// Set the functions
 	component->add = &add;
+	component->delete = &delete;
 	component->numComps = &numComps;
 	component->flatten = &flatten;
 	component->layout = &layout;
@@ -733,7 +829,8 @@ kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *window,
 	}
 
 	// Remove it from the parent container
-	removeFromContainer(menuBar->container);
+	kernelWindowContainerDelete(menuBar->container->container,
+		menuBar->container);
 
 	component->data = (void *) menuBar;
 

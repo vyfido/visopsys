@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,7 +22,8 @@
 // This header file defines things used to print debug messages from within
 // the kernel
 
-#if !defined(_KERNELDEBUG_H)
+#ifndef _KERNELDEBUG_H
+#define _KERNELDEBUG_H
 
 #if defined(DEBUG)
 
@@ -30,7 +31,7 @@
 	#include <sys/debug.h>
 
 	// Definitions
-	#define MAX_DEBUGTEXT_LENGTH	1024
+	#define MAX_DEBUGTEXT_LENGTH	1023
 	#define MAX_DEBUG_CATEGORIES	16
 	#define MAX_DEBUG_FILENAMES		16
 
@@ -96,6 +97,5 @@
 
 #endif // defined(DEBUG)
 
-#define _KERNELDEBUG_H
 #endif
 

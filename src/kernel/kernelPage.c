@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,6 +27,7 @@
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelInterrupt.h"
+#include "kernelLock.h"
 #include "kernelLog.h"
 #include "kernelMemory.h"
 #include "kernelMultitasker.h"
@@ -1202,7 +1203,7 @@ kernelPageDirectory *kernelPageNewDirectory(int processId)
 	if (!directory)
 		return (directory);
 
-	status = kernelLockGet(&directory->dirLock);
+	status = kernelLockGet(&directory->lock);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Can't get lock on page directory");
@@ -1224,7 +1225,7 @@ kernelPageDirectory *kernelPageNewDirectory(int processId)
 	// tables.  It will only get mappings in its page directory.
 	shareKernelPages(directory);
 
-	kernelLockRelease(&directory->dirLock);
+	kernelLockRelease(&directory->lock);
 
 	return (directory);
 }
@@ -1250,7 +1251,7 @@ kernelPageDirectory *kernelPageShareDirectory(int parentId, int childId)
 	if (!parentDirectory)
 		return (parentDirectory = NULL);
 
-	status = kernelLockGet(&parentDirectory->dirLock);
+	status = kernelLockGet(&parentDirectory->lock);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Can't get lock on page directory");
@@ -1263,7 +1264,7 @@ kernelPageDirectory *kernelPageShareDirectory(int parentId, int childId)
 		// is shared.
 		parentDirectory->numberShares += 1;
 
-	kernelLockRelease(&parentDirectory->dirLock);
+	kernelLockRelease(&parentDirectory->lock);
 
 	// Return the physical address of the shared page directory.
 	return (parentDirectory);
@@ -1292,7 +1293,7 @@ int kernelPageDeleteDirectory(int processId)
 	if (!directory)
 		return (status = ERR_NOSUCHENTRY);
 
-	status = kernelLockGet(&directory->dirLock);
+	status = kernelLockGet(&directory->lock);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Can't get lock on page directory");
@@ -1303,7 +1304,7 @@ int kernelPageDeleteDirectory(int processId)
 	if (directory->numberShares)
 	{
 		directory->numberShares -= 1;
-		kernelLockRelease(&directory->dirLock);
+		kernelLockRelease(&directory->lock);
 		return (status = 0);
 	}
 
@@ -1318,7 +1319,7 @@ int kernelPageDeleteDirectory(int processId)
 			status = deletePageTable(directory, table);
 			if (status < 0)
 			{
-				kernelLockRelease(&directory->dirLock);
+				kernelLockRelease(&directory->lock);
 				return (status);
 			}
 		}
@@ -1363,7 +1364,7 @@ int kernelPageMap(int processId, unsigned physicalAddress,
 		size += offset;
 	}
 
-	status = kernelLockGet(&directory->dirLock);
+	status = kernelLockGet(&directory->lock);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Can't get lock on page directory");
@@ -1373,7 +1374,7 @@ int kernelPageMap(int processId, unsigned physicalAddress,
 	status = map(directory, physicalAddress, &virtualAddress, size,
 		PAGE_MAP_EXACT);
 
-	kernelLockRelease(&directory->dirLock);
+	kernelLockRelease(&directory->lock);
 	return (status);
 }
 
@@ -1411,7 +1412,7 @@ int kernelPageMapToFree(int processId, unsigned physicalAddress,
 		size += offset;
 	}
 
-	status = kernelLockGet(&directory->dirLock);
+	status = kernelLockGet(&directory->lock);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Can't get lock on page directory");
@@ -1421,7 +1422,7 @@ int kernelPageMapToFree(int processId, unsigned physicalAddress,
 	status = map(directory, physicalAddress, virtualAddress, size,
 		PAGE_MAP_ANY);
 
-	kernelLockRelease(&directory->dirLock);
+	kernelLockRelease(&directory->lock);
 
 	if (offset)
 		*virtualAddress += offset;
@@ -1461,7 +1462,7 @@ int kernelPageUnmap(int processId, void *virtualAddress, unsigned size)
 		size += offset;
 	}
 
-	status = kernelLockGet(&directory->dirLock);
+	status = kernelLockGet(&directory->lock);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Can't get lock on page directory");
@@ -1470,7 +1471,7 @@ int kernelPageUnmap(int processId, void *virtualAddress, unsigned size)
 
 	status = unmap(directory, virtualAddress, size);
 
-	kernelLockRelease(&directory->dirLock);
+	kernelLockRelease(&directory->lock);
 	return (status);
 }
 
@@ -1509,7 +1510,7 @@ int kernelPageMapped(int processId, void *virtualAddress, unsigned size)
 	// Calculate the number of pages
 	numPages = getNumPages(size);
 
-	status = kernelLockGet(&directory->dirLock);
+	status = kernelLockGet(&directory->lock);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Can't get lock on page directory");
@@ -1518,7 +1519,7 @@ int kernelPageMapped(int processId, void *virtualAddress, unsigned size)
 
 	status = arePagesAt(directory, numPages, virtualAddress, 1 /* used */);
 
-	kernelLockRelease(&directory->dirLock);
+	kernelLockRelease(&directory->lock);
 
 	return (status);
 }
@@ -1545,7 +1546,7 @@ unsigned kernelPageGetPhysical(int processId, void *virtualAddress)
 	if (!directory)
 		return (address = NULL);
 
-	status = kernelLockGet(&directory->dirLock);
+	status = kernelLockGet(&directory->lock);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Can't get lock on page directory");
@@ -1555,7 +1556,7 @@ unsigned kernelPageGetPhysical(int processId, void *virtualAddress)
 	status = findPageTableEntry(directory,
 		(void *) kernelPageRoundDown(virtualAddress), &address);
 
-	kernelLockRelease(&directory->dirLock);
+	kernelLockRelease(&directory->lock);
 
 	if (status < 0)
 	{
@@ -1596,7 +1597,7 @@ void *kernelPageFindFree(int processId, unsigned size)
 	// Calculate the desired number of pages
 	numPages = getNumPages(size);
 
-	status = kernelLockGet(&directory->dirLock);
+	status = kernelLockGet(&directory->lock);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Can't get lock on page directory");
@@ -1605,7 +1606,7 @@ void *kernelPageFindFree(int processId, unsigned size)
 
 	status = findFreePages(directory, numPages, &address);
 
-	kernelLockRelease(&directory->dirLock);
+	kernelLockRelease(&directory->lock);
 
 	if (status < 0)
 		return (address = NULL);
@@ -1649,7 +1650,7 @@ int kernelPageSetAttrs(int processId, int set, unsigned char flags,
 	// Calculate the desired number of pages
 	numPages = getNumPages(size);
 
-	status = kernelLockGet(&directory->dirLock);
+	status = kernelLockGet(&directory->lock);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Can't get lock on page directory");
@@ -1658,7 +1659,7 @@ int kernelPageSetAttrs(int processId, int set, unsigned char flags,
 
 	status = setPageAttrs(directory, set, flags, virtualAddress, numPages);
 
-	kernelLockRelease(&directory->dirLock);
+	kernelLockRelease(&directory->lock);
 	return (status);
 }
 

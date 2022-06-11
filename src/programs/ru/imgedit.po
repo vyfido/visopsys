@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2018 J. Andrew McLaughlin
+# Copyright (C) 1998-2019 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-03-03 03:09+0000\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,95 +17,95 @@ msgstr ""
 "Content-Type: text/plain; charset=iso-8859-5\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: imgedit.c:98
+#: imgedit.c:51
+msgid "Image Editor"
+msgstr ""
+
+#: imgedit.c:99
 msgid "Error"
 msgstr ""
 
-#: imgedit.c:106
+#: imgedit.c:295
 msgid "Discard changes?"
 msgstr ""
 
-#: imgedit.c:107
+#: imgedit.c:296
 msgid "File has been modified.  Discard changes?"
 msgstr ""
 
-#: imgedit.c:108
+#: imgedit.c:297
 msgid "Discard"
 msgstr ""
 
-#: imgedit.c:108
+#: imgedit.c:297
 msgid "Cancel"
 msgstr ""
 
-#: imgedit.c:140 imgedit.c:832
+#: imgedit.c:329 imgedit.c:859
 msgid "Enter filename"
 msgstr ""
 
-#: imgedit.c:141
+#: imgedit.c:330
 msgid "Please enter the name of the file for saving:"
 msgstr ""
 
-#: imgedit.c:155
+#: imgedit.c:344
 #, c-format
 msgid "Error %d saving file"
 msgstr ""
 
-#: imgedit.c:463 imgedit.c:756
+#: imgedit.c:532 imgedit.c:783
 msgid "Thickness"
 msgstr ""
 
-#: imgedit.c:464
+#: imgedit.c:533
 msgid "Enter line thickess"
 msgstr ""
 
-#: imgedit.c:538
-msgid "Image Editor"
-msgstr ""
-
-#: imgedit.c:619
+#: imgedit.c:646
 msgid "Save"
 msgstr ""
 
-#: imgedit.c:666
+#: imgedit.c:693
 msgid "Color"
 msgstr ""
 
-#: imgedit.c:681
+#: imgedit.c:708
 msgid "Pick"
 msgstr ""
 
-#: imgedit.c:698
+#: imgedit.c:725
 msgid "Draw"
 msgstr ""
 
-#: imgedit.c:711
+#: imgedit.c:738
 msgid "Line"
 msgstr ""
 
-#: imgedit.c:724
+#: imgedit.c:751
 msgid "Rect"
 msgstr ""
 
-#: imgedit.c:737
+#: imgedit.c:764
 msgid "Oval"
 msgstr ""
 
-#: imgedit.c:770
+#: imgedit.c:797
 msgid "Fill"
 msgstr ""
 
-#: imgedit.c:806
+#: imgedit.c:833
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: imgedit.c:824
+#: imgedit.c:851
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: imgedit.c:833
+#: imgedit.c:860
 msgid "Please enter an image file to edit:"
 msgstr ""

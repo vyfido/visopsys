@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -23,7 +23,7 @@ msgid "Welcome to %s"
 msgstr ""
 
 #: imgboot.c:65
-msgid "Copyright (C) 1998-2018 J. Andrew McLaughlin"
+msgid "Copyright (C) 1998-2019 J. Andrew McLaughlin"
 msgstr ""
 
 #: imgboot.c:67
@@ -112,38 +112,38 @@ msgstr ""
 msgid "No\n"
 msgstr ""
 
-#: imgboot.c:446
+#: imgboot.c:452
 msgid "Can't create window!"
 msgstr ""
 
-#: imgboot.c:572
+#: imgboot.c:579
 msgid "o Install                    "
 msgstr ""
 
-#: imgboot.c:573
+#: imgboot.c:580
 msgid "o Continue                   "
 msgstr ""
 
-#: imgboot.c:574
+#: imgboot.c:581
 msgid "o Always continue (never ask)"
 msgstr ""
 
-#: imgboot.c:588
+#: imgboot.c:595
 msgid ""
 "This program can only be run as a privileged user.\n"
 "(Try logging in as user \"admin\")."
 msgstr ""
 
-#: imgboot.c:602
+#: imgboot.c:609
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: imgboot.c:636
+#: imgboot.c:643
 msgid "Administrator account"
 msgstr ""
 
-#: imgboot.c:668
+#: imgboot.c:675
 msgid ""
 "\n"
 "Please select from the following options"

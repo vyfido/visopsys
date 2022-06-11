@@ -99,6 +99,7 @@
 /programs/helpfiles/view.txt
 /programs/helpfiles/vsh.txt
 /programs/helpfiles/wallpaper.txt
+/programs/helpfiles/who.txt
 /programs/helpfiles/zip.txt
 /programs/hexdump
 /programs/hostname
@@ -148,6 +149,7 @@
 /programs/unzip
 /programs/uptime
 /programs/wallpaper
+/programs/who
 /programs/zip
 /system/config/administration.conf
 /system/config/administration-basic.conf
@@ -251,12 +253,14 @@
 /system/headers/sys/
 /system/headers/sys/acpi.h
 /system/headers/sys/api.h
+/system/headers/sys/apidefs.h
 /system/headers/sys/ascii.h
 /system/headers/sys/bmp.h
 /system/headers/sys/cdefs.h
 /system/headers/sys/charset.h
 /system/headers/sys/color.h
 /system/headers/sys/compress.h
+/system/headers/sys/crypt.h
 /system/headers/sys/debug.h
 /system/headers/sys/deflate.h
 /system/headers/sys/deskconf.h
@@ -309,8 +313,8 @@
 /system/headers/sys/usb.h
 /system/headers/sys/user.h
 /system/headers/sys/utsname.h
-/system/headers/sys/variable.h
 /system/headers/sys/vbf.h
+/system/headers/sys/vis.h
 /system/headers/sys/vsh.h
 /system/headers/sys/winconf.h
 /system/headers/sys/window.h
@@ -377,6 +381,7 @@
 /system/libraries/libntfs.so
 /system/libraries/libtimer.a
 /system/libraries/libtimer.so
+/system/libraries/libvis.a
 /system/libraries/libvsh.a
 /system/libraries/libwindow.a
 /system/locale/

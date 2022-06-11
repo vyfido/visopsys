@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelScsiDriver.h
 //
 
-#if !defined(_KERNELSCSIDRIVER_H)
+#ifndef _KERNELSCSIDRIVER_H
+#define _KERNELSCSIDRIVER_H
 
 // SCSI command codes
 #define SCSI_CMD_CHANGEDEF			0x40
@@ -322,6 +323,5 @@ typedef struct {
 
 } __attribute__((packed)) scsiSenseData;
 
-#define _KERNELSCSIDRIVER_H
 #endif
 

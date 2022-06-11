@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelFilesystem.h
 //
 
-#if !defined(_KERNELFILESYSTEM_H)
+#ifndef _KERNELFILESYSTEM_H
+#define _KERNELFILESYSTEM_H
 
 #include "kernelDisk.h"
 #include <sys/file.h>
@@ -104,6 +105,5 @@ kernelDisk *kernelFilesystemGet(char *);
 uquad_t kernelFilesystemGetFreeBytes(const char *);
 unsigned kernelFilesystemGetBlockSize(const char *);
 
-#define _KERNELFILESYSTEM_H
 #endif
 

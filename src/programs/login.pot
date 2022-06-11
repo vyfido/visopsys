@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,76 +17,76 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: login.c:69
+#: login.c:70
 msgid "Authentication failed"
 msgstr ""
 
-#: login.c:70
+#: login.c:71
 msgid "Please enter your login name:"
 msgstr ""
 
-#: login.c:71
+#: login.c:72
 msgid "Please enter your password:"
 msgstr ""
 
-#: login.c:72
+#: login.c:73
 msgid ""
 "You are running the system from a read-only device.\n"
 "You will not be able to alter settings, or generally\n"
 "change anything."
 msgstr ""
 
-#: login.c:148
+#: login.c:149
 msgid "login: "
 msgstr ""
 
-#: login.c:157
+#: login.c:158
 msgid "That login name is too long."
 msgstr ""
 
-#: login.c:158
+#: login.c:159
 msgid "That password is too long."
 msgstr ""
 
-#: login.c:175 login.c:494
+#: login.c:176 login.c:496
 msgid "Error"
 msgstr ""
 
-#: login.c:272
+#: login.c:274
 msgid "Login"
 msgstr ""
 
-#: login.c:328
+#: login.c:331
 msgid "Reboot"
 msgstr ""
 
-#: login.c:334
+#: login.c:337
 msgid "Shut down"
 msgstr ""
 
-#: login.c:393
+#: login.c:396
 msgid "password: "
 msgstr ""
 
-#: login.c:448
+#: login.c:451
 #, c-format
 msgid "Missing parameter for %s option\n"
 msgstr ""
 
-#: login.c:453
+#: login.c:456
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr ""
 
-#: login.c:517
+#: login.c:519 login.c:549
 msgid "Login Failed"
 msgstr ""
 
-#: login.c:518
+#: login.c:520
 msgid "Unable to log in to the Window Manager!"
 msgstr ""
 
-#: login.c:526
+#: login.c:525
 msgid "Read Only"
 msgstr ""
 
@@ -95,7 +95,7 @@ msgstr ""
 msgid "Couldn't load login shell %s!"
 msgstr ""
 
-#: login.c:548
+#: login.c:553
 #, c-format
 msgid ""
 "\n"

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,7 +22,8 @@
 // These are the generic functions for disk access.  These are below the level
 // of the filesystem, and will generally be called by the filesystem drivers.
 
-#if !defined(_KERNELDISK_H)
+#ifndef _KERNELDISK_H
+#define _KERNELDISK_H
 
 #include "kernelFile.h"
 #include "kernelDevice.h"
@@ -42,9 +43,9 @@ struct _kernelFilesystemDriver;
 // This defines a logical disk, a disk 'volume' (for example, a hard
 // disk partition is a logical disk)
 typedef volatile struct _kernelDisk {
-	char name[DISK_MAX_NAMELENGTH];
-	char partType[FSTYPE_MAX_NAMELENGTH];
-	char fsType[FSTYPE_MAX_NAMELENGTH];
+	char name[DISK_MAX_NAMELENGTH + 1];
+	char partType[FSTYPE_MAX_NAMELENGTH + 1];
+	char fsType[FSTYPE_MAX_NAMELENGTH + 1];
 	unsigned opFlags;
 	volatile struct _kernelPhysicalDisk *physical;
 	uquad_t startSector;
@@ -56,7 +57,7 @@ typedef volatile struct _kernelDisk {
 		struct _kernelFilesystemDriver *driver;
 
 		// The volume label, if applicable for the FS type.
-		char label[MAX_NAME_LENGTH];
+		char label[MAX_NAME_LENGTH + 1];
 
 		// These should always be set by the driver upon successful detection
 		unsigned blockSize;
@@ -65,7 +66,7 @@ typedef volatile struct _kernelDisk {
 
 		// These are set when mounted.  Should be cleared during unmount.
 		int mounted;
-		char mountPoint[MAX_PATH_LENGTH];
+		char mountPoint[MAX_PATH_LENGTH + 1];
 		kernelFileEntry *filesystemRoot;
 		int childMounts;
 		void *filesystemData;
@@ -114,7 +115,7 @@ typedef volatile struct {
 // logical disk.
 typedef volatile struct _kernelPhysicalDisk {
 	// Generic disk metadata
-	char name[DISK_MAX_NAMELENGTH];
+	char name[DISK_MAX_NAMELENGTH + 1];
 	int deviceNumber;
 	char *description;
 	char model[DISK_MAX_MODELLENGTH];
@@ -134,7 +135,7 @@ typedef volatile struct _kernelPhysicalDisk {
 
 	// Misc
 	unsigned lastSession;  // Needed for multisession CD-ROM
-	lock lock;
+	spinLock lock;
 	unsigned lastAccess;
 	int multiSectors;
 
@@ -189,6 +190,5 @@ int kernelDiskGetStats(const char *, diskStats *);
 int kernelDiskRamDiskCreate(unsigned, char *);
 int kernelDiskRamDiskDestroy(const char *);
 
-#define _KERNELDISK_H
 #endif
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,6 +28,7 @@
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelInterrupt.h"
+#include "kernelLock.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
@@ -36,12 +37,12 @@
 #include "kernelPciDriver.h"
 #include "kernelPic.h"
 #include "kernelScsiDriver.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <sys/processor.h>
+#include <sys/vis.h>
 
 // Some little macro shortcuts
 #define CHANNEL(ctrlNum, chanNum) (controllers[ctrlNum].channel[chanNum])
@@ -2729,7 +2730,7 @@ static int detectPciControllers(kernelDevice *controllerDevices[],
 				kernelDeviceGetClass(DEVICESUBCLASS_DISKCTRL_IDE);
 
 			// Initialize the variable list for attributes of the controller
-			kernelVariableListCreate(
+			variableListCreateSystem(
 				&controllerDevices[numControllers]->device.attrs);
 
 			// Claim the controller device in the list of PCI targets.
@@ -2819,13 +2820,13 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 				if (!count)
 				{
-					kernelVariableListSet(
+					variableListSet(
 						&controllerDevices[controllerCount]->device.attrs,
 						"controller.interrupt.primary", value);
 				}
 				else
 				{
-					kernelVariableListSet(
+					variableListSet(
 						&controllerDevices[controllerCount]->device.attrs,
 						"controller.interrupt.secondary", value);
 				}
@@ -2834,7 +2835,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 			{
 				sprintf(value, "%d",
 					controllers[controllerCount].pciInterrupt);
-				kernelVariableListSet(
+				variableListSet(
 					&controllerDevices[controllerCount]->device.attrs,
 					"controller.interrupt", value);
 			}
@@ -3453,20 +3454,20 @@ static int driverDetect(void *parent __attribute__((unused)),
 					DISK(diskNum).physical.name);
 
 				// Initialize the variable list for attributes of the disk.
-				status = kernelVariableListCreate(&devices[deviceCount]
-					.device.attrs);
+				status = variableListCreateSystem(&devices[deviceCount].device
+					.attrs);
 				if (status >= 0)
 				{
-					kernelVariableListSet(&devices[deviceCount].device.attrs,
-						DEVICEATTRNAME_MODEL,
-						(char *) DISK(diskNum).physical.model);
+					variableListSet(&devices[deviceCount].device.attrs,
+						DEVICEATTRNAME_MODEL, (char *)
+						DISK(diskNum).physical.model);
 
 					if (DISKISMULTI(diskNum))
 					{
 						sprintf(value, "%d",
 							DISK(diskNum).physical.multiSectors);
-						kernelVariableListSet(&devices[deviceCount]
-							.device.attrs, "disk.multisectors", value);
+						variableListSet(&devices[deviceCount].device.attrs,
+							"disk.multisectors", value);
 					}
 
 					value[0] = '\0';
@@ -3490,7 +3491,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 					if (DISKIS48(diskNum))
 						strcat(value, ",48-bit");
 
-					kernelVariableListSet(&devices[deviceCount].device.attrs,
+					variableListSet(&devices[deviceCount].device.attrs,
 						"disk.features", value);
 				}
 

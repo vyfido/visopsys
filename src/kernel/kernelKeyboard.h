@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelKeyboard.h
 //
 
-#if !defined(_KERNELKEYBOARD_H)
+#ifndef _KERNELKEYBOARD_H
+#define _KERNELKEYBOARD_H
 
 #include <sys/keyboard.h>
 #include <sys/stream.h>
@@ -62,6 +63,5 @@ int kernelKeyboardSetStream(stream *);
 int kernelKeyboardInput(kernelKeyboard *, int, keyScan);
 int kernelKeyboardVirtualInput(int, keyScan);
 
-#define _KERNELKEYBOARD_H
 #endif
 

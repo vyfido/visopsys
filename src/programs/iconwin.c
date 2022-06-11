@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,12 +47,12 @@ custom icons for each.
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/api.h>
 #include <sys/ascii.h>
 #include <sys/deskconf.h>
+#include <sys/api.h>
 #include <sys/env.h>
 #include <sys/paths.h>
-#include <sys/vsh.h>
+#include <sys/vis.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
@@ -63,8 +63,8 @@ custom icons for each.
 
 typedef struct {
 	char name[WINDOW_MAX_LABEL_LENGTH + 1];
-	char imageFile[MAX_PATH_NAME_LENGTH];
-	char command[MAX_PATH_NAME_LENGTH];
+	char imageFile[MAX_PATH_NAME_LENGTH + 1];
+	char command[MAX_PATH_NAME_LENGTH + 1];
 
 } iconInfo;
 
@@ -87,7 +87,7 @@ static void error(const char *format, ...)
 	// Generic error message code
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
@@ -100,7 +100,7 @@ static void error(const char *format, ...)
 static int readConfig(const char *fileName, variableList *config)
 {
 	int status = 0;
-	char langFileName[MAX_PATH_NAME_LENGTH];
+	char langFileName[MAX_PATH_NAME_LENGTH + 1];
 	variableList langConfig;
 	const char *variable = NULL;
 	const char *value = NULL;
@@ -159,7 +159,7 @@ static int processConfig(variableList *config)
 	const char *variable = NULL;
 	const char *value = NULL;
 	const char *name = NULL;
-	char fullCommand[MAX_PATH_NAME_LENGTH];
+	char fullCommand[MAX_PATH_NAME_LENGTH + 1];
 	char tmp[128];
 	int count;
 
@@ -358,6 +358,9 @@ static void refreshWindow(void)
 
 		variableListDestroy(&tmpConfig);
 	}
+
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -369,19 +372,20 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 			windowGuiStop();
 	}
 
 	// Check for events in our icon list.  We consider the icon 'clicked'
 	// if it is a mouse click selection, or an ENTER key selection
-	else if ((key == iconList) && (event->type & EVENT_SELECTION) &&
-		((event->type & EVENT_MOUSE_LEFTUP) ||
-		((event->type & EVENT_KEY_DOWN) && (event->key == keyEnter))))
+	else if ((key == iconList) && (event->type & WINDOW_EVENT_SELECTION) &&
+		((event->type & WINDOW_EVENT_MOUSE_LEFTUP) ||
+			((event->type & WINDOW_EVENT_KEY_DOWN) &&
+				(event->key.scan == keyEnter))))
 	{
 		// Get the selected item
 		windowComponentGetSelected(iconList, &clickedIcon);
@@ -389,7 +393,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 			return;
 
 		if (multitaskerSpawn(&execProgram, "exec program", 1,
-			(void *[]){ icons[clickedIcon].command } ) < 0)
+			(void *[]){ icons[clickedIcon].command }, 1 /* run */) < 0)
 		{
 			error(_("Couldn't execute command \"%s\""),
 				icons[clickedIcon].command);

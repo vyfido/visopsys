@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,8 @@
 
 // This is the Visopsys version of the standard header file math.h
 
-#if !defined(_MATH_H)
+#ifndef _MATH_H
+#define _MATH_H
 
 #define M_E         2.7182818284590452354  // e
 #define M_LOG2E     1.4426950408889634074  // log_2 e
@@ -53,6 +54,5 @@ double sqrt(double);
 double tan(double);
 float tanf(float);
 
-#define _MATH_H
 #endif
 

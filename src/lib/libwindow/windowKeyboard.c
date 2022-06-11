@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,6 +28,7 @@
 #include <string.h>
 #include <sys/api.h>
 #include <sys/charset.h>
+#include <sys/font.h>
 #include <sys/keyboard.h>
 #include <sys/window.h>
 
@@ -35,34 +36,34 @@ extern int libwindow_initialized;
 extern void libwindowInitialize(void);
 
 static int rowKeys[] = {
-	WINDOWKEYBOARD_ROW0_KEYS,
-	WINDOWKEYBOARD_ROW1_KEYS,
-	WINDOWKEYBOARD_ROW2_KEYS,
-	WINDOWKEYBOARD_ROW3_KEYS,
-	WINDOWKEYBOARD_ROW4_KEYS,
-	WINDOWKEYBOARD_ROW5_KEYS
+	WINDOW_KEYBOARD_ROW0_KEYS,
+	WINDOW_KEYBOARD_ROW1_KEYS,
+	WINDOW_KEYBOARD_ROW2_KEYS,
+	WINDOW_KEYBOARD_ROW3_KEYS,
+	WINDOW_KEYBOARD_ROW4_KEYS,
+	WINDOW_KEYBOARD_ROW5_KEYS
 };
 
 static int p0RowKeys[] = {
-	WINDOWKEYBOARD_ROW0_P0_KEYS,
-	WINDOWKEYBOARD_ROW1_P0_KEYS,
-	WINDOWKEYBOARD_ROW2_P0_KEYS,
-	WINDOWKEYBOARD_ROW3_P0_KEYS,
-	WINDOWKEYBOARD_ROW4_P0_KEYS,
-	WINDOWKEYBOARD_ROW5_P0_KEYS
+	WINDOW_KEYBOARD_ROW0_P0_KEYS,
+	WINDOW_KEYBOARD_ROW1_P0_KEYS,
+	WINDOW_KEYBOARD_ROW2_P0_KEYS,
+	WINDOW_KEYBOARD_ROW3_P0_KEYS,
+	WINDOW_KEYBOARD_ROW4_P0_KEYS,
+	WINDOW_KEYBOARD_ROW5_P0_KEYS
 };
 
 static int p1RowKeys[] = {
-	WINDOWKEYBOARD_ROW0_P1_KEYS,
-	WINDOWKEYBOARD_ROW1_P1_KEYS,
-	WINDOWKEYBOARD_ROW2_P1_KEYS,
-	WINDOWKEYBOARD_ROW3_P1_KEYS,
-	WINDOWKEYBOARD_ROW4_P1_KEYS,
-	WINDOWKEYBOARD_ROW5_P1_KEYS
+	WINDOW_KEYBOARD_ROW0_P1_KEYS,
+	WINDOW_KEYBOARD_ROW1_P1_KEYS,
+	WINDOW_KEYBOARD_ROW2_P1_KEYS,
+	WINDOW_KEYBOARD_ROW3_P1_KEYS,
+	WINDOW_KEYBOARD_ROW4_P1_KEYS,
+	WINDOW_KEYBOARD_ROW5_P1_KEYS
 };
 
 // Mapping out the virtual keyboard scan codes
-static keyScan scans[][WINDOWKEYBOARD_MAX_ROWKEYS] = {
+static keyScan scans[][WINDOW_KEYBOARD_MAX_ROWKEYS] = {
 	// Function key row ROW0
 	{ keyEsc, keyF1, keyF2, keyF3, keyF4, keyF5, keyF6, keyF7, keyF8, keyF9,
 		keyF10, keyF11, keyF12, keyPrint, keySLck, keyPause },
@@ -145,8 +146,8 @@ static struct {
 
 static int getKeyHeight(windowKeyboard *keyboard)
 {
-	return (((keyboard->height - 2) - (WINDOWKEYBOARD_GAP +
-		(WINDOWKEYBOARD_KEYROWS - 2))) / WINDOWKEYBOARD_KEYROWS);
+	return (((keyboard->height - 2) - (WINDOW_KEYBOARD_GAP +
+		(WINDOW_KEYBOARD_KEYROWS - 2))) / WINDOW_KEYBOARD_KEYROWS);
 }
 
 
@@ -216,7 +217,7 @@ static void makeRow(windowKeyboard *keyboard, int rowCount, int yCoord,
 		rowKeyGaps += (p1RowKeys[rowCount] - 1);
 
 	// Calculate the size of the gap separating the panels
-	panelGapWidth = max(WINDOWKEYBOARD_GAP, (stdKeyWidth / 3));
+	panelGapWidth = max(WINDOW_KEYBOARD_GAP, (stdKeyWidth / 3));
 
 	// Calculate the spare width in panel 0, to be allocated to 'weighted'
 	// keys
@@ -291,13 +292,13 @@ static void makeKeyboard(windowKeyboard *keyboard)
 	int rowCount;
 
 	// Make each keyboard row
-	for (rowCount = 0; rowCount < WINDOWKEYBOARD_KEYROWS; rowCount ++)
+	for (rowCount = 0; rowCount < WINDOW_KEYBOARD_KEYROWS; rowCount ++)
 	{
 		makeRow(keyboard, rowCount, yCoord, rowHeight);
 
 		// Make a little gap after the function key row
 		if (!rowCount)
-			yCoord += WINDOWKEYBOARD_GAP;
+			yCoord += WINDOW_KEYBOARD_GAP;
 
 		yCoord += (rowHeight + 1);
 	}
@@ -855,7 +856,7 @@ static void draw(windowKeyboard *keyboard)
 	windowComponentSetData(keyboard->canvas, &params, 1, 1 /* redraw */);
 
 	// Draw the keys
-	for (rowCount = 0; rowCount < WINDOWKEYBOARD_KEYROWS; rowCount ++)
+	for (rowCount = 0; rowCount < WINDOW_KEYBOARD_KEYROWS; rowCount ++)
 	{
 		for (keyCount = 0; keyCount < keyboard->rows[rowCount].numKeys;
 			keyCount ++)
@@ -944,7 +945,7 @@ static void redrawKeyMappings(windowKeyboard *keyboard)
 	int rowCount, keyCount;
 
 	// Draw the keys
-	for (rowCount = 0; rowCount < WINDOWKEYBOARD_KEYROWS; rowCount ++)
+	for (rowCount = 0; rowCount < WINDOW_KEYBOARD_KEYROWS; rowCount ++)
 	{
 		for (keyCount = 0; keyCount < keyboard->rows[rowCount].numKeys;
 			keyCount ++)
@@ -1010,24 +1011,24 @@ static int eventHandler(windowKeyboard *keyboard, windowEvent *event)
 	keyScan scan = 0;
 	int rowCount, keyCount;
 
-	// Check params.
+	// Check params
 	if (!keyboard || !event)
 		return (errno = ERR_NULLPARAMETER);
 
-	if (event->type & EVENT_MOUSE_LEFT)
+	if (event->type & WINDOW_EVENT_MOUSE_LEFT)
 	{
 		// Loop through the keys, looking for one that receives this event
-		for (rowCount = 0; rowCount < WINDOWKEYBOARD_KEYROWS; rowCount ++)
+		for (rowCount = 0; rowCount < WINDOW_KEYBOARD_KEYROWS; rowCount ++)
 		{
 			for (keyCount = 0; keyCount < keyboard->rows[rowCount].numKeys;
 				keyCount ++)
 			{
 				key = &keyboard->rows[rowCount].keys[keyCount];
 
-				if ((event->xPosition >= key->xCoord) &&
-					(event->xPosition < (key->xCoord + key->width)) &&
-					(event->yPosition >= key->yCoord) &&
-					(event->yPosition < (key->yCoord + key->height)))
+				if ((event->coord.x >= key->xCoord) &&
+					(event->coord.x < (key->xCoord + key->width)) &&
+					(event->coord.y >= key->yCoord) &&
+					(event->coord.y < (key->yCoord + key->height)))
 				{
 					found = 1;
 					break;
@@ -1049,19 +1050,19 @@ static int eventHandler(windowKeyboard *keyboard, windowEvent *event)
 
 			// Shift, Control, and Alt don't unpress until pressed again
 			if (!isShiftModifierKey(scan) && keyboard->callback)
-				keyboard->callback(EVENT_KEY_UP, scan);
+				keyboard->callback(WINDOW_EVENT_KEY_UP, scan);
 
 			keyboard->pressedKey = NULL;
 		}
 
 		// Was some new key pressed?
-		if (found && (event->type & EVENT_MOUSE_LEFTDOWN))
+		if (found && (event->type & WINDOW_EVENT_MOUSE_LEFTDOWN))
 		{
 			int isModRel = isShiftModifierRelease(keyboard, key->scan);
 
 			// Shift, Control, and Alt unpress when pressed again
 			if (isModRel && keyboard->callback)
-				keyboard->callback(EVENT_KEY_UP, key->scan);
+				keyboard->callback(WINDOW_EVENT_KEY_UP, key->scan);
 
 			togglePressed(keyboard, key);
 
@@ -1080,7 +1081,7 @@ static int eventHandler(windowKeyboard *keyboard, windowEvent *event)
 			processModifier(keyboard, key->scan);
 
 			if (!isModRel && keyboard->callback)
-				keyboard->callback(EVENT_KEY_DOWN, key->scan);
+				keyboard->callback(WINDOW_EVENT_KEY_DOWN, key->scan);
 
 			keyboard->pressedKey = key;
 		}
@@ -1094,7 +1095,7 @@ static int setMap(windowKeyboard *keyboard, keyMap *map)
 {
 	// Replace the existing map with the one supplied, and re-draw
 
-	// Check params.
+	// Check params
 	if (!keyboard || !map)
 		return (errno = ERR_NULLPARAMETER);
 
@@ -1112,7 +1113,7 @@ static int setCharset(windowKeyboard *keyboard, const char *charsetName)
 
 	int status = 0;
 
-	// Check params.
+	// Check params
 	if (!keyboard || !charsetName)
 		return (errno = ERR_NULLPARAMETER);
 
@@ -1148,7 +1149,7 @@ _X_ windowKeyboard *windowNewKeyboard(objectKey parent, int width, int height, v
 	if (!libwindow_initialized)
 		libwindowInitialize();
 
-	// Check params.
+	// Check params
 	if (!parent || !params)
 	{
 		errno = ERR_NULLPARAMETER;
@@ -1195,7 +1196,7 @@ _X_ windowKeyboard *windowNewKeyboard(objectKey parent, int width, int height, v
 	keyboard->height = height;
 
 	// Was a foreground color specified?
-	if (params->flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND)
+	if (params->flags & COMP_PARAMS_FLAG_CUSTOMFOREGROUND)
 		// Use the one we were given
 		memcpy(&keyboard->foreground, &params->foreground, sizeof(color));
 	else
@@ -1203,7 +1204,7 @@ _X_ windowKeyboard *windowNewKeyboard(objectKey parent, int width, int height, v
 		keyboard->foreground = foreground;
 
 	// Was a background color specified?
-	if (params->flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
+	if (params->flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND)
 		// Use the one we were given
 		memcpy(&keyboard->background, &params->background, sizeof(color));
 	else

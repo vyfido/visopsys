@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelCpu.h
 //
 
-#if !defined(_KERNELCPU_H)
+#ifndef _KERNELCPU_H
+#define _KERNELCPU_H
 
 #include <sys/types.h>
 
@@ -28,6 +29,5 @@ uquad_t kernelCpuTimestamp(void);
 uquad_t kernelCpuGetMs(void);
 void kernelCpuSpinMs(unsigned);
 
-#define _KERNELCPU_H
 #endif
 

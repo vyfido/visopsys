@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,13 +27,12 @@
 #include "kernelDevice.h"
 #include "kernelDriver.h"
 #include "kernelError.h"
-#include "kernelLinkedList.h"
 #include "kernelMalloc.h"
 #include "kernelUsbDriver.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/vis.h>
 
 #ifdef DEBUG
 static void debugHubDesc(volatile usbHubDesc *hubDesc)
@@ -655,8 +654,8 @@ static int detectHub(usbDevice *usbDev, kernelDriver *driver, int hotplug)
 
 	// Set attributes of the hub
 	snprintf(value, 32, "%d", hub->hubDesc.numPorts);
-	kernelVariableListSet((variableList *) &hub->dev.device.attrs,
-		"hub.numPorts", value);
+	variableListSet((variableList *) &hub->dev.device.attrs, "hub.numPorts",
+		value);
 
 	// Tell USB that we're claiming this device.
 	kernelBusDeviceClaim(hub->busTarget, driver);
@@ -820,7 +819,7 @@ static int driverHotplug(void *parent __attribute__((unused)),
 		kernelDeviceRemove((kernelDevice *) &hub->dev);
 
 		// Free the device's attributes list
-		kernelVariableListDestroy((variableList *) &hub->dev.device.attrs);
+		variableListDestroy((variableList *) &hub->dev.device.attrs);
 
 		// Free the memory.
 		if (hub->busTarget)

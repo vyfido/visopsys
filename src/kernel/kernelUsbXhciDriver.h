@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,10 +19,11 @@
 //  kernelUsbXhciDriver.h
 //
 
-#if !defined(_KERNELUSBXHCIDRIVER_H)
+#ifndef _KERNELUSBXHCIDRIVER_H
+#define _KERNELUSBXHCIDRIVER_H
 
-#include "kernelLinkedList.h"
 #include "kernelUsbDriver.h"
+#include <sys/vis.h>
 
 // Global things
 #define XHCI_PCI_PROGIF				0x30
@@ -546,12 +547,11 @@ typedef struct {
 	unsigned long long *devCtxtPhysPtrs;
 	xhciTrbRing *commandRing;
 	xhciTrbRing **eventRings;
-	kernelLinkedList slots;
-	kernelLinkedList intrRegs;
+	linkedList slots;
+	linkedList intrRegs;
 	unsigned portChangedBitmap;
 
 } xhciData;
 
-#define _KERNELUSBXHCIDRIVER_H
 #endif
 

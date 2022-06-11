@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-08-06 01:04+0100\n"
+"POT-Creation-Date: 2019-05-13 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,41 +17,41 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: sysdiag.c:54
+#: sysdiag.c:55
 msgid "System Diagnostics"
 msgstr ""
 
-#: sysdiag.c:55 sysdiag.c:1026
+#: sysdiag.c:56 sysdiag.c:1031
 msgid "Disk test"
 msgstr ""
 
-#: sysdiag.c:56 sysdiag.c:1027
+#: sysdiag.c:57 sysdiag.c:1032
 msgid "Memory test"
 msgstr ""
 
-#: sysdiag.c:57 sysdiag.c:1031
+#: sysdiag.c:58 sysdiag.c:1036
 msgid "Read-only"
 msgstr ""
 
-#: sysdiag.c:58 sysdiag.c:1032
+#: sysdiag.c:59 sysdiag.c:1037
 msgid "Read-write"
 msgstr ""
 
-#: sysdiag.c:59
+#: sysdiag.c:60
 msgid "Test"
 msgstr ""
 
-#: sysdiag.c:60 sysdiag.c:235
+#: sysdiag.c:61 sysdiag.c:236
 msgid "Quit"
 msgstr ""
 
-#: sysdiag.c:61
+#: sysdiag.c:62
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
 msgstr ""
 
-#: sysdiag.c:64
+#: sysdiag.c:65
 msgid ""
 "Do you want to do a read-only test, or a read-write test?\n"
 "A read-only test is faster and guaranteed to be data-safe,\n"
@@ -60,110 +60,110 @@ msgid ""
 "some data loss if your disk is failing."
 msgstr ""
 
-#: sysdiag.c:69
+#: sysdiag.c:70
 #, c-format
 msgid "Performing %s test on disk %s"
 msgstr ""
 
-#: sysdiag.c:70
+#: sysdiag.c:71
 #, c-format
 msgid "Performing memory test of %uMB - %uMB in use"
 msgstr ""
 
-#: sysdiag.c:71
+#: sysdiag.c:72
 msgid "Test cancelled"
 msgstr ""
 
-#: sysdiag.c:72
+#: sysdiag.c:73
 msgid "Test completed"
 msgstr ""
 
-#: sysdiag.c:73
+#: sysdiag.c:74
 msgid "Error performing test"
 msgstr ""
 
-#: sysdiag.c:74
+#: sysdiag.c:75
 #, c-format
 msgid "%d errors"
 msgstr ""
 
-#: sysdiag.c:128
+#: sysdiag.c:129
 #, c-format
 msgid ""
 "\n"
 "Press any key to continue%s"
 msgstr ""
 
-#: sysdiag.c:129
+#: sysdiag.c:130
 msgid ", or 'q' to quit"
 msgstr ""
 
-#: sysdiag.c:153
+#: sysdiag.c:154
 msgid "Error"
 msgstr ""
 
-#: sysdiag.c:168
+#: sysdiag.c:169
 #, c-format
 msgid ""
 "%s\n"
-"Copyright (C) 1998-2018 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2019 J. Andrew McLaughlin\n"
 msgstr ""
 
-#: sysdiag.c:223
+#: sysdiag.c:224
 msgid "Please choose the disk to test:"
 msgstr ""
 
-#: sysdiag.c:234
+#: sysdiag.c:235
 msgid "View results"
 msgstr ""
 
-#: sysdiag.c:278
+#: sysdiag.c:279
 msgid "Do you want to view the results?\n"
 msgstr ""
 
-#: sysdiag.c:293
+#: sysdiag.c:294
 msgid "Test results"
 msgstr ""
 
-#: sysdiag.c:325
+#: sysdiag.c:326
 #, c-format
 msgid "Disk read error at sector %llu\n"
 msgstr ""
 
-#: sysdiag.c:329
+#: sysdiag.c:330
 #, c-format
 msgid "Disk write error at sector %llu\n"
 msgstr ""
 
-#: sysdiag.c:333
+#: sysdiag.c:334
 #, c-format
 msgid "Memory error at %llu\n"
 msgstr ""
 
-#: sysdiag.c:428 sysdiag.c:439
+#: sysdiag.c:429 sysdiag.c:440
 msgid "read-write"
 msgstr ""
 
-#: sysdiag.c:428 sysdiag.c:439
+#: sysdiag.c:429 sysdiag.c:440
 msgid "read-only"
 msgstr ""
 
-#: sysdiag.c:430 sysdiag.c:678
+#: sysdiag.c:431 sysdiag.c:679
 msgid ""
 "\n"
 "[ Press 'Q' to cancel ]\n"
 msgstr ""
 
-#: sysdiag.c:549
+#: sysdiag.c:550
 #, c-format
 msgid "Testing disk sectors %llu/%llu"
 msgstr ""
 
-#: sysdiag.c:766
+#: sysdiag.c:767
 #, c-format
 msgid "Testing memory MB %llu/%llu"
 msgstr ""
 
-#: sysdiag.c:1077
+#: sysdiag.c:1082
 msgid "Do you want to do a disk test, or a memory test?\n"
 msgstr ""

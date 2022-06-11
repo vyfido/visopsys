@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -142,7 +142,7 @@ static void error(const char *format, ...)
 	// Generic error message code for either text or graphics modes
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	if (silentMode)
 		return;
@@ -213,7 +213,7 @@ static int chooseDisk(void)
 		params.gridWidth = 1;
 		params.padBottom = 5;
 		params.orientationX = orient_right;
-		params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+		params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 		okButton = windowNewButton(chooseWindow, _("OK"), NULL, &params);
 
 		params.gridX = 1;
@@ -232,7 +232,7 @@ static int chooseDisk(void)
 			// Check for our OK button
 			status = windowComponentEventGet(okButton, &event);
 			if ((status < 0) || ((status > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP)))
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 			{
 				windowComponentGetSelected(diskList, &diskNumber);
 				break;
@@ -241,7 +241,7 @@ static int chooseDisk(void)
 			// Check for our Cancel button
 			status = windowComponentEventGet(cancelButton, &event);
 			if ((status < 0) || ((status > 0) &&
-				(event.type == EVENT_MOUSE_LEFTUP)))
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 			{
 				break;
 			}
@@ -258,8 +258,8 @@ static int chooseDisk(void)
 	{
 		for (count = 0; count < numberDisks; count ++)
 			diskStrings[count] = diskListParams[count].text;
-		diskNumber = vshCursorMenu(CHOOSEDISK_STRING, diskStrings, numberDisks,
-			10 /* max rows */, 0 /* selected */);
+		diskNumber = vshCursorMenu(CHOOSEDISK_STRING, diskStrings,
+			numberDisks, 10 /* max rows */, 0 /* selected */);
 	}
 
 	return (diskNumber);
@@ -284,9 +284,8 @@ static int mountedCheck(disk *theDisk)
 
 	if (graphics)
 	{
-		choice =
-			windowNewChoiceDialog(NULL, _("Disk is mounted"), tmpChar,
-				(char *[]){ _("Ignore"), _("Unmount"), _("Cancel") }, 3, 1);
+		choice = windowNewChoiceDialog(NULL, _("Disk is mounted"), tmpChar,
+			(char *[]){ _("Ignore"), _("Unmount"), _("Cancel") }, 3, 1);
 	}
 	else
 	{
@@ -345,8 +344,8 @@ static int copyBootSector(disk *theDisk, const char *fsType)
 	// boot sector of the target disk
 
 	int status = 0;
-	char bootSectFilename[MAX_PATH_NAME_LENGTH];
-	char command[MAX_PATH_NAME_LENGTH];
+	char bootSectFilename[MAX_PATH_NAME_LENGTH + 1];
+	char command[MAX_PATH_NAME_LENGTH + 1];
 
 	if (!strncasecmp(fsType, "fat", 3))
 	{
@@ -399,9 +398,9 @@ int main(int argc, char *argv[])
 	void *handle = NULL;
 	char opt;
 	int diskNumber = -1;
-	char rootDisk[DISK_MAX_NAMELENGTH];
+	char rootDisk[DISK_MAX_NAMELENGTH + 1];
 	char type[16];
-	char volName[MAX_NAME_LENGTH];
+	char volName[MAX_NAME_LENGTH + 1];
 	int longFormat = 0;
 	progress prog;
 	objectKey progressDialog = NULL;
@@ -497,7 +496,7 @@ int main(int argc, char *argv[])
 	if (!graphics && !silentMode)
 	{
 		// Print a message
-		printf("%s", _("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2018 J. "
+		printf("%s", _("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2019 J. "
 			"Andrew McLaughlin\n"));
 	}
 

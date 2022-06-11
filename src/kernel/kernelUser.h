@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,36 +19,29 @@
 //  kernelUser.h
 //
 
-#if !defined(_KERNELUSER_H)
+#ifndef _KERNELUSER_H
+#define _KERNELUSER_H
 
 #include <sys/user.h>
-
-typedef struct {
-	char name[USER_MAX_NAMELENGTH + 1];
-	int privilege;
-	int loginPid;
-
-} kernelUser;
 
 // Functions exported by kernelUser.c
 int kernelUserInitialize(void);
 int kernelUserAuthenticate(const char *, const char *);
-int kernelUserLogin(const char *, const char *);
+int kernelUserLogin(const char *, const char *, int);
 int kernelUserLogout(const char *);
 int kernelUserExists(const char *);
 int kernelUserGetNames(char *, unsigned);
 int kernelUserAdd(const char *, const char *);
 int kernelUserDelete(const char *);
 int kernelUserSetPassword(const char *, const char *, const char *);
+int kernelUserGetCurrentLoginPid(void);
 int kernelUserGetCurrent(char *, unsigned);
 int kernelUserGetPrivilege(const char *);
-int kernelUserGetPid(void);
-int kernelUserSetPid(const char *, int);
+int kernelUserGetSessions(userSession *, int);
 int kernelUserFileAdd(const char *, const char *, const char *);
 int kernelUserFileDelete(const char *, const char *);
 int kernelUserFileSetPassword(const char *, const char *, const char *,
 	const char *);
 
-#define _KERNELUSER_H
 #endif
 

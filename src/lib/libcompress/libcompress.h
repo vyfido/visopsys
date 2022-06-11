@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,7 +22,8 @@
 // This file contains private definitions and structures used by the
 // compression/decompression library.
 
-#if !defined(_LIBCOMPRESS_H)
+#ifndef _LIBCOMPRESS_H
+#define _LIBCOMPRESS_H
 
 #include <sys/compress.h>
 
@@ -42,6 +43,5 @@ int archiveCopyFileData(FILE *, FILE *, unsigned, progress *);
 // Exported from deflate.c
 void deflateMakeHuffmanTable(huffmanTable *, int, unsigned char *);
 
-#define _LIBCOMPRESS_H
 #endif
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,7 +21,8 @@
 
 // This goes with the file kernelGraphic.c
 
-#if !defined(_KERNELGRAPHIC_H)
+#ifndef _KERNELGRAPHIC_H
+#define _KERNELGRAPHIC_H
 
 #include "kernelDevice.h"
 #include "kernelFont.h"
@@ -97,14 +98,14 @@ int kernelGraphicDrawText(graphicBuffer *, color *, color *, kernelFont *,
 	const char *, const char *, drawMode, int, int);
 int kernelGraphicCopyArea(graphicBuffer *, int, int, int, int, int, int);
 int kernelGraphicClearArea(graphicBuffer *, color *, int, int, int, int);
-int kernelGraphicCopyBuffer(graphicBuffer *, graphicBuffer *, int, int);
-int kernelGraphicRenderBuffer(graphicBuffer *, int, int, int, int, int,	int);
+int kernelGraphicCopyBuffer(graphicBuffer *, int, int, graphicBuffer *, int,
+	int, int, int);
+int kernelGraphicRenderBuffer(graphicBuffer *, int, int, int, int, int, int);
 int kernelGraphicFilter(graphicBuffer *, color *, int, int, int, int);
 void kernelGraphicDrawGradientBorder(graphicBuffer *, int, int, int, int, int,
 	color *, int, drawMode, borderType);
 void kernelGraphicConvexShade(graphicBuffer *, color *, int, int, int, int,
 	shadeType);
 
-#define _KERNELGRAPHIC_H
 #endif
 

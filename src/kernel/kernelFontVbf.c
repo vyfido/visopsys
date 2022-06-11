@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,6 +37,7 @@
 #include "kernelMemory.h"
 #include <stdio.h>
 #include <string.h>
+#include <sys/vis.h>
 
 
 static int readHeader(const char *fileName, vbfFileHeader *vbfHeader)
@@ -140,7 +141,7 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
 }
 
 
-static int getInfo(const char *fileName, kernelFont *font)
+static int getInfo(const char *fileName, fontInfo *info)
 {
 	int status = 0;
 	vbfFileHeader vbfHeader;
@@ -149,12 +150,10 @@ static int getInfo(const char *fileName, kernelFont *font)
 	if (status < 0)
 		return (status);
 
-	memset(font, 0, sizeof(kernelFont));
-	strncpy(font->family, vbfHeader.family, FONT_FAMILY_LEN);
-	font->flags = vbfHeader.flags;
-	font->points = vbfHeader.points;
-	font->numCharSets = 1;
-	strncpy(font->charSet[0], vbfHeader.charSet, FONT_CHARSET_LEN);
+	strncpy(info->family, vbfHeader.family, FONT_FAMILY_LEN);
+	info->flags = vbfHeader.flags;
+	info->points = vbfHeader.points;
+	strncpy(info->charSet, vbfHeader.charSet, FONT_CHARSET_LEN);
 
 	return (status = 0);
 }
@@ -168,6 +167,7 @@ static int load(unsigned char *fileData, int dataLength, kernelFont *font,
 
 	int status = 0;
 	vbfFileHeader *vbfHeader = (vbfFileHeader *) fileData;
+	char *charSet = NULL;
 	int glyphBytes = 0;
 	unsigned char *fontData = NULL;
 	kernelGlyph *glyph = NULL;
@@ -182,11 +182,25 @@ static int load(unsigned char *fileData, int dataLength, kernelFont *font,
 		return (status = ERR_NULLPARAMETER);
 
 	// Copy/add the basic font info
-	strncpy(font->family, vbfHeader->family, FONT_FAMILY_LEN);
-	font->flags = vbfHeader->flags;
-	font->points = vbfHeader->points;
-	strncpy(font->charSet[font->numCharSets++], vbfHeader->charSet,
-		FONT_CHARSET_LEN);
+	strncpy(font->info.family, vbfHeader->family, FONT_FAMILY_LEN);
+	font->info.flags = vbfHeader->flags;
+	font->info.points = vbfHeader->points;
+
+	// Add the charset name
+
+	charSet = kernelMalloc(strlen(vbfHeader->charSet) + 1);
+	if (!charSet)
+	{
+		status = ERR_MEMORY;
+		goto out;
+	}
+
+	strcpy(charSet, vbfHeader->charSet);
+
+	status = linkedListAdd(&font->charSet, charSet);
+	if (status < 0)
+		goto out;
+
 	font->glyphWidth = vbfHeader->glyphWidth;
 	font->glyphHeight = vbfHeader->glyphHeight;
 
@@ -194,9 +208,8 @@ static int load(unsigned char *fileData, int dataLength, kernelFont *font,
 	glyphBytes = (((vbfHeader->glyphWidth * vbfHeader->glyphHeight) + 7) / 8);
 
 	kernelDebug(debug_font, "VBF font %s flags=%02x points=%d charset=%s "
-		"glyphWidth=%d glyphHeight=%d", font->family, font->flags,
-		font->points, font->charSet[font->numCharSets - 1], font->glyphWidth,
-		font->glyphHeight);
+		"glyphWidth=%d glyphHeight=%d", font->info.family, font->info.flags,
+		font->info.points, charSet, font->glyphWidth, font->glyphHeight);
 
 	// Get memory for the font structure and the images data.
 	font->glyphs = kernelRealloc(font->glyphs,
@@ -205,9 +218,8 @@ static int load(unsigned char *fileData, int dataLength, kernelFont *font,
 
 	if (!font->glyphs || !fontData)
 	{
-		kernelError(kernel_error, "Unable to get memory to hold the font "
-			"data");
-		return (status = ERR_MEMORY);
+		status = ERR_MEMORY;
+		goto out;
 	}
 
 	// Copy the bitmap data directory from the file into the font memory
@@ -230,8 +242,8 @@ static int load(unsigned char *fileData, int dataLength, kernelFont *font,
 		glyph->img.dataLength = glyphBytes;
 		glyph->img.data = (fontData + (count1 * glyphBytes));
 
-		// If a variable-width font has been requested, then we need to do some
-		// bit-bashing to remove surplus space on either side of each
+		// If a variable-width font has been requested, then we need to do
+		// some bit-bashing to remove surplus space on either side of each
 		// character.
 		if (!fixedWidth)
 		{
@@ -323,7 +335,26 @@ static int load(unsigned char *fileData, int dataLength, kernelFont *font,
 	}
 
 	font->numGlyphs += vbfHeader->numGlyphs;
-	return (status = 0);
+	status = 0;
+
+out:
+	if (status < 0)
+	{
+		if (fontData)
+			kernelFree(fontData);
+
+		if (font->glyphs)
+		{
+			kernelFree(font->glyphs);
+			font->glyphs = NULL;
+			font->numGlyphs = 0;
+		}
+
+		if (charSet)
+			kernelFree(charSet);
+	}
+
+	return (status);
 }
 
 

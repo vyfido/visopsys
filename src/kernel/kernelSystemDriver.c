@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -33,11 +33,11 @@
 #include "kernelMalloc.h"
 #include "kernelPage.h"
 #include "kernelParameters.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/multiproc.h>
+#include <sys/vis.h>
 
 
 static kernelDevice *regDevice(void *parent, void *driver,
@@ -82,12 +82,12 @@ static int driverDetectMemory(void *parent, kernelDriver *driver)
 		return (status = ERR_NOCREATE);
 
 	// Initialize the variable list for attributes of the memory
-	status = kernelVariableListCreate(&dev->device.attrs);
+	status = variableListCreateSystem(&dev->device.attrs);
 	if (status < 0)
 		return (status);
 
 	sprintf(value, "%u Kb", (1024 + kernelOsLoaderInfo->extendedMemory));
-	kernelVariableListSet(&dev->device.attrs, "memory.size", value);
+	variableListSet(&dev->device.attrs, "memory.size", value);
 
 	return (status = 0);
 }
@@ -233,13 +233,13 @@ static int driverDetectBiosPnP(void *parent, kernelDriver *driver)
 	}
 
 	// Initialize the variable list for attributes of the Plug and Play BIOS
-	status = kernelVariableListCreate(&dev->device.attrs);
+	status = variableListCreateSystem(&dev->device.attrs);
 	if (status < 0)
 		goto out;
 
 	sprintf(value, "%d.%d", ((dataStruct->version & 0xF0) >> 4),
 		(dataStruct->version & 0x0F));
-	kernelVariableListSet(&dev->device.attrs, "pnp.version", value);
+	variableListSet(&dev->device.attrs, "pnp.version", value);
 
 	// Allocate memory for driver data
 	dev->data = kernelMalloc(sizeof(kernelBiosPnpHeader));
@@ -262,7 +262,7 @@ out:
 			if (dev->data)
 				kernelFree(dev->data);
 
-			kernelVariableListDestroy(&dev->device.attrs);
+			variableListDestroy(&dev->device.attrs);
 		}
 	}
 
@@ -582,7 +582,7 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 		}
 
 		// Initialize the variable list for attributes
-		status = kernelVariableListCreate(&dev->device.attrs);
+		status = variableListCreateSystem(&dev->device.attrs);
 		if (status < 0)
 			goto out;
 
@@ -593,7 +593,7 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 		for (count = 7; count; count --)
 			if (value[count] == ' ')
 				value[count] = '\0';
-		kernelVariableListSet((variableList *) &dev->device.attrs,
+		variableListSet((variableList *) &dev->device.attrs,
 			DEVICEATTRNAME_VENDOR, value);
 
 		// Product name
@@ -601,24 +601,23 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 		for (count = 11; count; count --)
 			if (value[count] == ' ')
 				value[count] = '\0';
-		kernelVariableListSet((variableList *) &dev->device.attrs,
+		variableListSet((variableList *) &dev->device.attrs,
 			DEVICEATTRNAME_MODEL, value);
 
 		// Numbers of entries we found
 		sprintf(value, "%d", processors);
-		kernelVariableListSet((variableList *) &dev->device.attrs,
-			"processors", value);
+		variableListSet((variableList *) &dev->device.attrs, "processors",
+			value);
 		sprintf(value, "%d", buses);
-		kernelVariableListSet((variableList *) &dev->device.attrs,
-			"buses", value);
+		variableListSet((variableList *) &dev->device.attrs, "buses", value);
 		sprintf(value, "%d", ioapics);
-		kernelVariableListSet((variableList *) &dev->device.attrs,
-			"io.apics", value);
+		variableListSet((variableList *) &dev->device.attrs, "io.apics",
+			value);
 		sprintf(value, "%d", ioints);
-		kernelVariableListSet((variableList *) &dev->device.attrs,
+		variableListSet((variableList *) &dev->device.attrs,
 			"io.intAssignments", value);
 		sprintf(value, "%d", locints);
-		kernelVariableListSet((variableList *) &dev->device.attrs,
+		variableListSet((variableList *) &dev->device.attrs,
 			"local.intAssignments", value);
 	}
 
@@ -632,7 +631,7 @@ out:
 			if (dev->data)
 				kernelFree(dev->data);
 
-			kernelVariableListDestroy(&dev->device.attrs);
+			variableListDestroy(&dev->device.attrs);
 		}
 	}
 

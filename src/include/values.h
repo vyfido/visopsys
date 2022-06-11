@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -21,7 +21,8 @@
 
 // This is the Visopsys version of the standard header file values.h
 
-#if !defined(_VALUES_H)
+#ifndef _VALUES_H
+#define _VALUES_H
 
 #include <limits.h>
 #include <float.h>
@@ -55,6 +56,5 @@
 #define	FMAXEXP         FLT_MAX_EXP
 #define BITSPERBYTE     CHAR_BIT
 
-#define	_VALUES_H
 #endif
 

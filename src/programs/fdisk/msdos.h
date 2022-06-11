@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,13 +21,13 @@
 
 // This is the header for the handling of MS-DOS disk labels
 
-#if !defined(_MSDOS_H)
+#ifndef _FDISK_MSDOS_H
+#define _FDISK_MSDOS_H
 
 #include <sys/msdos.h>
 
 // Function to get the disk label structure
 diskLabel *getLabelMsdos(void);
 
-#define _MSDOS_H
 #endif
 

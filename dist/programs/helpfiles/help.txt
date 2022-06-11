@@ -60,6 +60,7 @@ uname             Print system information
 unzip             Decompress and extract files from a compressed archive file
 uptime            Time since last boot
 vsh               Start a new command shell
+who               Show who is logged in
 zip               Compress and archive files
 
  -- Additional (graphics mode only) --

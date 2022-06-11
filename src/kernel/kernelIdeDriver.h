@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,11 +22,12 @@
 // This header file contains definitions for the kernel's standard IDE/
 // ATA/ATAPI driver
 
-#if !defined(_KERNELIDEDRIVER_H)
+#ifndef _KERNELIDEDRIVER_H
+#define _KERNELIDEDRIVER_H
 
 #include "kernelDisk.h"
-#include "kernelLock.h"
 #include "kernelMemory.h"
+#include <sys/lock.h>
 
 #define IDE_MAX_DISKS			4
 #define IDE_MAX_CONTROLLERS		(DISK_MAXDEVICES / IDE_MAX_DISKS)
@@ -82,7 +83,7 @@ typedef volatile struct {
 	int expectInterrupt;
 	int gotInterrupt;
 	int ints, acks;
-	lock lock;
+	spinLock lock;
 
 } ideChannel;
 
@@ -94,6 +95,5 @@ typedef volatile struct {
 
 } ideController;
 
-#define _KERNELIDEDRIVER_H
 #endif
 

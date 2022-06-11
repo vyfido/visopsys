@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,6 +23,7 @@
 #include "kernelCpu.h"
 #include "kernelDebug.h"
 #include "kernelError.h"
+#include "kernelLock.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
@@ -30,10 +31,10 @@
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelPciDriver.h"
-#include "kernelVariableList.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/vis.h>
 
 static int reset(usbController *);
 
@@ -206,7 +207,7 @@ static void debugTransError(ehciQtd *qtd)
 	char *errorText = NULL;
 	char *transString = NULL;
 
-	errorText = kernelMalloc(MAXSTRINGLENGTH);
+	errorText = kernelMalloc(MAXSTRINGLENGTH + 1);
 	if (errorText)
 	{
 		switch (qtd->token & EHCI_QTDTOKEN_PID)
@@ -265,23 +266,22 @@ static int releaseQueueHead(usbEhciData *ehci,
 	// back into the list of 'free' queue heads.
 
 	int status = 0;
-	kernelLinkedList *freeList =
-		(kernelLinkedList *) &ehci->freeQueueHeadItems;
+	linkedList *freeList = (linkedList *) &ehci->freeQueueHeadItems;
 
 	// Add it to the free list
-	if (kernelLinkedListAdd(freeList, queueHeadItem) < 0)
+	if (linkedListAdd(freeList, queueHeadItem) < 0)
 		kernelError(kernel_warn, "Couldn't add item to queue head free list");
 
 	return (status = 0);
 }
 
 
-static int allocQueueHeads(kernelLinkedList *freeList)
+static int allocQueueHeads(linkedList *freeList)
 {
 	// Allocate a page worth of physical memory for ehciQueueHead data
 	// structures, allocate an equal number of ehciQueueHeadItem
 	// structures to point at them, link them together, and add them to the
-	// supplied kernelLinkedList.
+	// supplied linkedList.
 
 	int status = 0;
 	kernelIoMemory ioMem;
@@ -324,7 +324,7 @@ static int allocQueueHeads(kernelLinkedList *freeList)
 		queueHeadItems[count].physical = physicalAddr;
 		physicalAddr += sizeof(ehciQueueHead);
 
-		status = kernelLinkedListAdd(freeList, &queueHeadItems[count]);
+		status = linkedListAdd(freeList, &queueHeadItems[count]);
 		if (status < 0)
 		{
 			kernelError(kernel_error, "Couldn't add new queue heads to free "
@@ -468,10 +468,9 @@ static ehciQueueHeadItem *allocQueueHead(usbController *controller,
 	// will have a single, unused queue head to mark the start of the list.
 
 	usbEhciData *ehci = controller->data;
-	kernelLinkedList *freeList =
-		(kernelLinkedList *) &ehci->freeQueueHeadItems;
+	linkedList *freeList = (linkedList *) &ehci->freeQueueHeadItems;
 	ehciQueueHeadItem *queueHeadItem = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 
 	kernelDebug(debug_usb, "EHCI alloc queue head for controller %d, "
 		"usbDev %p, endpoint 0x%02x", controller->num, usbDev, endpoint);
@@ -488,7 +487,7 @@ static ehciQueueHeadItem *allocQueueHead(usbController *controller,
 	}
 
 	// Grab the first item in the free list
-	queueHeadItem = kernelLinkedListIterStart(freeList, &iter);
+	queueHeadItem = linkedListIterStart(freeList, &iter);
 	if (!queueHeadItem)
 	{
 		kernelError(kernel_error, "Couldn't get a list item for a new queue "
@@ -497,7 +496,7 @@ static ehciQueueHeadItem *allocQueueHead(usbController *controller,
 	}
 
 	// Remove it from the free list
-	if (kernelLinkedListRemove(freeList, queueHeadItem) < 0)
+	if (linkedListRemove(freeList, queueHeadItem) < 0)
 	{
 		kernelError(kernel_error, "Couldn't remove item from queue head free "
 			"list");
@@ -1124,11 +1123,11 @@ err_out:
 }
 
 
-static int allocQtds(kernelLinkedList *freeList)
+static int allocQtds(linkedList *freeList)
 {
 	// Allocate a page worth of physical memory for ehciQtd data structures,
 	// allocate an equal number of ehciQtdItem structures to point at them,
-	// and add them to the supplied kernelLinkedList.
+	// and add them to the supplied linkedList.
 
 	int status = 0;
 	kernelIoMemory ioMem;
@@ -1169,7 +1168,7 @@ static int allocQtds(kernelLinkedList *freeList)
 		qtdItems[count].physical = physicalAddr;
 		physicalAddr += sizeof(ehciQtd);
 
-		status = kernelLinkedListAdd(freeList, &qtdItems[count]);
+		status = linkedListAdd(freeList, &qtdItems[count]);
 		if (status < 0)
 			goto err_out;
 	}
@@ -1192,7 +1191,7 @@ static void releaseQtds(usbEhciData *ehci, ehciQtdItem **qtdItems, int numQtds)
 {
 	// Release qTDs back to the free pool after use
 
-	kernelLinkedList *freeList = (kernelLinkedList *) &ehci->freeQtdItems;
+	linkedList *freeList = (linkedList *) &ehci->freeQtdItems;
 	int count;
 
 	for (count = 0; count < numQtds; count ++)
@@ -1204,7 +1203,7 @@ static void releaseQtds(usbEhciData *ehci, ehciQtdItem **qtdItems, int numQtds)
 				kernelFree(qtdItems[count]->buffer);
 
 			// Try to add it back to the free list
-			kernelLinkedListAdd(freeList, qtdItems[count]);
+			linkedListAdd(freeList, qtdItems[count]);
 		}
 	}
 
@@ -1219,8 +1218,8 @@ static ehciQtdItem **getQtds(usbEhciData *ehci, int numQtds)
 	// and chain them together.
 
 	ehciQtdItem **qtdItems = NULL;
-	kernelLinkedList *freeList = (kernelLinkedList *) &ehci->freeQtdItems;
-	kernelLinkedListItem *iter = NULL;
+	linkedList *freeList = (linkedList *) &ehci->freeQtdItems;
+	linkedListItem *iter = NULL;
 	int count;
 
 	kernelDebug(debug_usb, "EHCI get %d qTDs", numQtds);
@@ -1244,7 +1243,7 @@ static ehciQtdItem **getQtds(usbEhciData *ehci, int numQtds)
 		}
 
 		// Grab the first one from the free list
-		qtdItems[count] = kernelLinkedListIterStart(freeList, &iter);
+		qtdItems[count] = linkedListIterStart(freeList, &iter);
 		if (!qtdItems[count])
 		{
 			kernelError(kernel_error, "Couldn't get a list item for a new qTD");
@@ -1252,7 +1251,7 @@ static ehciQtdItem **getQtds(usbEhciData *ehci, int numQtds)
 		}
 
 		// Remove it from the free list
-		if (kernelLinkedListRemove(freeList, qtdItems[count]) < 0)
+		if (linkedListRemove(freeList, qtdItems[count]) < 0)
 		{
 			kernelError(kernel_error, "Couldn't remove item from qTD free list");
 			goto err_out;
@@ -1641,7 +1640,7 @@ static void unregisterInterrupt(usbEhciData *ehci, ehciIntrReg *intrReg)
 
 	int status = 0;
 
-	kernelLinkedListRemove(&ehci->intrRegs, intrReg);
+	linkedListRemove(&ehci->intrRegs, intrReg);
 
 	if (intrReg->transQueue.qtdItems)
 	{
@@ -2182,7 +2181,7 @@ static int reset(usbController *controller)
 	else
 	{
 		// Clear the lock
-		memset((void *) &controller->lock, 0, sizeof(lock));
+		memset((void *) &controller->lock, 0, sizeof(spinLock));
 		status = 0;
 	}
 
@@ -2200,7 +2199,7 @@ static int interrupt(usbController *controller)
 	int status = 0;
 	usbEhciData *ehci = controller->data;
 	ehciIntrReg *intrReg = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	ehciQueueHeadItem *queueHeadItem = NULL;
 	ehciQtdItem *qtdItem = NULL;
 	unsigned bytes = 0;
@@ -2241,7 +2240,7 @@ static int interrupt(usbController *controller)
 
 		// Loop through the registered interrupts for ones that are no longer
 		// active.
-		intrReg = kernelLinkedListIterStart(&ehci->intrRegs, &iter);
+		intrReg = linkedListIterStart(&ehci->intrRegs, &iter);
 		while (intrReg)
 		{
 			//kernelDebug(debug_usb, "EHCI check interrupt QTD for device %d, "
@@ -2296,12 +2295,12 @@ static int interrupt(usbController *controller)
 				queueHeadItem->queueHead->overlay.nextQtd = qtdItem->physical;
 			}
 
-			intrReg = kernelLinkedListIterNext(&ehci->intrRegs, &iter);
+			intrReg = linkedListIterNext(&ehci->intrRegs, &iter);
 			continue;
 
 		intr_error:
 			kernelDebugError("Interrupt error - not re-scheduling");
-			intrReg = kernelLinkedListIterNext(&ehci->intrRegs, &iter);
+			intrReg = linkedListIterNext(&ehci->intrRegs, &iter);
 			continue;
 		}
 
@@ -2735,7 +2734,7 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 		goto out;
 
 	// Add the interrupt registration to the controller's list.
-	status = kernelLinkedListAdd(&ehci->intrRegs, intrReg);
+	status = linkedListAdd(&ehci->intrRegs, intrReg);
 	if (status < 0)
 		goto out;
 
@@ -2826,7 +2825,7 @@ static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 	int status = 0;
 	usbEhciData *ehci = NULL;
 	ehciQueueHeadItem *queueHeadItem = NULL;
-	kernelLinkedListItem *iter = NULL;
+	linkedListItem *iter = NULL;
 	ehciIntrReg *intrReg = NULL;
 	int count;
 
@@ -2850,17 +2849,17 @@ static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 	ehci = controller->data;
 
 	// Remove any interrupt registrations for the device
-	intrReg = kernelLinkedListIterStart(&ehci->intrRegs, &iter);
+	intrReg = linkedListIterStart(&ehci->intrRegs, &iter);
 	while (intrReg)
 	{
 		if (intrReg->usbDev != usbDev)
 		{
-			intrReg = kernelLinkedListIterNext(&ehci->intrRegs, &iter);
+			intrReg = linkedListIterNext(&ehci->intrRegs, &iter);
 			continue;
 		}
 
 		unregisterInterrupt(ehci, intrReg);
-		intrReg = kernelLinkedListIterStart(&ehci->intrRegs, &iter);
+		intrReg = linkedListIterStart(&ehci->intrRegs, &iter);
 	}
 
 	for (count = 0; count < usbDev->numEndpoints; count ++)
@@ -3201,17 +3200,16 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 	dev->data = (void *) controller;
 
 	// Initialize the variable list for attributes of the controller
-	status = kernelVariableListCreate(&dev->device.attrs);
+	status = variableListCreateSystem(&dev->device.attrs);
 	if (status >= 0)
 	{
-		kernelVariableListSet(&dev->device.attrs, "controller.type", "EHCI");
+		variableListSet(&dev->device.attrs, "controller.type", "EHCI");
 		snprintf(value, 32, "%d", ehci->numPorts);
-		kernelVariableListSet(&dev->device.attrs, "controller.numPorts",
-			value);
+		variableListSet(&dev->device.attrs, "controller.numPorts", value);
 		if (ehci->debugPort)
 		{
 			snprintf(value, 32, "%d", ehci->debugPort);
-			kernelVariableListSet(&dev->device.attrs, "controller.debugPort",
+			variableListSet(&dev->device.attrs, "controller.debugPort",
 				value);
 		}
 	}

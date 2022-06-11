@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -128,7 +128,7 @@ static int draw(kernelWindowComponent *component)
 			(component->yCoord + textOffset));
 	}
 
-	if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
+	if (component->params.flags & COMP_PARAMS_FLAG_HASBORDER)
 		component->drawBorder(component, 1);
 
 	return (status = 0);
@@ -207,7 +207,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	int status = 0;
 	kernelWindowCheckbox *checkbox = component->data;
 
-	if (event->type == EVENT_MOUSE_LEFTDOWN)
+	if (event->type == WINDOW_EVENT_MOUSE_LEFTDOWN)
 	{
 		if (checkbox->selected)
 			setSelected(component, 0);
@@ -215,7 +215,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			setSelected(component, 1);
 
 		// Make this also a 'selection' event
-		event->type |= EVENT_SELECTION;
+		event->type |= WINDOW_EVENT_SELECTION;
 	}
 
 	return (status = 0);
@@ -230,12 +230,13 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 	int status = 0;
 
 	// Translate this into a mouse event.
-	if ((event->type & EVENT_MASK_KEY) && (event->key == keySpaceBar))
+	if ((event->type & WINDOW_EVENT_MASK_KEY) &&
+		(event->key.scan == keySpaceBar))
 	{
-		if (event->type == EVENT_KEY_DOWN)
-			event->type = EVENT_MOUSE_LEFTDOWN;
-		if (event->type == EVENT_KEY_UP)
-			event->type = EVENT_MOUSE_LEFTUP;
+		if (event->type == WINDOW_EVENT_KEY_DOWN)
+			event->type = WINDOW_EVENT_MOUSE_LEFTDOWN;
+		if (event->type == WINDOW_EVENT_KEY_UP)
+			event->type = WINDOW_EVENT_MOUSE_LEFTUP;
 
 		status = mouseEvent(component, event);
 	}
@@ -294,7 +295,7 @@ kernelWindowComponent *kernelWindowNewCheckbox(objectKey parent,
 		return (component);
 
 	component->type = checkboxComponentType;
-	component->flags |= WINFLAG_CANFOCUS;
+	component->flags |= WINDOW_COMP_FLAG_CANFOCUS;
 
 	// Set the functions
 	component->draw = &draw;

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -194,7 +194,7 @@ static keyMap defMap = {
 static kernelKeyboard *keyboards[MAX_KEYBOARDS];
 static int numKeyboards = 0;
 static keyMap *currentMap = NULL;
-static char currentCharset[CHARSET_NAME_LEN] = CHARSET_NAME_ISO_8859_15;
+static char currentCharset[CHARSET_NAME_LEN + 1] = CHARSET_NAME_ISO_8859_15;
 static kernelKeyboard *virtual = NULL;
 
 // A buffer for input data waiting to be processed
@@ -263,7 +263,7 @@ static void loginThread(void)
 
 	// Launch a login process
 
-	kernelConsoleLogin();
+	kernelConsoleLogin(NULL /* default login program */);
 	kernelMultitaskerTerminate(0);
 }
 
@@ -289,7 +289,7 @@ static void keyboardThread(void)
 
 			switch (buffer[count].eventType)
 			{
-				case EVENT_KEY_DOWN:
+				case WINDOW_EVENT_KEY_DOWN:
 				{
 					// Check for keys that change states or generate actions
 					switch (buffer[count].scanCode)
@@ -369,14 +369,18 @@ static void keyboardThread(void)
 						// PrtScn means take a screenshot, in graphics mode
 						case keyPrint:
 							if (graphics)
+							{
 								kernelMultitaskerSpawn(screenshotThread,
-									"screenshot", 0, NULL);
+									"screenshot", 0 /* no args */,
+									NULL /* no args */, 1 /* run */);
+							}
 							break;
 
 						// F1 launches a login process
 						case keyF1:
-							kernelMultitaskerSpawn(loginThread, "login", 0,
-								NULL);
+							kernelMultitaskerSpawn(loginThread, "login",
+								0 /* no args */, NULL /* no args */,
+								1 /* run */);
 							break;
 
 						// F2 does something like a 'ps' command to the screen
@@ -398,7 +402,7 @@ static void keyboardThread(void)
 					break;
 				}
 
-				case EVENT_KEY_UP:
+				case WINDOW_EVENT_KEY_UP:
 				{
 					// Check for keys that change states or generate actions
 					switch (buffer[count].scanCode)
@@ -447,7 +451,7 @@ static void keyboardThread(void)
 						(buffer[count].scanCode == keyA2))
 					{
 						if (graphics && lastPressAlt)
-							kernelWindowToggleMenuBar();
+							kernelWindowToggleMenuBar(NULL /* any focused */);
 						lastPressAlt = 0;
 					}
 
@@ -566,10 +570,8 @@ static void keyboardThread(void)
 			{
 				// Fill out our event
 				event.type = buffer[count].eventType;
-				event.xPosition = 0;
-				event.yPosition = 0;
-				event.key = buffer[count].scanCode;
-				event.ascii = ascii;
+				event.key.scan = buffer[count].scanCode;
+				event.key.ascii = ascii;
 
 				// Notify the window manager of the event
 				kernelWindowProcessEvent(&event);
@@ -577,7 +579,7 @@ static void keyboardThread(void)
 			else if (ascii)
 			{
 				if (consoleStream &&
-					(buffer[count].eventType == EVENT_KEY_DOWN))
+					(buffer[count].eventType == WINDOW_EVENT_KEY_DOWN))
 				{
 					consoleStream->append(consoleStream, ascii);
 				}
@@ -642,7 +644,7 @@ int kernelKeyboardInitialize(void)
 
 	// Spawn the keyboard thread
 	threadPid = kernelMultitaskerSpawn(keyboardThread, "keyboard thread",
-		0, NULL);
+		0 /* no args */, NULL /* no args */, 1 /* run */);
 	if (threadPid < 0)
 		kernelError(kernel_warn, "Unable to start keyboard thread");
 
@@ -700,7 +702,7 @@ int kernelKeyboardSetMap(const char *fileName)
 
 	int status = 0;
 	fileStream theFile;
-	char charsetName[CHARSET_NAME_LEN];
+	char charsetName[CHARSET_NAME_LEN + 1];
 
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);

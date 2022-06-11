@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -176,19 +176,25 @@ static void refreshWindow(void)
 		windowSetCharSet(window, getenv(ENV_CHARSET));
 
 	// Refresh the 'reboot' icon
-	windowComponentSetData(rebootIcon, REBOOT, strlen(REBOOT), 1 /* redraw */);
+	windowComponentSetData(rebootIcon, REBOOT, strlen(REBOOT),
+		1 /* redraw */);
 
 	// Refresh the 'shutdown' icon
 	windowComponentSetData(shutdownIcon, SHUTDOWN, strlen(SHUTDOWN),
 		1 /* redraw */);
 
 	if (ejectCheckbox)
+	{
 		// Refresh the 'eject' checkbox
 		windowComponentSetData(ejectCheckbox, EJECT, strlen(EJECT),
 			1 /* redraw */);
+	}
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window
+	windowLayout(window);
 }
 
 
@@ -200,11 +206,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 	if (key == window)
 	{
 		// Check for window refresh
-		if (event->type == EVENT_WINDOW_REFRESH)
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
 			refreshWindow();
 
 		// Check for the window being closed
-		else if (event->type == EVENT_WINDOW_CLOSE)
+		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 		{
 			windowGuiStop();
 			windowDestroy(window);
@@ -213,7 +219,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	}
 
 	else if (((key == rebootIcon) || (key == shutdownIcon)) &&
-		(event->type == EVENT_MOUSE_LEFTUP))
+		(event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 	{
 		windowGuiStop();
 
@@ -255,8 +261,8 @@ static void constructWindow(void)
 	params.padRight = 20;
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
-	params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
-		WINDOW_COMPFLAG_CUSTOMBACKGROUND | WINDOW_COMPFLAG_CANFOCUS);
+	params.flags = (COMP_PARAMS_FLAG_CUSTOMFOREGROUND |
+		COMP_PARAMS_FLAG_CUSTOMBACKGROUND | COMP_PARAMS_FLAG_CANFOCUS);
 	params.foreground = COLOR_WHITE;
 	windowGetColor("desktop", &params.background);
 
@@ -274,8 +280,7 @@ static void constructWindow(void)
 	if (imageLoad(PATH_SYSTEM_ICONS "/shutdown.ico", 64, 64, &iconImage) >= 0)
 	{
 		params.gridX = 1;
-		shutdownIcon =
-			windowNewIcon(window, &iconImage, SHUTDOWN, &params);
+		shutdownIcon = windowNewIcon(window, &iconImage, SHUTDOWN, &params);
 		windowRegisterEventHandler(shutdownIcon, &eventHandler);
 		imageFree(&iconImage);
 	}

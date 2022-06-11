@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,7 +48,8 @@ Options:
 #include <sys/paths.h>
 #include <sys/window.h>
 
-#define BUTTONIMAGE_SIZE		24
+#define WINDOW_TITLE		_("Image Editor")
+#define BUTTONIMAGE_SIZE	24
 
 #define _(string) gettext(string)
 
@@ -89,78 +90,13 @@ static void error(const char *format, ...)
 	// Generic error message code
 
 	va_list list;
-	char output[MAXSTRINGLENGTH];
+	char output[MAXSTRINGLENGTH + 1];
 
 	va_start(list, format);
 	vsnprintf(output, MAXSTRINGLENGTH, format, list);
 	va_end(list);
 
 	windowNewErrorDialog(window, _("Error"), output);
-}
-
-
-static int askDiscardChanges(void)
-{
-	int response = 0;
-
-	response = windowNewChoiceDialog(window, _("Discard changes?"),
-		_("File has been modified.  Discard changes?"),
-		(char *[]){ _("Discard"), _("Cancel") }, 2, 1);
-
-	if (!response)
-		return (1);
-	else
-		return (0);
-}
-
-
-static int quit(void)
-{
-	if (!editor->changed || askDiscardChanges())
-		return (1);
-	else
-		return (0);
-}
-
-
-static int saveFile(void)
-{
-	int status = 0;
-
-	if (!saveFileName)
-	{
-		saveFileName = malloc(MAX_PATH_NAME_LENGTH);
-		if (!saveFileName)
-			return (status = ERR_MEMORY);
-	}
-
-	if (!saved)
-	{
-		// Prompt for a file name
-		status = windowNewFileDialog(window, _("Enter filename"),
-			_("Please enter the name of the file for saving:"), NULL,
-			saveFileName, MAX_PATH_NAME_LENGTH, fileT,
-			1 /* show thumbnails */);
-		if (status < 0)
-			return (status);
-
-		if (status != 1)
-			return (status = ERR_CANCELLED);
-	}
-
-	// At the moment, we only support bitmap format for saving
-	status = imageSave(saveFileName, IMAGEFORMAT_BMP, &img);
-	if (status < 0)
-	{
-		error(_("Error %d saving file"), status);
-	}
-	else
-	{
-		saved = 1;
-		editor->changed = 0;
-	}
-
-	return (status);
 }
 
 
@@ -264,227 +200,6 @@ static void createThickFillImages(int width, int height)
 }
 
 
-static void enableButtons(void)
-{
-	windowComponentSetEnabled(zoomInButton,
-		(editor->pixelSize < editor->maxPixelSize));
-	windowComponentSetEnabled(zoomOutButton,
-		(editor->pixelSize > editor->minPixelSize));
-	windowComponentSetEnabled(pickButton, (editor->mode != pixedmode_pick));
-	windowComponentSetEnabled(drawButton, ((editor->mode != pixedmode_draw) ||
-		(editor->drawing.operation != draw_pixel)));
-	windowComponentSetEnabled(lineButton, ((editor->mode != pixedmode_draw) ||
-		(editor->drawing.operation != draw_line)));
-	windowComponentSetEnabled(rectButton, ((editor->mode != pixedmode_draw) ||
-		(editor->drawing.operation != draw_rect)));
-	windowComponentSetEnabled(ovalButton, ((editor->mode != pixedmode_draw) ||
-		(editor->drawing.operation != draw_oval)));
-	windowComponentSetEnabled(thickButton, ((editor->mode != pixedmode_draw) ||
-		(editor->drawing.operation == draw_rect) ||
-		(editor->drawing.operation == draw_oval)));
-	windowComponentSetEnabled(fillButton, ((editor->mode != pixedmode_draw) ||
-		(editor->drawing.operation == draw_rect) ||
-		(editor->drawing.operation == draw_oval)));
-}
-
-
-static void eventHandler(objectKey key, windowEvent *event)
-{
-	scrollBarState horiz;
-	scrollBarState vert;
-
-	// Check for editor events.
-
-	if ((key == editor->canvas) && (event->type & EVENT_MOUSE_SCROLL))
-	{
-		windowComponentGetData(scrollVert, &vert, sizeof(scrollBarState));
-
-		if (event->type == EVENT_MOUSE_SCROLLUP)
-		{
-			vert.positionPercent = ((vert.positionPercent > 5)?
-				(vert.positionPercent - 5) : 0);
-		}
-		else if (event->type == EVENT_MOUSE_SCROLLDOWN)
-		{
-			vert.positionPercent = ((vert.positionPercent < 95)?
-				(vert.positionPercent + 5) : 100);
-		}
-
-		windowComponentSetData(scrollVert, &vert, sizeof(scrollBarState),
-			1 /* redraw */);
-
-		if (vert.positionPercent != editor->vert.positionPercent)
-			editor->scrollVert(editor, vert.positionPercent);
-	}
-
-	else if (key == editor->canvas)
-	{
-		editor->eventHandler(editor, event);
-
-		if ((editor->mode == pixedmode_pick) &&
-			(event->type & (EVENT_MOUSE_LEFTDOWN | EVENT_MOUSE_DRAG)))
-		{
-			createColorImage(BUTTONIMAGE_SIZE, BUTTONIMAGE_SIZE);
-			windowComponentSetData(colorButton, &colorImage, sizeof(image),
-				1 /* redraw */);
-		}
-
-		// Don't want to slow down free drawing with all our button-enabling,
-		// etc., so bail here.
-		return;
-	}
-
-	// Check for window events.
-	else if (key == window)
-	{
-		// Check for the window being closed
-		if (event->type == EVENT_WINDOW_CLOSE)
-		{
-			if (quit())
-				windowGuiStop();
-		}
-
-		// If we get resized, pass the event on to the pixel editor widget
-		else if (event->type == EVENT_WINDOW_RESIZE)
-		{
-			editor->resize(editor);
-
-			windowComponentSetData(scrollHoriz, &editor->horiz,
-				sizeof(scrollBarState), 1 /* redraw */);
-			windowComponentSetData(scrollVert, &editor->vert,
-				sizeof(scrollBarState), 1 /* redraw */);
-		}
-	}
-
-	// Horizontal scroll bar
-	else if (key == scrollHoriz)
-	{
-		windowComponentGetData(scrollHoriz, &horiz, sizeof(scrollBarState));
-		if (horiz.positionPercent != editor->horiz.positionPercent)
-			editor->scrollHoriz(editor, horiz.positionPercent);
-	}
-
-	// Vertical scroll bar
-	else if (key == scrollVert)
-	{
-		windowComponentGetData(scrollVert, &vert, sizeof(scrollBarState));
-		if (vert.positionPercent != editor->vert.positionPercent)
-			editor->scrollVert(editor, vert.positionPercent);
-	}
-
-	// Save button
-	else if (key == saveButton)
-	{
-		if (event->type & EVENT_MOUSE_LEFTUP)
-			saveFile();
-	}
-
-	// Zoom buttons
-	else if ((key == zoomInButton) || (key == zoomOutButton))
-	{
-		if (event->type & EVENT_MOUSE_LEFTUP)
-		{
-			if (key == zoomInButton)
-				editor->zoom(editor, 1);
-			else
-				editor->zoom(editor, -1);
-
-			windowComponentSetData(scrollHoriz, &editor->horiz,
-				sizeof(scrollBarState), 1 /* redraw */);
-			windowComponentSetData(scrollVert, &editor->vert,
-				sizeof(scrollBarState), 1 /* redraw */);
-		}
-	}
-
-	// Color chooser button
-	else if (key == colorButton)
-	{
-		if (event->type & EVENT_MOUSE_LEFTUP)
-		{
-			windowNewColorDialog(window, &editor->drawing.foreground);
-			createColorImage(BUTTONIMAGE_SIZE, BUTTONIMAGE_SIZE);
-			windowComponentSetData(colorButton, &colorImage, sizeof(image),
-				1 /* redraw */);
-		}
-	}
-
-	// Color picker button
-	else if (key == pickButton)
-	{
-		if (event->type & EVENT_MOUSE_LEFTUP)
-			editor->mode = pixedmode_pick;
-	}
-
-	// Free drawing button
-	else if (key == drawButton)
-	{
-		if (event->type & EVENT_MOUSE_LEFTUP)
-		{
-			editor->mode = pixedmode_draw;
-			editor->drawing.operation = draw_pixel;
-		}
-	}
-
-	// Line drawing button
-	else if (key == lineButton)
-	{
-		if (event->type & EVENT_MOUSE_LEFTUP)
-		{
-			editor->mode = pixedmode_draw;
-			editor->drawing.operation = draw_line;
-		}
-	}
-
-	// Rectangle drawing button
-	else if (key == rectButton)
-	{
-		if (event->type & EVENT_MOUSE_LEFTUP)
-		{
-			editor->mode = pixedmode_draw;
-			editor->drawing.operation = draw_rect;
-		}
-	}
-
-	// Oval drawing button
-	else if (key == ovalButton)
-	{
-		if (event->type & EVENT_MOUSE_LEFTUP)
-		{
-			editor->mode = pixedmode_draw;
-			editor->drawing.operation = draw_oval;
-		}
-	}
-
-	// Thickness button
-	else if (key == thickButton)
-	{
-		if (event->type & EVENT_MOUSE_LEFTUP)
-		{
-			windowNewNumberDialog(window, _("Thickness"),
-				_("Enter line thickess"), 1, editor->img->height,
-				editor->drawing.thickness, &editor->drawing.thickness);
-			createThickFillImages(BUTTONIMAGE_SIZE, BUTTONIMAGE_SIZE);
-			windowComponentSetData(thickButton, &thickImage, sizeof(image),
-				1 /* redraw */);
-		}
-	}
-
-	// Fill button
-	else if (key == fillButton)
-	{
-		if (event->type & EVENT_MOUSE_LEFTUP)
-		{
-			editor->drawing.fill ^= 1;
-			createThickFillImages(BUTTONIMAGE_SIZE, BUTTONIMAGE_SIZE);
-			windowComponentSetData(fillButton, &fillImage, sizeof(image),
-				1 /* redraw */);
-		}
-	}
-
-	enableButtons();
-}
-
-
 static void createDrawImages(int width, int height)
 {
 	// Create images for drawing buttons
@@ -528,6 +243,317 @@ static void createDrawImages(int width, int height)
 }
 
 
+static void enableButtons(void)
+{
+	windowComponentSetEnabled(zoomInButton,
+		(editor->pixelSize < editor->maxPixelSize));
+	windowComponentSetEnabled(zoomOutButton,
+		(editor->pixelSize > editor->minPixelSize));
+	windowComponentSetEnabled(pickButton, (editor->mode != pixedmode_pick));
+	windowComponentSetEnabled(drawButton, ((editor->mode != pixedmode_draw) ||
+		(editor->drawing.operation != draw_pixel)));
+	windowComponentSetEnabled(lineButton, ((editor->mode != pixedmode_draw) ||
+		(editor->drawing.operation != draw_line)));
+	windowComponentSetEnabled(rectButton, ((editor->mode != pixedmode_draw) ||
+		(editor->drawing.operation != draw_rect)));
+	windowComponentSetEnabled(ovalButton, ((editor->mode != pixedmode_draw) ||
+		(editor->drawing.operation != draw_oval)));
+	windowComponentSetEnabled(thickButton, ((editor->mode != pixedmode_draw) ||
+		(editor->drawing.operation == draw_rect) ||
+		(editor->drawing.operation == draw_oval)));
+	windowComponentSetEnabled(fillButton, ((editor->mode != pixedmode_draw) ||
+		(editor->drawing.operation == draw_rect) ||
+		(editor->drawing.operation == draw_oval)));
+}
+
+
+static void refreshWindow(void)
+{
+	// We got a 'window refresh' event (probably because of a language
+	// switch), so we need to update things
+
+	// Re-get the language setting
+	setlocale(LC_ALL, getenv(ENV_LANG));
+	textdomain("imgedit");
+
+	// Re-get the character set
+	if (getenv(ENV_CHARSET))
+		windowSetCharSet(window, getenv(ENV_CHARSET));
+
+	// Refresh the window title
+	windowSetTitle(window, WINDOW_TITLE);
+
+	// Re-layout the window (not necessary if no components have changed)
+	//windowLayout(window);
+}
+
+
+static int askDiscardChanges(void)
+{
+	int response = 0;
+
+	response = windowNewChoiceDialog(window, _("Discard changes?"),
+		_("File has been modified.  Discard changes?"),
+		(char *[]){ _("Discard"), _("Cancel") }, 2, 1);
+
+	if (!response)
+		return (1);
+	else
+		return (0);
+}
+
+
+static int quit(void)
+{
+	if (!editor->changed || askDiscardChanges())
+		return (1);
+	else
+		return (0);
+}
+
+
+static int saveFile(void)
+{
+	int status = 0;
+
+	if (!saveFileName)
+	{
+		saveFileName = malloc(MAX_PATH_NAME_LENGTH + 1);
+		if (!saveFileName)
+			return (status = ERR_MEMORY);
+	}
+
+	if (!saved)
+	{
+		// Prompt for a file name
+		status = windowNewFileDialog(window, _("Enter filename"),
+			_("Please enter the name of the file for saving:"), NULL,
+			saveFileName, MAX_PATH_NAME_LENGTH, fileT,
+			1 /* show thumbnails */);
+		if (status < 0)
+			return (status);
+
+		if (status != 1)
+			return (status = ERR_CANCELLED);
+	}
+
+	// At the moment, we only support bitmap format for saving
+	status = imageSave(saveFileName, IMAGEFORMAT_BMP, &img);
+	if (status < 0)
+	{
+		error(_("Error %d saving file"), status);
+	}
+	else
+	{
+		saved = 1;
+		editor->changed = 0;
+	}
+
+	return (status);
+}
+
+
+static void eventHandler(objectKey key, windowEvent *event)
+{
+	scrollBarState horiz;
+	scrollBarState vert;
+
+	// Check for editor events
+
+	if ((key == editor->canvas) && (event->type & WINDOW_EVENT_MOUSE_SCROLL))
+	{
+		windowComponentGetData(scrollVert, &vert, sizeof(scrollBarState));
+
+		if (event->type == WINDOW_EVENT_MOUSE_SCROLLUP)
+		{
+			vert.positionPercent = ((vert.positionPercent > 5)?
+				(vert.positionPercent - 5) : 0);
+		}
+		else if (event->type == WINDOW_EVENT_MOUSE_SCROLLDOWN)
+		{
+			vert.positionPercent = ((vert.positionPercent < 95)?
+				(vert.positionPercent + 5) : 100);
+		}
+
+		windowComponentSetData(scrollVert, &vert, sizeof(scrollBarState),
+			1 /* redraw */);
+
+		if (vert.positionPercent != editor->vert.positionPercent)
+			editor->scrollVert(editor, vert.positionPercent);
+	}
+
+	else if (key == editor->canvas)
+	{
+		editor->eventHandler(editor, event);
+
+		if ((editor->mode == pixedmode_pick) && (event->type &
+			(WINDOW_EVENT_MOUSE_LEFTDOWN | WINDOW_EVENT_MOUSE_DRAG)))
+		{
+			createColorImage(BUTTONIMAGE_SIZE, BUTTONIMAGE_SIZE);
+			windowComponentSetData(colorButton, &colorImage, sizeof(image),
+				1 /* redraw */);
+		}
+
+		// Don't want to slow down free drawing with all our button-enabling,
+		// etc., so bail here.
+		return;
+	}
+
+	// Check for window events
+	else if (key == window)
+	{
+		// Check for window refresh
+		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
+			refreshWindow();
+
+		// Check for the window being closed
+		if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
+		{
+			if (quit())
+				windowGuiStop();
+		}
+
+		// If we get resized, pass the event on to the pixel editor widget
+		else if (event->type == WINDOW_EVENT_WINDOW_RESIZE)
+		{
+			editor->resize(editor);
+
+			windowComponentSetData(scrollHoriz, &editor->horiz,
+				sizeof(scrollBarState), 1 /* redraw */);
+			windowComponentSetData(scrollVert, &editor->vert,
+				sizeof(scrollBarState), 1 /* redraw */);
+		}
+	}
+
+	// Horizontal scroll bar
+	else if (key == scrollHoriz)
+	{
+		windowComponentGetData(scrollHoriz, &horiz, sizeof(scrollBarState));
+		if (horiz.positionPercent != editor->horiz.positionPercent)
+			editor->scrollHoriz(editor, horiz.positionPercent);
+	}
+
+	// Vertical scroll bar
+	else if (key == scrollVert)
+	{
+		windowComponentGetData(scrollVert, &vert, sizeof(scrollBarState));
+		if (vert.positionPercent != editor->vert.positionPercent)
+			editor->scrollVert(editor, vert.positionPercent);
+	}
+
+	// Save button
+	else if (key == saveButton)
+	{
+		if (event->type & WINDOW_EVENT_MOUSE_LEFTUP)
+			saveFile();
+	}
+
+	// Zoom buttons
+	else if ((key == zoomInButton) || (key == zoomOutButton))
+	{
+		if (event->type & WINDOW_EVENT_MOUSE_LEFTUP)
+		{
+			if (key == zoomInButton)
+				editor->zoom(editor, 1);
+			else
+				editor->zoom(editor, -1);
+
+			windowComponentSetData(scrollHoriz, &editor->horiz,
+				sizeof(scrollBarState), 1 /* redraw */);
+			windowComponentSetData(scrollVert, &editor->vert,
+				sizeof(scrollBarState), 1 /* redraw */);
+		}
+	}
+
+	// Color chooser button
+	else if (key == colorButton)
+	{
+		if (event->type & WINDOW_EVENT_MOUSE_LEFTUP)
+		{
+			windowNewColorDialog(window, &editor->drawing.foreground);
+			createColorImage(BUTTONIMAGE_SIZE, BUTTONIMAGE_SIZE);
+			windowComponentSetData(colorButton, &colorImage, sizeof(image),
+				1 /* redraw */);
+		}
+	}
+
+	// Color picker button
+	else if (key == pickButton)
+	{
+		if (event->type & WINDOW_EVENT_MOUSE_LEFTUP)
+			editor->mode = pixedmode_pick;
+	}
+
+	// Free drawing button
+	else if (key == drawButton)
+	{
+		if (event->type & WINDOW_EVENT_MOUSE_LEFTUP)
+		{
+			editor->mode = pixedmode_draw;
+			editor->drawing.operation = draw_pixel;
+		}
+	}
+
+	// Line drawing button
+	else if (key == lineButton)
+	{
+		if (event->type & WINDOW_EVENT_MOUSE_LEFTUP)
+		{
+			editor->mode = pixedmode_draw;
+			editor->drawing.operation = draw_line;
+		}
+	}
+
+	// Rectangle drawing button
+	else if (key == rectButton)
+	{
+		if (event->type & WINDOW_EVENT_MOUSE_LEFTUP)
+		{
+			editor->mode = pixedmode_draw;
+			editor->drawing.operation = draw_rect;
+		}
+	}
+
+	// Oval drawing button
+	else if (key == ovalButton)
+	{
+		if (event->type & WINDOW_EVENT_MOUSE_LEFTUP)
+		{
+			editor->mode = pixedmode_draw;
+			editor->drawing.operation = draw_oval;
+		}
+	}
+
+	// Thickness button
+	else if (key == thickButton)
+	{
+		if (event->type & WINDOW_EVENT_MOUSE_LEFTUP)
+		{
+			windowNewNumberDialog(window, _("Thickness"),
+				_("Enter line thickess"), 1, editor->img->height,
+				editor->drawing.thickness, &editor->drawing.thickness);
+			createThickFillImages(BUTTONIMAGE_SIZE, BUTTONIMAGE_SIZE);
+			windowComponentSetData(thickButton, &thickImage, sizeof(image),
+				1 /* redraw */);
+		}
+	}
+
+	// Fill button
+	else if (key == fillButton)
+	{
+		if (event->type & WINDOW_EVENT_MOUSE_LEFTUP)
+		{
+			editor->drawing.fill ^= 1;
+			createThickFillImages(BUTTONIMAGE_SIZE, BUTTONIMAGE_SIZE);
+			windowComponentSetData(fillButton, &fillImage, sizeof(image),
+				1 /* redraw */);
+		}
+	}
+
+	enableButtons();
+}
+
+
 static int constructWindow(void)
 {
 	int status = 0;
@@ -535,7 +561,7 @@ static int constructWindow(void)
 	componentParameters params;
 
 	// Create a new window
-	window = windowNew(multitaskerGetCurrentProcessId(), _("Image Editor"));
+	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
 	if (!window)
 		return (status = ERR_NOCREATE);
 
@@ -549,7 +575,7 @@ static int constructWindow(void)
 	params.orientationX = orient_left;
 	params.orientationY = orient_top;
 
-	// Create the pixel editor widget.
+	// Create the pixel editor widget
 	editor = windowNewPixelEditor(window,
 		((graphicGetScreenHeight() * 2) / 3),
 		((graphicGetScreenHeight() * 2) / 3), &img, &params);
@@ -565,7 +591,7 @@ static int constructWindow(void)
 	params.gridY += 1;
 	params.padTop = 0;
 	params.padBottom = 5;
-	params.flags = WINDOW_COMPFLAG_FIXEDHEIGHT;
+	params.flags = COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	scrollHoriz = windowNewScrollBar(window, scrollbar_horizontal, 0, 0,
 		&params);
 	if (!scrollHoriz)
@@ -583,7 +609,7 @@ static int constructWindow(void)
 	params.gridX += 1;
 	params.padLeft = params.padBottom = 0;
 	params.padTop = 5;
-	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
+	params.flags = COMP_PARAMS_FLAG_FIXEDWIDTH;
 	scrollVert = windowNewScrollBar(window, scrollbar_vertical, 0, 0,
 		&params);
 	if (!scrollVert)
@@ -600,7 +626,8 @@ static int constructWindow(void)
 	params.gridX += 1;
 	params.padLeft = params.padRight = 5;
 	params.gridHeight = 2;
-	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_FIXEDHEIGHT);
 	buttonContainer = windowNewContainer(window, "buttonContainer", &params);
 	if (!buttonContainer)
 	{
@@ -795,7 +822,7 @@ int main(int argc, char *argv[])
 {
 	int status = 0;
 	char opt;
-	char fileName[MAX_PATH_NAME_LENGTH];
+	char fileName[MAX_PATH_NAME_LENGTH + 1];
 
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("imgedit");
@@ -815,7 +842,7 @@ int main(int argc, char *argv[])
 		{
 			case 's':
 				// Don't prompt for a filename to save as
-				saveFileName = malloc(MAX_PATH_NAME_LENGTH);
+				saveFileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 				if (saveFileName)
 					saved = 1;
 				break;

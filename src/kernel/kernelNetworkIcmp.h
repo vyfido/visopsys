@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,8 @@
 //  kernelNetworkIcmp.h
 //
 
-#if !defined(_KERNELNETWORKICMP_H)
+#ifndef _KERNELNETWORKICMP_H
+#define _KERNELNETWORKICMP_H
 
 #include "kernelNetwork.h"
 
@@ -30,6 +31,5 @@ void kernelNetworkIcmpProcessPacket(kernelNetworkDevice *,
 int kernelNetworkIcmpPing(kernelNetworkConnection *, int, unsigned char *,
 	unsigned);
 
-#define _KERNELNETWORKICMP_H
 #endif
 

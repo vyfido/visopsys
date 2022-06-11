@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2018 J. Andrew McLaughlin
+//  Copyright (C) 1998-2019 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,7 +57,6 @@ Note the -S option is not allowed if the -R option is used.
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/env.h>
-#include <sys/vsh.h>
 
 #define _(string) gettext(string)
 
