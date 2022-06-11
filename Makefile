@@ -21,12 +21,13 @@
 
 # This is the top-level Makefile.
 
-
 all:
+	find . -type f -a ! -name \*.sh -exec chmod -x {} \;
 	make -C utils -f Makefile all
 	make -C src -f Makefile all
 
 clean:
+	find . -type f -a ! -name \*.sh -exec chmod -x {} \;
 	make -C src -f Makefile clean
 	make -C utils -f Makefile clean
 	rm -f *~ core

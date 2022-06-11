@@ -35,11 +35,11 @@ rm -f bootsect.inp bootsect.out bootsect.tmp
 dd count=1 if=$INPUT of=bootsect.inp >& /dev/null
 dd count=1 if=$OUTPUT of=bootsect.out >& /dev/null
 
-head --bytes 11 bootsect.inp > bootsect.tmp
-tail --bytes 501 bootsect.out >> bootsect.tmp
-head --bytes 38 bootsect.tmp > bootsect.out
+head --bytes 3 bootsect.inp > bootsect.tmp
+tail --bytes 509 bootsect.out >> bootsect.tmp
+head --bytes 62 bootsect.tmp > bootsect.out
 
-tail --bytes 474 bootsect.inp >> bootsect.out
+tail --bytes 450 bootsect.inp >> bootsect.out
 cat bootsect.out > $OUTPUT
 
 rm -f bootsect.inp bootsect.out bootsect.tmp

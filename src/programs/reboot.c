@@ -47,17 +47,24 @@ int main(int argc, char *argv[])
       return (status = ERR_NULLPARAMETER);
 
   if ((argc > 1) && (strcmp(argv[1], "-f") == 0))
-    // Do a nasty reboot
-    status = shutdown(reboot, 1);
-
+    {
+      // Do a nasty reboot
+      status = shutdown(reboot, 1);
+      
+      if (status < 0)
+	return (status);
+    }
   else
     {
       // Try to do a nice reboot
       status = shutdown(reboot, 0);
       
       if (status < 0)
-	printf("Use \"%s -f\" to force.", argv[0]);
+	{
+	  printf("Use \"%s -f\" to force.\n", argv[0]);
+	  return (status);
+	}
     }
 
-  return (status);
+  while(1);
 }

@@ -39,24 +39,16 @@
 // The kernel's process Id
 #define KERNELPROCID 1
 
-// Console
-#define DEFAULTFOREGROUND       7
-#define DEFAULTBACKGROUND       1
-#define DEFAULTERRORFOREGROUND  6
+// The kernel's symbol file
+#define KERNEL_SYMBOLS_FILE "/system/kernelSymbols.txt"
 
-// Disk
+// Disks
 #define MAXFLOPPIES 4
-#define MAXHARDDISKDEVICES 8
 #define MAXPARTITIONS 4
-#define MAXHARDDISKS (MAXHARDDISKDEVICES * MAXPARTITIONS)
-#define MAXDISKDEVICES (MAXFLOPPIES + MAXHARDDISKS)
+#define MAXHARDDISKS 8
 
 // Other
 #define MAX_SERIAL_PORTS 4
-
-// Logging
-#define LOG_STREAM_SIZE 1024
-#define DEFAULT_LOGFILE "/system/kernel.log"
 
 #define _KERNELPARAMETERS_H
 #endif

@@ -41,11 +41,10 @@ int main(int argc, char *argv[])
 
   int status = 0;
   char *filesystem;
-
   
   if (argc < 2)
     {
-      usage(argv[0]);
+      usage((argc > 0)? argv[0] : "umount");
       return (status = ERR_ARGUMENTCOUNT);
     }
 

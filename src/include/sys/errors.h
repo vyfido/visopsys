@@ -61,21 +61,23 @@
 #define ERR_DIVIDEBYZERO   -27 // You're not allowed to do this!
 #define ERR_DOMAIN         -28 // Argument is out of the domain of math func
 #define ERR_RANGE          -29 // Result is out of the range of the math func
+#define ERR_KILLED         -30 // Process or operation was unexpectedly killed
 
 // Things to do with files
-#define ERR_NOSUCHFILE     -30 // No such file
-#define ERR_NOSUCHDIR      -31 // No such directory
-#define ERR_NOTAFILE       -32 // The item is not a regular file
-#define ERR_NOTADIR        -33 // The item is not a directory
+#define ERR_NOSUCHFILE     -31 // No such file
+#define ERR_NOSUCHDIR      -32 // No such directory
+#define ERR_NOTAFILE       -33 // The item is not a regular file
+#define ERR_NOTADIR        -34 // The item is not a directory
+#define ERR_NOWRITE        -35 // The item cannot be written
 
 // Other things that don't exist
-#define ERR_NOSUCHUSER     -34 // The used ID is unknown
-#define ERR_NOSUCHPROCESS  -35 // The process in question does not exist
-#define ERR_NOSUCHDRIVER   -36 // There is no driver to perform an action
-#define ERR_NOSUCHFUNCTION -37 // The requested function does not exist
+#define ERR_NOSUCHUSER     -36 // The used ID is unknown
+#define ERR_NOSUCHPROCESS  -37 // The process in question does not exist
+#define ERR_NOSUCHDRIVER   -38 // There is no driver to perform an action
+#define ERR_NOSUCHFUNCTION -39 // The requested function does not exist
 
 // Oops, it's the kernel's fault...
-#define ERR_BUG            -38 // An internal bug has been detected   
+#define ERR_BUG            -40 // An internal bug has been detected   
 
 #define _ERRORS_H
 #endif

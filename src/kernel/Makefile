@@ -25,100 +25,85 @@
 
 # Variables
 
-AS		= nasm
 CC		= gcc
-PLATFORM	= $(shell ../platform.sh)
 KVERSION	= -D_KVERSION_=\"$(shell ../../utils/release.sh)\"
 
 STDDEPS		= *.h Makefile
 
-LIB		= -L../lib/${PLATFORM}
-
+LIB		= -L../lib/build
 INCLUDE		= -I. -I../include
+WARN		= -Wall -Wmissing-prototypes -Wstrict-prototypes \
+		-Wmissing-declarations -Wredundant-decls -Werror
+OPT		= -O2 # -DDEBUG
+CODEGEN		= -mcpu=pentium -fno-strength-reduce
+CFLAGS		= -nostdinc -pipe ${OPT} ${CODEGEN} ${WARN} ${INCLUDE} -DKERNEL
 
-WARN		= -Wall -Wmissing-prototypes -Waggregate-return \
-		-Wstrict-prototypes -Wmissing-declarations \
-		-Wredundant-decls -Werror
-
-OPT		= -O2
-
-CODEGEN		= -mcpu=pentium -fno-strength-reduce \
-		-falign-loops=2 -falign-jumps=2 -falign-functions=2 
-
-CFLAGS		= -nostdlib -nodefaultlibs -nostartfiles -nostdinc \
-		${OPT} ${CODEGEN} ${WARN} ${INCLUDE} -DKERNEL
-
-LINKOPTS	= -Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000,-Map,kernelMap.txt
-
-ASMOPTS		= -f elf -w+orphan-labels
+LINKOPTS	= -nostdlib -nodefaultlibs -nostartfiles -Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000
 
 
 # Object files
 
 
-GLOBALOBJS	= ${PLATFORM}/kernelMain.o \
-		${PLATFORM}/kernelInitialize.o \
-		${PLATFORM}/kernelDescriptor.o \
-		${PLATFORM}/kernelPageManager.o \
-		${PLATFORM}/kernelUser.o \
-		${PLATFORM}/kernelLog.o \
-		${PLATFORM}/kernelVariableList.o \
-		${PLATFORM}/kernelEnvironment.o \
-		${PLATFORM}/kernelMemoryManager.o \
-		${PLATFORM}/kernelMultitasker.o \
-		${PLATFORM}/kernelResourceManager.o \
-		${PLATFORM}/kernelEntryPoint.o \
-		${PLATFORM}/kernelApi.o \
-		${PLATFORM}/kernelLoader.o \
-		${PLATFORM}/kernelWindowManager.o \
-		${PLATFORM}/kernelWindowTitleBarComponent.o \
-		${PLATFORM}/kernelWindowImageComponent.o \
-		${PLATFORM}/kernelWindowTextAreaComponent.o \
-		${PLATFORM}/kernelWindowTextFieldComponent.o \
-		${PLATFORM}/kernelWindowTextLabelComponent.o \
-		${PLATFORM}/kernelWindowIconComponent.o \
-		${PLATFORM}/kernelWindowButtonComponent.o \
-		${PLATFORM}/kernelRandom.o \
-		${PLATFORM}/kernelMiscFunctions.o \
-		${PLATFORM}/kernelMiscAsmFunctions.o \
-		${PLATFORM}/kernelError.o \
-		${PLATFORM}/kernelShutdown.o
-INTROBJS	= ${PLATFORM}/kernelInterruptsInit.o \
-		${PLATFORM}/kernelInterruptHandlers.o
-DRIVEROBJS	= ${PLATFORM}/kernelHardwareEnumeration.o \
-		${PLATFORM}/kernelDriverManagement.o \
-		${PLATFORM}/kernelProcessorDriver.o \
-		${PLATFORM}/kernelKeyboardDriver.o \
-		${PLATFORM}/kernelPS2MouseDriver.o \
-		${PLATFORM}/kernelFloppyDriver.o \
-		${PLATFORM}/kernelIdeDriver.o \
-		${PLATFORM}/kernelSysTimerDriver.o \
-		${PLATFORM}/kernelRtcDriver.o \
-		${PLATFORM}/kernelPicDriver.o \
-		${PLATFORM}/kernelTextConsoleDriver.o \
-		${PLATFORM}/kernelGraphicConsoleDriver.o \
-		${PLATFORM}/kernelDmaDriver.o \
-		${PLATFORM}/kernelFramebufferGraphicDriver.o
-ABSDRIVEROBJS	= ${PLATFORM}/kernelProcessorFunctions.o \
-		${PLATFORM}/kernelSysTimerFunctions.o \
-		${PLATFORM}/kernelRtcFunctions.o \
-		${PLATFORM}/kernelPicFunctions.o \
-		${PLATFORM}/kernelSerialFunctions.o \
-		${PLATFORM}/kernelDmaFunctions.o \
-		${PLATFORM}/kernelKeyboardFunctions.o \
-		${PLATFORM}/kernelDiskFunctions.o \
-		${PLATFORM}/kernelStream.o \
-		${PLATFORM}/kernelText.o \
-		${PLATFORM}/kernelGraphicFunctions.o \
-		${PLATFORM}/kernelImageFunctions.o \
-		${PLATFORM}/kernelFontFunctions.o \
-		${PLATFORM}/kernelMouseFunctions.o
-FILEOBJS	= ${PLATFORM}/kernelFilesystem.o \
-		${PLATFORM}/kernelFile.o \
-		${PLATFORM}/kernelFileStream.o \
-		${PLATFORM}/kernelFilesystemTypeFat.o
+GLOBALOBJS	= build/kernelMain.o \
+		build/kernelInitialize.o \
+		build/kernelInterrupt.o \
+		build/kernelDescriptor.o \
+		build/kernelPageManager.o \
+		build/kernelUser.o \
+		build/kernelLog.o \
+		build/kernelVariableList.o \
+		build/kernelEnvironment.o \
+		build/kernelMalloc.o \
+		build/kernelMemoryManager.o \
+		build/kernelMultitasker.o \
+		build/kernelLock.o \
+		build/kernelApi.o \
+		build/kernelLoader.o \
+		build/kernelWindowManager.o \
+		build/kernelWindowEventStream.o \
+		build/kernelWindowTitleBar.o \
+		build/kernelWindowImage.o \
+		build/kernelWindowTextArea.o \
+		build/kernelWindowTextField.o \
+		build/kernelWindowTextLabel.o \
+		build/kernelWindowIcon.o \
+		build/kernelWindowButton.o \
+		build/kernelRandom.o \
+		build/kernelMiscFunctions.o \
+		build/kernelError.o \
+		build/kernelShutdown.o
+DRIVEROBJS	= build/kernelHardwareEnumeration.o \
+		build/kernelDriverManagement.o \
+		build/kernelKeyboardDriver.o \
+		build/kernelPS2MouseDriver.o \
+		build/kernelFloppyDriver.o \
+		build/kernelIdeDriver.o \
+		build/kernelSysTimerDriver.o \
+		build/kernelRtcDriver.o \
+		build/kernelPicDriver.o \
+		build/kernelTextConsoleDriver.o \
+		build/kernelGraphicConsoleDriver.o \
+		build/kernelDmaDriver.o \
+		build/kernelFramebufferGraphicDriver.o
+ABSDRIVEROBJS	= build/kernelSysTimer.o \
+		build/kernelRtc.o \
+		build/kernelPic.o \
+		build/kernelDma.o \
+		build/kernelKeyboard.o \
+		build/kernelDisk.o \
+		build/kernelStream.o \
+		build/kernelText.o \
+		build/kernelGraphic.o \
+		build/kernelImage.o \
+		build/kernelFont.o \
+		build/kernelMouse.o
+		#build/kernelSerial.o
+FILEOBJS	= build/kernelFilesystem.o \
+		build/kernelFile.o \
+		build/kernelFileStream.o \
+		build/kernelFilesystemFat.o
 
-OBJS		= ${GLOBALOBJS} ${INTROBJS} ${DRIVEROBJS} ${ABSDRIVEROBJS} \
+OBJS		= ${GLOBALOBJS} ${DRIVEROBJS} ${ABSDRIVEROBJS} \
 		${FILEOBJS}
 
 
@@ -126,23 +111,23 @@ OBJS		= ${GLOBALOBJS} ${INTROBJS} ${DRIVEROBJS} ${ABSDRIVEROBJS} \
 
 all: visopsys
 
-visopsys: message ${PLATFORM} ${OBJS}
-	${CC} ${CFLAGS} ${LIB} ${LINKOPTS} ${OBJS} -lc -o ${PLATFORM}/visopsys
+visopsys: message build ${OBJS}
+	${CC} ${CFLAGS} ${LIB} ${LINKOPTS} ${OBJS} -lc -o build/visopsys
+	../../utils/kernel-symbols.sh build/visopsys build/kernelSymbols.txt
 
 message:
 	#
-	#  Making kernel on ${PLATFORM}
+	#  Making kernel
 	#
 
-${PLATFORM}:
-	mkdir -p ${PLATFORM}
+build:
+	mkdir -p build
 
 clean:
 	#
-	#  Making clean on ${PLATFORM}
+	#  Making clean
 	#
-	rm -Rf *~ *.o core kernelMap.txt \
-	test-${PLATFORM} ${PLATFORM}
+	rm -Rf *~ *.o core build
 
 
 #
@@ -152,197 +137,185 @@ clean:
 
 # Global
 
-${PLATFORM}/kernelMain.o: kernelMain.c kernelMain.h ${STDDEPS}
+build/kernelMain.o: kernelMain.c kernelMain.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelMain.c -o $@
 
-${PLATFORM}/kernelInitialize.o: kernelInitialize.c kernelInitialize.h ${STDDEPS}
+build/kernelInitialize.o: kernelInitialize.c kernelInitialize.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelInitialize.c -o $@
 
-${PLATFORM}/kernelShutdown.o: kernelShutdown.c kernelShutdown.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelShutdown.c -o $@
+build/kernelInterrupt.o: kernelInterrupt.c  kernelInterrupt.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelInterrupt.c -o $@
 
-${PLATFORM}/kernelDescriptor.o: kernelDescriptor.c kernelDescriptor.h ${STDDEPS}
+build/kernelDescriptor.o: kernelDescriptor.c kernelDescriptor.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelDescriptor.c -o $@
 
-${PLATFORM}/kernelPageManager.o: kernelPageManager.c kernelPageManager.h ${STDDEPS}
+build/kernelPageManager.o: kernelPageManager.c kernelPageManager.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelPageManager.c -o $@
 
-${PLATFORM}/kernelUser.o: kernelUser.c kernelUser.h ${STDDEPS}
+build/kernelUser.o: kernelUser.c kernelUser.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelUser.c -o $@
 
-${PLATFORM}/kernelLog.o: kernelLog.c kernelLog.h ${STDDEPS}
+build/kernelLog.o: kernelLog.c kernelLog.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelLog.c -o $@
 
-${PLATFORM}/kernelVariableList.o: kernelVariableList.c kernelVariableList.h ${STDDEPS}
+build/kernelVariableList.o: kernelVariableList.c kernelVariableList.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelVariableList.c -o $@
 
-${PLATFORM}/kernelEnvironment.o: kernelEnvironment.c kernelEnvironment.h ${STDDEPS}
+build/kernelEnvironment.o: kernelEnvironment.c kernelEnvironment.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelEnvironment.c -o $@
 
-${PLATFORM}/kernelMemoryManager.o: kernelMemoryManager.c kernelMemoryManager.h ${STDDEPS}
+build/kernelMalloc.o: kernelMalloc.c kernelMalloc.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelMalloc.c -o $@
+
+build/kernelMemoryManager.o: kernelMemoryManager.c kernelMemoryManager.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelMemoryManager.c -o $@
 
-${PLATFORM}/kernelMultitasker.o: kernelMultitasker.c kernelMultitasker.h ${STDDEPS}
+build/kernelMultitasker.o: kernelMultitasker.c kernelMultitasker.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelMultitasker.c -o $@
 
-${PLATFORM}/kernelResourceManager.o: kernelResourceManager.c kernelResourceManager.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelResourceManager.c -o $@
+build/kernelLock.o: kernelLock.c kernelLock.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelLock.c -o $@
 
-${PLATFORM}/kernelApi.o: kernelApi.c kernelApi.h ${STDDEPS}
+build/kernelApi.o: kernelApi.c kernelApi.h ${STDDEPS}
 	${CC} ${CFLAGS} -Wno-strict-prototypes ${INCLUDE} -c kernelApi.c -o $@
 
-${PLATFORM}/kernelEntryPoint.o: kernelEntryPoint.s ${STDDEPS}
-	${AS} ${ASMOPTS} kernelEntryPoint.s -o $@
-
-${PLATFORM}/kernelLoader.o: kernelLoader.c kernelLoader.h ${STDDEPS}
+build/kernelLoader.o: kernelLoader.c kernelLoader.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelLoader.c -o $@
 
-${PLATFORM}/kernelWindowManager.o: kernelWindowManager.c kernelWindowManager.h ${STDDEPS}
+build/kernelWindowManager.o: kernelWindowManager.c kernelWindowManager.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelWindowManager.c -o $@
 
-${PLATFORM}/kernelWindowTitleBarComponent.o: kernelWindowTitleBarComponent.c kernelWindowManager.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelWindowTitleBarComponent.c -o $@
+build/kernelWindowEventStream.o: kernelWindowEventStream.c kernelWindowManager.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelWindowEventStream.c -o $@
 
-${PLATFORM}/kernelWindowImageComponent.o: kernelWindowImageComponent.c kernelWindowManager.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelWindowImageComponent.c -o $@
+build/kernelWindowTitleBar.o: kernelWindowTitleBar.c kernelWindowManager.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelWindowTitleBar.c -o $@
 
-${PLATFORM}/kernelWindowTextAreaComponent.o: kernelWindowTextAreaComponent.c kernelWindowManager.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelWindowTextAreaComponent.c -o $@
+build/kernelWindowImage.o: kernelWindowImage.c kernelWindowManager.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelWindowImage.c -o $@
 
-${PLATFORM}/kernelWindowTextFieldComponent.o: kernelWindowTextFieldComponent.c kernelWindowManager.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelWindowTextFieldComponent.c -o $@
+build/kernelWindowTextArea.o: kernelWindowTextArea.c kernelWindowManager.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelWindowTextArea.c -o $@
 
-${PLATFORM}/kernelWindowTextLabelComponent.o: kernelWindowTextLabelComponent.c kernelWindowManager.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelWindowTextLabelComponent.c -o $@
+build/kernelWindowTextField.o: kernelWindowTextField.c kernelWindowManager.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelWindowTextField.c -o $@
 
-${PLATFORM}/kernelWindowIconComponent.o: kernelWindowIconComponent.c kernelWindowManager.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelWindowIconComponent.c -o $@
+build/kernelWindowTextLabel.o: kernelWindowTextLabel.c kernelWindowManager.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelWindowTextLabel.c -o $@
 
-${PLATFORM}/kernelWindowButtonComponent.o: kernelWindowButtonComponent.c kernelWindowManager.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelWindowButtonComponent.c -o $@
+build/kernelWindowIcon.o: kernelWindowIcon.c kernelWindowManager.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelWindowIcon.c -o $@
 
-${PLATFORM}/kernelRandom.o: kernelRandom.c kernelRandom.h ${STDDEPS}
+build/kernelWindowButton.o: kernelWindowButton.c kernelWindowManager.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelWindowButton.c -o $@
+
+build/kernelRandom.o: kernelRandom.c kernelRandom.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelRandom.c -o $@
 
-${PLATFORM}/kernelMiscFunctions.o: kernelMiscFunctions.c kernelMiscFunctions.h ${STDDEPS}
+build/kernelMiscFunctions.o: kernelMiscFunctions.c kernelMiscFunctions.h ${STDDEPS}
 	${CC} ${CFLAGS} $(KVERSION) -c kernelMiscFunctions.c -o $@
 
-${PLATFORM}/kernelMiscAsmFunctions.o: kernelMiscAsmFunctions.s kernelAssemblerHeader.h ${STDDEPS}
-	${AS} ${ASMOPTS} kernelMiscAsmFunctions.s -o $@
-
-${PLATFORM}/kernelError.o: kernelError.c kernelError.h ${STDDEPS}
+build/kernelError.o: kernelError.c kernelError.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelError.c -o $@
 
-
-# Interrupts
-
-${PLATFORM}/kernelInterruptsInit.o: kernelInterruptsInit.c kernelInterruptsInit.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelInterruptsInit.c -o $@
-
-${PLATFORM}/kernelInterruptHandlers.o: kernelInterruptHandlers.s kernelAssemblerHeader.h ${STDDEPS}
-	${AS} ${ASMOPTS} kernelInterruptHandlers.s -o $@
+build/kernelShutdown.o: kernelShutdown.c kernelShutdown.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelShutdown.c -o $@
 
 
 # Drivers
 
-${PLATFORM}/kernelHardwareEnumeration.o: kernelHardwareEnumeration.c kernelHardwareEnumeration.h ${STDDEPS}
+build/kernelHardwareEnumeration.o: kernelHardwareEnumeration.c kernelHardwareEnumeration.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelHardwareEnumeration.c -o $@
 
-${PLATFORM}/kernelDriverManagement.o: kernelDriverManagement.c kernelDriverManagement.h ${STDDEPS}
+build/kernelDriverManagement.o: kernelDriverManagement.c kernelDriverManagement.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelDriverManagement.c -o $@
 
-${PLATFORM}/kernelTextConsoleDriver.o: kernelTextConsoleDriver.c ${STDDEPS}
+build/kernelTextConsoleDriver.o: kernelTextConsoleDriver.c ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelTextConsoleDriver.c -o $@
 
-${PLATFORM}/kernelGraphicConsoleDriver.o: kernelGraphicConsoleDriver.c ${STDDEPS}
+build/kernelGraphicConsoleDriver.o: kernelGraphicConsoleDriver.c ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelGraphicConsoleDriver.c -o $@
 
-${PLATFORM}/kernelKeyboardDriver.o: kernelKeyboardDriver.s kernelAssemblerHeader.h ${STDDEPS}
-	${AS} ${ASMOPTS} kernelKeyboardDriver.s -o $@
+build/kernelKeyboardDriver.o: kernelKeyboardDriver.c ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelKeyboardDriver.c -o $@
 
-${PLATFORM}/kernelPS2MouseDriver.o: kernelPS2MouseDriver.c ${STDDEPS}
+build/kernelPS2MouseDriver.o: kernelPS2MouseDriver.c ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelPS2MouseDriver.c -o $@
 
-${PLATFORM}/kernelProcessorDriver.o: kernelProcessorDriver.s kernelAssemblerHeader.h ${STDDEPS}
-	${AS} ${ASMOPTS} kernelProcessorDriver.s -o $@
+build/kernelFloppyDriver.o: kernelFloppyDriver.c ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelFloppyDriver.c -o $@
 
-${PLATFORM}/kernelFloppyDriver.o: kernelFloppyDriver.s kernelAssemblerHeader.h ${STDDEPS}
-	${AS} ${ASMOPTS} kernelFloppyDriver.s -o $@
+build/kernelIdeDriver.o: kernelIdeDriver.c ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelIdeDriver.c -o $@
 
-${PLATFORM}/kernelIdeDriver.o: kernelIdeDriver.s kernelAssemblerHeader.h ${STDDEPS}
-	${AS} ${ASMOPTS} kernelIdeDriver.s -o $@
+build/kernelRtcDriver.o: kernelRtcDriver.c ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelRtcDriver.c -o $@
 
-${PLATFORM}/kernelRtcDriver.o: kernelRtcDriver.s kernelAssemblerHeader.h ${STDDEPS}
-	${AS} ${ASMOPTS} kernelRtcDriver.s -o $@
+build/kernelPicDriver.o: kernelPicDriver.c ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelPicDriver.c -o $@
 
-${PLATFORM}/kernelPicDriver.o: kernelPicDriver.s kernelAssemblerHeader.h ${STDDEPS}
-	${AS} ${ASMOPTS} kernelPicDriver.s -o $@
+build/kernelSysTimerDriver.o: kernelSysTimerDriver.c ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelSysTimerDriver.c -o $@
 
-${PLATFORM}/kernelSysTimerDriver.o: kernelSysTimerDriver.s kernelAssemblerHeader.h ${STDDEPS}
-	${AS} ${ASMOPTS} kernelSysTimerDriver.s -o $@
+build/kernelDmaDriver.o: kernelDmaDriver.c ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelDmaDriver.c -o $@
 
-${PLATFORM}/kernelDmaDriver.o: kernelDmaDriver.s kernelAssemblerHeader.h ${STDDEPS}
-	${AS} ${ASMOPTS} kernelDmaDriver.s -o $@
-
-${PLATFORM}/kernelFramebufferGraphicDriver.o: kernelFramebufferGraphicDriver.c ${STDDEPS}
+build/kernelFramebufferGraphicDriver.o: kernelFramebufferGraphicDriver.c ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelFramebufferGraphicDriver.c -o $@
 
 
 # Driver abstractions
 
-${PLATFORM}/kernelProcessorFunctions.o: kernelProcessorFunctions.c kernelProcessorFunctions.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelProcessorFunctions.c -o $@
+build/kernelSysTimer.o: kernelSysTimer.c kernelSysTimer.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelSysTimer.c -o $@
 
-${PLATFORM}/kernelSysTimerFunctions.o: kernelSysTimerFunctions.c kernelSysTimerFunctions.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelSysTimerFunctions.c -o $@
+build/kernelRtc.o: kernelRtc.c kernelRtc.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelRtc.c -o $@
 
-${PLATFORM}/kernelRtcFunctions.o: kernelRtcFunctions.c kernelRtcFunctions.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelRtcFunctions.c -o $@
+build/kernelPic.o: kernelPic.c kernelPic.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelPic.c -o $@
 
-${PLATFORM}/kernelPicFunctions.o: kernelPicFunctions.c kernelPicFunctions.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelPicFunctions.c -o $@
+build/kernelSerial.o: kernelSerial.c kernelSerial.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelSerial.c -o $@
 
-${PLATFORM}/kernelSerialFunctions.o: kernelSerialFunctions.c kernelSerialFunctions.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelSerialFunctions.c -o $@
+build/kernelDma.o: kernelDma.c kernelDma.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelDma.c -o $@
 
-${PLATFORM}/kernelDmaFunctions.o: kernelDmaFunctions.c kernelDmaFunctions.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelDmaFunctions.c -o $@
+build/kernelGraphic.o: kernelGraphic.c kernelGraphic.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelGraphic.c -o $@
 
-${PLATFORM}/kernelGraphicFunctions.o: kernelGraphicFunctions.c kernelGraphicFunctions.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelGraphicFunctions.c -o $@
+build/kernelImage.o: kernelImage.c kernelImage.h kernelImageFormatBmp.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelImage.c -o $@
 
-${PLATFORM}/kernelImageFunctions.o: kernelImageFunctions.c kernelImageFunctions.h kernelImageFormatBmp.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelImageFunctions.c -o $@
+build/kernelFont.o: kernelFont.c kernelFont.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelFont.c -o $@
 
-${PLATFORM}/kernelFontFunctions.o: kernelFontFunctions.c kernelFontFunctions.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelFontFunctions.c -o $@
+build/kernelMouse.o: kernelMouse.c kernelMouse.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelMouse.c -o $@
 
-${PLATFORM}/kernelMouseFunctions.o: kernelMouseFunctions.c kernelMouseFunctions.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelMouseFunctions.c -o $@
+build/kernelKeyboard.o: kernelKeyboard.c kernelKeyboard.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelKeyboard.c -o $@
 
-${PLATFORM}/kernelKeyboardFunctions.o: kernelKeyboardFunctions.c kernelKeyboardFunctions.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelKeyboardFunctions.c -o $@
+build/kernelDisk.o: kernelDisk.c kernelDisk.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelDisk.c -o $@
 
-${PLATFORM}/kernelDiskFunctions.o: kernelDiskFunctions.c kernelDiskFunctions.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelDiskFunctions.c -o $@
-
-${PLATFORM}/kernelStream.o: kernelStream.c kernelStream.h ${STDDEPS}
+build/kernelStream.o: kernelStream.c kernelStream.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelStream.c -o $@
 
-${PLATFORM}/kernelText.o: kernelText.c kernelText.h ${STDDEPS}
+build/kernelText.o: kernelText.c kernelText.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelText.c -o $@
 
 
 # Filesystems
 
-${PLATFORM}/kernelFilesystem.o: kernelFilesystem.c kernelFilesystem.h ${STDDEPS}
+build/kernelFilesystem.o: kernelFilesystem.c kernelFilesystem.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelFilesystem.c -o $@
 
-${PLATFORM}/kernelFile.o: kernelFile.c kernelFile.h ${STDDEPS}
+build/kernelFile.o: kernelFile.c kernelFile.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelFile.c -o $@
 
-${PLATFORM}/kernelFileStream.o: kernelFileStream.c kernelFileStream.h ${STDDEPS}
+build/kernelFileStream.o: kernelFileStream.c kernelFileStream.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelFileStream.c -o $@
 
-${PLATFORM}/kernelFilesystemTypeFat.o: kernelFilesystemTypeFat.c kernelFilesystemTypeFat.h ${STDDEPS}
-	${CC} ${CFLAGS} -c kernelFilesystemTypeFat.c -o $@
+build/kernelFilesystemFat.o: kernelFilesystemFat.c kernelFilesystemFat.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelFilesystemFat.c -o $@

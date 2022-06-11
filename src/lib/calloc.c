@@ -48,7 +48,7 @@ void *calloc(size_t items, size_t itemSize)
       return NULL;
     }
 
-  memoryPointer = memoryRequestBlock(totalSize, 0, "user heap");
+  memoryPointer = memoryGet(totalSize, "user heap");
 
   if (memoryPointer == NULL)
     errno = ERR_BADADDRESS;

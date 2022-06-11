@@ -19,8 +19,8 @@
 //  kernelImageFormatBmp.h
 //
 	
-// This defines things used by kernelImageFunctions.c for manipulating
-// windows/os2 format bitmap files
+// This defines things used by kernelImage.c for manipulating windows/os2
+// format bitmap files
 
 #if !defined(_KERNELIMAGEFORMATBMP_H)
 

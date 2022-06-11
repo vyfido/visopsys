@@ -24,7 +24,7 @@
 #include "loaderInfo.h"
 
 // The only function exported by kernelMain.c
-void kernelMain(int, unsigned, loaderInfoStruct *);
+void kernelMain(unsigned, loaderInfoStruct *);
 
 #define _KERNELMAIN_H
 #endif

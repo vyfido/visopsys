@@ -24,56 +24,64 @@
 
 AS		= nasm
 CC		= gcc
-PLATFORM	= $(shell ../platform.sh)
 OPTS		= -f aout -w+orphan-labels
 LINKOPTS	= -mcpu=pentium -Wl,-warn-common,-X,--oformat,binary,-e,loaderMain,-Ttext,0x00000000
-STDDEPEND	= loader.h ../kernel/kernelAssemblerHeader.h Makefile
-OBJS		= ${PLATFORM}/loaderMain.o \
-		${PLATFORM}/loaderVideo.o \
-		${PLATFORM}/loaderDetectHardware.o \
-		${PLATFORM}/loaderLoadFile.o \
-		${PLATFORM}/loaderLoadKernel.o \
-		${PLATFORM}/loaderDiskError.o \
-		${PLATFORM}/loaderPrintRoutines.o
+STDDEPEND	= loader.h Makefile
+OBJS		= build/loaderMain.o \
+		build/loaderVideo.o \
+		build/loaderDetectHardware.o \
+		build/loaderLoadFile.o \
+		build/loaderLoadKernel.o \
+		build/loaderDiskError.o \
+		build/loaderPrintRoutines.o
 
 
-all: target-dir ${PLATFORM}/bootsect.f12 ${PLATFORM}/vloader
+all: target-dir bootsectors build/vloader
+
+bootsectors: build/bootsect.fatnoboot build/bootsect.fat12
 
 target-dir:
 	#
-	#  Making OS-loader on ${PLATFORM}
+	#  Making OS-loader
 	#
-	mkdir -p ${PLATFORM}
+	mkdir -p build
 
 #
-# Assembly files
+# Boot sector files
 #
 
-${PLATFORM}/bootsect.f12: bootsect.s ${STDDEPEND}
-	${AS} -f bin -w+orphan-labels bootsect.s -o $@
+build/bootsect.fat12: bootsect-fat12.s ${STDDEPEND}
+	${AS} -f bin -w+orphan-labels bootsect-fat12.s -o $@
 
-${PLATFORM}/vloader: ${OBJS} ${STDDEPEND}
+build/bootsect.fatnoboot: bootsect-fatnoboot.s ${STDDEPEND}
+	${AS} -f bin -w+orphan-labels bootsect-fatnoboot.s -o $@
+
+#
+# Loader files
+#
+
+build/vloader: ${OBJS} ${STDDEPEND}
 	${CC} -nodefaultlibs -nostartfiles -O2 -Wall ${LINKOPTS} ${OBJS} -o $@
 
-${PLATFORM}/loaderMain.o: loaderMain.s ${STDDEPEND}
+build/loaderMain.o: loaderMain.s ${STDDEPEND}
 	${AS} ${OPTS} loaderMain.s -o $@
 
-${PLATFORM}/loaderVideo.o: loaderVideo.s ${STDDEPEND}
+build/loaderVideo.o: loaderVideo.s ${STDDEPEND}
 	${AS} ${OPTS} loaderVideo.s -o $@
 
-${PLATFORM}/loaderDetectHardware.o: loaderDetectHardware.s ${STDDEPEND}
+build/loaderDetectHardware.o: loaderDetectHardware.s ${STDDEPEND}
 	${AS} ${OPTS} loaderDetectHardware.s -o $@
 
-${PLATFORM}/loaderDiskError.o: loaderDiskError.s ${STDDEPEND}
+build/loaderDiskError.o: loaderDiskError.s ${STDDEPEND}
 	${AS} ${OPTS} loaderDiskError.s -o $@
 
-${PLATFORM}/loaderLoadFile.o: loaderLoadFile.s ${STDDEPEND}
+build/loaderLoadFile.o: loaderLoadFile.s ${STDDEPEND}
 	${AS} ${OPTS} loaderLoadFile.s -o $@
 
-${PLATFORM}/loaderLoadKernel.o: loaderLoadKernel.s ${STDDEPEND}
+build/loaderLoadKernel.o: loaderLoadKernel.s ${STDDEPEND}
 	${AS} ${OPTS} loaderLoadKernel.s -o $@
 
-${PLATFORM}/loaderPrintRoutines.o: loaderPrintRoutines.s ${STDDEPEND}
+build/loaderPrintRoutines.o: loaderPrintRoutines.s ${STDDEPEND}
 	${AS} ${OPTS} loaderPrintRoutines.s -o $@
 
 #
@@ -81,4 +89,4 @@ ${PLATFORM}/loaderPrintRoutines.o: loaderPrintRoutines.s ${STDDEPEND}
 #
 
 clean:
-	rm -Rf *~ *.o core ${PLATFORM}
+	rm -Rf *~ *.o core build

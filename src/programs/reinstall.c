@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
 
   if (argc > 2)
     {
-      usage(argv[0]);
+      usage((argc > 0)? argv[0] : "reinstall");
       return (status = ERR_ARGUMENTCOUNT);
     }
 

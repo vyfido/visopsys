@@ -23,18 +23,21 @@
 // GUI windows.
 
 #include "kernelWindowManager.h"
+#include "kernelWindowEventStream.h"
 #include "kernelParameters.h"
 #include "kernelMemoryManager.h"
+#include "kernelMalloc.h"
 #include "kernelVariableList.h"
 #include "kernelMultitasker.h"
-#include "kernelResourceManager.h"
+#include "kernelLock.h"
 #include "kernelFileStream.h"
+#include "kernelUser.h"
 #include "kernelMiscFunctions.h"
-#include "kernelMiscAsmFunctions.h"
 #include "kernelError.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <values.h>
 #include <sys/errors.h>
 
 
@@ -49,10 +52,20 @@ typedef struct
 } screenArea;
 
 
-#define makeScreenAreaP(windowP)                                     \
+#define makeWindowScreenArea(windowP)                                \
    &((screenArea) { windowP->xCoord, windowP->yCoord,                \
                    (windowP->xCoord + (windowP->buffer.width - 1)),  \
                    (windowP->yCoord + (windowP->buffer.height - 1)) } )
+
+#define makeComponentScreenArea(componentP)                            \
+   &((screenArea) { (((kernelWindow *) componentP->window)->xCoord +   \
+		     componentP->xCoord),                              \
+		      (((kernelWindow *) componentP->window)->yCoord + \
+		       componentP->yCoord),                            \
+		      (((kernelWindow *) componentP->window)->xCoord + \
+		       componentP->xCoord + (componentP->width - 1)),  \
+		      (((kernelWindow *) componentP->window)->yCoord + \
+		       componentP->yCoord + (componentP->height - 1)) } )
 
 static int initialized = 0;
 static color rootColor = {
@@ -66,7 +79,9 @@ static kernelVariableList *settings;
 
 static kernelAsciiFont *defaultFont = NULL;
 static kernelWindow *rootWindow = NULL;
+static kernelWindowComponent *consoleTextArea = NULL;
 static kernelWindow *consoleWindow = NULL;
+static int winManPID = 0;
 
 static int titleBarHeight = DEFAULT_TITLEBAR_HEIGHT;
 static int borderThickness = DEFAULT_BORDER_THICKNESS;
@@ -76,15 +91,12 @@ static image splashImage;
 static int haveSplash = 0;
 
 // Keeps the data for all the windows
-static kernelWindow *windowList[MAX_WINDOWS];
+static kernelWindow *windowList[WINDOW_MAXWINDOWS];
 static kernelWindow *windowData = NULL;
 static volatile int numberWindows = 0;
-static volatile int windowListLock = 0;
+static kernelLock windowListLock;
 
-static kernelMouseStatus *mouseUpdateList[MAX_MOUSE_UPDATES];
-static kernelMouseStatus *mouseUpdateData = NULL;
-static volatile int numberMouseUpdates = 0;
-static volatile int mouseUpdateListLock = 0;
+static char loggedInUser[USER_MAX_NAMELENGTH];
 
 static kernelWindow *focusWindow = NULL;
 
@@ -191,32 +203,6 @@ static inline void getIntersectingArea(screenArea *firstArea,
 }
 
 
-static kernelWindow *findWindowByBuffer(kernelGraphicBuffer *buffer)
-{
-  // Finds a window in the list based on the buffer pointer
-    
-  int status = 0;
-  kernelWindow *window = NULL;
-  int count;
-
-  // Lock the window list
-  status = kernelResourceManagerLock(&windowListLock);
-  if (status < 0)
-    return (NULL);
- 
-  for (count = 0; count < numberWindows; count ++)
-    if (&(windowList[count]->buffer) == buffer)
-      {
-	window = windowList[count];
-	break;
-      }
-
-  kernelResourceManagerUnlock(&windowListLock);
-
-  return (window);
-}
-
-
 static int addWindowComponent(kernelWindow *window,
 			      kernelWindowComponent *component,
 			      componentParameters *params)
@@ -226,7 +212,7 @@ static int addWindowComponent(kernelWindow *window,
   int status = 0;
 
   // Make sure there's room for more
-  if (window->numberComponents >= MAX_COMPONENTS)
+  if (window->numberComponents >= WINDOW_MAX_COMPONENTS)
     return (status == ERR_BOUNDS);
 
   // Add it to the window
@@ -234,6 +220,7 @@ static int addWindowComponent(kernelWindow *window,
 
   // Give the component a reference to the window
   component->window = (void *) window;
+  component->processId = window->processId;
 
   // Copy the parameters into the component
   kernelMemCopy(params, (void *) &(component->parameters),
@@ -339,7 +326,7 @@ static void addTitleBar(kernelWindow *window)
   componentParameters params;
 
   kernelWindowComponent *titleBarComponent =
-    kernelWindowNewTitleBarComponent(window, width, titleBarHeight);
+    kernelWindowNewTitleBar(window, width, titleBarHeight);
 
   if (window->hasBorder)
     {
@@ -351,7 +338,7 @@ static void addTitleBar(kernelWindow *window)
   // Standard parameters for a title bar
   params.gridX = 0;
   params.gridY = 0;
-  params.gridWidth = MAX_COMPONENTS;
+  params.gridWidth = (WINDOW_MAX_COMPONENTS - 1);
   params.gridHeight = 1;
   params.padLeft = 0;
   params.padRight = 0;
@@ -396,8 +383,7 @@ static void removeTitleBar(kernelWindow *window)
 	  removeWindowComponent(window, titleBar);
 
 	  // Destroy the title bar
-	  if (titleBar->destroy != NULL)
-	    titleBar->destroy((void *) titleBar);
+	  kernelWindowDestroyComponent(titleBar);
 
 	  break;
 	}
@@ -415,7 +401,7 @@ static int setBackgroundImage(kernelWindow *window, image *imageCopy)
 
   // If there was a previous background image, deallocate its memory
   if (window->backgroundImage.data != NULL)
-    kernelMemoryReleaseSystemBlock(window->backgroundImage.data);
+    kernelFree(window->backgroundImage.data);
   
   // Copy the image information into the window's background image
   kernelMemCopy(imageCopy, (void *) &(window->backgroundImage),
@@ -423,8 +409,7 @@ static int setBackgroundImage(kernelWindow *window, image *imageCopy)
 
   // Get some new memory for the image data
   window->backgroundImage.data =
-    kernelMemoryRequestSystemBlock(window->backgroundImage.dataLength, 0,
-				   "window background image");
+    kernelMalloc(window->backgroundImage.dataLength);
   if (window->backgroundImage.data == NULL)
     return (status == ERR_MEMORY);
   
@@ -471,14 +456,16 @@ static int tileBackgroundImage(kernelWindow *window)
   if ((window->backgroundImage.width >= (clientAreaWidth / 2)) ||
       (window->backgroundImage.height >= (clientAreaHeight / 2)))
     {
-      // Clear the window with our background color
-      kernelGraphicClearArea(&(window->buffer), &rootColor, 0, 0,
+      // Clear the window with its background color
+      kernelGraphicClearArea(&(window->buffer),
+			     (color *) &(window->background), 0, 0,
 			     clientAreaWidth, clientAreaHeight);
       // Center the image in the window's client area
       status = kernelGraphicDrawImage(&(window->buffer), (image *)
 	     &(window->backgroundImage),
 	     ((clientAreaWidth - window->backgroundImage.width) / 2),
-	     ((clientAreaHeight - window->backgroundImage.height) / 2));
+	     ((clientAreaHeight - window->backgroundImage.height) / 2),
+	      0, 0, 0, 0);
       window->backgroundTiled = 0;
     }
   else
@@ -489,7 +476,8 @@ static int tileBackgroundImage(kernelWindow *window)
 	for (count2 = clientAreaX; count2 < clientAreaWidth;
 	     count2 += window->backgroundImage.width)
 	  status = kernelGraphicDrawImage(&(window->buffer), (image *)
-				  &(window->backgroundImage), count2, count1);
+				  &(window->backgroundImage), count2, count1,
+				  0, 0, 0, 0);
       window->backgroundTiled = 1;
     }
 
@@ -505,7 +493,6 @@ static void drawClientArea(kernelWindow *window)
   int clientAreaY = 0;
   unsigned clientAreaWidth = window->buffer.width;
   unsigned clientAreaHeight = window->buffer.height;
-  color background = { DEFAULT_GREY, DEFAULT_GREY, DEFAULT_GREY };
   int count;
 
   // Adjust the dimensions of our drawing area if necessary to accommodate
@@ -524,7 +511,8 @@ static void drawClientArea(kernelWindow *window)
     }
 
   // Draw a blank background
-  kernelGraphicDrawRect(&(window->buffer), &background, draw_normal,
+  kernelGraphicDrawRect(&(window->buffer),
+			(color *) &(window->background), draw_normal,
 			clientAreaX, clientAreaY, clientAreaWidth,
 			clientAreaHeight, 0, 1);
 
@@ -542,13 +530,12 @@ static void drawClientArea(kernelWindow *window)
 }
 
 
-static void renderVisiblePortions(kernelWindow *window,
-				  screenArea *bufferClip)
+static void renderVisiblePortions(kernelWindow *window, screenArea *bufferClip)
 {
   // Take the window supplied, and render the portions of the supplied clip
   // which are visible (i.e. not covered by other windows)
 
-  int status = 0;
+  //int status = 0;
   int numCoveredAreas = 0;
   screenArea coveredAreas[64];
   int numVisibleAreas = 0;
@@ -561,11 +548,13 @@ static void renderVisiblePortions(kernelWindow *window,
   visibleAreas[0].bottomY =  (window->yCoord + bufferClip->bottomY);
   numVisibleAreas++;
 
+  /*
   // Lock the window list
-  status = kernelResourceManagerLock(&windowListLock);
+  status = kernelLockGet(&windowListLock);
   if (status < 0)
     return;
-
+  */
+ 
   // Loop through the window list.  Any window which intersects this area
   // and is at a higher level will reduce the visible area
   for (count1 = 0; count1 < numberWindows; count1 ++)
@@ -576,21 +565,21 @@ static void renderVisiblePortions(kernelWindow *window,
 	// window.  Find out if it totally covers it, in which case we
 	// are finished
 	if (isAreaInside(&(visibleAreas[0]),
-			 makeScreenAreaP(windowList[count1])))
+			 makeWindowScreenArea(windowList[count1])))
 	  {
 	    // Done
-	    kernelResourceManagerUnlock(&windowListLock);
+	    //kernelLockRelease(&windowListLock);
 	    return;
 	  }
 
 	// Find out whether it otherwise intersects our window
 	if (doAreasIntersect(&(visibleAreas[0]),
-			     makeScreenAreaP(windowList[count1])))
+			     makeWindowScreenArea(windowList[count1])))
 	  {
 	    // Yeah, this window is covering ours somewhat.  We will need
 	    // to get the area of the windows that overlap
 	    getIntersectingArea(&(visibleAreas[0]),
-				makeScreenAreaP(windowList[count1]),
+				makeWindowScreenArea(windowList[count1]),
 				&(coveredAreas[numCoveredAreas]));
 	    numCoveredAreas++;
 
@@ -623,6 +612,8 @@ static void renderVisiblePortions(kernelWindow *window,
 	  }
       }
   
+  //kernelLockRelease(&windowListLock);
+
   // Now that we have a list of all the non-visible portions of the window,
   // we can make a list of the remaining parts that are visible
 
@@ -643,8 +634,7 @@ static void renderVisiblePortions(kernelWindow *window,
 	    // this area
 	    visibleAreas[numVisibleAreas].leftX = coveredAreas[count1].leftX;
 	    visibleAreas[numVisibleAreas].topY = visibleAreas[count2].topY;
-	    visibleAreas[numVisibleAreas].rightX =
-	      visibleAreas[count2].rightX;
+	    visibleAreas[numVisibleAreas].rightX = visibleAreas[count2].rightX;
 	    visibleAreas[numVisibleAreas++].bottomY =
 	      visibleAreas[count2].bottomY;
 	    
@@ -673,8 +663,7 @@ static void renderVisiblePortions(kernelWindow *window,
 	    // this area
 	    visibleAreas[numVisibleAreas].leftX = visibleAreas[count2].leftX;
 	    visibleAreas[numVisibleAreas].topY = visibleAreas[count2].topY;
-	    visibleAreas[numVisibleAreas].rightX =
-	      coveredAreas[count1].rightX;
+	    visibleAreas[numVisibleAreas].rightX = coveredAreas[count1].rightX;
 	    visibleAreas[numVisibleAreas++].bottomY =
 	      visibleAreas[count2].bottomY;
 	    
@@ -688,8 +677,7 @@ static void renderVisiblePortions(kernelWindow *window,
 	    // this area
 	    visibleAreas[numVisibleAreas].leftX = visibleAreas[count2].leftX;
 	    visibleAreas[numVisibleAreas].topY = visibleAreas[count2].topY;
-	    visibleAreas[numVisibleAreas].rightX =
-	      visibleAreas[count2].rightX;
+	    visibleAreas[numVisibleAreas].rightX = visibleAreas[count2].rightX;
 	    visibleAreas[numVisibleAreas++].bottomY =
 	      coveredAreas[count1].bottomY;
 
@@ -703,8 +691,7 @@ static void renderVisiblePortions(kernelWindow *window,
 	    numVisibleAreas--;
 	    visibleAreas[count2].leftX = visibleAreas[numVisibleAreas].leftX;
 	    visibleAreas[count2].topY = visibleAreas[numVisibleAreas].topY;
-	    visibleAreas[count2].rightX =
-	      visibleAreas[numVisibleAreas].rightX;
+	    visibleAreas[count2].rightX = visibleAreas[numVisibleAreas].rightX;
 	    visibleAreas[count2].bottomY =
 	      visibleAreas[numVisibleAreas].bottomY;
 	    count2--;
@@ -731,16 +718,13 @@ static void renderVisiblePortions(kernelWindow *window,
 	visibleAreas[count1].bottomY = (screenHeight - 1);
 
       kernelGraphicRenderBuffer(&(window->buffer),
-				window->xCoord, window->yCoord,
-				visibleAreas[count1].leftX,
-				visibleAreas[count1].topY,
-				(visibleAreas[count1].rightX -
-				 visibleAreas[count1].leftX + 1),
-				(visibleAreas[count1].bottomY -
-				 visibleAreas[count1].topY + 1));
+	window->xCoord, window->yCoord, visibleAreas[count1].leftX,
+	visibleAreas[count1].topY, (visibleAreas[count1].rightX -
+				    visibleAreas[count1].leftX + 1),
+	(visibleAreas[count1].bottomY - visibleAreas[count1].topY + 1));
     }
 
-  kernelResourceManagerUnlock(&windowListLock);
+  return;
 }
 
 
@@ -773,73 +757,67 @@ static int drawWindowClip(kernelWindow *window, int xCoord, int yCoord,
   // requested.  Sort of the same.
 
   int status = 0;
-  unsigned bufferBytes = 0;
-  kernelGraphicBuffer tmpBuffer;
-  image tmpImage;
   kernelWindowComponent *component = NULL;
+  unsigned xOffset, yOffset;
   int count1, count2;
 
-  // We don't want to redraw the border, if any
+  // Don't actually try to do negative clips.  No point at all.
+  if (xCoord < 0)
+    {
+      width += xCoord;
+      xCoord = 0;
+    }
+  if (yCoord < 0)
+    {
+      height += yCoord;
+      yCoord = 0;
+    }
 
-  // Blank the background with the background color
-  kernelGraphicDrawRect(&(window->buffer), &rootColor, draw_normal, xCoord,
-			yCoord,	width, height, 0, 1);
+  // Blank the area with the window's background color
+  kernelGraphicDrawRect(&(window->buffer),
+			(color *) &(window->background), draw_normal,
+			xCoord, yCoord, width, height, 0, 1);
 
   // If the window has a background image, draw it in this space
   if (window->backgroundImage.data != NULL)
     {
-      tmpBuffer.width = width;
-      tmpBuffer.height = height;
-      bufferBytes = kernelGraphicCalculateAreaBytes(width, height);
-      tmpBuffer.data =
-	kernelMemoryRequestBlock(bufferBytes, 0, "temp graphic buffer");
-
-      if (tmpBuffer.data == NULL)
-	{
-	  kernelError(kernel_error, "Unable to allocate temporary graphic "
-		      "buffer space");
-	  return (status = ERR_MEMORY);
-	}
-
       if (window->backgroundTiled)
 	{
-	  // Tile the background image into our clip
-	  for (count1 = ((yCoord < 0)? -yCoord :
-			 -(yCoord % window->backgroundImage.height));
-	       count1 < height; count1 += window->backgroundImage.height)
-	    for (count2 = ((xCoord < 0)? -xCoord :
-			   -(xCoord % window->backgroundImage.width));
-		 count2 < width; count2 += window->backgroundImage.width)
-	      kernelGraphicDrawImage(&tmpBuffer, (image *)
-				     &(window->backgroundImage),
-				     count2, count1);
+	  // If you want to study this next bit, and send me emails telling
+	  // me how clever I am, please do.
+	  yOffset = (yCoord % window->backgroundImage.height);
+	  for (count2 = yCoord; (count2 < (yCoord + height)); )
+	    {
+	      xOffset = (xCoord % window->backgroundImage.width);
+	      for (count1 = xCoord; (count1 < (xCoord + width)); )
+		{
+		  kernelGraphicDrawImage(&(window->buffer), (image *)
+					 &(window->backgroundImage),
+					 count1, count2, xOffset, yOffset,
+					 ((xCoord + width) - count1),
+					 ((yCoord + height) - count2));
+		  count1 += (window->backgroundImage.width - xOffset);
+		  xOffset = 0;
+		}
+	      
+	      count2 += (window->backgroundImage.height - yOffset);
+	      yOffset = 0;
+	    }
 	}
       else
 	{
 	  // Draw the background once into our clip
-	  
-	  // Blank the background with the background color
-	  kernelGraphicDrawRect(&tmpBuffer, &rootColor, draw_normal, 0, 0,
-				width, height, 0, 1);
 
 	  // The coordinates of the image depend on its size.
 	  count1 = ((window->buffer.width -
 		     window->backgroundImage.width) / 2);
 	  count2 = ((window->buffer.height -
 		     window->backgroundImage.height) / 2);
-	  kernelGraphicDrawImage(&tmpBuffer, (image *)
-				 &(window->backgroundImage),
-				 (-xCoord + count1), (-yCoord + count2));
+	  kernelGraphicDrawImage(&(window->buffer), (image *)
+				 &(window->backgroundImage), xCoord, yCoord,
+				 (count1 + xCoord), (count2 + yCoord),
+				 width, height);
 	}
-
-      // Get the drawn stuff as an image
-      kernelGraphicGetImage(&tmpBuffer, &tmpImage, 0, 0, width, height);
-      
-      // Draw the image into the window
-      kernelGraphicDrawImage(&(window->buffer), &tmpImage, xCoord, yCoord);
-      
-      // Free the temporary buffer
-      kernelMemoryReleaseBlock(tmpBuffer.data);
     }
 
   // Loop through all the regular window components that fall (partially)
@@ -947,11 +925,12 @@ static int getConfiguration(void)
     }
 
   if (settings != NULL)
-    kernelMemoryReleaseSystemBlock(settings);
+    kernelFree(settings);
 
   settings = newSettings;
 
-  if (kernelVariableListGet(settings, "splash.image", value, 128) == 0)
+  if (!kernelVariableListGet(settings, "splash.image", value, 128) &&
+      strncmp(value, "", 128))
     {
       status = kernelImageLoadBmp(value, &splashImage);
     
@@ -961,7 +940,8 @@ static int getConfiguration(void)
 	haveSplash = 0;
     }
 
-  if (!kernelVariableListGet(settings, "backgroundcolor.red", value, 128))
+  if (!kernelVariableListGet(settings, "backgroundcolor.red", value, 128) &&
+      strncmp(value, "", 128))
     rootColor.red = atoi(value);
   else
     {
@@ -971,7 +951,8 @@ static int getConfiguration(void)
       kernelVariableListSet(settings, "backgroundcolor.red", value);
     }			    
 
-  if (!kernelVariableListGet(settings, "backgroundcolor.green", value, 128))
+  if (!kernelVariableListGet(settings, "backgroundcolor.green", value, 128) &&
+      strncmp(value, "", 128))
     rootColor.green = atoi(value);
   else
     {
@@ -981,7 +962,8 @@ static int getConfiguration(void)
       kernelVariableListSet(settings, "backgroundcolor.green", value);
     }			    
 
-  if (!kernelVariableListGet(settings, "backgroundcolor.blue", value, 128))
+  if (!kernelVariableListGet(settings, "backgroundcolor.blue", value, 128) &&
+      strncmp(value, "", 128))
     rootColor.blue = atoi(value);
   else
     {
@@ -990,6 +972,8 @@ static int getConfiguration(void)
       sprintf(value, "%d", rootColor.blue);
       kernelVariableListSet(settings, "backgroundcolor.blue", value);
     }			    
+
+  // Other variables and whatnot are dealt with elsewhere.
 
   return (status = 0);
 }
@@ -1016,13 +1000,13 @@ static kernelWindow *makeStartWindow(void)
 
   if (!haveSplash)
     // Try to load the default splash image to use when starting/restarting
-    if (kernelImageLoadBmp("/system/visopsys.bmp", &splashImage) == 0)
+    if (kernelImageLoadBmp(DEFAULT_WINDOWMANAGER_SPLASH, &splashImage) == 0)
       haveSplash = 1;
 
   if (haveSplash)
     {
       // Get a new image component
-      imageComponent = kernelWindowNewImageComponent(window, &splashImage);
+      imageComponent = kernelWindowNewImage(window, &splashImage);
 
       params.gridX = 0;
       params.gridY = 0;
@@ -1086,35 +1070,37 @@ static kernelWindow *makeRootWindow(void)
   rootWindow->hasTitleBar = 0;
 
   // The window is always at the bottom level
-  rootWindow->level = MAX_WINDOWS;
+  rootWindow->level = WINDOW_MAXWINDOWS;
+
+  // Set our background color preference
+  rootWindow->background.red = rootColor.red;
+  rootWindow->background.green = rootColor.green;
+  rootWindow->background.blue = rootColor.blue;
 
   // Try to load the background image
 
-  if (kernelVariableListGet(settings, "background.image",
-			    propertyValue, 128) != 0)
+  if (!kernelVariableListGet(settings, "background.image", propertyValue,
+			     128) && strncmp(propertyValue, "", 128))
     {
-      // Nothing specified.  Use a default.
-      strcpy(propertyValue, "/system/backgrnd.bmp");
-      // Save it for later so it can be written back out to the config file
-      kernelVariableListSet(settings, "background.image", propertyValue);
+      status = kernelImageLoadBmp(propertyValue, &tmpImage);
+
+      if (status == 0)
+	// Put the background image into our window.
+	setBackgroundImage(rootWindow, &tmpImage);
+      else
+	kernelError(kernel_error, "Error loading background image %s",
+		    propertyValue);
+
+      if (tmpImage.data != NULL)
+	// Release the image memory
+	kernelMemoryRelease(tmpImage.data);
     }
 
-  status = kernelImageLoadBmp(propertyValue, &tmpImage);
-
-  if (status == 0)
-    // Put the background image into our window.
-    setBackgroundImage(rootWindow, &tmpImage);
-  else
-    kernelError(kernel_error, "Error loading background image");
-
-  // Release the image memory
-  kernelMemoryReleaseBlock(tmpImage.data);
-
-  
   // Try to load icons
 
   // Ask for the list of icon names
-  if (kernelVariableListGet(settings, "icons", iconList, 128) == 0)
+  if (!kernelVariableListGet(settings, "icons", iconList, 128) &&
+      strncmp(iconList, "", 128))
     {
       // Comma-separated list of icon names.
       iconName = iconList;
@@ -1149,8 +1135,8 @@ static kernelWindow *makeRootWindow(void)
 	  if (status == 0)
 	    {
 	      iconComponent =
-		kernelWindowNewIconComponent(rootWindow, &tmpImage, iconLabel,
-					     iconCommand);
+		kernelWindowNewIcon(rootWindow, &tmpImage, iconLabel,
+				    iconCommand);
 	      
 	      params.gridX = 0;
 	      params.gridY = iconCount++;
@@ -1172,7 +1158,7 @@ static kernelWindow *makeRootWindow(void)
 	    kernelError(kernel_error, "Error loading icon image");
 
 	  // Release the image memory
-	  kernelMemoryReleaseBlock(tmpImage.data);
+	  kernelMemoryRelease(tmpImage.data);
 
 	  // Move to the next icon name, if applicable
 	  if (iconName[count] == ',')
@@ -1196,6 +1182,7 @@ static kernelWindow *makeRootWindow(void)
 	  (iconComponent->width > maxIconWidth))
 	maxIconWidth = iconComponent->width;
     }
+
   // Move all the others over so that their X coordinate is an average
   for (count = 0; count < rootWindow->numberComponents; count ++)
     {
@@ -1207,6 +1194,10 @@ static kernelWindow *makeRootWindow(void)
 	    continue;
 
 	  iconComponent->xCoord += ((maxIconWidth - iconComponent->width) / 2);
+
+	  if (iconComponent->move != NULL)
+	    iconComponent->move((void *) iconComponent, iconComponent->xCoord,
+				iconComponent->yCoord);
 	}
     }
 
@@ -1215,13 +1206,11 @@ static kernelWindow *makeRootWindow(void)
 }
 
 
-static kernelWindow *makeConsoleWindow(void)
+static int makeConsoleWindow(void)
 {
-  // Create the console window
+  // Create the temporary console window
 
-  int windowWidth, windowHeight, windowX, windowY;
-  int columns, rows;
-  kernelWindowComponent *textAreaComponent = NULL;
+  int status = 0;
   componentParameters params;
   kernelTextArea *oldArea = NULL;
   kernelTextArea *newArea = NULL;
@@ -1231,64 +1220,38 @@ static kernelWindow *makeConsoleWindow(void)
   int lineBufferCount = 0;
   int rowCount, columnCount;
 
-  windowWidth = screenWidth - (screenWidth / 3);
-  windowHeight = screenHeight - (screenHeight / 3);
-  windowX = (screenWidth / 6);
-  windowY = (screenHeight / 6);
-
-  consoleWindow = kernelWindowManagerNewWindow(KERNELPROCID, "Console window",
-				       windowX, windowY, windowWidth, windowY);
+  consoleWindow =
+    kernelWindowManagerNewWindow(KERNELPROCID, "Temp Console Window",
+				 0, 0, 1, 1);
   if (consoleWindow == NULL)
-    return (consoleWindow);
+    return (status = ERR_NOCREATE);
 
-  // How many columns and rows do we want?
-  columns = ((windowWidth - (borderThickness * 2)) /
-	     defaultFont->charWidth);
-  rows = ((windowHeight - (borderThickness * 2) - titleBarHeight) /
-	  defaultFont->charHeight);
+  consoleTextArea =
+    kernelWindowNewTextArea(consoleWindow, 80, 50, defaultFont);
 
-  textAreaComponent =
-    kernelWindowNewTextAreaComponent(consoleWindow, columns, rows,
-				     defaultFont);
-
-  if (textAreaComponent != NULL)
+  if (consoleTextArea != NULL)
     {
-      params.gridX = 0;
-      params.gridY = 0;
+      kernelMemClear(&params, sizeof(componentParameters));
       params.gridWidth = 1;
       params.gridHeight = 1;
-      params.padLeft = 0;
-      params.padRight = 0;
-      params.padTop = 0;
-      params.padBottom = 0;
       params.orientationX = orient_center;
       params.orientationY = orient_middle;
-      params.hasBorder = 0;
       params.useDefaultForeground = 1;
       params.useDefaultBackground = 1;
-
-      addWindowComponent(consoleWindow, textAreaComponent, &params);
+      kernelWindowAddClientComponent(consoleWindow, consoleTextArea, &params);
       
       oldArea = kernelTextGetConsoleOutput()->textArea;
-      newArea = (kernelTextArea *) textAreaComponent->data;
+      newArea = (kernelTextArea *) consoleTextArea->data;
 
-      // Redirect console IO to this new area
-      kernelTextSetConsoleInput((kernelTextInputStream *)
-				newArea->inputStream);
-      kernelTextSetConsoleOutput((kernelTextOutputStream *)
-				 newArea->outputStream);
+      // Redirect console and current text IO to this new area
+      kernelTextSetConsoleInput(newArea->inputStream);
+      kernelTextSetConsoleOutput(newArea->outputStream);
+      kernelTextSetCurrentInput(newArea->inputStream);
+      kernelTextSetCurrentOutput(newArea->outputStream);
 
-      // Set the current process' (the kernel's) intput and output streams
-      // as well
-      kernelMultitaskerSetTextInput(KERNELPROCID, (kernelTextInputStream *)
-				    newArea->inputStream);
-      kernelMultitaskerSetTextOutput(KERNELPROCID, (kernelTextOutputStream *)
-				    newArea->outputStream);
-
-      // For aesthetic purposes, visually clear the old area from the screen
-      kernelGraphicClearArea(oldArea->graphicBuffer, &rootColor, 0, 0,
-			     oldArea->graphicBuffer->width,
-			     oldArea->graphicBuffer->height);
+      // Set the kernel's input and output streams as well
+      kernelMultitaskerSetTextInput(KERNELPROCID, newArea->inputStream);
+      kernelMultitaskerSetTextOutput(KERNELPROCID, newArea->outputStream);
 
       // Loop through contents of the current console area, and put them into
       // the buffer belonging to this new text area.  Remember that the new
@@ -1296,11 +1259,10 @@ static kernelWindow *makeConsoleWindow(void)
       // previous one.  Note that this is not really important, and is mostly
       // just for showing off.
       for (rowCount = 0; ((rowCount < oldArea->rows) &&
-			  (rowCount < newArea->rows));
-	   rowCount ++)
+			  (rowCount < newArea->rows)); rowCount ++)
 	{
-	  lineAddress = (unsigned char *) (oldArea->data +
-					   (rowCount * oldArea->columns));
+	  lineAddress = (unsigned char *)
+	    (oldArea->data + (rowCount * oldArea->columns));
 	  lineBufferCount = 0;
 	  
 	  for (columnCount = 0; (columnCount < oldArea->columns) &&
@@ -1317,7 +1279,7 @@ static kernelWindow *makeConsoleWindow(void)
 	  
 	  if (lineBufferCount > 0)
 	    // Print the line to the new text area
-	    kernelTextPrint(lineBuffer);
+	    kernelTextStreamPrint(newArea->outputStream, lineBuffer);
 	}
     }
   else
@@ -1326,7 +1288,7 @@ static kernelWindow *makeConsoleWindow(void)
   kernelWindowLayout(consoleWindow);
   kernelWindowAutoSize(consoleWindow);
 
-  return (consoleWindow);
+  return (status = 0);
 }
 
 
@@ -1347,9 +1309,7 @@ static int getWindowGraphicBuffer(kernelWindow *window, unsigned width,
   bufferBytes = kernelGraphicCalculateAreaBytes(width, height);
   
   // Get some memory for it
-  window->buffer.data =
-    kernelMemoryRequestSystemBlock(bufferBytes, 0, "window graphic buffer");
-
+  window->buffer.data = kernelMalloc(bufferBytes);
   if (window->buffer.data == NULL)
     return (status = ERR_MEMORY);
 
@@ -1357,84 +1317,70 @@ static int getWindowGraphicBuffer(kernelWindow *window, unsigned width,
 }
 
 
-static void windowLostFocus(kernelWindow *window)
+static void changeFocus(kernelWindow *window)
 {
-  // This window lost its focus.
+  // Gets called when a window acquires the focus
 
+  //int status = 0;
+  kernelTextInputStream *currentInput = NULL;
+  kernelTextOutputStream *currentOutput = NULL;
   int count;
 
   // The root window never gets or loses the focus
-  if (window == rootWindow)
-    return;
+  if ((window == NULL) || (window == rootWindow))
+    {
+      focusWindow = NULL;
+      return;
+    }
 
-  // This is not the focus window any more.  We do this so that the
-  // title bar 'draw' routine won't make it look focussed
-  window->hasFocus = 0;
-  focusWindow = NULL;
+  if (window != focusWindow)
+    {
+      // Lock the window list
+      // status = kernelLockGet(&windowListLock);
+      // if (status < 0)
+      //   return;
 
-  // Redraw the title bar of the window
-  if (window->hasTitleBar)
-    for (count = 0; count < window->numberComponents; count ++)
-      if (window->componentList[count]->type == windowTitleBarComponent)
-	{
-	  window->componentList[count]
-	    ->draw((void *) window->componentList[count]);
-	  break;
-	}
-
-  // Redraw the window's title bar area only
-  kernelWindowManagerUpdateBuffer(&(window->buffer), borderThickness,
-				  borderThickness, (window->buffer.width -
-						    (borderThickness * 2)),
-				  titleBarHeight);
-  return;
-}
-
-
-static void windowGotFocus(kernelWindow *window)
-{
-  int status = 0;
-  kernelTextInputStream *consoleInput = NULL;
-  kernelTextOutputStream *consoleOutput = NULL;
-  int count;
-
-  // The root window never gets or loses the focus
-  if (window == rootWindow)
-    return;
-
-  // Lock the window list
-  status = kernelResourceManagerLock(&windowListLock);
-  if (status < 0)
-    return;
-
-  // Decrement the levels of all windows that used to be above us
-  for (count = 0; count < numberWindows; count ++)
-    if ((windowList[count] != window) &&
-	(windowList[count]->level < window->level))
-      windowList[count]->level++;
-
-  kernelResourceManagerUnlock(&windowListLock);
+      // Decrement the levels of all windows that used to be above us
+      for (count = 0; count < numberWindows; count ++)
+	if ((windowList[count] != window) &&
+	    (windowList[count]->level <= window->level))
+	  windowList[count]->level++;
   
+      //kernelLockRelease(&windowListLock);
+
+      if (focusWindow != NULL)
+	{
+	  // Remove the focus from the previously focussed window
+	  
+	  // This is not the focus window any more.  We do this so that the
+	  // title bar 'draw' routine won't make it look focussed
+	  focusWindow->hasFocus = 0;
+	  
+	  // Redraw the title bar of the window
+	  if (focusWindow->hasTitleBar)
+	    for (count = 0; count < focusWindow->numberComponents; count ++)
+	      if (focusWindow->componentList[count]->type ==
+		  windowTitleBarComponent)
+		{
+		  focusWindow->componentList[count]
+		    ->draw((void *) focusWindow->componentList[count]);
+
+		  // Redraw the window's title bar area only
+		  kernelWindowManagerUpdateBuffer(&(focusWindow->buffer),
+			  borderThickness, borderThickness,
+			  (focusWindow->buffer.width - (borderThickness * 2)),
+			  titleBarHeight);
+		  break;
+		}
+	}
+    }
+
   // This window becomes topmost
   window->level = 0;
-
-  if ((focusWindow != NULL) && (focusWindow != window))
-    // Remove the focus from the previously focussed window
-    windowLostFocus(focusWindow);
 
   // Mark it as focussed
   window->hasFocus = 1;
   focusWindow = window;
-
-  // Draw the tile bar as focussed
-  if (window->hasTitleBar)
-    for (count = 0; count < window->numberComponents; count ++)
-      if (window->componentList[count]->type == windowTitleBarComponent)
-	{
-	  window->componentList[count]
-	    ->draw((void *) window->componentList[count]);
-	  break;
-	}
 
   // If the window has any sort of text area or field inside it, set the
   // console input stream to that process.  Need to do something better
@@ -1444,156 +1390,33 @@ static void windowGotFocus(kernelWindow *window)
       if ((window->componentList[count]->type == windowTextAreaComponent) ||
 	  (window->componentList[count]->type == windowTextFieldComponent))
 	{
-	  consoleInput = (kernelTextInputStream *)
-	    ((kernelWindowTextAreaComponent *)
+	  currentInput = (kernelTextInputStream *)
+	    ((kernelWindowTextArea *)
 	     window->componentList[count]->data)->inputStream;
-	  kernelTextSetConsoleInput(consoleInput);
-	  consoleOutput = (kernelTextOutputStream *)
-	    ((kernelWindowTextAreaComponent *)
+	  kernelTextSetCurrentInput(currentInput);
+	  currentOutput = (kernelTextOutputStream *)
+	    ((kernelWindowTextArea *)
 	     window->componentList[count]->data)->outputStream;
-	  kernelTextSetConsoleOutput(consoleOutput);
+	  window->focusComponent = window->componentList[count];
+	  kernelTextSetCurrentOutput(currentOutput);
+	  break;
 	}
     }
+  
+  // Draw the title bar as focussed
+  if (window->hasTitleBar)
+    for (count = 0; count < window->numberComponents; count ++)
+      if (window->componentList[count]->type == windowTitleBarComponent)
+	{
+	  window->componentList[count]
+	    ->draw((void *) window->componentList[count]);
+	  break;
+	}
 
   // Redraw the whole window, since all of it is now visible (otherwise we
   // would call drawVisiblePortions()).
   kernelWindowManagerUpdateBuffer(&(window->buffer), 0, 0,
-   				  window->buffer.width,
-				  window->buffer.height);
-  return;
-}
-
-
-static kernelWindowComponent *getClickedComponent(kernelWindow *window,
-					  kernelMouseStatus *mouseStatus)
-{
-  kernelWindowComponent *component = NULL;
-  int count;
-
-  for (count = (window->numberComponents - 1); count >= 0; count --)
-    {
-      component = window->componentList[count];
-
-      if (isPointInside(mouseStatus->xPosition, mouseStatus->yPosition,
-		&((screenArea) { (window->xCoord + component->xCoord),
-				   (window->yCoord + component->yCoord),
-				   (window->xCoord + component->xCoord +
-				    component->width - 1),
-				   (window->yCoord + component->yCoord +
-				    component->height - 1) } )))
-	return (component);
-    }
-
-  // If we fall through, nothing
-  return (component = NULL);
-}
-
-
-static void processMouseEvents(void)
-{
-  int status = 0;
-  static kernelWindowComponent *draggingComponent = NULL;
-  kernelMouseStatus *mouseStatus = NULL;
-  kernelWindow *window = NULL;
-  kernelWindowComponent *targetComponent = NULL;
-  int count1, count2;
-
-  // Lock the list of mouse events
-  status = kernelResourceManagerLock(&mouseUpdateListLock);
-  if (status < 0)
-    return;
-
-  // Loop through the list of mouse updates, sequentially, and process them
-  for (count1 = 0; count1 < numberMouseUpdates; count1 ++)
-    {
-      mouseStatus = mouseUpdateList[count1];
-
-      // If it was just a move, skip it for now
-      if (mouseStatus->eventMask == MOUSE_MOVE)
-	continue;
-
-      // Shortcut: If we are dragging a component, give the event right
-      // to the component
-      if (draggingComponent && draggingComponent->mouseEvent)
-	{
-	  window = (kernelWindow *) draggingComponent->window;
-	  draggingComponent->mouseEvent((void *) draggingComponent,
-					mouseStatus);
-	  if (!(mouseStatus->eventMask & MOUSE_DRAG))
-	    draggingComponent = NULL;
-	}
-
-      else
-	{
-	  // Figure out which window this is happening to, if any
-
-	  // Lock the window list
-	  status = kernelResourceManagerLock(&windowListLock);
-	  if (status < 0)
-	    {
-	      kernelResourceManagerUnlock(&mouseUpdateListLock);
-	      continue;
-	    }
-
-	  for (count2 = 0; count2 < numberWindows; count2 ++)
-	    if (windowList[count2]->visible &&
-		(isPointInside(mouseStatus->xPosition, mouseStatus->yPosition,
-			       makeScreenAreaP(windowList[count2]))))
-	      {
-		// The mouse is inside this window's coordinates.  Is it the
-		// topmost such window we've found?
-		if ((window == NULL) ||
-		    (windowList[count2]->level < window->level))
-		  window = windowList[count2];
-	      }
-	  
-	  kernelResourceManagerUnlock(&windowListLock);
-	  
-	  // Was it inside a window?
-	  if (window == NULL)
-	    // Ignore
-	    continue;
-      
-	  // The event was inside a window
-
-	  // Check to see whether the process that owns the window still
-	  // exists.  If not, destroy the window and quit for this event.
-	  if (kernelMultitaskerGetProcess(window->processId) == NULL)
-	    {
-	      kernelWindowManagerDestroyWindow(window);
-	      kernelMouseDraw();
-	      continue;
-	    }
-  
-	  // If it was a click and the window is not in focus, give it the
-	  // focus
-	  if ((mouseStatus->eventMask & MOUSE_DOWN) &&
-	      (window != focusWindow))
-	    // Give the window the focus
-	    windowGotFocus(window);
-
-	  // Find out if it was inside of any of the window's components.
-	  // If they have a function to handle the click, call it
-	  targetComponent = getClickedComponent(window, mouseStatus);
-
-	  if (targetComponent && (targetComponent->mouseEvent != NULL))
-	    targetComponent->mouseEvent((void *) targetComponent,
-					mouseStatus);
-
-	  if (mouseStatus->eventMask & MOUSE_DRAG)
-	    draggingComponent = targetComponent;
-	}
-
-      // Copy this mouse event into the window
-      kernelMemCopy(mouseStatus, (void *) &(window->mouseEvent),
-		    sizeof(kernelMouseStatus));
-    }
-
-  // No more mouse updates
-  numberMouseUpdates = 0;
-
-  kernelResourceManagerUnlock(&mouseUpdateListLock);
-
+				  window->buffer.width, window->buffer.height);
   return;
 }
 
@@ -1608,6 +1431,101 @@ static void componentDrawBorder(void *componentData)
 			(component->xCoord - 2), (component->yCoord - 2),
 			(component->width + 4), (component->height + 4), 1, 0);
   return;
+}
+
+
+static void windowManagerThread(void)
+{
+  // This thread runs as the 'window manager' to watch for window events
+  // on 'system' GUI components such as window close buttons.
+
+  kernelWindow *window = NULL;
+  kernelWindowComponent *component = NULL;
+  windowEvent event;
+  int processId = 0;
+  int winCount, compCount;
+
+  while(1)
+    {
+      // Loop through all of the components, looking for 'system' ones
+      for (winCount = 0; winCount < numberWindows; winCount ++)
+	{
+	  window = windowList[winCount];
+	  processId = window->processId;
+ 
+	  // Loop through the components
+	  for (compCount = 0; compCount < window->numberComponents;
+	       compCount ++)
+	    {
+	      component = window->componentList[compCount];
+ 
+	      if (component->processId == KERNELPROCID)
+		{
+		  // Any events pending?
+		  if ((kernelWindowEventStreamRead((windowEventStream *)
+			   &(component->events), &event) > 0) &&
+		      // Any handler for the event?
+		      component->eventHandler)
+		    {
+		      component->eventHandler((objectKey) component, &event);
+ 
+		      // Was the window closed?
+		      if (!kernelMultitaskerProcessIsAlive(processId))
+			{
+			  // Restart the loop
+			  winCount = -1;
+			  break;
+			}
+		    }
+		}
+	    }
+	}
+
+      // Done
+      kernelMultitaskerYield();
+    }
+}
+
+
+static inline kernelWindow *findTopmostWindow(void)
+{
+  int topmostLevel = MAXINT;
+  kernelWindow *topmostWindow = NULL;
+  int count;
+
+  // Find the topmost window
+  for (count = 0; count < numberWindows; count ++)
+    {
+      if (windowList[count]->visible &&
+	  (windowList[count]->level < topmostLevel))
+	{
+	  topmostWindow = windowList[count];
+	  topmostLevel = windowList[count]->level;
+	}
+    }
+
+  return (topmostWindow);
+}
+
+
+static inline kernelWindowComponent *findTopmostComponent(kernelWindow *window,
+						  int xCoord, int yCoord)
+{
+  int topmostLevel = MAXINT;
+  kernelWindowComponent *topmostComponent = NULL;
+  int count;
+
+  // Find the window's topmost component at this location
+  for (count = 0; count < window->numberComponents; count ++)
+    if ((window->componentList[count]->level < topmostLevel) &&
+	isPointInside(xCoord, yCoord,
+		      makeComponentScreenArea(window->componentList[count])))
+      {
+	topmostComponent = window->componentList[count];
+	topmostLevel = window->componentList[count]->level;
+      }
+
+  return (topmostComponent);
 }
 
 
@@ -1636,9 +1554,7 @@ int kernelWindowManagerInitialize(void)
     }
 
   // Allocate memory to hold all the window information
-  windowData =
-    kernelMemoryRequestSystemBlock((sizeof(kernelWindow) * MAX_WINDOWS),
-				   0, "window system data");
+  windowData = kernelMalloc((sizeof(kernelWindow) * WINDOW_MAXWINDOWS));
   if (windowData == NULL)
     {
       // Eek
@@ -1649,30 +1565,13 @@ int kernelWindowManagerInitialize(void)
 
   // Set up the array of pointers to memory within the window data that
   // will be used for the window structures
-  for (count = 0; count < MAX_WINDOWS; count ++)
+  for (count = 0; count < WINDOW_MAXWINDOWS; count ++)
     windowList[count] = &(windowData[count]);
 
   numberWindows = 0;
 
-  // Allocate memory to hold all the mouse update information
-  mouseUpdateData =
-    kernelMemoryRequestSystemBlock((sizeof(kernelMouseStatus) *
-				    MAX_MOUSE_UPDATES), 0,
-				   "mouse update data");
-  if (mouseUpdateData == NULL)
-    {
-      // Eek
-      kernelError(kernel_error, "Unable to get mouse event data memory for "
-		  "the window manager");
-      return (status = ERR_MEMORY);
-    }
-
-  // Set up the array of pointers to memory within the mouse data that
-  // will be used for the mouse status structures
-  for (count = 0; count < MAX_MOUSE_UPDATES; count ++)
-    mouseUpdateList[count] = &(mouseUpdateData[count]);
-
-  numberMouseUpdates = 0;
+  // Initialize the lock for the window list
+  kernelMemClear((void *) &windowListLock, sizeof(kernelLock));
 
   // Screen parameters
   screenWidth = kernelGraphicGetScreenWidth();
@@ -1680,7 +1579,6 @@ int kernelWindowManagerInitialize(void)
 
   // What's the default font?
   status = kernelFontGetDefault(&defaultFont);
-  
   if (status < 0)
     // Couldn't get the default font
     return (status);
@@ -1710,8 +1608,8 @@ int kernelWindowManagerStart(void)
   int count;
 
   char *mousePointerTypes[][2] = {
-    { "default", "/system/mouse.bmp" },
-    { "busy", "/system/mousebsy.bmp" }
+    { "default", DEFAULT_MOUSEPOINTER_DEFAULT },
+    { "busy", DEFAULT_MOUSEPOINTER_BUSY }
   };
 
   // Make sure we've been initialized
@@ -1721,8 +1619,8 @@ int kernelWindowManagerStart(void)
   // Read the config file
   getConfiguration();
 
-  // Clear the screen with our background color
-  kernelGraphicClearArea(NULL, &rootColor, 0, 0, screenWidth, screenHeight);
+  // Clear the screen with our default background color
+  kernelGraphicClearScreen(&rootColor);
 
   // Set the temporary text area to the current background color, for neatness'
   // sake if there are any error messages before we create the console window
@@ -1737,8 +1635,7 @@ int kernelWindowManagerStart(void)
       strcpy(propertyName, "mouse.pointer.");
       strcat(propertyName, mousePointerTypes[count][0]);
 
-      if (kernelVariableListGet(settings, propertyName,
-				propertyValue, 128) != 0)
+      if (kernelVariableListGet(settings, propertyName, propertyValue, 128))
 	{
 	  // Nothing specified.  Use the default.
 	  strcpy(propertyValue, mousePointerTypes[count][1]);
@@ -1750,7 +1647,6 @@ int kernelWindowManagerStart(void)
       // so load the 'busy' one last
       status = kernelMouseLoadPointer(mousePointerTypes[count][0],
 				      propertyValue);
-
       if (status < 0)
 	kernelError(kernel_warn, "Unable to load mouse pointer %s=\"%s\"",
 		    propertyName, propertyValue);
@@ -1760,9 +1656,9 @@ int kernelWindowManagerStart(void)
   startWindow = makeStartWindow();
   kernelWindowSetVisible(startWindow, 1);
 
-  // Draw the root and console windows, but don't make them visible
-  makeRootWindow();
+  // Draw the console and root windows, but don't make them visible
   makeConsoleWindow();
+  makeRootWindow();
 
   // Get rid of the start window
   kernelWindowManagerDestroyWindow(startWindow);
@@ -1775,16 +1671,32 @@ int kernelWindowManagerStart(void)
 }
 
 
-int kernelWindowManagerLogin(int userId)
+int kernelWindowManagerLogin(const char *userName, const char *passwd)
 {
   // This gets called after the user has logged in.
 
-  // Make all the windows visible
-  kernelWindowSetVisible(rootWindow, 1);
-  kernelWindowSetVisible(consoleWindow, 1);
+  // Make sure we've been initialized
+  if (!initialized)
+    return (ERR_NOTINITIALIZED);
 
+  strncpy(loggedInUser, userName, USER_MAX_NAMELENGTH);
+
+  // Make the root window visible
+  kernelWindowSetVisible(rootWindow, 1);
   kernelMouseDraw();
-  return (0);
+
+  // Spawn the window manager thread
+  winManPID =
+    kernelMultitaskerSpawnKernelThread(windowManagerThread, "window manager",
+				       0, NULL);
+  return (winManPID);
+}
+
+
+const char *kernelWindowManagerGetUser(void)
+{
+  // Returns a pointer to the name of the logged in user
+  return (loggedInUser);
 }
 
 
@@ -1792,12 +1704,61 @@ int kernelWindowManagerLogout(void)
 {
   // This gets called after the user has logged out.
 
-  // Hide all the windows
-  kernelWindowSetVisible(consoleWindow, 0);
+  // Loop through all the windows, closing everything except the console
+  // window and the root window
+  
+  int status = 0;
+  kernelWindow *window = NULL;
+  int count;
+
+  // Make sure we've been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  /*
+  // Lock the window list
+  status = kernelLockGet(&windowListLock);
+  if (status < 0)
+    return (status);
+  */
+
+  for (count = 0; count < numberWindows; count ++)
+    {
+      if ((windowList[count] != rootWindow) &&
+	  (windowList[count] != consoleWindow))
+	{
+	  window = windowList[count];
+
+	  // Can't keep the lock while calling the functions below
+	  //kernelLockRelease(&windowListLock);
+
+	  // Kill the process that owns the window
+	  kernelMultitaskerKillProcess(windowList[count]->processId, 0);
+
+	  // Destroy the window
+	  kernelWindowManagerDestroyWindow(windowList[count]);
+
+	  // Need to restart the loop, since the window list will have changed
+	  count = 0;
+
+	  /*
+	  // Lock the window list again
+	  status = kernelLockGet(&windowListLock);
+	  if (status < 0)
+	    return (status);
+	  */
+	}
+    }
+
+  //kernelLockRelease(&windowListLock);
+ 
+  strcpy(loggedInUser, "");
+
+  // Hide the root window
   kernelWindowSetVisible(rootWindow, 0);
 
   kernelMouseDraw();
-  return (0);
+  return (status = 0);
 }
 
 
@@ -1815,11 +1776,17 @@ kernelWindow *kernelWindowManagerNewWindow(int processId, const char *title,
   if (!initialized)
     return (newWindow = NULL);
 
+  // Check params
+  if (title == NULL)
+    return (newWindow = NULL);
+
+  /*
   // Lock the window list
-  status = kernelResourceManagerLock(&windowListLock);
+  status = kernelLockGet(&windowListLock);
   if (status < 0)
     return (newWindow = NULL);
- 
+  */
+
   // Get some memory for window data
   newWindow = windowList[numberWindows++];
 
@@ -1830,8 +1797,8 @@ kernelWindow *kernelWindowManagerNewWindow(int processId, const char *title,
   newWindow->processId = processId;
 
   // The title
-  strncpy((char *) newWindow->title, title, MAX_TITLE_LENGTH);
-  newWindow->title[MAX_TITLE_LENGTH - 1] = '\0';
+  strncpy((char *) newWindow->title, title, WINDOW_MAX_TITLE_LENGTH);
+  newWindow->title[WINDOW_MAX_TITLE_LENGTH - 1] = '\0';
 
   // Set the location, width, and height
   newWindow->xCoord = xCoord;
@@ -1840,12 +1807,14 @@ kernelWindow *kernelWindowManagerNewWindow(int processId, const char *title,
   // New windows get put at the bottom level until they are marked as
   // visible
   newWindow->level = 0;
-  for (count = 0; count < (numberWindows - 1); count ++)
-    if ((windowList[count] != rootWindow) &&
-	(windowList[count]->level > bottomLevel))
-      bottomLevel = windowList[count]->level;
   if (numberWindows > 1)
-    newWindow->level = (bottomLevel + 1);
+    {
+      for (count = 0; count < (numberWindows - 1); count ++)
+	if ((windowList[count] != rootWindow) &&
+	    (windowList[count]->level > bottomLevel))
+	  bottomLevel = windowList[count]->level;
+      newWindow->level = (bottomLevel + 1);
+    }
 
   // New windows don't have the focus until they are marked as visible
   newWindow->hasFocus = 0;
@@ -1864,18 +1833,26 @@ kernelWindow *kernelWindowManagerNewWindow(int processId, const char *title,
 
   // Get the window's graphic buffer all set up
   status = getWindowGraphicBuffer(newWindow, width, height);
-
   if (status < 0)
     {
       // Eek!  No new window for you!
       numberWindows--;
       kernelError(kernel_warn, "Error getting memory for window graphic "
 		  "buffer");
-      kernelResourceManagerUnlock(&windowListLock);
+      //kernelLockRelease(&windowListLock);
       return (newWindow = NULL);
     }
 
-  kernelResourceManagerUnlock(&windowListLock);
+  // Set the window's background color to the default
+  newWindow->background.red = DEFAULT_GREY;
+  newWindow->background.green = DEFAULT_GREY;
+  newWindow->background.blue = DEFAULT_GREY;
+
+  // Add an event stream for the window
+  status =
+    kernelWindowEventStreamNew((windowEventStream *) &(newWindow->events));
+  if (status < 0)
+    return (newWindow = NULL);
 
   // Add the title bar component
   addTitleBar(newWindow);
@@ -1884,8 +1861,42 @@ kernelWindow *kernelWindowManagerNewWindow(int processId, const char *title,
   newWindow->draw = (int (*)(void *)) &drawWindow;
   newWindow->drawClip = (int (*) (void *, int, int, int, int)) &drawWindowClip;
 
+  //kernelLockRelease(&windowListLock);
+
   // Return the window
   return (newWindow);
+}
+
+
+kernelWindow *kernelWindowManagerNewDialog(kernelWindow *parentWindow,
+			   const char *title, int xCoord, int yCoord,
+			   unsigned width, unsigned height)
+{
+  // Creates a new 'dialog box' window, tied to the parent window, using the
+  // supplied values.  Not visible by default.
+
+  kernelWindow *newDialog = NULL;
+
+  // Make sure we've been initialized
+  if (!initialized)
+    return (newDialog = NULL);
+
+  // Check params
+  if ((parentWindow == NULL) || (title == NULL))
+    return (newDialog = NULL);
+
+  // Make a new window based on the parent
+  newDialog = kernelWindowManagerNewWindow(parentWindow->processId, title,
+					   xCoord, yCoord, width, height);
+  if (newDialog == NULL)
+    return (newDialog);
+
+  // Attach the dialog window to the parent window and vice-versa
+  parentWindow->dialogWindow = (void *) newDialog;
+  newDialog->parentWindow = (void *) parentWindow;
+
+  // Return the dialog window
+  return (newDialog);
 }
 
 
@@ -1895,10 +1906,6 @@ int kernelWindowManagerDestroyWindow(kernelWindow *window)
 
   int status = 0;
   int listPosition = 0;
-  int foundWindow = 0;
-  int topMostLevel = MAX_WINDOWS;
-  int windowHadFocus = 0;
-  kernelWindow *topMostWindow = NULL;
   int count;
 
   // Make sure we've been initialized
@@ -1908,42 +1915,46 @@ int kernelWindowManagerDestroyWindow(kernelWindow *window)
   if (window == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  // Never destroy the console window.  Just hide it if a 'destroy' is
-  // attempted.  That way there's always somewhere for text output from
-  // processes to go, even if it's invisible.
-  if (window == consoleWindow)
+  // If this window *has* a dialog window, first destroy the dialog
+  if (window->dialogWindow != NULL)
     {
-      kernelWindowSetVisible(window, 0);
-      return (status = 0);
+      status = kernelWindowManagerDestroyWindow((kernelWindow *)
+						window->dialogWindow);
+      if (status < 0)
+	return (status);
     }
 
+  // If this window *is* a dialog window, dissociate it from its parent
+  if (window->parentWindow != NULL)
+    ((kernelWindow *) window->parentWindow)->dialogWindow = NULL;
+
+  /*
   // Lock the window list
-  status = kernelResourceManagerLock(&windowListLock);
+  status = kernelLockGet(&windowListLock);
   if (status < 0)
     return (status);
- 
+  */
+
   // First try to find the window's position in the list
-  for (listPosition = 0; listPosition < numberWindows; )
-    {
-      if (windowList[listPosition] == window)
-	{
-	  foundWindow = 1;
-	  break;
-	}
-      listPosition ++;
-    }
+  for (count = 0; count < numberWindows; count ++)
+    if (windowList[count] == window)
+      {
+	listPosition = count;
+	break;
+      }
 
-  if (!foundWindow || (windowList[listPosition] != window))
-    {
-      // No such window (any more)
-      kernelResourceManagerUnlock(&windowListLock);
-      return (status = ERR_NOSUCHENTRY);
-    }
+  //kernelLockRelease(&windowListLock);
 
-  // Not visible anymore
-  if (focusWindow == window)
-    windowHadFocus = 1;
-  kernelWindowSetVisible(window, 0);
+  if (windowList[listPosition] != window)
+    // No such window (any more)
+    return (status = ERR_NOSUCHENTRY);
+
+  /*
+  // Lock the window list
+  status = kernelLockGet(&windowListLock);
+  if (status < 0)
+    return (status);
+  */
 
   // Remove this window from our list.  If there will be at least 1 remaining
   // window and this window was not the last one, swap the last one into the
@@ -1958,41 +1969,34 @@ int kernelWindowManagerDestroyWindow(kernelWindow *window)
   // Raise the levels of all windows that were below this one (except the root
   // window).  Give the topmost window the focus
   for (count = 0; count < numberWindows; count ++)
-    {
-      if (windowList[count]->visible &&
-	  (windowList[count]->level < topMostLevel))
-	topMostWindow = windowList[count];
+    if ((windowList[count] != rootWindow) &&
+	(windowList[count]->level >= window->level))
+      windowList[count]->level--;
 
-      if ((windowList[count] != rootWindow) &&
-	  (windowList[count]->level > window->level))
-	windowList[count]->level--;
-    }
+  //kernelLockRelease(&windowListLock);
 
-  if (windowHadFocus && (topMostWindow != NULL))
-    windowGotFocus(topMostWindow);
+  // Not visible anymore
+  kernelWindowSetVisible(window, 0);
 
   // Call the 'destroy' function for all the window's components
   for (count = 0; count < window->numberComponents; count ++)
-    if (window->componentList[count]->destroy != NULL)
-      window->componentList[count]
-	->destroy((void *) window->componentList[count]);
+    kernelWindowDestroyComponent(window->componentList[count]);
 
   // If the window has a background image, free it
   if (window->backgroundImage.data != NULL)
     {
-      status = kernelMemoryReleaseSystemBlock(window->backgroundImage.data);
+      status = kernelFree(window->backgroundImage.data);
       if (status < 0)
 	kernelError(kernel_warn, "Unable to deallocate background image data");
     }
 
   // Free the window's graphic buffer
-  status = kernelMemoryReleaseSystemBlock(window->buffer.data);
+  status = kernelFree(window->buffer.data);
   if (status < 0)
     kernelError(kernel_warn, "Error releasing window graphic buffer memory");
 
-  // We wait until here to unlock because we don't want someone else to
-  // grab this as a new window while we're in the middle of deconstructing it.
-  kernelResourceManagerUnlock(&windowListLock);
+  // Redraw the mouse
+  kernelMouseDraw();
 
   return (status);
 }
@@ -2003,9 +2007,7 @@ int kernelWindowManagerUpdateBuffer(kernelGraphicBuffer *buffer,
 				    unsigned width, unsigned height)
 {
   // A component is trying to tell us that it has updated itself and
-  // would like the window to be redrawn.  This function will schedule
-  // the update so that the window manager thread can take care of it
-  // in a batch with other updates
+  // would like the window to be redrawn.
 
   int status = 0;
   kernelWindow *window = NULL;
@@ -2037,9 +2039,11 @@ int kernelWindowManagerUpdateBuffer(kernelGraphicBuffer *buffer,
 	  (buffer->updates[count][1] + buffer->updates[count][2]) };
 	
 	if (isAreaInside(&area1, &area2))
-	  // Skip it, our current update is 'inside' this other one
-	  return (status = 0);
-	
+	  {
+	    // Skip it, our current update is 'inside' this other one
+	    return (status = 0);
+	  }
+
 	else if (isAreaInside(&area2, &area1))
 	  {
 	    // Replace the other one with this one
@@ -2060,11 +2064,17 @@ int kernelWindowManagerUpdateBuffer(kernelGraphicBuffer *buffer,
   buffer->numUpdates++;
 
   // First try to find the window
-  window = findWindowByBuffer(buffer);
-  
+
+  for (count = 0; count < numberWindows; count ++)
+    if (&(windowList[count]->buffer) == buffer)
+      {
+	window = windowList[count];
+	break;
+      }
+
   if (window == NULL)
-    return (status = ERR_NOSUCHENTRY);
-      
+      return (status = ERR_NOSUCHENTRY);
+
   status = updateBuffer(window);
 
   return (status);
@@ -2148,7 +2158,7 @@ int kernelWindowSetSize(kernelWindow *window, unsigned width, unsigned height)
     }
 
   // Release the memory from the old buffer
-  kernelMemoryReleaseSystemBlock(oldBufferData);
+  kernelFree(oldBufferData);
 
   if (window->hasTitleBar)
     {
@@ -2216,7 +2226,7 @@ int kernelWindowAutoSize(kernelWindow *window)
       if (window->hasTitleBar && (titleBar != NULL))
 	if ((component == titleBar) ||
 	    (window->hasCloseButton && 
-	    (component == ((kernelWindowTitleBarComponent *) titleBar->data)
+	    (component == ((kernelWindowTitleBar *) titleBar->data)
 	     ->closeButton)))
 	  continue;
 
@@ -2255,8 +2265,12 @@ int kernelWindowGetLocation(kernelWindow *window, int *xCoord, int *yCoord)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  if (window == NULL)
-    return (status = ERR_NOSUCHENTRY);
+  // Check params
+  if ((window == NULL) || (xCoord == NULL) || (yCoord == NULL))
+    return (status = ERR_NULLPARAMETER);
+
+  *xCoord = window->xCoord;
+  *yCoord = window->yCoord;
 
   // Return success
   return (status = 0);
@@ -2276,7 +2290,17 @@ int kernelWindowSetLocation(kernelWindow *window, int xCoord, int yCoord)
   if (window == NULL)
     return (status = ERR_NOSUCHENTRY);
 
-  // Set the size
+  // Erase any visible bits of the window
+  if (window->visible)
+    {
+      window->visible = 0;
+      kernelWindowManagerRedrawArea(window->xCoord, window->yCoord,
+				    window->buffer.width,
+				    window->buffer.height);
+      window->visible = 1;
+    }
+
+  // Set the location
   window->xCoord = xCoord;
   window->yCoord = yCoord;
 
@@ -2286,6 +2310,25 @@ int kernelWindowSetLocation(kernelWindow *window, int xCoord, int yCoord)
 
   // Return success
   return (status = 0);
+}
+
+
+int kernelWindowCenter(kernelWindow *window)
+{
+  // Centers a window on the screen
+
+  int status = 0;
+
+  // Make sure we've been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  if (window == NULL)
+    return (status = ERR_NOSUCHENTRY);
+
+  return (kernelWindowSetLocation(window,
+			  ((screenWidth - window->buffer.width) / 2),
+			  ((screenHeight - window->buffer.height) / 2)));
 }
 
 
@@ -2389,19 +2432,17 @@ int kernelWindowSetHasCloseButton(kernelWindow *window, int trueFalse)
 	    // Get the close button from it.
 	    if (titleBar->data != NULL)
 	      {
-		closeButton = ((kernelWindowTitleBarComponent *)
+		closeButton = ((kernelWindowTitleBar *)
 			       titleBar->data)->closeButton;
 		
 		// NULL the pointer in the title bar component
-		((kernelWindowTitleBarComponent *) titleBar->data)
-		  ->closeButton = NULL;
+		((kernelWindowTitleBar *) titleBar->data)->closeButton = NULL;
 		
 		// Remove it from the window's list of components
 		removeWindowComponent(window, closeButton);
 		
 		// Destroy the button
-		if (closeButton->destroy != NULL)
-		  closeButton->destroy((void *) closeButton);
+		kernelWindowDestroyComponent(closeButton);
 	      
 		break;
 	      }
@@ -2420,20 +2461,17 @@ int kernelWindowLayout(kernelWindow *window)
   // Repositions all the window's components based on their parameters
 
   int status = 0;
-  kernelWindowComponent **grid = NULL;
-  int gridWidth = 0;
-  int gridHeight = 0;
   kernelWindowComponent *titleBar = NULL;
-  unsigned columnWidth[MAX_COMPONENTS];
-  unsigned columnStartX[MAX_COMPONENTS];
-  unsigned rowHeight[MAX_COMPONENTS];
-  unsigned rowStartY[MAX_COMPONENTS];
+  unsigned columnWidth[WINDOW_MAX_COMPONENTS];
+  unsigned columnStartX[WINDOW_MAX_COMPONENTS];
+  unsigned rowHeight[WINDOW_MAX_COMPONENTS];
+  unsigned rowStartY[WINDOW_MAX_COMPONENTS];
   kernelWindowComponent *component = NULL;
   unsigned componentSize = 0;
   int clientAreaStartX = 0;
   int clientAreaStartY = 0;
   unsigned columnSpanWidth, rowSpanHeight;
-  int column, row, count;
+  int column, row, count1, count2;
 
   // Make sure we've been initialized
   if (!initialized)
@@ -2442,107 +2480,77 @@ int kernelWindowLayout(kernelWindow *window)
   if (window == NULL)
     return (status = ERR_NOSUCHENTRY);
 
-  // Find the greatest X and Y coordinates of components in the grid
-  for (count = 0; count < window->numberComponents; count ++)
+  // Clear our arrays
+  for (count1 = 0; count1 < WINDOW_MAX_COMPONENTS; count1++)
     {
-      component = window->componentList[count];
-      if (component->parameters.gridX > gridWidth)
-	gridWidth = component->parameters.gridX;
-      if (component->parameters.gridY > gridHeight)
-	gridHeight = component->parameters.gridY;
+      columnWidth[count1] = 0;
+      columnStartX[count1] = 0;
+      rowHeight[count1] = 0;
+      rowStartY[count1] = 0;
     }
-  gridWidth++;
-  gridHeight++;
-
-  // Get memory for a grid to arrange things
-  grid = kernelMemoryRequestBlock((gridWidth * gridHeight *
- 				   sizeof(kernelWindowComponent *)),
- 				  0, "temp component grid");
 
   if (window->hasTitleBar)
     {
       // Find the title bar.  We don't want to do it or any of its
       // subcomponents
-      for (count = 0; count < window->numberComponents; count ++)
-	if (window->componentList[count]->type == windowTitleBarComponent)
+      for (count1 = 0; count1 < window->numberComponents; count1 ++)
+	if (window->componentList[count1]->type == windowTitleBarComponent)
 	  {
-	    titleBar = window->componentList[count];
+	    titleBar = window->componentList[count1];
 	    break;
 	  }
     }
 
-  // Put all the components in their grid locations
-  for (count = 0; count < window->numberComponents; count ++)
+  // Find the width and height of each column and row based on the widest
+  // or tallest component of each.  After that, the starting X/Y coordinate
+  // of the column or row is the sum of the widths/heights of all previous
+  // columns
+  for (count1 = 0; count1 < window->numberComponents; count1 ++)
     {
-      component = window->componentList[count];
+      component = window->componentList[count1];
       
       if (window->hasTitleBar &&
 	  ((component == titleBar) ||
-	   (component == ((kernelWindowTitleBarComponent *) titleBar->data)
+	   (component == ((kernelWindowTitleBar *) titleBar->data)
 	    ->closeButton)))
 	continue;
 
-      grid[(component->parameters.gridY * gridWidth) +
-	   component->parameters.gridX] = component;
+      componentSize = (component->width + component->parameters.padLeft +
+		       component->parameters.padRight);
+      if (component->parameters.gridWidth != 0)
+	{
+	  componentSize /= component->parameters.gridWidth;
+	  for (count2 = 0; count2 < component->parameters.gridWidth;
+	       count2 ++)
+	    if (componentSize >
+		columnWidth[component->parameters.gridX + count2])
+	      columnWidth[component->parameters.gridX + count2] =
+		componentSize;
+	}
+
+      componentSize = (component->height + component->parameters.padTop +
+		       component->parameters.padBottom);
+      if (component->parameters.gridHeight != 0)
+	{
+	  componentSize /= component->parameters.gridHeight;
+	  for (count2 = 0; count2 < component->parameters.gridHeight;
+	       count2 ++)
+	    if (componentSize >
+		rowHeight[component->parameters.gridY + count2])
+	      rowHeight[component->parameters.gridY + count2] =
+		componentSize;
+	}
     }
   
-  // Find the width of each grid column based on the widest single-column
-  // component of each.  After that, the starting X coordinate of the column
-  // is the sum of the widths of all previous columns
-  for (column = 0; column < gridWidth; column ++)
-    {
-      columnWidth[column] = 0;
+  // Set the starting X coordinates of the columns
+  for (column = 0; column < WINDOW_MAX_COMPONENTS; column ++)
+    for (count1 = 0; (count1 < column); count1 ++)
+      columnStartX[column] += columnWidth[count1];
 
-      for (row = 0; row < gridHeight; row ++)
-	{
-	  component = grid[(column * gridWidth) + row];
-
-	  if (component != NULL)
-	    {	    
-	      componentSize = (component->width +
-			       component->parameters.padLeft +
-			       component->parameters.padRight);
-	      if (component->parameters.gridWidth != 0)
-		componentSize /= component->parameters.gridWidth;
-
-	      if (componentSize > columnWidth[column])
-		columnWidth[column] = componentSize;
-	    }
-	}
-
-      columnStartX[column] = 0;
-      for (count = 0; count <= (column - 1); count ++)
-	columnStartX[column] += columnWidth[count];
-    }
-
-  // Find the height of each grid row based on the tallest single-row
-  // component of each.  After that, the starting Y coordinate of the row
-  // is the sum of the heights of all previous rows
-  for (row = 0; row < gridHeight; row ++)
-    {
-      rowHeight[row] = 0;
-      
-      for (column = 0; column < gridWidth; column ++)
-	{
-	  component = grid[(column * gridWidth) + row];
-
-	  if (component != NULL)
-	    {
-	      componentSize = (component->height +
-			       component->parameters.padTop +
-			       component->parameters.padBottom);
-	      if (component->parameters.gridHeight != 0)
-		componentSize /= component->parameters.gridHeight;
-
-	      if (componentSize > rowHeight[row])
-		rowHeight[row] = componentSize;
-	    }
-	}
-
-      rowStartY[row] = 0;
-      for (count = 0; count <= (row - 1); count ++)
-	rowStartY[row] += rowHeight[count];
-    }
+  // Set the starting Y coordinates of the rows
+  for (row = 0; row < WINDOW_MAX_COMPONENTS; row ++)
+    for (count1 = 0; (count1 < row); count1 ++)
+      rowStartY[row] += rowHeight[count1];
 
   // Find out whether our client area needs to be adjusted to account for
   // things like borders and title bars
@@ -2555,71 +2563,77 @@ int kernelWindowLayout(kernelWindow *window)
     clientAreaStartY += titleBarHeight;
 
   // Loop through each component setting the coordinates
-  for (count = 0; count < window->numberComponents; count ++)
+  for (count1 = 0; count1 < window->numberComponents; count1 ++)
     {
-      component = window->componentList[count];
+      component = window->componentList[count1];
 
-      if (!window->hasTitleBar ||
-	  ((component != titleBar) &&
-	   (component != ((kernelWindowTitleBarComponent *) titleBar->data)
+      if (window->hasTitleBar &&
+	  ((component == titleBar) ||
+	   (component == ((kernelWindowTitleBar *) titleBar->data)
 	    ->closeButton)))
+	continue;
+
+      component->xCoord =
+	(clientAreaStartX + columnStartX[component->parameters.gridX]);
+
+      columnSpanWidth = 0;
+      for (column = 0; column < component->parameters.gridWidth; column ++)
+	columnSpanWidth +=
+	  columnWidth[component->parameters.gridX + column];
+
+      switch(component->parameters.orientationX)
 	{
-	  component->xCoord =
-	    (clientAreaStartX + columnStartX[component->parameters.gridX]);
-
-	  columnSpanWidth = 0;
-	  for (column = component->parameters.gridX;
-	       column < (component->parameters.gridX +
-			 component->parameters.gridWidth); column ++)
-	    columnSpanWidth += columnWidth[column];
-
-	  switch(component->parameters.orientationX)
-	    {
-	    case orient_right:
-	      component->xCoord += (columnSpanWidth - ((component->width + 1) +
-				       component->parameters.padRight));
-	      break;
-	    case orient_center:
-	      component->xCoord += ((columnSpanWidth - component->width) / 2);
-	      break;
-	    case orient_left:
-	    default:
-	      component->xCoord += component->parameters.padLeft;
-	      break;
-	    }
+	case orient_right:
+	  component->xCoord += (columnSpanWidth - ((component->width + 1) +
+					   component->parameters.padRight));
+	  break;
+	case orient_center:
+	  component->xCoord += ((columnSpanWidth - component->width) / 2);
+	  break;
+	case orient_left:
+	default:
+	  component->xCoord += component->parameters.padLeft;
+	  break;
+	}
 	  
-	  component->yCoord =
-	    (clientAreaStartY + rowStartY[component->parameters.gridY]); 
+      component->yCoord =
+	(clientAreaStartY + rowStartY[component->parameters.gridY]); 
 
-	  rowSpanHeight = 0;
-	  for (row = component->parameters.gridY;
-	       row < (component->parameters.gridY +
-		      component->parameters.gridHeight); row ++)
-	    rowSpanHeight += rowHeight[row];
+      rowSpanHeight = 0;
+      for (row = 0; row < component->parameters.gridHeight; row ++)
+	rowSpanHeight += rowHeight[component->parameters.gridY + row];
 
-	  switch (component->parameters.orientationY)
-	    {
-	    case orient_bottom:
-	      component->yCoord += (rowSpanHeight - ((component->height + 1) +
-				     component->parameters.padBottom));
-	      break;
-	    case orient_middle:
-	      component->yCoord += ((rowSpanHeight - component->height) / 2);
-	      break;
-	    case orient_top:
-	    default:
-	      component->yCoord += component->parameters.padTop;
-	      break;
-	    }
+      switch (component->parameters.orientationY)
+	{
+	case orient_bottom:
+	  component->yCoord += (rowSpanHeight - ((component->height + 1) +
+					 component->parameters.padBottom));
+	  break;
+	case orient_middle:
+	  component->yCoord += ((rowSpanHeight - component->height) / 2);
+	  break;
+	case orient_top:
+	default:
+	  component->yCoord += component->parameters.padTop;
+	  break;
 	}
 
+      // Check whether this component overlaps any others, and if so,
+      // decrement their levels
+      for (count2 = 0; count2 < window->numberComponents; count2 ++)
+	if (window->componentList[count2] != window->componentList[count1])
+	  {
+	    if (doAreasIntersect(
+		 makeComponentScreenArea(window->componentList[count2]),
+		 makeComponentScreenArea(window->componentList[count1])))
+	      window->componentList[count2]->level++;
+	  }
+
+      // Tell the component that it has moved
       if (component->move != NULL)
 	component->move((void *) component, component->xCoord,
 			component->yCoord);
     }
-
-  // Release our temporary memory
-  kernelMemoryReleaseBlock(grid);
 
   return (status = 0);
 }
@@ -2636,7 +2650,7 @@ int kernelWindowSetVisible(kernelWindow *window, int visible)
     return (status = ERR_NOTINITIALIZED);
 
   if (window == NULL)
-    return (status = ERR_NOSUCHENTRY);
+    return (status = ERR_NULLPARAMETER);
 
   // Set the visible value
   window->visible = visible;
@@ -2646,14 +2660,15 @@ int kernelWindowSetVisible(kernelWindow *window, int visible)
     {
       drawWindow(window);
       // Automatically give any newly-visible windows the focus.
-      windowGotFocus(window);
+      changeFocus(window);
     }
   else
     {
       // Take away the focus, if applicable
       if (window == focusWindow)
-	windowLostFocus(window);
-	
+	changeFocus(findTopmostWindow());
+
+      // Erase any visible bits of the window
       kernelWindowManagerRedrawArea(window->xCoord, window->yCoord,
 				    window->buffer.width,
 				    window->buffer.height);
@@ -2668,15 +2683,27 @@ kernelWindowComponent *kernelWindowNewComponent(void)
 {
   // Creates a new component.
 
+  int status = 0;
   kernelWindowComponent *component =
-    kernelMemoryRequestSystemBlock(sizeof(kernelWindowComponent), 0,
-				   "window component");
+    kernelMalloc(sizeof(kernelWindowComponent));
   if (component == NULL)
     return (component);
+
+  // Make sure it's all empty
+  kernelMemClear((void *) component, sizeof(kernelWindowComponent));
 
   component->type = windowGenericComponent;
   component->visible = 1;
   // Everything else NULL.
+
+  // Initialize the event stream to use when we're pushed.
+  status =
+    kernelWindowEventStreamNew((windowEventStream *) &(component->events));
+  if (status < 0)
+    {
+      kernelFree((void *) component);
+      return (component = NULL);
+    }
 
   // Functions
   component->drawBorder = &componentDrawBorder;
@@ -2685,24 +2712,75 @@ kernelWindowComponent *kernelWindowNewComponent(void)
 }
 
 
+void kernelWindowDestroyComponent(kernelWindowComponent *component)
+{
+  kernelWindow *window = NULL;
+  componentParameters params;
+  int count;
+
+  // Make sure we've been initialized
+  if (!initialized)
+    return;
+
+  // Check params.  Never destroy the console text area
+  if (component == NULL)
+    return;
+
+  // If this is the console text area, move it back to our console window
+  if (component == consoleTextArea)
+    {
+      window = (kernelWindow *) component->window;
+
+      for (count = 0; count < window->numberComponents; count ++)
+	if (component == consoleTextArea)
+	  {
+	    removeWindowComponent(window, component);
+	    kernelMemClear(&params, sizeof(componentParameters));
+	    params.gridWidth = 1;
+	    params.gridHeight = 1;
+	    params.orientationX = orient_center;
+	    params.orientationY = orient_middle;
+	    params.useDefaultForeground = 1;
+	    params.useDefaultBackground = 1;
+	    ((kernelWindowTextArea *) component->data)
+	      ->graphicBuffer = &(consoleWindow->buffer);
+	    kernelWindowAddClientComponent(consoleWindow, component, &params);
+	    kernelWindowLayout(consoleWindow);
+	    kernelWindowAutoSize(consoleWindow);
+	    return;
+	  }
+    }
+
+  // Call the component's own destroy function
+  if (component->destroy != NULL)
+    component->destroy((void *) component);
+
+  // Deallocate generic things
+  if (component->events.s.buffer != NULL)
+    kernelFree((void *)(component->events.s.buffer));
+  
+  // The component itself
+  kernelFree((void *) component);
+
+  return;
+}
+
+
 int kernelWindowAddComponent(kernelWindow *window,
 			     kernelWindowComponent *component,
 			     componentParameters *params)
 {
-  // External add window component to a window
-
-  int status = 0;
+  // External add window component to a window.  Just a wrapper for the
+  // internal function addWindowComponent
 
   // Make sure we've been initialized
   if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
+    return (ERR_NOTINITIALIZED);
 
   if ((window == NULL) || (component == NULL) || (params == NULL))
-    return (status = ERR_NULLPARAMETER);
+    return (ERR_NULLPARAMETER);
 
-  status = addWindowComponent(window, component, params);
-
-  return (status);
+  return (addWindowComponent(window, component, params));
 }
 
 
@@ -2720,24 +2798,51 @@ int kernelWindowAddClientComponent(kernelWindow *window,
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
+  // Check params
   if ((window == NULL) || (component == NULL) || (params == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  // Adjust the component's X and Y coordinates so that they're inside the
-  // client area of the window
-  if (component->xCoord < 0)
-    component->xCoord = 0;
-  if (component->yCoord < 0)
-    component->yCoord = 0;
   component->xCoord += borderThickness;
-  component->yCoord += (borderThickness + titleBarHeight);
+  component->yCoord += borderThickness;
+  if (window->hasTitleBar)
+    component->yCoord += titleBarHeight;
 
+  // Tell the component that it moved
   if (component->move != NULL)
-    component->move((void *) component, component->xCoord, component->yCoord);
+    component->move((void *) component, component->xCoord,
+		    component->yCoord);
+  
+  return (addWindowComponent(window, component, params));
+}
 
-  status = addWindowComponent(window, component, params);
 
-  return (status);
+int kernelWindowAddConsoleTextArea(kernelWindow *window,
+				   componentParameters *params)
+{
+  // Moves the console text area component from our 'hidden' console window
+  // to the supplied window
+
+  int status = 0;
+
+  // Make sure we've been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if ((window == NULL) || (params == NULL))
+    return (status = ERR_NULLPARAMETER);
+
+  // Make sure the console text area is not already assigned to some other
+  // window (other than the consoleWindow)
+  if (consoleTextArea->window != consoleWindow)
+    return (status = ERR_ALREADY);
+
+  // Change the text area's buffer to be that of the new window
+  ((kernelWindowTextArea *) consoleTextArea->data)
+    ->graphicBuffer = &(window->buffer);
+
+  // Now add it to the window
+  return (kernelWindowAddClientComponent(window, consoleTextArea, params));
 }
 
 
@@ -2750,6 +2855,7 @@ unsigned kernelWindowComponentGetWidth(kernelWindowComponent *component)
     return (component->width);
 }
 
+
 unsigned kernelWindowComponentGetHeight(kernelWindowComponent *component)
 {
   // Return the height parameter of the component
@@ -2759,6 +2865,35 @@ unsigned kernelWindowComponentGetHeight(kernelWindowComponent *component)
     return (component->height);
 }
 
+
+void kernelWindowFocusComponent(kernelWindow *window,
+				kernelWindowComponent *component)
+{
+  // Put the supplied component on top of any other components it intersects
+  
+  int count;
+
+  // Make sure we've been initialized
+  if (!initialized)
+    return;
+
+  // Check params
+  if ((window == NULL) || (component == NULL))
+    return;
+
+  // Find all the window's components at this location 
+  for (count = 0; count < window->numberComponents; count ++)
+    if (window->componentList[count]->level <= component->level)
+      {
+	if (doAreasIntersect(makeComponentScreenArea(component),
+		     makeComponentScreenArea(window->componentList[count])))
+	  window->componentList[count]->level++;
+      }
+  
+  component->level = 0;
+}
+
+
 void kernelWindowManagerRedrawArea(int xCoord, int yCoord, unsigned width,
 				   unsigned height)
 {
@@ -2767,7 +2902,6 @@ void kernelWindowManagerRedrawArea(int xCoord, int yCoord, unsigned width,
   // having to know what's under it.  Could be useful for other things as
   // well.
 
-  int status = 0;
   screenArea area;
   screenArea intersectingArea;
   int count;
@@ -2785,18 +2919,13 @@ void kernelWindowManagerRedrawArea(int xCoord, int yCoord, unsigned width,
   if ((rootWindow == NULL) || !(rootWindow->visible))
     kernelGraphicClearArea(NULL, &rootColor, xCoord, yCoord, width, height);
 
-  // Lock the window list
-  status = kernelResourceManagerLock(&windowListLock);
-  if (status < 0)
-    return;
-
   // Loop through the window list, looking for any visible ones that
   // intersect this area
   for (count = 0; count < numberWindows; count ++)
     if (windowList[count]->visible &&
-	doAreasIntersect(&area, makeScreenAreaP(windowList[count])))
+	doAreasIntersect(&area, makeWindowScreenArea(windowList[count])))
       {
-	getIntersectingArea(makeScreenAreaP(windowList[count]), &area,
+	getIntersectingArea(makeWindowScreenArea(windowList[count]), &area,
 			    &intersectingArea);
 	intersectingArea.leftX -= windowList[count]->xCoord;
 	intersectingArea.topY -= windowList[count]->yCoord;
@@ -2805,39 +2934,210 @@ void kernelWindowManagerRedrawArea(int xCoord, int yCoord, unsigned width,
 	renderVisiblePortions(windowList[count], &intersectingArea);
       }
 
-  kernelResourceManagerUnlock(&windowListLock);
-
   return;
 }
 
 
-void kernelWindowManagerProcessMouseEvent(kernelMouseStatus *mouseStatus)
+void kernelWindowManagerProcessEvent(windowEvent *event)
 {
   // A user has clicked or unclicked somewhere
   
-  int status = 0;
-  //kernelProcessState tmp;
+  //int status = 0;
+  static kernelWindowComponent *draggingComponent = NULL;
+  kernelWindow *window = NULL;
+  kernelWindowComponent *targetComponent = NULL;
+  int count;
 
   // Make sure we've been initialized
   if (!initialized)
     return;
 
-  // Lock the list of mouse updates
-  status = kernelResourceManagerLock(&mouseUpdateListLock);
-  if (status < 0)
-    return;
+  if (event->type & EVENT_MASK_MOUSE)
+    {
+      // It was a mouse event
 
-  // Copy this event to the list
-  kernelMemCopy(mouseStatus, mouseUpdateList[numberMouseUpdates],
-		sizeof(kernelMouseStatus));
-  numberMouseUpdates++;
+      // If it was just a move, skip it for now
+      if (event->type == EVENT_MOUSE_MOVE)
+	return;
 
-  // Release the lock
-  kernelResourceManagerUnlock(&mouseUpdateListLock);
+      // Shortcut: If we are dragging a component, give the event right
+      // to the component
+      if (draggingComponent)
+	{
+	  if (draggingComponent->mouseEvent != NULL)
+	    draggingComponent->mouseEvent((void *) draggingComponent, event);
+
+	  if (!(event->type & EVENT_MOUSE_DRAG))
+	    draggingComponent = NULL;
+	  return;
+	}
+
+      // Figure out which window this is happening to, if any
+      
+      /*
+      // Lock the window list
+      status = kernelLockGet(&windowListLock);
+      if (status < 0)
+      return;
+      */
+
+      for (count = 0; count < numberWindows; count ++)
+	if (windowList[count]->visible &&
+	    (isPointInside(event->xPosition, event->yPosition,
+			   makeWindowScreenArea(windowList[count]))))
+	  {
+	    // The mouse is inside this window's coordinates.  Is it the
+	    // topmost such window we've found?
+	    if ((window == NULL) ||
+		(windowList[count]->level < window->level))
+	      window = windowList[count];
+	  }
+      
+      //kernelLockRelease(&windowListLock);
+      
+      // Was it inside a window?
+      if (window == NULL)
+	// Ignore
+	return;
+      
+      // The event was inside a window
+
+      // Check to see whether the process that owns the window is still
+      // alive.  If not, destroy the window and quit for this event.
+      if (!kernelMultitaskerProcessIsAlive(window->processId))
+	{
+	  kernelWindowManagerDestroyWindow(window);
+	  kernelMouseDraw();
+	  return;
+	}
+
+      // If the window has a dialog window, focus the dialog instead and we're
+      // finished
+      if (window->dialogWindow != NULL)
+	{
+	  if (window->dialogWindow != focusWindow)
+	    changeFocus(window->dialogWindow);
+	  return;
+	}
   
-  processMouseEvents();
+      // If it was a click and the window is not in focus, and not
+      // the root window, give it the focus
+      if (((event->type == EVENT_MOUSE_DOWN) ||
+	   (event->type == EVENT_MOUSE_UP)) &&
+	  (window != focusWindow) && (window != rootWindow))
+	// Give the window the focus
+	changeFocus(window);
+
+      // Find out if it was inside of any of the window's components,
+      // and if so, put a windowEvent into its windowEventStream
+      targetComponent = findTopmostComponent(window, event->xPosition,
+					     event->yPosition);
+      if (targetComponent != NULL)
+	{
+	  if (targetComponent->mouseEvent != NULL)
+	    targetComponent->mouseEvent((void *) targetComponent, event);
+	  
+	  // Put this mouse event into the component's windowEventStream
+	  kernelWindowEventStreamWrite((windowEventStream *)
+				       &(targetComponent->events), event);
+	  
+	  if (event->type & EVENT_MOUSE_DRAG)
+	    draggingComponent = targetComponent;
+	}
+    }
+
+  else if (event->type & EVENT_MASK_KEY)
+    {
+      // It was a keyboard event
+
+      // Find the target component
+      if (focusWindow != NULL)
+	{
+	  if (focusWindow->focusComponent)
+	    {
+	      targetComponent = focusWindow->focusComponent;
+
+	      if (targetComponent->keyEvent != NULL)
+		targetComponent->keyEvent((void *) targetComponent, event);
+
+	      // Put this key event into the component's windowEventStream
+	      kernelWindowEventStreamWrite((windowEventStream *)
+					   &(targetComponent->events),
+					   event);
+	    }
+	}
+    }
 
   return;
+}
+
+
+int kernelWindowRegisterEventHandler(objectKey key, void (*function)(objectKey,
+							     windowEvent *))
+{
+  // This function is called to register a windowEvent callback handler for
+  // a component.
+
+  int status = 0;
+  kernelWindowComponent *component = NULL;
+
+  // Make sure we've been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check parameters
+  if ((key == NULL) || (function == NULL))
+    return (status = ERR_NULLPARAMETER);
+
+  component = (kernelWindowComponent *) key;
+  component->eventHandler = function;
+
+  return (status = 0);
+}
+
+
+int kernelWindowComponentEventGet(objectKey key, windowEvent *event)
+{
+  // This function is called to read an event from the component's
+  // windowEventStream
+
+  int status = 0;
+  kernelWindow *window = NULL;
+  kernelWindowComponent *component = NULL;
+  int count;
+
+  // Make sure we've been initialized
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check parameters
+  if ((key == NULL) || (event == NULL))
+    return (status = ERR_NULLPARAMETER);
+
+  // First, determine whether the request is for a window or a component
+  for (count = 0; count < numberWindows; count ++)
+    if (windowList[count] == key)
+      {
+	window = windowList[count];
+	break;
+      }
+
+  if (window != NULL)
+    {
+      // The request is for a window windowEvent
+      status = kernelWindowEventStreamRead((windowEventStream *)
+					   &(window->events), event);
+    }
+  else
+    {
+      // The request must be for a component windowEvent
+      component = (kernelWindowComponent *) key;
+      
+      status = kernelWindowEventStreamRead((windowEventStream *)
+					   &(component->events), event);
+    }
+
+  return (status);
 }
 
 
@@ -2854,16 +3154,11 @@ int kernelWindowManagerTileBackground(const char *filename)
     return (status = ERR_NOTINITIALIZED);
 
   // Check parameters
-  if (filename == NULL)
+  if ((filename == NULL) || (rootWindow == NULL))
     return (status = ERR_NULLPARAMETER);
   
-  // Find the root window
-  if (rootWindow == NULL)
-    return (status = ERR_NOSUCHENTRY);
-
   // Try to load the new background image
   status = kernelImageLoadBmp(filename, &backgroundImage);
-
   if (status < 0)
     {
       kernelError(kernel_error, "Error loading background image");
@@ -2874,10 +3169,12 @@ int kernelWindowManagerTileBackground(const char *filename)
   setBackgroundImage(rootWindow, &backgroundImage);
 
   // Release the image memory
-  kernelMemoryReleaseBlock(backgroundImage.data);
+  kernelMemoryRelease(backgroundImage.data);
 
   // Redraw the root window
   drawWindow(rootWindow);
+
+  kernelMouseDraw();
 
   // Save the settings variable
   kernelVariableListSet(settings, "background.image", filename);
@@ -2896,7 +3193,6 @@ int kernelWindowManagerCenterBackground(const char *filename)
   // will automatically center the image if it's wider or higher than half
   // the screen size anyway.
   status = kernelWindowManagerTileBackground(filename);
-
   if (status >= 0)
     // Save the settings variable
     kernelVariableListSet(settings, "background.image", filename);
@@ -2958,7 +3254,7 @@ int kernelWindowManagerSaveScreenShot(const char *name)
   if (status < 0)
     kernelError(kernel_error, "Error %d saving bitmap\n", status);
 
-  kernelMemoryReleaseBlock(saveImage.data);
+  kernelMemoryRelease(saveImage.data);
 
   kernelTextPrintLine("Done");
 
@@ -2993,11 +3289,12 @@ int kernelWindowManagerSetTextOutput(kernelWindowComponent *component)
       // Switch the text area of the output stream to the supplied text
       // area component.
       inputStream =
-	(kernelTextInputStream *) ((kernelWindowTextAreaComponent *)
+	(kernelTextInputStream *) ((kernelWindowTextArea *)
 				   component->data)->inputStream;
       outputStream =
-	(kernelTextOutputStream *) ((kernelWindowTextAreaComponent *)
+	(kernelTextOutputStream *) ((kernelWindowTextArea *)
 				    component->data)->outputStream;
+
       kernelMultitaskerSetTextInput(processId, inputStream);
       kernelMultitaskerSetTextOutput(processId, outputStream);
 
@@ -3026,18 +3323,18 @@ int kernelWindowManagerShutdown(void)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  // Flush all the buffers
-  status = kernelResourceManagerLock(&windowListLock);
-
+  /*
+  // Lock the window list, once and for all
+  status = kernelLockGet(&windowListLock);
   if (status < 0)
     // Eek, couldn't lock it
     return (status);
+  */
 
+  // Flush all the buffers
   for (count = 0; count < numberWindows; count ++)
     if (windowList[count]->buffer.updates > 0)
       updateBuffer(windowList[count]);
-
-  kernelResourceManagerUnlock(&windowListLock);
 
   // Write out the configuration file
   status = kernelFileStreamOpen(DEFAULT_WINDOWMANAGER_CONFIG,
@@ -3046,10 +3343,10 @@ int kernelWindowManagerShutdown(void)
   if (status >= 0)
     {
       // Put a little message at the beginning of the file.
-      // kernelFileStreamWriteLine(&configFile, "# Do not manually edit this "
-      // 	"file while the window manager is running.");
-      // kernelFileStreamWriteLine(&configFile, "# It is automatically "
-      // 	"overwritten during shutdown.");
+      kernelFileStreamWriteLine(&configFile, "# Do not manually edit this "
+				"file while the window manager is running.");
+      kernelFileStreamWriteLine(&configFile, "# It is automatically "
+				"overwritten during shutdown.");
       status = kernelConfigurationWriter(settings, &configFile);
       kernelFileStreamClose(&configFile);
     }

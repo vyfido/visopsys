@@ -31,7 +31,7 @@
 static void usage(char *name)
 {
   printf("usage:\n");
-  printf("%s <disk #>\n", name);
+  printf("%s <disk>\n", name);
   return;
 }
 
@@ -39,7 +39,7 @@ static void usage(char *name)
 int main(int argc, char *argv[])
 {
   int status = 0;
-  int diskNumber = 0;
+  char *diskName = NULL;
   int force = 0;
   int repair = 0;
   char yesNo = '\0';
@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
   // Our argument is the disk number
   if (argc < 2)
     {
-      usage(argv[0]);
+      usage((argc > 0)? argv[0] : "chkdisk");
 
       // Try to list the disks in the system
       loaderLoadAndExec("/programs/disks", 3 /* user privilege */, 0, NULL,
@@ -66,21 +66,13 @@ int main(int argc, char *argv[])
       return (status = errno);
     }
 
-  diskNumber = atoi(argv[1]);
-
-  if (errno)
-    {
-      // Oops, not a number?
-      usage(argv[0]);
-      perror(argv[0]);
-      return (status = errno);
-    }
+  diskName = argv[1];
 
   // Print a message
   printf("\nVisopsys CHKDISK Utility\nCopyright (C) 1998-2003 J. Andrew "
 	 "McLaughlin\n\n");
 
-  status = filesystemCheck(diskNumber, force, repair);
+  status = filesystemCheck(diskName, force, repair);
   
   if ((status < 0) && !repair)
     {
@@ -96,7 +88,7 @@ int main(int argc, char *argv[])
 
 	  if ((yesNo == 'y') || (yesNo == 'Y'))
 	    // Force, repair
-	    status = filesystemCheck(diskNumber, force, 1 /*repair*/);
+	    status = filesystemCheck(diskName, force, 1 /*repair*/);
 	}
 
       if (status < 0)

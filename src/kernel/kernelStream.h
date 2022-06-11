@@ -27,7 +27,7 @@
 #include <sys/stream.h>
 
 // Functions exported by kernelStream.c
-stream *kernelStreamNew(int, streamItemSize);
+int kernelStreamNew(stream *, unsigned, streamItemSize);
 
 #define _KERNELSTREAM_H
 #endif

@@ -45,217 +45,242 @@
 extern int visopsys_in_kernel;
 
 // Text input/output functions.  All are in the 1000-1999 range.
-#define _fnum_textGetForeground                      1003
-#define _fnum_textSetForeground                      1004
-#define _fnum_textGetBackground                      1005
-#define _fnum_textSetBackground                      1006
-#define _fnum_textPutc                               1007
-#define _fnum_textPrint                              1008
-#define _fnum_textPrintLine                          1009
-#define _fnum_textNewline                            1010
-#define _fnum_textBackSpace                          1011
-#define _fnum_textTab                                1012
-#define _fnum_textCursorUp                           1013
-#define _fnum_textCursorDown                         1014
-#define _fnum_ternelTextCursorLeft                   1015
-#define _fnum_textCursorRight                        1016
-#define _fnum_textGetNumColumns                      1017
-#define _fnum_textGetNumRows                         1018
-#define _fnum_textGetColumn                          1019
-#define _fnum_textSetColumn                          1020
-#define _fnum_textGetRow                             1021
-#define _fnum_textSetRow                             1022
-#define _fnum_textClearScreen                        1023
-#define _fnum_textInputCount                         1024
-#define _fnum_textInputGetc                          1025
-#define _fnum_textInputReadN                         1026
-#define _fnum_textInputReadAll                       1027
-#define _fnum_textInputAppend                        1028
-#define _fnum_textInputAppendN                       1029
-#define _fnum_textInputRemove                        1030
-#define _fnum_textInputRemoveN                       1031
-#define _fnum_textInputRemoveAll                     1032
-#define _fnum_textInputSetEcho                       1033
+#define _fnum_textGetConsoleInput                    1000
+#define _fnum_textSetConsoleInput                    1001
+#define _fnum_textGetConsoleOutput                   1002
+#define _fnum_textSetConsoleOutput                   1003
+#define _fnum_textGetCurrentInput                    1004
+#define _fnum_textSetCurrentInput                    1005
+#define _fnum_textGetCurrentOutput                   1006
+#define _fnum_textSetCurrentOutput                   1007
+#define _fnum_textGetForeground                      1008
+#define _fnum_textSetForeground                      1009
+#define _fnum_textGetBackground                      1010
+#define _fnum_textSetBackground                      1011
+#define _fnum_textPutc                               1012
+#define _fnum_textPrint                              1013
+#define _fnum_textPrintLine                          1014
+#define _fnum_textNewline                            1015
+#define _fnum_textBackSpace                          1016
+#define _fnum_textTab                                1017
+#define _fnum_textCursorUp                           1018
+#define _fnum_textCursorDown                         1019
+#define _fnum_ternelTextCursorLeft                   1020
+#define _fnum_textCursorRight                        1021
+#define _fnum_textGetNumColumns                      1022
+#define _fnum_textGetNumRows                         1023
+#define _fnum_textGetColumn                          1024
+#define _fnum_textSetColumn                          1025
+#define _fnum_textGetRow                             1026
+#define _fnum_textSetRow                             1027
+#define _fnum_textClearScreen                        1028
+#define _fnum_textInputStreamCount                   1029
+#define _fnum_textInputCount                         1030
+#define _fnum_textInputStreamGetc                    1031
+#define _fnum_textInputGetc                          1032
+#define _fnum_textInputStreamReadN                   1033
+#define _fnum_textInputReadN                         1034
+#define _fnum_textInputStreamReadAll                 1035
+#define _fnum_textInputReadAll                       1036
+#define _fnum_textInputStreamAppend                  1037
+#define _fnum_textInputAppend                        1038
+#define _fnum_textInputStreamAppendN                 1039
+#define _fnum_textInputAppendN                       1040
+#define _fnum_textInputStreamRemove                  1041
+#define _fnum_textInputRemove                        1042
+#define _fnum_textInputStreamRemoveN                 1043
+#define _fnum_textInputRemoveN                       1044
+#define _fnum_textInputStreamRemoveAll               1045
+#define _fnum_textInputRemoveAll                     1046
+#define _fnum_textInputStreamSetEcho                 1047
+#define _fnum_textInputSetEcho                       1048
 
 // Disk functions.  All are in the 2000-2999 range.
-#define _fnum_diskFunctionsGetBoot                   2001
-#define _fnum_diskFunctionsGetCount                  2002
-#define _fnum_diskFunctionsGetInfo                   2003
-#define _fnum_diskFunctionsMotorOn                   2004
-#define _fnum_diskFunctionsMotorOff                  2005
-#define _fnum_diskFunctionsDiskChanged               2006
-#define _fnum_diskFunctionsReadSectors               2007
-#define _fnum_diskFunctionsWriteSectors              2008
-#define _fnum_diskFunctionsReadAbsoluteSectors       2009
-#define _fnum_diskFunctionsWriteAbsoluteSectors      2010
+#define _fnum_diskReadPartitions                     2000
+#define _fnum_diskSync                               2001
+#define _fnum_diskGetBoot                            2002
+#define _fnum_diskGetCount                           2003
+#define _fnum_diskGetPhysicalCount                   2004
+#define _fnum_diskGetInfo                            2005
+#define _fnum_diskGetPhysicalInfo                    2006
+#define _fnum_diskGetPartType                        2007
+#define _fnum_diskGetPartTypes                       2008
+#define _fnum_diskReadSectors                        2009
+#define _fnum_diskWriteSectors                       2010
+#define _fnum_diskReadAbsoluteSectors                2011
+#define _fnum_diskWriteAbsoluteSectors               2012
 
-// Filesystem functions.  All are in the 8000-8999 range.
-#define _fnum_filesystemSync                         8001
-#define _fnum_filesystemCheck                        8002
-#define _fnum_filesystemDefragment                   8003
-#define _fnum_filesystemMount                        8004
-#define _fnum_filesystemUnmount                      8005
-#define _fnum_filesystemNumberMounted                8006
-#define _fnum_filesystemFirstFilesystem              8007
-#define _fnum_filesystemNextFilesystem               8008
-#define _fnum_filesystemGetFree                      8009
-#define _fnum_filesystemGetBlockSize                 8010
+// Filesystem functions.  All are in the 3000-3999 range.
+#define _fnum_filesystemFormat                       3000
+#define _fnum_filesystemCheck                        3001
+#define _fnum_filesystemDefragment                   3002
+#define _fnum_filesystemMount                        3003
+#define _fnum_filesystemUnmount                      3004
+#define _fnum_filesystemNumberMounted                3005
+#define _fnum_filesystemFirstFilesystem              3006
+#define _fnum_filesystemNextFilesystem               3007
+#define _fnum_filesystemGetFree                      3008
+#define _fnum_filesystemGetBlockSize                 3009
 
-// File functions.  All are in the 9000-9999 range.
-#define _fnum_fileFixupPath                          9001
-#define _fnum_fileFirst                              9002
-#define _fnum_fileNext                               9003
-#define _fnum_fileFind                               9004
-#define _fnum_fileOpen                               9005
-#define _fnum_fileClose                              9006
-#define _fnum_fileRead                               9007
-#define _fnum_fileWrite                              9008
-#define _fnum_fileDelete                             9009
-#define _fnum_fileDeleteSecure                       9010
-#define _fnum_fileMakeDir                            9011
-#define _fnum_fileRemoveDir                          9012
-#define _fnum_fileCopy                               9013
-#define _fnum_fileCopyRecursive                      9014
-#define _fnum_fileMove                               9015
-#define _fnum_fileTimestamp                          9016
-#define _fnum_fileStreamOpen                         9017
-#define _fnum_fileStreamSeek                         9018
-#define _fnum_fileStreamRead                         9019
-#define _fnum_fileStreamWrite                        9020
-#define _fnum_fileStreamFlush                        9021
-#define _fnum_fileStreamClose                        9022
+// File functions.  All are in the 4000-4999 range.
+#define _fnum_fileFixupPath                          4000
+#define _fnum_fileFirst                              4001
+#define _fnum_fileNext                               4002
+#define _fnum_fileFind                               4003
+#define _fnum_fileOpen                               4004
+#define _fnum_fileClose                              4005
+#define _fnum_fileRead                               4006
+#define _fnum_fileWrite                              4007
+#define _fnum_fileDelete                             4008
+#define _fnum_fileDeleteSecure                       4009
+#define _fnum_fileMakeDir                            4010
+#define _fnum_fileRemoveDir                          4011
+#define _fnum_fileCopy                               4012
+#define _fnum_fileCopyRecursive                      4013
+#define _fnum_fileMove                               4014
+#define _fnum_fileTimestamp                          4015
+#define _fnum_fileStreamOpen                         4016
+#define _fnum_fileStreamSeek                         4017
+#define _fnum_fileStreamRead                         4018
+#define _fnum_fileStreamWrite                        4019
+#define _fnum_fileStreamFlush                        4020
+#define _fnum_fileStreamClose                        4021
 
-// Memory manager functions.  All are in the 10000-10999 range.
-#define _fnum_memoryPrintUsage                       10001
-#define _fnum_memoryRequestBlock                     10002
-#define _fnum_memoryRequestPhysicalBlock             10003
-#define _fnum_memoryReleaseBlock                     10004
-#define _fnum_memoryReleaseAllByProcId               10005
-#define _fnum_memoryChangeOwner                      10006
+// Memory manager functions.  All are in the 5000-5999 range.
+#define _fnum_memoryPrintUsage                       5000
+#define _fnum_memoryGet                              5001
+#define _fnum_memoryGetPhysical                      5002
+#define _fnum_memoryRelease                          5003
+#define _fnum_memoryReleaseAllByProcId               5004
+#define _fnum_memoryChangeOwner                      5005
 
-// Multitasker functions.  All are in the 11000-11999 range.
-#define _fnum_multitaskerCreateProcess               11001
-#define _fnum_multitaskerSpawn                       11002
-#define _fnum_multitaskerGetCurrentProcessId         11003
-#define _fnum_multitaskerGetProcessOwner             11004
-#define _fnum_multitaskerGetProcessName              11005
-#define _fnum_multitaskerGetProcessState             11006
-#define _fnum_multitaskerSetProcessState             11007
-#define _fnum_multitaskerGetProcessPriority          11008
-#define _fnum_multitaskerSetProcessPriority          11009
-#define _fnum_multitaskerGetProcessPrivilege         11010
-#define _fnum_multitaskerGetCurrentDirectory         11011
-#define _fnum_multitaskerSetCurrentDirectory         11012
-#define _fnum_multitaskerGetTextInput                11013
-#define _fnum_multitaskerSetTextInput                11014
-#define _fnum_multitaskerGetTextOutput               11015
-#define _fnum_multitaskerSetTextOutput               11016
-#define _fnum_multitaskerGetProcessorTime            11017
-#define _fnum_multitaskerYield                       11018
-#define _fnum_multitaskerWait                        11019
-#define _fnum_multitaskerBlock                       11020
-#define _fnum_multitaskerKillProcess                 11021
-#define _fnum_multitaskerTerminate                   11022
-#define _fnum_multitaskerDumpProcessList             11023
+// Multitasker functions.  All are in the 6000-6999 range.
+#define _fnum_multitaskerCreateProcess               6000
+#define _fnum_multitaskerSpawn                       6001
+#define _fnum_multitaskerGetCurrentProcessId         6002
+#define _fnum_multitaskerGetProcessOwner             6003
+#define _fnum_multitaskerGetProcessName              6004
+#define _fnum_multitaskerGetProcessState             6005
+#define _fnum_multitaskerSetProcessState             6006
+#define _fnum_multitaskerGetProcessPriority          6007
+#define _fnum_multitaskerSetProcessPriority          6008
+#define _fnum_multitaskerGetProcessPrivilege         6009
+#define _fnum_multitaskerGetCurrentDirectory         6010
+#define _fnum_multitaskerSetCurrentDirectory         6011
+#define _fnum_multitaskerGetTextInput                6012
+#define _fnum_multitaskerSetTextInput                6013
+#define _fnum_multitaskerGetTextOutput               6014
+#define _fnum_multitaskerSetTextOutput               6015
+#define _fnum_multitaskerGetProcessorTime            6016
+#define _fnum_multitaskerYield                       6017
+#define _fnum_multitaskerWait                        6018
+#define _fnum_multitaskerBlock                       6019
+#define _fnum_multitaskerDetach                      6020
+#define _fnum_multitaskerKillProcess                 6021
+#define _fnum_multitaskerTerminate                   6022
+#define _fnum_multitaskerDumpProcessList             6023
 
-// Loader functions.  All are in the 12000-12999 range.
-#define _fnum_loaderLoad                             12001
-#define _fnum_loaderLoadProgram                      12002
-#define _fnum_loaderExecProgram                      12003
-#define _fnum_loaderLoadAndExec                      12004
+// Loader functions.  All are in the 7000-7999 range.
+#define _fnum_loaderLoad                             7000
+#define _fnum_loaderLoadProgram                      7001
+#define _fnum_loaderExecProgram                      7002
+#define _fnum_loaderLoadAndExec                      7003
 
-// Real-time clock functions.  All are in the 13000-13999 range.
-#define _fnum_rtcReadSeconds                         13001
-#define _fnum_rtcReadMinutes                         13002
-#define _fnum_rtcReadHours                           13003
-#define _fnum_rtcReadDayOfWeek                       13004
-#define _fnum_rtcReadDayOfMonth                      13005
-#define _fnum_rtcReadMonth                           13006
-#define _fnum_rtcReadYear                            13007
-#define _fnum_rtcUptimeSeconds                       13008
-#define _fnum_rtcDateTime                            13009
+// Real-time clock functions.  All are in the 8000-8999 range.
+#define _fnum_rtcReadSeconds                         8000
+#define _fnum_rtcReadMinutes                         8001
+#define _fnum_rtcReadHours                           8002
+#define _fnum_rtcReadDayOfWeek                       8003
+#define _fnum_rtcReadDayOfMonth                      8004
+#define _fnum_rtcReadMonth                           8005
+#define _fnum_rtcReadYear                            8006
+#define _fnum_rtcUptimeSeconds                       8007
+#define _fnum_rtcDateTime                            8008
 
-// Random number functions.  All are in the 14000-14999 range.
-#define _fnum_randomUnformatted                      14001
-#define _fnum_randomFormatted                        14002
-#define _fnum_randomSeededUnformatted                14003
-#define _fnum_randomSeededFormatted                  14004
+// Random number functions.  All are in the 9000-9999 range.
+#define _fnum_randomUnformatted                      9000
+#define _fnum_randomFormatted                        9001
+#define _fnum_randomSeededUnformatted                9002
+#define _fnum_randomSeededFormatted                  9003
 
-// Environment functions.  All are in the 15000-15999 range.
-#define _fnum_environmentGet                         15001
-#define _fnum_environmentSet                         15002
-#define _fnum_environmentUnset                       15003
-#define _fnum_environmentDump                        15004
+// Environment functions.  All are in the 10000-10999 range.
+#define _fnum_environmentGet                         10000
+#define _fnum_environmentSet                         10001
+#define _fnum_environmentUnset                       10002
+#define _fnum_environmentDump                        10003
 
-// Raw graphics drawing functions.  All are in the 16000-16999 range
-#define _fnum_graphicsAreEnabled                     16001
-#define _fnum_graphicGetScreenWidth                  16002
-#define _fnum_graphicGetScreenHeight                 16003
-#define _fnum_graphicCalculateAreaBytes              16004
-#define _fnum_graphicClearScreen                     16005
-#define _fnum_graphicDrawPixel                       16006
-#define _fnum_graphicDrawLine                        16007
-#define _fnum_graphicDrawRect                        16008
-#define _fnum_graphicDrawOval                        16009
-#define _fnum_graphicDrawImage                       16010
-#define _fnum_graphicGetImage                        16011
-#define _fnum_graphicDrawText                        16012
-#define _fnum_graphicCopyArea                        16013
-#define _fnum_graphicClearArea                       16014
-#define _fnum_graphicRenderBuffer                    16015
+// Raw graphics drawing functions.  All are in the 11000-11999 range
+#define _fnum_graphicsAreEnabled                     11000
+#define _fnum_graphicGetScreenWidth                  11001
+#define _fnum_graphicGetScreenHeight                 11002
+#define _fnum_graphicCalculateAreaBytes              11003
+#define _fnum_graphicClearScreen                     11004
+#define _fnum_graphicDrawPixel                       11005
+#define _fnum_graphicDrawLine                        11006
+#define _fnum_graphicDrawRect                        11007
+#define _fnum_graphicDrawOval                        11008
+#define _fnum_graphicDrawImage                       11009
+#define _fnum_graphicGetImage                        11010
+#define _fnum_graphicDrawText                        11011
+#define _fnum_graphicCopyArea                        11012
+#define _fnum_graphicClearArea                       11013
+#define _fnum_graphicRenderBuffer                    11014
 
-// Window manager functions.  All are in the 17000-17999 range
-#define _fnum_windowManagerStart                     17001
-#define _fnum_windowManagerLogin                     17002
-#define _fnum_windowManagerLogout                    17003
-#define _fnum_windowManagerNewWindow                 17004
-#define _fnum_windowManagerDestroyWindow             17005
-#define _fnum_windowManagerUpdateBuffer              17006
-#define _fnum_windowSetTitle                         17007
-#define _fnum_windowGetSize                          17008
-#define _fnum_windowSetSize                          17009
-#define _fnum_windowAutoSize                         17010
-#define _fnum_windowGetLocation                      17011
-#define _fnum_windowSetLocation                      17012
-#define _fnum_windowSetHasBorder                     17013
-#define _fnum_windowSetHasTitleBar                   17014
-#define _fnum_windowSetMovable                       17015
-#define _fnum_windowSetHasCloseButton                17016
-#define _fnum_windowLayout                           17017
-#define _fnum_windowSetVisible                       17018
-#define _fnum_windowAddComponent                     17019
-#define _fnum_windowAddClientComponent               17020
-#define _fnum_windowComponentGetWidth                17021
-#define _fnum_windowComponentGetHeight               17022
-#define _fnum_windowManagerRedrawArea                17023
-#define _fnum_windowManagerProcessMouseEvent         17024
-#define _fnum_windowManagerTileBackground            17025
-#define _fnum_windowManagerCenterBackground          17026
-#define _fnum_windowManagerScreenShot                17027
-#define _fnum_windowManagerSaveScreenShot            17028
-#define _fnum_windowManagerSetTextOutput             17029
-#define _fnum_windowNewButtonComponent               17030
-#define _fnum_windowNewIconComponent                 17031
-#define _fnum_windowNewImageComponent                17032
-#define _fnum_windowNewTextAreaComponent             17033
-#define _fnum_windowNewTextFieldComponent            17034
-#define _fnum_windowNewTextLabelComponent            17035
-#define _fnum_windowNewTitleBarComponent             17036
+// Window manager functions.  All are in the 12000-12999 range
+#define _fnum_windowManagerStart                     12000
+#define _fnum_windowManagerLogin                     12001
+#define _fnum_windowManagerLogout                    12002
+#define _fnum_windowManagerNewWindow                 12003
+#define _fnum_windowManagerNewDialog                 12004
+#define _fnum_windowManagerDestroyWindow             12005
+#define _fnum_windowManagerUpdateBuffer              12006
+#define _fnum_windowSetTitle                         12007
+#define _fnum_windowGetSize                          12008
+#define _fnum_windowSetSize                          12009
+#define _fnum_windowAutoSize                         12010
+#define _fnum_windowGetLocation                      12011
+#define _fnum_windowSetLocation                      12012
+#define _fnum_windowCenter                           12013
+#define _fnum_windowSetHasBorder                     12014
+#define _fnum_windowSetHasTitleBar                   12015
+#define _fnum_windowSetMovable                       12016
+#define _fnum_windowSetHasCloseButton                12017
+#define _fnum_windowLayout                           12018
+#define _fnum_windowSetVisible                       12019
+#define _fnum_windowAddComponent                     12020
+#define _fnum_windowAddClientComponent               12021
+#define _fnum_windowAddConsoleTextArea               12022
+#define _fnum_windowComponentGetWidth                12023
+#define _fnum_windowComponentGetHeight               12024
+#define _fnum_windowManagerRedrawArea                12025
+#define _fnum_windowManagerProcessEvent              12026
+#define _fnum_windowComponentEventGet                12027
+#define _fnum_windowManagerTileBackground            12028
+#define _fnum_windowManagerCenterBackground          12029
+#define _fnum_windowManagerScreenShot                12030
+#define _fnum_windowManagerSaveScreenShot            12031
+#define _fnum_windowManagerSetTextOutput             12032
+#define _fnum_windowNewButton               12033
+#define _fnum_windowNewIcon                 12034
+#define _fnum_windowNewImage                12035
+#define _fnum_windowNewTextArea             12036
+#define _fnum_windowNewTextField            12037
+#define _fnum_windowNewTextLabel            12038
+#define _fnum_windowNewTitleBar             12039
 
 // Miscellaneous functions.  All are in the 99000-99999 range
-#define _fnum_fontGetDefault                         99001
-#define _fnum_fontSetDefault                         99002
-#define _fnum_fontLoad                               99003
-#define _fnum_fontGetPrintedWidth                    99004
-#define _fnum_fontGetHeight                          99005
-#define _fnum_imageLoadBmp                           99006
-#define _fnum_imageSaveBmp                           99007
-#define _fnum_shutdown                               99008
-#define _fnum_version                                99009
-
-// An "object key".  Really a pointer to an object in kernel memory, but
-// of course not usable by applications other than as a reference
-typedef void * objectKey;
+#define _fnum_fontGetDefault                         99000
+#define _fnum_fontSetDefault                         99001
+#define _fnum_fontLoad                               99002
+#define _fnum_fontGetPrintedWidth                    99003
+#define _fnum_imageLoadBmp                           99004
+#define _fnum_imageSaveBmp                           99005
+#define _fnum_userLogin                              99006
+#define _fnum_userLogout                             99007
+#define _fnum_userGetPrivilege                       99008
+#define _fnum_userGetPid                             99009
+#define _fnum_shutdown                               99010
+#define _fnum_version                                99011
 
 // Utility macros for stack manipulation
 #define stackPush(value) \
@@ -461,6 +486,54 @@ static inline int sysCall_9(int fnum, void *arg1, void *arg2, void *arg3,
 // Text input/output functions
 //
 
+static inline objectKey textGetConsoleInput(void)
+{
+  // Proto: kernelTextInputStream *kernelTextGetConsoleInput(void);
+  return ((objectKey) sysCall_0(_fnum_textGetConsoleInput));
+}
+
+static inline int textSetConsoleInput(objectKey newStream)
+{
+  // Proto: int kernelTextSetConsoleInput(kernelTextInputStream *);
+  return (sysCall_1(_fnum_textSetConsoleInput, newStream));
+}
+
+static inline objectKey textGetConsoleOutput(void)
+{
+  // Proto: kernelTextOutputStream *kernelTextGetConsoleOutput(void);
+  return ((objectKey) sysCall_0(_fnum_textGetConsoleOutput));
+}
+
+static inline int textSetConsoleOutput(objectKey newStream)
+{
+  // Proto: int kernelTextSetConsoleOutput(kernelTextOutputStream *);
+  return (sysCall_1(_fnum_textSetConsoleOutput, newStream));
+}
+
+static inline objectKey textGetCurrentInput(void)
+{
+  // Proto: kernelTextInputStream *kernelTextGetCurrentInput(void);
+  return ((objectKey) sysCall_0(_fnum_textGetCurrentInput));
+}
+
+static inline int textSetCurrentInput(objectKey newStream)
+{
+  // Proto: int kernelTextSetCurrentInput(kernelTextInputStream *);
+  return (sysCall_1(_fnum_textSetCurrentInput, newStream));
+}
+
+static inline objectKey textGetCurrentOutput(void)
+{
+  // Proto: kernelTextOutputStream *kernelTextGetCurrentOutput(void);
+  return ((objectKey) sysCall_0(_fnum_textGetCurrentOutput));
+}
+
+static inline int textSetCurrentOutput(objectKey newStream)
+{
+  // Proto: int kernelTextSetCurrentOutput(kernelTextOutputStream *);
+  return (sysCall_1(_fnum_textSetCurrentOutput, newStream));
+}
+
 static inline int textGetForeground(void)
 {
   // Proto: int kernelTextGetForeground(void);
@@ -587,10 +660,22 @@ static inline int textClearScreen(void)
   return (sysCall_0(_fnum_textClearScreen));
 }
 
+static inline int textInputStreamCount(objectKey strm)
+{
+  // Proto: int kernelTextInputStreamCount(kernelTextInputStream *);
+  return (sysCall_1(_fnum_textInputStreamCount, strm));
+}
+
 static inline int textInputCount(void)
 {
   // Proto: int kernelTextInputCount(void);
   return (sysCall_0(_fnum_textInputCount));
+}
+
+static inline int textInputStreamGetc(objectKey strm, char *cp)
+{
+  // Proto: int kernelTextInputStreamGetc(kernelTextInputStream *, char *);
+  return (sysCall_2(_fnum_textInputStreamGetc, strm, cp));
 }
 
 static inline int textInputGetc(char *cp)
@@ -599,10 +684,23 @@ static inline int textInputGetc(char *cp)
   return (sysCall_1(_fnum_textInputGetc, cp));
 }
 
+static inline int textInputStreamReadN(objectKey strm, int num, char *buff)
+{
+  // Proto: int kernelTextInputStreamReadN(kernelTextInputStream *, int,
+  //                                       char *);
+  return (sysCall_3(_fnum_textInputStreamReadN, strm, (void *) num, buff));
+}
+
 static inline int textInputReadN(int num, char *buff)
 {
   // Proto: int kernelTextInputReadN(int, char *);
   return (sysCall_2(_fnum_textInputReadN, (void *)num, buff));
+}
+
+static inline int textInputStreamReadAll(objectKey strm, char *buff)
+{
+  // Proto: int kernelTextInputStreamReadAll(kernelTextInputStream *, char *);
+  return (sysCall_2(_fnum_textInputStreamReadAll, strm, buff));
 }
 
 static inline int textInputReadAll(char *buff)
@@ -611,10 +709,23 @@ static inline int textInputReadAll(char *buff)
   return (sysCall_1(_fnum_textInputReadAll, buff));
 }
 
+static inline int textInputStreamAppend(objectKey strm, int ascii)
+{
+  // Proto: int kernelTextInputStreamAppend(kernelTextInputStream *, int);
+  return (sysCall_2(_fnum_textInputStreamAppend, strm, (void *) ascii));
+}
+
 static inline int textInputAppend(int ascii)
 {
   // Proto: int kernelTextInputAppend(int);
   return (sysCall_1(_fnum_textInputAppend, (void *) ascii));
+}
+
+static inline int textInputStreamAppendN(objectKey strm, int num, char *str)
+{
+  // Proto: int kernelTextInputStreamAppendN(kernelTextInputStream *, int,
+  //                                         char *);
+  return (sysCall_3(_fnum_textInputStreamAppendN, strm, (void *) num, str));
 }
 
 static inline int textInputAppendN(int num, char *str)
@@ -623,10 +734,22 @@ static inline int textInputAppendN(int num, char *str)
   return (sysCall_2(_fnum_textInputAppendN, (void *) num, str));
 }
 
+static inline int textInputStreamRemove(objectKey strm)
+{
+  // Proto: int kernelTextInputStreamRemove(kernelTextInputStream *);
+  return (sysCall_1(_fnum_textInputStreamRemove, strm));
+}
+
 static inline int textInputRemove(void)
 {
   // Proto: int kernelTextInputRemove(void);
   return (sysCall_0(_fnum_textInputRemove));
+}
+
+static inline int textInputStreamRemoveN(objectKey strm, int num)
+{
+  // Proto: int kernelTextInputStreamRemoveN(kernelTextInputStream *, int);
+  return (sysCall_2(_fnum_textInputStreamRemoveN, strm, (void *) num));
 }
 
 static inline int textInputRemoveN(int num)
@@ -635,10 +758,22 @@ static inline int textInputRemoveN(int num)
   return (sysCall_1(_fnum_textInputRemoveN, (void *) num));
 }
 
+static inline int textInputStreamRemoveAll(objectKey strm)
+{
+  // Proto: int kernelTextInputStreamRemoveAll(kernelTextInputStream *);
+  return (sysCall_1(_fnum_textInputStreamRemoveAll, strm));
+}
+
 static inline int textInputRemoveAll(void)
 {
   // Proto: int kernelTextInputRemoveAll(void);
   return (sysCall_0(_fnum_textInputRemoveAll));
+}
+
+static inline void textInputStreamSetEcho(objectKey strm, int onOff)
+{
+  // Proto: void kernelTextInputStreamSetEcho(kernelTextInputStream *, int);
+  sysCall_2(_fnum_textInputStreamSetEcho, strm, (void *) onOff);
 }
 
 static inline void textInputSetEcho(int onOff)
@@ -652,75 +787,93 @@ static inline void textInputSetEcho(int onOff)
 // Disk functions
 //
 
-static inline int diskFunctionsGetBoot(void)
+static inline int diskReadPartitions(void)
 {
-  // Proto: kernelDiskFunctionsGetBoot(void)
-  return (sysCall_0(_fnum_diskFunctionsGetBoot));
+  // Proto: int kernelDiskReadPartitions(void);
+  return (sysCall_0(_fnum_diskReadPartitions));
 }
 
-static inline int diskFunctionsGetCount(void)
+static inline int diskSync(void)
 {
-  // Proto: int kernelDiskFunctionsGetCount(void);
-  return (sysCall_0(_fnum_diskFunctionsGetCount));
+  // Proto: int kernelDiskSync(void);
+  return (sysCall_0(_fnum_diskSync));
 }
 
-static inline int diskFunctionsGetInfo(int num, disk *d)
+static inline int diskGetBoot(char *name)
 {
-  // Proto: int kernelDiskFunctionsGetInfo(int, disk *)
-  return (sysCall_2(_fnum_diskFunctionsGetInfo, (void *) num, d));
+  // Proto: int kernelDiskGetBoot(char *)
+  return (sysCall_1(_fnum_diskGetBoot, name));
 }
 
-static inline int diskFunctionsMotorOn(int num)
+static inline int diskGetCount(void)
 {
-  // Proto: int kernelDiskFunctionsMotorOn(int);
-  return (sysCall_1(_fnum_diskFunctionsMotorOn, (void *) num));
+  // Proto: int kernelDiskGetCount(void);
+  return (sysCall_0(_fnum_diskGetCount));
 }
 
-static inline int diskFunctionsMotorOff(int num)
+static inline int diskGetPhysicalCount(void)
 {
-  // Proto: int kernelDiskFunctionsMotorOff(int);
-  return (sysCall_1(_fnum_diskFunctionsMotorOff, (void *) num));
+  // Proto: int kernelDiskGetPhysicalCount(void);
+  return (sysCall_0(_fnum_diskGetPhysicalCount));
 }
 
-static inline int diskFunctionsDiskChanged(int num)
+static inline int diskGetInfo(disk *d)
 {
-  // Proto: int kernelDiskFunctionsDiskChanged(int)
-  return (sysCall_1(_fnum_diskFunctionsDiskChanged, (void *) num));
+  // Proto: int kernelDiskGetInfo(disk *);
+  return (sysCall_1(_fnum_diskGetInfo, d));
 }
 
-static inline int diskFunctionsReadSectors(int num, unsigned sect,
+static inline int diskGetPhysicalInfo(disk *d)
+{
+  // Proto: int kernelDiskGetPhysicalInfo(disk *);
+  return (sysCall_1(_fnum_diskGetPhysicalInfo, d));
+}
+
+static inline int diskGetPartType(int code, partitionType *p)
+{
+  // Proto: int kernelDiskGetPartType(int, partitionType *);
+  return (sysCall_2(_fnum_diskGetPartType, (void *) code, p));
+}
+
+static inline partitionType *diskGetPartTypes(void)
+{
+  // Proto: partitionType *kernelDiskGetPartTypes(void);
+  return ((partitionType *) sysCall_0(_fnum_diskGetPartTypes));
+}
+
+static inline int diskReadSectors(const char *name, unsigned sect,
+				  unsigned count, void *buf)
+{
+  // Proto: int kernelDiskReadSectors(const char *, unsigned,
+  //                                  unsigned, void *)
+  return (sysCall_4(_fnum_diskReadSectors, (void *) name, (void *) sect,
+		    (void *) count, buf));
+}
+
+static inline int diskWriteSectors(const char *name, unsigned sect,
+				   unsigned count, void *buf)
+{
+  // Proto: int kernelDiskWriteSectors(const char *, unsigned, unsigned,
+  //                                   void *)
+  return (sysCall_4(_fnum_diskWriteSectors, (void *) name, (void *) sect,
+		    (void *) count, buf));
+}
+
+static inline int diskReadAbsoluteSectors(const char *name, unsigned sect,
+					  unsigned count, void *buf)
+{
+  // Proto: int kernelDiskReadAbsoluteSectors(const char *, unsigned,
+  //                                          unsigned, void *)
+  return (sysCall_4(_fnum_diskReadAbsoluteSectors, (void *) name,
+		    (void *) sect, (void *) count, buf));
+}
+
+static inline int diskWriteAbsoluteSectors(const char *name, unsigned sect,
 					   unsigned count, void *buf)
 {
-  // Proto: int kernelDiskFunctionsReadSectors(int, unsigned, unsigned,
-  //                                           void *);
-  return (sysCall_4(_fnum_diskFunctionsReadSectors, (void *) num,
-		    (void *) sect, (void *) count, buf));
-}
-
-static inline int diskFunctionsWriteSectors(int num, unsigned sect,
-					    unsigned count, void *buf)
-{
-  // Proto: int kernelDiskFunctionsWriteSectors(int, unsigned, unsigned,
-  //                                            void *)
-  return (sysCall_4(_fnum_diskFunctionsWriteSectors, (void *) num,
-		    (void *) sect, (void *) count, buf));
-}
-
-static inline int diskFunctionsReadAbsoluteSectors(int num, unsigned sect,
-						   unsigned count, void *buf)
-{
-  // Proto: int kernelDiskFunctionsReadAbsoluteSectors(int, unsigned, unsigned,
-  //                                           void *);
-  return (sysCall_4(_fnum_diskFunctionsReadAbsoluteSectors, (void *) num,
-		    (void *) sect, (void *) count, buf));
-}
-
-static inline int diskFunctionsWriteAbsoluteSectors(int num, unsigned sect,
-						    unsigned count, void *buf)
-{
-  // Proto: int kernelDiskFunctionsWriteAbsoluteSectors(int, unsigned,
-  //                                                    unsigned, void *)
-  return (sysCall_4(_fnum_diskFunctionsWriteAbsoluteSectors, (void *) num,
+  // Proto: int kernelDiskWriteAbsoluteSectors(const char *, unsigned,
+  //                                           unsigned, void *)
+  return (sysCall_4(_fnum_diskWriteAbsoluteSectors, (void *) name,
 		    (void *) sect, (void *) count, buf));
 }
 
@@ -729,29 +882,32 @@ static inline int diskFunctionsWriteAbsoluteSectors(int num, unsigned sect,
 // Filesystem functions
 //
 
-static inline int filesystemCheck(int disknum, int force, int repair)
+static inline int filesystemFormat(const char *disk, const char *type,
+				   const char *label, int longFormat)
 {
-  // Proto: int kernelFilesystemCheck(int, int, int);
-  return (sysCall_3(_fnum_filesystemCheck, (void *) disknum, (void *) force,
+  //Proto: int kernelFilesystemFormat(const char *, const char *,
+  //                                  const char *, int);
+  return (sysCall_4(_fnum_filesystemFormat, (void *) disk, (void *) type,
+		    (void *) label, (void *) longFormat));
+}
+
+static inline int filesystemCheck(const char *name, int force, int repair)
+{
+  // Proto: int kernelFilesystemCheck(const char *, int, int)
+  return (sysCall_3(_fnum_filesystemCheck, (void *) name, (void *) force,
 		    (void *) repair));
 }
 
-static inline int filesystemDefragment(int disknum)
+static inline int filesystemDefragment(const char *name)
 {
-  // Proto: int kernelFilesystemDefragment(int);
-  return (sysCall_1(_fnum_filesystemCheck, (void *) disknum));
+  // Proto: int kernelFilesystemDefragment(const char *)
+  return (sysCall_1(_fnum_filesystemCheck, (void *) name));
 }
 
-static inline int filesystemMount(int disknum, const char *mp)
+static inline int filesystemMount(const char *name, const char *mp)
 {
-  // Proto: int kernelFilesystemMount(int, const char *);
-  return (sysCall_2(_fnum_filesystemMount, (void *) disknum, (void *) mp));
-}
-
-static inline int filesystemSync(const char *fs)
-{
-  // Proto: int kernelFilesystemSync(const char *);
-  return (sysCall_1(_fnum_filesystemSync, (void *)fs));
+  // Proto: int kernelFilesystemMount(const char *, const char *)
+  return (sysCall_2(_fnum_filesystemMount, (void *) name, (void *) mp));
 }
 
 static inline int filesystemUnmount(const char *mp)
@@ -940,34 +1096,30 @@ static inline int fileStreamClose(fileStream *f)
 // Memory functions
 //
 
-static inline void memoryPrintUsage(void)
+static inline void memoryPrintUsage(int kernel)
 {
-  // Proto: void kernelMemoryPrintUsage(void);
-  sysCall_0(_fnum_memoryPrintUsage);
+  // Proto: void kernelMemoryPrintUsage(int);
+  sysCall_1(_fnum_memoryPrintUsage, (void *) kernel);
 }
 
-static inline void *memoryRequestBlock(unsigned int size, unsigned int align,
-				       const char *desc)
+static inline void *memoryGet(unsigned size, const char *desc)
 {
-  // Proto: void *kernelMemoryRequestBlock(unsigned int, unsigned int, 
-  //          char *);
-  return ((void *) sysCall_3(_fnum_memoryRequestBlock, (void *) size, 
-		    (void *) align, (void *) desc));
+  // Proto: void *kernelMemoryGet(unsigned, char *);
+  return ((void *) sysCall_2(_fnum_memoryGet, (void *) size, (void *) desc));
 }
 
-static inline void *memoryRequestPhysicalBlock(unsigned int size, 
-				       unsigned int align, const char *desc)
+static inline void *memoryGetPhysical(unsigned size, unsigned align,
+				      const char *desc)
 {
-  // Proto: void *kernelMemoryRequestPhysicalBlock(unsigned int, 
-  //          unsigned int, char *);
-  return ((void *) sysCall_3(_fnum_memoryRequestPhysicalBlock, (void *) size, 
-		    (void *) align, (void *) desc));
+  // Proto: void *kernelMemoryGetPhysical(unsigned, unsigned, char *);
+  return ((void *) sysCall_3(_fnum_memoryGetPhysical, (void *) size, 
+			     (void *) align, (void *) desc));
 }
 
-static inline int memoryReleaseBlock(void *p)
+static inline int memoryRelease(void *p)
 {
-  // Proto: int kernelMemoryReleaseBlock(void *);
-  return (sysCall_1(_fnum_memoryReleaseBlock, p));
+  // Proto: int kernelMemoryRelease(void *);
+  return (sysCall_1(_fnum_memoryRelease, p));
 }
 
 static inline int memoryReleaseAllByProcId(int pid)
@@ -1119,6 +1271,12 @@ static inline int multitaskerBlock(int pid)
   return (sysCall_1(_fnum_multitaskerBlock, (void *) pid));
 }
 
+static inline int multitaskerDetach(void)
+{
+  // Proto: int kernelMultitaskerDetach(void);
+  return (sysCall_0(_fnum_multitaskerDetach));
+}
+
 static inline int multitaskerKillProcess(int pid, int force)
 {
   // Proto: int kernelMultitaskerKillProcess(int);
@@ -1143,10 +1301,11 @@ static inline void multitaskerDumpProcessList(void)
 // Loader functions
 //
 
-static inline void loaderLoad(const char *filename, file *theFile)
+static inline void *loaderLoad(const char *filename, file *theFile)
 {
   // Proto: void *kernelLoaderLoad(const char *, file *);
-  sysCall_2(_fnum_loaderLoad, (void *) filename, (void *) theFile);
+  return ((void *) sysCall_2(_fnum_loaderLoad, (void *) filename,
+			     (void *) theFile));
 }
 
 static inline int loaderLoadProgram(const char *userProgram, int privilege,
@@ -1377,12 +1536,16 @@ static inline int graphicDrawOval(objectKey buffer, color *foreground,
 }
 
 static inline int graphicDrawImage(objectKey buffer, image *drawImage,
-				   int xCoord, int yCoord)
+				   int xCoord, int yCoord, unsigned xOffset,
+				   unsigned yOffset, unsigned width,
+				   unsigned height)
 {
   // Proto: int kernelGraphicDrawImage(kernelGraphicBuffer *, image *,
-  //                                   int, int);
-  return (sysCall_4(_fnum_graphicDrawImage, buffer, drawImage, (void *) xCoord,
-		    (void *) yCoord));
+  //                                   int, int, unsigned, unsigned, unsigned,
+  //                                   unsigned);
+  return (sysCall_8(_fnum_graphicDrawImage, buffer, drawImage, (void *) xCoord,
+		    (void *) yCoord, (void *) xOffset, (void *) yOffset,
+		    (void *) width, (void *) height));
 }
 
 static inline int graphicGetImage(objectKey buffer, image *getImage,
@@ -1451,10 +1614,11 @@ static inline int windowManagerStart(void)
   return (sysCall_0(_fnum_windowManagerStart));
 }
 
-static inline int windowManagerLogin(int userId)
+static inline int windowManagerLogin(const char *userName, const char *passwd)
 {
-  // Proto: kernelWindowManagerLogin(int userId);
-  return (sysCall_1(_fnum_windowManagerLogin, (void *) userId));
+  // Proto: kernelWindowManagerLogin(const char *, const char *);
+  return (sysCall_2(_fnum_windowManagerLogin, (void *) userName,
+		    (void *) passwd));
 }
 
 static inline int windowManagerLogout(void)
@@ -1469,10 +1633,22 @@ static inline objectKey windowManagerNewWindow(int processId, char *title,
 {
   // Proto: kernelWindow *kernelWindowManagerNewWindow(int, const char *, int,
   //                                                  int, unsigned, unsigned);
-  return ((objectKey ) sysCall_6(_fnum_windowManagerNewWindow,
+  return ((objectKey) sysCall_6(_fnum_windowManagerNewWindow,
 				 (void *) processId, (void *) title,
 				 (void *) xCoord, (void *) yCoord,
 				 (void *) width, (void *) height));
+}
+
+static inline objectKey windowManagerNewDialog(objectKey parent, char *title,
+					       int xCoord, int yCoord,
+					       int width, int height)
+{
+  // Proto: kernelWindow *kernelWindowManagerNewDialog(kernelWindow *,
+  //                              const char *, int, int, unsigned, unsigned);
+  return ((objectKey) sysCall_6(_fnum_windowManagerNewDialog, parent,
+				(void *) title, (void *) xCoord,
+				(void *) yCoord, (void *) width,
+				(void *) height));
 }
 
 static inline int windowManagerDestroyWindow(objectKey window)
@@ -1533,6 +1709,12 @@ static inline int windowSetLocation(objectKey window, int xCoord, int yCoord)
 		    (void *) yCoord));
 }
 
+static inline int windowCenter(objectKey window)
+{
+  // Proto: int kernelWindowCenter(kernelWindow *);
+  return (sysCall_1(_fnum_windowCenter, window));
+}
+
 static inline int windowSetHasBorder(objectKey window, int trueFalse)
 {
   // Proto: int kernelWindowSetHasBorder(kernelWindow *, int);
@@ -1584,10 +1766,18 @@ static inline int windowAddClientComponent(objectKey window,
 					   componentParameters *params)
 {
   // Proto: int kernelWindowAddClientComponent(kernelWindow *,
-  //                                     kernelWindowComponent *,
-  //                                     componentParameters *);
+  //                                           kernelWindowComponent *,
+  //                                           componentParameters *);
   return (sysCall_3(_fnum_windowAddClientComponent, window, component,
 		    params));
+}
+
+static inline int windowAddConsoleTextArea(objectKey window,
+					   componentParameters *params)
+{
+  // Proto: int kernelWindowAddConsoleTextArea(kernelWindow *,
+  //                                           componentParameters *);
+  return (sysCall_2(_fnum_windowAddConsoleTextArea, window, params));
 }
 
 static inline unsigned windowComponentGetWidth(objectKey component)
@@ -1610,10 +1800,16 @@ static inline void windowManagerRedrawArea(int xCoord, int yCoord,
 	    (void *) width, (void *) height);
 }
 
-static inline void windowManagerProcessMouseEvent(objectKey mouseStatus)
+static inline void windowManagerProcessEvent(objectKey event)
 {
-  // Proto: void kernelWindowManagerProcessMouseEvent(kernelMouseStatus *);
-  sysCall_1(_fnum_windowManagerProcessMouseEvent, mouseStatus);
+  // Proto: void kernelWindowManagerProcessEvent(windowEvent *);
+  sysCall_1(_fnum_windowManagerProcessEvent, event);
+}
+
+static inline int windowComponentEventGet(objectKey key, windowEvent *event)
+{
+  // Proto: int kernelWindowComponentEventGet(objectKey, windowEvent *);
+  return(sysCall_2(_fnum_windowComponentEventGet, key, event));
 }
 
 static inline int windowManagerTileBackground(const char *file)
@@ -1646,81 +1842,66 @@ static inline int windowManagerSetTextOutput(objectKey key)
   return (sysCall_1(_fnum_windowManagerSetTextOutput, key));
 }
 
-static inline objectKey windowNewButtonComponent(objectKey window,
-				 unsigned width, unsigned height,
-				 const char *label, image *buttonImage)
+static inline objectKey windowNewButton(objectKey window, unsigned width,
+					unsigned height, objectKey label,
+					image *buttonImage)
 {
-  // Proto: kernelWindowComponent *
-  //          kernelWindowNewButtonComponent(kernelWindow *, unsigned,
-  //                                         unsigned, const char *,
-  //                                         image *, int (*) (void *));
-
-  // For the moment, there is no mechanism for a callback function to a user
-  // space program, so we pass NULL.  That means that a button component is
-  // not currently very useful to user programs since it won't be able to
-  // trigger any action.
-
-  return ((objectKey) sysCall_6(_fnum_windowNewButtonComponent, window,
+  // Proto: kernelWindowComponent *kernelWindowNewButton(kernelWindow *,
+  //                   unsigned, unsigned, kernelWindowComponent *, image *);
+  return ((objectKey) sysCall_5(_fnum_windowNewButton, window,
 				(void *) width, (void *) height,
-				(void *) label, buttonImage, NULL));
+				(void *) label, buttonImage));
 }
 
-static inline objectKey windowNewIconComponent(objectKey window,
-	       image *iconImage, const char *label, const char *command)
+static inline objectKey windowNewIcon(objectKey window, image *iconImage,
+				      const char *label, const char *command)
 {
-  // Proto: kernelWindowComponent *
-  //          kernelWindowNewIconComponent(kernelWindow *, image *,
+  // Proto: kernelWindowComponent *kernelWindowNewIcon(kernelWindow *, image *,
   //                                       const char *, const char *);
-  return ((objectKey) sysCall_4(_fnum_windowNewIconComponent, window,
-				iconImage, (void *) label, (void *) command));
+  return ((objectKey) sysCall_4(_fnum_windowNewIcon, window, iconImage,
+				(void *) label, (void *) command));
 }
 
-static inline objectKey windowNewImageComponent(objectKey window,
-						image *baseImage)
+static inline objectKey windowNewImage(objectKey window, image *baseImage)
 {
-  // Proto: kernelWindowComponent *
-  //          kernelWindowNewImageComponent(kernelWindow *, image *);
-  return ((objectKey) sysCall_2(_fnum_windowNewImageComponent, window,
-				baseImage));
+  // Proto: kernelWindowComponent *kernelWindowNewImage(kernelWindow *,
+  //                                                    image *);
+  return ((objectKey) sysCall_2(_fnum_windowNewImage, window, baseImage));
 }
 
-static inline objectKey windowNewTextAreaComponent(objectKey window,
-				   int columns, int rows, objectKey font)
+static inline objectKey windowNewTextArea(objectKey window, int columns,
+					  int rows, objectKey font)
 {
-  // Proto: kernelWindowComponent *
-  //          kernelWindowNewTextAreaComponent(kernelWindow *, int, int,
-  //                                           kernelAsciiFont *);
-  return ((objectKey) sysCall_4(_fnum_windowNewTextAreaComponent, window,
+  // Proto: kernelWindowComponent *kernelWindowNewTextArea(kernelWindow *,
+  //                                          int, int, kernelAsciiFont *);
+  return ((objectKey) sysCall_4(_fnum_windowNewTextArea, window,
 				(void *) columns, (void *) rows, font));
 }
 
-static inline objectKey windowNewTextFieldComponent(objectKey window,
-					    int columns, objectKey font)
+static inline objectKey windowNewTextField(objectKey window, int columns,
+					   objectKey font)
 {
-  // Proto: kernelWindowComponent *
-  //          kernelWindowNewTextFieldComponent(kernelWindow *, int,
-  //                                            kernelAsciiFont *);
-  return ((objectKey) sysCall_3(_fnum_windowNewTextFieldComponent, window,
+  // Proto: kernelWindowComponent *kernelWindowNewTextField(kernelWindow *,
+  //                                                 int, kernelAsciiFont *);
+  return ((objectKey) sysCall_3(_fnum_windowNewTextField, window,
 				(void *) columns, font));
 }
 
-static inline objectKey windowNewTextLabelComponent(objectKey window,
-					    objectKey font, const char *text)
+static inline objectKey windowNewTextLabel(objectKey window, objectKey font,
+					   const char *text)
 {
-  // Proto: kernelWindowComponent *
-  //          kernelWindowNewTextLabelComponent(kernelWindow *,
+  // Proto: kernelWindowComponent *kernelWindowNewTextLabel(kernelWindow *,
   //                                          kernelAsciiFont *, const char *);
-  return ((objectKey) sysCall_3(_fnum_windowNewTextLabelComponent, window,
-				font, (void *) text));
+  return ((objectKey) sysCall_3(_fnum_windowNewTextLabel, window, font,
+				(void *) text));
 }
 
-static inline objectKey windowNewTitleBarComponent(objectKey window,
-					   unsigned width, unsigned height)
+static inline objectKey windowNewTitleBar(objectKey window, unsigned width,
+					  unsigned height)
 {
-  // Proto: kernelWindowComponent *
-  //          kernelWindowNewTitleBarComponent(kernelWindow *, unsigned,
-  //                                           unsigned);
-  return ((objectKey) sysCall_3(_fnum_windowNewTitleBarComponent, window,
+  // Proto: kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *,
+  //                                                     unsigned, unsigned);
+  return ((objectKey) sysCall_3(_fnum_windowNewTitleBar, window,
 				(void *) width,	(void *) height));
 }
 
@@ -1756,12 +1937,6 @@ static inline unsigned fontGetPrintedWidth(objectKey font, const char *string)
   return (sysCall_2(_fnum_fontGetPrintedWidth, font, (void *) string));
 }
 
-static inline unsigned fontGetHeight(objectKey font)
-{
-  // Proto: unsigned kernelFontGetHeight(kernelAsciiFont *);
-  return (sysCall_1(_fnum_fontGetHeight, font));
-}
-
 static inline int imageLoadBmp(const char *filename, image *loadImage)
 {
   // Proto: int imageLoadBmp(const char *, image *);
@@ -1772,6 +1947,30 @@ static inline int imageSaveBmp(const char *filename, image *saveImage)
 {
   // Proto: int imageSaveBmp(const char *, image *);
   return (sysCall_2(_fnum_imageSaveBmp, (void *) filename, saveImage));
+}
+
+static inline int userLogin(const char *name, int pid)
+{
+  // Proto: int kernelUserLogin(const char *, int);
+  return (sysCall_2(_fnum_userLogin, (void *) name, (void *) pid));
+}
+
+static inline int userLogout(const char *name)
+{
+  // Proto: int kernelUserLogout(const char *);
+  return (sysCall_1(_fnum_userLogout, (void *) name));
+}
+
+static inline int userGetPrivilege(const char *name)
+{
+  // Proto: int kernelUserGetPrivilege(const char *);
+  return (sysCall_1(_fnum_userGetPrivilege, (void *) name));
+}
+
+static inline int userGetPid(void)
+{
+  // Proto: int kernelUserGetPid(void);
+  return (sysCall_0(_fnum_userGetPid));
 }
 
 static inline int shutdown(int type, int nice)

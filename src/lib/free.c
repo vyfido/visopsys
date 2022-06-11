@@ -35,6 +35,6 @@ void free(void *oldMemory)
   // already been called before,  undefined  behaviour  occurs.
   // If ptr is NULL, no operation is performed.
   
-  errno = memoryReleaseBlock(oldMemory);
+  errno = memoryRelease(oldMemory);
   return;
 }

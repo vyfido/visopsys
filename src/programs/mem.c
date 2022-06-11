@@ -21,6 +21,7 @@
 
 // This is the DOS-style command for viewing memory usage statistics
 
+#include <string.h>
 #include <sys/api.h>
 
 
@@ -31,8 +32,13 @@ int main(int argc, char *argv[])
   // allowing a user process to access the data by itself.  In other words,
   // the kernel should not print this stuff on the screen by itself.
 
+  int kernelMem = 0;
+
+  if ((argc > 1) && !strcmp(argv[1], "-k"))
+    kernelMem = 1;
+
   // Print memory usage information
-  memoryPrintUsage();
+  memoryPrintUsage(kernelMem);
 
   return (0);
 }

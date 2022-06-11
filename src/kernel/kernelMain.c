@@ -22,12 +22,14 @@
 #include "kernelMain.h"
 #include "kernelParameters.h"
 #include "kernelInitialize.h"
-#include "kernelSysTimerFunctions.h"
+#include "kernelSysTimer.h"
 #include "kernelMultitasker.h"
 #include "kernelMiscFunctions.h"
-#include "kernelMiscAsmFunctions.h"
+#include "kernelProcessorX86.h"
 #include "kernelShutdown.h"
 #include "kernelError.h"
+#include <sys/disk.h>
+#include <stdio.h>
 
 // This is a variable that is checked by the standard library before calling
 // any kernel API functions.  This helps to prevent any API functions from
@@ -36,10 +38,8 @@
 // should help to catch mistakes.
 extern int visopsys_in_kernel;
 
-int kernelBootDisk = 0;
 
-
-void kernelMain(int bootDevice, unsigned kernelMemory, loaderInfoStruct *info)
+void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
 {
 
   // This is the kernel entry point -- and main routine --
@@ -50,23 +50,17 @@ void kernelMain(int bootDevice, unsigned kernelMemory, loaderInfoStruct *info)
 
   visopsys_in_kernel = 1;
 
-  // This will need adjustment after we enumerate the *volumes* on all
-  // the physical devices
-  kernelBootDisk = bootDevice;
-
   // Copy the loaderHardware structure we were passed into kernel memory
   kernelMemCopy(info, &systemInfo, sizeof(loaderInfoStruct));
 
   // Call the kernel initialization routine
   status = kernelInitialize(kernelMemory, &systemInfo);
-  
   if (status < 0)
     {
       // Kernel initialization failed.  Crap.  We don't exactly know
       // what failed.  That makes it a little bit risky to call the 
       // error routine, but we'll do it anyway.
 
-      // Make the error
       kernelError(kernel_error, "Initialization failed.  Press any key "
 		  "(or the \"reset\" button) to reboot.");
 
@@ -76,7 +70,7 @@ void kernelMain(int bootDevice, unsigned kernelMemory, loaderInfoStruct *info)
 
       kernelTextPrint("Rebooting...");
       kernelSysTimerWaitTicks(20); // Wait 2 seconds
-      kernelSuddenReboot();
+      kernelProcessorReboot();
     }
 
   // Launch a login process 
@@ -88,21 +82,14 @@ void kernelMain(int bootDevice, unsigned kernelMemory, loaderInfoStruct *info)
   // memory.  Changing to a 'sleeping' state means that it won't get invoked
   // again by the scheduler.
   status = kernelMultitaskerSetProcessState(KERNELPROCID, sleeping);
-
   if (status < 0)
     kernelError(kernel_error, "The kernel process could not go to sleep.");
 
   // Yield the rest of this time slice back to the scheduler
   kernelMultitaskerYield();
 
-  // If we ever get here, something went wrong.  We're rebooting.
-
-  kernelError(kernel_panic, "The kernel process was unexpectedly woken up");
-
-  kernelShutdown(reboot, 1); // try this first (nice)
-  kernelShutdown(reboot, 0); // now try this (not nice)
-  while(1); // Give up.
-
-  // Just for good form, and so the compiler never complains:
-  return;
+  // If we ever get here, something went wrong.  We should never get here.
+  // We're stopping.
+  kernelPanic("The kernel process was unexpectedly woken up");
+  return; // Compiler nice
 }

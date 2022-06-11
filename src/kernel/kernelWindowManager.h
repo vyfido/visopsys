@@ -23,27 +23,27 @@
 
 #if !defined(_KERNELWINDOWMANAGER_H)
 
-#include "kernelMouseFunctions.h"
-#include "kernelGraphicFunctions.h"
+#include "kernelMouse.h"
+#include "kernelGraphic.h"
 #include "kernelText.h"
 #include <sys/window.h>
 
 // Definitions
-#define MAX_TITLE_LENGTH 80
-#define MAX_COMPONENTS 256
-#define MAX_LABEL_LENGTH 64
 #define DEFAULT_TITLEBAR_HEIGHT 17
 #define DEFAULT_BORDER_THICKNESS 5
 #define DEFAULT_SHADING_INCREMENT 15
 #define DEFAULT_ROOTCOLOR_RED 0x28
 #define DEFAULT_ROOTCOLOR_GREEN 0x5D
 #define DEFAULT_ROOTCOLOR_BLUE 0xAB
-#define MAX_WINDOWS 256
-#define MAX_MOUSE_UPDATES 256
 #define DEFAULT_GREY 200
 #define DEFAULT_WINDOWMANAGER_CONFIG "/system/windowmanager.conf"
-#define DEFAULT_VARIABLEFONT_SMALL_FILE "/system/arial-bold-12.bmp"
-#define DEFAULT_VARIABLEFONT_SMALL_NAME "arial-bold-12"
+#define DEFAULT_WINDOWMANAGER_SPLASH "/system/visopsys.bmp"
+#define DEFAULT_VARIABLEFONT_SMALL_FILE "/system/arial-bold-10.bmp"
+#define DEFAULT_VARIABLEFONT_SMALL_NAME "arial-bold-10"
+#define DEFAULT_VARIABLEFONT_MEDIUM_FILE "/system/arial-bold-12.bmp"
+#define DEFAULT_VARIABLEFONT_MEDIUM_NAME "arial-bold-12"
+#define DEFAULT_MOUSEPOINTER_DEFAULT "/system/mouse.bmp"
+#define DEFAULT_MOUSEPOINTER_BUSY "/system/mousebsy.bmp"
 
 typedef enum
 {
@@ -56,19 +56,23 @@ typedef enum
   windowTextLabelComponent,
   windowTitleBarComponent
 
- } kernelWindowComponentType;
+} kernelWindowComponentType;
 
 // The object that defines a GUI component inside a window
 typedef volatile struct
 {
   kernelWindowComponentType type;
+  int processId;
   void *window;
   int xCoord;
   int yCoord;
+  int level;
   unsigned width;
   unsigned height;
   int visible;
   componentParameters parameters;
+  windowEventStream events;
+  void (*eventHandler)(void *, windowEvent *);
   void *data;
 
   // Routines for managing this component.  These are set by the
@@ -82,7 +86,8 @@ typedef volatile struct
   int (*erase) (void *);
   int (*move) (void *, int, int);
   int (*resize) (void *, unsigned, unsigned);
-  int (*mouseEvent) (void *, kernelMouseStatus *);
+  int (*mouseEvent) (void *, windowEvent *);
+  int (*keyEvent) (void *, windowEvent *);
   int (*destroy) (void *);
 
 } kernelWindowComponent;
@@ -91,7 +96,7 @@ typedef volatile struct
 typedef volatile struct
 {
   int processId;
-  char title[MAX_TITLE_LENGTH];
+  char title[WINDOW_MAX_TITLE_LENGTH];
   int xCoord;
   int yCoord;
   int level;
@@ -102,11 +107,16 @@ typedef volatile struct
   int hasCloseButton;
   int hasBorder;
   kernelGraphicBuffer buffer;
-  kernelMouseStatus mouseEvent;
   image backgroundImage;
+  color background;
   int backgroundTiled;
+  windowEventStream events;
   int numberComponents;
-  kernelWindowComponent *componentList[MAX_COMPONENTS];
+  kernelWindowComponent *componentList[WINDOW_MAX_COMPONENTS];
+  kernelWindowComponent *focusComponent;
+  
+  void *parentWindow;
+  void *dialogWindow;
 
   // Routines for managing this window
   int (*draw) (void *);
@@ -116,49 +126,53 @@ typedef volatile struct
 
 typedef volatile struct
 {
-  char label[MAX_LABEL_LENGTH];
-  image buttonImage;
-  int (*callBackFunction) (void *);
+  const char *text;
+  kernelAsciiFont *font;
 
-} kernelWindowButtonComponent;
+} kernelWindowTextLabel;
+
+typedef volatile struct
+{
+  kernelWindowComponent *label;
+  image buttonImage;
+
+} kernelWindowButton;
 
 // An icon image component
 typedef volatile struct
 {
   image iconImage;
-  char label[MAX_LABEL_LENGTH];
+  char label[2][WINDOW_MAX_LABEL_LENGTH];
+  int labelLines;
+  int labelWidth;
   char command[128];
 
-} kernelWindowIconComponent;
+} kernelWindowIcon;
 
 // A text area as a window component
-typedef kernelTextArea kernelWindowTextAreaComponent;
+typedef kernelTextArea kernelWindowTextArea;
 
-typedef kernelWindowTextAreaComponent kernelTextFieldComponent;
-
-typedef volatile struct
-{
-  const char *text;
-  kernelAsciiFont *font;
-
-} kernelWindowTextLabelComponent;
+typedef kernelWindowTextArea kernelTextField;
 
 // An image as a window component
-typedef image kernelWindowImageComponent;
+typedef image kernelWindowImage;
 
 typedef volatile struct
 {
   kernelWindowComponent *closeButton;
 
-} kernelWindowTitleBarComponent;
+} kernelWindowTitleBar;
 
 // Functions exported by kernelWindowManager.c
 int kernelWindowManagerInitialize(void);
 int kernelWindowManagerStart(void);
-int kernelWindowManagerLogin(int);
+int kernelWindowManagerLogin(const char *, const char *);
+const char *kernelWindowManagerGetUser(void);
 int kernelWindowManagerLogout(void);
 kernelWindow *kernelWindowManagerNewWindow(int, const char *, int, int,
 					   unsigned, unsigned);
+kernelWindow *kernelWindowManagerNewDialog(kernelWindow *, const char *,
+					   int, int, unsigned, unsigned);
 int kernelWindowManagerDestroyWindow(kernelWindow *);
 int kernelWindowManagerUpdateBuffer(kernelGraphicBuffer *, int, int,
 				    unsigned, unsigned);
@@ -168,6 +182,7 @@ int kernelWindowSetSize(kernelWindow *, unsigned, unsigned);
 int kernelWindowAutoSize(kernelWindow *);
 int kernelWindowGetLocation(kernelWindow *, int *, int *);
 int kernelWindowSetLocation(kernelWindow *, int, int);
+int kernelWindowCenter(kernelWindow *);
 int kernelWindowSetHasBorder(kernelWindow *, int);
 int kernelWindowSetHasTitleBar(kernelWindow *, int);
 int kernelWindowSetMovable(kernelWindow *, int);
@@ -175,14 +190,20 @@ int kernelWindowSetHasCloseButton(kernelWindow *, int);
 int kernelWindowLayout(kernelWindow *);
 int kernelWindowSetVisible(kernelWindow *, int);
 kernelWindowComponent *kernelWindowNewComponent(void);
+void kernelWindowDestroyComponent(kernelWindowComponent *);
 int kernelWindowAddComponent(kernelWindow *, kernelWindowComponent *,
 			     componentParameters *);
 int kernelWindowAddClientComponent(kernelWindow *, kernelWindowComponent *,
 				   componentParameters *);
+int kernelWindowAddConsoleTextArea(kernelWindow *, componentParameters *);
 unsigned kernelWindowComponentGetWidth(kernelWindowComponent *);
 unsigned kernelWindowComponentGetHeight(kernelWindowComponent *);
+void kernelWindowFocusComponent(kernelWindow *, kernelWindowComponent *);
 void kernelWindowManagerRedrawArea(int, int, unsigned, unsigned);
-void kernelWindowManagerProcessMouseEvent(kernelMouseStatus *);
+void kernelWindowManagerProcessEvent(windowEvent *);
+int kernelWindowRegisterEventHandler(objectKey,
+				     void (*)(objectKey, windowEvent *));
+int kernelWindowComponentEventGet(objectKey, windowEvent *);
 int kernelWindowManagerTileBackground(const char *);
 int kernelWindowManagerCenterBackground(const char *);
 int kernelWindowManagerScreenShot(image *);
@@ -192,21 +213,19 @@ int kernelWindowManagerShutdown(void);
 
 
 // Constructors exported by the different component types
-kernelWindowComponent *kernelWindowNewButtonComponent(kernelWindow *,
-				      unsigned, unsigned, const char *,
-				      image *, int (*) (void *));
-kernelWindowComponent *kernelWindowNewIconComponent(kernelWindow *,
-				    image *, const char *, const char *);
-kernelWindowComponent *kernelWindowNewImageComponent(kernelWindow *,
-						     image *);
-kernelWindowComponent *kernelWindowNewTextAreaComponent(kernelWindow *,
-						int, int, kernelAsciiFont *);
-kernelWindowComponent *kernelWindowNewTextFieldComponent(kernelWindow *, int,
-							 kernelAsciiFont *);
-kernelWindowComponent *kernelWindowNewTextLabelComponent(kernelWindow *,
-					 kernelAsciiFont *, const char *);
-kernelWindowComponent *kernelWindowNewTitleBarComponent(kernelWindow *,
-							unsigned, unsigned);
+kernelWindowComponent *kernelWindowNewButton(kernelWindow *, unsigned,
+			     unsigned, kernelWindowComponent *, image *);
+kernelWindowComponent *kernelWindowNewIcon(kernelWindow *, image *,
+					   const char *, const char *);
+kernelWindowComponent *kernelWindowNewImage(kernelWindow *, image *);
+kernelWindowComponent *kernelWindowNewTextArea(kernelWindow *, int, int,
+					       kernelAsciiFont *);
+kernelWindowComponent *kernelWindowNewTextField(kernelWindow *, int,
+						kernelAsciiFont *);
+kernelWindowComponent *kernelWindowNewTextLabel(kernelWindow *,
+					kernelAsciiFont *, const char *);
+kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *, unsigned,
+					       unsigned);
 
 #define _KERNELWINDOWMANAGER_H
 #endif

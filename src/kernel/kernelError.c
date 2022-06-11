@@ -27,10 +27,6 @@
 #include <stdio.h>
 
 
-static int errorForeground = 0;  // The color of error messages
-static int initialized = 0;
-
-
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -38,44 +34,6 @@ static int initialized = 0;
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
-
-int kernelErrorInitialize(void)
-{
-  //  Well, we'll hold off on doing this function.  We can flesh it out
-  //  when there's really a such thing as as kernelTextStreams that
-  //  output to more than one place.
-
-  int status = 0;
-
-  // We are now initialized
-  initialized = 1;
-
-  // By default, we set the color of error messages to red
-  kernelErrorSetForeground(DEFAULTERRORFOREGROUND);
-
-  // Return success
-  return (status = 0);
-}
-
-
-int kernelErrorSetForeground(int foreground)
-{
-  // Sets the color of error message printouts.
-
-  int status = 0;
-
-
-  // Don't do anything until we're initialized
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Take the color and save it.
-  errorForeground = foreground;
-
-  // Return success
-  return (status = 0);
-}
 
 
 void kernelErrorOutput(const char *module, const char *function, int line,
@@ -86,56 +44,34 @@ void kernelErrorOutput(const char *module, const char *function, int line,
   // to the text console.
 
   va_list list;
+  char errorType[32];
   char errorText[MAX_ERRORTEXT_LENGTH];
-  int regularForeground;
-
-
-  // Don't do anything until we're initialized
-  if (!initialized)
-    return;
+  //int regularForeground;
 
   // Copy the kind of the error
   switch(kind)
     {
     case kernel_panic:
-      strcpy(errorText, "PANIC:");
+      strcpy(errorType, "PANIC");
       break;
     case kernel_error:
-      strcpy(errorText, "Error:");
+      strcpy(errorType, "Error");
       break;
     case kernel_warn:
-      strcpy(errorText, "Warning:");
+      strcpy(errorType, "Warning");
       break;
     default:
-      strcpy(errorText, "Message:");
+      strcpy(errorType, "Message");
       break;
     }
 
-
-  // Copy the module name
-  if (module)
-    {
-      strcat(errorText, module);
-      strcat(errorText, ":");
-    }
-  else
-    strcat(errorText, "(NULL module):");
-
-
-  // Copy the function name
-  if (function)
-    strcat(errorText, function);
-  else
-    strcat(errorText, "(NULL function)");
-
-  // Add the line number
-  sprintf((errorText + strlen(errorText)), "(%d):", line);
+  sprintf(errorText, "%s:%s:%s(%d):", errorType, module, function, line);
 
   // Save the current text foreground color so we can re-set it.
-  regularForeground = kernelTextGetForeground();
+  //regularForeground = kernelTextGetForeground();
 
   // Now set the foreground color to the error color
-  kernelTextSetForeground(errorForeground);
+  //kernelTextSetForeground(DEFAULTERRORFOREGROUND);
 
   // Output the context of the message
   kernelLog(errorText);
@@ -160,7 +96,7 @@ void kernelErrorOutput(const char *module, const char *function, int line,
     kernelTextPrintLine(errorText);
   
   // Set the foreground color back to what it was
-  kernelTextSetForeground(regularForeground);
+  //kernelTextSetForeground(regularForeground);
 
   return;
 }

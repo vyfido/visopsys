@@ -34,6 +34,10 @@ typedef enum
 
 // Functions exported by kernelShutdown.c
 int kernelShutdown(kernelShutdownType, int);
+void kernelPanicOutput(const char *, const char *, int, const char *, ...);
+
+#define kernelPanic(message, arg...) \
+  kernelPanicOutput(__FILE__, __FUNCTION__, __LINE__, message, ##arg)
 
 #define _KERNELSHUTDOWN_H
 #endif

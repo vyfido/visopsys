@@ -23,7 +23,8 @@
 #include "kernelParameters.h"
 #include "kernelMiscFunctions.h"
 #include "kernelLog.h"
-#include "kernelInterruptsInit.h"
+#include "kernelInterrupt.h"
+#include "kernelDriverManagement.h"
 #include "kernelHardwareEnumeration.h"
 #include "kernelRandom.h"
 #include "kernelMemoryManager.h"
@@ -31,13 +32,12 @@
 #include "kernelPageManager.h"
 #include "kernelMultitasker.h"
 #include "kernelFilesystem.h"
-#include "kernelGraphicFunctions.h"
+#include "kernelGraphic.h"
 #include "kernelWindowManager.h"
 #include "kernelError.h"
+#include <string.h>
+#include <stdio.h>
 #include <sys/errors.h>
-
-
-extern int kernelBootDisk;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -56,6 +56,8 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   // for processing.  Returns 0 if successful, negative on error.
 
   int status;
+  char welcomeMessage[512];
+  static char bootDisk[DISK_MAX_NAMELENGTH];
   int rootFilesystemId = -1;
 
   // Initialize the page manager
@@ -68,12 +70,22 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   if (status < 0)
     return (status);
 
+  // Initialize all our built-in drivers.  We need this before text
+  // initialization, but we can't print any error messages until after.
+  int tmpStatus = kernelDriversInitialize();
+
   // Initialize the text screen output.  This needs to be done after paging
   // has been initialized so that our screen memory can be mapped to a
   // virtual memory address.
   status = kernelTextInitialize(80, 50);
   if (status < 0)
     return (status);
+
+  if (tmpStatus < 0)
+    {
+      kernelError(kernel_error, "Driver initialization failed");
+      return (status);
+    }
 
   // Initialize kernel logging
   status = kernelLogInitialize();
@@ -87,13 +99,10 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   // with unnecessary details.
   kernelLogSetToConsole(0);
 
-  // Initialize the error output early, for the best diagnostic results.
-  status = kernelErrorInitialize();
-  if (status < 0)
-    {
-      kernelTextPrintLine("Error reporting initialization failed");
-      return (status);
-    }
+  // Log a starting message
+  sprintf(welcomeMessage, "%s\nCopyright (C) 1998-2003 J. Andrew McLaughlin",
+	  kernelVersion());
+  kernelLog(welcomeMessage);
 
   // Initialize the descriptor tables (GDT and IDT)
   status = kernelDescriptorInitialize();
@@ -123,10 +132,17 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
       return (status);
     }
 
-  // Now that text input/output has been initialized, we can print the
-  // welcome message.  Then turn off console logging.
-  kernelTextPrintLine("%s\nCopyright (C) 1998-2003 J. Andrew McLaughlin\n"
-		      "Starting, one moment please...", kernelVersion());
+  // Now that enough things have been initialized, we can print the
+  // welcome message.
+  kernelTextPrintLine("%s\nStarting, one moment please...", welcomeMessage);
+
+  // Initialize the multitasker
+  status = kernelMultitaskerInitialize();
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Multitasker initialization failed");
+      return (status);
+    }
 
   // Initialize the kernel's random number generator.
   // has been initialized.
@@ -137,20 +153,20 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
       return (status);
     }
 
-  // Initialize the multitasker
-  status = kernelMultitaskerInitialize();
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Multitasker initialization failed");
-      return (status);
-    }
-
   // Initialize the disk functions.  This must be done AFTER the hardware
   // has been enumerated, and AFTER the drivers have been installed.
-  status = kernelDiskFunctionsInitialize();
+  status = kernelDiskInitialize(info->bootDevice);
   if (status < 0)
     {
       kernelError(kernel_error, "Disk functions initialization failed");
+      return (status);
+    }
+
+  // Get the name of the boot disk
+  status = kernelDiskGetBoot(bootDisk);
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Unable to determine boot device");
       return (status);
     }
 
@@ -163,20 +179,7 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
     }
 
   // Mount the root filesystem.
-
-  // Turn the hardware boot device number into a logical disk.  If the boot
-  // device number is greater than or equal to 0x80, it is a hard disk and
-  // the number needs to be adjusted.  Otherwise leave it alone.
-  if (kernelBootDisk >= 0x80)
-    {
-      kernelBootDisk -= 0x80;
-      // Adjust by the number of floppy disks
-      kernelBootDisk += info->floppyDisks;
-      // Adjust by the number of the booted partition
-      kernelBootDisk += info->hddInfo[0].activePartition;
-    }
-
-  rootFilesystemId = kernelFilesystemMount(kernelBootDisk, "/");
+  rootFilesystemId = kernelFilesystemMount(bootDisk, "/");
   if (rootFilesystemId < 0)
     {
       kernelError(kernel_error, "Mounting root filesystem failed");
@@ -188,6 +191,9 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   if (status < 0)
     // Make a warning, but don't return error.  This is not fatal.
     kernelError(kernel_warn, "Unable to open the kernel log file");
+
+  // Read the kernel's symbols from the kernel symbols file, if possible
+  kernelReadSymbols(KERNEL_SYMBOLS_FILE);
 
   // Start the window management system.  Don't bother checking for an
   // error code.

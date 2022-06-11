@@ -35,7 +35,6 @@
 	ALIGN 4
 
 	%include "loader.h"
-	%include "../kernel/kernelAssemblerHeader.h"
 
 	
 loaderSetTextDisplay:
@@ -152,27 +151,12 @@ loaderDetectVideo:
 	call loaderPrint
 	mov SI, SVGA
 	call loaderPrint
-	mov SI, NOSVGA1
+	mov SI, NOSVGA
 	call loaderPrint
 	call loaderPrintNewline
 	mov SI, BLANK
 	call loaderPrint
-	mov SI, NOSVGA2
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, NOSVGA3
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, NOSVGA4
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, NOSVGA5
+	mov SI, TEXTMODE
 	call loaderPrint
 	call loaderPrintNewline
 
@@ -195,27 +179,12 @@ loaderDetectVideo:
 	call loaderPrint
 	mov SI, SVGA
 	call loaderPrint
-	mov SI, SVGAVER1
+	mov SI, SVGAVER
 	call loaderPrint
 	call loaderPrintNewline
 	mov SI, BLANK
 	call loaderPrint
-	mov SI, SVGAVER2
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, SVGAVER3
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, SVGAVER4
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, SVGAVER5
+	mov SI, TEXTMODE
 	call loaderPrint
 	call loaderPrintNewline
 
@@ -257,6 +226,31 @@ loaderDetectVideo:
 	;; Make note that we can use SVGA.
 	mov byte [SVGAAVAIL], 1
 
+	
+	;; Check whether linear framebuffer is available in any mode
+	call checkLinearFramebuffer
+	cmp AX, 1
+	je .okFramebuffer
+
+	mov DL, ERRORCOLOR	; Use the error color
+	mov SI, SAD
+	call loaderPrint
+	mov SI, SVGA
+	call loaderPrint
+	mov SI, NOFRAMEBUFF
+	call loaderPrint
+	call loaderPrintNewline
+	mov SI, BLANK
+	call loaderPrint
+	mov SI, TEXTMODE
+	call loaderPrint
+	call loaderPrintNewline
+
+	jmp .done
+	
+	
+	.okFramebuffer:	
+	
 	;; Select a video mode to use for the kernel that this hardware
 	;; can display.
 	call selectGraphicMode
@@ -327,22 +321,7 @@ loaderSetGraphicDisplay:
 	call loaderPrintNewline
 	mov SI, BLANK
 	call loaderPrint
-	mov SI, NOSWITCH3
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, NOSWITCH4
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, NOSWITCH5
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, NOSWITCH6
+	mov SI, TEXTMODE
 	call loaderPrint
 	call loaderPrintNewline
 
@@ -477,12 +456,127 @@ loaderFindGraphicMode:
 	cmp AX, word [SS:(BP + 24)]
 	jne near .modeLoop
 
+
 	;; If we fall through to here, this is the mode we want.
 	mov word [SS:(BP + 16)], DX
 	
 	.done:
 	popa
 	;; Return the mode number
+	pop AX
+	ret
+
+
+checkLinearFramebuffer:
+	;; Returns 1 if any linear framebuffer modes are supported.  0
+	;; otherwise
+
+        ;; Save space on the stack our return code
+        sub SP, 2
+
+	pusha
+
+	;; Save the stack pointer
+	mov BP, SP
+
+	;; By default, return the value 0
+	mov word [SS:(BP + 16)], 0
+	
+	;; We need to get a pointer to a list of graphics mode numbers
+	;; from the VBE.  We can gather this from the VESA info block
+	;; retrieved earlier by the video hardware detection routines.
+	;; Get the offset now, and the segment inside the loop.
+	mov SI, [VESAINFO + 0Eh]
+
+	;; Do a loop through the supported modes
+	.modeLoop:
+	
+	;; Save ES
+	push ES
+
+	;; Now get the segment of the pointer, as mentioned above
+	mov AX, [VESAINFO + 10h]
+	mov ES, AX
+
+	;; ES:SI is now a pointer to a word list of supported modes, 
+	;; terminated with the value FFFFh
+
+	;; Get the first/next mode number
+	mov DX, word [ES:SI]
+
+	;; Restore ES
+	pop ES
+
+	;; Is it the end of the mode number list?
+	cmp DX, 0FFFFh
+	je near .done
+
+	;; Increment the pointer for the next loop
+	add SI, 2
+
+	;; We have a mode number.  Now we need to do a VBE call to
+	;; determine whether this mode number suits our needs.
+	;; This call will put a bunch of info in the buffer pointed to
+	;; by ES:DI
+
+	mov CX, DX
+	mov AX, 4F01h
+	mov DI, MODEINFO
+	int 10h
+
+	;; Make sure the function call is supported
+	cmp AL, 4Fh
+	jne near .done
+	;; Is the mode supported by this call?
+	cmp AH, 00h
+	jne .modeLoop
+
+	;; We need to look for a few features to determine whether this
+	;; is the mode we want.  First, it needs to be supported, and it
+	;; needs to be a graphics mode.  Next, it needs to match the
+	;; requested attributes of resolution and bpp
+
+	;; Get the first word of the buffer
+	mov AX, word [MODEINFO]
+	
+	;; Is the mode supported?
+	bt AX, 0
+	jnc .modeLoop
+
+	;; Is this mode a graphics mode?
+	bt AX, 4
+	jnc .modeLoop
+
+	;; Does this mode support a linear frame buffer?
+	bt AX, 7
+	jnc .modeLoop
+
+	;; Framebuffer is supported
+	mov word [SS:(BP + 16)], 1	
+
+	;; push SI
+        ;; mov DL, 02h             ; Use green color
+	;; mov SI, HAPPY
+	;; call loaderPrint
+	;; xor EAX, EAX
+        ;; mov AX, word [MODEINFO + 12h]
+	;; call loaderPrintNumber
+        ;; mov SI, HAPPY
+        ;; call loaderPrint
+	;; xor EAX, EAX
+        ;; mov AX, word [MODEINFO + 14h]
+	;; call loaderPrintNumber
+        ;; mov SI, HAPPY
+        ;; call loaderPrint
+	;; xor EAX, EAX 
+        ;; mov AL, byte [MODEINFO + 19h]
+        ;; call loaderPrintNumber
+        ;; call loaderPrintNewline
+	;; pop SI
+	;; jmp .modeLoop
+
+	.done:
+	popa
 	pop AX
 	ret
 	
@@ -532,23 +626,14 @@ selectGraphicMode:
 	;; We must decide which graphics mode we will use based
 	;; on modes supported by the adapter
 
-	;; Check for a mode with 1024 x 768 x 32 bpp
-	;; push word 32
-	;; push word 768
-	;; push word 1024
-	;; call loaderFindGraphicMode
+	mov SI, VIDEOMODES
 
-	;; Supported?
-	;; cmp AX, 0
-	;; jne near .success
-
-	;; Remove those unsuccessful values from the stack
-	;; add SP, 6
-	
-	;; Check for a mode with 1024 x 768 x 24 bpp
-	push word 24
-	push word 768
-	push word 1024
+	.modeLoop:
+	cmp word [SI], 0
+	je .fail		; No more modes to try
+	push word [SI + 4]
+	push word [SI + 2]
+	push word [SI]
 	call loaderFindGraphicMode
 
 	;; Supported?
@@ -557,85 +642,13 @@ selectGraphicMode:
 
 	;; Remove those unsuccessful values from the stack
 	add SP, 6
+
+	;; Move to the next mode
+	add SI, 6
 	
-	;; Check for a mode with 1024 x 768 x 16 bpp
-	;; push word 16
-	;; push word 768
-	;; push word 1024
-	;; call loaderFindGraphicMode
+	jmp .modeLoop
 
-	;; Supported?
-	;; cmp AX, 0
-	;; jne near .success
-
-	;; Remove those unsuccessful values from the stack
-	;; add SP, 6
-	
-	;; Check for a mode with 1024 x 768 x 15 bpp
-	;; push word 15
-	;; push word 768
-	;; push word 1024
-	;; call loaderFindGraphicMode
-
-	;; Supported?
-	;; cmp AX, 0
-	;; jne near .success
-
-	;; Remove those unsuccessful values from the stack
-	;; add SP, 6
-	
-	;; Check for a mode with 800 x 600 x 32 bpp
-	;; push word 32
-	;; push word 600
-	;; push word 800
-	;; call loaderFindGraphicMode
-
-	;; Supported?
-	;; cmp AX, 0
-	;; jne near .success
-
-	;; Remove those unsuccessful values from the stack
-	;; add SP, 6
-	
-	;; Check for a mode with 800 x 600 x 24 bpp
-	push word 24
-	push word 600
-	push word 800
-	call loaderFindGraphicMode
-
-	;; Supported?
-	cmp AX, 0
-	jne near .success
-
-	;; Remove those unsuccessful values from the stack
-	add SP, 6
-	
-	;; Check for a mode with 800 x 600 x 16 bpp
-	;; push word 16
-	;; push word 600
-	;; push word 800
-	;; call loaderFindGraphicMode
-
-	;; Supported?
-	;; cmp AX, 0
-	;; jne near .success
-
-	;; Remove those unsuccessful values from the stack
-	;; add SP, 6
-	
-	;; Check for a mode with 800 x 600 x 15 bpp
-	;; push word 15
-	;; push word 600
-	;; push word 800
-	;; call loaderFindGraphicMode
-
-	;; Supported?
-	;; cmp AX, 0
-	;; jne near .success
-
-	;; Remove those unsuccessful values from the stack
-	;; add SP, 6
-	
+	.fail:
 	;; If we fall through to here, none of our supported modes are
 	;; available.  Make an error message.
 	mov DL, ERRORCOLOR	; Switch to the error color
@@ -643,31 +656,23 @@ selectGraphicMode:
 	call loaderPrint
 	mov SI, VIDMODE
 	call loaderPrint
-	mov SI, NOMODE1
+	mov SI, NOMODE
 	call loaderPrint
 	call loaderPrintNewline
 	mov SI, BLANK
 	call loaderPrint
-	mov SI, NOMODE2
+	mov SI, TEXTMODE
 	call loaderPrint
 	call loaderPrintNewline
 	mov SI, BLANK
 	call loaderPrint
-	mov SI, NOMODE3
+	mov SI, DUBIOUS
 	call loaderPrint
 	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, NOMODE4
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, NOMODE5
-	call loaderPrint
-	call loaderPrintNewline
-	jmp .fail
 
+	popa
+	mov AX, 0
+	ret
 	
 	.success:
 	;; The appropriate mode number should be in AX.  Save it so it
@@ -681,7 +686,6 @@ selectGraphicMode:
 	xor EAX, EAX
 
 	;; The graphic mode
-	;; mov word [KERNELGMODE], 0 ;; NO GRAPHICS
 	mov AX, word [KERNELGMODE]
 	mov dword [SI + 4], EAX
 
@@ -728,11 +732,6 @@ selectGraphicMode:
 	mov AX, 1
 	ret
 
-	.fail:
-	popa
-	mov AX, 0
-	ret
-
 
 ;;
 ;; The data segment
@@ -749,6 +748,32 @@ VESAINFO  	db 'VBE2'		;; Space for info ret by vid BIOS
 MODEINFO	times 256 db 0
 SVGAAVAIL	db 0
 
+	
+;;
+;; Video modes, in preference order
+;; 
+
+VIDEOMODES:
+	dw 1400, 1050, 32	; 1400 x 1050 x 32 bpp
+;;	dw 1400, 1050, 24	; 1400 x 1050 x 24 bpp
+	dw 1280, 1024, 32	; 1280 x 1024 x 32 bpp
+;;	dw 1280, 1024, 24	; 1280 x 1024 x 24 bpp
+;;	dw 1152, 864, 32	; 1152 x 864 x 32 bpp
+;;	dw 1152, 864, 24	; 1152 x 864 x 24 bpp
+	dw 1024, 768, 32	; 1024 x 768 x 32 bpp
+	dw 1024, 768, 24	; 1024 x 768 x 24 bpp
+	dw 1024, 768, 16	; 1024 x 768 x 16 bpp
+	dw 1024, 768, 15	; 1024 x 768 x 15 bpp
+	dw 800, 600, 32		; 800 x 600 x 32 bpp
+	dw 800, 600, 24		; 800 x 600 x 24 bpp
+	dw 800, 600, 16		; 800 x 600 x 16 bpp
+	dw 800, 600, 15		; 800 x 600 x 15 bpp
+	dw 640, 480, 32		; 640 x 480 x 32 bpp
+	dw 640, 480, 24		; 640 x 480 x 24 bpp
+	dw 640, 480, 16		; 640 x 480 x 16 bpp
+	dw 640, 480, 15		; 640 x 480 x 15 bpp
+	dw 0
+		
 	
 ;;
 ;; The good/informational messages
@@ -771,28 +796,11 @@ SPACE		db ' ',0
 ;;
 
 SAD		db 'x ', 0
-	
-NOSVGA1		db 'SVGA video not detected.  Visopsys is a graphical operating', 0
-NOSVGA2		db 'environment, but requires a minimum of SVGA video', 0
-NOSVGA3		db 'capability in order to use graphics modes.  This session', 0
-NOSVGA4		db 'will be restricted to text mode operation.  Please see your', 0
-NOSVGA5		db 'computer dealer.', 0
-	
-SVGAVER1	db 'VESA version 2.0 or greater not available.  Visopsys is a', 0
-SVGAVER2	db 'graphical operating environment, but requires a video card', 0
-SVGAVER3	db 'with VESA version 2.0 or greater in order to use graphics', 0
-SVGAVER4	db 'modes.  This session will be restricted to text mode', 0
-SVGAVER5	db 'operation.  Please see your computer dealer.', 0
-	
-NOMODE1		db 'Visopsys could not find a supported graphics mode to use.', 0
-NOMODE2		db 'Visopsys is a graphical operating environment, but does not', 0
-NOMODE3		db 'require this capability in order to operate correctly.', 0
-NOMODE4		db 'This session will be restricted to text mode operation.', 0
-NOMODE5		db 'Note: The VESA compatibility of your video card is dubious.', 0
-	
-NOSWITCH1	db 'Could not switch to graphics mode.  Visopsys is a graphical', 0
-NOSWITCH2	db 'operating environment, but does not require this capability', 0
-NOSWITCH3	db 'in order to operate correctly.  This session will be', 0
-NOSWITCH4	db 'restricted to text mode operation.  You may wish to', 0
-NOSWITCH5	db 'investigate possible problems with your video card', 0
-NOSWITCH6	db 'installation.', 0
+NOSVGA		db 'SVGA video not detected.', 0
+SVGAVER		db 'VESA version 2.0 or greater not available.', 0
+NOFRAMEBUFF	db 'Linear framebuffer video not available.', 0
+NOMODE		db 'Could not find a supported graphics mode to use.', 0
+NOSWITCH1	db 'Could not switch to graphics mode.  You may wish to', 0
+NOSWITCH2	db 'investigate possible problems with your video card.', 0
+TEXTMODE	db 'This session will be restricted to text mode operation.', 0
+DUBIOUS		db 'Note: The VESA compatibility of your video card is dubious.', 0

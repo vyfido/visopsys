@@ -1,21 +1,17 @@
 BUILDING VISOPSYS
 
-This is just a bare-bones description to accompany the first release(s) of
-the Visopsys source code; you might need a little know-how to get this to
-work for you.  After a while the source distribution will become more
-user-friendly.  The point is that the source code is available.
+Visopsys is developed on Red Hat Linux 9.  To build Visopsys you will need
+the following toolsi (all of which are available on the Red Hat CDs):
 
-To build the basic system, you will need a C compiler and assembler.  I use
-the GNU C Compiler (gcc) version 2.95.2, and the Netwide Assembler (NASM)
-version 0.98.  You will also need a "make" utility of some kind.  I use
-GNU Make version 3.77.
+- The GNU C Compiler (gcc).  The most recent version tested with Visopsys
+  is 3.2.2.
+- The Netwide Assembler (NASM).  The most recent version tested with Visopsys
+  is 0.98.35.
+- A "make" utility of some kind.  I use GNU Make version 3.79.1.
 
 You might be able to get away with using something other than gcc without
-modifications (doubtful), but you will need NASM to build this code.
-
-To build the Java installation tool, you will also need a Java-1.2 (or better)
-Java compiler (javac).  I use the SDK from Sun Microsystems, available at
-http://java.sun.com.
+modifications (doubtful), but you will need NASM-compatible assembler to
+build this code.
 
 Once you have all the requisite tools as listed above, you build by simply
 executing a 'make' command in the top-level directory directory, like so:
@@ -23,21 +19,24 @@ executing a 'make' command in the top-level directory directory, like so:
 	make
 
 After you've built the system, you might want to use it.  If this is the case,
-you can install it on a floppy disk using a couple of different methods.
+you can install it using the install.sh script in the utils directory.
+The script takes the name of a device or partition as its argument.  For
+example, change to the utils directory and do:
 
-One way is to change to the 'utils' directory, and run the 'archive-binary.sh'
-script.  After this has completed you will have .zip and .tar.gz files just
-like the binary distribution available at Visopsys.org.  Un-package one of
-these files and run the Java installer using the script 'install.sh' (on Unix)
-or 'install.bat' (on Windows).
+	./install.sh /dev/fd0
 
-The other method (Linux only) is to use the 'floppy-install.sh' script which
-is also located in the 'utils' directory.  Change to that directory, insert
-an unused floppy into the drive, and run the script.  This won't install a
-"complete" system -- just the basics.  I (Andy) use this script on a daily
-basis for kernel development.
+to install on the first floppy disk, or
+
+	./install.sh /dev/hda2
+
+to install on the second partition of the first IDE hard disk.
+
+If you want to create a source distribution like the ones on the Visopsys
+web site, change to the utils directory and do:
+
+	./archive-source.sh
 
 Good luck, and let me know if there's any help I can offer.
 
--Andy McLaughlin (jamesamc@yahoo.com)
-07/30/2001
+Andy McLaughlin (jamesamc@yahoo.com)
+19/12/2003

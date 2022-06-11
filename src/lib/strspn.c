@@ -30,10 +30,10 @@ size_t strspn(const char *s1, const char *s2)
   // The strspn() function calculates the length of the initial segment of
   // s1 which consists entirely of characters in s2.
 
-  int count = 0;
+  int match = 0;
   int s1_length = strlen(s1);
   int s2_length = strlen(s2);
-
+  int count;
 
   // We don't set errno in this function
   errno = 0;
@@ -42,8 +42,9 @@ size_t strspn(const char *s1, const char *s2)
     {
       if (s1[count] != s2[count])
 	break;
+      
+      match++;
     }
 
-  // Not found
-  return (count);
+  return (match);
 }

@@ -67,12 +67,25 @@
 %define LDRCODEINFO1    10011010b
 %define LDRCODEINFO2	01000000b
 
+%define SCREENSTART 0x000B8000
+
+%define VIDEOPAGE	 0
+%define ROWS		 50
+%define COLUMNS		 80
+%define FOREGROUNDCOLOR  7
+%define BACKGROUNDCOLOR  1
+%define ERRORCOLOR       6
+
+;; Selectors in the GDT
+%define PRIV_CODESELECTOR 0x0008
+%define PRIV_DATASELECTOR 0x0010
+%define PRIV_STCKSELECTOR 0x0018
+%define LDRCODESELECTOR   0x0020
 
 ;; Filesystem types
 %define FAT12 0
 %define FAT16 1
 %define FAT32 2
-
 
 ;; CPU types
 %define i486       0

@@ -39,6 +39,14 @@ int main(int argc, char *argv[])
     if (argv[count] == NULL)
       return (status = ERR_NULLPARAMETER);
 
+  // Only work in graphics mode
+  if (!graphicsAreEnabled())
+    {
+      printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
+      errno = ERR_NOTINITIALIZED;
+      return (status = errno);
+    }
+
   // Did the user supply a filename?
   if (argc > 1)
     {
@@ -54,7 +62,6 @@ int main(int argc, char *argv[])
     }
 
   status = windowManagerSaveScreenShot(filename);
-
   if (status < 0)
     {
       errno = status;

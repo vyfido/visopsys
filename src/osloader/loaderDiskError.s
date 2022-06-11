@@ -29,7 +29,6 @@
 	ALIGN 4
 
 	%include "loader.h"
-	%include "../kernel/kernelAssemblerHeader.h"
 
 	
 loaderDiskError:

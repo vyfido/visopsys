@@ -30,16 +30,17 @@
 #include "kernelText.h"
 #include "kernelPageManager.h"
 #include "kernelMultitasker.h"
-#include "kernelResourceManager.h"
-#include "kernelMiscAsmFunctions.h"
+#include "kernelLock.h"
+#include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <sys/errors.h>
 #include <stdio.h>
 #include <string.h>
 
+#include "kernelMalloc.h"
 
 static volatile int memoryManagerInitialized = 0;
-static volatile int memoryManagerLock = 0;
+static kernelLock memoryManagerLock;
 
 static volatile unsigned totalMemory = 0;
 static kernelMemoryBlock usedBlockMemory[MAXMEMORYBLOCKS];
@@ -54,7 +55,7 @@ static volatile unsigned totalUsed = 0;
 // This structure can be used to "reserve" memory blocks so that they
 // will be marked as "used" by the memory manager and then left alone.
 // It should be terminated with a NULL entry.  The addresses used here
-// are defined in kernelParamers.h
+// are defined in kernelParameters.h
 static kernelMemoryBlock reservedBlocks[] =
 {
   // { processId, description, startlocation, endlocation }
@@ -87,8 +88,7 @@ static int allocateBlock(int processId, unsigned start, unsigned end,
 {
   // This routine will allocate a block in the used block list, mark the
   // corresponding blocks as allocated in the free-block bitmap, and adjust
-  // the totalUsed and totalFree values accordingly.  Returns 0 on success, 
-  // negative otherwise.
+  // the totalUsed and totalFree values accordingly.
 
   int status = 0;
   unsigned temp = 0;
@@ -342,10 +342,8 @@ int kernelMemoryInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   if (memoryManagerInitialized)
     return (status = ERR_ALREADY);
 
-  // Obtain a lock on the memory data
-  status = kernelResourceManagerLock(&memoryManagerLock);
-  if (status < 0)
-    return (status);
+  // Clear the static memory manager lock
+  kernelMemClear((void *) &memoryManagerLock, sizeof(kernelLock));
 
   // Calculate the amount of total memory we're managing.  First, count
   // 1024 kilobytes for standard and high memory (first "megabyte")
@@ -389,8 +387,6 @@ int kernelMemoryInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   // have to map it into the kernel's address space
   status = kernelPageMapToFree(KERNELPROCID, (void *) bitmapPhysical, 
 			       (void **) &freeBlockBitmap, bitmapSize);
-
-  // Was this successful?
   if (status < 0)
     return (status);
   
@@ -443,15 +439,8 @@ int kernelMemoryInitialize(unsigned kernelMemory, loaderInfoStruct *info)
 			     reservedBlocks[count].endLocation, 
 			     (char *) reservedBlocks[count].description);
       if (status < 0)
-	{
-	  // Release the lock on the memory data
-	  kernelResourceManagerUnlock(&memoryManagerLock);
-	  return (status);
-	}
+	return (status);
     }
-
-  // Release the lock on the memory data
-  kernelResourceManagerUnlock(&memoryManagerLock);
 
   // Make note of the fact that we've now been initialized
   memoryManagerInitialized = 1;
@@ -461,8 +450,7 @@ int kernelMemoryInitialize(unsigned kernelMemory, loaderInfoStruct *info)
 }
 
 
-void *kernelMemoryRequestBlock(unsigned requestedSize, unsigned alignment,
-			       const char *description)
+void *kernelMemoryGet(unsigned requestedSize, const char *description)
 {
   // This is a wrapper function for the real requestBlock routine.
   // It will take the physical memory address returned by requestBlock
@@ -475,14 +463,12 @@ void *kernelMemoryRequestBlock(unsigned requestedSize, unsigned alignment,
   void *virtualMemoryBlock = NULL;
   int processId = 0;
 
-
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
     return (virtualMemoryBlock = NULL);
 
   // Get the current process Id
   processId = kernelMultitaskerGetCurrentProcessId();
-
   if (processId < 0)
     {
       kernelError(kernel_error, "Unable to determine the current process");
@@ -490,17 +476,17 @@ void *kernelMemoryRequestBlock(unsigned requestedSize, unsigned alignment,
     }
 
   // Obtain a lock on the memory data
-  status = kernelResourceManagerLock(&memoryManagerLock);
+  status = kernelLockGet(&memoryManagerLock);
   if (status < 0)
     return (virtualMemoryBlock = NULL);
 
   // Call requestBlock to do all the real work of finding a free
   // memory region
-  status = requestBlock(processId, requestedSize, alignment, description,
+  status = requestBlock(processId, requestedSize, 0 /*alignment*/, description,
 			&physicalMemoryBlock);
 
   // Release the lock on the memory data
-  kernelResourceManagerUnlock(&memoryManagerLock);
+  kernelLockRelease(&memoryManagerLock);
 
   // Make sure it was successful
   if (status < 0)
@@ -510,12 +496,10 @@ void *kernelMemoryRequestBlock(unsigned requestedSize, unsigned alignment,
   // virtual memory pages in the address space of the current process.
   status = kernelPageMapToFree(processId, physicalMemoryBlock, 
 			       &virtualMemoryBlock, requestedSize);
-
-  // If this was unsuccessful, we have a problem.
   if (status < 0)
     {
       // Attempt to deallocate the physical memory block.
-      kernelMemoryReleaseBlock(physicalMemoryBlock);
+      kernelMemoryRelease(physicalMemoryBlock);
       return (virtualMemoryBlock = NULL);
     }
 
@@ -526,9 +510,7 @@ void *kernelMemoryRequestBlock(unsigned requestedSize, unsigned alignment,
 }
 
 
-void *kernelMemoryRequestSystemBlock(unsigned requestedSize,
-				     unsigned alignment,
-				     const char *description)
+void *kernelMemoryGetSystem(unsigned requestedSize, const char *description)
 {
   // This is a wrapper function for the real requestBlock routine.
   // It will take the physical memory address returned by requestBlock
@@ -540,23 +522,22 @@ void *kernelMemoryRequestSystemBlock(unsigned requestedSize,
   void *physicalMemoryBlock = NULL;
   void *virtualMemoryBlock = NULL;
 
-
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
     return (virtualMemoryBlock = NULL);
 
   // Obtain a lock on the memory data
-  status = kernelResourceManagerLock(&memoryManagerLock);
+  status = kernelLockGet(&memoryManagerLock);
   if (status < 0)
     return (virtualMemoryBlock = NULL);
 
   // Call requestBlock to do all the real work of finding a free
   // memory region
-  status = requestBlock(KERNELPROCID, requestedSize, alignment, description,
-			&physicalMemoryBlock);
+  status = requestBlock(KERNELPROCID, requestedSize, 0 /*alignment*/,
+			description, &physicalMemoryBlock);
 
   // Release the lock on the memory data
-  kernelResourceManagerUnlock(&memoryManagerLock);
+  kernelLockRelease(&memoryManagerLock);
 
   // Make sure it was successful
   if (status < 0)
@@ -566,13 +547,11 @@ void *kernelMemoryRequestSystemBlock(unsigned requestedSize,
   // virtual memory pages in the address space of the kernel.
   status = kernelPageMapToFree(KERNELPROCID, physicalMemoryBlock, 
 			       &virtualMemoryBlock, requestedSize);
-
-  // If this was unsuccessful, we have a problem.
   if (status < 0)
     {
       // Attempt to deallocate the physical memory block.
       kernelError(kernel_error, "Unable to map system memory block");
-      kernelMemoryReleasePhysicalBlock(physicalMemoryBlock);
+      kernelMemoryReleasePhysical(physicalMemoryBlock);
       return (virtualMemoryBlock = NULL);
     }
 
@@ -581,7 +560,7 @@ void *kernelMemoryRequestSystemBlock(unsigned requestedSize,
     {
       kernelError(kernel_error, "Page manager did not correctly map system "
 		  "memory block");
-      kernelMemoryReleasePhysicalBlock(physicalMemoryBlock);
+      kernelMemoryReleasePhysical(physicalMemoryBlock);
       return (virtualMemoryBlock = NULL);
     }
 
@@ -592,9 +571,8 @@ void *kernelMemoryRequestSystemBlock(unsigned requestedSize,
 }
 
 
-void *kernelMemoryRequestPhysicalBlock(unsigned requestedSize, 
-				       unsigned alignment,
-				       const char *description)
+void *kernelMemoryGetPhysical(unsigned requestedSize, unsigned alignment,
+			      const char *description)
 {
   // This is a wrapper function for the real requestBlock routine.
   // It return the physical memory address returned by requestBlock
@@ -611,7 +589,7 @@ void *kernelMemoryRequestPhysicalBlock(unsigned requestedSize,
     return (memory = NULL);
 
   // Obtain a lock on the memory data
-  status = kernelResourceManagerLock(&memoryManagerLock);
+  status = kernelLockGet(&memoryManagerLock);
   if (status < 0)
     return (memory = NULL);
 
@@ -621,7 +599,7 @@ void *kernelMemoryRequestPhysicalBlock(unsigned requestedSize,
 			&memory);
   
   // Release the lock on the memory data
-  kernelResourceManagerUnlock(&memoryManagerLock);
+  kernelLockRelease(&memoryManagerLock);
 
   if (status < 0)
     return (memory = NULL);
@@ -641,9 +619,9 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
 
   int status = 0;
   void *physicalAddress = NULL;
+  kernelMemoryBlock *block = NULL;
   unsigned blockSize = 0;
   int count;
-
   
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
@@ -671,16 +649,14 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
   // The caller will be pass memoryPointer as a virtual address.  Turn the 
   // memoryPointer into a physical address
   physicalAddress = kernelPageGetPhysical(oldPid, oldVirtualAddress);
-
   if (physicalAddress == NULL)
     {
-      // Make the error
       kernelError(kernel_error, "The memory pointer is NULL");
       return (status = ERR_NOSUCHENTRY);
     }
   
   // Obtain a lock on the memory data
-  status = kernelResourceManagerLock(&memoryManagerLock);
+  status = kernelLockGet(&memoryManagerLock);
   if (status < 0)
     return (status);
 
@@ -688,61 +664,51 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
   // range that encompasses this pointer
   for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
        count ++)
+    if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
+      {
+	// This is the one.
+	block = usedBlockList[count];
+	break;
+      }
+
+  if ((block != NULL) && (block->processId != oldPid))
     {
-      if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
-	{
-	  // This is the one.
-
-	  if (usedBlockList[count]->processId != oldPid)
-	    {
-	      kernelError(kernel_error, "Attempt to change memory ownership "
-			  "from incorrect owner (%d should be %d)", oldPid,
-			  usedBlockList[count]->processId);
-	      return (status = ERR_PERMISSION);
-	    }
-
-	  if (remap)
-	    {
-	      blockSize = ((usedBlockList[count]->endLocation - 
-			    usedBlockList[count]->startLocation) + 1);
-
-	      // Map the memory into the new owner's address space
-	      status = kernelPageMapToFree(newPid, physicalAddress, 
-					   newVirtualAddress, blockSize);
-
-	      if (status < 0)
-		{
-		  kernelResourceManagerUnlock(&memoryManagerLock);
-		  return (status);
-		}
-
-	      // Unmap the memory from the old owner's address space
-	      status = kernelPageUnmap(oldPid, oldVirtualAddress, blockSize);
-	      
-	      if (status < 0)
-		{
-		  kernelResourceManagerUnlock(&memoryManagerLock);
-		  return (status);
-		}
-	    }
-
-	  // Change the pid number on this block
-	  usedBlockList[count]->processId = newPid;
-
-	  // Quit
-	  break;
-	}
+      kernelError(kernel_error, "Attempt to change memory ownership "
+		  "from incorrect owner (%d should be %d)", oldPid,
+		  block->processId);
+      kernelLockRelease(&memoryManagerLock);
+      return (status = ERR_PERMISSION);
     }
 
+  // Change the pid number on this block
+  block->processId = newPid;
+
   // Release the lock on the memory data
-  kernelResourceManagerUnlock(&memoryManagerLock);
+  kernelLockRelease(&memoryManagerLock);
 
-  // Did we find it?
-  if ((count >= usedBlocks) || (count >= MAXMEMORYBLOCKS))
+  if (block != NULL)
+    {
+      if (remap)
+	{
+	  blockSize = ((block->endLocation - block->startLocation) + 1);
+
+	  // Map the memory into the new owner's address space
+	  status = kernelPageMapToFree(newPid, physicalAddress,
+				       newVirtualAddress, blockSize);
+	  if (status < 0)
+	    return (status);
+
+	  // Unmap the memory from the old owner's address space
+	  status = kernelPageUnmap(oldPid, oldVirtualAddress, blockSize);
+	  if (status < 0)
+	    return (status);
+	}
+
+      // Return success
+      return (status = 0);
+    }
+  else
     return (status = ERR_NOSUCHENTRY);
-
-  // Return success
-  return (status = 0);
 }
 
 
@@ -757,9 +723,9 @@ int kernelMemoryShare(int sharerPid, int shareePid, void *oldVirtualAddress,
 
   int status = 0;
   void *physicalAddress = NULL;
+  kernelMemoryBlock *block = NULL;
   unsigned blockSize = 0;
   int count;
-
   
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
@@ -779,16 +745,14 @@ int kernelMemoryShare(int sharerPid, int shareePid, void *oldVirtualAddress,
   // The caller will pass memoryPointer as a virtual address.  Turn the 
   // memoryPointer into a physical address
   physicalAddress = kernelPageGetPhysical(sharerPid, oldVirtualAddress);
-
   if (physicalAddress == NULL)
     {
-      // Make the error
       kernelError(kernel_error, "The memory pointer is NULL");
       return (status = ERR_NOSUCHENTRY);
     }
   
   // Obtain a lock on the memory data
-  status = kernelResourceManagerLock(&memoryManagerLock);
+  status = kernelLockGet(&memoryManagerLock);
   if (status < 0)
     return (status);
 
@@ -796,63 +760,54 @@ int kernelMemoryShare(int sharerPid, int shareePid, void *oldVirtualAddress,
   // that matches this pointer
   for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
        count ++)
-    {
-      if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
-	{
-	  // This is the one.
-
-	  if (usedBlockList[count]->processId != sharerPid)
-	    {
-	      kernelError(kernel_error, "Attempt to share memory from "
-			  "incorrect owner (%d should be %d)", sharerPid,
-			  usedBlockList[count]->processId);
-	      return (status = ERR_PERMISSION);
-	    }
-
-	  blockSize = ((usedBlockList[count]->endLocation - 
-			usedBlockList[count]->startLocation) + 1);
-
-	  // Map the memory into the sharee's address space
-	  status = kernelPageMapToFree(shareePid, physicalAddress, 
-				       newVirtualAddress, blockSize);
-
-	  if (status < 0)
-	    {
-	      kernelResourceManagerUnlock(&memoryManagerLock);
-	      return (status);
-	    }
-
-	  // The sharer still owns the memory, so don't change the block's
-	  // PID.  Quit.
-	  break;
-	}
-    }
+    if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
+      {
+	// This is the one.
+	block = usedBlockList[count];
+	break;
+      }
 
   // Release the lock on the memory data
-  kernelResourceManagerUnlock(&memoryManagerLock);
+  kernelLockRelease(&memoryManagerLock);
 
-  // Did we find it?
-  if ((count >= usedBlocks) || (count >= MAXMEMORYBLOCKS))
+  if (block != NULL)
+    {
+      if (block->processId != sharerPid)
+	{
+	  kernelError(kernel_error, "Attempt to share memory from incorrect "
+		      "owner (%d should be %d)", sharerPid, block->processId);
+	  return (status = ERR_PERMISSION);
+	}
+
+      blockSize = ((block->endLocation - block->startLocation) + 1);
+
+      // Map the memory into the sharee's address space
+      status = kernelPageMapToFree(shareePid, physicalAddress, 
+				   newVirtualAddress, blockSize);
+      if (status < 0)
+	return (status);
+
+      // The sharer still owns the memory, so don't change the block's PID.
+      // Return success
+      return (status = 0);
+    }
+  else
     return (status = ERR_NOSUCHENTRY);
-
-  // Return success
-  return (status = 0);
 }
 
 
-int kernelMemoryReleaseBlock(void *virtualAddress)
+int kernelMemoryRelease(void *virtualAddress)
 {
   // This routine will determine the blockId of the block that contains
   // the memory location pointed to by the parameter.  After it has done
   // this, it calls the kernelMemoryReleaseByBlockId routine.  It returns
   // 0 if successful, negative otherwise.
 
+  int status = 0;
   int currentPid = 0;
   void *physicalAddress = NULL;
-  int status = 0;
+  kernelMemoryBlock *block = NULL;
   int count;
-
-  //return (0);
 
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
@@ -870,7 +825,7 @@ int kernelMemoryReleaseBlock(void *virtualAddress)
        PRIVILEGE_SUPERVISOR))
     {
       kernelError(kernel_error, "Cannot release system memory block from "
-		  "unprivileged user process %d", currentPid);
+		  "unprivileged user process %d", virtualAddress);
       return (status = ERR_PERMISSION);
     }
 
@@ -878,16 +833,14 @@ int kernelMemoryReleaseBlock(void *virtualAddress)
   // memoryPointer into a physical address.  We could simply unmap it
   // here except that we don't yet know the size of the block.
   physicalAddress = kernelPageGetPhysical(currentPid, virtualAddress);
-
   if (physicalAddress == NULL)
     {
-      // Make the error
-      kernelError(kernel_error, "The memory pointer is NULL");
+      kernelError(kernel_error, "The memory pointer is not mapped");
       return (status = ERR_NOSUCHENTRY);
     }
   
   // Obtain a lock on the memory data
-  status = kernelResourceManagerLock(&memoryManagerLock);
+  status = kernelLockGet(&memoryManagerLock);
   if (status < 0)
     return (status);
 
@@ -897,48 +850,50 @@ int kernelMemoryReleaseBlock(void *virtualAddress)
        count ++)
     if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
       {
-	// This is the one.  Now that we know the size of the memory
-	// block, we can unmap it from the virtual address space.
-	status = kernelPageUnmap(currentPid, virtualAddress, 
-				 (usedBlockList[count]->endLocation - 
-				  usedBlockList[count]->startLocation + 1));
-	
-	if (status < 0)
-	  {
-	    // Make the error
-	    kernelError(kernel_error, "Unable to unmap memory from the "
-			"virtual address space");
-	    kernelResourceManagerUnlock(&memoryManagerLock);
-	    return (status);
-	  }
-
-	// Call the releaseBlock routine with this block's blockId.
-	status = releaseBlock(count);
-	
-	// Release the lock on the memory data
-	kernelResourceManagerUnlock(&memoryManagerLock);
-
-	return (status);
+	// This is the one.
+	block = usedBlockList[count];
+	break;
       }
 
-  // If we fall through, we didn't find the requested block
-  
+  if (block != NULL)
+    // Call the releaseBlock routine with this block's blockId.
+    releaseBlock(count);
+
   // Release the lock on the memory data
-  kernelResourceManagerUnlock(&memoryManagerLock);
-  
-  return (status = ERR_NOSUCHENTRY);
+  kernelLockRelease(&memoryManagerLock);
+
+  if (block != NULL)
+      {
+	//  Now that we know the size of the memory block, we can unmap it
+	// from the virtual address space.
+	status = kernelPageUnmap(currentPid, virtualAddress, 
+				 (block->endLocation - 
+				  block->startLocation + 1));
+	if (status < 0)
+	  {
+	    kernelError(kernel_error, "Unable to unmap memory from the "
+			"virtual address space");
+	    return (status);
+	  }
+	
+	// Return success
+	return (status = 0);
+      }
+  else
+    return (status = ERR_NOSUCHENTRY);
 }
 
 
-int kernelMemoryReleaseSystemBlock(void *virtualAddress)
+int kernelMemoryReleaseSystem(void *virtualAddress)
 {
   // This routine will determine the blockId of the block that contains
   // the memory location pointed to by the parameter.  After it has done
   // this, it calls the kernelMemoryReleaseByBlockId routine.  It returns
   // 0 if successful, negative otherwise.
 
-  void *physicalAddress = NULL;
   int status = 0;
+  void *physicalAddress = NULL;
+  kernelMemoryBlock *block = NULL;
   int count;
 
   // Make sure the memory manager has been initialized
@@ -964,18 +919,15 @@ int kernelMemoryReleaseSystemBlock(void *virtualAddress)
   // The caller will be pass memoryPointer as a virtual address.  Turn the 
   // memoryPointer into a physical address.  We could simply unmap it
   // here except that we don't yet know the size of the block.
-  physicalAddress = 
-    kernelPageGetPhysical(KERNELPROCID, virtualAddress);
-
+  physicalAddress = kernelPageGetPhysical(KERNELPROCID, virtualAddress);
   if (physicalAddress == NULL)
     {
-      // Make the error
       kernelError(kernel_error, "The memory pointer is NULL");
       return (status = ERR_NOSUCHENTRY);
     }
   
   // Obtain a lock on the memory data
-  status = kernelResourceManagerLock(&memoryManagerLock);
+  status = kernelLockGet(&memoryManagerLock);
   if (status < 0)
     return (status);
 
@@ -985,40 +937,36 @@ int kernelMemoryReleaseSystemBlock(void *virtualAddress)
        count ++)
     if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
       {
-	// This is the one.  Now that we know the size of the memory
-	// block, we can unmap it from the virtual address space.
-	status = kernelPageUnmap(KERNELPROCID, virtualAddress, 
-				 ((usedBlockList[count]->endLocation - 
-				   usedBlockList[count]->startLocation) + 1));
-
-	if (status < 0)
-	  {
-	    // Make the error
-	    kernelError(kernel_error, "Unable to unmap memory from the "
-			"virtual address space");
-	    kernelResourceManagerUnlock(&memoryManagerLock);
-	    return (status);
-	  }
-
-	// Call the releaseBlock routine with this block's blockId.
-	status = releaseBlock(count);
-	
-	// Release the lock on the memory data
-	kernelResourceManagerUnlock(&memoryManagerLock);
-
-	return (status);
+	block = usedBlockList[count];
+	break;
       }
 
-  // If we fall through, we didn't find the requested block
-  
+  if (block != NULL)
+    // Call the releaseBlock routine with this block's blockId.
+    releaseBlock(count);
+
   // Release the lock on the memory data
-  kernelResourceManagerUnlock(&memoryManagerLock);
+  kernelLockRelease(&memoryManagerLock);
   
-  return (status = ERR_NOSUCHENTRY);
+  if (block != NULL)
+    {
+      // Now that we know the size of the memory block, we can unmap it
+      // from the virtual address space.
+      status =
+	kernelPageUnmap(KERNELPROCID, virtualAddress, 
+			((block->endLocation - block->startLocation) + 1));
+      if (status < 0)
+	kernelError(kernel_error, "Unable to unmap memory from the virtual "
+		    "address space");
+      return (status);
+    }
+  else
+    // We didn't find the requested block
+    return (status = ERR_NOSUCHENTRY);
 }
 
 
-int kernelMemoryReleasePhysicalBlock(void *physicalAddress)
+int kernelMemoryReleasePhysical(void *physicalAddress)
 {
   // This routine will determine the blockId of the block that contains
   // the memory location pointed to by the parameter.  After it has done
@@ -1026,8 +974,8 @@ int kernelMemoryReleasePhysicalBlock(void *physicalAddress)
   // 0 if successful, negative otherwise.
 
   int status = 0;
+  kernelMemoryBlock *block = NULL;
   int count;
-
 
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
@@ -1038,7 +986,7 @@ int kernelMemoryReleasePhysicalBlock(void *physicalAddress)
     return (status = ERR_NOSUCHENTRY);
 
   // Obtain a lock on the memory data
-  status = kernelResourceManagerLock(&memoryManagerLock);
+  status = kernelLockGet(&memoryManagerLock);
   if (status < 0)
     return (status);
 
@@ -1048,26 +996,22 @@ int kernelMemoryReleasePhysicalBlock(void *physicalAddress)
        count ++)
     if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
       {
-	// Call the releaseBlock routine with this block's blockId.
-	status = releaseBlock(count);
-	
-	// Release the lock on the memory data
-	kernelResourceManagerUnlock(&memoryManagerLock);
-
-	// Make sure it was successful
-	if (status < 0)
-	  return (status);
-
-	// Otherwise, return success
-	return (status = 0);
+	// This is the one
+	block = usedBlockList[count];
+	break;
       }
 
-  // If we fall through, we didn't find the requested block
+  if (block != NULL)
+    // Call the releaseBlock routine with this block's blockId.
+    status = releaseBlock(count);
   
   // Release the lock on the memory data
-  kernelResourceManagerUnlock(&memoryManagerLock);
-  
-  return (status = ERR_NOSUCHENTRY);
+  kernelLockRelease(&memoryManagerLock);
+
+  if (block != NULL)
+    return (status);
+  else
+    return (status = ERR_NOSUCHENTRY);
 }
 
 
@@ -1086,7 +1030,7 @@ int kernelMemoryReleaseAllByProcId(int procId)
     return (status = ERR_NOTINITIALIZED);
 
   // Obtain a lock on the memory data
-  status = kernelResourceManagerLock(&memoryManagerLock);
+  status = kernelLockGet(&memoryManagerLock);
   if (status < 0)
     return (status);
 
@@ -1094,14 +1038,11 @@ int kernelMemoryReleaseAllByProcId(int procId)
        count ++)
     if (usedBlockList[count]->processId == procId)
       {
-	// This is one.  Release this block
+	// This is one.
 	status = releaseBlock(count);
-	
-	// Make sure it was successful
 	if (status < 0)
 	  {
-	    // Release the lock on the memory data
-	    kernelResourceManagerUnlock(&memoryManagerLock);
+	    kernelLockRelease(&memoryManagerLock);
 	    return (status);
 	  }
 
@@ -1111,14 +1052,14 @@ int kernelMemoryReleaseAllByProcId(int procId)
       }
 
   // Release the lock on the memory data
-  kernelResourceManagerUnlock(&memoryManagerLock);
+  kernelLockRelease(&memoryManagerLock);
 
   // Return success
   return (status = 0);
 }
 
 
-void kernelMemoryPrintUsage(void)
+void kernelMemoryPrintUsage(int showKernel)
 {
   // This routine prints some formatted information about the 
   // current usage of memory
@@ -1132,53 +1073,60 @@ void kernelMemoryPrintUsage(void)
   if (!memoryManagerInitialized)
     return;
 
-  // Obtain a lock on the memory data
-  status = kernelResourceManagerLock(&memoryManagerLock);
-  if (status < 0)
-    return;
+  if (showKernel)
+    kernelMallocDump();
 
-  // Before we display the list of used memory blocks, we should sort it so
-  // that it's a little easier to see the distribution of memory.  This will
-  // not help the memory manager to function more efficiently or anything,
-  // it's purely cosmetic.  Just a bubble sort.
-  for (count = 0; count < usedBlocks; count ++)
-    for (count2 = 0;  count2 < (usedBlocks - 1); count2 ++)
-      if (usedBlockList[count2]->startLocation > 
-	  usedBlockList[count2 + 1]->startLocation)
+  else
+    {
+      // Obtain a lock on the memory data
+      status = kernelLockGet(&memoryManagerLock);
+      if (status < 0)
+	return;
+
+      // Before we display the list of used memory blocks, we should sort it
+      // so that it's a little easier to see the distribution of memory.
+      // This will not help the memory manager to function more efficiently
+      // or anything, it's purely cosmetic.  Just a bubble sort.
+      for (count = 0; count < usedBlocks; count ++)
+	for (count2 = 0;  count2 < (usedBlocks - 1); count2 ++)
+	  if (usedBlockList[count2]->startLocation > 
+	      usedBlockList[count2 + 1]->startLocation)
+	    {
+	      temp = usedBlockList[count2 + 1];
+	      usedBlockList[count2 + 1] = usedBlockList[count2];
+	      usedBlockList[count2] = temp;
+	    }
+
+      // Release the lock on the memory data
+      kernelLockRelease(&memoryManagerLock);
+
+      // Print the header lines
+      kernelTextPrintLine(" --- Memory usage information by block ---");
+
+      // Here's the loop through the used list
+      for (count = 0; count < usedBlocks; count ++)
 	{
-	  temp = usedBlockList[count2 + 1];
-	  usedBlockList[count2 + 1] = usedBlockList[count2];
-	  usedBlockList[count2] = temp;
+	  // go to the "count"th element and print the asociated info
+	  sprintf(buffer, " proc=%d %u", usedBlockList[count]->processId,
+		  usedBlockList[count]->startLocation);
+	  kernelTextPrint(buffer);
+	  kernelTextTab();
+	  sprintf(buffer, "-> %u", usedBlockList[count]->endLocation);
+	  kernelTextPrint(buffer);
+	  kernelTextTab();
+	  sprintf(buffer, " size=%u", usedBlockList[count]->endLocation - 
+		  usedBlockList[count]->startLocation + 1);
+	  kernelTextPrint(buffer);
+	  kernelTextTab();
+	  kernelTextPrintLine((char *) usedBlockList[count]->description);
 	}
 
-  // Release the lock on the memory data
-  kernelResourceManagerUnlock(&memoryManagerLock);
-
-  // Print the header lines
-  kernelTextPrintLine(" --- Memory usage information by block ---");
-
-  // Here's the loop through the used list
-  for (count = 0; count < usedBlocks; count ++)
-    {
-      // go to the "count"th element and print the asociated info
-      sprintf(buffer, " proc=%d %u", usedBlockList[count]->processId,
-	      usedBlockList[count]->startLocation);
-      kernelTextPrint(buffer);
-      kernelTextTab();
-      sprintf(buffer, "-> %u", usedBlockList[count]->endLocation);
-      kernelTextPrint(buffer);
-      kernelTextTab();
-      sprintf(buffer, " size=%u", usedBlockList[count]->endLocation - 
-	      usedBlockList[count]->startLocation + 1);
-      kernelTextPrint(buffer);
-      kernelTextTab();
-      kernelTextPrintLine((char *) usedBlockList[count]->description);
+      // Print out the percent usage information
+      kernelTextPrintLine(" --- Usage totals ---\nTotal used blocks - %d\n"
+			  "Total used - %u - %d%%\nTotal free - %u - %d%%",
+			  usedBlocks, totalUsed, percentUsage(), totalFree,
+			  (100 - percentUsage()));
     }
 
-  // Print out the percent usage information
-  kernelTextPrintLine(" --- Usage totals ---\nTotal used blocks - %d\nTotal "
-		      "used - %u - %d%%\nTotal free - %u - %d%%", usedBlocks,
-		      totalUsed, percentUsage(), totalFree,
-		      (100 - percentUsage()));
   return;
 }

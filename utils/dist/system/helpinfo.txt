@@ -7,8 +7,8 @@ chkdisk           Check a filesystem for errors
 cp (or copy)      Copy a file
 date              Show the date
 disks             Show the disk volumes in the system
-fdisk             Manage hard disks (must be user "root")
-install           Install Visopsys (must be user "root")
+fdisk             Manage hard disks (must be user "admin")
+install           Install Visopsys (must be user "admin")
 kill              Kill a running process
 login             Start a new login process
 logout (or exit)  End the current session
@@ -35,6 +35,7 @@ vsh               Start a new command shell
 
  -- Additional (graphics mode only) --
 
+console          Show the console window
 display          Show an image file in a new window
 loadfont         Load a new default font
 screenshot       Take a screenshot

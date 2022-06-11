@@ -33,7 +33,6 @@
 	ALIGN 4
 
 	%include "loader.h"
-	%include "../kernel/kernelAssemblerHeader.h"
 
 
 loaderLoadKernel:
@@ -178,6 +177,9 @@ getElfHeaderInfo:
 	je .isElf
 
 	;; The kernel was not an ELF binary
+	call loaderPrintNewline
+	call loaderPrintNewline
+	call loaderPrintNewline
 	mov DL, ERRORCOLOR
 	mov SI, THEFILE
 	call loaderPrint
@@ -200,6 +202,9 @@ getElfHeaderInfo:
 	je .isExec
 
 	;; The kernel was not executable
+	call loaderPrintNewline
+	call loaderPrintNewline
+	call loaderPrintNewline
 	mov DL, ERRORCOLOR
 	mov SI, THEFILE
 	call loaderPrint
@@ -235,6 +240,9 @@ getElfHeaderInfo:
 
 	;; The kernel image doesn't look the way we expected.  This program
 	;; isn't versatile enough to handle that yet.
+	call loaderPrintNewline
+	call loaderPrintNewline
+	call loaderPrintNewline
 	mov DL, ERRORCOLOR
 	mov SI, THEFILE
 	call loaderPrint
@@ -277,6 +285,9 @@ getElfHeaderInfo:
 
 	;; The kernel image doesn't look the way we expected.  This program
 	;; isn't versatile enough to handle that yet.
+	call loaderPrintNewline
+	call loaderPrintNewline
+	call loaderPrintNewline
 	mov DL, ERRORCOLOR
 	mov SI, THEFILE
 	call loaderPrint
@@ -300,6 +311,9 @@ getElfHeaderInfo:
 
 	;; The kernel image doesn't look the way we expected.  This program
 	;; isn't versatile enough to handle that yet.
+	call loaderPrintNewline
+	call loaderPrintNewline
+	call loaderPrintNewline
 	mov DL, ERRORCOLOR
 	mov SI, THEFILE
 	call loaderPrint
@@ -344,6 +358,9 @@ getElfHeaderInfo:
 
 	;; The kernel image doesn't look the way we expected.  This program
 	;; isn't versatile enough to handle that yet.
+	call loaderPrintNewline
+	call loaderPrintNewline
+	call loaderPrintNewline
 	mov DL, ERRORCOLOR
 	mov SI, THEFILE
 	call loaderPrint
@@ -481,6 +498,7 @@ evaluateLoadError:
 	mov BP, SP
 
 	;; Use the error color
+	call loaderPrintNewline
 	mov DL, ERRORCOLOR
 	mov SI, LOADFAIL
 	call loaderPrint

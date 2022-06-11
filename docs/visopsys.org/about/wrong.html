@@ -1,0 +1,138 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<title>What's Wrong With Visopsys?</title>
+<meta name="description" content="Visopsys is a small, home-brewed, open source, 32-bit multitasking operating system kernel for PC-compatible computers">
+<meta name="keywords" content="visopsys, winix, linux, operating system, pc, os-development, os-dev, osdev, os, kernel, open source, open-source, freeware, andy mclaughlin">
+
+<meta name="Microsoft Border" content="lb">
+</head>
+
+<body bgcolor="#285DAB" text="#FFFFFF" link="#FFFF00" vlink="#00FF00" bgproperties="fixed" background="../img/background.jpg"><!--msnavigation--><table dir="ltr" border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td valign="top" width="1%">
+<div align="center"><center>
+
+<table border="0" cellpadding="0" cellspacing="0" width="93">
+  <tr>
+    <td width="99"><p align="center"><font color="#FFFFFF"><a href="../index.html">
+    <img src="../img/nav_buttons/home.jpg" alt="Go back to the Visopsys Home Page." border="0" align="middle" width="53" height="25"></a><br>
+    <br>
+    <a href="index.html">
+    <img src="../img/nav_buttons/about.jpg" alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a><br>
+    <br>
+    <a href="../download/index.html">
+    <img src="../img/nav_buttons/download.jpg" alt="Download Visopsys and associated files." border="0" align="middle" width="95" height="25"></a></font><br>
+    <br>
+    <a href="../developers/index.html">
+    <img src="../img/nav_buttons/developers.jpg" border="0" alt="Resources for Visopsys development" align="middle" width="97" height="31"></a><br>
+    <br>
+    <a href="../osdev/index.html">
+    <img src="../img/nav_buttons/osdev.jpg" border="0" alt="OS Development Resources" align="middle" width="64" height="25"></a><br>
+    <br>
+    <a href="../search.html">
+    <img src="../img/nav_buttons/search.jpg" alt="Search the Visopsys Site" align="middle" border="0" width="63" height="24"></a></td>
+  </tr>
+</table>
+</center></div>
+
+</td><td valign="top" width="24"></td><!--msnavigation--><td valign="top">
+
+<p align="center">&nbsp;</p>
+
+<p align="center">
+<img src="../img/banners/visopsys-logo.jpg" align="middle" border="0" width="290" height="95"><br>
+<font size="5"><strong>
+<img src="../img/banners/visopsys-about.jpg" align="middle" border="0" width="290" height="55"></strong></font></p>
+<font SIZE="2">
+
+<p></font><strong><big>WHAT'S WRONG WITH VISOPSYS?</big></strong></p>
+
+<p><big>What follows is a description of some issues that I perceive as problems with the
+current version of Visopsys, explanations of why they're problems, and basic plans for
+addressing them.</big> 
+
+<ul>
+  <li><a href="#ioprotection"><big>No I/O protection</big></a></li>
+  <li><a href="#single-user"><big>Single-user mode only</big></a></li>
+  <li><a href="#float"><big>No state saves of FPU (Floating Point Unit)</big></a><br>
+  </li>
+</ul>
+
+<p><big><br>
+<strong>VISOPSYS PROVIDES NO I/O PROTECTION</strong></big></p>
+
+<p><big>Currently there is no I/O port protection provided by the system.&nbsp; This makes
+it possible for low-privilege applications to read or write directly to/from the ports
+used to control the hardware devices.&nbsp; This is primarily a security concern, as there
+is little chance of an application &quot;accidentally&quot; performing inappropriate
+hardware I/O.&nbsp; It makes it theoretically possible for a malicious application to
+subvert security features such as file permissions on disks.</big></p>
+
+<p><big>This issue is scheduled to be fixed in the first maintenance release of Visopsys
+(version 0.1.1?).</big><br>
+</p>
+
+<p><a name="single-user"></a><strong><big>VISOPSYS IS CURRENTLY LIMITED TO SINGLE-USER
+OPERATION</big></strong></p>
+
+<p><big>Although Visopsys is able to multi-task very well (i.e. a sound foundation for
+multiple users accessing the system at once), there is still no practical implementation
+of multi-user support.&nbsp;&nbsp; Multi-user capabilities have been planned from the
+beginning, and all of the existing code is written with this in mind; however without
+networking support there is no real way to use Visopsys other than from the local console.
+&nbsp; </big></p>
+
+<p><big>Additionally, although users are asked to provide a login name, in its current
+form Visopsys is not able to perform user authentication with passwords.</big></p>
+
+<p><big>User authentication may be added for the initial public release (version 0.1), but
+will more like appear in version 0.2.&nbsp; Networking support will be added for version
+0.2 (possibly 0.3).&nbsp; Multi-user capability will appear in conjunction with
+networking.</big><br>
+</p>
+
+<p><a name="float"></a><strong><big>VISOPSYS DOESN'T PRESERVE THE STATE OF THE FLOATING
+POINT MATH UNIT</big></strong></p>
+
+<p><big>In the course of its multitasking duties, Visopsys saves the states of processes
+when switching between them (for example at the end of a time slice, or after a <em>yield</em>
+request).&nbsp; However, this state save is incomplete in one respect: the FPU (Floating
+Point Unit).&nbsp; If two tasks are performing floating point math operations
+concurrently, it is possible or even likely that one will interfere with the other.</big></p>
+
+<p><big>This is planned to be rectified in the first maintenance release, version 0.1.1.</big></p>
+
+<p><big><big>&nbsp; </big></big>
+<!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
+
+<blockquote>
+  <blockquote>
+    <p align="right"><font color="#FFFFFF"><a href="../index.html">
+    <img
+    src="../img/nav_buttons/home.jpg" alt="Go back to the Visopsys Home Page." border="0"
+    align="middle" width="53" height="25"></a> <a href="index.html">
+    <img src="../img/nav_buttons/about.jpg"
+    alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a> <a href="../download/index.html">
+    <img
+    src="../img/nav_buttons/download.jpg" alt="Download Visopsys and associated files."
+    border="0" align="middle" width="95" height="25"></a></font> <a href="../developers/index.html">
+    <img
+    src="../img/nav_buttons/developers.jpg" alt="Resources for Visopsys development"
+    border="0" align="middle" width="97" height="31"></a> <a href="../osdev/index.html">
+    <img
+    src="../img/nav_buttons/osdev.jpg" border="0" align="middle" width="64" height="25"></a> <a href="../search.html">
+    <img
+    src="../img/nav_buttons/search.jpg" alt="Search the Visopsys Site" align="middle"
+    border="0" width="63" height="24"></a><br>
+    <font face="Times New Roman" color="#FFFFFF">This site is copyright © 1999-2003, J.
+    Andrew McLaughlin<br>
+    Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
+    Last updated on
+    November 11, 2003</font></p>
+  </blockquote>
+</blockquote>
+
+<p>&nbsp;</p>
+
+</td></tr><!--msnavigation--></table></body>
+</html>

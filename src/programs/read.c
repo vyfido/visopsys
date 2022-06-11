@@ -24,8 +24,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <errno.h>
+#include <sys/vsh.h>
 #include <sys/api.h>
 
 
@@ -33,29 +32,6 @@ static void usage(char *name)
 {
   printf("usage:\n");
   printf("%s <file1> [file2] [...]\n", name);
-  return;
-}
-
-
-static void makeAbsolutePath(const char *orig, char *new)
-{
-  char cwd[MAX_PATH_LENGTH];
-
-  if ((orig[0] != '/') && (orig[0] != '\\'))
-    {
-      multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
-
-      strcpy(new, cwd);
-
-      if ((new[strlen(new) - 1] != '/') &&
-	  (new[strlen(new) - 1] != '\\'))
-	strncat(new, "/", 1);
-
-      strcat(new, orig);
-    }
-  else
-    strcpy(new, orig);
-
   return;
 }
 
@@ -69,10 +45,9 @@ int main(int argc, char *argv[])
   char *fileBuffer = NULL;
   int count;
 
-
   if (argc < 2)
     {
-      usage(argv[0]);
+      usage((argc > 0)? argv[0] : "read");
       return (status = ERR_ARGUMENTCOUNT);
     }
 
@@ -84,7 +59,7 @@ int main(int argc, char *argv[])
 	return (status = ERR_NULLPARAMETER);
 
       // Make sure the name is complete
-      makeAbsolutePath(argv[argNumber], fileName);
+      vshMakeAbsolutePath(argv[argNumber], fileName);
 
       // Initialize the file structure
       for (count = 0; count < sizeof(file); count ++)

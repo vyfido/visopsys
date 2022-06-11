@@ -33,16 +33,11 @@ void *memcpy(void *dest, const void *src, size_t len)
 
   size_t count = 0;
 
-  if ((src < (dest + len)) ||
-      (dest < (src + len)))
-    {
-      errno = ERR_BOUNDS;
-      return (dest = NULL);
-    }
+  // We don't set errno
+  errno = 0;
 
   for (count = 0; count < len; count ++)
     ((char *) dest)[count] = ((char *) src)[count];
 
-  errno = 0;
   return (dest);
 }

@@ -21,39 +21,18 @@
 
 #if !defined(_KERNELFILESYSTEM_H)
 
-#include "kernelDiskFunctions.h"
+#include "kernelDisk.h"
+#include "kernelLock.h"
 #include <sys/file.h>
 
 // Definitions
 #define MAX_FILESYSTEMS 32
 #define MAX_FS_NAME_LENGTH 64
 
-// These functions are the common routines for the various types of
-// filesystems
-#define FATDETECT &kernelFilesystemTypeFatDetect
-#define FATCHECK &kernelFilesystemTypeFatCheck
-#define FATDEFRAG NULL
-#define FATMOUNT &kernelFilesystemTypeFatMount
-#define FATSYNC &kernelFilesystemTypeFatSync
-#define FATUNMOUNT &kernelFilesystemTypeFatUnmount
-#define FATGETFREE &kernelFilesystemTypeFatGetFreeBytes
-#define FATNEWENTRY &kernelFilesystemTypeFatNewEntry
-#define FATINACTIVE &kernelFilesystemTypeFatInactiveEntry
-#define FATREADFILE &kernelFilesystemTypeFatReadFile
-#define FATWRITEFILE &kernelFilesystemTypeFatWriteFile
-#define FATCREATEFILE &kernelFilesystemTypeFatCreateFile
-#define FATDELETEFILE &kernelFilesystemTypeFatDeleteFile
-#define FATFILEMOVED &kernelFilesystemTypeFatFileMoved
-#define FATREADDIR &kernelFilesystemTypeFatReadDir
-#define FATWRITEDIR &kernelFilesystemTypeFatWriteDir
-#define FATMAKEDIR &kernelFilesystemTypeFatMakeDir
-#define FATREMOVEDIR &kernelFilesystemTypeFatRemoveDir
-#define FATTIMESTAMP &kernelFilesystemTypeFatTimestamp
-
 // This structure defines a file or directory entry
 typedef volatile struct
 {
-  unsigned char fileName[MAX_NAME_LENGTH];
+  unsigned char name[MAX_NAME_LENGTH];
   fileType type;
   int flags;
   unsigned creationTime;
@@ -69,7 +48,7 @@ typedef volatile struct
   void *filesystem;     // parent filesystem
   void *fileEntryData;  // private fs-specific data
   int openCount;
-  unsigned lockedByProcess;
+  kernelLock lock;
 
   // Linked-list stuff.
   void *parentDirectory;
@@ -77,9 +56,8 @@ typedef volatile struct
   void *nextEntry;
   unsigned lastAccess;
 
-  // (The following additional stuff only applies to directory entries)
-  void *firstFile;
-  int dirty;
+  // (The following additional stuff only applies to directories and links)
+  void *contents;
 
 } kernelFileEntry;
 
@@ -97,14 +75,12 @@ typedef volatile struct
   int filesystemNumber;
   const char *description;
   char mountPoint[MAX_FS_NAME_LENGTH];
-  const kernelDiskObject *disk;
-  void *filesystemDriver;
+  const kernelDisk *disk;
+  void *driver;
   kernelFileEntry *filesystemRoot;
   unsigned blockSize;
-  int syncLock;
   int caseInsensitive;
   int readOnly;
-  int hasSyncErrors;
   void *filesystemData;
 
 } kernelFilesystem;
@@ -115,11 +91,12 @@ typedef struct
 {
   kernelFileSysTypeEnum driverType;
   char *driverTypeName;
-  int (*driverDetect) (const kernelDiskObject *);
+  int (*driverInitialize) (void);
+  int (*driverDetect) (const kernelDisk *);
+  int (*driverFormat) (kernelDisk *, const char *, const char *, int);
   int (*driverCheck) (kernelFilesystem *, int, int);
   int (*driverDefragment) (kernelFilesystem *);
   int (*driverMount) (kernelFilesystem *);
-  int (*driverSync) (kernelFilesystem *);
   int (*driverUnmount) (kernelFilesystem *);
   unsigned (*driverGetFree) (kernelFilesystem *);
   int (*driverNewEntry) (kernelFileEntry *);
@@ -139,12 +116,15 @@ typedef struct
 
 } kernelFilesystemDriver;
 
+// The default driver initializations
+int kernelFilesystemFatInitialize(void);
+
 // Functions exported by kernelFilesystem.c
 int kernelFilesystemInitialize(void);
-int kernelFilesystemCheck(int, int, int);
-int kernelFilesystemDefragment(int);
-int kernelFilesystemMount(int, const char *);
-int kernelFilesystemSync(const char *);
+int kernelFilesystemCheck(const char *, int, int);
+int kernelFilesystemFormat(const char *, const char *, const char *, int);
+int kernelFilesystemDefragment(const char *);
+int kernelFilesystemMount(const char *, const char *);
 int kernelFilesystemUnmount(const char *);
 int kernelFilesystemUnmountAll(void);
 int kernelFilesystemNumberMounted(void);

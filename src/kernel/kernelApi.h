@@ -32,9 +32,8 @@ typedef struct
 
 } kernelFunctionIndex;
 
-// Functions exported from kernelApi.c and kernelEntryPoint.s
-int kernelApi(unsigned *);
-int kernelEntryPoint(int);
+// Functions exported from kernelApi.c
+int kernelApi(unsigned, unsigned);
 
 #define _KERNELAPI_H
 #endif

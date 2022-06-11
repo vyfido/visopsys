@@ -1,0 +1,209 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<title>About Visopsys - The Multitasker and Scheduler</title>
+<meta name="description" content="Visopsys is a small, home-brewed, open source, 32-bit multitasking operating system kernel for PC-compatible computers">
+<meta name="keywords" content="visopsys, winix, linux, operating system, pc, os-development, os-dev, osdev, os, kernel, open source, open-source, freeware, andy mclaughlin">
+
+<meta name="Microsoft Border" content="lb">
+</head>
+
+<body bgcolor="#285DAB" text="#FFFFFF" link="#FFFF00" vlink="#00FF00" bgproperties="fixed" background="../img/background.jpg"><!--msnavigation--><table dir="ltr" border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td valign="top" width="1%">
+<div align="center"><center>
+
+<table border="0" cellpadding="0" cellspacing="0" width="93">
+  <tr>
+    <td width="99"><p align="center"><font color="#FFFFFF"><a href="../index.html">
+    <img src="../img/nav_buttons/home.jpg" alt="Go back to the Visopsys Home Page." border="0" align="middle" width="53" height="25"></a><br>
+    <br>
+    <a href="index.html">
+    <img src="../img/nav_buttons/about.jpg" alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a><br>
+    <br>
+    <a href="../download/index.html">
+    <img src="../img/nav_buttons/download.jpg" alt="Download Visopsys and associated files." border="0" align="middle" width="95" height="25"></a></font><br>
+    <br>
+    <a href="../developers/index.html">
+    <img src="../img/nav_buttons/developers.jpg" border="0" alt="Resources for Visopsys development" align="middle" width="97" height="31"></a><br>
+    <br>
+    <a href="../osdev/index.html">
+    <img src="../img/nav_buttons/osdev.jpg" border="0" alt="OS Development Resources" align="middle" width="64" height="25"></a><br>
+    <br>
+    <a href="../search.html">
+    <img src="../img/nav_buttons/search.jpg" alt="Search the Visopsys Site" align="middle" border="0" width="63" height="24"></a></td>
+  </tr>
+</table>
+</center></div>
+
+</td><td valign="top" width="24"></td><!--msnavigation--><td valign="top">
+
+<p align="center">&nbsp;</p>
+
+<p align="center">
+<img src="../img/banners/visopsys-logo.jpg" align="middle" border="0" width="290" height="95"><br>
+<font size="5"><strong>
+<img src="../img/banners/visopsys-about.jpg" align="middle" border="0" width="290" height="55"></strong></font></p>
+<font SIZE="2">
+
+<p></font><big>THE VISOPSYS MULTITASKER AND SCHEDULER</big></p>
+
+<p><big>OVERVIEW</big></p>
+
+<p><big>Visopsys is a multitasking operating system kernel.&nbsp; In lay terms this means
+that the kernel's &quot;scheduler&quot; -- a small piece of independent code inside the
+kernel -- parcels out small packets of time to all of the running programs in very rapid
+succession. &nbsp; One such running program is the operating system kernel itself.&nbsp;
+Since a single garden- variety microprocessor (such as x86 chips from AMD, Cyrix, or
+Intel) can only do one thing at a time, the illusion of multiple processes working
+simultaneously is achieved through this rapid switching between tasks.&nbsp; This is
+called &quot;task switching&quot; or &quot;context switching&quot;.&nbsp; If the
+multitasker is doing its job properly, and the work load is not too great, the user should
+never perceive that these switches are even occurring.</big></p>
+
+<p><big>What follows is a more technical description of the method by which Visopsys'
+scheduler performs these context switches.</big></p>
+
+<p><big>Visopsys' scheduler combines a number of common ideas into a cohesive algorithm.
+&nbsp; Its major features include: </big>
+
+<ul>
+  <li><big>Preemptive</big></li>
+  <li><big>Arbitrary number of priority queues</big></li>
+  <li><big>Fair scheduling algorithm, except for the highest- and lowest- priority queues</big></li>
+  <li><big>Real- time scheduling in the highest- priority queue</big></li>
+  <li><big>Background scheduling in the lowest- priority queue</big></li>
+</ul>
+
+<p><big>Following is a description of the algorithm by which Visopsys' scheduler
+determines task execution order.&nbsp; </big></p>
+
+<p><big>There will be two &quot;special&quot; queues in the multitasker. The first
+(highest- priority) queue will be the &quot;real time&quot; queue.&nbsp; When there are
+any processes running and ready at this priority level, they will be serviced to the
+exclusion of all processes from other queues. Not even the kernel process will reside in
+this queue. </big></p>
+
+<p><big>The last (lowest- priority) queue will be the &quot;background&quot; queue.
+Processes in this queue will only receive processor time when there are no ready processes
+in any other queue. Unlike all of the &quot;normal&quot; or &quot;middle&quot; queues, it
+will be entirely possible for processes in this background queue to starve.</big></p>
+
+<p><big>Because of the existence of these two special- case queues, there must be a
+minimum of 3 priority queues in the Visopsys multitasker.</big></p>
+
+<p><big>The number of priority queues will be flexibly based on a configuration macro in
+the multitasker's header file, and other than the minor restriction outlined above, is
+arbitrary.&nbsp; Increasing the number of priority queues introduces no extra overhead
+into the kernel (i.e. there really aren't separate queues). &nbsp; However, regardless of
+the number of queues, the &quot;special&quot; queues mentioned above will always exhibit
+their distinct behaviors.&nbsp; </big></p>
+
+<p><big>Thus, using these multiple priority queues, the Administrator can exercise a very
+fine-grained control over the performance of the various processes in the system. </big></p>
+
+<p><big>Amongst all of the processes in the &quot;normal&quot; priority queues, there will
+be a fair approach to scheduling. This fair algorithm utilizes a weighting scheme.&nbsp;
+When the scheduler gains control of the processor, each waiting task's weight is
+calculated.&nbsp; In the general case, the task with the highest weight &quot;wins&quot;
+and is granted the next timeslice.</big></p>
+
+<p><big>Among the variables which contribute to a process' weight will be the following:
+priority, waiting time, and &quot;shortness&quot;. &nbsp; Shortness will be implemented
+later (shortest job first), so for now we will concentrate on priority and waiting time.
+The formula will look like this:</big></p>
+
+<blockquote>
+  <p><font face="Courier New"><big>weight = (task priority * priority ratio) + waiting time</big></font></p>
+</blockquote>
+
+<p><big>[ 0 is the highest possible priority value. &nbsp; In the calculation above,
+&quot;task priority&quot; is actually the inverse of the task's real priority value.&nbsp;
+It is calculated as: the lowest possible priority value minus the task's priority
+value.&nbsp; So, for example, if the range of possible priority values was 0 (highest)
+through 7 (lowest), a highest- priority task would be: 7 - 0 = 7. ]</big></p>
+
+<p><big>The task's priority will be multiplied by the &quot;priority ratio&quot;.&nbsp;
+The priority ratio determines the importance of priority vs. waiting time in the scheduler
+queues.&nbsp; A priority ratio of zero, for example, would give higher- priority processes
+no advantage over lower- priority ones, and waiting time alone would determine execution
+order.&nbsp; By contrast, a very high ratio would ensure that lower- priority tasks must
+wait a very long time before usurping the timeslice of a higher- priority task.</big></p>
+
+<p><big>To this value will be added the current waiting time.&nbsp; The waiting time of
+each task in the queue starts at zero.&nbsp; Each time a task is passed over for execution
+by the scheduler, its waiting time value is increased by one.&nbsp; Whenever a task is
+selected to run by the scheduler, its waiting time value is subsequently reset to zero.</big></p>
+
+<p><big>After performing this simple calculation for each waiting task, the scheduler can
+select the &quot;winner&quot; by running the task with the highest weight.</big></p>
+
+<p><big>For example, if we have 4 possible priority levels, the priority ratio is set to
+3, and we have two tasks waiting as follows:</big></p>
+
+<blockquote>
+  <p><font face="Courier New"><big>Task #1: priority=0, waiting time=7<br>
+  Task #2: priority=2, waiting time=12</big></font></p>
+</blockquote>
+
+<p><big>then</big></p>
+
+<blockquote>
+  <p><font face="Courier New"><big>task1Weight = ((4 - 0) * 3) + 7&nbsp; = 19
+  &nbsp;&nbsp;&nbsp; &lt;- winner<br>
+  task2Weight = ((4 - 2) * 3) + 12 = 18</big></font></p>
+</blockquote>
+
+<p><big>Thus, even though task 2 has been waiting considerably longer, task 1's higher
+priority wins.&nbsp; However in a slightly different scenario -- using the same constants
+-- if we had:</big></p>
+
+<blockquote>
+  <p><font face="Courier New"><big>Task 1: priority=0, waiting time=7<br>
+  Task 2: priority=2, waiting time=14</big></font></p>
+</blockquote>
+
+<p><big>then</big></p>
+
+<blockquote>
+  <p><font face="Courier New"><big>task1Weight = ((4 - 0) * 3) + 7&nbsp; = 19<br>
+  task2Weight = ((4 - 2) * 3) + 14 = 20&nbsp;&nbsp;&nbsp; &lt;- winner</big></font></p>
+</blockquote>
+
+<p><big>In this case, task 2 gets to run since it has been waiting long enough to overcome
+task 1's higher priority. This possibility helps to ensure that no processes will starve. </big></p>
+
+<p><big>A tie between the highest-weighted tasks is resolved by round- robin queue order.</big></p>
+
+<!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
+
+<blockquote>
+  <blockquote>
+    <p align="right"><font color="#FFFFFF"><a href="../index.html">
+    <img
+    src="../img/nav_buttons/home.jpg" alt="Go back to the Visopsys Home Page." border="0"
+    align="middle" width="53" height="25"></a> <a href="index.html">
+    <img src="../img/nav_buttons/about.jpg"
+    alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a> <a href="../download/index.html">
+    <img
+    src="../img/nav_buttons/download.jpg" alt="Download Visopsys and associated files."
+    border="0" align="middle" width="95" height="25"></a></font> <a href="../developers/index.html">
+    <img
+    src="../img/nav_buttons/developers.jpg" alt="Resources for Visopsys development"
+    border="0" align="middle" width="97" height="31"></a> <a href="../osdev/index.html">
+    <img
+    src="../img/nav_buttons/osdev.jpg" border="0" align="middle" width="64" height="25"></a> <a href="../search.html">
+    <img
+    src="../img/nav_buttons/search.jpg" alt="Search the Visopsys Site" align="middle"
+    border="0" width="63" height="24"></a><br>
+    <font face="Times New Roman" color="#FFFFFF">This site is copyright © 1999-2003, J.
+    Andrew McLaughlin<br>
+    Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
+    Last updated on
+    November 11, 2003</font></p>
+  </blockquote>
+</blockquote>
+
+<p>&nbsp;</p>
+
+</td></tr><!--msnavigation--></table></body>
+</html>

@@ -19,30 +19,22 @@
 //  kernelPS2MouseDriver.c
 //
 
-// Driver for PS2 mouses.  Shares the motherboard keyboard controller with
-// the keyboard driver.  Might need a lock for that :)
-
+// Driver for PS2 mouses.
 
 #include "kernelDriverManagement.h" // Contains my prototypes
+#include "kernelProcessorX86.h"
+
+
+void kernelPS2MouseDriverReadData(void);
+
+static kernelMouseDriver defaultMouseDriver =
+{
+  kernelPS2MouseDriverInitialize,
+  NULL, // driverRegisterDevice
+  kernelPS2MouseDriverReadData
+};
 
 static int initialized = 0;
-
-
-static inline void outPort60(unsigned value)
-{
-  // Output a value to the keyboard controller's data port, after checking
-  // to make sure it's ready for the data
-
-  volatile unsigned char ready = 0x02;
-  
-  // Wait for the controller to be ready
-  while ((ready & 0x02) != 0)
-    kernelProcessorInPort8(0x64, ready);
-
-  kernelProcessorOutPort8(0x60, (unsigned char) value);
-
-  return;
-}
 
 
 static inline unsigned inPort60(void)
@@ -50,14 +42,31 @@ static inline unsigned inPort60(void)
   // Input a value from the keyboard controller's data port, after checking
   // to make sure that there's some data there for us
 
-  volatile unsigned char ready = 0x00;
-  unsigned value;
+  unsigned char data = 0;
 
-  while ((ready & 0x01) == 0)
-    kernelProcessorInPort8(0x64, ready);
+  while (!(data & 0x01))
+    kernelProcessorInPort8(0x64, data);
 
-  kernelProcessorInPort8(0x60, value);
-  return (value);
+  kernelProcessorInPort8(0x60, data);
+  return ((unsigned) data);
+}
+
+
+static inline void outPort60(unsigned value)
+{
+  // Output a value to the keyboard controller's data port, after checking
+  // to make sure it's ready for the data
+
+  unsigned char data;
+  
+  // Wait for the controller to be ready
+  data = 0x02;
+  while (data & 0x02)
+    kernelProcessorInPort8(0x64, data);
+  
+  data = (unsigned char) value;
+  kernelProcessorOutPort8(0x60, data);
+  return;
 }
 
 
@@ -66,27 +75,16 @@ static inline void outPort64(unsigned value)
   // Output a value to the keyboard controller's command port, after checking
   // to make sure it's ready for the command
 
-  volatile unsigned char ready = 0x02;
+  unsigned char data;
   
   // Wait for the controller to be ready
-  while ((ready & 0x02) != 0)
-    kernelProcessorInPort8(0x64, ready);
+  data = 0x02;
+  while (data & 0x02)
+    kernelProcessorInPort8(0x64, data);
 
-  kernelProcessorOutPort8(0x64, (unsigned char) value);
-
+  data = (unsigned char) value;
+  kernelProcessorOutPort8(0x64, data);
   return;
-}
-
-
-static inline unsigned inPort64(void)
-{
-  // Input a value from the keyboard controller's command port
-
-  unsigned value;
-
-  kernelProcessorInPort8(0x64, value);
-
-  return (value);
 }
 
 
@@ -110,8 +108,7 @@ int kernelPS2MouseDriverInitialize(void)
 
   // Initialize the mouse.
 
-  kernelPicInterruptStatus(interrupts);
-  kernelPicDisableInterrupts();
+  kernelProcessorSuspendInts(interrupts);
 
   for (count = 0; count < 10; count ++)
     {
@@ -176,13 +173,10 @@ int kernelPS2MouseDriverInitialize(void)
       break;
     }
 
-  if (interrupts)
-    kernelPicEnableInterrupts();
+  kernelProcessorRestoreInts(interrupts);
 
   initialized = 1;
-
-  // Return success
-  return (0);
+  return (kernelDriverRegister(mouseDriver, &defaultMouseDriver));
 }
 
 

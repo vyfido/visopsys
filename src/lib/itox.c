@@ -29,6 +29,8 @@
 void itox(int number, char *string)
 {
   unsigned int remainder;
+  int leadZero = 1;
+  int place = 0;
   int count;
 
   if (string == NULL)
@@ -39,20 +41,22 @@ void itox(int number, char *string)
 
   errno = 0;
 
-  for (count = 9; count > 1; count --)
+  for (count = 0; count < 8; count ++)
     {
-      remainder = (number % 16);
-      number /= 16;
+      remainder = ((number & 0xF0000000) >> 28);
+      number <<= 4;
 
-      if (remainder <= 9)
-	string[count] = (char) ('0' + remainder);
-      else
-	string[count] = (char) ('a' + (remainder - 10));
+      if (remainder || !leadZero || (count == 7))
+	{	
+	  if (remainder <= 9)
+	    string[place++] = (char) ('0' + remainder);
+	  else
+	    string[place++] = (char) ('a' + (remainder - 10));
+	  leadZero = 0;
+	}
     }
 
-  string[0] = '0';
-  string[1] = 'x';
-  string[10] = '\0';
+  string[place] = '\0';
 
   // Done
   return;

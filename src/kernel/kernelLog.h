@@ -21,6 +21,10 @@
 	
 #if !defined(_KERNELLOG_H)
 
+// Definitions
+#define LOG_STREAM_SIZE 32768
+#define DEFAULT_LOGFILE "/system/kernel.log"
+
 // Functions exported from kernelLog.c
 int kernelLogInitialize(void);
 int kernelLogSetFile(const char *);

@@ -37,7 +37,6 @@
 	ALIGN 4
 
 	%include "loader.h"
-	%include "../kernel/kernelAssemblerHeader.h"
 
 
 loaderDetectHardware:
@@ -78,6 +77,12 @@ loaderDetectHardware:
 	add SP, 2
 	
 	.skipVideo:
+
+	;; Save the boot device number
+	xor EAX, EAX
+	mov AX, word [DRIVENUMBER]
+	mov dword [BOOTDEVICE], EAX
+	
 	;; Detect floppy drives, if any
 	call detectFloppies
 
@@ -320,7 +325,6 @@ detectFloppies:
 
 	;; Save regs
 	pusha
-
 	
 	;; Initialize 'number of floppies' value
 	mov dword [FLOPPYDISKS], 0
@@ -397,7 +401,6 @@ detectFloppies:
 	mov dword [FDD1TRACKS], EAX
 	mov AL, CL
 	mov dword [FDD1SECTS], EAX
-
 
 	.print:
 	cmp word [PRINTINFO], 1
@@ -496,57 +499,16 @@ detectHardDisks:
 
 	.driveLoop:
 	
-	;; If we are booting from this disk, put the boot sector LBA into the
-	;; active partition area
+	;; If we are booting from this disk, record the boot sector LBA
 	mov AX, CX
 	add AX, 80h
 	cmp AX, word [DRIVENUMBER]
 	jne .notBoot		; This is not the boot device
 	mov SI, PARTENTRY
 	mov EAX, dword [SI + 8]
-	mov dword [EDI + (HDD0ACTIVE - HDD0HEADS)], EAX
+	mov dword [EDI + (HDD0BOOT - HDD0HEADS)], EAX
+
 	.notBoot:
-	
-	;; Try an advanced EBIOS function that will give us nice,
-	;; modern, large values about the disk
-	mov word [HDDINFO], 42h  ; Size of the info buffer we provide
-	mov AH, 48h
-	mov DL, CL
-	add DL, 80h
-	mov SI, HDDINFO
-	int 13h
-	
-	;; Function call successful?
-	jc .noEBIOS
-
-	;; Save the numbers of heads, cylinders, and sectors, and the
-	;; sector size (usually 512)
-	mov EAX, dword [HDDINFO + 08h]
-	mov dword [EDI], EAX					; heads
-	mov EAX, dword [HDDINFO + 04h]
-	mov dword [EDI + (HDD0CYLS - HDD0HEADS)], EAX		; cylinders
-	mov EAX, dword [HDDINFO + 0Ch]
-	mov dword [EDI + (HDD0SECTS - HDD0HEADS)], EAX		; sectors
-	xor EAX, EAX
-	mov AX, word [HDDINFO + 18h]
-	mov dword [EDI + (HDD0SECSIZE - HDD0HEADS)], EAX	; BPS
-	
-	;; Tell the controller to use the default PIO mode (and disable
-	;; DMA in the process)
-	push ECX
-	mov AX, 4E04h
-	mov DL, 80h
-	add DL, AL
-	int 13h
-	pop ECX	
-
-	jmp .gotInfo
-	
-	.noEBIOS:
-	;; We use this part if there is no EBIOS call supported to
-	;; determine hard disk info.  This is an old-fashioned call
-	;; that should be available on all PC systems
-
 	;; This interrupt call will destroy ES, so save it
 	push ECX		; Save this first
 	push ES
@@ -582,13 +544,13 @@ detectHardDisks:
 	and AL, 11000000b	; Mask it
 	shl AX, 2		; Move them to bits 8&9
 	mov AL, CH		; Rest of the cylinder bits
-	inc AX			; Number is 0-based
+	add EAX, 2		; Number is 0-based
 	mov dword [EDI + (HDD0CYLS - HDD0HEADS)], EAX
 	;; sectors
 	xor EAX, EAX
 	mov AL, CL		; Bits 0-5
 	and AL, 00111111b	; Mask it
-	mov dword [EDI + (HDD0SECTS - HDD0HEADS)], EAX
+	mov dword [EDI + (HDD0SECPERCYL - HDD0HEADS)], EAX
 	mov dword [EDI + (HDD0SECSIZE - HDD0HEADS)], 512 ; Assume 512 BPS
 
 	;; Restore ECX
@@ -624,9 +586,7 @@ detectHardDisks:
 	jmp .driveLoop
 
 	.done:
-	;; Restore regs
 	popa
-
 	ret
 
 
@@ -656,29 +616,53 @@ detectSerial:
 
 
 diskSize:
-	;; This calculates the size of a disk drive based on the numbers
-	;; of heads, cylinders, sectors, and bytes per sector.  Takes a
-	;; pointer to the disk data in EDI, and puts the number in the
-	;; "size" slot of the data block
+	;; This calculates the total number of sectors on the disk.  Takes
+	;; a pointer to the disk data in EDI, and puts the number in the
+	;; "totalsectors" slot of the data block
 
 	;; Save regs
 	pusha
+	push EDI
 
-	;; Calculate the disk size, in megabytes
+	;; Determine whether we can use an extended BIOS function to give
+	;; us the number of sectors
+
+	mov word [HDDINFO], 42h  ; Size of the info buffer we provide
+	mov AH, 48h
+	mov DL, CL
+	add DL, 80h
+	mov SI, HDDINFO
+	int 13h
 	
+	;; Function call successful?
+	jc .noEBIOS
+
+	pop EDI
+	;; Save the number of sectors
+	mov EAX, dword [HDDINFO + 10h]
+	mov dword [EDI + (HDD0TOTALSECS - HDD0HEADS)], EAX
+
+	;; Recalculate the number of cylinders
+	mov EAX, dword [EDI]				; heads
+	mul dword [EDI + (HDD0SECPERCYL - HDD0HEADS)]	; sectors per cyl
+	mov ECX, EAX					; total secs per cyl 
+	xor EDX, EDX
+	mov EAX, dword [EDI + (HDD0TOTALSECS - HDD0HEADS)]
+	div ECX
+	mov dword [EDI + (HDD0CYLS - HDD0HEADS)], EAX	; new cyls value 
+	
+	jmp .done
+		
+	.noEBIOS:
+	pop EDI
 	mov EAX, dword [EDI]				; heads
 	mul dword [EDI + (HDD0CYLS - HDD0HEADS)]	; cylinders
-	mul dword [EDI + (HDD0SECTS - HDD0HEADS)]	; sectors
-	mul dword [EDI + (HDD0SECSIZE - HDD0HEADS)]	; sector size
+	mul dword [EDI + (HDD0SECPERCYL - HDD0HEADS)]	; sectors per cyl
 	
-	;; Divide EDX:EAX by 1Mb
-	mov EBX, 1048576
-	div EBX
-	mov dword [EDI + (HDD0SIZE - HDD0HEADS)], EAX
+	mov dword [EDI + (HDD0TOTALSECS - HDD0HEADS)], EAX
 
-	;; Restore regs
+	.done:
 	popa
-
 	ret
 
 
@@ -994,6 +978,7 @@ HARDWAREINFO:
 	VIDEOX		dd 0	;; maximum X resolution
 	VIDEOY		dd 0	;; maximum Y resolution
 	VIDEOBPP	dd 0	;; maximum bits per pixel
+	BOOTDEVICE	dd 0	;; BIOS boot device number
 	;; This is an array of info about up to 2 floppy disks in the system
 	FLOPPYDISKS	dd 0	;; Number present
 	;; Floppy 0
@@ -1011,31 +996,31 @@ HARDWAREINFO:
 	;; Disk 0
 	HDD0HEADS	dd 0	;; Number of heads, disk 0
 	HDD0CYLS	dd 0	;; Number of cylinders, disk 0
-	HDD0SECTS	dd 0	;; Number of sectors, disk 0
+	HDD0SECPERCYL	dd 0	;; Sectors per cylinder, disk 0
 	HDD0SECSIZE	dd 0	;; Bytes per sector, disk 0
-	HDD0SIZE	dd 0	;; Size in Mb, disk 0
-	HDD0ACTIVE	dd 0	;; Active partition, disk 0
+	HDD0TOTALSECS	dd 0	;; Total sectors, disk 0
+	HDD0BOOT	dd 0	;; Booted sector, disk 0
 	;; Disk 1
 	HDD1HEADS	dd 0	;; Number of heads, disk 1
 	HDD1CYLS	dd 0	;; Number of cylinders, disk 1
-	HDD1SECTS	dd 0	;; Number of sectors, disk 1
+	HDD1SECPERCYL	dd 0	;; Sectors per cylinder, disk 1
 	HDD1SECSIZE	dd 0	;; Bytes per sector, disk 1
-	HDD1SIZE	dd 0	;; Size in Mb, disk 1
-	HDD1ACTIVE	dd 0	;; Active partition, disk 1
+	HDD1TOTALSECS	dd 0	;; Total sectors, disk 1
+	HDD1BOOT	dd 0	;; Booted sector, disk 1
 	;; Disk 2
 	HDD2HEADS	dd 0	;; Number of heads, disk 2
 	HDD2CYLS	dd 0	;; Number of cylinders, disk 2
-	HDD2SECTS	dd 0	;; Number of sectors, disk 2
+	HDD2SECPERCYL	dd 0	;; Sectors per cylinder, disk 2
 	HDD2SECSIZE	dd 0	;; Bytes per sector, disk 2
-	HDD2SIZE	dd 0	;; Size in Mb, disk 2
-	HDD2ACTIVE	dd 0	;; Active partition, disk 2
+	HDD2TOTALSECS	dd 0	;; Total sectors, disk 2
+	HDD2BOOT	dd 0	;; Booted sector, disk 2
 	;; Disk 3
 	HDD3HEADS	dd 0	;; Number of heads, disk 3
 	HDD3CYLS	dd 0	;; Number of cylinders, disk 3
-	HDD3SECTS	dd 0	;; Number of sectors, disk 3
+	HDD3SECPERCYL	dd 0	;; Sectors per cylinder, disk 3
 	HDD3SECSIZE	dd 0	;; Bytes per sector, disk 3
-	HDD3SIZE	dd 0	;; Size in Mb, disk 3
-	HDD3ACTIVE	dd 0	;; Active partition, disk 3
+	HDD3TOTALSECS	dd 0	;; Total sectors, disk 3
+	HDD3BOOT	dd 0	;; Booted sector, disk 3
 	;; Info about the serial ports
 	SERIAL1		dd 0	;; Port address
 	SERIAL2		dd 0	;; Port address

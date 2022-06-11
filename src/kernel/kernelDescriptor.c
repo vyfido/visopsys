@@ -25,7 +25,8 @@
 #include "kernelDescriptor.h"
 #include "kernelParameters.h"
 #include "kernelApi.h"
-#include "kernelMiscAsmFunctions.h"
+#include "kernelMiscFunctions.h"
+#include "kernelProcessorX86.h"
 #include "kernelError.h"
 #include <sys/errors.h>
 #include <string.h>
@@ -60,7 +61,6 @@ int kernelDescriptorInitialize(void)
 
   int status = 0;
   int count;
-
 
   // We need to reinitialize and take control of the Global Descriptor 
   // Table, and will serve as the interface to that.  We'll prepare space 
@@ -185,15 +185,15 @@ int kernelDescriptorInitialize(void)
 
   // Make the kernel API callgate descriptor
   status = kernelDescriptorSetUnformatted(
-       KERNEL_CALLGATE,                           // Kernel callgate selector
-       ((unsigned) kernelEntryPoint & 0x000000FF),        // Address 1
-       (((unsigned) kernelEntryPoint & 0x0000FF00) >> 8), // Address 2
+       KERNEL_CALLGATE,                          // Kernel callgate selector
+       ((unsigned) kernelApi & 0x000000FF),      // Address 1
+       (((unsigned) kernelApi & 0x0000FF00) >> 8), // Address 2
        (PRIV_CODE & 0x000000FF),                 // Code selector 1
        ((PRIV_CODE & 0x0000FF00) >> 8),          // Code selector 2
        0x00,                                     // Copy 0 dwords to API stack
        0xEC,                                     // Present, priv 3, 32-bit
-       (((unsigned) kernelEntryPoint & 0x00FF0000) >> 16),   // Address 3
-       (((unsigned) kernelEntryPoint & 0xFF000000) >> 24));  // Address 4
+       (((unsigned) kernelApi & 0x00FF0000) >> 16), // Address 3
+       (((unsigned) kernelApi & 0xFF000000) >> 24));// Address 4
 
   if (status < 0)
     // Something went wrong
@@ -205,16 +205,12 @@ int kernelDescriptorInitialize(void)
 
   for (count = 0; count < numFreeDescriptors; count ++)
     freeDescriptors[count] = ((count + RES_GLOBAL_DESCRIPTORS) * 8);
-  
 
   // Now we can install our new GDT
-  kernelInstallGDT((void *) globalDescriptorTable, (GDT_SIZE * 8));
+  kernelProcessorSetGDT((void *) globalDescriptorTable, (GDT_SIZE * 8));
 
   // And our new IDT
-  kernelInstallIDT((void *) interruptDescriptorTable, (IDT_SIZE * 8));
-
-  // Show the initial descriptor list dump
-  // kernelDumpDescriptorList();
+  kernelProcessorSetIDT((void *) interruptDescriptorTable, (IDT_SIZE * 8));
 
   return (status = 0);
 }

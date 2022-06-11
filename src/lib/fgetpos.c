@@ -39,6 +39,6 @@ int fgetpos(FILE *stream, fpos_t *pos)
   // We don't set errno in this function
   errno = 0;
   
-  *pos = ((stream->block * stream->f.blockSize) + stream->s->next);
+  *pos = ((stream->block * stream->f.blockSize) + stream->s.next);
   return (0);
 }

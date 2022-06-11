@@ -20,12 +20,11 @@
 //
 
 // This is the graphic console screen driver.  Manipulates character images
-// using the kernelGraphicFunctions.
+// using the kernelGraphic functions.
 
-#include "kernelGraphicConsoleDriver.h"
+#include "kernelDriverManagement.h"
 #include "kernelWindowManager.h"
-#include "kernelResourceManager.h"
-#include "kernelMiscAsmFunctions.h"
+#include "kernelMiscFunctions.h"
 #include <sys/errors.h>
 #include <string.h>
 
@@ -65,7 +64,6 @@ static void cursorOn(kernelTextArea *area)
 						   area->font->charHeight)),
 				  area->font->charWidth,
 				  area->font->charHeight);
-
   return;
 }
 
@@ -120,14 +118,14 @@ static int scrollLine(kernelTextArea *area)
   // Figure out the length of the longest line
   for (count = 0; count < area->rows; count ++)
     {
-      if ((area->data + ((count + 1) * area->columns) - 1) != '\0')
+      lineLength = strlen(area->data + (count * area->columns));
+
+      if (lineLength > area->columns)
 	{
-	  // This line is full.
 	  longestLine = area->columns;
 	  break;
 	}
 
-      lineLength = strlen(area->data + (count * area->columns));
       if (lineLength > longestLine)
 	longestLine = lineLength;
     }
@@ -185,86 +183,62 @@ static void newline(kernelTextArea *area)
 }
 
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//
-// Below here, the functions are exported for external use
-//
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
-int kernelGraphicConsoleInitialize(kernelTextArea *area)
-{
-  // Called before the first use of the graphic console.  We don't need
-  // to initialize anything.
-  return (0);
-}
-
-
-int kernelGraphicConsoleGetCursorAddress(kernelTextArea *area)
+static int getCursorAddress(kernelTextArea *area)
 {
   // Returns the cursor address as an integer
 
-  int status = 0;
-
   if (area == NULL)
-    return (status = ERR_NULLPARAMETER);
+    return (ERR_NULLPARAMETER);
 
-  status = kernelResourceManagerLock(&(area->lock));
-  if (status < 0)
-    return (status);
-
-  status = ((area->cursorRow * area->columns) + area->cursorColumn);
-
-  kernelResourceManagerUnlock(&(area->lock));
-
-  return (status);
+  return ((area->cursorRow * area->columns) + area->cursorColumn);
 }
 
 
-int kernelGraphicConsoleSetCursorAddress(kernelTextArea *area, int row,
-					 int col)
+static int setCursorAddress(kernelTextArea *area, int row, int col)
 {
   // Moves the cursor
 
-  int status = 0;
-
   if (area == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  status = kernelResourceManagerLock(&(area->lock));
-  if (status < 0)
-    return (status);
+    return (ERR_NULLPARAMETER);
 
   cursorOff(area);
+
   area->cursorRow = row;
   area->cursorColumn = col;
+
   cursorOn(area);
-
-  kernelResourceManagerUnlock(&(area->lock));
-
-  return (status = 0);
+  return (0);
 }
 
 
-int kernelGraphicConsoleSetForeground(kernelTextArea *area, int newForeground)
+static int getForeground(kernelTextArea *area)
 {
   return (0);
 }
 
 
-int kernelGraphicConsoleSetBackground(kernelTextArea *area, int newBackground)
+static int setForeground(kernelTextArea *area, int newForeground)
 {
   return (0);
 }
 
 
-int kernelGraphicConsolePrint(kernelTextArea *area, const char *text)
+static int getBackground(kernelTextArea *area)
+{
+  return (0);
+}
+
+
+static int setBackground(kernelTextArea *area, int newBackground)
+{
+  return (0);
+}
+
+
+static int print(kernelTextArea *area, const char *text)
 {
   // Prints text to the text area.
 
-  int status = 0;
   int length = 0;
   int oldCursorRow = 0;
   char lineBuffer[1024];
@@ -272,11 +246,7 @@ int kernelGraphicConsolePrint(kernelTextArea *area, const char *text)
   int bufferCounter = 0;
 
   if (area == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  status = kernelResourceManagerLock(&(area->lock));
-  if (status < 0)
-    return (status);
+    return (ERR_NULLPARAMETER);
 
   // Save the current row number
   oldCursorRow = area->cursorRow;
@@ -365,25 +335,16 @@ int kernelGraphicConsolePrint(kernelTextArea *area, const char *text)
 
   // Turn on the cursor
   cursorOn(area);
-
-  kernelResourceManagerUnlock(&(area->lock));
-
-  return (status = 0);
+  return (0);
 }
 
 
-int kernelGraphicConsoleClearScreen(kernelTextArea *area)
+static int clearScreen(kernelTextArea *area)
 {
   // Yup, clears the text area
 
-  int status = 0;
-
   if (area == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  status = kernelResourceManagerLock(&(area->lock));
-  if (status < 0)
-    return (status);
+    return (ERR_NULLPARAMETER);
 
   // Empty all the data
   kernelMemClear(area->data, (area->columns * area->rows));
@@ -410,8 +371,36 @@ int kernelGraphicConsoleClearScreen(kernelTextArea *area)
 
   // Turn on the cursor
   cursorOn(area);
+  return (0);
+}
 
-  kernelResourceManagerUnlock(&(area->lock));
 
-  return (status = 0);
+static kernelTextOutputDriver graphicModeDriver = {
+  kernelGraphicConsoleInitialize,
+  getCursorAddress,
+  setCursorAddress,
+  getForeground,
+  setForeground,
+  getBackground,
+  setBackground,
+  print,
+  clearScreen
+};
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+// Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+int kernelGraphicConsoleInitialize(void)
+{
+  // Called before the first use of the text console.
+
+  // Register our driver
+  return (kernelDriverRegister(graphicConsoleDriver, &graphicModeDriver));
 }

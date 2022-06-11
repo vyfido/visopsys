@@ -23,10 +23,33 @@
 // the original one which was done in assembler.  It seemed like a good idea
 // to use C instead, except in one or two places where we need asm.
 
-#include "kernelTextConsoleDriver.h"
-#include "kernelMiscAsmFunctions.h"
+#include "kernelDriverManagement.h"
+#include "kernelProcessorX86.h"
+#include "kernelMiscFunctions.h"
 #include <string.h>
 
+
+int kernelTextConsoleGetCursorAddress(kernelTextArea *);
+int kernelTextConsoleSetCursorAddress(kernelTextArea *, int, int);
+int kernelTextConsoleGetForeground(kernelTextArea *);
+int kernelTextConsoleSetForeground(kernelTextArea *, int);
+int kernelTextConsoleGetBackground(kernelTextArea *);
+int kernelTextConsoleSetBackground(kernelTextArea *, int);
+int kernelTextConsolePrint(kernelTextArea *, const char *);
+int kernelTextConsoleClearScreen(kernelTextArea *);
+
+// Our kernelTextOutputDriver structure
+static kernelTextOutputDriver textModeDriver = {
+  kernelTextConsoleInitialize,
+  kernelTextConsoleGetCursorAddress,
+  kernelTextConsoleSetCursorAddress,
+  kernelTextConsoleGetForeground,
+  kernelTextConsoleSetForeground,
+  kernelTextConsoleGetBackground,
+  kernelTextConsoleSetBackground,
+  kernelTextConsolePrint,
+  kernelTextConsoleClearScreen
+};
 
 // Macro used strictly within this file
 #define cursorPosition ((area->cursorRow * area->columns) + area->cursorColumn)
@@ -45,9 +68,9 @@ static void toggleCursor(kernelTextArea *area)
 
   // Reverse foreground and background colors
   foregroundColor = *(cursorAddress + 1);
-  foregroundColor = (((foregroundColor & 0x0F) << 4) |
-		     ((foregroundColor & 0xF0) >> 4));
-  *(cursorAddress + 1) = foregroundColor;
+
+  *(cursorAddress + 1) = (((foregroundColor & 0x0F) << 4) |
+			  ((foregroundColor & 0xF0) >> 4));
 
   return;
 }
@@ -112,11 +135,12 @@ static void newline(kernelTextArea *area)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelTextConsoleInitialize(kernelTextArea *area)
+int kernelTextConsoleInitialize(void)
 {
-  // Called before the first use of the text console.  We don't need to do
-  // any initialization
-  return (0);
+  // Called before the first use of the text console.
+
+  // Register our driver
+  return (kernelDriverRegister(textConsoleDriver, &textModeDriver));
 }
 
 
@@ -140,9 +164,23 @@ int kernelTextConsoleSetCursorAddress(kernelTextArea *area, int row, int col)
 }
 
 
+int kernelTextConsoleGetForeground(kernelTextArea *area)
+{
+  // Gets the foreground color
+
+  // We just use the first byte of the foreground color structure (the 'blue'
+  // byte) to store our 1-byte foreground/background color value
+  return (area->foreground.blue & 0x0F);
+}
+
+
 int kernelTextConsoleSetForeground(kernelTextArea *area, int newForeground)
 {
   // Sets a new foreground color
+
+  // Check to make sure it's a valid color
+  if ((newForeground < 0) || (newForeground > 15))
+    return (-1);
 
   // We just use the first byte of the foreground color structure (the 'blue'
   // byte) to store our 1-byte foreground/background color value
@@ -153,9 +191,23 @@ int kernelTextConsoleSetForeground(kernelTextArea *area, int newForeground)
 }
 
 
+int kernelTextConsoleGetBackground(kernelTextArea *area)
+{
+  // Gets the background color
+
+  // We just use the first byte of the foreground color structure (the 'blue'
+  // byte) to store our 1-byte foreground/background color value
+  return ((area->foreground.blue & 0xF0) >> 4);
+}
+
+
 int kernelTextConsoleSetBackground(kernelTextArea *area, int newBackground)
 {
   // Sets a new background color
+
+  // Check to make sure it's a valid color
+  if ((newBackground < 0) || (newBackground > 15))
+    return (-1);
 
   // We just use the first byte of the foreground color structure (the 'blue'
   // byte) to store our 1-byte foreground/background color value
@@ -233,26 +285,18 @@ int kernelTextConsoleClearScreen(kernelTextArea *area)
   // Clears the screen, and puts the cursor in the top left (starting)
   // position
 
-  int tmpData = 0;
+  unsigned tmpData = 0;
   int dwords = 0;
-  int *position = NULL;
-  int count;
 
   // Construct the dword of data that we will replicate all over the screen.
-  // It consists of the 'space' character twice, plus the color byte twice
-  tmpData = ((area->foreground.blue << 24) | (0x20 << 16) |
-	     (area->foreground.blue << 8) | 0x20);
+  // It consists of the NULL character twice, plus the color byte twice
+  tmpData = ((area->foreground.blue << 24) | (area->foreground.blue << 8));
 
   // Calculate the number of dwords that make up the screen
   // Formula is ((COLS * ROWS) / 2)
   dwords = (area->columns * area->rows) / 2;
 
-  // Start at the beginning of screen memory
-  position = (int *) area->data;
-
-  // Write tmpData to the screen dwords times
-  for (count = 0; count < dwords; count ++)
-    position[count] = tmpData;
+  kernelProcessorWriteDwords(tmpData, area->data, dwords);
 
   // Make the cursor go to the top left
   area->cursorColumn = 0;

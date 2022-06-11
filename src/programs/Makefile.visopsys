@@ -24,201 +24,211 @@
 
 
 CC		= gcc
-PLATFORM	= $(shell ../platform.sh)
 RELEASE		= $(shell ../../utils/release.sh)
 STDDEPS		= Makefile*
 
 INCLUDES	= -I../include
 OPTS		= -nostdlib -nodefaultlibs -nostartfiles -nostdinc -O2 \
-		-mcpu=pentium -fno-strength-reduce -Waggregate-return \
-		-falign-loops=2 -falign-jumps=2 -falign-functions=2 \
-		-Wall -Wstrict-prototypes -Wmissing-prototypes \
+		-mcpu=pentium -fno-strength-reduce -pipe -Wall \
+		-Wstrict-prototypes -Wmissing-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror \
-		-L../lib/${PLATFORM} \
-		-Wl,../lib/${PLATFORM}/_start.o,--warn-common,-X,--oformat,elf32-i386,-Ttext,0x0
+		-L../lib/build \
+		-Wl,../lib/build/crt0.o,--warn-common,-X,--oformat,elf32-i386,-Ttext,0x0
 
-PROGRAMS	= ${PLATFORM}/chkdisk \
-		${PLATFORM}/fdisk \
-		${PLATFORM}/install \
-		${PLATFORM}/login \
-		${PLATFORM}/vsh
+PROGRAMS	= build/chkdisk \
+		build/fdisk \
+		build/format \
+		build/install \
+		build/login \
+		build/vsh
 
-COMMANDS	= ${PLATFORM}/cat \
-		${PLATFORM}/cp \
-		${PLATFORM}/date \
-		${PLATFORM}/disks \
-		${PLATFORM}/display \
-		${PLATFORM}/kill \
-		${PLATFORM}/loadfont \
-		${PLATFORM}/ls \
-		${PLATFORM}/mem \
-		${PLATFORM}/mkdir \
-		${PLATFORM}/more \
-		${PLATFORM}/mount \
-		${PLATFORM}/move \
-		${PLATFORM}/mv \
-		${PLATFORM}/ps \
-		${PLATFORM}/read \
-		${PLATFORM}/reboot \
-		${PLATFORM}/renice \
-		${PLATFORM}/rm \
-		${PLATFORM}/rmdir \
-		${PLATFORM}/screenshot \
-		${PLATFORM}/shutdown \
-		${PLATFORM}/sync \
-		${PLATFORM}/touch \
-		${PLATFORM}/umount \
-		${PLATFORM}/uname \
-		${PLATFORM}/uptime \
-		${PLATFORM}/wallpaper \
-		${PLATFORM}/window
+COMMANDS	= build/cat \
+		build/console \
+		build/cp \
+		build/date \
+		build/disks \
+		build/display \
+		build/kill \
+		build/loadfont \
+		build/logout \
+		build/ls \
+		build/mem \
+		build/mkdir \
+		build/more \
+		build/mount \
+		build/move \
+		build/mv \
+		build/ps \
+		build/read \
+		build/reboot \
+		build/renice \
+		build/rm \
+		build/rmdir \
+		build/screenshot \
+		build/shutdown \
+		build/sync \
+		build/touch \
+		build/umount \
+		build/uname \
+		build/uptime \
+		build/wallpaper \
+		build/window
 
-CULLED		= ${PLATFORM}/reinstall \
-		${PLATFORM}/blowup \
-		${PLATFORM}/hello \
-		${PLATFORM}/looper \
-		${PLATFORM}/nop \
-		${PLATFORM}/restart
+CULLED		= build/reinstall \
+		build/blowup \
+		build/hello \
+		build/looper \
+		build/nop \
+		build/restart
 		
 all: target-dir ${PROGRAMS} ${COMMANDS}
 
 target-dir:
 	#
-	#  Making executables on ${PLATFORM}
+	#  Making executables
 	#
-	mkdir -p ${PLATFORM}
+	mkdir -p build
 
 
-${PLATFORM}/chkdisk: chkdisk.c ${STDDEPS}
+build/chkdisk: chkdisk.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} chkdisk.c -lc -o $@
 
-${PLATFORM}/fdisk: fdisk.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} fdisk.c -lc -o $@
+build/fdisk: fdisk.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} fdisk.c -lc -lwindow -o $@
 
-${PLATFORM}/install: install.c ${STDDEPS}
+build/format: format.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} format.c -lc -o $@
+
+build/install: install.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} install.c -lc -o $@
 
-${PLATFORM}/login: login.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} -DRELEASE=\"${RELEASE}\" login.c -lc -o $@
+build/login: login.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} -DRELEASE=\"${RELEASE}\" login.c -lc -lwindow -o $@
 
-${PLATFORM}/reinstall: reinstall.c ${STDDEPS}
+build/reinstall: reinstall.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} reinstall.c -lc -o $@
 
-${PLATFORM}/vsh: vsh.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} -DRELEASE=\"${RELEASE}\" vsh.c -lc -o $@
+build/vsh: vsh.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} -DRELEASE=\"${RELEASE}\" vsh.c -lvsh -lc -o $@
 
 
 #
 # Commands
 #
 
-${PLATFORM}/blowup: blowup.c ${STDDEPS}
+build/blowup: blowup.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} blowup.c -lc -o $@
 
-${PLATFORM}/cat: cat.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} cat.c -lc -o $@
+build/cat: cat.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} cat.c -lvsh -lc -o $@
 
-${PLATFORM}/cp: cp.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} cp.c -lc -o $@
+build/console: console.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} console.c -lc -lwindow -o $@
 
-${PLATFORM}/date: date.c ${STDDEPS}
+build/cp: cp.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} cp.c -lvsh -lc -o $@
+
+build/date: date.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} date.c -lc -o $@
 
-${PLATFORM}/disks: disks.c ${STDDEPS}
+build/disks: disks.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} disks.c -lc -o $@
 
-${PLATFORM}/display: display.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} display.c -lc -o $@
+build/display: display.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} display.c -lvsh -lc -lwindow -o $@
 
-${PLATFORM}/hello: hello.c ${STDDEPS}
+build/hello: hello.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} hello.c -lc -o $@
 
-${PLATFORM}/kill: kill.c ${STDDEPS}
+build/kill: kill.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} kill.c -lc -o $@
 
-${PLATFORM}/loadfont: loadfont.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} loadfont.c -lc -o $@
+build/loadfont: loadfont.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} loadfont.c -lvsh -lc -o $@
 
-${PLATFORM}/looper: looper.c ${STDDEPS}
+build/logout: logout.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} logout.c -lc -o $@
+
+build/looper: looper.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} looper.c -lc -o $@
 
-${PLATFORM}/ls: ls.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} ls.c -lc -o $@
+build/ls: ls.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} ls.c -lvsh -lc -o $@
 
-${PLATFORM}/mem: mem.c ${STDDEPS}
+build/mem: mem.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} mem.c -lc -o $@
 
-${PLATFORM}/mkdir: mkdir.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} mkdir.c -lc -o $@
+build/mkdir: mkdir.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} mkdir.c -lvsh -lc -o $@
 
-${PLATFORM}/mines: mines.c ${STDDEPS}
+build/mines: mines.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} mines.c -lc -o $@
 
-${PLATFORM}/more: more.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} more.c -lc -o $@
+build/more: more.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} more.c -lvsh -lc -o $@
 
-${PLATFORM}/mount: mount.c ${STDDEPS}
+build/mount: mount.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} mount.c -lc -o $@
 
-${PLATFORM}/move: move.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} move.c -lc -o $@
+build/move: move.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} move.c -lvsh -lc -o $@
 
-${PLATFORM}/mv: mv.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} mv.c -lc -o $@
+build/mv: mv.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} mv.c -lvsh -lc -o $@
 
-${PLATFORM}/nop: nop.c ${STDDEPS}
+build/nop: nop.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} nop.c -lc -o $@
 
-${PLATFORM}/ps: ps.c ${STDDEPS}
+build/ps: ps.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} ps.c -lc -o $@
 
-${PLATFORM}/read: read.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} read.c -lc -o $@
+build/read: read.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} read.c -lvsh -lc -o $@
 
-${PLATFORM}/reboot: reboot.c ${STDDEPS}
+build/reboot: reboot.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} reboot.c -lc -o $@
 
-${PLATFORM}/renice: renice.c ${STDDEPS}
+build/renice: renice.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} renice.c -lc -o $@
 
-${PLATFORM}/restart: restart.c ${STDDEPS}
+build/restart: restart.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} restart.c -lc -o $@
 
-${PLATFORM}/rm: rm.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} rm.c -lc -o $@
+build/rm: rm.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} rm.c -lvsh -lc -o $@
 
-${PLATFORM}/rmdir: rmdir.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} rmdir.c -lc -o $@
+build/rmdir: rmdir.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} rmdir.c -lvsh -lc -o $@
 
-${PLATFORM}/screenshot: screenshot.c ${STDDEPS}
+build/screenshot: screenshot.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} screenshot.c -lc -o $@
 
-${PLATFORM}/shutdown: shutdown.c ${STDDEPS}
+build/shutdown: shutdown.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} shutdown.c -lc -o $@
 
-${PLATFORM}/sync: sync.c ${STDDEPS}
+build/sync: sync.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} sync.c -lc -o $@
 
-${PLATFORM}/touch: touch.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} touch.c -lc -o $@
+build/touch: touch.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} touch.c -lvsh -lc -o $@
 
-${PLATFORM}/umount: umount.c ${STDDEPS}
+build/umount: umount.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} umount.c -lc -o $@
 
-${PLATFORM}/uname: uname.c ${STDDEPS}
+build/uname: uname.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} uname.c -lc -o $@
 
-${PLATFORM}/uptime: uptime.c ${STDDEPS}
+build/uptime: uptime.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} uptime.c -lc -o $@
 
-${PLATFORM}/wallpaper: wallpaper.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} wallpaper.c -lc -o $@
+build/wallpaper: wallpaper.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} wallpaper.c -lvsh -lc -o $@
 
-${PLATFORM}/window: window.c ${STDDEPS}
-	${CC} ${INCLUDES} ${OPTS} window.c -lc -o $@
+build/window: window.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} window.c -lc -lwindow -o $@
 
 
 # Miscellany
 
 clean:
-	rm -Rf *~ *.o core ${PLATFORM}
+	rm -Rf *~ *.o core build

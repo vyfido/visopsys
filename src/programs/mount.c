@@ -30,7 +30,7 @@
 static void usage(char *name)
 {
   printf("usage:\n");
-  printf("%s <disk #> <mount point>\n", name);
+  printf("%s <disk> <mount point>\n", name);
   return;
 }
 
@@ -40,36 +40,27 @@ int main(int argc, char *argv[])
   // Attempts to mount the named filesystem to the named mount point
 
   int status = 0;
-  char *filesystem;
-  int diskNumber = 0;
-
+  char *diskName = NULL;
+  char *filesystem = NULL;
   
   if (argc < 3)
     {
-      usage(argv[0]);
+      usage((argc > 0)? argv[0] : "mount");
       return (status = ERR_ARGUMENTCOUNT);
     }
 
   // Make sure none of our arguments are NULL
   if ((argv[0] == NULL) || (argv[1] == NULL) || (argv[2] == NULL))
     return (status = ERR_NULLPARAMETER);
-
+  
+  diskName = argv[1];
   filesystem = argv[2];
   
-  diskNumber = atoi(argv[1]);
-
-  if (errno)
-    {
-      // Oops, not a number?
-      usage(argv[0]);
-      return (status = errno);
-    }
-
-  status = filesystemMount(diskNumber, filesystem);
+  status = filesystemMount(diskName, filesystem);
 
   if (status < 0)
     {
-      printf("Error %d mounting disk %d on %s\n", status, diskNumber,
+      printf("Error %d mounting disk %s on %s\n", status, diskName,
 	     filesystem);
       errno = status;
       perror(argv[0]);

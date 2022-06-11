@@ -38,5 +38,5 @@ long ftell(FILE *stream)
   // We don't set errno in this function
   errno = 0;
   
-  return ((stream->block * stream->f.blockSize) + stream->s->next);
+  return ((stream->block * stream->f.blockSize) + stream->s.next);
 }

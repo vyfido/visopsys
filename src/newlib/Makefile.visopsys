@@ -31,7 +31,7 @@ CCOPTS		= -nostdlib -nodefaultlibs -nostartfiles -nostdinc -O2 \
 		-mcpu=pentium -Wall -fno-strength-reduce -Werror
 
 INCLUDES	= -I. -I ../../include
-STDDEP		= Makefile.am sys/*.h
+STDDEP		= Makefile.visopsys sys/*.h
 
 OBJS  	= close.o \
 	crt0.o \

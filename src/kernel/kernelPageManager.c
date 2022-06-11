@@ -27,11 +27,9 @@
 #include "kernelParameters.h"
 #include "kernelMemoryManager.h"
 #include "kernelMultitasker.h"
-#include "kernelProcessorFunctions.h"
-#include "kernelPicFunctions.h"
-#include "kernelResourceManager.h"
+#include "kernelProcessorX86.h"
 #include "kernelLog.h"
-#include "kernelMiscAsmFunctions.h"
+#include "kernelMiscFunctions.h"
 #include <sys/errors.h>
 #include <string.h>
 
@@ -222,9 +220,8 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
   int count;
 
   // Allocate some physical memory for the page table
-  physicalAddr = 
-    kernelMemoryRequestPhysicalBlock(sizeof(kernelPageTablePhysicalMem), 
-				     MEMORY_PAGE_SIZE, "page table");
+  physicalAddr = kernelMemoryGetPhysical(sizeof(kernelPageTablePhysicalMem), 
+					 MEMORY_PAGE_SIZE, "page table");
   if (physicalAddr == NULL)
     return (newTable = NULL);
 
@@ -267,8 +264,7 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
     (GLOBAL_BIT | WRITABLE_BIT | PAGEPRESENT_BIT);
   kernelTable->freePages--;
 
-  // Clear this memory block, since kernelMemoryRequestPhysicalBlock
-  // can't do it for us
+  // Clear this memory block, since kernelMemoryGetPhysical can't do it for us
   kernelMemClear((void *) virtualAddr, sizeof(kernelPageTableVirtualMem));
 
   // Put our new table in the next available kernelPageTable slot of the
@@ -360,8 +356,7 @@ static int deletePageTable(kernelPageDirectory *directory,
   kernelProcessorClearAddressCache(table->virtual);
   
   // Release the physical memory used by the table
-  status = kernelMemoryReleasePhysicalBlock((void *) table->physical);
-
+  status = kernelMemoryReleasePhysical((void *) table->physical);
   if (status < 0)
     return (status = ERR_NOSUCHENTRY);
   
@@ -637,8 +632,8 @@ static kernelPageDirectory *createPageDirectory(int processId, int privilege)
 
   // Get some physical memory for the page directory
   physicalAddr = (kernelPageDirPhysicalMem *) 
-    kernelMemoryRequestPhysicalBlock(sizeof(kernelPageDirPhysicalMem), 
-				     MEMORY_PAGE_SIZE, "page directory");
+    kernelMemoryGetPhysical(sizeof(kernelPageDirPhysicalMem), MEMORY_PAGE_SIZE,
+			    "page directory");
   if (physicalAddr == NULL)
     return (directory = NULL);
 
@@ -649,8 +644,7 @@ static kernelPageDirectory *createPageDirectory(int processId, int privilege)
   if (status < 0)
     return (directory = NULL);
 
-  // Clear this memory block, since kernelMemoryRequestPhysicalBlock
-  // can't do it for us
+  // Clear this memory block, since kernelMemoryGetPhysical can't do it for us
   kernelMemClear((void *) virtualAddr, sizeof(kernelPageDirPhysicalMem));
 
   // Put it in the next available kernelPageDirectory slot, and increase
@@ -735,7 +729,7 @@ static int deletePageDirectory(kernelPageDirectory *directory)
     {
       // It's a 'real' page table.  Deallocate the dynamic memory that
       // this directory is occupying
-      kernelMemoryReleasePhysicalBlock((void *) directory->physical);
+      kernelMemoryReleasePhysical((void *) directory->physical);
 
       // Unmap the directory from kernel memory
       status = unmap(kernelPageDir, (void *) directory->virtual,
@@ -879,11 +873,8 @@ static int kernelPaging(unsigned kernelMemory)
   int pageNumber = 0;
   void *kernelAddress;
 
-  // Interrupts should currently be disabled at this point.  Make sure
-  // before we do anything drastic
-  kernelPicInterruptStatus(status);
-  if (status)
-    return (status = ERR_NOTINITIALIZED);
+  // Interrupts should currently be disabled at this point.
+  kernelProcessorSuspendInts(status);
 
   // The kernel is currently located at kernelVirtualAddress (virtually).
   // We need to locate the current, temporary page directory, then the page
@@ -954,6 +945,7 @@ static int kernelPaging(unsigned kernelMemory)
   // Map the kernel memory into the existing page directory and page
   // table
   kernelAddress = (void *) KERNEL_LOAD_ADDRESS;
+
   status = map(kernelPageDir, kernelAddress, &kernelAddress, kernelMemory);
 
   status = map(kernelPageDir, (void *) kernelPageDir->physical,
@@ -1046,7 +1038,6 @@ int kernelPageManagerInitialize(unsigned kernelMemory)
   // Initialize the kernel's paging environment, which is done differently
   // than for a normal process.
   status = kernelPaging(kernelMemory);
-
   if (status < 0)
     return (status);
 
@@ -1078,13 +1069,13 @@ void *kernelPageGetDirectory(int processId)
   if (directory == NULL)
     return (NULL);
 
-  status = kernelResourceManagerLock(&(directory->dirLock));
+  status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
     return (physicalAddress = NULL);
   
   physicalAddress = (void *) directory->physical;
 
-  kernelResourceManagerUnlock(&(directory->dirLock));
+  kernelLockRelease(&(directory->dirLock));
 
   return (physicalAddress);
 }
@@ -1115,7 +1106,7 @@ void *kernelPageNewDirectory(int processId, int privilege)
   if (directory == NULL)
     return (physicalAddress = NULL);
 
-  status = kernelResourceManagerLock(&(directory->dirLock));
+  status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
     return (physicalAddress = NULL);
   
@@ -1138,7 +1129,7 @@ void *kernelPageNewDirectory(int processId, int privilege)
 
   physicalAddress = (void *) directory->physical;
 
-  kernelResourceManagerUnlock(&(directory->dirLock));
+  kernelLockRelease(&(directory->dirLock));
 
   // Return the physical address of the new page directory.
   return (physicalAddress);
@@ -1165,7 +1156,7 @@ void *kernelPageShareDirectory(int parentId, int childId)
   if (parentDirectory == NULL)
     return (physicalAddress = NULL);
 
-  status = kernelResourceManagerLock(&(parentDirectory->dirLock));
+  status = kernelLockGet(&(parentDirectory->dirLock));
   if (status < 0)
     return (physicalAddress = NULL);
   
@@ -1192,7 +1183,7 @@ void *kernelPageShareDirectory(int parentId, int childId)
 
   physicalAddress = (void *) parentDirectory->physical;
 
-  kernelResourceManagerUnlock(&(parentDirectory->dirLock));
+  kernelLockRelease(&(parentDirectory->dirLock));
 
   // Return the physical address of the shared page directory.
   return (physicalAddress);
@@ -1227,7 +1218,7 @@ int kernelPageDeleteDirectory(int processId)
   if (directory == NULL)
     return (status = ERR_NOSUCHENTRY);
 
-  status = kernelResourceManagerLock(&(directory->dirLock));
+  status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
     return (status = ERR_NOLOCK);
   
@@ -1243,7 +1234,7 @@ int kernelPageDeleteDirectory(int processId)
 	  
 	  if (status < 0)
 	    {
-	      kernelResourceManagerUnlock(&(directory->dirLock));
+	      kernelLockRelease(&(directory->dirLock));
 	      return (status);
 	    }
 	}
@@ -1278,13 +1269,13 @@ int kernelPageMapToFree(int processId, void *physicalAddress,
   if (directory == NULL)
     return (status = ERR_NOSUCHENTRY);
 
-  status = kernelResourceManagerLock(&(directory->dirLock));
+  status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
     return (status = ERR_NOLOCK);
   
   status = map(directory, physicalAddress, &mappedAddress, size);
 
-  kernelResourceManagerUnlock(&(directory->dirLock));
+  kernelLockRelease(&(directory->dirLock));
 
   if (status < 0)
     return (status);
@@ -1315,13 +1306,13 @@ int kernelPageUnmap(int processId, void *virtualAddress, unsigned size)
   if (directory == NULL)
     return (status = ERR_NOSUCHENTRY);
 
-  status = kernelResourceManagerLock(&(directory->dirLock));
+  status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
     return (status = ERR_NOLOCK);
   
   status = unmap(directory, virtualAddress, size);
 
-  kernelResourceManagerUnlock(&(directory->dirLock));
+  kernelLockRelease(&(directory->dirLock));
 
   if (status < 0)
     return (status);
@@ -1351,13 +1342,13 @@ void *kernelPageGetPhysical(int processId, void *virtualAddress)
   if (directory == NULL)
     return (address = NULL);
 
-  status = kernelResourceManagerLock(&(directory->dirLock));
+  status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
     return (address = NULL);
   
   address = (void *) findPageTableEntry(directory, virtualAddress);
 
-  kernelResourceManagerUnlock(&(directory->dirLock));
+  kernelLockRelease(&(directory->dirLock));
 
   return (address);
 }

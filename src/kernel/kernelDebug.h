@@ -23,21 +23,21 @@
 
 #if !defined(_KERNELDEBUG_H)
 
-// These are the 'debug flags' that can be used to construct a custom
+#include "kernelText.h"
+
+// These are the 'debug level flags' that can be used to construct a custom
 // debugging output
-#define DEBUG_ENTER_EXIT 0x00000001
+#define DEBUG_ENTER_EXIT 0x01
 
 // The current debugging level.
-#if !defined(DEBUG)
-#define DEBUG 0
+#if !defined(DEBUGLEVEL)
+#define DEBUGLEVEL 0
 #endif
 
-#if (DEBUG & DEBUG_ENTER_EXIT)
-
-#define kernelDebugEnter() \
-  kernelTextPrint("kernel debug: enter function "); \
-  kernelTextPrintLine(__FUNCTION__)
-
+#if (DEBUGLEVEL & DEBUG_ENTER_EXIT)
+#define kernelDebugEnter()                                \
+  kernelTextStreamPrintLine(kernelTextGetConsoleOutput(), \
+			    "DEBUG: enter function %s", __FUNCTION__)
 #else
 #define kernelDebugEnter() while(0)
 #endif // DEBUG_ENTER_EXIT

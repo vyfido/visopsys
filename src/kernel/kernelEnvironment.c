@@ -28,7 +28,7 @@
 #include "kernelMemoryManager.h"
 #include "kernelPageManager.h"
 #include "kernelMultitasker.h"
-#include "kernelMiscAsmFunctions.h"
+#include "kernelMiscFunctions.h"
 #include <string.h>
 #include <sys/errors.h>
 
@@ -86,7 +86,7 @@ kernelEnvironment *kernelEnvironmentCreate(int processId,
       if (status < 0)
 	{
 	  // Eek.  Couldn't chown the memory.
-	  kernelMemoryReleaseBlock(peekEnvAddr);
+	  kernelMemoryRelease(peekEnvAddr);
 	  return (peekEnvAddr = NULL);
 	}
     }
@@ -150,7 +150,7 @@ int kernelEnvironmentGet(const char *variable, char *buffer,
   if ((variable == NULL) || (buffer == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  status = kernelVariableListGet(currentProcess->environment, variable,
+  status = kernelVariableListGet(kernelCurrentProcess->environment, variable,
 				 buffer, buffSize);
   return (status);
 }
@@ -166,7 +166,7 @@ int kernelEnvironmentSet(const char *variable, const char *value)
   if ((variable == NULL) || (value == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  status = kernelVariableListSet(currentProcess->environment, variable,
+  status = kernelVariableListSet(kernelCurrentProcess->environment, variable,
 				 value);
   return (status);
 }
@@ -182,7 +182,7 @@ int kernelEnvironmentUnset(const char *variable)
   if (variable == NULL)
     return (status = ERR_NULLPARAMETER);
   
-  kernelVariableListUnset(currentProcess->environment, variable);
+  kernelVariableListUnset(kernelCurrentProcess->environment, variable);
 
   return (status);
 }
@@ -194,11 +194,12 @@ void kernelEnvironmentDump(void)
 
   kernelTextPrintLine("Diagnostic process environment dump:");
 
-  for (count = 0; count < currentProcess->environment->numVariables; count ++)
+  for (count = 0; count < kernelCurrentProcess->environment->numVariables;
+       count ++)
     {
-      kernelTextPrint(currentProcess->environment->variables[count]);
+      kernelTextPrint(kernelCurrentProcess->environment->variables[count]);
       kernelTextPutc('=');
-      kernelTextPrintLine(currentProcess->environment->values[count]);
+      kernelTextPrintLine(kernelCurrentProcess->environment->values[count]);
     }
 
   return;

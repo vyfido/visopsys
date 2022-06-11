@@ -37,7 +37,6 @@ char *strstr(const char *s1, const char *s2)
   int s1_length = strlen(s1);
   int s2_length = strlen(s2);
 
-
   // We don't set errno in this function
   errno = 0;
 

@@ -21,6 +21,8 @@
 
 #if !defined(_KERNELVARIABLELIST_H)
 
+#include "kernelLock.h"
+
 // Definitions.
 
 typedef struct
@@ -33,7 +35,7 @@ typedef struct
   char **variables;
   char **values;
   char *data;
-  int listLock;
+  kernelLock listLock;
 
 } kernelVariableList;
 
@@ -41,7 +43,6 @@ typedef struct
 kernelVariableList *kernelVariableListCreate(unsigned, unsigned, const char *);
 int kernelVariableListGet(kernelVariableList *, const char *, char *,
 			  unsigned);
-int kernelVariableListGetByNumber(kernelVariableList *, int, char *, unsigned);
 int kernelVariableListSet(kernelVariableList *, const char *, const char *);
 int kernelVariableListUnset(kernelVariableList *, const char *);
 

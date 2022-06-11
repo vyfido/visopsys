@@ -45,10 +45,9 @@ int main(int argc, char *argv[])
   int force = 0;
   int count = 1;
 
-
   if (argc < 2)
     {
-      usage(argv[0]);
+      usage((argc > 0)? argv[0] : "kill");
       return (status = ERR_ARGUMENTCOUNT);
     }
 

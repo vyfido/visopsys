@@ -24,10 +24,22 @@
 #include "kernelVariableList.h"
 #include "kernelFileStream.h"
 
+#define MAX_SYMBOL_LENGTH 80
+typedef struct {
+  unsigned address;
+  char symbol[MAX_SYMBOL_LENGTH];
+
+} kernelSymbol;
+
 const char *kernelVersion(void);
+void kernelMemCopy(const void *, void *, unsigned);
+void kernelMemClear(void *, unsigned);
+int kernelMemCmp(const void *, const void *, unsigned);
+void kernelStackTrace(void *, void *);
 void kernelConsoleLogin(void);
 kernelVariableList *kernelConfigurationReader(const char *);
 int kernelConfigurationWriter(kernelVariableList *, fileStream *);
+int kernelReadSymbols(const char *);
 
 #define _KERNELMISCFUNCTIONS_H
 #endif

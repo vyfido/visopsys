@@ -33,23 +33,19 @@
 #define OPENMODE_TRUNCATE 0x8
 #define OPENMODE_READWRITE (OPENMODE_READ | OPENMODE_WRITE)
 
-
 // Pathname limits
 #define MAX_NAME_LENGTH 512
 #define MAX_PATH_LENGTH 512
 #define MAX_PATH_NAME_LENGTH (MAX_PATH_LENGTH + MAX_NAME_LENGTH)
 
-
 // Typedef a file handle
 typedef void* fileHandle;
 
-
 typedef enum
 {
-  fileT, dirT, volT, unknownT
+  fileT, dirT, linkT, volT, unknownT
 
 } fileType;
-
 
 // This is the structure used to store universal information about a file
 typedef struct

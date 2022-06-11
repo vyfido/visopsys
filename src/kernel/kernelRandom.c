@@ -23,8 +23,8 @@
 // the Visopsys kernel.
 
 #include "kernelRandom.h"
-#include "kernelSysTimerFunctions.h"
-#include "kernelRtcFunctions.h"
+#include "kernelSysTimer.h"
+#include "kernelRtc.h"
 #include "kernelLog.h"
 
 

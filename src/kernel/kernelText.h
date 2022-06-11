@@ -22,12 +22,34 @@
 #if !defined(_KERNELTEXT_H)
 
 #include "kernelStream.h"
-#include "kernelFontFunctions.h"
-#include "kernelGraphicFunctions.h"
+#include "kernelFont.h"
+#include "kernelGraphic.h"
+#include "kernelLock.h"
 
 // Definitions
-#define TEXTSTREAMSIZE 1024
+#define TEXTSTREAMSIZE 32768
 #define DEFAULT_TAB 8
+
+// Colours for the text console
+// 0  = black
+// 1  = blue
+// 2  = green
+// 3  = cyan
+// 4  = red
+// 5  = magenta
+// 6  = brown
+// 7  = light grey
+// 8  = dark grey
+// 9  = light blue
+// 10 = light green
+// 11 = light cyan
+// 12 = light red
+// 13 = light magenta
+// 14 = yellow
+// 15 = white
+#define DEFAULTFOREGROUND       7
+#define DEFAULTBACKGROUND       1
+#define DEFAULTERRORFOREGROUND  6
 
 // A data structure to represent a text area on the screen which gets drawn
 // by the appropriate driver functions
@@ -46,7 +68,6 @@ typedef volatile struct
   unsigned char *data;
   kernelAsciiFont *font;
   kernelGraphicBuffer *graphicBuffer;
-  int lock;
 
 } kernelTextArea;
 
@@ -54,10 +75,12 @@ typedef volatile struct
 // to output text from a given text stream
 typedef struct
 {
-  int (*driverInitialize) (kernelTextArea *);
+  int (*driverInitialize) (void);
   int (*getCursorAddress) (kernelTextArea *);
   int (*setCursorAddress) (kernelTextArea *, int, int);
+  int (*getForeground) (kernelTextArea *);
   int (*setForeground) (kernelTextArea *, int);
+  int (*getBackground) (kernelTextArea *);
   int (*setBackground) (kernelTextArea *, int);
   int (*print) (kernelTextArea *, const char *);
   int (*clearScreen) (kernelTextArea *);
@@ -68,8 +91,7 @@ typedef struct
 // where all keyboard input goes.
 typedef volatile struct 
 {
-  int ownerPid;
-  stream *s;
+  stream s;
   int echo;
 
 } kernelTextInputStream;
@@ -77,13 +99,14 @@ typedef volatile struct
 // This structure is used to refer to a stream made up of text.
 typedef volatile struct 
 {
-  int ownerPid;
   kernelTextOutputDriver *outputDriver;
   kernelTextArea *textArea;
-  int foreground;
-  int background;
 
 } kernelTextOutputStream;
+
+// The default driver initializations
+int kernelTextConsoleInitialize(void);
+int kernelGraphicConsoleInitialize(void);
 
 // Functions from kernelText.c
 
@@ -93,6 +116,10 @@ kernelTextInputStream *kernelTextGetConsoleInput(void);
 kernelTextOutputStream *kernelTextGetConsoleOutput(void);
 int kernelTextSetConsoleInput(kernelTextInputStream *);
 int kernelTextSetConsoleOutput(kernelTextOutputStream *);
+kernelTextInputStream *kernelTextGetCurrentInput(void);
+int kernelTextSetCurrentInput(kernelTextInputStream *);
+kernelTextOutputStream *kernelTextGetCurrentOutput(void);
+int kernelTextSetCurrentOutput(kernelTextOutputStream *);
 int kernelTextNewInputStream(kernelTextInputStream *);
 int kernelTextNewOutputStream(kernelTextOutputStream *);
 int kernelTextGetForeground(void);

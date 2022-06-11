@@ -36,8 +36,6 @@ typedef enum
 
 } kernelErrorKind;
 
-int kernelErrorInitialize(void);
-int kernelErrorSetForeground(int);
 void kernelErrorOutput(const char *, const char *, int, kernelErrorKind, 
 		       const char *, ...);
 

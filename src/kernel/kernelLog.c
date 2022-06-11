@@ -26,7 +26,7 @@
 #include "kernelParameters.h"
 #include "kernelFileStream.h"
 #include "kernelMultitasker.h"
-#include "kernelRtcFunctions.h"
+#include "kernelRtc.h"
 #include "kernelError.h"
 #include <stdio.h>
 #include <string.h>
@@ -37,7 +37,7 @@ static volatile int logToFile = 0;
 static volatile int loggingInitialized = 0;
 static int updaterPID = 0;
 
-static stream * volatile logStream;
+static stream logStream;
 static fileStream * volatile logFileStream;
 
 
@@ -48,54 +48,32 @@ static int flushLogStream(void)
   // 0 on success, negative otherwise
 
   int status = 0;
-  int bufferSize = 0;
-  char buffer[LOG_STREAM_SIZE];
+  char buffer[512];
 
-  // If there's no log stream, there's no point in going any further
-  // (there will be nothing to flush)
-  if (logStream == NULL)
-    return (status = 0);
-
-  // How much stuff is in the log stream?
-  bufferSize = logStream->count;
-
-  if (bufferSize > 0)
+  // Take the contents of the log stream...
+  while (logStream.popN(&logStream, 511, buffer) > 0)
     {
-      // Take the contents of the log stream...
-      status = logStream->popN(logStream, bufferSize, buffer);
-
-      if (status < 0)
-	{
-	  // Oops, couldn't get anything
-	  kernelError(kernel_warn, "Unable to read the log stream");
-	  return (status);
-	}
-
       // ...and write them to the log file
       status = kernelFileStreamWriteStr(logFileStream, buffer);
-
       if (status < 0)
 	{
 	  // Oops, couldn't write to the log file.  Make a warning
 	  kernelError(kernel_warn, "Unable to write to the log stream");
+	  logToFile = 0;
 	  return (status);
 	}
-
+      
       // Flush the file stream
       status = kernelFileStreamFlush(logFileStream);
-
       if (status < 0)
 	{
 	  // Oops, couldn't write to the log file.  Make a warning
 	  kernelError(kernel_warn, "Unable to flush the log file");
+	  logToFile = 0;
 	  return (status);
 	}
     }
-
-  // kernelTextPrintUnsigned(logFileStream->s->count);
-  // kernelTextPrint(" -> log file stream count ");
-  // kernelTextPrintLine(__FUNCTION__);
-
+  
   // Return success
   return (status = 0);
 }
@@ -115,7 +93,6 @@ static void kernelLogUpdater(void)
     {
       // Let "flush" do its magic
       status = flushLogStream();
-
       if (status < 0)
 	{
 	  // Eek!  Make logToFile = 0 and try to close it
@@ -151,7 +128,9 @@ int kernelLogInitialize(void)
   logToFile = 0;
 
   // Initialize the logging stream
-  logStream = kernelStreamNew(LOG_STREAM_SIZE, itemsize_char);
+  status = kernelStreamNew(&logStream, LOG_STREAM_SIZE, itemsize_byte);
+  if (status < 0)
+    return (status);
 
   // Make a note that we've been initialized
   loggingInitialized = 1;
@@ -176,22 +155,22 @@ int kernelLogSetFile(const char *logFileName)
       return (status = ERR_NOTINITIALIZED);
     }
 
-  // Make sure the file name argument isn't NULL
   if (logFileName == NULL)
     {
-      kernelError(kernel_error, "Log file name argument is NULL");
-      return (status = ERR_NULLPARAMETER);
+      // No more logging to a file
+      logToFile = 0;
+      return (status = 0);
     }
 
   // Initialize the fileStream structure that we'll be using for a log file
-  status = 
+  status =
     kernelFileStreamOpen(logFileName, (OPENMODE_WRITE | OPENMODE_CREATE),
 			 &theStream);
-
   if (status < 0)
     {
       // We couldn't open or create a log file, for whatever reason.
       kernelError(kernel_error, "Couldn't open or create kernel log file");
+      logToFile = 0;
       return (status);
     }
 
@@ -205,27 +184,25 @@ int kernelLogSetFile(const char *logFileName)
   // to the file now.
   flushLogStream();
 
-  // Make a 'log file updater' thread
-  updaterPID = kernelMultitaskerSpawn(kernelLogUpdater, "log file updater",
+  // Make a logging thread
+  updaterPID = kernelMultitaskerSpawn(kernelLogUpdater, "logging thread",
 				      0 , NULL);
-
   // Make sure we were successful
   if (updaterPID < 0)
     {
       // Make a kernelError
-      kernelError(kernel_error, "Couldn't spawn log updater thread");
+      kernelError(kernel_error, "Couldn't spawn logging thread");
       return (updaterPID);
     }
 
   // Re-nice the log file updater
   status = kernelMultitaskerSetProcessPriority(updaterPID, 
 					       (PRIORITY_LEVELS - 2));
-  
   if (status < 0)
     {
       // Oops, we couldn't make it low-priority.  This is probably
       // bad, but not fatal.  Make a kernelError.
-      kernelError(kernel_warn, "Couldn't re-nice the log updater thread");
+      kernelError(kernel_warn, "Couldn't re-nice the logging thread");
     }
 
   // Return success
@@ -282,7 +259,6 @@ int kernelLog(const char *format, ...)
 
   // Get the current date/time so we can prepend it to the logging output
   status = kernelRtcDateTime(&time);
-  
   if (status < 0)
     // Before RTC initialization (at boot time) the above will fail.
     sprintf(streamOutput, "%s\n", output);
@@ -292,7 +268,7 @@ int kernelLog(const char *format, ...)
     sprintf(streamOutput, "%s %s\n", (asctime(&time) + 4), output);
 
   // Put it all into the log stream
-  status = logStream->appendN(logStream, strlen(streamOutput), streamOutput);
+  status = logStream.appendN(&logStream, strlen(streamOutput), streamOutput);
   return (status);
 }
 
@@ -310,7 +286,6 @@ int kernelLogShutdown(void)
 
       // Close the log file
       status = kernelFileStreamClose(logFileStream);
-
       if (status < 0)
 	{
 	  kernelError(kernel_error, "Unable to close the kernel log file");

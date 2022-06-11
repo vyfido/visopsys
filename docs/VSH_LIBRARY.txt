@@ -1,0 +1,55 @@
+THE VISOPSYS SHELL LIBRARY  (Version 0.3)
+
+
+The shell library is a small set of functions created for the Visopsys shell, /programs/vsh, and provided as a library for other programs to use.  
+
+The functions are defined in the header file <sys/vsh.h> and the code is contained in libvsh.a (link with '-lvsh').  This code also requires a C library to link correctly (link with '-lc').
+
+
+--------------------------------------
+
+
+void vshPrintTime(unsigned unformattedTime)
+
+    Print the packed time value, specified by the unsigned integer 'unformattedTime' -- such as that found in the file.modifiedTime field -- in a (for now, arbitrary) human-readable format to standard output.
+
+
+void vshPrintDate(unsigned unformattedDate)
+
+    Print the packed date value, specified by the unsigned integer 'unformattedDate' -- such as that found in the file.modifiedDate field -- in a (for now, arbitrary) human-readable format.
+
+
+int vshFileList(const char *itemName)
+
+    Print a listing of a file or directory named 'itemName'.  'itemName' must be an absolute pathname, beginning with '/'.
+
+
+int vshDumpFile(const char *fileName)
+
+    Print the contents of the file, specified by 'fileName', to standard output.  'fileName' must be an absolute pathname, beginning with '/'.
+
+
+int vshDeleteFile(const char *deleteFile)
+
+    Delete the file specified by the name 'deleteFile'.  'deleteFile' must be an absolute pathname, beginning with '/'.
+
+
+int vshCopyFile(const char *srcFile, const char *destFile)
+
+    Copy the file specified by the name 'srcFile' to the filename 'destFile'.  Both filenames must be absolute pathnames, beginning with '/'.
+
+int vshRenameFile(const char *srcFile, const char *destFile)
+
+    Rename (move) the file specified by the name 'srcFile' to the destination 'destFile'.  Both filenames must be absolute pathnames, beginning with '/'.
+
+void vshMakeAbsolutePath(const char *orig, char *new)
+
+    Turns a filename, specified by 'orig', into an absolute pathname 'new'.  This basically just amounts to prepending the name of the current directory (plus a '/') to the supplied name.  'new' must be a buffer large enough to hold the entire filename.
+
+void vshCompleteFilename(char *buffer)
+
+    Attempts to complete a portion of a filename, 'buffer'.  The function will append either the remainder of the complete filename, or if possible, some portion thereof.  The result simply depends on whether a good completion or partial completion exists.  'buffer' must of course be large enough to contain any potential filename completion.
+
+int vshSearchPath(const char *orig, char *new)
+
+    Search the current path (defined by the PATH environment variable) for the first occurrence of the filename specified in 'orig', and place the complete, absolete pathname result in 'new'.  If a match is found, the function returns zero.  Otherwise, it returns a negative error code.  'new' must be large enough to hold the complete absolute filename of any match found.

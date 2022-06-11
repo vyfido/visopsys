@@ -52,7 +52,6 @@
 	ALIGN 4
 
 	%include "loader.h"
-	%include "../kernel/kernelAssemblerHeader.h"
 
 	
 loaderMain:	
@@ -186,6 +185,7 @@ loaderMain:
 	add byte [FATALERROR], 1
 	
 	.okLoad:
+				
 	;; Check for fatal errors before attempting to start the kernel
 	call fatalErrorCheck
 
@@ -249,11 +249,6 @@ loaderMain:
 	;; size of the stack we allocated to the kernel image size
 	mov EAX, dword [(LDRCODESEGMENTLOCATION + KERNELSIZE)]
 	add EAX, KERNELSTACKSIZE
-	push EAX
-
-	;; Now the boot device
-	xor EAX, EAX
-	mov AX, word [(LDRCODESEGMENTLOCATION + DRIVENUMBER)]
 	push EAX
 
 	;; Waste some space on the stack that would normally be used to
@@ -344,8 +339,8 @@ bootDevice:
 	push ES
 
 	;; Guards againt BIOS bugs, apparently
-	mov AX, 0
-	mov ES, AX
+	push word 0
+	pop ES
 	mov DI, 0
 	
 	mov AH, 08h
@@ -502,7 +497,7 @@ int9_hook:
 	;; Move the address of our new handler into the interrupt
 	;; table
 	mov word [ES:0024h], int9_handler	;; The offset
-	mov word [ES:0026h], CS		;; The segment
+	mov word [ES:0026h], CS			;; The segment
 
 	sti
 
@@ -574,25 +569,11 @@ enableA20:
 	xor AX, AX
 	in AL, 60h
 
-	;; Check to see whether A20 is already enabled.  I think this can
-	;; happen when rebooting from Windows, for example.  We don't want
-	;; to toggle it off again by accident.
+	;; Check to see whether A20 is already enabled.  Seems to be true on
+	;; a number of machines.
 	bt AX, 1
-	jnc .notAlready
+	jc near .done
 	
-	;; Already enabled.  Warn.  Not bad.
-	mov DL, 02h		; Green color
-	mov SI, HAPPY
-	call loaderPrint
-	mov SI, A20
-	call loaderPrint
-	mov DL, FOREGROUNDCOLOR	; Switch to foreground color
-	mov SI, A20ALREADY
-	call loaderPrint
-	call loaderPrintNewline
-	jmp .done
-	
-	.notAlready:
 	;; Save the current value of EAX
 	push AX
 		
@@ -1041,7 +1022,7 @@ GDTLENGTH	equ $-dummy_desc
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.2' , 0
+LOADMSG1	db 'Visopsys OS Loader v0.3' , 0
 LOADMSG2	db 'Copyright (C) 1998-2003 J. Andrew McLaughlin', 0
 BOOTDEV		db 'Boot device  ', 10h, ' ', 0
 DEVDISK		db 'Disk ', 0
@@ -1066,15 +1047,11 @@ BOOTINFO	db 'BOOTINFO   ', 0
 SAD		db 'x ', 0
 BIOSERR		db 'The computer', 27h, 's BIOS was unable to provide information about', 0
 BIOSERR2	db 'the boot device.  Please check the BIOS for errors.', 0
-A20ALREADY	db 'Already enabled.', 0
 A20BAD1		db 'Could not enable the A20 address line, which would cause', 0
 A20BAD2		db 'serious memory problems for the kernel.  As strange as it may', 0
 A20BAD3		db 'sound, this is generally associated with keyboard errors. ', 0
 A20BAD4		db 'If you are using a laptop computer with an external keyboard,', 0
 A20BAD5		db 'please consider removing it before retrying.', 0
 FATALERROR1	db ' unrecoverable error(s) were recorded, and the boot process cannot continue.', 0
-FATALERROR2	db 'Any applicable error information is noted above, in orange type.', 0
-FATALERROR3	db 'Please attempt to rectify these problems before retrying.', 0
-
-COPYRIGHT	db ' - Binary and associated source code copyright (C) 1998-'
-		db '2003 J. Andrew McLaughlin - '
+FATALERROR2	db 'Any applicable error information is noted above.  Please attempt to rectify', 0
+FATALERROR3	db 'these problems before retrying.', 0

@@ -23,12 +23,6 @@
 
 
 all:
-	make -C dos all
-	# make -C unix all
-	make -C installer all
 
 clean:
 	rm -Rf *~ core
-	make -C dos clean
-	# make -C unix clean
-	make -C installer clean

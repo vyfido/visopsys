@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/vsh.h>
 #include <sys/file.h>
 #include <sys/api.h>
 
@@ -39,392 +40,6 @@ static char cwd[MAX_PATH_LENGTH];
 static int promptCatchup = 0;
 
 
-static void printTime(unsigned int unformattedTime)
-{
-  int seconds = 0;
-  int minutes = 0;
-  int hours = 0;
-
-  seconds = (unformattedTime & 0x0000003F);
-  minutes = ((unformattedTime & 0x00000FC0) >> 6);
-  hours = ((unformattedTime & 0x0003F000) >> 12);
-
-  if (hours < 10)
-    putchar('0');
-  printf("%u:", hours);
-  if (minutes < 10)
-    putchar('0');
-  printf("%u:", minutes);
-  if (seconds < 10)
-    putchar('0');
-  printf("%u", seconds);
-
-  return;
-}
-
-
-static void printDate(unsigned int unformattedDate)
-{
-  int day = 0;
-  int month = 0;
-  int year = 0;
-
-
-  day = (unformattedDate & 0x0000001F);
-  month = ((unformattedDate & 0x000001E0) >> 5);
-  year = ((unformattedDate & 0xFFFFFE00) >> 9);
-
-  switch(month)
-    {
-    case 1:
-      printf("Jan");
-      break;
-    case 2:
-      printf("Feb");
-      break;
-    case 3:
-      printf("Mar");
-      break;
-    case 4:
-      printf("Apr");
-      break;
-    case 5:
-      printf("May");
-      break;
-    case 6:
-      printf("Jun");
-      break;
-    case 7:
-      printf("Jul");
-      break;
-    case 8:
-      printf("Aug");
-      break;
-    case 9:
-      printf("Sep");
-      break;
-    case 10:
-      printf("Oct");
-      break;
-    case 11:
-      printf("Nov");
-      break;
-    case 12:
-      printf("Dec");
-      break;
-    default:
-      printf("???");
-      break;
-    }
-
-  putchar(' ');
-
-  if (day < 10)
-    putchar('0');
-  printf("%u %u", day, year);
-
-  return;
-}
-
-
-static int shellCommandsDir(char *name, const char *item)
-{
-  // A file listing command
-
-  int status = 0;
-  int count;
-  int numberFiles = 0;
-  file theFile;
-  unsigned int bytesFree = 0;
-
-
-  // Make sure file name isn't NULL
-  if (item == NULL)
-    return -1;
-  
-  // Initialize the file structure
-  for (count = 0; count < sizeof(file); count ++)
-    ((char *) &theFile)[count] = NULL;
-
-  // Call the "find file" routine to see if the file exists
-  status = fileFind(item, &theFile);
-  
-  if (status < 0)
-    {
-      errno = status;
-      perror(name);
-      return (status);
-    }
-
-  // Get the bytes free for the filesystem
-  bytesFree = filesystemGetFree(theFile.filesystem);
-
-  // We do things differently depending upon whether the target is a 
-  // file or a directory
-
-  if (theFile.type == fileT)
-    {
-      // This means the item is a single file.  We just output
-      // the appropriate information for that file
-      printf(theFile.name);
-
-      if (strlen(theFile.name) < 24)
-	for (count = 0; count < (26 - strlen(theFile.name)); 
-	     count ++)
-	  putchar(' ');
-      else
-	printf("  ");
-
-      // The date and time
-      printDate(theFile.modifiedDate);
-      putchar(' ');
-      printTime(theFile.modifiedTime);
-      printf("    ");
-
-      // The file size
-      printf("%u\n", theFile.size);
-    }
-
-  else
-    {
-      printf("\n  Directory of %s\n", (char *) item);
-
-      // Get the first file
-      status = fileFirst(item, &theFile);
-  
-      if (status < 0)
-	{
-	  errno = status;
-	  perror(name);
-	  return (status);
-	}
-
-      while (1)
-	{
-	  printf(theFile.name);
-
-	  if (theFile.type == dirT)
-	    putchar('/');
-	  else 
-	    putchar(' ');
-
-	  if (strlen(theFile.name) < 23)
-	    for (count = 0; count < (25 - strlen(theFile.name)); 
-		 count ++)
-	      putchar(' ');
-	  else
-	    printf("  ");
-
-	  // The date and time
-	  printDate(theFile.modifiedDate);
-	  putchar(' ');
-	  printTime(theFile.modifiedTime);
-	  printf("    ");
-
-	  // The file size
-	  printf("%u\n", theFile.size);
-
-	  numberFiles += 1;
-
-	  status = fileNext(item, &theFile);
-
-	  if (status < 0)
-	    break;
-	}
-      
-      printf("  ");
-
-      if (numberFiles == 0)
-	printf("No");
-      else
-	printf("%u", numberFiles);
-      printf(" file");
-      if ((numberFiles == 0) || (numberFiles > 1))
-	putchar('s');
-
-      printf("\n  %u bytes free\n\n", bytesFree);
-    }
-
-  return status;
-}
-
-
-static int shellCommandsType(const char *fileName)
-{
-  // Prints the contents of a file to the screen
-
-  int status = 0;
-  int count;
-  file theFile;
-  char *fileBuffer = NULL;
-
-
-  // Make sure file name isn't NULL
-  if (fileName == NULL)
-    return (status = -1);
-  
-  for (count = 0; count < sizeof(file); count ++)
-    ((char *) &theFile)[count] = NULL;
-
-  // Call the "find file" routine to see if we can get the first file
-  status = fileFind(fileName, &theFile);
-  
-  if (status < 0)
-    {
-      errno = status;
-      perror("cat");
-      return (status);
-    }
-
-  // Make sure the file isn't empty.  We don't want to try reading
-  // data from a nonexistent place on the disk.
-  if (theFile.size == 0)
-    // It is empty, so just return
-    return status;
-
-  // The file exists and is non-empty.  That's all we care about (we don't 
-  // care at this point, for example, whether it's a file or a directory.  
-  // Read it into memory and print it on the screen.
-  
-  // Allocate a buffer to store the file contents in
-  fileBuffer = memoryRequestBlock(((theFile.blocks * theFile.blockSize) + 1),
-				  0, "temporary file data");
-  if (fileBuffer == NULL)
-    {
-      errno = ERR_MEMORY;
-      perror("cat");
-      return (status = ERR_MEMORY);
-    }
-
-  status = fileOpen(fileName, OPENMODE_READ, &theFile);
-
-  if (status < 0)
-    {
-      errno = status;
-      perror("cat");
-      memoryReleaseBlock(fileBuffer);
-      return (status);
-    }
-
-  status = fileRead(&theFile, 0, theFile.blocks, fileBuffer);
-
-  if (status < 0)
-    {
-      errno = status;
-      perror("cat");
-      memoryReleaseBlock(fileBuffer);
-      return (status);
-    }
-
-
-  // Print the file
-  count = 0;
-  while (count < theFile.size)
-    {
-      // Look out for tab characters
-      if (fileBuffer[count] == (char) 9)
-	printf("\t");
-
-      // Look out for newline characters
-      else if (fileBuffer[count] == (char) 10)
-	printf("\n");
-
-      else
-	putchar(fileBuffer[count]);
-
-      count += 1;
-    }
-
-  // If the file did not end with a newline character...
-  if (fileBuffer[count - 1] != '\n')
-    printf("\n");
-
-  // Free the memory
-  memoryReleaseBlock(fileBuffer);
-
-  return status;
-}
-
-
-static int shellCommandsDeleteFile(const char *deleteFile)
-{
-  // This command is like the "rm" or "del" command. 
-
-  int status = 0;
-
-
-  // Make sure file name isn't NULL
-  if (deleteFile == NULL)
-    return -1;
-  
-  status = fileDelete(deleteFile);
-
-  if (status < 0)
-    {
-      errno = status;
-      perror("rm");
-      return (status);
-    }
-
-  // Return success
-  return (status = 0);
-}
-
-
-static int shellCommandsCopyFile(char *name, const char *srcFile,
-				 const char *destFile)
-{
-  // This command is like the built-in DOS "copy" command. 
-  
-  int status = 0;
-  
-  
-  // Make sure filenames aren't NULL
-  if ((srcFile == NULL) || (destFile == NULL))
-    return -1;
-  
-  // Attempt to copy the file
-  status = fileCopy(srcFile, destFile);
- 
-  if (status < 0)
-    {
-      errno = status;
-      perror(name);
-      return (status);
-    }
- 
-  // Return success
-  return (status = 0);
-}
- 
-
-static int shellCommandsRenameItem(const char *name, const char *srcFile,
-				   const char *destFile)
-{
-  // This command is like the built-in DOS "rename" command. 
- 
-  int status = 0;
- 
- 
-  // Make sure filename arguments aren't NULL
-  if ((srcFile == NULL) || (destFile == NULL))
-    return -1;
-   
-  // Attempt to rename the file
-  status = fileMove(srcFile, destFile);
- 
-  if (status < 0)
-    {
-      errno = status;
-      perror(name);
-      return (status);
-    }
- 
-  // Return success
-  return (status = 0);
-}
-
-
 static void showPrompt(void)
 {
   // If there are characters already in the input buffer, tell the reader
@@ -437,238 +52,6 @@ static void showPrompt(void)
   printf("%s%s", cwd, SIMPLESHELLPROMPT);
 
   return;
-}
-
-
-static void makeAbsolutePath(const char *orig, char *new)
-{
-  if ((orig[0] != '/') && (orig[0] != '\\'))
-    {
-      strcpy(new, cwd);
-
-      if ((new[strlen(new) - 1] != '/') &&
-	  (new[strlen(new) - 1] != '\\'))
-	strncat(new, "/", 1);
-
-      strcat(new, orig);
-    }
-  else
-    strcpy(new, orig);
-
-  return;
-}
-
-
-static void completeFilename(char *buffer)
-{
-  int status = 0;
-  char prefixPath[MAX_PATH_LENGTH];
-  char filename[MAX_NAME_LENGTH];
-  char matchname[MAX_NAME_LENGTH];
-  int lastSeparator = -1;
-  file aFile;
-  int match = 0;
-  int longestMatch = 0;
-  int longestIsDir = 0;
-  int prefixLength;
-  int count;
-
-
-  prefixPath[0] = NULL;
-  filename[0] = NULL;
-  matchname[0] = NULL;
-
-  // Does the buffer name begin with a separator?  If not, we need to
-  // prepend the cwd
-  if ((buffer[0] != '/') &&
-      (buffer[0] != '\\'))
-    {
-      strcpy(prefixPath, cwd);
-
-      prefixLength = strlen(prefixPath);
-      if ((prefixPath[prefixLength - 1] != '/') &&
-	  (prefixPath[prefixLength - 1] != '\\'))
-	strncat(prefixPath, "/", 1);
-    }
-
-  // We should now have an absolute path up to the cwd
-
-  // Find the last occurrence of a separator character
-  for (count = (strlen(buffer) - 1); count >= 0 ; count --)
-    {
-      if ((buffer[count] == '/') ||
-	  (buffer[count] == '\\'))
-	{
-	  lastSeparator = count;
-	  break;
-	}
-    }
-
-  // If there was a separator, append it and everything before it to
-  // prefixPath and copy everything after it into filename
-  if (count >= 0)
-    {
-      strncat(prefixPath, buffer, (lastSeparator + 1));
-      strcpy(filename, (buffer + lastSeparator + 1));
-    }
-  else
-    {
-      // Copy the whole buffer into the filename string
-      strcpy(filename, buffer);
-    }
-
-  // Don't bother going any further if filename is empty
-  if (filename[0] == '\0')
-    return;
-
-  // Now, prefixPath must have something in it.  Preferably this is the
-  // name of the last directory of the path we're searching.  Try to look
-  // it up
-  status = fileFind(prefixPath, &aFile);
-  
-  if (status < 0)
-    {
-      // The directory doesn't exist
-      return;
-    }
-
-  for (count = 0; ; count ++)
-    {
-      if (!count)
-	{
-	  // Get the first file of the directory
-	  status = fileFirst(prefixPath, &aFile);
-	  
-	  if (status < 0)
-	    // No files in the directory
-	    return;
-	}
-      else
-	{
-	  // Get the next file of the directory
-	  status = fileNext(prefixPath, &aFile);
-
-	  if (status < 0)
-	    break;
-	}
-
-      // Does this match a substring?
-      if (strstr(aFile.name, filename) == aFile.name)
-	{
-	  match = strlen(filename);
-	  
-	  if (match == strlen(aFile.name))
-	    {
-	      // We have an exact match
-	      strcpy((buffer + lastSeparator + 1), aFile.name);
-	      break;
-	    }
-
-	  else
-	    {
-	      // We have a substring match
-	      if (match == longestMatch)
-		{
-		  // This file matches an equal substring, and thus there
-		  // are multiple filenames that can complete this filename.
-		  // Copy the part that matches multiple files and quit.
-		  strncpy(matchname, aFile.name,
-			  strspn(matchname, aFile.name));
-		  matchname[strspn(matchname, aFile.name)] = '\0';
-		  // We don't want to append any slashes since the
-		  // filename is not complete
-		  longestIsDir = 0;
-		  break;
-		}
-	      else if (match > longestMatch)
-		{
-		  // This is the mew longest match so far
-		  strcpy(matchname, aFile.name);
-		  longestMatch = match;
-		  if (aFile.type == dirT)
-		    longestIsDir = 1;
-		  else
-		    longestIsDir = 0;
-		}
-	    }
-	}
-    }
-
-  // If we fall through, then the longest match so far wins.
-  if (longestMatch)
-    {
-      strcpy((buffer + lastSeparator + 1), matchname);
-      if (longestIsDir)
-	strncat(buffer, "/", 1);
-      return;
-    }
-
-  return;
-}
-
-
-static int searchPath(const char *orig, char *new)
-{
-  // First of all, we won't search the path if this is an absolute
-  // pathname.  That would be pointless
-
-  int status = 0;
-  char path[1024];
-  int pathCount = 0;
-  char pathElement[MAX_PATH_NAME_LENGTH];
-  int pathElementCount = 0;
-  file theFile;
-
-  
-  if ((orig[0] == '/') || (orig[0] == '\\'))
-    return (status = ERR_NOSUCHFILE);
-
-  // Get the value of the PATH environment variable
-  status = environmentGet("PATH", path, 1024);
-
-  if (status < 0)
-    return (status);
-
-  pathCount = 0;
-
-  // We need to loop once for each element in the PATH.  Elements are
-  // separated by colon characters.  When we hit a NULL character we are
-  // at the end.
-  
-  while(path[pathCount] != '\0')
-    {
-      pathElementCount = 0;
-
-      // Copy characters from the path until we hit either a ':' or a NULL
-      while ((path[pathCount] != ':') && (path[pathCount] != '\0'))
-	{
-	  pathElement[pathElementCount++] = path[pathCount++];
-	  pathElement[pathElementCount] = '\0';
-	}
-      
-      if (path[pathCount] == ':')
-	pathCount++;
-
-      // Append the name to the path
-      strncat(pathElement, "/", 1);
-      strcat(pathElement, orig);
-
-      // Does the file exist in the PATH directory?
-      status = fileFind(pathElement, &theFile);
-      
-      // Did we find it?
-      if (status >= 0)
-	{
-	  // Copy the full path into the buffer supplied
-	  strcpy(new, pathElement);
-
-	  // Return success
-	  return (status = 0);
-	}
-    }
-
-  // If we fall through, no dice
-  return (status = ERR_NOSUCHFILE);
 }
 
 
@@ -766,7 +149,7 @@ static void interpretCommand(char *commandLine)
   else if (!strcmp(argv[0], "cd"))
     {
       if (argc > 1)
-	makeAbsolutePath(argv[1], fileName);
+	vshMakeAbsolutePath(argv[1], fileName);
 
       else
 	// No arg means / for now
@@ -790,7 +173,7 @@ static void interpretCommand(char *commandLine)
     {
       // Built in file-listing commands
       if (argc == 1)
-	shellCommandsDir(argv[0], cwd);
+	vshFileList(cwd);
 
       else
 	for (count = 1; count < argc; count ++)
@@ -798,8 +181,8 @@ static void interpretCommand(char *commandLine)
 	    // If any of the arguments are RELATIVE pathnames, we should
 	    // insert the pwd before it
 
-	    makeAbsolutePath(argv[count], fileName);
-	    shellCommandsDir(argv[0], fileName);
+	    vshMakeAbsolutePath(argv[count], fileName);
+	    vshFileList(fileName);
 	  }
     }
 
@@ -812,8 +195,8 @@ static void interpretCommand(char *commandLine)
 	    {
 	      // If any of the arguments are RELATIVE pathnames, we should
 	      // insert the pwd before it
-	      makeAbsolutePath(argv[count], fileName);
-	      shellCommandsType(fileName);
+	      vshMakeAbsolutePath(argv[count], fileName);
+	      vshDumpFile(fileName);
 	    }
 	}
       else
@@ -831,8 +214,8 @@ static void interpretCommand(char *commandLine)
 	  {
 	    // If any of the arguments are RELATIVE pathnames, we should
 	    // insert the pwd before it
-	    makeAbsolutePath(argv[count], fileName);
-	    shellCommandsDeleteFile(fileName);
+	    vshMakeAbsolutePath(argv[count], fileName);
+	    vshDeleteFile(fileName);
 	  }
       
       else
@@ -849,9 +232,9 @@ static void interpretCommand(char *commandLine)
 	{
 	  // If any of the arguments are RELATIVE pathnames, we should
 	  // insert the pwd before it
-	  makeAbsolutePath(argv[1], srcName);
-	  makeAbsolutePath(argv[2], destName);
-	  shellCommandsCopyFile(argv[0], srcName, destName);
+	  vshMakeAbsolutePath(argv[1], srcName);
+	  vshMakeAbsolutePath(argv[2], destName);
+	  vshCopyFile(srcName, destName);
 	}
       else
 	{
@@ -861,16 +244,15 @@ static void interpretCommand(char *commandLine)
 	}
     }
 
-  else if (!strcmp(argv[0], "ren") ||
-	   !strcmp(argv[0], "rename"))
+  else if (!strcmp(argv[0], "ren") || !strcmp(argv[0], "rename"))
     {
       if (argc > 2)
 	{
 	  // If any of the arguments are RELATIVE pathnames, we should
 	  // insert the pwd before it
-	  makeAbsolutePath(argv[1], srcName);
-	  makeAbsolutePath(argv[2], destName);
-	  shellCommandsRenameItem(argv[0], srcName, destName);
+	  vshMakeAbsolutePath(argv[1], srcName);
+	  vshMakeAbsolutePath(argv[2], destName);
+	  vshRenameFile(srcName, destName);
 	}
       else
 	{
@@ -963,19 +345,18 @@ static void interpretCommand(char *commandLine)
       // If the command is a RELATIVE pathname, we will try inserting the 
       // pwd before it.  This has the effect of always putting '.' in
       // the PATH
-      makeAbsolutePath(argv[0], fileName);
+      vshMakeAbsolutePath(argv[0], fileName);
 
       // Does the file exist?
       status = fileFind(fileName, &theFile);
-
-      // Did we find it?
       if (status < 0)
 	{
-	  // Let's try searching the PATH for the file instead
-	  status = searchPath(argv[0], fileName);
-
+	  // Not found in the current directory.  Let's try searching the
+	  // PATH for the file instead
+	  status = vshSearchPath(argv[0], fileName);
 	  if (status < 0)
 	    {
+	      // Not found
 	      errno = status;
 	      perror(argv[0]);
 	      return;
@@ -983,11 +364,9 @@ static void interpretCommand(char *commandLine)
 	}
 
       if ((argc > 1) && (argv[argc - 1][0] == '&'))
-	loaderLoadAndExec(fileName, myPrivilege, argc, argv,
-			  0 /* no block */);
+	loaderLoadAndExec(fileName, myPrivilege, argc, argv, 0 /* no block */);
       else
-	loaderLoadAndExec(fileName, myPrivilege, argc, argv,
-			  1 /* block */);
+	loaderLoadAndExec(fileName, myPrivilege, argc, argv, 1 /* block */);
     }
 
   return;
@@ -1184,7 +563,7 @@ static void simpleShell(void)
 	  if (count1 < 0)
 	    count1 = 0;
 
-	  completeFilename(commandBuffer + count1);
+	  vshCompleteFilename(commandBuffer + count1);
 	  textSetColumn(0);
 	  showPrompt();
 	  printf(commandBuffer);
@@ -1248,15 +627,9 @@ static void simpleShell(void)
 	  showPrompt();
 	}
 
-      // Otherwise unprintable?
-      else if ((bufferCharacter < (unsigned char) 32) ||
-	       (bufferCharacter > (unsigned char) 126))
-	// Ignore it
-	continue;
-
       else
 	{
-	  // Something printable, with no special meaning.
+	  // Something with no special meaning.
 
 	  // Don't go beyond the maximum line length
 	  if (currentCharacter >= (MAX_LINELENGTH - 2))

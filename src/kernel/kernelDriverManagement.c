@@ -25,138 +25,41 @@
 #include <sys/errors.h>
 
 
-// Static default driver structures
-
-// Default Processor routines
-static kernelProcessorDriver defaultProcessorDriver =
-{
-  kernelProcessorDriverInitialize,
-  kernelProcessorDriverReadTimestamp
-};
-
-// Default PIC routines
-static kernelPicDeviceDriver defaultPicDriver =
-{
+// Initialization functions for all the kernel's built-in driver.  In no
+// particular order, except that the initializations are done in sequence
+static void *builtinDriverInits[] = {
   kernelPicDriverInitialize,
-  kernelPicDriverEndOfInterrupt
-};
-
-// Default System Timer routines
-static kernelSysTimerDriver defaultSysTimerDriver =
-{
   kernelSysTimerDriverInitialize,
-  kernelSysTimerDriverTick,
-  kernelSysTimerDriverRead,
-  kernelSysTimerDriverReadTimer,
-  kernelSysTimerDriverSetTimer
-};
-
-// Default Real-Time clock routines
-static kernelRtcDeviceDriver defaultRtcDriver =
-{
   kernelRtcDriverInitialize,
-  kernelRtcDriverReadSeconds,
-  kernelRtcDriverReadMinutes,
-  kernelRtcDriverReadHours,
-  kernelRtcDriverReadDayOfWeek,
-  kernelRtcDriverReadDayOfMonth,
-  kernelRtcDriverReadMonth,
-  kernelRtcDriverReadYear
-};
-
-// Default serial port routines
-static kernelSerialDriver defaultSerialDriver =
-{
-  NULL,
-  NULL
-};
-
-// Default DMA driver routines
-static kernelDmaDeviceDriver defaultDmaDriver =
-{
+  NULL, // Serial driver
   kernelDmaDriverInitialize,
-  kernelDmaDriverSetupChannel,
-  kernelDmaDriverSetMode,
-  kernelDmaDriverEnableChannel,
-  kernelDmaDriverCloseChannel
-};
-
-// Default keyboard driver routines
-static kernelKeyboardDriver defaultKeyboardDriver =
-{
   kernelKeyboardDriverInitialize,
-  kernelKeyboardDriverSetStream,
-  kernelKeyboardDriverReadData
-};
-
-// Default mouse driver routines
-static kernelMouseDriver defaultMouseDriver =
-{
   kernelPS2MouseDriverInitialize,
-  kernelPS2MouseDriverReadData
-};
-
-// Default floppy driver routines
-static kernelDiskDeviceDriver defaultFloppyDriver =
-{
   kernelFloppyDriverInitialize,
-  kernelFloppyDriverDescribe,
-  kernelFloppyDriverReset,
-  kernelFloppyDriverRecalibrate,
-  kernelFloppyDriverMotorOn,
-  kernelFloppyDriverMotorOff,
-  kernelFloppyDriverDiskChanged,
-  kernelFloppyDriverReadSectors,
-  kernelFloppyDriverWriteSectors,
-  kernelFloppyDriverLastErrorCode,
-  kernelFloppyDriverLastErrorMessage
-};
-
-static kernelDiskDeviceDriver defaultHardDiskDriver =
-{
   kernelIdeDriverInitialize,
-  NULL,
-  kernelIdeDriverReset,
-  kernelIdeDriverRecalibrate,
-  NULL,
-  NULL,
-  NULL,
-  kernelIdeDriverReadSectors,
-  kernelIdeDriverWriteSectors,
-  kernelIdeDriverLastErrorCode,
-  kernelIdeDriverLastErrorMessage
-};
-
-// Default framebuffer graphic driver routines
-static kernelGraphicDriver defaultGraphicDriver =
-{
   kernelLFBGraphicDriverInitialize,
-  kernelLFBGraphicDriverClearScreen,
-  kernelLFBGraphicDriverDrawPixel,
-  kernelLFBGraphicDriverDrawLine,
-  kernelLFBGraphicDriverDrawRect,
-  kernelLFBGraphicDriverDrawOval,
-  kernelLFBGraphicDriverDrawMonoImage,
-  kernelLFBGraphicDriverDrawImage,
-  kernelLFBGraphicDriverGetImage,
-  kernelLFBGraphicDriverCopyArea,
-  kernelLFBGraphicDriverRenderBuffer
+  kernelFilesystemFatInitialize,
+  kernelTextConsoleInitialize,
+  kernelGraphicConsoleInitialize,
+  (void *) -1
 };
 
-// A bucket sctructure to hold all the drivers
+// A structure to hold all the kernel's built-in drivers.
 kernelDriverManager kernelAllDrivers = 
 {
-  &defaultProcessorDriver,
-  &defaultPicDriver,
-  &defaultSysTimerDriver,
-  &defaultRtcDriver,
-  &defaultSerialDriver,
-  &defaultDmaDriver,
-  &defaultKeyboardDriver,
-  &defaultMouseDriver,
-  &defaultFloppyDriver,
-  &defaultHardDiskDriver,
-  &defaultGraphicDriver
+  NULL, // PIC driver
+  NULL, // System timer driver
+  NULL, // RTC driver
+  NULL, // Serial driver
+  NULL, // DMA driver
+  NULL, // Keyboard driver
+  NULL, // Mouse driver
+  NULL, // Floppy driver
+  NULL, // IDE driver
+  NULL, // Graphics driver
+  NULL, // FAT filesystem driver
+  NULL, // Text-mode console driver
+  NULL  // Graphic-mode console driver
 };
 
 
@@ -169,106 +72,185 @@ kernelDriverManager kernelAllDrivers =
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelInstallProcessorDriver(void)
+int kernelDriversInitialize(void)
 {
-  // Install the default Processor Driver
-  return (kernelProcessorInstallDriver(kernelAllDrivers.processorDriver));
-}
-
-int kernelInstallPicDriver(void)
-{
-  // Install the default PIC driver
-  return (kernelPicInstallDriver(kernelAllDrivers.picDriver));
-}
-
-int kernelInstallSysTimerDriver(void)
-{
-  // Install the default System Timer Driver
-  return (kernelSysTimerInstallDriver(kernelAllDrivers.sysTimerDriver));
-}
-
-int kernelInstallRtcDriver(void)
-{
-  // Install the default Real-Time clock driver
-  return (kernelRtcInstallDriver(kernelAllDrivers.rtcDriver));
-}
-
-int kernelInstallDmaDriver(void)
-{
-  // Install the default DMA driver
-  return (kernelDmaFunctionsInstallDriver(kernelAllDrivers.dmaDriver));
-}
-
-int kernelInstallKeyboardDriver(void)
-{
-  // Install the default keyboard driver
-  return(kernelKeyboardInstallDriver(kernelAllDrivers.keyboardDriver));
-}
-
-int kernelInstallMouseDriver(void)
-{
-  // Install the default mouse driver
-  return(kernelMouseInstallDriver(kernelAllDrivers.mouseDriver));
-}
-
-int kernelInstallFloppyDriver(void)
-{
-  // Install the default Floppy disk driver
+  // This function is called during startup so we can call the initialize()
+  // functions of all our built-in drivers
 
   int status = 0;
-  kernelDiskObject *theDisk;
+  int errors = 0;
+  int (*driverInit)(void) = NULL;
   int count;
 
-  if (systemInfo == NULL)
+  // Loop through all of the initialization functions we have
+  for (count = 0; ; count ++)
     {
-      kernelError(kernel_error,
-	  "Attempt to install floppy drivers before device enumeration");
+      driverInit = builtinDriverInits[count];
+
+      if (driverInit == (void *) -1)
+	break;
+
+      if (driverInit == NULL)
+	continue;
+
+      // Call the initialization.  The driver should then call 
+      // kernelDriverRegister() when it has finished initializing
+      status = driverInit();
+      if (status < 0)
+	errors++;
+    }
+
+  if (errors)
+    {
+      kernelError(kernel_error, "%d errors initializing built-in drivers",
+		  errors);
       return (status = ERR_NOTINITIALIZED);
     }
-
-  for (count = 0; count < systemInfo->floppyDisks; count ++)
-    {
-      theDisk = kernelGetFloppyDiskObject(count);
-
-      // Put the floppy driver into the kernelDiskObject structures
-      status = kernelDiskFunctionsInstallDriver(theDisk, 
-						kernelAllDrivers
-						.floppyDriver);
-      if (status < 0)
-	return (status);
-    }
-  
-  return (status = 0);
+  else
+    return (status = 0);
 }
 
-int kernelInstallHardDiskDriver(void)
+
+int kernelDriverRegister(kernelDriverType type, void *driver)
 {
-  // Install the hard disk driver
+  // This function is called by the drivers during their initialize() call,
+  // so that we can add them to the table of known drivers.
 
   int status = 0;
-  int numDisks = 0;
-  kernelDiskObject *theDisk;
-  int count;
 
-  numDisks = kernelGetNumberLogicalHardDisks();
-
-  for (count = 0; count < numDisks; count ++)
+  if (driver == NULL)
     {
-      theDisk = kernelGetHardDiskObject(count);
-      
-      // Put the hard disk driver into the kernelDiskObject structures
-      status = kernelDiskFunctionsInstallDriver(theDisk, 
-						kernelAllDrivers
-						.hardDiskDriver);
-      if (status < 0)
-	return (status);
+      kernelError(kernel_error, "Driver to register is NULL");
+      return (status = ERR_NULLPARAMETER);
     }
-  
+
+  switch (type)
+    {
+    case picDriver:
+      kernelAllDrivers.picDriver = (kernelPicDriver *) driver;
+      break;
+    case sysTimerDriver:
+      kernelAllDrivers.sysTimerDriver = (kernelSysTimerDriver *) driver;
+      break;
+    case rtcDriver:
+      kernelAllDrivers.rtcDriver = (kernelRtcDriver *) driver;
+      break;
+    case dmaDriver:
+      kernelAllDrivers.dmaDriver = (kernelDmaDriver *) driver;
+      break;
+    case keyboardDriver:
+      kernelAllDrivers.keyboardDriver = (kernelKeyboardDriver *) driver;
+      break;
+    case mouseDriver:
+      kernelAllDrivers.mouseDriver = (kernelMouseDriver *) driver;
+      break;
+    case floppyDriver:
+      kernelAllDrivers.floppyDriver = (kernelDiskDriver *) driver;
+      break;
+    case ideDriver:
+      kernelAllDrivers.ideDriver = (kernelDiskDriver *) driver;
+      break;
+    case graphicDriver:
+      kernelAllDrivers.graphicDriver = (kernelGraphicDriver *) driver;
+      break;
+    case fatDriver:
+      kernelAllDrivers.fatDriver = (kernelFilesystemDriver *) driver;
+      break;
+    case textConsoleDriver:
+      kernelAllDrivers.textConsoleDriver = (kernelTextOutputDriver *) driver;
+      break;
+    case graphicConsoleDriver:
+      kernelAllDrivers.graphicConsoleDriver =
+	(kernelTextOutputDriver *) driver;
+      break;
+    default:
+      kernelError(kernel_error, "Unknown driver type %d", type);
+      return (status = ERR_NOSUCHENTRY);
+    }
+
   return (status = 0);
 }
 
-int kernelInstallGraphicDriver(void)
+
+void kernelInstallPicDriver(kernelPic *pic)
+{
+  // Install the default PIC driver
+  pic->driver = kernelAllDrivers.picDriver;
+}
+
+
+void kernelInstallSysTimerDriver(kernelSysTimer *timer)
+{
+  // Install the default System Timer Driver
+  timer->driver = kernelAllDrivers.sysTimerDriver;
+}
+
+
+void kernelInstallRtcDriver(kernelRtc *rtc)
+{
+  // Install the default Real-Time clock driver
+  rtc->driver = kernelAllDrivers.rtcDriver;
+}
+
+
+void kernelInstallDmaDriver(kernelDma *dma)
+{
+  // Install the default DMA driver
+  dma->driver = kernelAllDrivers.dmaDriver;
+}
+
+
+void kernelInstallKeyboardDriver(kernelKeyboard *keyboard)
+{
+  // Install the default keyboard driver
+  keyboard->driver = kernelAllDrivers.keyboardDriver;
+}
+
+
+void kernelInstallMouseDriver(kernelMouse *mouse)
+{
+  // Install the default mouse driver
+  mouse->driver = kernelAllDrivers.mouseDriver;
+}
+
+
+void kernelInstallFloppyDriver(kernelPhysicalDisk *theDisk)
+{
+  // Install the default Floppy disk driver
+  theDisk->driver = kernelAllDrivers.floppyDriver;
+}
+
+
+void kernelInstallHardDiskDriver(kernelPhysicalDisk *theDisk)
+{
+  // Install the hard disk driver
+  theDisk->driver = kernelAllDrivers.ideDriver;
+}
+
+
+void kernelInstallGraphicDriver(kernelGraphicAdapter *adapter)
 {
   // Install the default graphic adapter driver
-  return (kernelGraphicInstallDriver(kernelAllDrivers.graphicDriver));
+  adapter->driver = kernelAllDrivers.graphicDriver;
+}
+
+
+kernelFilesystemDriver *kernelDriverGetFat(void)
+{
+  // Return the default FAT filesystem driver
+  return (kernelAllDrivers.fatDriver);
+}
+
+
+kernelTextOutputDriver *kernelDriverGetTextConsole(void)
+{
+  // Return the default text mode console driver
+  return (kernelAllDrivers.textConsoleDriver);
+}
+
+
+kernelTextOutputDriver *kernelDriverGetGraphicConsole(void)
+{
+  // Return the default graphic mode console driver
+  return (kernelAllDrivers.graphicConsoleDriver);
 }

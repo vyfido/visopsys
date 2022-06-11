@@ -21,6 +21,8 @@
 
 #if !defined(_KERNELPAGEMANAGER_H)
 
+#include "kernelLock.h"
+
 // Definitions
 #define TABLES_PER_DIR  1024
 #define PAGES_PER_TABLE 1024
@@ -51,7 +53,7 @@ typedef volatile struct
   int privilege;
   kernelPageDirPhysicalMem *physical;
   kernelPageDirVirtualMem *virtual;
-  int dirLock;
+  kernelLock dirLock;
 
 } kernelPageDirectory;
 

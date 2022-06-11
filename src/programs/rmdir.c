@@ -22,7 +22,7 @@
 // This is the UNIX-style command for removing directories
 
 #include <stdio.h>
-#include <string.h>
+#include <sys/vsh.h>
 #include <sys/api.h>
 
 
@@ -34,39 +34,15 @@ static void usage(char *name)
 }
 
 
-static void makeAbsolutePath(const char *orig, char *new)
-{
-  char cwd[MAX_PATH_LENGTH];
-
-  if ((orig[0] != '/') && (orig[0] != '\\'))
-    {
-      multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
-
-      strcpy(new, cwd);
-
-      if ((new[strlen(new) - 1] != '/') &&
-	  (new[strlen(new) - 1] != '\\'))
-	strncat(new, "/", 1);
-
-      strcat(new, orig);
-    }
-  else
-    strcpy(new, orig);
-
-  return;
-}
-
-
 int main(int argc, char *argv[])
 {
   int status = 0;
   char fileName[MAX_PATH_NAME_LENGTH];
   int count;
 
-
   if (argc < 2)
     {
-      usage(argv[0]);
+      usage((argc > 0)? argv[0] : "rmdir");
       return (status = ERR_ARGUMENTCOUNT);
     }
 
@@ -78,7 +54,7 @@ int main(int argc, char *argv[])
 	return (status = ERR_NULLPARAMETER);
 
       // Make sure the directory name is complete
-      makeAbsolutePath(argv[count], fileName);
+      vshMakeAbsolutePath(argv[count], fileName);
 
       // Attempt to remove the directory
       status = fileRemoveDir(fileName);

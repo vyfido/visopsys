@@ -23,15 +23,17 @@
 // system tree.
 
 #include "kernelFile.h"
-#include "kernelMemoryManager.h"
-#include "kernelResourceManager.h"
-#include "kernelSysTimerFunctions.h"
-#include "kernelRtcFunctions.h"
-#include "kernelMiscAsmFunctions.h"
+#include "kernelMalloc.h"
+#include "kernelLock.h"
+#include "kernelSysTimer.h"
+#include "kernelRtc.h"
+#include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <sys/errors.h>
 #include <string.h>
 
+#include "kernelText.h"
+ 
 
 // The root directory
 static kernelFileEntry *rootDirectory = NULL;
@@ -47,7 +49,7 @@ static kernelFileEntry *fileEntryMemory = NULL;
 static kernelFileEntry *fileEntries[MAX_BUFFERED_FILES];
 static unsigned usedFileEntries;
 
-static int fileManagerInitialized = 0;
+static int initialized = 0;
 
   
 static int initFileEntryList(void)
@@ -59,10 +61,7 @@ static int initFileEntryList(void)
   int count;
 
   // Allocate memory for file entries
-  fileEntryMemory =
-    kernelMemoryRequestSystemBlock((sizeof(kernelFileEntry) *
-				    MAX_BUFFERED_FILES), 0, "file entry data");
-
+  fileEntryMemory = kernelMalloc(sizeof(kernelFileEntry) * MAX_BUFFERED_FILES);
   if (fileEntryMemory == NULL)
     {
       kernelError(kernel_error, 
@@ -92,12 +91,12 @@ static inline int isLeafDir(kernelFileEntry *dir)
   int status = 0;
   kernelFileEntry *listItemPointer = NULL;
 
-  listItemPointer = dir->firstFile;
+  listItemPointer = dir->contents;
   
   while (listItemPointer != NULL)
     {
       if ((listItemPointer->type == dirT) &&
-	  (listItemPointer->firstFile != NULL))
+	  (listItemPointer->contents != NULL))
 	break;
       else
 	listItemPointer = 
@@ -113,100 +112,22 @@ static inline int isLeafDir(kernelFileEntry *dir)
 }
 
 
-static int checkObjectAndDriver(kernelFilesystem *theFilesystem, 
-				char *invokedBy)
-{
-  // This routine consists of a couple of things commonly done by the
-  // other driver wrapper routines.  I've done this to minimize the amount
-  // of duplicated code.  As its argument, it takes the name of the 
-  // routine that called it so that any error messages can better reflect
-  // what was really being done when the error occurred.
-
-  int status = 0;
-
-  // Make sure the filesystem object isn't NULL (which could indicate that the
-  // filesystem has not been properly mounted)
-  if (theFilesystem == NULL)
-    {
-      kernelError(kernel_error, "The filesystem object is null");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  // Make sure that the filesystem has a non-NULL driver
-  if (theFilesystem->filesystemDriver == NULL)
-    {
-      kernelError(kernel_error, "The filesystem object has a NULL driver");
-      return (status = ERR_NOSUCHDRIVER);
-    }
-
-  // Make sure the disk object isn't NULL (which could indicate that the
-  // device has not been properly registered)
-  if (theFilesystem->disk == NULL)
-    {
-      kernelError(kernel_error, "The filesystem object has a NULL disk "
-		  "object");
-      return (status = ERR_BADADDRESS);
-    }
-
-  return (status = 0);
-}
-
-
 static int unbufferDirectory(kernelFileEntry *dir)
 {
   // This function is internal, and is called when the tree of file
   // and directory entries becomes too full.  It will "un-buffer" all of
-  // one directory entry's contents (sub-entries) from memory, committing 
-  // directories back to the disk if necessary (if they've been changed).  
+  // one directory entry's contents (sub-entries) from memory.  
   // The decision about which entry to un-buffer is based on LRU (least
   // recently used).  Returns 0 on success, negative otherwise.
 
   int status = 0;
-  kernelFilesystem *theFilesystem = NULL;
-  kernelFilesystemDriver *theDriver = NULL;
   kernelFileEntry *listItemPointer = NULL;
   kernelFileEntry *nextListItem = NULL;
 
-  // We should now have a directory that is safe to unbuffer.  If the
-  // directory has been changed (is dirty) then we must commit it before
-  // unbuffering
-  if (dir->dirty)
-    {
-      theFilesystem = (kernelFilesystem *) dir->filesystem;
+  // We should have a directory that is safe to unbuffer.  We can return
+  // this directory's contents (sub-entries) to the list of free entries.
 
-      if (theFilesystem == NULL)
-	{
-	  kernelError(kernel_error, "NULL filesystem pointer");
-	  return (status = ERR_BADADDRESS);
-	}
-
-      theDriver =
-	(kernelFilesystemDriver *) theFilesystem->filesystemDriver;
-
-      // Check the filesystem, its driver, and its disk object
-      status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-      if (status < 0)
-	return (status);
-
-      // Does the driver have a 'write dir' function?
-      if (theDriver->driverWriteDir != NULL)
-	{
-	  status = theDriver->driverWriteDir(dir);
-
-	  if (status < 0)
-	    {
-	      kernelError(kernel_error, "Can't write directory");
-	      return (status);
-	    }
-	}
-
-      dir->dirty = 0;
-    }
-
-  // Ok, now we can return this directory's contents (sub-entries) to the 
-  // list of free entries.
-
-  listItemPointer = (kernelFileEntry *) dir->firstFile;
+  listItemPointer = (kernelFileEntry *) dir->contents;
 
   // Step through the list of directory entries
   while (listItemPointer != NULL)
@@ -216,7 +137,7 @@ static int unbufferDirectory(kernelFileEntry *dir)
       listItemPointer = nextListItem;
     }
 
-  dir->firstFile = NULL;
+  dir->contents = NULL;
 
   // This directory now looks to the system as if it had not yet been read
   // from disk.
@@ -247,14 +168,14 @@ static kernelFileEntry *findUnbufferableDir(void)
   for (count = 0; count < usedFileEntries; count ++)
     {
       // Skip '.' and '..' entries
-      if (!strcmp((char *) fileEntries[count]->fileName, ".") ||
-	  !strcmp((char *) fileEntries[count]->fileName, ".."))
+      if (!strcmp((char *) fileEntries[count]->name, ".") ||
+	  !strcmp((char *) fileEntries[count]->name, ".."))
 	continue;
 	    
       // Don't bother with anything that isn't a directory OR is a
       // directory with no contents.
       if ((fileEntries[count]->type != dirT) ||
-	  (fileEntries[count]->firstFile == NULL))
+	  (fileEntries[count]->contents == NULL))
 	continue;
 
       // Don't unbuffer any directories that are the root of filesystems
@@ -273,17 +194,15 @@ static kernelFileEntry *findUnbufferableDir(void)
 
       // Finally, loop through the files in the directory and make sure
       // that none of them are currently open.
-      listItemPointer = fileEntryMemory[count].firstFile;
+      listItemPointer = fileEntryMemory[count].contents;
       while (listItemPointer != NULL)
 	{
 	  if (listItemPointer->openCount)
 	    break;
-	  else if (listItemPointer->lockedByProcess)
-	    {
-	      if (kernelResourceManagerVerifyLock(
-					  &listItemPointer->lockedByProcess))
-		break;
-	    }
+
+	  else if (kernelLockVerify(&(listItemPointer->lock)))
+	    break;
+
 	  else
 	    listItemPointer = 
 	      (kernelFileEntry *) listItemPointer->nextEntry;
@@ -303,97 +222,26 @@ static kernelFileEntry *findUnbufferableDir(void)
 }
 
 
-static int updateSubdirs(kernelFileEntry *directory)
-{
-  // This function is internal, and is used to update the '..' entries
-  // of all subdirectories of the requested directory.  Returns 0
-  // on success, negative otherwise
-
-  int status = 0;
-  kernelFileEntry *listItemPointer = NULL;
-  kernelFileEntry *dotDotEntry = NULL;
-
-  // Make sure it's really a directory
-  if (directory->type != dirT)
-    {
-      kernelError(kernel_error, "Directory to update is not a directory");
-      return (status = ERR_NOTADIR);
-    }
-
-  // Loop through all of the entries of this directory.  All subdirs
-  // need to have their '..' entries updated
-  listItemPointer = directory->firstFile;
-
-  while (listItemPointer != NULL)
-    {
-      // If this entry is the '.' entry, we will update it
-      if (!strcmp((char *) listItemPointer->fileName, "."))
-	{
-	  // We found the '.' entry.  Update it
-	  listItemPointer->creationTime = directory->creationTime;
-	  listItemPointer->creationDate = directory->creationDate;
-	  listItemPointer->modifiedTime = directory->modifiedTime;
-	  listItemPointer->modifiedDate = directory->modifiedDate;
-	  listItemPointer->accessedTime = directory->accessedTime;
-	  listItemPointer->accessedDate = directory->accessedDate;
-	  listItemPointer->size = directory->size;
-	  listItemPointer->lastAccess = directory->lastAccess;
-	}
-
-      // Is this entry a subdirectory?
-      else if (listItemPointer->type == dirT)
-	{
-	  // It's a directory.  We need to find the '..' directory, if
-	  // there is one
-	  dotDotEntry = listItemPointer->firstFile;
-
-	  while (dotDotEntry != NULL)
-	    {
-	      if (!strcmp((char *) dotDotEntry->fileName, ".."))
-		{
-		  // We found the '..' entry.  Copy all of the essential
-		  // information from the parent to the child
-
-		  dotDotEntry->creationTime = directory->creationTime;
-		  dotDotEntry->creationDate = directory->creationDate;
-		  dotDotEntry->modifiedTime = directory->modifiedTime;
-		  dotDotEntry->modifiedDate = directory->modifiedDate;
-		  dotDotEntry->accessedTime = directory->accessedTime;
-		  dotDotEntry->accessedDate = directory->accessedDate;
-		  dotDotEntry->size = directory->size;
-		  dotDotEntry->lastAccess = directory->lastAccess;
-		  
-		  // We're done for this subdir
-		  break;
-		}
-
-	      // Continue
-	      dotDotEntry = dotDotEntry->nextEntry;
-	    }
-	}
-
-      // Continue
-      listItemPointer = listItemPointer->nextEntry;
-    }
-
-  // Return success
-  return (status = 0);
-}
-
-
-static inline void fileEntry2file(kernelFileEntry *fileEntry, file *theFile)
+static inline void fileEntry2File(kernelFileEntry *fileEntry, file *theFile)
 {
   // This little function will copy the applicable parts from a file
   // entry structure to an external 'file' structure.
 
-  theFile->handle = (void *) fileEntry;
-  strncpy(theFile->name, (char *) fileEntry->fileName, 
-	  MAX_NAME_LENGTH);
+  strncpy(theFile->name, (char *) fileEntry->name, MAX_NAME_LENGTH);
   theFile->name[MAX_NAME_LENGTH - 1] = '\0';
+
+  // Resolve links
+  if (fileEntry->type == linkT)
+    fileEntry = kernelFileResolveLink(fileEntry);
+
+  theFile->handle = (void *) fileEntry;
   theFile->type = fileEntry->type;
-  strncpy(theFile->filesystem, (char *) ((kernelFilesystem *)
-			 fileEntry->filesystem)->mountPoint, MAX_PATH_LENGTH);
+
+  strncpy(theFile->filesystem,
+	  (char *) ((kernelFilesystem *) fileEntry->filesystem)
+	  ->mountPoint, MAX_PATH_LENGTH);
   theFile->filesystem[MAX_PATH_LENGTH - 1] = '\0';
+
   theFile->creationTime = fileEntry->creationTime;
   theFile->creationDate = fileEntry->creationDate;
   theFile->accessedTime = fileEntry->accessedTime;
@@ -427,12 +275,12 @@ static int dirIsEmpty(kernelFileEntry *theDir)
     }
 
   // Assign the first item in the directory to our iterator pointer
-  listItemPointer = theDir->firstFile;
+  listItemPointer = theDir->contents;
 
   while(listItemPointer != NULL)
     {
-      if (!strcmp((char *) listItemPointer->fileName, ".") ||
-	  !strcmp((char *) listItemPointer->fileName, ".."))
+      if (!strcmp((char *) listItemPointer->name, ".") ||
+	  !strcmp((char *) listItemPointer->name, ".."))
 	listItemPointer = (kernelFileEntry *) listItemPointer->nextEntry;
       else
 	return (isEmpty = 0);
@@ -494,58 +342,6 @@ static int isDescendent(kernelFileEntry *leaf, kernelFileEntry *node)
 	// It is a descendant
 	return (status = 1);
     }
-}
-
-
-static int findDirtyRecur(kernelFileEntry *startDir, 
-			  kernelFileEntry **syncDirs, int numDirs)
-{
-  // This function is internal, and is used to recursively add directory
-  // objects to a list of directories that need to be synchronized on disk.
-  // The first parameter is a pointer to the current starting point.  The
-  // second parameter is a pointer to an array of pointers, to which we
-  // should add any "dirty" directories we find, and the third
-  // parameter is the number of items currently in that list.
-  // On success, this function returns the cumulative number of items
-  // found.  On failure it simply returns zero, so that the maximum number
-  // of legitimate "dirty" directories can be found.  It is important for
-  // this recursive operation not to fail completely if some error occurs,
-  // so that as much data as possible can be preserved.
-
-  kernelFileEntry *listItemPointer = NULL;
-  
-  // Make sure that neither of the pointers we're receiving are NULL
-  if ((startDir == NULL) || (syncDirs == NULL))
-    return (numDirs);
-
-  // Make sure startDir is really a directory
-  if (startDir->type != dirT)
-    {
-      kernelError(kernel_error, "Not a directory");
-      return (numDirs);
-    }
-
-  // The recursion is breadth-first, to preemptively order the list
-  // of pointers as much as possible.
-
-  // Check whether the starting directory is dirty.
-  if (startDir->dirty != 0)
-    syncDirs[numDirs++] = startDir;
-
-  // Now we have to do our recursion.  We should go though each 
-  // subdirectory, if any.
-  listItemPointer = startDir->firstFile;
-
-  while (listItemPointer != NULL)
-    {
-      if (listItemPointer->type == dirT)
-	numDirs = findDirtyRecur(listItemPointer, 
-				 syncDirs, numDirs);
-
-      listItemPointer = (kernelFileEntry *) listItemPointer->nextEntry;
-    }
-  
-  return (numDirs);
 }
 
 
@@ -615,7 +411,6 @@ int kernelFileInitialize(void)
   
   // Initialize the file entry list
   status = initFileEntryList();
-
   if (status < 0)
     {
       kernelError(kernel_error, "Error making file entry list");
@@ -623,7 +418,7 @@ int kernelFileInitialize(void)
     }
 
   // We're initialized
-  fileManagerInitialized = 1;
+  initialized = 1;
 
   return (status = 0);
 }
@@ -659,7 +454,6 @@ int kernelFileFixupPath(const char *originalPath, char *newPath)
 
   int status = 0;
   int originalLength = 0;
-  int originalPathLength = 0;
   int newPathLength = 0;
   int count;
 
@@ -670,8 +464,7 @@ int kernelFileFixupPath(const char *originalPath, char *newPath)
       return (status = ERR_NULLPARAMETER);
     }
 
-  // Make sure there is a leading '/' or '\', and if so, set the 
-  // default separator to be that character
+  // Make sure there is a leading '/' or '\'
   if ((originalPath[0] != '/') && (originalPath[0] != '\\'))
     {
       kernelError(kernel_error, "Path to fix is not an absolute pathname");
@@ -687,7 +480,7 @@ int kernelFileFixupPath(const char *originalPath, char *newPath)
       // Deal with slashes
       if ((originalPath[count] == '/') || (originalPath[count] == '\\'))
 	{
-	  if ((newPath > 0) && (newPath[newPathLength - 1] == '/'))
+	  if ((newPathLength > 0) && (newPath[newPathLength - 1] == '/'))
 	    continue;
 	  else
 	    {
@@ -696,7 +489,7 @@ int kernelFileFixupPath(const char *originalPath, char *newPath)
 	    }
 	}
 
-      // Deal with '.' and '..' and '...' after a separator
+      // Deal with '.' and '..' between separators
       if ((originalPath[count] == '.') && (newPath[newPathLength - 1] == '/'))
 	{
 	  // We must determine whether this will be dot or dotdot.  If it
@@ -735,50 +528,10 @@ int kernelFileFixupPath(const char *originalPath, char *newPath)
 	      count += 2;
 	      continue;
 	    }
-	  else if ((originalPath[count + 1] == '.') && 
-		   (originalPath[count + 2] == '.') &&
-		   ((originalPath[count + 3] == '/') || 
-		    (originalPath[count + 3] == '\\') ||
-		    (originalPath[count + 3] == NULL)))
-	    {
-	      // It's dotdotdot.  We must skip backward in the new path 
-	      // until the second-next-but-one separator.  If we're at the
-	      // root level, simply copy (it will probably fail later
-	      // as a 'no such file')
-
-	      originalPathLength = newPathLength;
-
-	      if (newPathLength > 1)
-		{
-		  newPathLength -= 1;
-		  while((newPath[newPathLength - 1] != '/') && 
-			(newPathLength > 1))
-		    newPathLength -= 1;
-		}
-	      if (newPathLength > 1)
-		{
-		  newPathLength -= 1;
-		  while((newPath[newPathLength - 1] != '/') && 
-			(newPathLength > 1))
-		    newPathLength -= 1;
-		}
-	      else
-		{
-		  newPathLength = originalPathLength;
-
-		  newPath[newPathLength++] = originalPath[count];
-		  newPath[newPathLength++] = originalPath[count + 1];
-		  newPath[newPathLength++] = originalPath[count + 2];
-		  newPath[newPathLength++] = originalPath[count + 3];
-		}
-	      count += 3;
-	      continue;
-	    }
 	}
 
       // Other possibilities, just copy
-      else
-	newPath[newPathLength++] = originalPath[count];
+      newPath[newPathLength++] = originalPath[count];
     }
 
   // Stick the NULL on the end
@@ -806,12 +559,6 @@ kernelFileEntry *kernelFileNewEntry(kernelFilesystem *theFilesystem)
       return (theEntry = NULL);
     }
 
-  // Check the filesystem, its driver, and its disk object
-  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-	  
-  if (status < 0)
-    return (theEntry = NULL);
-
   // Make sure there is a free file entry available
   while (usedFileEntries >= MAX_BUFFERED_FILES)
     {
@@ -828,7 +575,6 @@ kernelFileEntry *kernelFileNewEntry(kernelFilesystem *theFilesystem)
 	}
 
       status = unbufferDirectory(oldestDirectory);
-
       if (status < 0)
 	{
 	  // Oops, error unbuffering the directory
@@ -862,7 +608,7 @@ kernelFileEntry *kernelFileNewEntry(kernelFilesystem *theFilesystem)
   theEntry->filesystem = (void *) theFilesystem;
 
   // Get a pointer to the filesystem driver
-  theDriver = (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
+  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
 
   // OK, we just have to call the filesystem driver function
   if (theDriver->driverNewEntry != NULL)
@@ -877,7 +623,6 @@ void kernelFileReleaseEntry(kernelFileEntry *theEntry)
   // This function takes a file entry to release, and puts it back
   // in the pool of free file entries.
 
-  int status = 0;
   int spotNumber = -1;
   kernelFilesystem *theFilesystem = NULL;
   kernelFilesystemDriver *theDriver = NULL;
@@ -898,16 +643,11 @@ void kernelFileReleaseEntry(kernelFileEntry *theEntry)
       if (theFilesystem != NULL)
 	{
 	  // Get a pointer to the filesystem driver
-	  theDriver = 
-	    (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
+	  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
 
-	  // Check the filesystem, its driver, and its disk object
-	  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-	  
-	  if (status >= 0)
-	    // OK, we just have to check on the filesystem driver function
-	    if (theDriver->driverInactiveEntry != NULL)
-	      theDriver->driverInactiveEntry(theEntry);
+	  // OK, we just have to check on the filesystem driver function
+	  if (theDriver->driverInactiveEntry != NULL)
+	    theDriver->driverInactiveEntry(theEntry);
 	}
     }
 
@@ -945,8 +685,7 @@ void kernelFileReleaseEntry(kernelFileEntry *theEntry)
 }
 
 
-int kernelFileInsertEntry(kernelFileEntry *theFile,
-			  kernelFileEntry *directory)
+int kernelFileInsertEntry(kernelFileEntry *theFile, kernelFileEntry *directory)
 {
   // This function is used to add a new entry to a target directory.  The
   // function will verify that the file does not already exist.
@@ -966,24 +705,23 @@ int kernelFileInsertEntry(kernelFileEntry *theFile,
   // Make sure directory is really a directory
   if (directory->type != dirT)
     {
-      kernelError(kernel_error,
-		  "Directory in which to insert file is not a directory");
+      kernelError(kernel_error, "Directory in which to insert file is not "
+		  "a directory");
       return (status = ERR_NOTADIR);
     }
 
   // Make sure the entry does not already exist
-  listItemPointer = (kernelFileEntry *) directory->firstFile;
+  listItemPointer = (kernelFileEntry *) directory->contents;
   while (listItemPointer != NULL)
     {
       // We do a case-sensitive comparison here, regardless of whether
       // the filesystem driver cares about case.  We are worried about
       // exact matches.
-      if (!strcmp((char *) listItemPointer->fileName, 
-		  (char *) theFile->fileName))
+      if (!strcmp((char *) listItemPointer->name, (char *) theFile->name))
 	{
 	  kernelError(kernel_error, "A file by the name \"%s\" already exists "
-		      "in the directory \"%s\"", theFile->fileName,
-		      directory->fileName);
+		      "in the directory \"%s\"", theFile->name,
+		      directory->name);
 	  return (status = ERR_ALREADY);
 	}
 
@@ -998,7 +736,7 @@ int kernelFileInsertEntry(kernelFileEntry *theFile,
       
   if (numberFiles >= MAX_DIRECTORY_ENTRIES)
     {
-      // Make the error that the directory is full
+      // Make an error that the directory is full
       kernelError(kernel_error,
 		  "The directory is full; can't create new entry");
       return (status = ERR_NOCREATE);
@@ -1008,7 +746,7 @@ int kernelFileInsertEntry(kernelFileEntry *theFile,
   theFile->parentDirectory = (void *) directory;
 
   // Set the "list item" pointer to the start of the file chain
-  listItemPointer = (kernelFileEntry *) directory->firstFile;
+  listItemPointer = (kernelFileEntry *) directory->contents;
   
   // For each file in the file chain, we loop until we find a
   // filename that is alphabetically greater than our new entry.
@@ -1017,8 +755,8 @@ int kernelFileInsertEntry(kernelFileEntry *theFile,
   while (listItemPointer != NULL)
     {
       // Make sure we don't scan the '.' or '..' entries, if there are any
-      if (!strcmp((char *) listItemPointer->fileName, ".") ||
-	  !strcmp((char *) listItemPointer->fileName, ".."))
+      if (!strcmp((char *) listItemPointer->name, ".") ||
+	  !strcmp((char *) listItemPointer->name, ".."))
 	{
 	  // Move to the next filename.
 	  previousItemPointer = listItemPointer;
@@ -1026,8 +764,7 @@ int kernelFileInsertEntry(kernelFileEntry *theFile,
 	  continue;
 	}
 
-      if (strcmp((char *) listItemPointer->fileName,
-		 (char *) theFile->fileName) < 0)
+      if (strcmp((char *) listItemPointer->name, (char *) theFile->name) < 0)
 	{
 	  // This item is alphabetically "less than" the one we're
 	  // inserting.  Move to the next filename.
@@ -1051,9 +788,9 @@ int kernelFileInsertEntry(kernelFileEntry *theFile,
   // we should insert the new entry there
   if (listItemPointer == NULL)
     { 
-      if (directory->firstFile == NULL)
+      if (directory->contents == NULL)
 	// It's the first file
-	directory->firstFile = (void *) theFile;
+	directory->contents = (void *) theFile;
       else
 	{
 	  // It's the last file
@@ -1068,12 +805,11 @@ int kernelFileInsertEntry(kernelFileEntry *theFile,
   // If the filenames are the same it's an error.  We are only worried
   // about exact matches, so do a case-sensitive comparison regardless of
   // whether the filesystem driver cares about case.
-  else if (!strcmp((char *) theFile->fileName, 
-		   (char *) listItemPointer->fileName))
+  else if (!strcmp((char *) theFile->name, (char *) listItemPointer->name))
     {
       // Oops, the file exists
       kernelError(kernel_error, "A file named '%s' exists in the directory",
-		  theFile->fileName);
+		  theFile->name);
       return (status = ERR_ALREADY);
     }
 
@@ -1090,7 +826,7 @@ int kernelFileInsertEntry(kernelFileEntry *theFile,
       else
 	{
 	  // We're the new first item in the list
-	  directory->firstFile = (void *) theFile;
+	  directory->contents = (void *) theFile;
 	  theFile->previousEntry = NULL;
 	}
       
@@ -1153,8 +889,8 @@ int kernelFileRemoveEntry(kernelFileEntry *entry)
   // If we're deleting the first file of the directory, we have to 
   // change the parent directory's "first file" pointer (In addition to 
   // the other things we do) to point to the following file, if any.
-  if (entry == (kernelFileEntry *) directory->firstFile)
-    directory->firstFile = (void *) nextEntry;
+  if (entry == (kernelFileEntry *) directory->contents)
+    directory->contents = (void *) nextEntry;
 
   // Make this item's 'previous' item refer to this item's 'next' as its
   // own 'next'.  Did that sound bitchy?
@@ -1177,6 +913,52 @@ int kernelFileRemoveEntry(kernelFileEntry *entry)
   // directories.
 
   return (status = 0);
+}
+
+
+int kernelFileMakeDotDirs(kernelFilesystem *filesystem,
+			  kernelFileEntry *parentDir, kernelFileEntry *dir)
+{
+  // This just makes the '.' and '..' links in a new directory
+
+  int status = 0;
+  kernelFileEntry *dotDir = NULL;
+  kernelFileEntry *dotDotDir = NULL;
+
+  if ((filesystem == NULL) || (parentDir == NULL) || (dir == NULL))
+    {
+      kernelError(kernel_error, "NULL parameter");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  dotDir = kernelFileNewEntry(filesystem);
+  if (dotDir == NULL)
+    return (status = ERR_NOFREE);
+
+  strncpy((char *) dotDir->name, ".", 2);
+  dotDir->type = linkT;
+  dotDir->contents = (void *) dir;
+
+  status = kernelFileInsertEntry(dotDir, dir);
+
+  if (parentDir != dir)
+    {
+      dotDotDir = kernelFileNewEntry(filesystem);
+
+      if (dotDotDir == NULL)
+	{
+	  kernelFileReleaseEntry(dotDir);
+	  return (status = ERR_NOFREE);
+	}
+
+      strncpy((char *) dotDotDir->name, "..", 3);
+      dotDotDir->type = linkT;
+      dotDotDir->contents = dir->parentDirectory;
+
+      status = kernelFileInsertEntry(dotDotDir, dir);
+    }
+  
+  return (status);
 }
 
 
@@ -1205,7 +987,7 @@ int kernelFileCountDirEntries(kernelFileEntry *theDirectory)
     }
 
   // Assign the first item in the directory to our iterator pointer
-  listItemPointer = theDirectory->firstFile;
+  listItemPointer = theDirectory->contents;
 
   while(listItemPointer != NULL)
     {
@@ -1214,6 +996,17 @@ int kernelFileCountDirEntries(kernelFileEntry *theDirectory)
     }
 
   return (fileCount);
+}
+
+
+kernelFileEntry *kernelFileResolveLink(kernelFileEntry *entry)
+{
+  // Take a file entry, and if it is a link, resolve the link.
+
+  if ((entry == NULL) || (entry->type != linkT) || (entry->contents == entry))
+    return (entry);
+  else
+    return (kernelFileResolveLink(entry->contents));
 }
 
 
@@ -1238,7 +1031,7 @@ kernelFileEntry *kernelFileLookup(const char *path)
   // We step through the directory structure, looking for the appropriate
   // directories based on the path we were given.  The string must start
   // with a slash, but may or may not end with a slash.
-  
+
   if ((path[0] != '/') && (path[0] != '\\'))
     {
       kernelError(kernel_error, "Lookup path must start at root");
@@ -1279,25 +1072,29 @@ kernelFileEntry *kernelFileLookup(const char *path)
 
       // Otherwise, we have somthing we can work with.
 
-      // Find the first item in the "current" directory
-      if (listItem->firstFile != NULL)
-	listItem = (kernelFileEntry *) listItem->firstFile;
-      else
-	// Nothing in the directory
-	return (listItem = NULL);
+      // Make sure we're working with a real directory, not a link
+      if (listItem->type == linkT)
+	listItem = kernelFileResolveLink(listItem);
 
       // Update the access time on this directory
       listItem->lastAccess = kernelSysTimerRead();
+
+      // Find the first item in the "current" directory
+      if (listItem->contents != NULL)
+	listItem = (kernelFileEntry *) listItem->contents;
+      else
+	// Nothing in the directory
+	return (listItem = NULL);
 
       while(1)
 	{
 	  // First, try a case-sensitive comparison, whether or not the
 	  // filesystem is case-sensitive.  If that fails and the filesystem
 	  // is case-insensitive, try that kind of comparison also.
-	  if ((!strcmp((char *) listItem->fileName, itemName)) ||
+	  if ((!strcmp((char *) listItem->name, itemName)) ||
 	      ((((kernelFilesystem *) 
 		 listItem->filesystem)->caseInsensitive) &&
-	       !strcasecmp((char *) listItem->fileName, itemName)))
+	       !strcasecmp((char *) listItem->name, itemName)))
 	    {
 	      // Found it.
 	      found = 1;
@@ -1321,9 +1118,13 @@ kernelFileEntry *kernelFileLookup(const char *path)
 	  return (listItem = NULL);
 	}
 
+      // If this is a link, use the target of the link instead
+      if (listItem->type == linkT)
+	listItem = kernelFileResolveLink(listItem);
+
       // Determine whether the requested item is really a directory, and if
       // so, whether the directory's files have been read
-      if ((listItem->type == dirT) && (listItem->firstFile == NULL))
+      if ((listItem->type == dirT) && (listItem->contents == NULL))
 	{
 	  // We have to read this directory from the disk.  Allocate a new
 	  // directory buffer based on the number of bytes per sector and the
@@ -1332,21 +1133,14 @@ kernelFileEntry *kernelFileLookup(const char *path)
 	  // Get the filesystem object based on the filesystem number in the
 	  // file entry structure
 	  theFilesystem = listItem->filesystem;
-
 	  if (theFilesystem == NULL)
 	    {
 	      kernelError(kernel_error, "Entry has a NULL filesystem pointer");
 	      return (listItem = NULL);
 	    }
 
-	  theDriver = (kernelFilesystemDriver *)
-	    theFilesystem->filesystemDriver;
+	  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
 
-	  // Check the filesystem, its driver, and its disk object
-	  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-	  if (status < 0)
-	    return (listItem = NULL);
-  
 	  // OK, we just have to check on the filesystem driver function
 	  // we want to call
 	  if (theDriver->driverReadDir == NULL)
@@ -1357,8 +1151,8 @@ kernelFileEntry *kernelFileLookup(const char *path)
 	    }
 
 	  // Increase the open count on the directory's entry while we're
-	  // modifying it.  This will prevent the filesystem manager
-	  // from trying to unbuffer it while we're working
+	  // reading it.  This will prevent the filesystem manager from
+	  // trying to unbuffer it while we're working
 	  listItem->openCount++;
 
 	  // Lastly, we can call our target function
@@ -1368,12 +1162,13 @@ kernelFileEntry *kernelFileLookup(const char *path)
 
 	  if (status < 0)
 	    {
-	      kernelError(kernel_error, "Unable to read directory");
+	      kernelError(kernel_error, "Unable to read directory \"%s\"",
+			  listItem->name);
 	      return (listItem = NULL);
 	    }
 	}
     }
-  
+
   // Update the internal "last access" time on this target item
   listItem->lastAccess = kernelSysTimerRead();
 
@@ -1482,7 +1277,7 @@ int kernelFileFirst(const char *path, file *fileStructure)
   kernelFileEntry *directory = NULL;
   
   // Do not look for files until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
@@ -1522,11 +1317,11 @@ int kernelFileFirst(const char *path, file *fileStructure)
 
   fileStructure->handle = (void *) NULL;  // INVALID
 
-  if (directory->firstFile == NULL)
+  if (directory->contents == NULL)
     // The directory is empty
     return (status = ERR_NOSUCHFILE);
 
-  fileEntry2file((kernelFileEntry *) directory->firstFile, fileStructure);
+  fileEntry2File((kernelFileEntry *) directory->contents, fileStructure);
 
   // Return success
   return (status = 0);
@@ -1545,7 +1340,7 @@ int kernelFileNext(const char *path, file *fileStructure)
   kernelFileEntry *listItem = NULL;
 
   // Do not look for files until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
@@ -1585,25 +1380,25 @@ int kernelFileNext(const char *path, file *fileStructure)
 
   // Find the previously accessed file in the current directory.  Start 
   // with the first entry.
-  if (directory->firstFile != NULL)
-    listItem = (kernelFileEntry *) directory->firstFile;
+  if (directory->contents != NULL)
+    listItem = (kernelFileEntry *) directory->contents;
   else 
     {
       kernelError(kernel_error, "No file entries in directory");
       return (status = ERR_NOSUCHFILE);
     }
 
-  while (strcmp((char *) listItem->fileName, fileStructure->name)
+  while (strcmp((char *) listItem->name, fileStructure->name)
 	 && (listItem->nextEntry != NULL))
     listItem = (kernelFileEntry *) listItem->nextEntry;
 
-  if (!strcmp((char *) listItem->fileName, fileStructure->name)
+  if (!strcmp((char *) listItem->name, fileStructure->name)
       && (listItem->nextEntry != NULL))
     {
       // Now we've found that last item.  Move one more down the list
       listItem = (kernelFileEntry *) listItem->nextEntry;
       
-      fileEntry2file(listItem, fileStructure);
+      fileEntry2File(listItem, fileStructure);
       fileStructure->handle = (void *) NULL;  // INVALID
     }
   
@@ -1630,7 +1425,7 @@ int kernelFileFind(const char *path, file *fileStructure)
   kernelFileEntry *item = NULL;
 
   // Do not look for files until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
@@ -1652,7 +1447,6 @@ int kernelFileFind(const char *path, file *fileStructure)
 
   // Fix up the path name
   status = kernelFileFixupPath(path, fileName);
-
   if (status < 0)
     {
       kernelError(kernel_error, "Error fixing up path");
@@ -1661,7 +1455,6 @@ int kernelFileFind(const char *path, file *fileStructure)
 
   // Call the routine that actually finds the item
   item = kernelFileLookup(fileName);
-
   if (item == NULL)
     {
       // There is no such item
@@ -1672,7 +1465,7 @@ int kernelFileFind(const char *path, file *fileStructure)
   // relevant information from the kernelFileEntry structure into the user
   // structure.
 
-  fileEntry2file(item, fileStructure);
+  fileEntry2File(item, fileStructure);
   fileStructure->handle = (void *) NULL;  // INVALID
 
   // Return success
@@ -1695,7 +1488,7 @@ int kernelFileCreate(const char *path)
   kernelFileEntry *createItem = NULL;
 
   // Do not create any files until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
@@ -1710,7 +1503,6 @@ int kernelFileCreate(const char *path)
 
   // Fix up the path name
   status = kernelFileFixupPath(path, fileName);
-
   if (status < 0)
     {
       kernelError(kernel_error, "Error fixing up path");
@@ -1719,7 +1511,6 @@ int kernelFileCreate(const char *path)
 
   // Now make sure that the requested file does NOT exist
   createItem = kernelFileLookup(fileName);
-  
   if (createItem != NULL)
     {
       kernelError(kernel_error, "File to create already exists");
@@ -1730,7 +1521,6 @@ int kernelFileCreate(const char *path)
   // file.  That's all but the last part of the "fileName" argument to 
   // you and I.  We have to call this function to separate the two parts.
   status = kernelFileSeparateLast(fileName, prefix, name);
-
   if (status < 0)
     {
       kernelError(kernel_error, "Error parsing file path");
@@ -1748,7 +1538,6 @@ int kernelFileCreate(const char *path)
 
   // Now make sure that the requested directory exists
   directory = kernelFileLookup(prefix);
-  
   if (directory == NULL)
     {
       // The directory does not exist
@@ -1758,25 +1547,21 @@ int kernelFileCreate(const char *path)
       
   // OK, the directory exists.  Get the filesystem of the parent directory.
   theFilesystem = (kernelFilesystem *) directory->filesystem;
-
   if (theFilesystem == NULL)
     {
       kernelError(kernel_error, "Unable to determine target filesystem");
       return (status = ERR_BADDATA);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
+  // Not allowed in read-only file system
+  if (theFilesystem->readOnly)
+    return (status = ERR_NOWRITE);
 
-  // Check the filesystem, its driver, and its disk object
-  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-  if (status < 0)
-    return (status);
+  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
 
   // We can create the file in the directory.
   // Get a free file entry structure.
   createItem = kernelFileNewEntry(theFilesystem);
-
-  // Make sure it's OK
   if (createItem == NULL)
     {
       // There are currently no free file entry structures
@@ -1787,13 +1572,12 @@ int kernelFileCreate(const char *path)
 
   // Set up the appropriate data items in the new entry that aren't done
   // by default in the kernelFileNewEntry() function
-  strncpy((char *) createItem->fileName, name, MAX_NAME_LENGTH);
-  ((char *) createItem->fileName)[MAX_NAME_LENGTH - 1] = '\0';
+  strncpy((char *) createItem->name, name, MAX_NAME_LENGTH);
+  ((char *) createItem->name)[MAX_NAME_LENGTH - 1] = '\0';
   createItem->type = fileT;
 
   // Add the file to the directory
   status = kernelFileInsertEntry(createItem, directory);
-
   if (status < 0)
     {
       // We couldn't add the new entry to the directory.  We'd better 
@@ -1804,23 +1588,29 @@ int kernelFileCreate(const char *path)
       return (status);
     }
 
+  // Check the filesystem driver function for creating files.  If it
+  // exists, call it.
+  if (theDriver->driverCreateFile != NULL)
+    {
+      status = theDriver->driverCreateFile(createItem);
+      if (status < 0)
+	return (status);
+    }
+
   // Update the timestamps on the parent directory
   updateModifiedTime(directory);
   updateAccessedTime(directory);
 
-  // Propagate the info to any "dot" entries in subdirectories
-  updateSubdirs(directory);
+  // Update the directory
+  if (theDriver->driverWriteDir != NULL)
+    {
+      status = theDriver->driverWriteDir(directory);
+      if (status < 0)
+	return (status);
+    }
 
-  // Mark the parent directory as dirty
-  directory->dirty = 1;
-
-  // Check the filesystem driver function for creating files.  If it
-  // exists, call it.
-  if (theDriver->driverCreateFile != NULL)
-    return (status = theDriver->driverCreateFile(createItem));
-  else
-    // Return success
-    return (status = 0);
+  // Return success
+  return (status = 0);
 }
 
  
@@ -1839,29 +1629,18 @@ int kernelFileOpen(const char *fullPath, int openMode, file *fileStructure)
   int deleteSecure = 0;
 
   // Do not open any files until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
     }  
 
-  // Make sure the path name we were passed is not NULL
-  if (fullPath == NULL)
-    {
-      kernelError(kernel_error, "Pathname to open is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  // Check the fileHandle pointer also
-  if (fileStructure == NULL)
-    {
-      kernelError(kernel_error, "NULL file structure");
-      return (status = ERR_NULLPARAMETER);
-    }
+  // Check params
+  if ((fullPath == NULL) || (fileStructure == NULL))
+    return (status = ERR_NULLPARAMETER);
 
   // Fix up the path name
   status = kernelFileFixupPath(fullPath, fileName);
-
   if (status < 0)
     {
       kernelError(kernel_error, "Error parsing path to open");
@@ -1876,7 +1655,7 @@ int kernelFileOpen(const char *fullPath, int openMode, file *fileStructure)
   if (openItem == NULL)
     {
       // The file doesn't currently exist.  Were we told to create it?
-      if (!(openMode & OPENMODE_WRITE) || !(openMode & OPENMODE_CREATE))
+      if (!(openMode & OPENMODE_CREATE))
 	{
 	  // We aren't supposed to create the file, so return an error
 	  kernelError(kernel_error, "File to open does not exist");
@@ -1885,7 +1664,6 @@ int kernelFileOpen(const char *fullPath, int openMode, file *fileStructure)
 
       // We're going to create the file.
       status = kernelFileCreate(fileName);
-
       if (status < 0)
 	{
 	  kernelError(kernel_error, "Unable to create file");
@@ -1894,7 +1672,6 @@ int kernelFileOpen(const char *fullPath, int openMode, file *fileStructure)
 
       // Now find it.
       openItem = kernelFileLookup(fileName);
-
       if (openItem == NULL)
 	{
 	  // Something is really wrong
@@ -1903,7 +1680,7 @@ int kernelFileOpen(const char *fullPath, int openMode, file *fileStructure)
 	}
     }
 
-  // Make sure the item is really a file, and not a directory.
+  // Make sure the item is really a file, and not a directory or anything else
   if (openItem->type != fileT)
     return (status = ERR_NOTAFILE);
 
@@ -1912,20 +1689,18 @@ int kernelFileOpen(const char *fullPath, int openMode, file *fileStructure)
 
   // Get the filesystem that the file belongs to
   theFilesystem = (kernelFilesystem *) openItem->filesystem;
-
   if (theFilesystem == NULL)
     {
       kernelError(kernel_error, "NULL filesystem pointer");
       return (status = ERR_BADADDRESS);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
+  if ((openMode & OPENMODE_WRITE) && theFilesystem->readOnly)
+    // Not allowed in read-only file system
+    return (status = ERR_NOWRITE);
 
-  // Check the filesystem, its driver, and its disk object
-  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-  if (status < 0)
-    return (status);
-  
+  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+
   // There are extra things we need to do if this will be a write operation
 
   if (openMode & OPENMODE_WRITE)
@@ -1950,15 +1725,13 @@ int kernelFileOpen(const char *fullPath, int openMode, file *fileStructure)
 	    deleteSecure = 1;
 
 	  status = theDriver->driverDeleteFile(openItem, deleteSecure);
-
 	  if (status < 0)
 	    {
 	      kernelError(kernel_error, "Unable to truncate existing file");
 	      return (status);
 	    }
-
+	  
 	  status = theDriver->driverCreateFile(openItem);
-
 	  if (status < 0)
 	    {
 	      kernelError(kernel_error, "Unable to create file");
@@ -1967,8 +1740,7 @@ int kernelFileOpen(const char *fullPath, int openMode, file *fileStructure)
 	}
 
       // Put a write lock on the file
-      status = kernelResourceManagerLock(&openItem->lockedByProcess);
-      
+      status = kernelLockGet(&(openItem->lock));
       if (status < 0)
 	{
 	  kernelError(kernel_error, "Unable to lock file for writing");
@@ -1985,11 +1757,8 @@ int kernelFileOpen(const char *fullPath, int openMode, file *fileStructure)
   // Update the access times/dates on the file
   updateAccessedTime(openItem);
 
-  // Mark the parent directory as dirty
-  directory->dirty = 1;
-
   // Set up the file handle
-  fileEntry2file(openItem, fileStructure);
+  fileEntry2File(openItem, fileStructure);
 
   // Set the "open mode" flags on the opened file
   fileStructure->openMode = openMode;
@@ -2009,7 +1778,7 @@ int kernelFileClose(file *fileStructure)
   kernelFileEntry *theFile = NULL;
 
   // Do not close any files until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
@@ -2036,7 +1805,7 @@ int kernelFileClose(file *fileStructure)
     theFile->openCount -= 1;
 
   // If the file was locked by this PID, we should unlock it
-  kernelResourceManagerUnlock(&theFile->lockedByProcess);
+  kernelLockRelease(&(theFile->lock));
 
   // Return success
   return (status = 0);
@@ -2057,36 +1826,28 @@ int kernelFileRead(file *fileStructure, unsigned blockNum,
   kernelFilesystemDriver *theDriver = NULL;
   
   // Do not read any files until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
     }  
 
-  // Make sure the file structure we're being passed is not NULL
-  if (fileStructure == NULL)
+  // Check parameters
+  if ((fileStructure == NULL) || (fileBuffer == NULL))
     {
-      kernelError(kernel_error, "NULL file structure");
+      kernelError(kernel_error, "NULL file or buffer structure");
       return (status = ERR_NULLPARAMETER);
     }
-
-  // Make sure the number of blocks to read is non-zero
-  if (blocks == 0)
-    // This isn't an error exactly, there just isn't anything to do.
-    return (status = 0);
-
-  // Make sure the data buffer we're being passed is not NULL
-  if (fileBuffer == NULL)
-    {
-      kernelError(kernel_error, "NULL data buffer");
-      return (status = ERR_NULLPARAMETER);
-    }
-
   if (fileStructure->handle == NULL)
     {
       kernelError(kernel_error, "NULL file handle");
       return (status = ERR_NULLPARAMETER);
     }
+
+  // Make sure the number of blocks to read is non-zero
+  if (!blocks)
+    // This isn't an error exactly, there just isn't anything to do.
+    return (status = 0);
 
   // Has the file been opened properly for reading?  Maybe we only need
   // to do this check if we're writing.  Maybe it's OK to be pedantic
@@ -2100,21 +1861,14 @@ int kernelFileRead(file *fileStructure, unsigned blockNum,
   // Get the filesystem object based on the filesystem number in the
   // file structure
   theFilesystem = ((kernelFileEntry *) fileStructure->handle)->filesystem;
-
   if (theFilesystem == NULL)
     {
       kernelError(kernel_error, "NULL filesystem pointer");
       return (status = ERR_BADADDRESS);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
+  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
 
-  // Check the filesystem, its driver, and its disk object
-  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-
-  if (status < 0)
-    return (status);
-  
   // OK, we just have to check on the filesystem driver function we want
   // to call
   if (theDriver->driverReadFile == NULL)
@@ -2129,7 +1883,7 @@ int kernelFileRead(file *fileStructure, unsigned blockNum,
 				     blocks, fileBuffer);
 
   // Make sure the file structure is up to date after the call
-  fileEntry2file(fileStructure->handle, fileStructure);
+  fileEntry2File(fileStructure->handle, fileStructure);
   
   // Return the same error status that the driver function returned
   return (status);
@@ -2140,8 +1894,8 @@ int kernelFileWrite(file *fileStructure, unsigned blockNum,
 		    unsigned blocks, unsigned char *fileBuffer)
 {
   // This function is responsible for all writing of files.  It takes a
-  // file structure of an opened file, the number of pages to skip before
-  // commencing the write, the number of pages to write, and a buffer to use.
+  // file structure of an opened file, the number of blocks to skip before
+  // commencing the write, the number of blocks to write, and a buffer to use.
   // Returns negative on error, otherwise it returns the same status as
   // the driver function.
 
@@ -2150,36 +1904,28 @@ int kernelFileWrite(file *fileStructure, unsigned blockNum,
   kernelFilesystemDriver *theDriver = NULL;
   
   // Do not read any files until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
     }  
 
-  // Make sure the file structure we're being passed is not NULL
-  if (fileStructure == NULL)
+  // Check parameters
+  if ((fileStructure == NULL) || (fileBuffer == NULL))
     {
-      kernelError(kernel_error, "File structure to write is NULL");
+      kernelError(kernel_error, "NULL file or buffer structure");
+      return (status = ERR_NULLPARAMETER);
+    }
+  if (fileStructure->handle == NULL)
+    {
+      kernelError(kernel_error, "NULL file handle");
       return (status = ERR_NULLPARAMETER);
     }
 
   // Make sure the number of blocks to write is non-zero
-  if (blocks == 0)
+  if (!blocks)
     // Eek.  Nothing to do.  Why were we called?
     return (status = ERR_NODATA);
-
-  // Make sure the data buffer we're being passed is not NULL
-  if (fileBuffer == NULL)
-    {
-      kernelError(kernel_error, "Data buffer to write is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  if (fileStructure->handle == NULL)
-    {
-      kernelError(kernel_error, "File handle to write is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
 
   // Has the file been opened properly for writing?
   if (!(fileStructure->openMode & OPENMODE_WRITE))
@@ -2191,21 +1937,18 @@ int kernelFileWrite(file *fileStructure, unsigned blockNum,
   // Get the filesystem object based on the filesystem number in the
   // file structure
   theFilesystem = ((kernelFileEntry *) fileStructure->handle)->filesystem;
-
   if (theFilesystem == NULL)
     {
       kernelError(kernel_error, "NULL filesystem pointer");
       return (status = ERR_BADADDRESS);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
+  // Not allowed in read-only file system
+  if (theFilesystem->readOnly)
+    return (status = ERR_NOWRITE);
 
-  // Check the filesystem, its driver, and its disk object
-  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
+  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
 
-  if (status < 0)
-    return (status);
-  
   // OK, we just have to check on the filesystem driver function we want
   // to call
   if (theDriver->driverWriteFile == NULL)
@@ -2218,16 +1961,24 @@ int kernelFileWrite(file *fileStructure, unsigned blockNum,
   // Now we can call our target function
   status = theDriver->driverWriteFile(fileStructure->handle, blockNum,
 				      blocks, fileBuffer);
+  if (status < 0)
+    return (status);
   
-  // The file's parent directory should now be marked as dirty
-  ((kernelFileEntry *) ((kernelFileEntry *)
-			fileStructure->handle)->parentDirectory)->dirty = 1;
+  // Update the directory
+  if (theDriver->driverWriteDir != NULL)
+    {
+      status = theDriver
+	->driverWriteDir(((kernelFileEntry *) fileStructure->handle)
+			 ->parentDirectory);
+      if (status < 0)
+	return (status);
+    }
 
   // Make sure the file structure is up to date after the call
-  fileEntry2file(fileStructure->handle, fileStructure);
+  fileEntry2File(fileStructure->handle, fileStructure);
   
   // Return the same error status that the driver function returned
-  return (status);
+  return (status = 0);
 }
 
 
@@ -2246,7 +1997,7 @@ int kernelFileDelete(const char *path)
   int secureDelete = 0;
 
   // Do not delete any files until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
@@ -2261,7 +2012,6 @@ int kernelFileDelete(const char *path)
 
   // Fix up the path name
   status = kernelFileFixupPath(path, fileName);
-
   if (status < 0)
     {
       kernelError(kernel_error, "Error parsing path to delete");
@@ -2270,7 +2020,6 @@ int kernelFileDelete(const char *path)
 
   // Now make sure that the requested file exists
   theFile = kernelFileLookup(fileName);
-  
   if (theFile == NULL)
     {
       // The directory does not exist
@@ -2297,32 +2046,28 @@ int kernelFileDelete(const char *path)
 
   // Figure out which filesystem we're using
   theFilesystem = (kernelFilesystem *) theFile->filesystem;
-
   if (theFilesystem == NULL)
     {
       kernelError(kernel_error, "NULL filesystem pointer");
       return (status = ERR_BADADDRESS);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
+  // Not allowed in read-only file system
+  if (theFilesystem->readOnly)
+    return (status = ERR_NOWRITE);
 
-  // Check the filesystem, its driver, and its disk object
-  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-  if (status < 0)
-    return (status);
-  
+  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+
   // If the filesystem driver has a 'delete' function, call it.
   if (theDriver->driverDeleteFile != NULL)
     status = theDriver->driverDeleteFile(theFile, secureDelete);
-
   if (status < 0)
     // Don't quit here.  This is the filesystem driver's problem
-    kernelError(kernel_warn, 
-		"Filesystem driver did not release the file data");
+    kernelError(kernel_warn, "Filesystem driver did not release the file "
+		"data");
 
   // Remove the entry for this file from its parent directory
   status = kernelFileRemoveEntry(theFile);
-  
   if (status < 0)
     {
       kernelError(kernel_error, 
@@ -2337,11 +2082,13 @@ int kernelFileDelete(const char *path)
   updateModifiedTime(parentDir);
   updateAccessedTime(parentDir);
 
-  // Update any subdirectories
-  updateSubdirs(parentDir);
-
-  // Mark the parent directory as dirty
-  parentDir->dirty = 1;
+  // Update the directory
+  if (theDriver->driverWriteDir != NULL)
+    {
+      status = theDriver->driverWriteDir(parentDir);
+      if (status < 0)
+	return (status);
+    }
 
   // Return success
   return (status = 0);
@@ -2358,7 +2105,7 @@ int kernelFileDeleteSecure(const char *path)
   kernelFileEntry *theFile = NULL;
 
   // Do not delete any files until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
@@ -2373,7 +2120,6 @@ int kernelFileDeleteSecure(const char *path)
 
   // Fix up the path name
   status = kernelFileFixupPath(path, fileName);
-
   if (status < 0)
     {
       kernelError(kernel_error, "Error parsing path to delete");
@@ -2382,7 +2128,6 @@ int kernelFileDeleteSecure(const char *path)
 
   // Now make sure that the requested file exists
   theFile = kernelFileLookup(fileName);
-  
   if (theFile == NULL)
     {
       // The directory does not exist
@@ -2412,11 +2157,9 @@ int kernelFileMakeDir(const char *path)
   kernelFilesystemDriver *theDriver = NULL;
   kernelFileEntry *parent = NULL;
   kernelFileEntry *newDir = NULL;
-  kernelFileEntry *dotDir = NULL;
-  kernelFileEntry *dotDotDir = NULL;
 
   // Do not make any directories until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
@@ -2431,7 +2174,6 @@ int kernelFileMakeDir(const char *path)
 
   // Fix up the path name
   status = kernelFileFixupPath(path, fixedPath);
- 
   if (status < 0)
     {
       kernelError(kernel_error, "Error parsing path of directory to create");
@@ -2440,7 +2182,6 @@ int kernelFileMakeDir(const char *path)
 
   // We must separate the name of the new file from the requested path
   status = kernelFileSeparateLast(fixedPath, prefix, name);
-
   if (status < 0)
     {
       kernelError(kernel_error, "Error parsing path of directory to create");
@@ -2459,7 +2200,6 @@ int kernelFileMakeDir(const char *path)
 
   // Now make sure that the requested parent directory exists
   parent = kernelFileLookup(prefix);
-  
   if (parent == NULL)
     {
       // The directory does not exist
@@ -2476,82 +2216,79 @@ int kernelFileMakeDir(const char *path)
 
   // Figure out which filesystem we're using
   theFilesystem = (kernelFilesystem *) parent->filesystem;
-
   if (theFilesystem == NULL)
     {
       kernelError(kernel_error, "NULL filesystem pointer");
       return (status = ERR_BADADDRESS);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
+  // Not allowed in read-only file system
+  if (theFilesystem->readOnly)
+    return (status = ERR_NOWRITE);
 
-  // Allocate three new file entries (one each for the new dir, its 
-  // 'dot' entry and its 'dotdot' entry).
+  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+
+  // Allocate a new file entry 
   newDir = kernelFileNewEntry(theFilesystem);
-  dotDir = kernelFileNewEntry(theFilesystem);
-  dotDotDir = kernelFileNewEntry(theFilesystem);
-
-  // Make sure they're OK
-  if ((newDir == NULL) || (dotDir == NULL) || (dotDotDir == NULL))
+  if (newDir == NULL)
     {
       // Not enough free file structures
       kernelError(kernel_error, "Not enough free file structures");
-      kernelFileReleaseEntry(dotDotDir);
-      kernelFileReleaseEntry(dotDir);
-      kernelFileReleaseEntry(newDir);
       return (status = ERR_NOFREE);
     }
 
-  // Now, set the fields for our new items
+  // Now, set some fields for our new item
 
-  strncpy((char *) newDir->fileName, name, MAX_NAME_LENGTH);
-  ((char *) newDir->fileName)[MAX_NAME_LENGTH - 1] = '\0';
-  strncpy((char *) dotDir->fileName, ".", 2);
-  strncpy((char *) dotDotDir->fileName, "..", 3);
+  strncpy((char *) newDir->name, name, MAX_NAME_LENGTH);
+  ((char *) newDir->name)[MAX_NAME_LENGTH - 1] = '\0';
 
   newDir->type = dirT;
-  dotDir->type = fileT;
-  dotDotDir->type = fileT;
 
-  // The new directory is dirty, and so is its parent
-  parent->dirty = 1;
-  newDir->dirty = 1;
-
-  newDir->lastAccess = kernelSysTimerRead();
-  dotDir->lastAccess = newDir->lastAccess;
-  dotDotDir->lastAccess = parent->lastAccess;
-
-  // Now add the '.' and '..' entries to the new directory
-  kernelFileInsertEntry(dotDir, newDir);
-  kernelFileInsertEntry(dotDotDir, newDir);
+  // Set the creation, modification times, etc.
+  updateCreationTime(newDir);
+  updateModifiedTime(newDir);
+  updateAccessedTime(newDir);
 
   // Now add the new directory to its parent
   status = kernelFileInsertEntry(newDir, parent);
-
   if (status < 0)
     {
       // We couldn't add the directory for whatever reason.  In that case
       // we must attempt to deallocate the cluster we allocated, and return 
       // the three files we created to the free list
       kernelError(kernel_error, "Error adding new directory to parent");
-      kernelFileReleaseEntry(dotDotDir);
-      kernelFileReleaseEntry(dotDir);
       kernelFileReleaseEntry(newDir);
       return (status);
     }
 
-  // Check the filesystem, its driver, and its disk object
-  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-
+  // Create the '.' and '..' entries inside the directory
+  status = kernelFileMakeDotDirs(theFilesystem, parent, newDir);
   if (status < 0)
-    return (status);
-  
+    kernelError(kernel_warn, "Unable to create '.' and '..' directory "
+		"entries");
+
   // If the filesystem driver has a 'make dir' routine, call it.
   if (theDriver->driverMakeDir != NULL)
-    return (status = theDriver->driverMakeDir(newDir));
-  else
-    // Return success
-    return (status = 0);
+    {
+      status = theDriver->driverMakeDir(newDir);
+      if (status < 0)
+	return (status);
+    }
+
+  // Write both directories
+  if (theDriver->driverWriteDir != NULL)
+    {
+      status = theDriver->driverWriteDir(newDir);
+      if (status < 0)
+	return (status);
+
+      status = theDriver->driverWriteDir(parent);
+      if (status < 0)
+	return (status);
+    }
+
+  // Return success
+  return (status = 0);
 }
 
 
@@ -2569,7 +2306,7 @@ int kernelFileRemoveDir(const char *path)
   kernelFilesystemDriver *theDriver = NULL;
 
   // Do not delete any directories until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
@@ -2584,7 +2321,6 @@ int kernelFileRemoveDir(const char *path)
 
   // Fix up the path name
   status = kernelFileFixupPath(path, fileName);
-
   if (status < 0)
     {
       kernelError(kernel_error, "Error parsing path of directory to remove");
@@ -2601,7 +2337,6 @@ int kernelFileRemoveDir(const char *path)
 
   // Now make sure that the requested directory exists
   theDir = kernelFileLookup(fileName);
-  
   if (theDir == NULL)
     {
       // The directory does not exist
@@ -2628,43 +2363,38 @@ int kernelFileRemoveDir(const char *path)
 
   // Figure out which filesystem we're using
   theFilesystem = (kernelFilesystem *) theDir->filesystem;
-
   if (theFilesystem == NULL)
     {
       kernelError(kernel_error, "NULL filesystem pointer");
       return (status = ERR_BADADDRESS);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
+  // Not allowed in read-only file system
+  if (theFilesystem->readOnly)
+    return (status = ERR_NOWRITE);
 
-  // Check the filesystem, its driver, and its disk object
-  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-  if (status < 0)
-    return (status);
-  
+  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+
   // If the filesystem driver has a 'remove dir' function, call it.
   if (theDriver->driverRemoveDir != NULL)
     {
       status = theDriver->driverRemoveDir(theDir);
-
       if (status < 0)
 	return (status);
     }
 
   // Now remove the '.' and '..' entries from the directory
-  while (theDir->firstFile != NULL)
+  while (theDir->contents != NULL)
     {
-      status = kernelFileRemoveEntry((kernelFileEntry *) theDir->firstFile);
-      
+      status = kernelFileRemoveEntry((kernelFileEntry *) theDir->contents);
       if (status < 0)
 	return (status);
 
-      kernelFileReleaseEntry((kernelFileEntry *) theDir->firstFile);
+      kernelFileReleaseEntry((kernelFileEntry *) theDir->contents);
     }
 
   // Now remove the directory from its parent
   status = kernelFileRemoveEntry(theDir);
-
   if (status < 0)
     return (status);
 
@@ -2674,11 +2404,13 @@ int kernelFileRemoveDir(const char *path)
   updateModifiedTime(parentDir);
   updateAccessedTime(parentDir);
 
-  // Update any subdirectories
-  updateSubdirs(parentDir);
-
-  // Mark the parent directory as dirty
-  parentDir->dirty = 1;
+  // Write the directory
+  if (theDriver->driverWriteDir != NULL)
+    {
+      status = theDriver->driverWriteDir(parentDir);
+      if (status < 0)
+	return (status);
+    }
 
   // Return success
   return (status = 0);
@@ -2700,7 +2432,7 @@ int kernelFileCopy(const char *srcPath, const char *destPath)
   unsigned destBlocks = 0;
 
   // Do not copy any files until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
@@ -2716,8 +2448,6 @@ int kernelFileCopy(const char *srcPath, const char *destPath)
   // Attempt to open the source file for reading (the open function will
   // check the source name argument for us)
   status = kernelFileOpen(srcPath, OPENMODE_READ, &srcFileStruct);
-  
-  // Success?
   if (status < 0)
     {
       kernelError(kernel_error, "Couldn't open source file");
@@ -2773,14 +2503,14 @@ int kernelFileCopy(const char *srcPath, const char *destPath)
   // Attempt to open the destination file for writing.
   status = kernelFileOpen(destFileName, (OPENMODE_WRITE | OPENMODE_CREATE | 
 					 OPENMODE_TRUNCATE), &destFileStruct);
-  
-  // Success?
   if (status < 0)
     {
       kernelError(kernel_error, "Couldn't open destination file");
       kernelFileClose(&srcFileStruct);
       return (status);
     }
+
+  destFile = (kernelFileEntry *) destFileStruct.handle;
 
   // Make sure the destination file's block size isn't zero (this would
   // lead to a divide-by-zero error at writing time)
@@ -2797,8 +2527,8 @@ int kernelFileCopy(const char *srcPath, const char *destPath)
       // Copy the data.  Allocate a buffer large enough to hold the entire
       // source file
       
-      fileBuffer = kernelMemoryRequestBlock(srcFileStruct.size, 0, 
-					    "temporary filesystem data");
+      fileBuffer =
+	kernelMalloc(srcFileStruct.blocks * srcFileStruct.blockSize);
       if (fileBuffer == NULL)
 	{
 	  kernelError(kernel_error, "Not enough memory to copy file");
@@ -2808,15 +2538,14 @@ int kernelFileCopy(const char *srcPath, const char *destPath)
 	}
 
       // Read the source file
-      status = 
-	kernelFileRead(&srcFileStruct, 0, srcFileStruct.blocks, fileBuffer);
-
+      status = kernelFileRead(&srcFileStruct, 0, srcFileStruct.blocks,
+			      fileBuffer);
       if (status < 0)
 	{
 	  kernelError(kernel_error, "Error reading source file");
 	  kernelFileClose(&srcFileStruct);
 	  kernelFileClose(&destFileStruct);
-	  kernelMemoryReleaseBlock(fileBuffer);
+	  kernelFree(fileBuffer);
 	  return (status);
 	}
       
@@ -2831,7 +2560,7 @@ int kernelFileCopy(const char *srcPath, const char *destPath)
       status = kernelFileWrite(&destFileStruct, 0, destBlocks, fileBuffer);
 
       // Free the copy buffer
-      kernelMemoryReleaseBlock(fileBuffer);
+      kernelFree(fileBuffer);
 
       if (status < 0)
 	{
@@ -2843,14 +2572,16 @@ int kernelFileCopy(const char *srcPath, const char *destPath)
 	}
     }
 
-  // Set the size of the destination file so that it matches that of
-  // the source file (as opposed to a multiple of the block size and
-  // the number of blocks it consumes)
-  kernelFileSetSize(&destFileStruct, srcFileStruct.size);
-
   // Close the files
   kernelFileClose(&srcFileStruct);
   kernelFileClose(&destFileStruct);
+  
+  // Set the size of the destination file so that it matches that of
+  // the source file (as opposed to a multiple of the block size and
+  // the number of blocks it consumes)
+  status = kernelFileSetSize(&destFileStruct, srcFileStruct.size);
+  if (status < 0)
+    kernelError(kernel_warn, "Unable to set correct file size");
 
   // Return success
   return (status = 0);
@@ -2871,7 +2602,7 @@ int kernelFileCopyRecursive(const char *srcPath, const char *destPath)
   char tmpDestName[MAX_PATH_NAME_LENGTH];
 
   // Do not copy any files until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
@@ -2901,7 +2632,6 @@ int kernelFileCopyRecursive(const char *srcPath, const char *destPath)
   // Determine whether the source item exists, and if so whether it
   // is a directory.
   src = kernelFileLookup(srcPath);
-  
   if (src == NULL)
     {
       kernelError(kernel_error, "File to copy does not exist");
@@ -2917,7 +2647,6 @@ int kernelFileCopyRecursive(const char *srcPath, const char *destPath)
       // recurse.
 
       dest = kernelFileLookup(destName);
-  
       if (dest == NULL)
 	{
 	  // Create the directory
@@ -2930,7 +2659,6 @@ int kernelFileCopyRecursive(const char *srcPath, const char *destPath)
 	    }
 
 	  dest = kernelFileLookup(destName);
-  
 	  if (dest == NULL)
 	    {
 	      // Something wrong here.
@@ -2941,11 +2669,11 @@ int kernelFileCopyRecursive(const char *srcPath, const char *destPath)
 	}
       
       // Get the first file in the source directory
-      src = src->firstFile;
+      src = src->contents;
 
       // Skip any '.' and '..' entries
-      while (!strcmp((char *) src->fileName, ".") ||
-	     !strcmp((char *) src->fileName, ".."))
+      while (!strcmp((char *) src->name, ".") ||
+	     !strcmp((char *) src->name, ".."))
 	src = src->nextEntry;
 
       while (src != NULL)
@@ -2953,11 +2681,11 @@ int kernelFileCopyRecursive(const char *srcPath, const char *destPath)
 	  // Add the file's name to the directory's name
 	  strcpy(tmpSrcName, srcName);
 	  strcat(tmpSrcName, "/");
-	  strcat(tmpSrcName, (const char *) src->fileName);
+	  strcat(tmpSrcName, (const char *) src->name);
 	  // Add the file's name to the destination file name
 	  strcpy(tmpDestName, destName);
 	  strcat(tmpDestName, "/");
-	  strcat(tmpDestName, (const char *) src->fileName);
+	  strcat(tmpDestName, (const char *) src->name);
 
 	  status = kernelFileCopyRecursive(tmpSrcName, tmpDestName);
 	  if (status < 0)
@@ -3001,7 +2729,7 @@ int kernelFileMove(const char *srcPath, const char *destPath)
   kernelFileEntry *destDir = NULL;
 
   // Do not move anything until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
@@ -3016,7 +2744,6 @@ int kernelFileMove(const char *srcPath, const char *destPath)
 
   // Fix up the source and destination path names
   status = kernelFileFixupPath(srcPath, srcFileName);
-
   if (status < 0)
     {
       kernelError(kernel_error, "Error parsing path name of source file");
@@ -3024,7 +2751,6 @@ int kernelFileMove(const char *srcPath, const char *destPath)
     }
 
   status = kernelFileFixupPath(destPath, destFileName);
-
   if (status < 0)
     {
       kernelError(kernel_error, "Error parsing path name of destination "
@@ -3035,7 +2761,6 @@ int kernelFileMove(const char *srcPath, const char *destPath)
   // Now make sure that the requested source item exists.  Whether it is a
   // file or directory is unimportant.
   sourceFile = kernelFileLookup(srcFileName);
-  
   if (sourceFile == NULL)
     {
       // The directory does not exist
@@ -3049,26 +2774,24 @@ int kernelFileMove(const char *srcPath, const char *destPath)
   // Figure out which filesystem we're using for the source file based 
   // on the path name we were passed
   theFilesystem = (kernelFilesystem *) sourceFile->filesystem;
-
   if (theFilesystem == NULL)
     {
       kernelError(kernel_error, "NULL filesystem pointer");
       return (status = ERR_BADADDRESS);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
+  // Not allowed in read-only file system
+  if (theFilesystem->readOnly)
+    return (status = ERR_NOWRITE);
 
-  // Check the filesystem, its driver, and its disk object
-  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-  if (status < 0)
-    return (status);
+  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
 
   // Save the source file's original name, just in case we encounter
   // problems later
-  strcpy(origName, (char *) sourceFile->fileName);
+  strcpy(origName, (char *) sourceFile->name);
 
   // By default, the new name is the same as the old name
-  strcpy(newName, (char *) sourceFile->fileName);
+  strcpy(newName, (char *) sourceFile->name);
 
   // Check whether the destination file exists.  If it exists and it is
   // a file, we need to delete it first.  
@@ -3108,7 +2831,7 @@ int kernelFileMove(const char *srcPath, const char *destPath)
 	  destDir = destFile->parentDirectory;
 
 	  // Set the dest file's name.
-	  strcpy(newName, (char *) destFile->fileName);
+	  strcpy(newName, (char *) destFile->name);
 
 	  // Delete the existing file
 	  status = kernelFileDelete(destFileName);
@@ -3163,7 +2886,6 @@ int kernelFileMove(const char *srcPath, const char *destPath)
       
   // Remove the source file from its current directory
   status = kernelFileRemoveEntry(sourceFile);
-
   if (status < 0)
     {
       // We were unable to remove the entry from its current directory.
@@ -3174,11 +2896,10 @@ int kernelFileMove(const char *srcPath, const char *destPath)
 
   // Change the souce item's filename if necessary.  It might be the same
   // or it might be different.
-  strcpy((char *) sourceFile->fileName, newName);
+  strcpy((char *) sourceFile->name, newName);
 
   // Place the file in its new directory
   status = kernelFileInsertEntry(sourceFile, destDir);
-
   if (status < 0)
     {
       kernelError(kernel_error, "Unable to place source file in new "
@@ -3187,7 +2908,7 @@ int kernelFileMove(const char *srcPath, const char *destPath)
       // We were unable to place it in the new directory.  Better at
       // least try to put it back where it belongs in its old directory, 
       // with its old name.  Whether this succeeds or fails, we need to try
-      strcpy((char *) sourceFile->fileName, origName);
+      strcpy((char *) sourceFile->name, origName);
       kernelFileInsertEntry(sourceFile, sourceDir);
       return (status);
     }
@@ -3199,21 +2920,27 @@ int kernelFileMove(const char *srcPath, const char *destPath)
   updateModifiedTime(destDir);
   updateAccessedTime(destDir);
 
-  // Both source and destination directories are now dirty
-  sourceDir->dirty = 1;
-  destDir->dirty = 1;
-
-  // If we moved a directory, we need to do some additional things to its
-  // '..' entry, since of course the parent directory may have changed
-  if (sourceFile->type == dirT)
-    updateSubdirs(sourceFile->parentDirectory);
-
   // If the filesystem driver has a driverFileMoved function, call it
   if (theDriver->driverFileMoved != NULL)
-    return (theDriver->driverFileMoved(sourceFile));
-  else
-    // Return success
-    return (status = 0);
+    {
+      status = theDriver->driverFileMoved(sourceFile);
+      if (status < 0)
+	return (status);
+    }
+
+  // Write both directories
+  if (theDriver->driverWriteDir != NULL)
+    {
+      status = theDriver->driverWriteDir(destDir);
+      if (status < 0)
+	return (status);
+      status = theDriver->driverWriteDir(sourceDir);
+      if (status < 0)
+	return (status);
+    }
+
+  // Return success
+  return (status = 0);
 }
 
 
@@ -3225,22 +2952,34 @@ int kernelFileSetSize(file *theFile, unsigned newSize)
 
   int status = 0;
   kernelFileEntry *entry = NULL;
+  kernelFilesystem *theFilesystem = NULL;
 
   // Check parameters
   if (theFile == NULL)
     return (status = ERR_NULLPARAMETER);
 
+  // The kernelFileEntry structure
+  entry = (kernelFileEntry *) theFile->handle;
+  if (entry == NULL)
+    return (status = ERR_INVALID);
+
+  theFilesystem = (kernelFilesystem *) entry->filesystem;
+
+  // Not allowed in read-only file system
+  if (theFilesystem->readOnly)
+    return (status = ERR_NOWRITE);
+
   // Make sure the new size is acceptable.  Basically, the number we are
   // being given must fall within the possible values consistent with the
   // number of blocks that are allocated to this file.
-  if ((newSize != 0) || (theFile->blocks != 0))
+  if ((newSize != 0) || (entry->blocks != 0))
     {
-      if (newSize < ((theFile->blocks - 1) * theFile->blockSize))
+      if (newSize < ((entry->blocks - 1) * theFilesystem->blockSize))
 	{
 	  kernelError(kernel_error, "New size for file is too small");
 	  return (status = ERR_INVALID);
 	}
-      else if (newSize > (theFile->blocks * theFile->blockSize))
+      else if (newSize > (entry->blocks * theFilesystem->blockSize))
 	{
 	  kernelError(kernel_error, "New size for file is too large");
 	  return (status = ERR_INVALID);
@@ -3250,14 +2989,22 @@ int kernelFileSetSize(file *theFile, unsigned newSize)
   // The value is OK.  Try to set it in both the file structure and the
   // kernelFileEntry structure.
   
-  // The file structure
-  theFile->size = newSize;
-
-  // The kernelFileEntry structure
-  entry = (kernelFileEntry *) theFile->handle;
-  if (entry == NULL)
-    return (status = ERR_INVALID);
   entry->size = newSize;
+  entry->blocks = (entry->size / theFilesystem->blockSize);
+  if (entry->size % theFilesystem->blockSize)
+    entry->blocks += 1;
+
+  if (((kernelFilesystemDriver *) theFilesystem->driver)
+      ->driverWriteDir != NULL)
+    {
+      status = ((kernelFilesystemDriver *) theFilesystem->driver)
+	->driverWriteDir((kernelFileEntry *) entry->parentDirectory);
+      if (status < 0)
+	return (status);
+    }
+
+  // Update the file structure
+  fileEntry2File(entry, theFile);
 
   // Return success
   return (status = 0);
@@ -3277,7 +3024,7 @@ int kernelFileTimestamp(const char *path)
   kernelFilesystemDriver *theDriver = NULL;
 
   // Do not timestamp any files until we have been initialized
-  if (fileManagerInitialized == 0)
+  if (!initialized)
     {
       kernelError(kernel_error, "The file manager has not been initialized");
       return (status = ERR_NOTINITIALIZED);
@@ -3292,7 +3039,6 @@ int kernelFileTimestamp(const char *path)
 
   // Fix up the path name
   status = kernelFileFixupPath(path, fileName);
-
   if (status < 0)
     {
       kernelError(kernel_error, "Error parsing path of file to timestamp");
@@ -3301,7 +3047,6 @@ int kernelFileTimestamp(const char *path)
 
   // Now make sure that the requested file exists
   theFile = kernelFileLookup(fileName);
-  
   if (theFile == NULL)
     {
       kernelError(kernel_error, "File to timestamp does not exist");
@@ -3315,142 +3060,38 @@ int kernelFileTimestamp(const char *path)
   updateModifiedTime(theFile);
   updateAccessedTime(theFile);
 
-  // Mark the parent directory as dirty
-  ((kernelFileEntry *) theFile->parentDirectory)->dirty = 1;
-
   // Now allow the underlying filesystem driver to do anything that's
   // specific to that filesystem type.
   theFilesystem = (kernelFilesystem *) theFile->filesystem;
-
   if (theFilesystem == NULL)
     {
       kernelError(kernel_error, "NULL filesystem pointer");
       return (status = ERR_BADADDRESS);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
+  // Not allowed in read-only file system
+  if (theFilesystem->readOnly)
+    return (status = ERR_NOWRITE);
 
-  // Check the filesystem, its driver, and its disk object
-  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-  if (status < 0)
-    return (status);
-  
+  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+
   // Call the filesystem driver function, if it exists
   if (theDriver->driverTimestamp != NULL)
-    return (status = theDriver->driverTimestamp(theFile));
-  else
-    return (status = 0);
-}
-
-
-int kernelFileWriteDirtyDirs(const char *path)
-{
-  // This function will traverse the tree of files looking for directories
-  // that have had their contents changed.  It will then cause each of these
-  // directories to be written to disk by their respective filesystem drivers.
-
-  int status = 0;
-  char fileName[MAX_PATH_LENGTH];
-  kernelFileEntry *directory = NULL;
-  int numDirs = 0;
-  kernelFileEntry *syncDirs[MAX_BUFFERED_FILES];
-  kernelFilesystem *theFilesystem = NULL;
-  kernelFilesystemDriver *theDriver = NULL;
-  int count;
-
-  // If "path" is null, that means start with the root directory.  Otherwise,
-  // start with the directory supplied.
-
-  if (path == NULL)
-    strncpy(fileName, "/", 2);
-
-  else
     {
-      status = kernelFileFixupPath(path, fileName);
+      status = theDriver->driverTimestamp(theFile);
       if (status < 0)
-	{
-	  kernelError(kernel_error, "Error doing fixup of path");
-	  return (status);
-	}
+	return (status);
     }
 
-  // Make the starting directory correspond to the path we were given
-  directory = kernelFileLookup(fileName);
-
-  // Make sure it's good, and that it's really a subdirectory
-  if ((directory == NULL) || (directory->type != dirT))
+  // Write the directory
+  if (theDriver->driverWriteDir != NULL)
     {
-      kernelError(kernel_error, "Unable to look up starting directory \"%s\"",
-		  path);
-      return (status = ERR_NOSUCHFILE);
-    }
-
-  // Initialize the array we're using to hold file info memory
-  for (count = 0; count < MAX_BUFFERED_FILES; count ++)
-    syncDirs[count] = NULL;
-
-  // Collect a list of all the dirty directories in the tree
-  numDirs = findDirtyRecur(directory, syncDirs, 0);
-
-  // numDirs now contains the number of "dirty" directories in the
-  // list.
-
-  if (numDirs > 0)
-    {
-      theFilesystem = (kernelFilesystem *) syncDirs[0]->filesystem;
-
-      if (theFilesystem == NULL)
-	{
-	  kernelError(kernel_error, "NULL filesystem pointer");
-	  return (status = ERR_BADADDRESS);
-	}
-
-      theDriver = (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
-    }
-
-  // Synchronize the directories, in order
-  for (count = 0; count < numDirs; count ++)
-    {
-      // Get the appropriate filesystem and driver objects
-      if (theFilesystem != (kernelFilesystem *) syncDirs[count]->filesystem)
-	{
-	  theFilesystem = (kernelFilesystem *) syncDirs[count]->filesystem;
-
-	  if (theFilesystem == NULL)
-	    {
-	      kernelError(kernel_error, "NULL filesystem pointer");
-	      return (status = ERR_BADADDRESS);
-	    }
-
-	  theDriver =
-	    (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
-
-	  // Check the filesystem, its driver, and its disk object
-	  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-	  if (status < 0)
-	    return (status);
-
-	  // Does the driver have a 'write dir' function?
-	  if (theDriver->driverWriteDir == NULL)
-	    {
-	      // Mark the directory as clean
-	      syncDirs[count]->dirty = 0;
-	      continue;
-	    }
-	}
-  
-      // Call the driver function
-      status = theDriver->driverWriteDir(syncDirs[count]);
-
-      // What to do about an error here?  Not quit, surely.
+      status = theDriver
+	->driverWriteDir((kernelFileEntry *) theFile->parentDirectory);
       if (status < 0)
-	kernelError(kernel_warn, "Error writing directory");
-      else
-	// Mark the directory as clean
-	syncDirs[count]->dirty = 0;
+	return (status);
     }
 
-  // Return success
   return (status = 0);
 }
 
@@ -3474,14 +3115,13 @@ int kernelFileUnbufferRecursive(kernelFileEntry *dir)
       // It's not a leaf directory.  We will need to walk through each of
       // the entries and do a recursion for any subdirectories that have
       // buffered content.
-      listItemPointer = dir->firstFile;
+      listItemPointer = dir->contents;
       while (listItemPointer != NULL)
 	{
 	  if ((listItemPointer->type == dirT) &&
-	      (listItemPointer->firstFile != NULL))
+	      (listItemPointer->contents != NULL))
 	    {
 	      status = kernelFileUnbufferRecursive(listItemPointer);
-
 	      if (status < 0)
 		return (status);
 	    }
@@ -3492,15 +3132,12 @@ int kernelFileUnbufferRecursive(kernelFileEntry *dir)
 
   // Now this directory should be a leaf directory.  Do any of its files
   // currently have a valid lock?
-  listItemPointer = (kernelFileEntry *) dir->firstFile;
+  listItemPointer = (kernelFileEntry *) dir->contents;
   while (listItemPointer != NULL)
     {
-      if (listItemPointer->lockedByProcess)
-	{
-	  if (kernelResourceManagerVerifyLock(
-				      &listItemPointer->lockedByProcess))
-	    break;
-	}
+      if (kernelLockVerify(&(listItemPointer->lock)))
+	break;
+
       else
 	listItemPointer = (kernelFileEntry *) listItemPointer->nextEntry;
     }

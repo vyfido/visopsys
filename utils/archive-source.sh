@@ -30,7 +30,7 @@ echo "Making Visopsys SOURCE archive"
 echo ""
 
 # Make sure we know where we are
-if !(-e ../../visopsys) then
+if !("$PWD" != "utils") then
     echo ""
     echo "Error!  Please run this script from the utils directory"
     echo ""
@@ -45,44 +45,46 @@ if ("$1" == "-r") then
     # What is the current release version?
     set RELEASE = `./release.sh`
     # Use it to set the detination directory name
-    set DESTDIR = ./visopsys-$RELEASE-src
+    set DESTDIR = visopsys-$RELEASE-src
 else
     echo "(doing INTERIM version -- use -r flag for RELEASES)"
     # What is the date?
     set DATE = `date +%Y-%m-%d`
     # Use it to set the detination directory name
-    set DESTDIR = ./visopsys-$DATE-src
+    set DESTDIR = visopsys-$DATE-src
 endif
-
-# Cd up to the level where the visopsys directory resides
-cd ../..
 
 # Make a copy of the visopsys directory.  We will not fiddle with the current
 # working area
 rm -Rf $DESTDIR
-cp -R visopsys $DESTDIR
+cp -R .. /tmp/$DESTDIR
+mv /tmp/$DESTDIR ./
 
 echo -n "Making clean... "
 
 # Make sure it's clean
 make -C $DESTDIR clean >& /dev/null
 
-# Remove all of the CVS droppings
+# Remove all the things we don't want to distribute
+# CVS droppings
 find $DESTDIR -name CVS -exec rm -R {} \; >& /dev/null
+# Other stuff
+rm -Rf $DESTDIR/work
+rm -f $DESTDIR/src/ISSUES.txt
 
 echo done
 echo -n "Archiving... "
 
 # Remove any existing archive files here
-rm -f visopsys/utils/$DESTDIR.zip
+rm -f $DESTDIR.zip
 
-# Zip the directory
-zip -r visopsys/utils/$DESTDIR.zip $DESTDIR >& /dev/null
+# Zip the working directory
+zip -9 -r $DESTDIR.zip $DESTDIR >& /dev/null
 
 echo done
 echo -n "Cleaning up... "
 
-# Remove the munged directory
+# Remove the working directory
 rm -Rf $DESTDIR
 
 echo done

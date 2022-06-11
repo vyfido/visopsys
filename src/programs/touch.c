@@ -22,8 +22,7 @@
 // This is the UNIX-style command for touching files
 
 #include <stdio.h>
-#include <string.h>
-#include <errno.h>
+#include <sys/vsh.h>
 #include <sys/api.h>
 
 
@@ -31,29 +30,6 @@ static void usage(char *name)
 {
   printf("usage:\n");
   printf("%s <file1> [file2] [...]\n", name);
-  return;
-}
-
-
-static void makeAbsolutePath(const char *orig, char *new)
-{
-  char cwd[MAX_PATH_LENGTH];
-
-  if ((orig[0] != '/') && (orig[0] != '\\'))
-    {
-      multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
-
-      strcpy(new, cwd);
-
-      if ((new[strlen(new) - 1] != '/') &&
-	  (new[strlen(new) - 1] != '\\'))
-	strncat(new, "/", 1);
-
-      strcat(new, orig);
-    }
-  else
-    strcpy(new, orig);
-
   return;
 }
 
@@ -71,10 +47,9 @@ int main(int argc, char *argv[])
   file theFile;
   int count;
 
-
   if (argc < 2)
     {
-      usage(argv[0]);
+      usage((argc > 0)? argv[0] : "touch");
       return (status = ERR_ARGUMENTCOUNT);
     }
 
@@ -86,7 +61,7 @@ int main(int argc, char *argv[])
 	return (status = ERR_NULLPARAMETER);
 
       // Make sure the name is complete
-      makeAbsolutePath(argv[argNumber], fileName);
+      vshMakeAbsolutePath(argv[argNumber], fileName);
 
       // Initialize the file structure
       for (count = 0; count < sizeof(file); count ++)
@@ -102,7 +77,6 @@ int main(int argc, char *argv[])
 	  // The file doesn't exist.  We will create the file.
 	  status = 
 	    fileOpen(fileName, (OPENMODE_WRITE | OPENMODE_CREATE), &theFile);
-
 	  if (status < 0)
 	    {
 	      errno = status;
@@ -118,7 +92,6 @@ int main(int argc, char *argv[])
 	{
 	  // The file exists.  We need to update the date and time of the file
 	  status = fileTimestamp(fileName);
-
 	  if (status < 0)
 	    {
 	      errno = status;

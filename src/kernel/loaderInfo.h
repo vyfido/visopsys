@@ -46,7 +46,7 @@ typedef struct
 } memoryInfoBlock;
 
 // The data structure created by the loader to describe the particulars
-// about the current graphics mode
+// about the current graphics mode to the kernel
 typedef struct
 {
   unsigned videoMemory;
@@ -58,8 +58,8 @@ typedef struct
 
 } graphicsInfoBlock;
 
-// The data structure created by the loader to describe the
-// particulars about a floppy disk drive to the kernel
+// The data structure created by the loader to describe the particulars
+// about a floppy disk drive to the kernel
 typedef struct
 {
   int type;
@@ -69,16 +69,16 @@ typedef struct
 
 } fddInfoBlock;
 
-// The data structure created by the loader to describe the
-// particulars about a hard disk drive to the kernel
+// The data structure created by the loader to describe the particulars
+// about a hard disk drive to the kernel
 typedef struct
 {
   unsigned heads;
   unsigned cylinders;
-  unsigned sectors;
+  unsigned sectorsPerCylinder;
   unsigned bytesPerSector;
-  unsigned megaBytes;
-  unsigned activePartition;
+  unsigned totalSectors;
+  unsigned bootLBA;
 
 } hddInfoBlock;
 
@@ -101,8 +101,8 @@ typedef struct
 
 } mouseInfoBlock;
 
-// The data structure created by the loader to describe the
-// system's hardware to the kernel
+// The data structure created by the loader to describe the system's hardware
+// to the kernel
 typedef struct
 {
   int cpuType;
@@ -111,6 +111,7 @@ typedef struct
   unsigned extendedMemory;
   memoryInfoBlock memoryMap[50];
   graphicsInfoBlock graphicsInfo;
+  int bootDevice;
   int floppyDisks;
   fddInfoBlock fddInfo[2];
   int hardDisks;

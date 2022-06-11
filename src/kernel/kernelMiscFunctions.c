@@ -25,9 +25,17 @@
 #include "kernelParameters.h"
 #include "kernelLoader.h"
 #include "kernelMultitasker.h"
+#include "kernelMemoryManager.h"
+#include "kernelProcessorX86.h"
+#include "kernelLog.h"
 #include "kernelError.h"
+#include <sys/errors.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+
+volatile kernelSymbol *kernelSymbols = NULL;
+volatile int kernelNumberSymbols = 0;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -56,6 +64,107 @@ const char *kernelVersion(void)
   sprintf(versionString, "%s v%s", kernelInfo[0], kernelInfo[1]);
 
   return (versionString);
+}
+
+
+void kernelMemCopy(const void *src, void *dest, unsigned bytes)
+{
+  unsigned dwords = (bytes >> 2);
+  int interrupts = 0;
+
+  kernelProcessorSuspendInts(interrupts);
+
+  if (((unsigned) src % 4) || ((unsigned) dest % 4) || (bytes % 4))
+    kernelProcessorCopyBytes(src, dest, bytes);
+  else
+    kernelProcessorCopyDwords(src, dest, dwords);
+
+  kernelProcessorRestoreInts(interrupts);
+}
+
+
+void kernelMemClear(void *dest, unsigned bytes)
+{
+  unsigned dwords = (bytes >> 2);
+  int interrupts = 0;
+
+  kernelProcessorSuspendInts(interrupts);
+
+  if (((unsigned) dest % 4) || (bytes % 4))
+    kernelProcessorWriteBytes(0, dest, bytes);
+  else
+    kernelProcessorWriteDwords(0, dest, dwords);
+
+  kernelProcessorRestoreInts(interrupts);
+}
+
+
+int kernelMemCmp(const void *src, const void *dest, unsigned bytes)
+{
+  // Return 1 if the memory area is different, 0 otherwise.
+
+  unsigned dwords = (bytes >> 2);
+  int count;
+
+  if (((unsigned) dest % 4) || (bytes % 4))
+    {
+      for (count = 0; count < bytes; count++)
+	if (((char *) src)[count] != ((char *) dest)[count])
+	  return (1);
+    }
+  else
+    {
+      for (count = 0; count < dwords; count++)
+	if (((int *) src)[count] != ((int *) dest)[count])
+	  return (1);
+    }
+
+  return (0);
+}
+
+
+void kernelStackTrace(void *ESP, void *stackBase)
+{
+  // Will try to do a stack trace of the memory between ESP and stackBase
+  // The stack memory in question must already be in the current address space.
+
+  unsigned stackData;
+  char *lastSymbol = NULL;
+  int count;
+
+  if (kernelSymbols == NULL)
+    {
+      kernelError(kernel_error, "No kernel symbols to do stack trace");
+      return;
+    }
+
+  kernelTextPrintLine("--> kernel stack trace:");
+
+  for ( ; ESP <= stackBase; ESP += sizeof(void *))
+    {
+      // If the current thing on the stack looks as if it might be a kernel
+      // memory address, try to find the symbol it most closely matches
+      
+      stackData = *((unsigned *) ESP);
+
+      if (stackData >= KERNEL_VIRTUAL_ADDRESS)
+	// Find roughly the kernel function that this number corresponds to
+	for (count = 0; count < kernelNumberSymbols; count ++)
+	  {
+	    if ((stackData >= kernelSymbols[count].address) &&
+		(stackData < kernelSymbols[count + 1].address))
+	      {
+		if (lastSymbol != kernelSymbols[count].symbol)
+		  kernelTextPrintLine("  %s",
+				      (char *) kernelSymbols[count].symbol);
+		lastSymbol = (char *) kernelSymbols[count].symbol;
+	      }
+	  }
+    }
+
+  kernelTextPrintLine("<--");
+
+  return;
 }
 
 
@@ -91,7 +200,7 @@ void kernelConsoleLogin(void)
     }
  
   // Attach the login process to the console text streams
-  kernelMultitaskerTransferStreams(KERNELPROCID, loginPid, 1); // clear
+  kernelMultitaskerDuplicateIO(KERNELPROCID, loginPid, 1); // clear
 
   // Execute the login process.  Don't block.
   kernelLoaderExecProgram(loginPid, 0);
@@ -115,7 +224,6 @@ kernelVariableList *kernelConfigurationReader(const char *fileName)
     return (list = NULL);
 
   status = kernelFileStreamOpen(fileName, OPENMODE_READ, &configFile);
-  
   if (status < 0)
     {
       kernelError(kernel_warn, "Unable to read the configuration file \"%s\"",
@@ -127,7 +235,6 @@ kernelVariableList *kernelConfigurationReader(const char *fileName)
   // for each minimum-sized 'line' of the file
   list = kernelVariableListCreate((configFile.f.size / 4),
 				  configFile.f.size, "configuration data");
-
   if (list == NULL)
     {
       kernelError(kernel_warn, "Unable to create a variable list for "
@@ -199,4 +306,55 @@ int kernelConfigurationWriter(kernelVariableList *list, fileStream *configFile)
 
   kernelFileStreamFlush(configFile);
   return (status);
+}
+
+
+int kernelReadSymbols(const char *filename)
+{
+  // This will attempt to read the supplied properties file of kernel
+  // symbols into a variable list, then turn that into a data structure
+  // through which we can search for addresses.
+  
+  int status = 0;
+  kernelVariableList *tmpList = NULL;
+  int count;
+
+  // Make a log message
+  kernelLog("Reading kernel symbols from \"%s\"", filename);
+
+  // Try to read the supplied file name
+  tmpList = kernelConfigurationReader(filename);
+  if (tmpList == NULL)
+    {
+      kernelError(kernel_warn, "Unable to read kernel symbols from \"%s\"",
+		  filename);
+      return (status = ERR_IO);
+    }
+
+  if (tmpList->numVariables == 0)
+    // No symbols were properly read
+    return (status = ERR_NOSUCHENTRY);
+
+  // Get some memory to hold our list of symbols
+  kernelSymbols =
+    kernelMemoryGet((tmpList->numVariables * sizeof(kernelSymbol)),
+		    "kernel symbols");
+  if (kernelSymbols == NULL)
+    // Couldn't get the memory
+    return (status = ERR_MEMORY);
+
+  // Loop through all of the variables, setting the symbols in our table
+  for (count = 0; count < tmpList->numVariables; count ++)
+    {
+      kernelSymbols[count].address = xtoi(tmpList->variables[count]);
+      strncpy((char *) kernelSymbols[count].symbol, tmpList->values[count],
+	      MAX_SYMBOL_LENGTH);
+    }
+
+  kernelNumberSymbols = tmpList->numVariables;
+
+  // Release our variable list
+  kernelMemoryRelease(tmpList);
+
+  return (status = 0);
 }

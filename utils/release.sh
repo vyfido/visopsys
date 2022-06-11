@@ -23,5 +23,5 @@
 
 # Echoes the release number of Visopsys to the stdout
 
-echo "0.2"
+echo "0.3"
 exit 0

@@ -28,7 +28,7 @@
 #include "kernelFile.h"
 #include "kernelMemoryManager.h"
 #include "kernelMultitasker.h"
-#include "kernelMiscAsmFunctions.h"
+#include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <sys/errors.h>
 #include <string.h>
@@ -232,8 +232,8 @@ void *kernelLoaderLoad(const char *filename, file *theFile)
     }
 
   // Get some memory into which we can load the program
-  fileData = kernelMemoryRequestBlock((theFile->blocks * theFile->blockSize), 
-				      0, "file data");
+  fileData = kernelMemoryGet((theFile->blocks * theFile->blockSize), 
+			     "file data");
   if (fileData == NULL)
     {
       // Make an error
@@ -242,26 +242,22 @@ void *kernelLoaderLoad(const char *filename, file *theFile)
       return (fileData = NULL);
     }
 
-  // kernelTextPrintLine("Allocate code mem: %u",  fileData);
-
   // We got the memory.  Now we can load the program into memory
   status = kernelFileOpen(filename, OPENMODE_READ, theFile);
-  
   if (status < 0)
     {
       // Release the memory we allocated for the program
-      kernelMemoryReleaseBlock(fileData);
+      kernelMemoryRelease(fileData);
       // Make an error
       kernelError(kernel_error, "The loader could not load this file");
       return (fileData = NULL);
     }
 
   status = kernelFileRead(theFile, 0, theFile->blocks, fileData);
-
   if (status < 0)
     {
       // Release the memory we allocated for the program
-      kernelMemoryReleaseBlock(fileData);
+      kernelMemoryRelease(fileData);
       // Make an error
       kernelError(kernel_error, "The loader could not load this file");
       return (fileData = NULL);
@@ -281,6 +277,8 @@ int kernelLoaderLoadProgram(const char *userProgram, int privilege,
   int status = 0;
   file theFile;
   unsigned char *loadAddress = NULL;
+  char procName[MAX_NAME_LENGTH];
+  char tmp[MAX_PATH_NAME_LENGTH];
   int currentProcId = 0;
   int newProcId = 0;
   int argSpaceSize = 0;
@@ -333,15 +331,21 @@ int kernelLoaderLoadProgram(const char *userProgram, int privilege,
   argStruct.argc = 0;
   argStruct.argv = NULL;
 
+  // Just get the program name without the path in order to set the process
+  // name
+  status = kernelFileSeparateLast(userProgram, tmp, procName);
+  if (status < 0)
+    strncpy(procName, userProgram, MAX_NAME_LENGTH);
+
   // Set up and run the user program as a process in the multitasker
   newProcId = kernelMultitaskerCreateProcess(loadAddress, theFile.size,
-					     userProgram, privilege,
+					     procName, privilege,
 					     2, &argStruct);
 
   if (newProcId < 0)
     {
       // Release the memory we allocated for the program
-      kernelMemoryReleaseBlock(loadAddress);
+      kernelMemoryRelease(loadAddress);
       // Make an error
       kernelError(kernel_error, "The loader could not create a process "
 		  "for this program");
@@ -358,8 +362,7 @@ int kernelLoaderLoadProgram(const char *userProgram, int privilege,
 	argSpaceSize += (strlen(argv[count]) + 1);
 
       argStruct.argc = argc;
-      argStruct.argv =
-	kernelMemoryRequestBlock(argSpaceSize, 0, "argument space");
+      argStruct.argv = kernelMemoryGet(argSpaceSize, "argument space");
 
       if (argStruct.argv != NULL)
 	{

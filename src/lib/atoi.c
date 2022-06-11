@@ -43,6 +43,11 @@ int atoi(const char *theString)
   int stringLength = 0;
   int count;
 
+  if (theString == NULL)
+    {
+      errno = ERR_NULLPARAMETER;
+      return (0);
+    }
 
   // Get the length of the string
   stringLength = strlen(theString);

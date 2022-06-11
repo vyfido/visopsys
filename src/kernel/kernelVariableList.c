@@ -25,8 +25,8 @@
 
 #include "kernelVariableList.h"
 #include "kernelMemoryManager.h"
-#include "kernelMiscAsmFunctions.h"
-#include "kernelResourceManager.h"
+#include "kernelLock.h"
+#include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <string.h>
 #include <sys/errors.h>
@@ -51,6 +51,118 @@ static int findVariable(kernelVariableList *list, const char *variable)
       }
 
   return (slot);
+}
+
+
+static int unsetVariable(kernelVariableList *list, const char *variable)
+{
+  // Unset a variable's value from the supplied list.  This involves shifting
+  // the entire contents of the list data starting from where the variable is
+  // found.
+
+  int status = 0;
+  int slot = 0;
+  int subtract = 0;
+  int count;
+  
+  // Search the list of variables for the requested one.
+  slot = findVariable(list, variable);
+
+  // Did we find it?
+  if (slot < 0)
+    return (status = ERR_NOSUCHENTRY);
+
+  // Found it.  The amount of data to subtract from the data is equal to the
+  // sum of the lengths of the variable name and its value (plus one for
+  // each NULL character)
+  subtract =
+    ((strlen(list->variables[slot]) + 1) + (strlen(list->values[slot]) + 1));
+
+  // Any more data after this?
+  if (list->numVariables > 1)
+    {
+      // Starting from where the variable name starts, shift the whole
+      // contents of the data forward by 'subtract' bytes
+      kernelMemCopy((void *) (list->variables[slot] + subtract),
+		    (void *) list->variables[slot],
+		    (list->usedData - (list->variables[slot] - list->data) -
+		     subtract));
+
+      // Now remove the 'variable' and 'value' pointers, and shift all
+      // subsequent pointers in the lists forward by one, adjusting each
+      // by the number of bytes we subtracted from the data
+      for (count = slot; count < (list->numVariables - 1); count ++)
+	{
+	  list->variables[count] = list->variables[count + 1];
+	  list->variables[count] -= subtract;
+	  list->values[count] = list->values[count + 1];
+	  list->values[count] -= subtract;
+	}
+    }
+
+  // We now have one fewer variables
+  list->numVariables--;
+
+  // Adjust the number of bytes used
+  list->usedData -= subtract;
+
+  // Return success
+  return (status = 0);
+}
+
+
+static int setVariable(kernelVariableList *list, const char *variable,
+		       const char *value)
+{
+  // Does the work of setting a variable
+
+  int status = 0;
+  
+  // Make sure we're not exceeding the maximum number of variables
+  if (list->numVariables >= list->maxVariables)
+    return (status = ERR_BOUNDS);
+
+  // Check to see whether the variable currently has a value
+  if (findVariable(list, variable) >= 0)
+    {
+      // The variable already has a value.  We need to unset it first.  The
+      // only problem with this is that if we later discover we don't have
+      // enough room to store the new variable, the old variable gets trashed.
+      // Oh well.
+      status = unsetVariable(list, variable);
+      if (status < 0)
+	// We couldn't unset it.
+	return (status);
+    }
+
+  // Make sure we now have enough room to store the variable
+  if ((list->usedData + (strlen(variable) + 1) + (strlen(value) + 1)) > 
+      list->maxData)
+    return (status = ERR_BOUNDS);
+
+  // Okay, we're setting the variable
+
+  // The new variable goes at the end of the usedData
+  list->variables[list->numVariables] = (list->data + list->usedData);
+
+  // Copy the variable name
+  strcpy(list->variables[list->numVariables], variable);
+
+  // The variable's value will come after the variable name in memory
+  list->values[list->numVariables] =
+    (list->variables[list->numVariables] + (strlen(variable) + 1));
+
+  // Copy the variable value
+  strcpy(list->values[list->numVariables], value);
+
+  // We now have one more variable
+  list->numVariables++;
+
+  // Indicate the new used data total
+  list->usedData += (strlen(variable) + 1) + (strlen(value) + 1);
+
+  // Return success
+  return (status = 0);
 }
 
 
@@ -90,8 +202,7 @@ kernelVariableList *kernelVariableListCreate(unsigned maxVariables,
 		   (sizeof(char *) * maxVariables * 2) + dataSize);
   
   // Get memory for the data structure
-  list = kernelMemoryRequestBlock(structureSize, 0, description);
-
+  list = kernelMemoryGet(structureSize, description);
   if (list == NULL)
     return (list);
 
@@ -112,8 +223,6 @@ kernelVariableList *kernelVariableListCreate(unsigned maxVariables,
   // Set the data pointer to be at the end of the value pointers
   list->data = ((void *) list->values + (sizeof(char *) * maxVariables));
 
-  list->listLock = 0;
-
   // Return success
   return (list);
 }
@@ -133,7 +242,7 @@ int kernelVariableListGet(kernelVariableList *list, const char *variable,
     return (status = ERR_NULLPARAMETER);
 
   // Lock the list while we're working with it
-  status = kernelResourceManagerLock(&(list->listLock));
+  status = kernelLockGet(&(list->listLock));
   if (status < 0)
     return (status = ERR_NOLOCK);
 
@@ -143,7 +252,7 @@ int kernelVariableListGet(kernelVariableList *list, const char *variable,
     {
       // No such variable
       buffer[0] = '\0';
-      kernelResourceManagerUnlock(&(list->listLock));
+      kernelLockRelease(&(list->listLock));
       return (status = slot);
     }
 
@@ -151,7 +260,7 @@ int kernelVariableListGet(kernelVariableList *list, const char *variable,
   strncpy(buffer, list->values[slot], buffSize);
   buffer[buffSize - 1] = '\0';
 
-  kernelResourceManagerUnlock(&(list->listLock));
+  kernelLockRelease(&(list->listLock));
 
   // Return success
   return (status = 0);
@@ -161,7 +270,7 @@ int kernelVariableListGet(kernelVariableList *list, const char *variable,
 int kernelVariableListSet(kernelVariableList *list, const char *variable,
 			  const char *value)
 {
-  // Set a variable's value in the supplied list
+  // A wrapper function for setVariable
 
   int status = 0;
   
@@ -169,134 +278,37 @@ int kernelVariableListSet(kernelVariableList *list, const char *variable,
   if ((list == NULL) || (variable == NULL) || (value == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  // Make sure we're not exceeding the maximum number of variables
-  if (list->numVariables >= list->maxVariables)
-    return (status = ERR_BOUNDS);
-
   // Lock the list while we're working with it
-  status = kernelResourceManagerLock(&(list->listLock));
+  status = kernelLockGet(&(list->listLock));
   if (status < 0)
     return (status = ERR_NOLOCK);
 
-  // Check to see whether the variable currently has a value
-  if (findVariable(list, variable) >= 0)
-    {
-      // The variable already has a value.  We need to unset it first.  The
-      // only problem with this is that if we later discover we don't have
-      // enough room to store the new variable, the old variable gets trashed.
-      // Oh well.
-      status = kernelVariableListUnset(list, variable);
+  status = setVariable(list, variable, value);
 
-      if (status < 0)
-	{
-	  // We couldn't unset it.
-	  kernelResourceManagerUnlock(&(list->listLock));
-	  return (status);
-	}
-    }
+  kernelLockRelease(&(list->listLock));
 
-  // Make sure we now have enough room to store the variable
-  if ((list->usedData + (strlen(variable) + 1) + (strlen(value) + 1)) > 
-      list->maxData)
-    {
-      kernelResourceManagerUnlock(&(list->listLock));
-      return (status = ERR_BOUNDS);
-    }
-
-  // Okay, we're setting the variable
-
-  // The new variable goes at the end of the usedData
-  list->variables[list->numVariables] = (list->data + list->usedData);
-
-  // Copy the variable name
-  strcpy(list->variables[list->numVariables], variable);
-
-  // The variable's value will come after the variable name in memory
-  list->values[list->numVariables] =
-    (list->variables[list->numVariables] + (strlen(variable) + 1));
-
-  // Copy the variable value
-  strcpy(list->values[list->numVariables], value);
-
-  // We now have one more variable
-  list->numVariables++;
-
-  // Indicate the new used data total
-  list->usedData += (strlen(variable) + 1) + (strlen(value) + 1);
-
-  kernelResourceManagerUnlock(&(list->listLock));
-
-  // Return success
-  return (status = 0);
+  return (status);
 }
 
 
 int kernelVariableListUnset(kernelVariableList *list, const char *variable)
 {
-  // Unset a variable's value from the supplied list.  This involves shifting
-  // the entire contents of the list data starting from where the variable is
-  // found.
+  // A wrapper function for unsetVariable
 
   int status = 0;
-  int slot = 0;
-  int subtract = 0;
-  int count;
   
   // Make sure our pointers aren't NULL
   if ((list == NULL) || (variable == NULL))
     return (status = ERR_NULLPARAMETER);
   
   // Lock the list while we're working with it
-  status = kernelResourceManagerLock(&(list->listLock));
+  status = kernelLockGet(&(list->listLock));
   if (status < 0)
     return (status = ERR_NOLOCK);
 
-  // Search the list of variables for the requested one.
-  slot = findVariable(list, variable);
+  status = unsetVariable(list, variable);
 
-  // Did we find it?
-  if (slot < 0)
-    {
-      kernelResourceManagerUnlock(&(list->listLock));
-      return (status = ERR_NOSUCHENTRY);
-    }
+  kernelLockRelease(&(list->listLock));
 
-  // Found it.  The amount of data to subtract from the data is equal to the
-  // sum of the lengths of the variable name and its value (plus one for
-  // each NULL character)
-  subtract =
-    ((strlen(list->variables[slot]) + 1) + (strlen(list->values[slot]) + 1));
-
-  // Any more data after this?
-  if (list->numVariables > 1)
-    {
-      // Starting from where the variable name starts, shift the whole
-      // contents of the data forward by 'subtract' bytes
-      kernelMemCopy((void *) (list->variables[slot] + subtract),
-		    (void *) list->variables[slot],
-		    (list->usedData - (list->variables[slot] - list->data) -
-		     subtract));
-
-      // Now remove the 'variable' and 'value' pointers, and shift all
-      // subsequent pointers in the lists forward by one, adjusting each
-      // by the number of bytes we subtracted from the data
-      for (count = slot; count < (list->numVariables - 1); count ++)
-	{
-	  list->variables[count] = list->variables[count + 1];
-	  list->variables[count] -= subtract;
-	  list->values[count] = list->values[count + 1];
-	  list->values[count] -= subtract;
-	}
-    }
-
-  // We now have one fewer variables
-  list->numVariables--;
-
-  // Adjust the number of bytes used
-  list->usedData -= subtract;
-
-  kernelResourceManagerUnlock(&(list->listLock));
-
-  // Return success
-  return (status = 0);
+  return (status);
 }

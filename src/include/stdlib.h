@@ -109,6 +109,7 @@ char *getenv(const char *);
 // Argh.  Isn't there a function that does these?  These are andy-special.
 void itoa(int, char *);
 void itox(int, char *);
+int xtoi(const char *);
 void utoa(unsigned int, char *);
 #define _STDLIB_H
 #endif

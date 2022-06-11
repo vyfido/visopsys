@@ -45,6 +45,9 @@ void perror(const char *prefix)
 
   switch (errno)
     {
+    case 0:
+      stringToPrint = "No error.";
+      break;
     case ERR_INVALID:
       stringToPrint = "Invalid operation.";
       break;
@@ -123,6 +126,15 @@ void perror(const char *prefix)
     case ERR_DIVIDEBYZERO:
       stringToPrint = "Divide by zero error.";
       break;
+    case ERR_DOMAIN:
+      stringToPrint = "Math operation is not in the domain";
+      break;
+    case ERR_RANGE:
+      stringToPrint = "Math operation is out of range";
+      break;
+    case ERR_KILLED:
+      stringToPrint = "Process killed";
+      break;
     case ERR_NOSUCHFILE:
       stringToPrint = "No such file.";
       break;
@@ -134,6 +146,9 @@ void perror(const char *prefix)
       break;
     case ERR_NOTADIR:
       stringToPrint = "Object is not a directory.";
+      break;
+    case ERR_NOWRITE:
+      stringToPrint = "Cannot write data.";
       break;
     case ERR_NOSUCHUSER:
       stringToPrint = "No such user.";

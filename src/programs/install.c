@@ -34,34 +34,44 @@
 static void usage(char *name)
 {
   printf("usage:\n");
-  printf("%s [disk #]\n", name);
+  printf("%s [disk]\n", name);
   return;
 }
 
 
-static int copyBootSector(int rootDisk, int diskNumber)
+static int copyBootSector(const char *rootDisk, const char *destDisk)
 {
   // Overlay the boot sector from the root disk onto the boot sector of
   // the target disk
 
   int status = 0;
+  file bootSectFile;
+  unsigned char *bootSectData = NULL;
   unsigned char rootBootSector[512];
-  unsigned char diskBootSector[512];
+  unsigned char destBootSector[512];
   int count;
 
   printf("Copying boot sector...  ");
 
-  // Read the boot sector of the root disk
-  status = diskFunctionsReadSectors(rootDisk, 0, 1, rootBootSector);
-  if (status < 0)
+  // Try to read a boot sector file from the system directory
+  bootSectData = loaderLoad("/system/boot/bootsect.fat12", &bootSectFile);  
+  
+  if (bootSectData == NULL)
     {
-      printf("\nUnable to read the boot sector of the root disk.  "
-	     "Quitting.\n");
-      return (status);
+      // Try to read the boot sector of the root disk instead
+      status = diskReadSectors(rootDisk, 0, 1, rootBootSector);
+      if (status < 0)
+	{
+	  printf("\nUnable to read the boot sector of the root disk.  "
+		 "Quitting.\n");
+	  return (status);
+	}
+
+      bootSectData = rootBootSector;
     }
   
   // Read the boot sector of the target disk
-  status = diskFunctionsReadSectors(diskNumber, 0, 1, diskBootSector);
+  status = diskReadSectors(destDisk, 0, 1, destBootSector);
   if (status < 0)
     {
       printf("\nUnable to read the boot sector of the target disk.  "
@@ -69,15 +79,18 @@ static int copyBootSector(int rootDisk, int diskNumber)
       return (status);
     }
 
-  // Copy bytes 0-11 and 39-511 from the root disk boot sector to the
+  // Copy bytes 0-2 and 62-511 from the root disk boot sector to the
   // target boot sector
-  for (count = 0; count < 12; count ++)
-    diskBootSector[count] = rootBootSector[count];
-  for (count = 39; count < 512; count ++)
-    diskBootSector[count] = rootBootSector[count];
+  for (count = 0; count < 3; count ++)
+    destBootSector[count] = bootSectData[count];
+  for (count = 62; count < 512; count ++)
+    destBootSector[count] = bootSectData[count];
+
+  if (bootSectData != rootBootSector)
+    memoryRelease(bootSectData);
 
   // Write the boot sector of the target disk
-  status = diskFunctionsWriteSectors(diskNumber, 0, 1, diskBootSector);
+  status = diskWriteSectors(destDisk, 0, 1, destBootSector);
   if (status < 0)
     {
       printf("\nUnable to write the boot sector of the target disk.  "
@@ -85,19 +98,21 @@ static int copyBootSector(int rootDisk, int diskNumber)
       return (status);
     }
 
+  diskSync();
+
   printf("Done\n");
 
   return (status = 0);
 }
 
 
-static int mountDisk(int diskNumber)
+static int mountDisk(const char *diskName)
 {
   int status = 0;
 
   printf("Mounting target disk...  ");
 
-  status = filesystemMount(diskNumber, mountPoint);
+  status = filesystemMount(diskName, mountPoint);
   if (status < 0)
     {
       printf("\nUnable to mount the filesystem of the target disk.  "
@@ -160,9 +175,17 @@ static int copyFiles(void)
   for (count = 0; (filesToCopy[count][0] != '\0'); count ++)
     {
       status = copyFile(filesToCopy[count]);
+
+      diskSync();
+
       if (status < 0)
 	return (status);
     }
+
+  // Delete anything we don't want in the installation
+  char tmp[1024];
+  sprintf(tmp, "%s/system/kernel.log", mountPoint);
+  fileDelete(tmp);
 
   printf("Done\n");
 
@@ -170,38 +193,96 @@ static int copyFiles(void)
 }
 
 
+static int yesOrNo(void)
+{
+  char character;
+
+  textInputSetEcho(0);
+
+  while(1)
+    {
+      character = getchar();
+      
+      if (errno)
+	{
+	  // Eek.  We can't get input.  Quit.
+	  textInputSetEcho(1);
+	  return (0);
+	}
+      
+      if ((character == 'y') || (character == 'Y'))
+	{
+	  printf("Yes\n");
+	  textInputSetEcho(1);
+	  return (1);
+	}
+      else if ((character == 'n') || (character == 'N'))
+	{
+	  printf("No\n");
+	  textInputSetEcho(1);
+	  return (0);
+	}
+    }
+}
+
+
 int main(int argc, char *argv[])
 {
   int status = 0;
   int availableDisks = 0;
-  int diskNumber = 0;
-  disk diskInfo;
+  int diskNumber = -1;
+  char *diskName = NULL;
+  disk diskInfo[DISK_MAXDEVICES];
   unsigned char character[2];
-  int rootDisk = 0;
+  char rootDisk[DISK_MAX_NAMELENGTH];
   int count;
 
   if (argc > 2)
     {
-      usage(argv[0]);
+      usage((argc > 0)? argv[0] : "install");
       return (status = ERR_ARGUMENTCOUNT);
     }
 
   // Print a message
   printf("\nVisopsys Native Installer\nCopyright (C) 1998-2003 J. Andrew "
-	 "McLaughlin\n");
+	 "McLaughlin\n\n");
+
+  // Check privilege level
+  if (multitaskerGetProcessPrivilege(multitaskerGetCurrentProcessId()) != 0)
+    {
+      printf("You must be a privileged user to use this command.\n(Try "
+	     "logging in as user \"admin\")\n\n");
+      return (errno = ERR_PERMISSION);
+    }
+
+  // Call the kernel to give us the number of available disks
+  availableDisks = diskGetCount();
+
+  status = diskGetInfo(diskInfo);
+  if (status < 0)
+    {
+      // Eek.  Problem getting disk info
+      errno = status;
+      return (status);
+    }
 
   if (argc == 2)
     {
-      // The user can specify the disk number as the only argument.  Try to see
+      // The user can specify the disk name as an argument.  Try to see
       // whether they did so.
 
-      diskNumber = atoi(argv[1]);
+      for (count = 0; count < availableDisks; count ++)
+	if (!strcmp(diskInfo[count].name, argv[1]))
+	  {
+	    diskNumber = count;
+	    break;
+	  }
 
-      if (errno)
+      if (diskNumber < 0)
 	{
-	  // Oops, not a number?
+	  // Oops, not a valid disk name
 	  usage(argv[0]);
-	  return (status = errno);
+	  return (status = ERR_NOSUCHENTRY);
 	}
     }
   else
@@ -209,29 +290,16 @@ int main(int argc, char *argv[])
       // The user has not specified a disk number.  We need to display the
       // list of available disks and prompt them.
 
-      // Call the kernel to give us the number of available disks
-      availableDisks = diskFunctionsGetCount();
-
-      printf("\nPlease choose the volume on which to install.  Note that "
-	     "the\ninstallation volume MUST be formatted and MUST be of "
-	     "the same\nfilesystem type as the current root filesystem!:\n");
+      printf("Please choose the volume on which to install.  Note that the "
+	     "installation\nvolume MUST be of the same filesystem type as "
+	     "the current root filesystem!:\n");
       
       // Loop through all the possibilities, getting the disk info and
       // displaying it
       for (count = 0; count < availableDisks; count ++)
-	{
-	  status = diskFunctionsGetInfo(count, &diskInfo);
-
-	  if (status < 0)
-	    {
-	      // Eek.  Problem getting disk info
-	      errno = status;
-	      return (status);
-	    }
-
-	  // Print disk info
-	  printf("%d: %s\n", count, diskInfo.description);
-	}
+	// Print disk info
+	printf("%d: %s  [ %s ]\n", count, diskInfo[count].name,
+	       diskInfo[count].partType.description);
 
       printf("-> ");
 
@@ -256,6 +324,7 @@ int main(int argc, char *argv[])
 		  printf("Invalid volume number %d.\n-> ", diskNumber);
 		  continue;
 		}
+	      printf("\n");
 	      break;
 	    }
 	  else
@@ -266,60 +335,55 @@ int main(int argc, char *argv[])
 	}
     }
   
-  printf("\nInstalling on volume %d.  Are you SURE? (y/n): ", diskNumber);
+  diskName = diskInfo[diskNumber].name;
 
-  while(1)
+  printf("Installing on disk %s.  Are you SURE? (y/n): ", diskName);
+
+  if (!yesOrNo())
     {
-      character[0] = getchar();
-
-      if (errno)
-	{
-	  // Eek.  We can't get input.  Quit.
-	  perror(argv[0]);
-	  return (status = errno);
-	}
-
-      if (character[0] == 'y')
-	{
-	  printf("\n");
-	  break;
-	}
-      else if (character[0] == 'n')
-	{
-	  printf("\n\nQuitting.\n");
-	  return (status = 0);
-	}
-      else
-	{
-	  textBackSpace();
-	  continue;
-	}
+      printf("\n\nQuitting.\n");
+      return (status = 0);
     }
+  printf("\n");
 
-  // Re-read the info for the target disk
-  status = diskFunctionsGetInfo(diskNumber, &diskInfo);
+  // Get the root disk
+  status = diskGetBoot(rootDisk);
   if (status < 0)
     {
-      // Eek.  Problem getting disk info
+      // Couldn't get the root disk name
       errno = status;
       return (status);
     }
 
-  // Get the root disk
-  rootDisk = diskFunctionsGetBoot();
-
   // Make sure it's not the same disk; that would be pointless and possibly
   // dangerous
-  if (rootDisk == diskNumber)
+  if (!strcmp(rootDisk, diskName))
     {
-      printf("The system is currently running on disk %d.  Quitting.\n",
-	     diskNumber);
+      printf("The system is currently running on disk %s.  Quitting.\n",
+	     diskName);
       errno = ERR_ALREADY;
       return (status = errno);
     }
 
+  printf("Format disk %s? (destroys all data!) (y/n): ", diskName);
+
+  if (yesOrNo())
+    {
+      printf("\n");
+
+      status = filesystemFormat(diskName, "fat12", "Visopsys", 0);
+      if (status < 0)
+	{
+	  printf("\n\nErrors during format.  Quitting.\n");
+	  errno = status;
+	  return (status);
+	}
+    }
+  else
+    printf("\n");
+
   // Copy the boot sector
-  status = copyBootSector(rootDisk, diskNumber);
+  status = copyBootSector(rootDisk, diskName);
   if (status < 0)
     {
       // Couldn't copy the boot sector
@@ -328,7 +392,7 @@ int main(int argc, char *argv[])
     }
 
   // Mount the target filesystem
-  status = mountDisk(diskNumber);
+  status = mountDisk(diskName);
   if (status < 0)
     {
       // Couldn't mount the filesystem

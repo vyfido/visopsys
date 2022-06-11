@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/api.h>
+#include <sys/vsh.h>
 
 
 static void usage(char *name)
@@ -36,29 +36,6 @@ static void usage(char *name)
 }
 
 
-static void makeAbsolutePath(const char *orig, char *new)
-{
-  char cwd[MAX_PATH_LENGTH];
-
-  if ((orig[0] != '/') && (orig[0] != '\\'))
-    {
-      multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
-
-      strcpy(new, cwd);
-
-      if ((new[strlen(new) - 1] != '/') &&
-	  (new[strlen(new) - 1] != '\\'))
-	strncat(new, "/", 1);
-
-      strcat(new, orig);
-    }
-  else
-    strcpy(new, orig);
-
-  return;
-}
-
-
 int main(int argc, char *argv[])
 {
   int status = 0;
@@ -66,37 +43,23 @@ int main(int argc, char *argv[])
   char destFileName[MAX_PATH_NAME_LENGTH];
   int count;
 
-
   // There need to be at least a source and destination file
   if (argc < 3)
     {
-      usage(argv[0]);
+      usage((argc > 0)? argv[0] : "cp");
       return (status = ERR_ARGUMENTCOUNT);
     }
 
   // Make sure none of our filenames are NULL
-  for (count = 1; count < argc; count ++)
+  for (count = 0; count < argc; count ++)
     if (argv[count] == NULL)
       return (status = ERR_NULLPARAMETER);
 
-  // If the dest filename is relative, we should fix it up
-  makeAbsolutePath(argv[argc - 1], destFileName);
-
-  // Attempt to copy the file(s)
-  for (count = 1; count < (argc - 1); count ++)
-    {
-      // Likewise, fix up the src filename
-      makeAbsolutePath(argv[count], srcFileName);
-
-      status = fileCopyRecursive(srcFileName, destFileName);
-
-      if (status < 0)
-	{
-	  errno = status;
-	  perror(argv[0]);
-	  return (status);
-	}
-    }
+  // If any of the arguments are RELATIVE pathnames, we should
+  // insert the pwd before it
+  vshMakeAbsolutePath(argv[1], srcFileName);
+  vshMakeAbsolutePath(argv[2], destFileName);
+  vshCopyFile(srcFileName, destFileName);
 
   // Return success
   return (status = 0);

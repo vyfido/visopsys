@@ -22,8 +22,7 @@
 // Yup, it's the UNIX-style command for renaming files
 
 #include <stdio.h>
-#include <errno.h>
-#include <string.h>
+#include <sys/vsh.h>
 #include <sys/api.h>
 
 
@@ -32,29 +31,6 @@ static void usage(char *name)
   printf("usage:\n");
   printf("%s <source 1> [source 2] ... <destination>\n",
 	 name);
-  return;
-}
-
-
-static void makeAbsolutePath(const char *orig, char *new)
-{
-  char cwd[MAX_PATH_LENGTH];
-
-  if ((orig[0] != '/') && (orig[0] != '\\'))
-    {
-      multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
-
-      strcpy(new, cwd);
-
-      if ((new[strlen(new) - 1] != '/') &&
-	  (new[strlen(new) - 1] != '\\'))
-	strncat(new, "/", 1);
-
-      strcat(new, orig);
-    }
-  else
-    strcpy(new, orig);
-
   return;
 }
 
@@ -70,7 +46,7 @@ int main(int argc, char *argv[])
   // There need to be at least a source and destination file
   if (argc < 3)
     {
-      usage(argv[0]);
+      usage((argc > 0)? argv[0] : "mv");
       return (status = ERR_ARGUMENTCOUNT);
     }
 
@@ -81,13 +57,13 @@ int main(int argc, char *argv[])
       return (status = ERR_NULLPARAMETER);
   
   // If the dest filename is relative, we should fix it up
-  makeAbsolutePath(argv[argc - 1], destFileName);
+  vshMakeAbsolutePath(argv[argc - 1], destFileName);
 
   // Attempt to copy the file(s)
   for (count = 1; count < (argc - 1); count ++)
     {
       // Likewise, fix up the src filename
-      makeAbsolutePath(argv[count], srcFileName);
+      vshMakeAbsolutePath(argv[count], srcFileName);
 
       status = fileMove(srcFileName, destFileName);
 

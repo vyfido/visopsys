@@ -1,0 +1,283 @@
+
+---------------
+Version 0.3
+---------------
+
+  Overview: This release is very much an "under the hood" release.  The
+  user interaction is similar to that of 0.2, but a great deal of work
+  has gone into improving the structure, performance, and stability of the
+  underlying code -- particularly the disk subsystem.  However, some eye
+  candy has been added, and the GUI is more functional and consistent.
+
+- A thread of a process can now kill the parent process.
+- Created a multitasker 'detach' function for daemons or other programs
+  to use to detach themselves from any programs that might be blocking on
+  them.
+- Fixed: Windows wasn't entirely happy with our FAT short filename aliases.
+  Complained about the format of the short name of
+  "/system/boot/bootsect.fatnoboot"
+- Changed the naming of the kernel window components (removed the'component'
+  bit from the names)
+- Fixed: File completions were completing things they shouldn't; i.e. when
+  you "cd system; ls b[tab]" it completed "background" but there's a "boot"
+  directory as well.
+- The window manager thread is now the login process for a user when in
+  graphics mode, rather than a text shell running in a console window.
+- Reduced the stack sizes of processes.  They shouldn't need nearly as much
+  (260K) as they were being given.
+- Removed all the 'binary distribution' stuff (the Java installer,
+  shell scripts, readmes, etc).  We will only do binary distributions as
+  floppy or ISO images from now on.
+- The console window is no longer shown by default.  Added a program and
+  icon ('console') to display it and handle the window events, etc.  Added
+  external API functions to put a console widget into a user program.
+- Changed the error reporting interface for the disk drivers.  Removed
+  the 'last error message' and 'last error code' functions -- these were
+  leftovers from the days of ASM drivers that couldn't use the normal error
+  reporting mechanisms.
+- Fixed: The mouse was not being redrawn when windows close themselves.
+- Implemented 'levels' for GUI components within a window, in the same
+  manner as windows have levels.  This way if components overlap, we can
+  only send windowEvents to the uppermost one.
+- Sped up the scrolling of graphics text areas.  Now only scroll as much of
+  the width of the area as the longest line of contents.
+- Fixed up the framebuffer graphic driver a little bit more so that it draws
+  most efficiently for the bit depth it's using.
+- Implemented kernel versions of malloc() and free() so that we're not always
+  wasting whole pages of memory for small things.
+- Added shutdown and reboot buttons to the login screen in graphics mode.
+- Implemented text labels on kernelWindowButton components, with selectable
+  font.
+- Fixed: Window layout problems.  Attempting to add reboot and shutdown
+  buttons to the login screen, I discovered that setting the components
+  gridWidth parameters to 2 causes a crash.  In addition, when I incorrectly
+  left the gridWidth at 1 and attempted to add the 2 buttons below (using 2
+  grid places) they were erroneously placed on the line above, and the
+  other widgets got squashed together.
+- Added an event notification callback mechanism for user programs that
+  use the GUI.  When a user performs a GUI action, such as clicking a
+  button, the user application can now read that event from the component.
+- As a supplement to this, implmented user-mode library code for monitoring
+  window component event queues.  It includes a "GUI run" function that
+  signals the application is ready to begin monitoring its widgets for
+  events, after all its setup is done.  The rest of the flow can be driven
+  by callbacks from events.  All of the included programs have been converted
+  to use these features.
+- Added a logout procedure for the window manager (rather than having to
+  log out by hand from the console window)
+- Implemented a better "kernel panic" routine that displays something
+  useful in either text or graphics mode and shuts things down quickly.
+- Interrupt handlers and their actions are no longer allowed to yield(),
+  wait(), block(), etc.
+- Fixed: Moving the mouse in text mode is disrupting keyboard input
+- The fdisk program will save a backup copy of the MBR before writing changes,
+  and provides an option to restore it.
+- The graphic/text console drivers, as well as the FAT filesystem driver,
+  have abstracted driver registration procedures like the hardware drivers do.
+- The API calls in kernelApi.c are now 'hashed' according to their function
+  number, for faster API throughput.
+- Added a routine to the generic disk code for reading the disks'
+  partition tables (instead of in the hardware enumeration code).  It is
+  be re-callable anytime so that programs like fdisk can create/delete
+  partitions and have the change be reflected immediately in the list of
+  logical disks.
+- Cleaned up the management of the kernel's built-in drivers.  The drivers
+  now have an 'init' that registers the driver structure with the kernel, so
+  that the kernelDriverManagement code doesn't have to have all the functions
+  hard-coded in there.
+- Disk caches are invalidated when removable media is unmounted.
+- The boot sector and the OS loader can now boot from a cylinder > 1024.
+- Large disk geometries are now correctly evaluated by the hardware detection
+  code and by the fdisk program.
+- Created a 'non-bootable' FAT boot sector, that the formatting code uses
+  to make non-system FAT volumes
+- When files are copied, the sizes are now being set correctly.
+- The new floppy driver C code no longer freezes up the computer if you remove
+  the media unexpectedly.
+- Hardware enumeration and fdisk no longer fail when there is no partition
+  table on the hard disk
+- FAT filesystem root directories now have '.' entries (and '..' entries
+  when they're not '/')
+- Removing the last file in a directory (for example, in the root of a
+  filesystem) no longer produces an error message.
+- Fixed up the filesystem driver stuff, so that there is only one instance
+  of each driver of each known type
+- In the FAT filesystem driver, file names that start with '.' were listed,
+  but could not be created or accessed.  This is fixed.
+- Implmented FAT filesystem driver formatting functionality
+- Improved the fdisk program so that it can do most common operations
+- When there are no files in a directory, 'ls' no longer prints an error
+  message.
+- When doing disk reads, we now do read-ahead caching
+- The kernel is now able to handle operation from a read-only or write-
+  protected media without spewing errors and getting panicky.
+- kernelLocks are now exclusive even to the same process.  i.e. If a
+  process owns a lock, calling kernelLockGet() a second time fails.
+- Added a UK English keyboard mapping
+- The disk code should launches a new 'synchronizer' thread if the existing
+  one dies.
+- The exception handler tries to do a stack dump when an exception occurs.
+- The filesystem code is now correctly updating FAT short filename aliases
+  when files are moved.
+- Updated the loader code that searches for a valid video mode.  It now
+  searches for *any* LFB video mode first, and reports an error to that effect
+  if it finds none.  That is a different scenario than not finding a 'desired'
+  video mode.
+- Added LFB graphic driver support for bit depths of 32, 16, and 15 BPP.
+- Remove the FAT sector caching from the FAT filesystem driver.
+- Changed the filesystem synchronizer so that it is now a *disk* daemon
+  that simply turns removable drives' motors off.
+- Implemented proper asynchronous disk caching.
+- Kernel symbols to aid debugging, in the /system/kernelSymbols.txt file,
+  which is read at startup and used for stack traces and whatnot.
+- Converted all built-in drivers from ASM to C, with inline ASM in a
+  processor-specific header file.  This makes it easier for them to use the C
+  data structures, etc., for better integration with the rest of the kernel.
+  THERE IS NO LONGER ANY NASM ASSEMBLY CODE IN THE KERNEL.  Woo!
+- Changed 'root' user to 'admin' user -- something less geeky/UNIXy.
+- The kernelDisk structure is broken up into physical objects and logical
+  disks (volumes, i.e. hard disk partitions, but every physical disk has at
+  least one logical disk).  The disk cache, 'idle since' value, physical
+  characteristics, etc., are in the physical disk.  Things like starting
+  sector, number of sectors, etc., are in the logical disk structure.  The
+  physical disk structure contains the logical ones.
+- Added some memory manager macros so that each memory block request
+  doesn't require an alignment specification (only where desired)
+- Fixed: rm system/windowmanager.conf ; sync   ...Errors in the filesystem.
+- The window icon code is better able to deal with long icon names.
+  Previously it printed the whole name on one long line.
+- When a user logs out of the window manager, all windows belonging to
+  that user are destroyed
+- Fixed: Mouse driver initialization was sometimes causing the boot sequence
+  to 'hang' a little bit -- wiggling the mouse or pressing keys was required
+  to continue
+- The kernel log utility was losing some log messages that come early in the
+  boot process, before the root filesystem is mounted.
+- Change start.o (.c) to crt0.o for more UNIX C compatibility.
+- Fixed: When running a command window, all the shell processes suddenly
+  start hogging CPU.  Was a case of 2 'ready' processes constantly yield()ing
+  to one another.  Changed the scheduler so that a process will get a low
+  weight if it has yielded that timeslice before (a little different from the
+  previous algorithm)
+
+---------------
+Version 0.2
+---------------
+
+  Overview: This release was a huge leap ahead from version 0.1 (and
+  it took a long time, too).  This release added a basic GUI, whereas
+  version 0.1 was text-mode only.  Really, the list of changes below is
+  very incomplete -- Especially in listing new features.
+
+- Fixed: When rebooting from other operating systems such as Windows or
+  Linux, Visopsys would triple-fault.  Clearing the page cache seems to do
+  the trick.  Also changed the way page caching is done.  Turned off write-
+  through which improved the performance of the graphics as well.
+- Updated the shell 'help' text.
+- Fixed: Can't move/copy a file over top of another by the same name in a
+  different location unless you specify the destination filename explicitly
+  (i.e. if you just specify the directory, it fails)
+- When using the 'more' program, pressing [enter] to list a new line no
+  longer leaves the "--More--(xx%)--" message on the screen
+- When a process has finished but is waiting for its child threads to
+  terminate (i.e. mount), any process that is blocking on that process
+  now stops waiting.
+- Fixed: Crashes when running the 'install' program, and other types of long
+  disk writes.  When this happened under the old exception handler, the
+  handler used to go into an endless loop complaining about an exception in
+  the idle process.  This was the fault of the 'timed event scheduler'.
+  Got rid of that.
+- Fixed: The floppy motor was staying on all the time on many machines
+- Fixed: The FAT filesystem code was not properly filling all long filenames.
+  They were cut off after some number of characters.
+- Fixed: When in the multitasker the killing of a process is delayed because
+  of child threads, the process never seems to be killed when the children
+  have all terminated.  For example, when you mount a large FAT filesystem
+  (C:), the thread that reads the FAT keeps the "mount" process alive,
+  waiting, forever.
+- Fixed: When pushing some of the "non-printable" keys such as 'num lock'
+  and then doing command history, the shell was backing up by one character
+  before completing the filename.
+- Added support for non-fixed-width fonts in the kernelFont functions.
+- Added support for loading fonts.  The system font looks lame on titles
+  and whatnot, particularly on the login screen.
+- The login is now a little more meaningful in graphics mode.  Previously,
+  a console window would open with a login: prompt, but the user could
+  happily start opening other command windows and such, and ignore the login
+  (unless they wanted root permissions).
+- Added loading support for 24-bit bitmaps.  We already saved in that format.
+- Fixed: Umounting a filesystem was not properly dereferencing either the
+  filesystem or the disk.  Couldn't mount->unmount->mount the same disk.
+- Changed the shell to do filename completions on the same line as the
+  current line, rather than starting on the next line.
+- Implemented multiple text output streams, with the text input stream
+  changing to the active window, so that we can have multiple text windows
+  open at the same time
+- Implmented the FAT filesystem driver checking functionality [It's very
+  primitive, but it does detect and fix some errors]
+- Moved the exception handler code into the multitasker.  It really needs to
+  interact with the multitasker quite a bit.
+- The new exception handler thread was hanging the terminal (breakable with
+  CTRL-C) when the exception message happened at the bottom of the text area
+  and caused the screen to scroll
+- The kernel's exception handler is now a spawned thread with its own stack,
+  etc., so that it doesn't run as part of whatever process caused the
+  exception in the first place.  This helps to prevent the exception handler
+  itself from crashing if things have gone seriously wrong with a process.
+- Adding permission checking to the kernel functions that are be exported to
+  the rest of the world.
+- Fixed: The boot progress indicator was progressing beyond the end of the
+  indicator
+- The 'getchar' routine now does the work of polling/yielding, rather than
+  the programs that call it.
+- Added a basic 'fdisk' program that can do things like swap the active
+  partition on hard disks
+- Fixed: The hard disk enumeration routine was crashing when there was more
+  than one physical disk
+- Added the ability to copy directory trees in the filesystem functions, one
+  level up from the filesystem driver.  Could be a library routine instead
+  someday.
+- Fixed: The 'cp' command was crashing when copying files involving the hard
+  disk
+- Implmented the 'write' function in the IDE disk driver.  Previously it was
+  left out since the filesystem driver is still imperfect.
+- Fixed: Mounting hard disk partitions on my 30GB hard disk was not working.
+  LBA versus CHS issue
+- Fixed: The mouse driver initialization sometimes hung, waiting for a
+  response from the mouse to a command
+- Added ELF executable capability and moved the programs to ELF format
+- Fixed: Incomplete filenames were still having an / appended to them by
+  the shell.
+- The PS2 mouse driver and the keyboard driver now share a lock on the
+  device, since they both deal with the same registers, etc.
+- Fixed: Sometimes an error in another program could cause a fault in the
+  idle process (?!?), then the exception handler routines would get into an
+  endless loop
+- Fixed: When a process created a new process, the unmapping of the new
+  process' memory from the parent process space would sometimes cause a page
+  fault.
+- Fixed: The 'log file updater' thread was been crashing frequently, most
+  often when another process crashed
+- The scheduler no longer spawns a new idle thread while the multitasker is
+  in the process of shutting down.
+- Fixed: The 'date' command was producing wrong results.  The year, dotm,
+  hour, minute, etc., were correct, but the month and dotw were wrong. 
+- Fixed: When shortening a filename, one extra character from the old
+  filename got left on the end of the new name.  This was because of strncpy
+  changes.
+- Fixed: There was a little sequencing error in the kernelMemoryManager's
+  share memory routine -- it was deallocating the memory from the sharer
+  process before allocating it to the sharee.
+- Simplified the default driver management.  It was ridiculously
+  overcomplicated.
+- Fixed: The FAT code that lowercases short filenames wasn't lowercasing the
+  file extensions
+- Fixed: Most of the device driver initialization routines were being called
+  twice; once in kernelDriverManagement.c and once in the abstraction layer
+  initialization
+
+---------------
+Version 0.1
+---------------
+
+- Initial public release.

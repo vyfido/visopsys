@@ -28,10 +28,6 @@ all:
 	make -C src-mgmt all
 	make -C dist all
 
-# Make a floppy installation of Visopsys
-floppy: all
-	./floppy-install.sh -i blank-floppy-image.bin
-
 clean:
 	rm -f *~ core *.zip *.tar.gz
 	make -C src-mgmt clean

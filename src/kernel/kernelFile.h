@@ -41,8 +41,11 @@ kernelFileEntry *kernelFileNewEntry(kernelFilesystem *);
 void kernelFileReleaseEntry(kernelFileEntry *);
 int kernelFileInsertEntry(kernelFileEntry *, kernelFileEntry *);
 int kernelFileRemoveEntry(kernelFileEntry *);
+int kernelFileMakeDotDirs(kernelFilesystem *, kernelFileEntry *,
+			  kernelFileEntry *);
 int kernelFileCountDirEntries(kernelFileEntry *);
 kernelFileEntry *kernelFileLookup(const char *);
+kernelFileEntry *kernelFileResolveLink(kernelFileEntry *);
 int kernelFileSeparateLast(const char *, char *, char *);
 int kernelFileFirst(const char *, file *);
 int kernelFileNext(const char *, file *);
@@ -61,7 +64,6 @@ int kernelFileCopyRecursive(const char *, const char *);
 int kernelFileMove(const char *, const char *);
 int kernelFileSetSize(file *, unsigned);
 int kernelFileTimestamp(const char *);
-int kernelFileWriteDirtyDirs(const char *);
 int kernelFileUnbufferRecursive(kernelFileEntry *);
 
 #define _KERNELFILE_H

@@ -25,141 +25,149 @@
 
 CC		= gcc
 AR		= ar
-PLATFORM	= $(shell ../platform.sh)
-BUILD		= ${PLATFORM}
 
 OPTS		= -nostdlib -nodefaultlibs -nostartfiles -nostdinc -O2 \
-		-falign-loops=2 -falign-jumps=2 -falign-functions=2 \
-		-mcpu=pentium -Wall -fno-strength-reduce -Werror
+		-mcpu=pentium -fno-strength-reduce -pipe -Wall -Werror
 
 INCLUDES	= -I../include
 STDDEP		= Makefile
 
-CTYPEOBJS	= ${BUILD}/isalnum.o \
-		${BUILD}/isalpha.o \
-		${BUILD}/isascii.o \
-		${BUILD}/iscntrl.o \
-		${BUILD}/isdigit.o \
-		${BUILD}/isgraph.o \
-		${BUILD}/islower.o \
-		${BUILD}/isprint.o \
-		${BUILD}/ispunct.o \
-		${BUILD}/isspace.o \
-		${BUILD}/isupper.o \
-		${BUILD}/isxdigit.o \
-		${BUILD}/tolower.o \
-		${BUILD}/toupper.o
+CTYPEOBJS	= build/isalnum.o \
+		build/isalpha.o \
+		build/isascii.o \
+		build/iscntrl.o \
+		build/isdigit.o \
+		build/isgraph.o \
+		build/islower.o \
+		build/isprint.o \
+		build/ispunct.o \
+		build/isspace.o \
+		build/isupper.o \
+		build/isxdigit.o \
+		build/tolower.o \
+		build/toupper.o
 
-LOCALEOBJS	= ${BUILD}/localeconv.o \
-		${BUILD}/setlocale.o
+LOCALEOBJS	= build/localeconv.o \
+		build/setlocale.o
 
-MATHOBJS	= ${BUILD}/acos.o \
-		${BUILD}/asin.o \
-		${BUILD}/atan.o \
-		${BUILD}/atan2.o \
-		${BUILD}/ceil.o \
-		${BUILD}/cos.o \
-		${BUILD}/cosh.o \
-		${BUILD}/exp.o \
-		${BUILD}/fabs.o \
-		${BUILD}/floor.o \
-		${BUILD}/fmod.o \
-		${BUILD}/frexp.o \
-		${BUILD}/ldexp.o \
-		${BUILD}/log.o \
-		${BUILD}/log10.o \
-		${BUILD}/modf.o \
-		${BUILD}/pow.o \
-		${BUILD}/sin.o \
-		${BUILD}/sinh.o \
-		${BUILD}/sqrt.o \
-		${BUILD}/tan.o \
-		${BUILD}/tanh.o
+MATHOBJS	= build/acos.o \
+		build/asin.o \
+		build/atan.o \
+		build/atan2.o \
+		build/ceil.o \
+		build/cos.o \
+		build/cosh.o \
+		build/exp.o \
+		build/fabs.o \
+		build/floor.o \
+		build/fmod.o \
+		build/frexp.o \
+		build/ldexp.o \
+		build/log.o \
+		build/log10.o \
+		build/modf.o \
+		build/pow.o \
+		build/sin.o \
+		build/sinh.o \
+		build/sqrt.o \
+		build/tan.o \
+		build/tanh.o
 
-MISCOBJS	= ${BUILD}/readline.o
+MISCOBJS	= build/readline.o
 
-SIGNALOBJS	= ${BUILD}/raise.o \
-		${BUILD}/signal.o
+SIGNALOBJS	= build/raise.o \
+		build/signal.o
 
-STDIOOBJS	= ${BUILD}/_fmtinpt.o \
-		${BUILD}/_xpndfmt.o \
-		${BUILD}/fgetpos.o \
-		${BUILD}/fseek.o \
-		${BUILD}/fsetpos.o \
-		${BUILD}/ftell.o \
-		${BUILD}/getc.o \
-		${BUILD}/getchar.o \
-		${BUILD}/gets.o \
-		${BUILD}/perror.o \
-		${BUILD}/printf.o \
-		${BUILD}/putc.o \
-		${BUILD}/putchar.o \
-		${BUILD}/puts.o \
-		${BUILD}/remove.o \
-		${BUILD}/rename.o \
-		${BUILD}/rewind.o \
-		${BUILD}/scanf.o \
-		${BUILD}/sprintf.o
+STDIOOBJS	= build/_fmtinpt.o \
+		build/_xpndfmt.o \
+		build/fgetpos.o \
+		build/fseek.o \
+		build/fsetpos.o \
+		build/ftell.o \
+		build/getc.o \
+		build/getchar.o \
+		build/gets.o \
+		build/perror.o \
+		build/printf.o \
+		build/putc.o \
+		build/putchar.o \
+		build/puts.o \
+		build/remove.o \
+		build/rename.o \
+		build/rewind.o \
+		build/scanf.o \
+		build/sprintf.o
 
-STDLIBOBJS	= ${BUILD}/abort.o \
-		${BUILD}/abs.o \
-		${BUILD}/atexit.o \
-		${BUILD}/atof.o \
-		${BUILD}/atoi.o \
-		${BUILD}/atol.o \
-		${BUILD}/bsearch.o \
-		${BUILD}/calloc.o \
-		${BUILD}/div.o \
-		${BUILD}/exit.o \
-		${BUILD}/free.o \
-		${BUILD}/getenv.o \
-		${BUILD}/itoa.o \
-		${BUILD}/itox.o \
-		${BUILD}/labs.o \
-		${BUILD}/ldiv.o \
-		${BUILD}/malloc.o \
-		${BUILD}/rand.o \
-		${BUILD}/realloc.o \
-		${BUILD}/srand.o \
-		${BUILD}/utoa.o
+STDLIBOBJS	= build/abort.o \
+		build/abs.o \
+		build/atexit.o \
+		build/atof.o \
+		build/atoi.o \
+		build/atol.o \
+		build/bsearch.o \
+		build/calloc.o \
+		build/div.o \
+		build/exit.o \
+		build/free.o \
+		build/getenv.o \
+		build/itoa.o \
+		build/itox.o \
+		build/labs.o \
+		build/ldiv.o \
+		build/malloc.o \
+		build/rand.o \
+		build/realloc.o \
+		build/srand.o \
+		build/utoa.o \
+		build/xtoi.o
 
-STRINGOBJS	= ${BUILD}/memcmp.o \
-		${BUILD}/memcpy.o \
-		${BUILD}/memmove.o \
-		${BUILD}/strcasecmp.o \
-		${BUILD}/strcat.o \
-		${BUILD}/strcmp.o \
-		${BUILD}/strcpy.o \
-		${BUILD}/strlen.o \
-		${BUILD}/strncat.o \
-		${BUILD}/strncmp.o \
-		${BUILD}/strncpy.o \
-		${BUILD}/strspn.o \
-		${BUILD}/strstr.o
+STRINGOBJS	= build/memcmp.o \
+		build/memcpy.o \
+		build/memmove.o \
+		build/strcasecmp.o \
+		build/strcat.o \
+		build/strcmp.o \
+		build/strcpy.o \
+		build/strlen.o \
+		build/strncat.o \
+		build/strncmp.o \
+		build/strncpy.o \
+		build/strspn.o \
+		build/strstr.o
 
-TIMEOBJS	= ${BUILD}/asctime.o \
-		${BUILD}/clock.o \
-		${BUILD}/ctime.o \
-		${BUILD}/difftime.o \
-		${BUILD}/gmtime.o \
-		${BUILD}/localtime.o \
-		${BUILD}/mktime.o \
-		${BUILD}/time.o
+TIMEOBJS	= build/asctime.o \
+		build/clock.o \
+		build/ctime.o \
+		build/difftime.o \
+		build/gmtime.o \
+		build/localtime.o \
+		build/mktime.o \
+		build/time.o
 
-STARTOBJS  	= ${BUILD}/_globdata.o \
-		${BUILD}/_start.o
+STARTOBJS  	= build/_globdata.o \
+		build/crt0.o
+
+# Visopsys libraries
+VISOBJS		= build/libvsh.o \
+		build/libwindow.o
 
 
-all: target-dir libc
+all: target-dir libc libvsh libwindow
 
 libc: ${CTYPEOBJS} ${LOCALEOBJS} ${MATHOBJS} ${MISCOBJS} ${SIGNALOBJS} ${STDIOOBJS} ${STRINGOBJS} ${STDLIBOBJS} ${TIMEOBJS} ${STARTOBJS} ${STDDEP}
-	${AR} -rs ${PLATFORM}/libc.a  ${CTYPEOBJS} ${LOCALEOBJS} ${MATHOBJS} ${SIGNALOBJS} ${STDIOOBJS} ${STRINGOBJS} ${STDLIBOBJS} ${TIMEOBJS} ${STARTOBJS}
+	${AR} -rs build/libc.a  ${CTYPEOBJS} ${LOCALEOBJS} ${MATHOBJS} ${SIGNALOBJS} ${STDIOOBJS} ${STRINGOBJS} ${STDLIBOBJS} ${TIMEOBJS} ${STARTOBJS}
+
+libvsh: build/libvsh.o ${STDDEP}
+	${AR} -rs build/libvsh.a build/libvsh.o
+
+libwindow: build/libwindow.o ${STDDEP}
+	${AR} -rs build/libwindow.a build/libwindow.o
 
 target-dir:
 	#
-	#  Making libraries on ${PLATFORM}
+	#  Making libraries
 	#
-	mkdir -p ${BUILD}
+	mkdir -p build
 
 
 # The standard C library files
@@ -167,347 +175,359 @@ target-dir:
 
 # Ctype.h
 
-${BUILD}/isalnum.o: isalnum.c ../include/ctype.h ${STDDEP}
+build/isalnum.o: isalnum.c ../include/ctype.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c isalnum.c -o $@
 
-${BUILD}/isalpha.o: isalpha.c ../include/ctype.h ${STDDEP}
+build/isalpha.o: isalpha.c ../include/ctype.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c isalpha.c -o $@
 
-${BUILD}/isascii.o: isascii.c ../include/ctype.h ${STDDEP}
+build/isascii.o: isascii.c ../include/ctype.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c isascii.c -o $@
 
-${BUILD}/iscntrl.o: iscntrl.c ../include/ctype.h ${STDDEP}
+build/iscntrl.o: iscntrl.c ../include/ctype.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c iscntrl.c -o $@
 
-${BUILD}/isdigit.o: isdigit.c ../include/ctype.h ${STDDEP}
+build/isdigit.o: isdigit.c ../include/ctype.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c isdigit.c -o $@
 
-${BUILD}/isgraph.o: isgraph.c ../include/ctype.h ${STDDEP}
+build/isgraph.o: isgraph.c ../include/ctype.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c isgraph.c -o $@
 
-${BUILD}/islower.o: islower.c ../include/ctype.h ${STDDEP}
+build/islower.o: islower.c ../include/ctype.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c islower.c -o $@
 
-${BUILD}/isprint.o: isprint.c ../include/ctype.h ${STDDEP}
+build/isprint.o: isprint.c ../include/ctype.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c isprint.c -o $@
 
-${BUILD}/ispunct.o: ispunct.c ../include/ctype.h ${STDDEP}
+build/ispunct.o: ispunct.c ../include/ctype.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c ispunct.c -o $@
 
-${BUILD}/isspace.o: isspace.c ../include/ctype.h ${STDDEP}
+build/isspace.o: isspace.c ../include/ctype.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c isspace.c -o $@
 
-${BUILD}/isupper.o: isupper.c ../include/ctype.h ${STDDEP}
+build/isupper.o: isupper.c ../include/ctype.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c isupper.c -o $@
 
-${BUILD}/isxdigit.o: isxdigit.c ../include/ctype.h ${STDDEP}
+build/isxdigit.o: isxdigit.c ../include/ctype.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c isxdigit.c -o $@
 
-${BUILD}/tolower.o: tolower.c ../include/ctype.h ${STDDEP}
+build/tolower.o: tolower.c ../include/ctype.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c tolower.c -o $@
 
-${BUILD}/toupper.o: toupper.c ../include/ctype.h ${STDDEP}
+build/toupper.o: toupper.c ../include/ctype.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c toupper.c -o $@
 
 
 # Locale.h
 
-${BUILD}/localeconv.o: localeconv.c ../include/math.h ${STDDEP}
+build/localeconv.o: localeconv.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c localeconv.c -o $@
 
-${BUILD}/setlocale.o: setlocale.c ../include/math.h ${STDDEP}
+build/setlocale.o: setlocale.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c setlocale.c -o $@
 
 
 # Math.h
 
-${BUILD}/acos.o: acos.c ../include/math.h ${STDDEP}
+build/acos.o: acos.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c acos.c -o $@
 
-${BUILD}/asin.o: asin.c ../include/math.h ${STDDEP}
+build/asin.o: asin.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c asin.c -o $@
 
-${BUILD}/atan.o: atan.c ../include/math.h ${STDDEP}
+build/atan.o: atan.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c atan.c -o $@
 
-${BUILD}/atan2.o: atan2.c ../include/math.h ${STDDEP}
+build/atan2.o: atan2.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c atan2.c -o $@
 
-${BUILD}/ceil.o: ceil.c ../include/math.h ${STDDEP}
+build/ceil.o: ceil.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c ceil.c -o $@
 
-${BUILD}/cos.o: cos.c ../include/math.h ${STDDEP}
+build/cos.o: cos.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c cos.c -o $@
 
-${BUILD}/cosh.o: cosh.c ../include/math.h ${STDDEP}
+build/cosh.o: cosh.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c cosh.c -o $@
 
-${BUILD}/exp.o: exp.c ../include/math.h ${STDDEP}
+build/exp.o: exp.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c exp.c -o $@
 
-${BUILD}/fabs.o: fabs.c ../include/math.h ${STDDEP}
+build/fabs.o: fabs.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c fabs.c -o $@
 
-${BUILD}/floor.o: floor.c ../include/math.h ${STDDEP}
+build/floor.o: floor.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c floor.c -o $@
 
-${BUILD}/fmod.o: fmod.c ../include/math.h ${STDDEP}
+build/fmod.o: fmod.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c fmod.c -o $@
 
-${BUILD}/frexp.o: frexp.c ../include/math.h ${STDDEP}
+build/frexp.o: frexp.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c frexp.c -o $@
 
-${BUILD}/ldexp.o: ldexp.c ../include/math.h ${STDDEP}
+build/ldexp.o: ldexp.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c ldexp.c -o $@
 
-${BUILD}/log.o: log.c ../include/math.h ${STDDEP}
+build/log.o: log.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c log.c -o $@
 
-${BUILD}/log10.o: log10.c ../include/math.h ${STDDEP}
+build/log10.o: log10.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c log10.c -o $@
 
-${BUILD}/modf.o: modf.c ../include/math.h ${STDDEP}
+build/modf.o: modf.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c modf.c -o $@
 
-${BUILD}/pow.o: pow.c ../include/math.h ${STDDEP}
+build/pow.o: pow.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c pow.c -o $@
 
-${BUILD}/sin.o: sin.c ../include/math.h ${STDDEP}
+build/sin.o: sin.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c sin.c -o $@
 
-${BUILD}/sinh.o: sinh.c ../include/math.h ${STDDEP}
+build/sinh.o: sinh.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c sinh.c -o $@
 
-${BUILD}/sqrt.o: sqrt.c ../include/math.h ${STDDEP}
+build/sqrt.o: sqrt.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c sqrt.c -o $@
 
-${BUILD}/tan.o: tan.c ../include/math.h ${STDDEP}
+build/tan.o: tan.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c tan.c -o $@
 
-${BUILD}/tanh.o: tanh.c ../include/math.h ${STDDEP}
+build/tanh.o: tanh.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c tanh.c -o $@
 
 
 # Misc
 
-${BUILD}/readline.o: readline.c ../include/readline.h ${STDDEP}
+build/readline.o: readline.c ../include/readline.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c readline.c -o $@
 
 
 # Signal.h
 
-${BUILD}/raise.o: raise.c ../include/signal.h ${STDDEP}
+build/raise.o: raise.c ../include/signal.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c raise.c -o $@
 
-${BUILD}/signal.o: signal.c ../include/signal.h ${STDDEP}
+build/signal.o: signal.c ../include/signal.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c signal.c -o $@
 
 
 # Stdio.h
 
-${BUILD}/_fmtinpt.o : _fmtinpt.c ../include/stdio.h ${STDDEP}
+build/_fmtinpt.o : _fmtinpt.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c _fmtinpt.c -o $@
 
-${BUILD}/_xpndfmt.o : _xpndfmt.c ../include/stdio.h ${STDDEP}
+build/_xpndfmt.o : _xpndfmt.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c _xpndfmt.c -o $@
 
-${BUILD}/fgetpos.o: fgetpos.c ../include/stdio.h ${STDDEP}
+build/fgetpos.o: fgetpos.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c fgetpos.c -o $@
 
-${BUILD}/fseek.o: fseek.c ../include/stdio.h ${STDDEP}
+build/fseek.o: fseek.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c fseek.c -o $@
 
-${BUILD}/fsetpos.o: fsetpos.c ../include/stdio.h ${STDDEP}
+build/fsetpos.o: fsetpos.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c fsetpos.c -o $@
 
-${BUILD}/ftell.o: ftell.c ../include/stdio.h ${STDDEP}
+build/ftell.o: ftell.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c ftell.c -o $@
 
-${BUILD}/getc.o: getc.c ../include/stdio.h ${STDDEP}
+build/getc.o: getc.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c getc.c -o $@
 
-${BUILD}/getchar.o: getchar.c ../include/stdio.h ${STDDEP}
+build/getchar.o: getchar.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c getchar.c -o $@
 
-${BUILD}/gets.o: gets.c ../include/stdio.h ${STDDEP}
+build/gets.o: gets.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c gets.c -o $@
 
-${BUILD}/perror.o: perror.c ../include/stdio.h ${STDDEP}
+build/perror.o: perror.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c perror.c -o $@
 
-${BUILD}/printf.o: printf.c ../include/stdio.h ${STDDEP}
+build/printf.o: printf.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c printf.c -o $@
 
-${BUILD}/putc.o: putc.c ../include/stdio.h ${STDDEP}
+build/putc.o: putc.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c putc.c -o $@
 
-${BUILD}/putchar.o: putchar.c ../include/stdio.h ${STDDEP}
+build/putchar.o: putchar.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c putchar.c -o $@
 
-${BUILD}/puts.o: puts.c ../include/stdio.h ${STDDEP}
+build/puts.o: puts.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c puts.c -o $@
 
-${BUILD}/remove.o: remove.c ../include/stdio.h ${STDDEP}
+build/remove.o: remove.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c remove.c -o $@
 
-${BUILD}/rename.o: rename.c ../include/stdio.h ${STDDEP}
+build/rename.o: rename.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c rename.c -o $@
 
-${BUILD}/rewind.o: rewind.c ../include/stdio.h ${STDDEP}
+build/rewind.o: rewind.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c rewind.c -o $@
 
-${BUILD}/scanf.o: scanf.c ../include/stdio.h ${STDDEP}
+build/scanf.o: scanf.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c scanf.c -o $@
 
-${BUILD}/sprintf.o: sprintf.c ../include/stdio.h ${STDDEP}
+build/sprintf.o: sprintf.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c sprintf.c -o $@
 
 
 # Stdlib.h
 
-${BUILD}/abort.o: abort.c ../include/stdlib.h ${STDDEP}
+build/abort.o: abort.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c abort.c -o $@
 
-${BUILD}/abs.o: abs.c ../include/stdlib.h ${STDDEP}
+build/abs.o: abs.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c abs.c -o $@
 
-${BUILD}/atexit.o: atexit.c ../include/stdlib.h ${STDDEP}
+build/atexit.o: atexit.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c atexit.c -o $@
 
-${BUILD}/atof.o: atof.c ../include/stdlib.h ${STDDEP}
+build/atof.o: atof.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c atof.c -o $@
 
-${BUILD}/atoi.o: atoi.c ../include/stdlib.h ${STDDEP}
+build/atoi.o: atoi.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c atoi.c -o $@
 
-${BUILD}/atol.o: atol.c ../include/stdlib.h ${STDDEP}
+build/atol.o: atol.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c atol.c -o $@
 
-${BUILD}/bsearch.o: bsearch.c ../include/stdlib.h ${STDDEP}
+build/bsearch.o: bsearch.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c bsearch.c -o $@
 
-${BUILD}/calloc.o: calloc.c ../include/stdlib.h ${STDDEP}
+build/calloc.o: calloc.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c calloc.c -o $@
 
-${BUILD}/div.o: div.c ../include/stdlib.h ${STDDEP}
+build/div.o: div.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c div.c -o $@
 
-${BUILD}/exit.o: exit.c ../include/stdlib.h ${STDDEP}
+build/exit.o: exit.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c exit.c -o $@
 
-${BUILD}/free.o: free.c ../include/stdlib.h ${STDDEP}
+build/free.o: free.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c free.c -o $@
 
-${BUILD}/getenv.o: getenv.c ../include/stdlib.h ${STDDEP}
+build/getenv.o: getenv.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c getenv.c -o $@
 
-${BUILD}/itoa.o: itoa.c ../include/stdlib.h ${STDDEP}
+build/itoa.o: itoa.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c itoa.c -o $@
 
-${BUILD}/itox.o: itox.c ../include/stdlib.h ${STDDEP}
+build/itox.o: itox.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c itox.c -o $@
 
-${BUILD}/labs.o: labs.c ../include/stdlib.h ${STDDEP}
+build/labs.o: labs.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c labs.c -o $@
 
-${BUILD}/ldiv.o: ldiv.c ../include/stdlib.h ${STDDEP}
+build/ldiv.o: ldiv.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c ldiv.c -o $@
 
-${BUILD}/malloc.o: malloc.c ../include/stdlib.h ${STDDEP}
+build/malloc.o: malloc.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c malloc.c -o $@
 
-${BUILD}/rand.o: rand.c ../include/stdlib.h ${STDDEP}
+build/rand.o: rand.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c rand.c -o $@
 
-${BUILD}/realloc.o: realloc.c ../include/stdlib.h ${STDDEP}
+build/realloc.o: realloc.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c realloc.c -o $@
 
-${BUILD}/srand.o: srand.c ../include/stdlib.h ${STDDEP}
+build/srand.o: srand.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c srand.c -o $@
 
-${BUILD}/utoa.o: utoa.c ../include/stdlib.h ${STDDEP}
+build/utoa.o: utoa.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c utoa.c -o $@
+
+build/xtoi.o: xtoi.c ../include/stdlib.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c xtoi.c -o $@
 
 
 # String.h
 
-${BUILD}/memcmp.o: memcmp.c ../include/string.h ${STDDEP}
+build/memcmp.o: memcmp.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c memcmp.c -o $@
 
-${BUILD}/memcpy.o: memcpy.c ../include/string.h ${STDDEP}
+build/memcpy.o: memcpy.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c memcpy.c -o $@
 
-${BUILD}/memmove.o: memmove.c ../include/string.h ${STDDEP}
+build/memmove.o: memmove.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c memmove.c -o $@
 
-${BUILD}/strcasecmp.o: strcasecmp.c ../include/string.h ${STDDEP}
+build/strcasecmp.o: strcasecmp.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strcasecmp.c -o $@
 
-${BUILD}/strcat.o: strcat.c ../include/string.h ${STDDEP}
+build/strcat.o: strcat.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strcat.c -o $@
 
-${BUILD}/strcmp.o: strcmp.c ../include/string.h ${STDDEP}
+build/strcmp.o: strcmp.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strcmp.c -o $@
 
-${BUILD}/strcpy.o: strcpy.c ../include/string.h ${STDDEP}
+build/strcpy.o: strcpy.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strcpy.c -o $@
 
-${BUILD}/strlen.o: strlen.c ../include/string.h ${STDDEP}
+build/strlen.o: strlen.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strlen.c -o $@
 
-${BUILD}/strncat.o: strncat.c ../include/string.h ${STDDEP}
+build/strncat.o: strncat.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strncat.c -o $@
 
-${BUILD}/strncmp.o: strncmp.c ../include/string.h ${STDDEP}
+build/strncmp.o: strncmp.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strncmp.c -o $@
 
-${BUILD}/strncpy.o: strncpy.c ../include/string.h ${STDDEP}
+build/strncpy.o: strncpy.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strncpy.c -o $@
 
-${BUILD}/strspn.o: strspn.c ../include/string.h ${STDDEP}
+build/strspn.o: strspn.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strspn.c -o $@
 
-${BUILD}/strstr.o: strstr.c ../include/string.h ${STDDEP}
+build/strstr.o: strstr.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strstr.c -o $@
 
 
 # Time.h
 
-${BUILD}/asctime.o: asctime.c ../include/time.h ${STDDEP}
+build/asctime.o: asctime.c ../include/time.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c asctime.c -o $@
 
-${BUILD}/clock.o: clock.c ../include/time.h ${STDDEP}
+build/clock.o: clock.c ../include/time.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c clock.c -o $@
 
-${BUILD}/ctime.o: ctime.c ../include/time.h ${STDDEP}
+build/ctime.o: ctime.c ../include/time.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c ctime.c -o $@
 
-${BUILD}/difftime.o: difftime.c ../include/time.h ${STDDEP}
+build/difftime.o: difftime.c ../include/time.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c difftime.c -o $@
 
-${BUILD}/gmtime.o: gmtime.c ../include/time.h ${STDDEP}
+build/gmtime.o: gmtime.c ../include/time.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c gmtime.c -o $@
 
-${BUILD}/localtime.o: localtime.c ../include/time.h ${STDDEP}
+build/localtime.o: localtime.c ../include/time.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c localtime.c -o $@
 
-${BUILD}/mktime.o: mktime.c ../include/time.h ${STDDEP}
+build/mktime.o: mktime.c ../include/time.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c mktime.c -o $@
 
-${BUILD}/time.o: time.c ../include/time.h ${STDDEP}
+build/time.o: time.c ../include/time.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c time.c -o $@
 
 
 # Startfiles
 
-${BUILD}/_globdata.o: _globdata.c ${STDDEP}
+build/_globdata.o: _globdata.c ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c _globdata.c -o $@
 
-${BUILD}/_start.o: _start.c ${STDDEP}
-	${CC} ${OPTS} ${INCLUDES} -c _start.c -o $@
+build/crt0.o: crt0.c ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c crt0.c -o $@
+
+
+# The Visopsys library files
+
+build/libvsh.o: libvsh.c ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c libvsh.c -o $@
+
+build/libwindow.o: libwindow.c ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c libwindow.c -o $@
 
 
 # Miscellany
 
 clean:
-	rm -Rf *~ *.o core libc.a ${PLATFORM}
+	rm -Rf *~ *.o core libc.a build

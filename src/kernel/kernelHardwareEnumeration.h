@@ -22,18 +22,13 @@
 #if !defined(_KERNELHARDWAREENUMERATION_H)
 
 #include "loaderInfo.h"
-#include "kernelDiskFunctions.h"
+#include "kernelDisk.h"
+#include "kernelKeyboard.h"
 
 extern loaderInfoStruct *systemInfo;
 
 // Functions exported by kernelHardwareEnumeration.c
 int kernelHardwareEnumerate(loaderInfoStruct *);
-
-// These ones can be used by external routines to get information 
-// about the hardware
-kernelDiskObject *kernelGetFloppyDiskObject(int);
-int kernelGetNumberLogicalHardDisks(void);
-kernelDiskObject *kernelGetHardDiskObject(int);
 
 #define _KERNELHARDWAREENUMERATION_H
 #endif

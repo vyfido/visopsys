@@ -19,61 +19,26 @@
 //  sync.c
 //
 
-// This is the UNIX-style command for synchronizing filesystem changes
-// with the disk.
+// This is the UNIX-style command for synchronizing changes to the disk.
 
 #include <stdio.h>
 #include <errno.h>
 #include <sys/api.h>
 
 
-/*
-static void usage(char *name)
-{
-  printf("usage:\n");
-  printf("%s [filesystem1] [filesystem2] [...]\n", name);
-  return;
-}
-*/
-
-
 int main(int argc, char *argv[])
 {
-  // Attempts to synchronize the named filesystem
+  // Attempts to synchronize all disks
 
   int status = 0;
-  int count;
 
+  // This will sync all filesystems
+  status = diskSync();
 
-  // If there are no arguments, we send a NULL to sync all filesystems
-  if (argc == 1)
+  if (status < 0)
     {
-      // This will sync all filesystems
-      status = filesystemSync(NULL /* Means sync all filesystems */);
-
-      if (status < 0)
-	{
-	  errno = status;
-	  perror(argv[0]);
-	}
-    }
-  else
-    {
-      // Loop for each of our filesystem arguments.
-      for (count = 1; count < argc; count ++)
-	{
-	  // Make sure it isn't NULL
-	  if (argv[count] == NULL)
-	    return (status = ERR_NULLPARAMETER);
-
-	  status = filesystemSync(argv[count]);
-
-	  if (status < 0)
-	    {
-	      errno = status;
-	      perror(argv[0]);
-	    }
-	} 
+      errno = status;
+      perror(argv[0]);
     }
 
   // Return success

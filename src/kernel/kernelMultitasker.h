@@ -30,8 +30,8 @@
 #define MAX_PROCNAME_LENGTH 64
 #define MAX_PROCESSES ((GDT_SIZE - RES_GLOBAL_DESCRIPTORS))
 #define PRIORITY_LEVELS 8
-#define DEFAULT_STACK_SIZE 0x00030000
-#define DEFAULT_SUPER_STACK_SIZE 0x00010000
+#define DEFAULT_STACK_SIZE (32 * 1024)
+#define DEFAULT_SUPER_STACK_SIZE (32 * 1024)
 #define HOOK_TIMER_INT_NUMBER 0x20
 #define TIME_SLICE_LENGTH 0x00002000
 #define CPU_PERCENT_TIMESLICES 300
@@ -98,10 +98,11 @@ typedef volatile struct
   unsigned startTime;
   unsigned cpuTime;
   int cpuPercent;
+  unsigned yieldSlice;
   unsigned waitTime;
   unsigned waitUntil;
   int waitForProcess;
-  int waitThreadTerm;
+  int blockingExitCode;
   kernelProcessState state;
   void *codeDataPointer;
   unsigned codeDataSize;
@@ -120,7 +121,7 @@ typedef volatile struct
 
 // When in system calls, processes will be allowed to access information
 // about themselves
-extern kernelProcess *currentProcess;
+extern kernelProcess *kernelCurrentProcess;
 
 // Functions exported by kernelMultitasker.c
 int kernelMultitaskerInitialize(void);
@@ -139,6 +140,7 @@ int kernelMultitaskerGetProcessOwner(int);
 const char *kernelMultitaskerGetProcessName(int);
 int kernelMultitaskerGetProcessState(int, kernelProcessState *);
 int kernelMultitaskerSetProcessState(int, kernelProcessState);
+int kernelMultitaskerProcessIsAlive(int);
 int kernelMultitaskerGetProcessPriority(int);
 int kernelMultitaskerSetProcessPriority(int, int);
 int kernelMultitaskerGetProcessPrivilege(int);
@@ -148,11 +150,12 @@ kernelTextInputStream *kernelMultitaskerGetTextInput(void);
 int kernelMultitaskerSetTextInput(int, kernelTextInputStream *);
 kernelTextOutputStream *kernelMultitaskerGetTextOutput(void);
 int kernelMultitaskerSetTextOutput(int, kernelTextOutputStream *);
-int kernelMultitaskerTransferStreams(int, int, int);
+int kernelMultitaskerDuplicateIO(int, int, int);
 int kernelMultitaskerGetProcessorTime(clock_t *);
 void kernelMultitaskerYield(void);
 void kernelMultitaskerWait(unsigned);
 int kernelMultitaskerBlock(int);
+int kernelMultitaskerDetach(void);
 int kernelMultitaskerKillProcess(int, int);
 int kernelMultitaskerKillAll(void);
 int kernelMultitaskerTerminate(int);

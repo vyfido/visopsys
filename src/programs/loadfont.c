@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <sys/vsh.h>
 #include <sys/api.h>
 
 
@@ -34,44 +35,29 @@ static void usage(char *name)
 }
 
 
-static void makeAbsolutePath(const char *orig, char *new)
-{
-  char cwd[MAX_PATH_LENGTH];
-
-  if ((orig[0] != '/') && (orig[0] != '\\'))
-    {
-      multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
-
-      strcpy(new, cwd);
-
-      if ((new[strlen(new) - 1] != '/') &&
-	  (new[strlen(new) - 1] != '\\'))
-	strncat(new, "/", 1);
-
-      strcat(new, orig);
-    }
-  else
-    strcpy(new, orig);
-
-  return;
-}
-
-
 int main(int argc, char *argv[])
 {
   int status = 0;
   char fileName[MAX_PATH_NAME_LENGTH];
   objectKey font;
 
+  // Only work in graphics mode
+  if (!graphicsAreEnabled())
+    {
+      printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
+      errno = ERR_NOTINITIALIZED;
+      return (status = errno);
+    }
+
   if (argc != 3)
     {
-      usage(argv[0]);
+      usage((argc > 0)? argv[0] : "loadfont");
       errno = ERR_ARGUMENTCOUNT;
       return (status = errno);
     }
 
   // Make sure the file name is complete
-  makeAbsolutePath(argv[1], fileName);
+  vshMakeAbsolutePath(argv[1], fileName);
 
   // Call the kernel to load the font
   status = fontLoad(fileName, argv[2], &font);

@@ -24,16 +24,53 @@
 
 #include "kernelDriverManagement.h" // Contains my prototypes
 #include "kernelMemoryManager.h"
-#include "kernelMiscAsmFunctions.h"
+#include "kernelMalloc.h"
+#include "kernelMiscFunctions.h"
+#include "kernelProcessorX86.h"
 #include "kernelError.h"
 #include <sys/errors.h>
 
 
-static kernelGraphicAdapterObject *adapter = NULL;
-static int mask = 0;
-static int bytesPerPixel = 0;
-static int intBits = (sizeof(int) * 8);
+int kernelLFBGraphicDriverRegisterDevice(void *);
+int kernelLFBGraphicDriverClearScreen(color *);
+int kernelLFBGraphicDriverDrawPixel(kernelGraphicBuffer *, color *, drawMode,
+				    int, int);
+int kernelLFBGraphicDriverDrawLine(kernelGraphicBuffer *, color *, drawMode,
+				   int, int, int, int);
+int kernelLFBGraphicDriverDrawRect(kernelGraphicBuffer *, color *, drawMode,
+				   int, int, unsigned, unsigned, unsigned,
+				   int);
+int kernelLFBGraphicDriverDrawOval(kernelGraphicBuffer *, color *, drawMode,
+				   int, int, unsigned, unsigned, unsigned,
+				   int);
+int kernelLFBGraphicDriverDrawMonoImage(kernelGraphicBuffer *, image *,
+					color *, color *, int, int);
+int kernelLFBGraphicDriverDrawImage(kernelGraphicBuffer *, image *, int, int,
+				    unsigned, unsigned, unsigned, unsigned);
+int kernelLFBGraphicDriverGetImage(kernelGraphicBuffer *, image *, int, int,
+				   unsigned, unsigned);
+int kernelLFBGraphicDriverCopyArea(kernelGraphicBuffer *, int, int, unsigned,
+				   unsigned, int, int);
+int kernelLFBGraphicDriverRenderBuffer(kernelGraphicBuffer *, int, int, int,
+				       int, unsigned, unsigned);
 
+static kernelGraphicDriver defaultGraphicDriver =
+{
+  kernelLFBGraphicDriverInitialize,
+  kernelLFBGraphicDriverRegisterDevice,
+  kernelLFBGraphicDriverClearScreen,
+  kernelLFBGraphicDriverDrawPixel,
+  kernelLFBGraphicDriverDrawLine,
+  kernelLFBGraphicDriverDrawRect,
+  kernelLFBGraphicDriverDrawOval,
+  kernelLFBGraphicDriverDrawMonoImage,
+  kernelLFBGraphicDriverDrawImage,
+  kernelLFBGraphicDriverGetImage,
+  kernelLFBGraphicDriverCopyArea,
+  kernelLFBGraphicDriverRenderBuffer
+};
+
+static kernelGraphicAdapter *adapter = NULL;
 static kernelGraphicBuffer wholeScreen;
 
 
@@ -46,26 +83,24 @@ static kernelGraphicBuffer wholeScreen;
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelLFBGraphicDriverInitialize(void *device)
+int kernelLFBGraphicDriverInitialize(void)
 {
   // The standard initialization stuff
+  return (kernelDriverRegister(graphicDriver, &defaultGraphicDriver));
+}
 
-  int status = 0;
 
+int kernelLFBGraphicDriverRegisterDevice(void *device)
+{
   // Save the reference to the device information
-  adapter = device;
-
-  bytesPerPixel = (adapter->bitsPerPixel / 8);
-  
-  // Use this to mask off the appropriate number of bits for each pixel
-  mask = (-1 << (intBits - adapter->bitsPerPixel));
+  adapter = (kernelGraphicAdapter *) device;
 
   // Set up the kernelGraphicBuffer that represents the whole screen
   wholeScreen.width = adapter->xRes;
   wholeScreen.height = adapter->yRes;
   wholeScreen.data = adapter->framebuffer;
 
-  return (status = 0);
+  return (0);
 }
 
 
@@ -78,12 +113,30 @@ int kernelLFBGraphicDriverClearScreen(color *background)
   int count;
   
   // Set everything to the background color
-  for (count = 0; count < (pixels * adapter->bitsPerPixel) / 8; )
+
+  if (adapter->bitsPerPixel == 32)
     {
-      ((char *) adapter->framebuffer)[count++] = background->blue;
-      ((char *) adapter->framebuffer)[count++] = background->green;
-      ((char *) adapter->framebuffer)[count++] = background->red;
+      unsigned tmp = ((background->red << 16) | (background->green << 8) |
+		      background->blue);
+      kernelProcessorWriteDwords(tmp, adapter->framebuffer, pixels);
     }
+
+  else if (adapter->bitsPerPixel == 24)
+    for (count = 0; count < (pixels * adapter->bytesPerPixel); )
+      {
+	((char *) adapter->framebuffer)[count++] = background->blue;
+	((char *) adapter->framebuffer)[count++] = background->green;
+	((char *) adapter->framebuffer)[count++] = background->red;
+      }
+
+  else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
+    for (count = 0; count < pixels; count ++)
+      {
+	short pixel = (((background->red >> 3) << 11) |
+		       ((background->green >> 2) << 5) |
+		       (background->blue >> 3));
+	((short *) adapter->framebuffer)[count] = pixel;
+      }
 
   return (status = 0);
 }
@@ -111,19 +164,37 @@ int kernelLFBGraphicDriverDrawPixel(kernelGraphicBuffer *buffer,
 
   // Draw the pixel using the supplied color
   framebufferPointer = buffer->data +
-    ((((buffer->width * xCoord) + xCoord) * adapter->bitsPerPixel) / 8);
+    (((buffer->width * xCoord) + xCoord) * adapter->bytesPerPixel);
 	
-  if (mode == draw_normal)
+  if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
     {
-      framebufferPointer[0] = foreground->blue;
-      framebufferPointer[1] = foreground->green;
-      framebufferPointer[2] = foreground->red;
+      if (mode == draw_normal)
+	{
+	  framebufferPointer[0] = foreground->blue;
+	  framebufferPointer[1] = foreground->green;
+	  framebufferPointer[2] = foreground->red;
+	  if (adapter->bitsPerPixel == 32)
+	     framebufferPointer[3] = 0;
+	}
+      else
+	{
+	  framebufferPointer[0] ^= foreground->blue;
+	  framebufferPointer[1] ^= foreground->green;
+	  framebufferPointer[2] ^= foreground->red;
+	  if (adapter->bitsPerPixel == 32)
+	    framebufferPointer[3] = 0;
+	}
     }
-  else
+
+  else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
     {
-      framebufferPointer[0] ^= foreground->blue;
-      framebufferPointer[1] ^= foreground->green;
-      framebufferPointer[2] ^= foreground->red;
+	short pixel = (((foreground->red >> 3) << 11) |
+		       ((foreground->green >> 2) << 5) |
+		       (foreground->blue >> 3));
+	if (mode == draw_normal)
+	  *((short *) framebufferPointer) = pixel;
+	else
+	  *((short *) framebufferPointer) ^= pixel;
     }
 
   return (status = 0);
@@ -166,27 +237,52 @@ int kernelLFBGraphicDriverDrawLine(kernelGraphicBuffer *buffer,
 	lineLength = (buffer->width - startX);
       
       // How many bytes in the line?
-      lineBytes = ((adapter->bitsPerPixel * lineLength) / 8);
-      if (((adapter->bitsPerPixel * lineLength) % 8))
-	lineBytes += 1;
+      lineBytes = (adapter->bytesPerPixel * lineLength);
 
       framebufferPointer = buffer->data +
-	((((buffer->width * startY) + startX) * adapter->bitsPerPixel) / 8);
+	(((buffer->width * startY) + startX) * adapter->bytesPerPixel);
 
       // Do a loop through the line, copying the color values
       // consecutively
-      for (count = 0; count < lineBytes; )
-	if (mode == draw_normal)
+
+      if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
+	{
+	  if ((adapter->bitsPerPixel == 24) || (mode == draw_xor))
+	    for (count = 0; count < lineBytes; )
+	      if (mode == draw_normal)
+		{
+		  framebufferPointer[count++] = foreground->blue;
+		  framebufferPointer[count++] = foreground->green;
+		  framebufferPointer[count++] = foreground->red;
+		  if (adapter->bitsPerPixel == 32)
+		    count++;
+		}
+	      else
+		{
+		  framebufferPointer[count++] ^= foreground->blue;
+		  framebufferPointer[count++] ^= foreground->green;
+		  framebufferPointer[count++] ^= foreground->red;
+		  if (adapter->bitsPerPixel == 32)
+		    count++;
+		}
+	  else
+	    {
+	      unsigned tmp = ((foreground->red << 16) |
+	    		      (foreground->green << 8) | foreground->blue);
+	      kernelProcessorWriteDwords(tmp, framebufferPointer, lineLength);
+	    }
+	}
+
+      else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
+	for (count = 0; count < lineLength; count ++)
 	  {
-	    framebufferPointer[count++] = foreground->blue;
-	    framebufferPointer[count++] = foreground->green;
-	    framebufferPointer[count++] = foreground->red;
-	  }
-	else
-	  {
-	    framebufferPointer[count++] ^= foreground->blue;
-	    framebufferPointer[count++] ^= foreground->green;
-	    framebufferPointer[count++] ^= foreground->red;
+	    short pixel = (((foreground->red >> 3) << 11) |
+			   ((foreground->green >> 2) << 5) |
+			   (foreground->blue >> 3));
+	    if (mode == draw_normal)
+	      ((short *) framebufferPointer)[count] = pixel;
+	    else
+	      ((short *) framebufferPointer)[count] ^= pixel;
 	  }
     }
 
@@ -209,27 +305,43 @@ int kernelLFBGraphicDriverDrawLine(kernelGraphicBuffer *buffer,
 	lineLength = (buffer->height - startY);
       
       framebufferPointer = buffer->data +
-	((((buffer->width * startY) + startX) * adapter->bitsPerPixel) / 8);
+	(((buffer->width * startY) + startX) * adapter->bytesPerPixel);
 
       // Do a loop through the line, copying the color values
       // into each row
-      for (count = 0; count < lineLength; count ++)
-	{
-	  if (mode == draw_normal)
-	    {
-	      framebufferPointer[0] = foreground->blue;
-	      framebufferPointer[1] = foreground->green;
-	      framebufferPointer[2] = foreground->red;
-	    }
-	  else
-	    {
-	      framebufferPointer[0] ^= foreground->blue;
-	      framebufferPointer[1] ^= foreground->green;
-	      framebufferPointer[2] ^= foreground->red;
-	    }
 
-	  framebufferPointer += ((buffer->width * adapter->bitsPerPixel) / 8);
-	}
+      if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
+	for (count = 0; count < lineLength; count ++)
+	  {
+	    if (mode == draw_normal)
+	      {
+		framebufferPointer[0] = foreground->blue;
+		framebufferPointer[1] = foreground->green;
+		framebufferPointer[2] = foreground->red;
+	      }
+	    else
+	      {
+		framebufferPointer[0] ^= foreground->blue;
+		framebufferPointer[1] ^= foreground->green;
+		framebufferPointer[2] ^= foreground->red;
+	      }
+	      
+	    framebufferPointer +=
+	      ((buffer->width * adapter->bitsPerPixel) / 8);
+	  }
+      else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
+	for (count = 0; count < lineLength; count ++)
+	  {
+	    short pixel = (((foreground->red >> 3) << 11) |
+			   ((foreground->green >> 2) << 5) |
+			   (foreground->blue >> 3));
+	    if (mode == draw_normal)
+	      *((short *) framebufferPointer) = pixel;
+	    else
+	      *((short *) framebufferPointer) ^= pixel;
+
+	    framebufferPointer += (buffer->width * adapter->bytesPerPixel);
+	  }
     }
 
   // It's not horizontal or vertical.  We will use a Bresenham algorithm
@@ -252,6 +364,9 @@ int kernelLFBGraphicDriverDrawRect(kernelGraphicBuffer *buffer,
 
   int status = 0;
   int endX, endY;
+  unsigned lineBytes = 0;
+  unsigned char *lineBuffer = NULL;
+  void *framebufferPointer = NULL;
   int count;
 
   // If the supplied kernelGraphicBuffer is NULL, we draw directly to the
@@ -259,18 +374,90 @@ int kernelLFBGraphicDriverDrawRect(kernelGraphicBuffer *buffer,
   if (buffer == NULL)
     buffer = &wholeScreen;
 
-  // TEMP TEMP TEMP: hack.  Don't do it this way.  Terrible performance.
-
   endX = (startX + (width - 1));
   endY = (startY + (height - 1));
 
-  // If this is a filled rectangle, just draw a bunch of horizontal lines
   if (fill)
     {
-      for (count = startY; count <= endY; count ++)
-	kernelLFBGraphicDriverDrawLine(buffer, foreground, mode, startX, count,
-				       endX, count);
-      return (status = 0);
+      if (mode == draw_xor)
+	// Just draw a series of lines, since every pixel needs to be dealt
+	// with individually and we can't really do that better than the
+	// line drawing routine does already.
+	for (count = startY; count <= endY; count ++)
+	  kernelLFBGraphicDriverDrawLine(buffer, foreground, mode, startX,
+					 count, endX, count);
+      else
+	{
+	  // Draw the box manually
+	  
+	  // Out of the buffer entirely?
+	  if ((startX >= buffer->width) || (startY >= buffer->height))
+	    return (status = ERR_BOUNDS);
+
+	  // Off the left edge of the buffer?
+	  if (startX < 0)
+	    {
+	      width += startX;
+	      startX = 0;
+	    }
+	  // Off the top of the buffer?
+	  if (startY < 0)
+	    {
+	      height += startY;
+	      startY = 0;
+	    }
+	  // Off the right edge of the buffer?
+	  if ((startX + width) >= buffer->width)
+	    width = (buffer->width - startX);
+	  // Off the bottom of the buffer?
+	  if ((startY + height) >= buffer->height)
+	    height = (buffer->height - startY);
+	  
+	  lineBytes = (width * adapter->bytesPerPixel);
+
+	  // Make one line of the buffer
+	  lineBuffer = kernelMalloc(lineBytes);
+	  if (lineBuffer == NULL)
+	    return (status = ERR_MEMORY);
+
+	  // Do a loop through the line, copying the color values
+	  // consecutively
+
+	  if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
+	    for (count = 0; count < lineBytes; )
+	      {
+		lineBuffer[count++] = foreground->blue;
+		lineBuffer[count++] = foreground->green;
+		lineBuffer[count++] = foreground->red;
+		if (adapter->bitsPerPixel == 32)
+		  count++;
+	      }
+
+	  else if ((adapter->bitsPerPixel == 16) ||
+		   (adapter->bitsPerPixel == 15))
+	    for (count = 0; count < width; count ++)
+	      {
+		short pixel = (((foreground->red >> 3) << 11) |
+			       ((foreground->green >> 2) << 5) |
+			       (foreground->blue >> 3));
+		((short *) lineBuffer)[count] = pixel;
+	      }
+
+	  // Point to the starting place
+	  framebufferPointer = buffer->data +
+	    (((buffer->width * startY) + startX) * adapter->bytesPerPixel);
+	  
+	  // Copy the line 'height' times
+	  for (count = 0; count < height; count ++)
+	    {
+	      kernelProcessorCopyBytes(lineBuffer, framebufferPointer,
+				       lineBytes);
+	      framebufferPointer += (buffer->width * adapter->bytesPerPixel);
+	    }
+
+	  // Free linebuffer memory
+	  kernelFree(lineBuffer);
+	}
     }
 
   else
@@ -370,57 +557,87 @@ int kernelLFBGraphicDriverDrawMonoImage(kernelGraphicBuffer *buffer,
   // data in the most convenient form we can imagine.
 
   // How many bytes in a line of data?
-  lineBytes = ((adapter->bitsPerPixel * lineLength) / 8);
-  if (((adapter->bitsPerPixel * lineLength) % 8))
-    lineBytes += 1;
+  lineBytes = (adapter->bytesPerPixel * lineLength);
 
   framebufferPointer = buffer->data +
-    ((((buffer->width * yCoord) + xCoord) * adapter->bitsPerPixel) / 8);
+    (((buffer->width * yCoord) + xCoord) * adapter->bytesPerPixel);
 
   // A mono image has a bitmap of 'on' bits and 'off' bits.  We will
   // draw all 'on' bits using the current foreground color.
   monoImageData = (unsigned char *) drawImage->data;
 
   // Loop for each line
+
   for (lineCounter = 0; lineCounter < numberLines; lineCounter++)
     {
       // Do a loop through the line, copying either the foreground color
       // value or the background color into framebuffer
-      for (count = 0; count < lineBytes; )
-	{
-	  // Isolate the bit from the bitmap
-	  if ((monoImageData[pixelCounter / 8] &
-	       (0x80 >> (pixelCounter % 8))) != 0)
-	    {
-	      // 'on' bit.
-	      framebufferPointer[count++] = foreground->blue;
-	      framebufferPointer[count++] = foreground->green;
-	      framebufferPointer[count++] = foreground->red;
-	    }
-	  else
-	    {
-	      // 'off' bit.  If the image is translucent, don't draw
-	      // anything.  Otherwise draw the background color.
-	      if (drawImage->isTranslucent)
-		count += 3;
-	      else
-		{
-		  framebufferPointer[count++] = background->blue;
-		  framebufferPointer[count++] = background->green;
-		  framebufferPointer[count++] = background->red;
-		}
-	    }
 
-	  pixelCounter += 1;
-	}
+      if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
+	for (count = 0; count < lineBytes; )
+	  {
+	    // Isolate the bit from the bitmap
+	    if ((monoImageData[pixelCounter / 8] &
+		 (0x80 >> (pixelCounter % 8))) != 0)
+	      {
+		// 'on' bit.
+		framebufferPointer[count++] = foreground->blue;
+		framebufferPointer[count++] = foreground->green;
+		framebufferPointer[count++] = foreground->red;
+		if (adapter->bitsPerPixel == 32)
+		  count++;
+	      }
+	    else
+	      {
+		if (drawImage->isTranslucent)
+		  count += adapter->bytesPerPixel;
+		else
+		  {
+		    // 'off' bit.
+		    framebufferPointer[count++] = background->blue;
+		    framebufferPointer[count++] = background->green;
+		    framebufferPointer[count++] = background->red;
+		    if (adapter->bitsPerPixel == 32)
+		      count++;
+		  }
+	      }
 
-      // Move to the next line in the framebuffer
-      framebufferPointer += ((buffer->width * adapter->bitsPerPixel) / 8);
+	    pixelCounter += 1;
+	  }
+
+      else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
+	for (count = 0; count < lineLength; count ++)
+	  {
+	    // Isolate the bit from the bitmap
+	    if ((monoImageData[pixelCounter / 8] &
+		 (0x80 >> (pixelCounter % 8))) != 0)
+	      {
+		// 'on' bit.
+		short pixel = (((foreground->red >> 3) << 11) |
+			       ((foreground->green >> 2) << 5) |
+			       (foreground->blue >> 3));
+		((short *) framebufferPointer)[count] = pixel;
+	      }
+	    else if (!(drawImage->isTranslucent))
+	      {
+		// 'off' bit
+		short pixel = (((background->red >> 3) << 11) |
+			       ((background->green >> 2) << 5) |
+			       (background->blue >> 3));
+		((short *) framebufferPointer)[count] = pixel;
+	      }
+
+	    pixelCounter += 1;
+	  }
+
+	// Move to the next line in the framebuffer
+	framebufferPointer += (buffer->width * adapter->bytesPerPixel);
       
-      // Are we skipping any because it's off the screen?
-      if (drawImage->width > lineLength)
-	pixelCounter += (drawImage->width - lineLength);
+	// Are we skipping any because it's off the screen?
+	if (drawImage->width > lineLength)
+	  pixelCounter += (drawImage->width - lineLength);
     }
+
 
   // Success
   return (status = 0);
@@ -428,14 +645,14 @@ int kernelLFBGraphicDriverDrawMonoImage(kernelGraphicBuffer *buffer,
 
 
 int kernelLFBGraphicDriverDrawImage(kernelGraphicBuffer *buffer,
-				    image *drawImage, int xCoord,
-				    int yCoord)
+				    image *drawImage, int xCoord, int yCoord,
+				    unsigned xOffset, unsigned yOffset,
+				    unsigned width, unsigned height)
 {
-  // Draws the supplied image on the screen at the requested coordinates
+  // Draws the requested width and height of the supplied image on the screen
+  // at the requested coordinates, with the requested offset
 
   int status = 0;
-  unsigned xOffset = 0;
-  unsigned yOffset = 0;
   unsigned lineLength = 0;
   unsigned lineBytes = 0;
   unsigned numberLines = 0;
@@ -451,87 +668,118 @@ int kernelLFBGraphicDriverDrawImage(kernelGraphicBuffer *buffer,
     buffer = &wholeScreen;
 
   // If the image is outside the buffer entirely, skip it
-  if ((xCoord >= (int) buffer->width) ||
-      (yCoord >= (int) buffer->height))
+  if ((xCoord >= (int) buffer->width) || (yCoord >= (int) buffer->height))
     return (status = ERR_BOUNDS);
 
   // Make sure it's a color image
   if (drawImage->type == IMAGETYPE_MONO)
     return (status = ERR_INVALID);
 
-  lineLength = drawImage->width;
+  if (width)
+    lineLength = width;
+  else
+    lineLength = drawImage->width;
 
-  // If the image goes off the sides of the screen, only attempt to
-  // display the pixels that will fit
+  // If the image goes off the sides of the screen, only attempt to display
+  // the pixels that will fit
   if (xCoord < 0)
     {
       lineLength += xCoord;
-      xOffset = -xCoord;
+      xOffset += -xCoord;
       xCoord = 0;
     }
   if ((xCoord + lineLength) >= buffer->width)
     lineLength -= ((xCoord + lineLength) - buffer->width);
+  if ((xOffset + lineLength) >= drawImage->width)
+    lineLength -= ((xOffset + lineLength) - drawImage->width);
 
-  numberLines = drawImage->height;
+  if (height)
+    numberLines = height;
+  else
+    numberLines = drawImage->height;
 
   // If the image goes off the top or bottom of the screen, only show the
   // lines that will fit
   if (yCoord < 0)
     {
       numberLines += yCoord;
-      yOffset = -yCoord;
+      yOffset += -yCoord;
       yCoord = 0;
     }
   if ((yCoord + numberLines) >= buffer->height)
     numberLines -= ((yCoord + numberLines) - buffer->height);
+  if ((yOffset + numberLines) >= drawImage->height)
+    numberLines -= ((yOffset + numberLines) - drawImage->height);
 
-  // images are lovely little data structures that give us image
-  // data in the most convenient form we can imagine.
+  // Images are lovely little data structures that give us image data in the
+  // most convenient form we can imagine.
 
   // How many bytes in a line of data?
-  lineBytes = ((adapter->bitsPerPixel * lineLength) / 8);
-  if (((adapter->bitsPerPixel * lineLength) % 8))
-    lineBytes += 1;
+  lineBytes = (adapter->bytesPerPixel * lineLength);
 
   framebufferPointer = buffer->data +
-    ((((buffer->width * yCoord) + xCoord) * adapter->bitsPerPixel) / 8);
+    (((buffer->width * yCoord) + xCoord) * adapter->bytesPerPixel);
 
   imageData = (pixel *)
     (drawImage->data + (((yOffset * drawImage->width) + xOffset) * 3));
   
   // Loop for each line
+
   for (lineCounter = 0; lineCounter < numberLines; lineCounter++)
     {	  
       // Do a loop through the line, copying the color values from the
       // image into the framebuffer
-
-      for (count = 0; count < lineBytes; )
-	{
-	  if ((drawImage->isTranslucent) &&
-	      (imageData[pixelCounter].red ==
-	       drawImage->translucentColor.red) &&
-	      (imageData[pixelCounter].green ==
-	       drawImage->translucentColor.green) &&
-	      (imageData[pixelCounter].blue ==
-	       drawImage->translucentColor.blue))
-	    count += 3;
-	  else
-	    {
-	      framebufferPointer[count++] = imageData[pixelCounter].blue;
-	      framebufferPointer[count++] = imageData[pixelCounter].green;
-	      framebufferPointer[count++] = imageData[pixelCounter].red;
-	    }
-
-	  pixelCounter += 1;
-	}
-
-      // Move to the next line in the framebuffer
-      framebufferPointer += ((buffer->width * adapter->bitsPerPixel) / 8);
       
-      // Are we skipping any of this line because it's off the screen?
-      if (drawImage->width > lineLength)
-	pixelCounter += (drawImage->width - lineLength);
-    }
+      if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
+	for (count = 0; count < lineBytes; )
+	  {
+	    if ((drawImage->isTranslucent) &&
+		(imageData[pixelCounter].red ==
+		 drawImage->translucentColor.red) &&
+		(imageData[pixelCounter].green ==
+		 drawImage->translucentColor.green) &&
+		(imageData[pixelCounter].blue ==
+		 drawImage->translucentColor.blue))
+	      count += adapter->bytesPerPixel;
+	    else
+	      {
+		framebufferPointer[count++] = imageData[pixelCounter].blue;
+		framebufferPointer[count++] = imageData[pixelCounter].green;
+		framebufferPointer[count++] = imageData[pixelCounter].red;
+		if (adapter->bitsPerPixel == 32)
+		  count++;
+	      }
+
+	    pixelCounter += 1;
+	  }
+
+      else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
+	for (count = 0; count < lineLength; count ++)
+	  {
+	    if (!drawImage->isTranslucent ||
+		((imageData[pixelCounter].red !=
+		  drawImage->translucentColor.red) ||
+		 (imageData[pixelCounter].green !=
+		  drawImage->translucentColor.green) ||
+		 (imageData[pixelCounter].blue !=
+		  drawImage->translucentColor.blue)))
+	      {
+		short pixel = (((imageData[pixelCounter].red >> 3) << 11) |
+			       ((imageData[pixelCounter].green >> 2) << 5) |
+			       (imageData[pixelCounter].blue >> 3));
+		((short *) framebufferPointer)[count] = pixel;
+	      }
+
+	    pixelCounter += 1;
+	  }
+
+	// Move to the next line in the framebuffer
+	framebufferPointer += (buffer->width * adapter->bytesPerPixel);
+      
+	// Are we skipping any of this line because it's off the screen?
+	if (drawImage->width > lineLength)
+	  pixelCounter += (drawImage->width - lineLength);
+      }
 
   // Success
   return (status = 0);
@@ -588,8 +836,7 @@ int kernelLFBGraphicDriverGetImage(kernelGraphicBuffer *buffer,
   if (getImage->data == NULL)
     {
       // Allocate enough memory to hold the image data
-      getImage->data =
-	kernelMemoryRequestBlock(getImage->dataLength, 0, "image data");
+      getImage->data = kernelMemoryGet(getImage->dataLength, "image data");
       if (getImage->data == NULL)
 	{
 	  // Eek, no memory
@@ -600,34 +847,49 @@ int kernelLFBGraphicDriverGetImage(kernelGraphicBuffer *buffer,
     }
 
   // How many bytes in a line of data?
-  lineBytes = ((adapter->bitsPerPixel * lineLength) / 8);
-  if (((adapter->bitsPerPixel * lineLength) % 8))
-    lineBytes += 1;
+  lineBytes = (adapter->bytesPerPixel * lineLength);
 
   // Figure out the starting memory location in the framebuffer
   framebufferPointer = buffer->data +
-    ((((buffer->width * yCoord) + xCoord) * adapter->bitsPerPixel) / 8);
+    (((buffer->width * yCoord) + xCoord) * adapter->bytesPerPixel);
 
   imageData = (pixel *) getImage->data;
 
   // Now loop through each line of the buffer, filling the image data from
   // the screen
+
   for (lineCounter = 0; lineCounter < numberLines; lineCounter++)
     {
       // Do a loop through the line, copying the color values from the
       // framebuffer into the image data
-      for (count = 0; count < lineBytes; )
-	{
-	  imageData[pixelCounter].blue = framebufferPointer[count++];
-	  imageData[pixelCounter].green = framebufferPointer[count++];
-	  imageData[pixelCounter].red = framebufferPointer[count++];
 
-	  pixelCounter += 1;
-	}
+      if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
+	for (count = 0; count < lineBytes; )
+	  {
+	    imageData[pixelCounter].blue = framebufferPointer[count++];
+	    imageData[pixelCounter].green = framebufferPointer[count++];
+	    imageData[pixelCounter].red = framebufferPointer[count++];
+	    if (adapter->bitsPerPixel == 32)
+	      count++;
+	    
+	    pixelCounter += 1;
+	  }
 
-      // Move to the next line in the framebuffer
-      framebufferPointer += ((buffer->width * adapter->bitsPerPixel) / 8);
-    }
+      else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
+	for (count = 0; count < lineLength; count ++)
+	  {
+	    short pixel = ((short *) framebufferPointer)[count];
+
+	    imageData[pixelCounter].red = ((pixel & 0xF800) >> 8);
+	    imageData[pixelCounter].green = ((pixel & 0x07E0) >> 3);
+	    imageData[pixelCounter].blue = ((pixel & 0x001F) << 3);
+
+	    pixelCounter += 1;
+	  }
+
+	// Move to the next line in the framebuffer
+	framebufferPointer += (buffer->width * adapter->bytesPerPixel);
+      }
 
   // Fill in the image's vitals
   getImage->type = IMAGETYPE_COLOR;
@@ -648,7 +910,6 @@ int kernelLFBGraphicDriverCopyArea(kernelGraphicBuffer *buffer, int xCoord1,
   int status = 0;
   unsigned char *srcPointer = NULL;
   unsigned char *destPointer = NULL;
-  unsigned lineLength = 0;
   int count;
 
   // If the supplied kernelGraphicBuffer is NULL, we draw directly to the
@@ -657,17 +918,15 @@ int kernelLFBGraphicDriverCopyArea(kernelGraphicBuffer *buffer, int xCoord1,
     buffer = &wholeScreen;
 
   srcPointer = buffer->data +
-    ((((buffer->width * yCoord1) + xCoord1) * adapter->bitsPerPixel) / 8);
+    (((buffer->width * yCoord1) + xCoord1) * adapter->bytesPerPixel);
   destPointer = buffer->data +
-    ((((buffer->width * yCoord2) + xCoord2) * adapter->bitsPerPixel) / 8);
-
-  lineLength = ((width * adapter->bitsPerPixel) / 8);
+    (((buffer->width * yCoord2) + xCoord2) * adapter->bytesPerPixel);
 
   for (count = yCoord1; count <= (yCoord1 + height - 1); count ++)
     {
-      kernelMemCopy(srcPointer, destPointer, lineLength);
-      srcPointer += ((buffer->width * adapter->bitsPerPixel) / 8);
-      destPointer += ((buffer->width * adapter->bitsPerPixel) / 8);
+      kernelMemCopy(srcPointer, destPointer, (width * adapter->bytesPerPixel));
+      srcPointer += (buffer->width * adapter->bytesPerPixel);
+      destPointer += (buffer->width * adapter->bytesPerPixel);
     }
 
   return (status = 0);
@@ -682,7 +941,6 @@ int kernelLFBGraphicDriverRenderBuffer(kernelGraphicBuffer *buffer,
   // Take the supplied graphic buffer and render it onto the screen.
 
   int status = 0;
-  unsigned bytesPerLine = 0;
   void *bufferPointer = NULL;
   void *screenPointer = NULL;
 
@@ -731,23 +989,22 @@ int kernelLFBGraphicDriverRenderBuffer(kernelGraphicBuffer *buffer,
       ((drawY + clipY) >= wholeScreen.height))
     return (status = 0);
 
-  bytesPerLine = ((width * adapter->bitsPerPixel) / 8);
-
   // Calculate the starting offset inside the buffer
   bufferPointer = buffer->data +
-    ((((buffer->width * clipY) + clipX) * adapter->bitsPerPixel) / 8);
+    (((buffer->width * clipY) + clipX) * adapter->bytesPerPixel);
 
   // Calculate the starting offset on the screen
   screenPointer = wholeScreen.data +
-    ((((wholeScreen.width * (drawY + clipY)) + drawX + clipX) *
-      adapter->bitsPerPixel) / 8);
+    (((wholeScreen.width * (drawY + clipY)) + drawX + clipX) *
+     adapter->bytesPerPixel);
 
   // Start copying lines
   for ( ; height > 0; height --)
     {
-      kernelMemCopy(bufferPointer, screenPointer, bytesPerLine);
-      bufferPointer += ((buffer->width * adapter->bitsPerPixel) / 8);
-      screenPointer += ((wholeScreen.width * adapter->bitsPerPixel) / 8);
+      kernelMemCopy(bufferPointer, screenPointer,
+		    (width * adapter->bytesPerPixel));
+      bufferPointer += (buffer->width * adapter->bytesPerPixel);
+      screenPointer += (wholeScreen.width * adapter->bytesPerPixel);
     }
 
   return (status = 0);

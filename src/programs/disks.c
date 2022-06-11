@@ -32,29 +32,28 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   int availableDisks = 0;
-  disk diskInfo;
+  disk diskInfo[DISK_MAXDEVICES];
   int count;
 
   // Call the kernel to give us the number of available disks
-  availableDisks = diskFunctionsGetCount();
+  availableDisks = diskGetCount();
+
+  status = diskGetInfo(diskInfo);
+  
+  if (status < 0)
+    {
+      // Eek.  Problem getting disk info
+      errno = status;
+      perror(argv[0]);
+      return (status);
+    }
 
   printf("\n");
       
   for (count = 0; count < availableDisks; count ++)
-    {
-      status = diskFunctionsGetInfo(count, &diskInfo);
-      
-      if (status < 0)
-	{
-	  // Eek.  Problem getting disk info
-	  errno = status;
-	  perror(argv[0]);
-	  return (status);
-	}
-
-      // Print disk info
-      printf("%d: %s\n", count, diskInfo.description);
-    }
+    // Print disk info
+    printf("%s: %s\n", diskInfo[count].name, diskInfo[count].partType
+	   .description);
 
   errno = 0;
   return (status = errno);

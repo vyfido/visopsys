@@ -39,16 +39,16 @@ typedef volatile struct
 
 // Functions from kernelMemoryManager.c
 int kernelMemoryInitialize(unsigned, loaderInfoStruct *);
-void kernelMemoryPrintUsage(void);
-void *kernelMemoryRequestBlock(unsigned, unsigned, const char *);
-void *kernelMemoryRequestSystemBlock(unsigned, unsigned, const char *);
-void *kernelMemoryRequestPhysicalBlock(unsigned, unsigned, const char *);
-int kernelMemoryReleaseBlock(void *);
-int kernelMemoryReleaseSystemBlock(void *);
-int kernelMemoryReleasePhysicalBlock(void *);
+void *kernelMemoryGet(unsigned, const char *);
+void *kernelMemoryGetSystem(unsigned, const char *);
+void *kernelMemoryGetPhysical(unsigned, unsigned, const char *);
+int kernelMemoryRelease(void *);
+int kernelMemoryReleaseSystem(void *);
+int kernelMemoryReleasePhysical(void *);
 int kernelMemoryReleaseAllByProcId(int);
 int kernelMemoryChangeOwner(int, int, int, void *, void **);
 int kernelMemoryShare(int, int, void *, void **);
+void kernelMemoryPrintUsage(int);
 
 #define _KERNELMEMORYMANAGER_H
 #endif

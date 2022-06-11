@@ -34,7 +34,6 @@ int main(int argc, char *argv[])
   
   // Get the current date and time structure
   status = rtcDateTime(&time);
-
   if (status < 0)
     {
       perror(argv[0]);

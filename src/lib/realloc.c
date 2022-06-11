@@ -43,7 +43,7 @@ void *realloc(void *old, size_t newSize)
   // Make sure the requested size is not zero
   if (!newSize)
     {
-      errno = memoryReleaseBlock(old);
+      errno = memoryRelease(old);
       return (new = NULL);
     }
 

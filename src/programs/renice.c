@@ -45,10 +45,9 @@ int main(int argc, char *argv[])
   int newPriority = 0;
   int count;
 
-
   if (argc < 3)
     {
-      usage(argv[0]);
+      usage((argc > 0)? argv[0] : "renice");
       return (status = ERR_ARGUMENTCOUNT);
     }
 

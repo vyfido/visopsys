@@ -42,7 +42,7 @@ void *malloc(size_t requestedSize)
       return NULL;
     }
 
-  memoryPointer = memoryRequestBlock(requestedSize, 0, "user heap");
+  memoryPointer = memoryGet(requestedSize, "user heap");
 
   if (memoryPointer == NULL)
     errno = ERR_BADADDRESS;

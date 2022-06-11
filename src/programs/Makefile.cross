@@ -25,66 +25,63 @@
 
 
 CC		= gcc
-PLATFORM	= $(shell ../platform.sh)
 RELEASE		= $(shell ../../utils/release.sh)
 STDDEPS		= Makefile*
 
-OPTS		= -b i386-pc-visopsys \
-		-O2 -mcpu=pentium -fno-strength-reduce -Waggregate-return \
-		-falign-loops=2 -falign-jumps=2 -falign-functions=2 \
-		-Wall -Wstrict-prototypes -Wmissing-prototypes \
+OPTS		= -b i386-pc-visopsys -O2 -mcpu=pentium -fno-strength-reduce \
+		-pipe -Wall -Wstrict-prototypes -Wmissing-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
 
-PROGRAMS	= ${PLATFORM}/login \
-		${PLATFORM}/vsh \
-		${PLATFORM}/hello \
-		${PLATFORM}/looper
+PROGRAMS	= build/login \
+		build/vsh \
+		build/hello \
+		build/looper
 
-COMMANDS	= ${PLATFORM}/cat \
-		${PLATFORM}/cp \
-		${PLATFORM}/date \
-		${PLATFORM}/kill \
-		${PLATFORM}/ls \
-		${PLATFORM}/mem \
-		${PLATFORM}/mkdir \
-		${PLATFORM}/more \
-		${PLATFORM}/mount \
-		${PLATFORM}/move \
-		${PLATFORM}/nop \
-		${PLATFORM}/mv \
-		${PLATFORM}/ps \
-		${PLATFORM}/read \
-		${PLATFORM}/reboot \
-		${PLATFORM}/renice \
-		${PLATFORM}/restart \
-		${PLATFORM}/rm \
-		${PLATFORM}/rmdir \
-		${PLATFORM}/shutdown \
-		${PLATFORM}/sync \
-		${PLATFORM}/touch \
-		${PLATFORM}/umount \
-		${PLATFORM}/uname \
-		${PLATFORM}/uptime \
-		${PLATFORM}/window
+COMMANDS	= build/cat \
+		build/cp \
+		build/date \
+		build/kill \
+		build/ls \
+		build/mem \
+		build/mkdir \
+		build/more \
+		build/mount \
+		build/move \
+		build/nop \
+		build/mv \
+		build/ps \
+		build/read \
+		build/reboot \
+		build/renice \
+		build/restart \
+		build/rm \
+		build/rmdir \
+		build/shutdown \
+		build/sync \
+		build/touch \
+		build/umount \
+		build/uname \
+		build/uptime \
+		build/window
 
 all: target-dir ${PROGRAMS} ${COMMANDS}
 
 target-dir:
 	#
-	#  Making executables on ${PLATFORM}
+	#  Making executables
 	#
-	mkdir -p ${PLATFORM}
+	mkdir -p build
 
-${PLATFORM}/login: login.c ${STDDEPS}
+build/login: login.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} -DRELEASE=\"${RELEASE}\" login.c -o $@
 
-${PLATFORM}/vsh: vsh.c ${STDDEPS}
+build/vsh: vsh.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} -DRELEASE=\"${RELEASE}\" vsh.c -o $@
 
-${PLATFORM}/looper: looper.c ${STDDEPS}
+build/looper: looper.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} looper.c -o $@
 
-${PLATFORM}/hello: hello.c ${STDDEPS}
+build/hello: hello.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} hello.c -o $@
 
 
@@ -92,92 +89,92 @@ ${PLATFORM}/hello: hello.c ${STDDEPS}
 # Commands
 #
 
-${PLATFORM}/cat: cat.c ${STDDEPS}
+build/cat: cat.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} cat.c -o $@
 
-${PLATFORM}/cp: cp.c ${STDDEPS}
+build/cp: cp.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} cp.c -o $@
 
-${PLATFORM}/date: date.c ${STDDEPS}
+build/date: date.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} date.c -o $@
 
-${PLATFORM}/kill: kill.c ${STDDEPS}
+build/kill: kill.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} kill.c -o $@
 
-${PLATFORM}/ls: ls.c ${STDDEPS}
+build/ls: ls.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} ls.c -o $@
 
-${PLATFORM}/mem: mem.c ${STDDEPS}
+build/mem: mem.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} mem.c -o $@
 
-${PLATFORM}/mkdir: mkdir.c ${STDDEPS}
+build/mkdir: mkdir.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} mkdir.c -o $@
 
-${PLATFORM}/mines: mines.c ${STDDEPS}
+build/mines: mines.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} mines.c -o $@
 
-${PLATFORM}/more: more.c ${STDDEPS}
+build/more: more.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} more.c -o $@
 
-${PLATFORM}/mount: mount.c ${STDDEPS}
+build/mount: mount.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} mount.c -o $@
 
-${PLATFORM}/move: move.c ${STDDEPS}
+build/move: move.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} move.c -o $@
 
-${PLATFORM}/nop: nop.c ${STDDEPS}
+build/nop: nop.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} nop.c -o $@
 
-${PLATFORM}/mv: mv.c ${STDDEPS}
+build/mv: mv.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} mv.c -o $@
 
-${PLATFORM}/ps: ps.c ${STDDEPS}
+build/ps: ps.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} ps.c -o $@
 
-${PLATFORM}/read: read.c ${STDDEPS}
+build/read: read.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} read.c -o $@
 
-${PLATFORM}/reboot: reboot.c ${STDDEPS}
+build/reboot: reboot.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} reboot.c -o $@
 
-${PLATFORM}/renice: renice.c ${STDDEPS}
+build/renice: renice.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} renice.c -o $@
 
-${PLATFORM}/restart: restart.c ${STDDEPS}
+build/restart: restart.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} restart.c -o $@
 
-${PLATFORM}/rm: rm.c ${STDDEPS}
+build/rm: rm.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} rm.c -o $@
 
-${PLATFORM}/rmdir: rmdir.c ${STDDEPS}
+build/rmdir: rmdir.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} rmdir.c -o $@
 
-${PLATFORM}/screenshot: screenshot.c ${STDDEPS}
+build/screenshot: screenshot.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} screenshot.c -o $@
 
-${PLATFORM}/shutdown: shutdown.c ${STDDEPS}
+build/shutdown: shutdown.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} shutdown.c -o $@
 
-${PLATFORM}/sync: sync.c ${STDDEPS}
+build/sync: sync.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} sync.c -o $@
 
-${PLATFORM}/touch: touch.c ${STDDEPS}
+build/touch: touch.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} touch.c -o $@
 
-${PLATFORM}/umount: umount.c ${STDDEPS}
+build/umount: umount.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} umount.c -o $@
 
-${PLATFORM}/uname: uname.c ${STDDEPS}
+build/uname: uname.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} uname.c -o $@
 
-${PLATFORM}/uptime: uptime.c ${STDDEPS}
+build/uptime: uptime.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} uptime.c -o $@
 
-${PLATFORM}/window: window.c ${STDDEPS}
+build/window: window.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} window.c -o $@
 
 
 # Miscellany
 
 clean:
-	rm -Rf *~ *.o core ${PLATFORM}
+	rm -Rf *~ *.o core build

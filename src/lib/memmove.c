@@ -35,8 +35,23 @@ void *memmove(void *dest, const void *src, size_t len)
   // We don't set errno
   errno = 0;
 
-  for (count = 0; count < len; count ++)
-    ((char *) dest)[count] = ((char *) src)[count];
+  if (dest == src)
+    // ...Okay then...
+    return (dest);
+
+  // In case the memory areas overlap, we will copy the data differently
+  // depending on the position of the src and dest pointers
+  else if (dest < src)
+    {
+      for (count = 0; count < len; count ++)
+	((char *) dest)[count] = ((char *) src)[count];
+    }
+  else
+    {
+      for (count = (len - 1); count >= 0; count --)
+	((char *) dest)[count] = ((char *) src)[count];
+    }
+
       
   return (dest);
 }

@@ -23,24 +23,54 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <sys/window.h>
 #include <sys/api.h>
+
+
+static int processId = 0;
+objectKey window = NULL;
+
+
+static void eventHandler(objectKey key, windowEvent *event)
+{
+  // This is just to handle a window shutdown event.
+
+  if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
+    {
+      // The window is being closed by a GUI event.  Just kill our shell
+      // process -- the main process will stop blocking and do the rest
+      // of the shutdown.
+      multitaskerKillProcess(processId, 0 /* no force */);
+    }
+}
 
 
 int main(int argc, char *argv[])
 {
   int status = 0;
-  int processId = 0;
   int myPrivilege = 0;
-  objectKey window = NULL;
   componentParameters params;
   objectKey textArea = NULL;
+  int count;
+
+  // Make sure none of our arguments are NULL
+  for (count = 0; count < argc; count ++)
+    if (argv[count] == NULL)
+      return (status = ERR_NULLPARAMETER);
+
+  // Only work in graphics mode
+  if (!graphicsAreEnabled())
+    {
+      printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
+      errno = ERR_NOTINITIALIZED;
+      return (status = errno);
+    }
 
   processId = multitaskerGetCurrentProcessId();
   myPrivilege = multitaskerGetProcessPrivilege(processId);
 
   // Load a shell process
   processId = loaderLoadProgram("/programs/vsh", myPrivilege, 0, NULL);
-  
   if (processId < 0)
     {
       printf("Unable to load shell\n");
@@ -53,8 +83,7 @@ int main(int argc, char *argv[])
 				  100);
 
   // Put a text area in the window
-  textArea = windowNewTextAreaComponent(window, 60, 40,
-					NULL /* (default font) */);
+  textArea = windowNewTextArea(window, 80, 40, NULL /* (default font) */);
 
   // Put it in the client area of the window
   params.gridX = 0;
@@ -72,19 +101,29 @@ int main(int argc, char *argv[])
   params.useDefaultBackground = 1;
   windowAddClientComponent(window, textArea, &params);
 
-  windowLayout(window);
-
   // Autosize the window to fit our text area
+  windowLayout(window);
   windowAutoSize(window);
 
   // Use the text area for all our input and output
   windowManagerSetTextOutput(textArea);
 
   // Go live.
-  status = windowSetVisible(window, 1);
+  windowSetVisible(window, 1);
+
+  // Register an event handler to catch window close events
+  windowRegisterEventHandler(window, &eventHandler);
+
+  // Run the GUI as a thread
+  windowGuiThread();
 
   // Execute the shell
   status = loaderExecProgram(processId, 1 /* block */);
+
+  // If we get to here, the shell has exited.
+
+  // Stop our GUI thread
+  windowGuiStop();
 
   // Destroy the window
   windowManagerDestroyWindow(window);
