@@ -266,6 +266,10 @@ kernelWindowComponent *kernelWindowNewRadioButton(volatile void *parent,
   if ((parent == NULL) || (items == NULL) || (params == NULL))
     return (component = NULL);
 
+  // We ignore 'rows' and 'columns' for now.  This keeps the compiler happy.
+  if (!rows || !columns)
+    return (component = NULL);
+
   // Get the basic component structure
   component = kernelWindowComponentNew(parent, params);
   if (component == NULL)

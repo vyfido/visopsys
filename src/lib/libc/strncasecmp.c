@@ -34,8 +34,8 @@ int strncasecmp(const char *s1, const char *s2, size_t length)
   // match partially, we return the count at which they diverge.  If they
   // don't match at all, we return -1
 
-  for (result = 0; ((result < MAXSTRINGLENGTH) && (result < length)); 
-       result ++)
+  for (result = 0; ((result < MAXSTRINGLENGTH) &&
+		    ((unsigned) result < length)); result ++)
     {
       if ((s1[result] == '\0') && (s2[result] == '\0'))
 	return (result = 0);

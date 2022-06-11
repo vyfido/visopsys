@@ -34,12 +34,15 @@
 #include <string.h>
 
 
+// This is the global 'errno' error status variable for the kernel
+int errno = 0;
+
 // This is a variable that is checked by the standard library before calling
 // any kernel API functions.  This helps to prevent any API functions from
 // being called from within the kernel (which is bad).  For example, it is
 // permissable to use sprintf() inside the kernel, but not printf().  This
 // should help to catch mistakes.
-extern int visopsys_in_kernel;
+int visopsys_in_kernel = 1;
 
 // General kernel configuration variables
 variableList *kernelVariables = NULL;
@@ -55,8 +58,6 @@ void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
   int pid = -1;
   loaderInfoStruct systemInfo;
   char value[128];
-
-  visopsys_in_kernel = 1;
 
   // Copy the loaderHardware structure we were passed into kernel memory
   kernelMemCopy(info, &systemInfo, sizeof(loaderInfoStruct));

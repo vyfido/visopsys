@@ -16,34 +16,36 @@
 //  along with this library; if not, write to the Free Software Foundation,
 //  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 //
-//  setlocale.c
+//  vshRenameFile.c
 //
 
-// This is the standard "setlocale" function, as found in standard C libraries
+// This contains some useful functions written for the shell
 
-#include <locale.h>
-#include <limits.h>
+#include <stdio.h>
 #include <errno.h>
+#include <sys/vsh.h>
+#include <sys/api.h>
 
-// This is the default 'C' locale
-struct lconv _c_locale =
+
+_X_ int vshRenameFile(const char *srcFile, const char *destFile)
 {
-  "",         // currency_symbol
-  ".",        // decimal_point
-  "",         // grouping
-  "",         // int_curr_symbol
-  "",         // mon_decimal_point
-  "",         // mon_grouping
-  "",         // mon_thousands_sep
-  "",         // negative_sign
-  "",         // positive_sign
-  "",         // thousands_sep
-  CHAR_MAX,   // frac_digits
-  CHAR_MAX,   // int_frac_digits
-  CHAR_MAX,   // n_cs_precedes
-  CHAR_MAX,   // n_sep_by_space
-  CHAR_MAX,   // n_sign_posn
-  CHAR_MAX,   // p_cs_precedes
-  CHAR_MAX,   // p_sep_by_space
-  CHAR_MAX,   // p_sign_posn
-};
+  // Desc: Rename (move) the file specified by the name 'srcFile' to the destination 'destFile'.  Both filenames must be absolute pathnames, beginning with '/'.
+ 
+  int status = 0;
+  
+  // Make sure filename arguments aren't NULL
+  if ((srcFile == NULL) || (destFile == NULL))
+    return -1;
+   
+  // Attempt to rename the file
+  status = fileMove(srcFile, destFile);
+  if (status < 0)
+    {
+      errno = status;
+      perror("rename file");
+      return (status);
+    }
+ 
+  // Return success
+  return (status = 0);
+}

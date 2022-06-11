@@ -422,7 +422,7 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
   unsigned doSectors = 0;
   unsigned char data = 0;
   unsigned transferBytes = 0;
-  int count;
+  unsigned count;
   
   if (!disks[driveNum])
     {
@@ -668,7 +668,7 @@ static int reset(int driveNum)
       // Error, until the slave is ready
       status = -1;
 
-      unsigned startTime = kernelSysTimerRead();
+      startTime = kernelSysTimerRead();
       unsigned char sectorCount = 0, sectorNumber = 0;
 	  
       while (kernelSysTimerRead() < (startTime + 20))
@@ -743,18 +743,18 @@ static int atapiReset(int driveNum)
 }
 
 
-static int atapiSetLockState(int driveNum, int lock)
+static int atapiSetLockState(int driveNum, int lockState)
 {
   // Lock or unlock an ATAPI device
 
   int status = 0;
 
-  if (lock)
+  if (lockState)
     status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_LOCK);
   else
     status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_UNLOCK);
 
-  disks[driveNum]->lockState = lock;
+  disks[driveNum]->lockState = lockState;
 
   return (status);
 }
@@ -1083,7 +1083,7 @@ int kernelIdeDriverRecalibrate(int driveNum)
 }
 
 
-int kernelIdeDriverSetLockState(int driveNum, int lock)
+int kernelIdeDriverSetLockState(int driveNum, int lockState)
 {
   // This will lock or unlock the CD-ROM door
 
@@ -1095,7 +1095,7 @@ int kernelIdeDriverSetLockState(int driveNum, int lock)
       return (status = ERR_NOSUCHENTRY);
     }
 
-  if (lock && disks[driveNum]->doorState)
+  if (lockState && disks[driveNum]->doorState)
     {
       // Don't to lock the door if it is open
       kernelError(kernel_error, "Drive door is open");
@@ -1110,7 +1110,7 @@ int kernelIdeDriverSetLockState(int driveNum, int lock)
   // Select the drive
   selectDrive(driveNum);
 
-  status = atapiSetLockState(driveNum, lock);
+  status = atapiSetLockState(driveNum, lockState);
 
   // Unlock the controller
   kernelLockRelease((void *) &controllerLock);

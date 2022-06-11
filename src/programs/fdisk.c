@@ -463,7 +463,8 @@ static void setPartitionNumbering(partitionTable *table, int reset)
 static inline unsigned cylsToMb(disk *theDisk, unsigned cylinders)
 {
   unsigned tmpDiskSize =
-    ((cylinders * cylinderSectors) / (1048576 / theDisk->sectorSize));
+    ((cylinders * (theDisk->heads * theDisk->sectorsPerCylinder)) /
+     (1048576 / theDisk->sectorSize));
   if (tmpDiskSize < 1)
     return (1);
   else
@@ -1234,9 +1235,8 @@ static void scanPartitionTable(const disk *theDisk, partitionTable *table,
       else
 	{
 	  // Read the partition table sector data into the table structure.
-	  if (diskReadAbsoluteSectors(theDisk->name,
-				      extendedTable->startSector, 1,
-				      extendedTable->sectorData) < 0)
+	  if (diskReadSectors(theDisk->name, extendedTable->startSector, 1,
+			      extendedTable->sectorData) < 0)
 	    {
 	      error("Unable to read extended table");
 	      return;
@@ -1295,8 +1295,7 @@ static int readPartitionTable(const disk *theDisk, unsigned sector)
   bzero(&tmpBackupFile, sizeof(fileStream));
 
   // Read the first sector of the device
-  status =
-    diskReadAbsoluteSectors(theDisk->name, sector, 1, mainTable->sectorData);
+  status = diskReadSectors(theDisk->name, sector, 1, mainTable->sectorData);
   if (status < 0)
     return (status);
   
@@ -1421,8 +1420,8 @@ static int writePartitionTable(const disk *theDisk, partitionTable *table)
   table->sectorData[511] = (unsigned char) 0xAA;
 
   // Write the first sector of the device
-  status = diskWriteAbsoluteSectors(theDisk->name, table->startSector, 1,
-				    table->sectorData);
+  status =
+    diskWriteSectors(theDisk->name, table->startSector, 1, table->sectorData);
   if (status < 0)
     return (status);
 
@@ -1908,7 +1907,7 @@ static void delete(int partition)
 }
 
 
-static void format(int partition)
+static void format(slice *formatSlice)
 {
   // Prompt, and format partition
 
@@ -1933,7 +1932,7 @@ static void format(int partition)
 
   if (graphics)
     {
-      sprintf(tmpChar, "Format partition %s", slices[selectedSlice].name1);
+      sprintf(tmpChar, "Format partition %s", formatSlice->name1);
       formatDialog = windowNewDialog(window, tmpChar);
 
       bzero(&params, sizeof(componentParameters));
@@ -2004,7 +2003,7 @@ static void format(int partition)
     }
 
   sprintf(tmpChar, "Format partition %s as %s?\n(This change cannot be "
-	  "undone)", slices[selectedSlice].name1, fsTypes[selectedType]);
+	  "undone)", formatSlice->name1, fsTypes[selectedType]);
   if (yesOrNo(tmpChar))
     {
       if (graphics)
@@ -2014,7 +2013,7 @@ static void format(int partition)
 
       // Do the format
       sprintf(tmpChar, "/programs/format -s -t %s %s", fsTypes[selectedType],
-	      slices[selectedSlice].name1);
+	      formatSlice->name1);
       status = system(tmpChar);
 
       if (bannerDialog)
@@ -2066,25 +2065,25 @@ static void info(int sliceNumber)
   // Print info about a slice
   
   slice *slc = &slices[sliceNumber];
-  char info[1024];
+  char buff[1024];
 
   if (slc->typeId)
-    sprintf(info, "PARTITION %s INFO:\n\nActive : %s\nType ID : %02x\n",
+    sprintf(buff, "PARTITION %s INFO:\n\nActive : %s\nType ID : %02x\n",
 	    slc->name1, (slc->active? "yes" : "no"), slc->typeId);
   else
-    sprintf(info, "EMPTY SPACE INFO:\n\n");
+    sprintf(buff, "EMPTY SPACE INFO:\n\n");
 
-  sprintf((info + strlen(info)), "Starting Cyl/Hd/Sect: %u/%u/%u\nEnding "
+  sprintf((buff + strlen(buff)), "Starting Cyl/Hd/Sect: %u/%u/%u\nEnding "
 	  "Cyl/Hd/Sect  : %u/%u/%u\nLogical start sector: %u\nLogical size: "
 	  "%u", slc->startCylinder, slc->startHead, slc->startSector,
 	  slc->endCylinder, slc->endHead, slc->endSector, slc->startLogical,
 	  slc->sizeLogical);
 
   if (graphics)
-    windowNewInfoDialog(window, "Info", info);
+    windowNewInfoDialog(window, "Info", buff);
   else
     {
-      printf("\n%s\n", info);
+      printf("\n%s\n", buff);
       pause();
     }
 }
@@ -2368,7 +2367,7 @@ static int move(int sliceId)
     }
   if ((sliceNumber < (numberSlices - 1)) && !(slices[sliceNumber + 1].typeId))
     {
-      if (moveRange[0] == -1)
+      if (moveRange[0] == (unsigned) -1)
 	moveRange[0] = (entry.startCylinder + 1) ;
       moveRange[1] = (slices[sliceNumber + 1].endCylinder -
 		      (entry.endCylinder - entry.startCylinder));
@@ -2518,8 +2517,8 @@ static int move(int sliceId)
 	sectorsPerOp = sectorsToCopy;
 
       // Read from source
-      status = diskReadAbsoluteSectors(selectedDisk->name, srcSector,
-				       sectorsPerOp, buffer);
+      status =
+	diskReadSectors(selectedDisk->name, srcSector, sectorsPerOp, buffer);
       if (status < 0)
 	{
 	  error("Read error %d reading sectors %u-%u from disk %s",
@@ -2529,8 +2528,8 @@ static int move(int sliceId)
 	}
 
       // Write to destination
-      status = diskWriteAbsoluteSectors(selectedDisk->name, destSector,
-					sectorsPerOp, buffer);
+      status =
+	diskWriteSectors(selectedDisk->name, destSector, sectorsPerOp, buffer);
       if (status < 0)
 	{
 	  error("Write error %d writing sectors %u-%u to disk %s",
@@ -2719,18 +2718,19 @@ static void create(int sliceNumber)
   startCylinder = slices[sliceNumber].startCylinder;
   endCylinder = slices[sliceNumber].endCylinder;
 
-  // See if we can create a slice here, and if so, what type?
-  newEntry.entryType = canCreate(sliceNumber);
-  if ((int) newEntry.entryType < 0)
-    {
-      // The partition table is full of entries, in its current configuration.
-      error("The partition table is full of primary partitions.  Use more\n"
-	    "logical partitions in order to create more.");
-      return;
-    }
-
   while (1)
     {
+      // See if we can create a slice here, and if so, what type?
+      newEntry.entryType = canCreate(sliceNumber);
+      if ((int) newEntry.entryType < 0)
+	{
+	  // The partition table is full of entries, in its current
+	  // configuration.
+	  error("The partition table is full of primary partitions.  Use "
+		"more\nlogical partitions in order to create more.");
+	  return;
+	}
+
       if (graphics)
 	{
 	  createDialog = windowNewDialog(window, "Create partition");
@@ -3047,7 +3047,7 @@ static disk *chooseDiskDialog(void)
   disk *retDisk = NULL;
   objectKey chooseWindow = NULL;
   componentParameters params;
-  objectKey diskList = NULL;
+  objectKey dList = NULL;
   objectKey okButton = NULL;
   objectKey cancelButton = NULL;
   windowEvent event;
@@ -3066,7 +3066,7 @@ static disk *chooseDiskDialog(void)
   params.useDefaultBackground = 1;
 
   // Make a window list with all the disk choices
-  diskList = windowNewList(chooseWindow, numberDisks, 1, 0, diskStrings,
+  dList = windowNewList(chooseWindow, numberDisks, 1, 0, diskStrings,
 			   numberDisks, &params);
 
   // Make 'OK' and 'cancel' buttons
@@ -3092,7 +3092,7 @@ static disk *chooseDiskDialog(void)
       status = windowComponentEventGet(okButton, &event);
       if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	{
-	  retDisk = &(diskInfo[windowComponentGetSelected(diskList)]);
+	  retDisk = &(diskInfo[windowComponentGetSelected(dList)]);
 	  break;
 	}
 
@@ -3148,13 +3148,11 @@ static int copyDiskIoThread(disk *theDisk, unsigned startSector,
 	sectorsPerOp = doSectors;
 
       if (reader)
-	status =
-	  diskReadAbsoluteSectors(theDisk->name, currentSector, sectorsPerOp,
-				  buffer->buffer[currentBuffer].data);
+	status = diskReadSectors(theDisk->name, currentSector, sectorsPerOp,
+				 buffer->buffer[currentBuffer].data);
       else
-	status =
-	  diskWriteAbsoluteSectors(theDisk->name, currentSector, sectorsPerOp,
-				   buffer->buffer[currentBuffer].data);
+	status = diskWriteSectors(theDisk->name, currentSector, sectorsPerOp,
+				  buffer->buffer[currentBuffer].data);
       if (status < 0)
 	{
 	  error("Error %d %s %u sectors at %u %s disk %s", status,
@@ -4014,7 +4012,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 
   else if (((key == formatButton) || (key == menuFormat)) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
-    format(slices[selectedSlice].sliceId);
+    format(&slices[selectedSlice]);
 
   else if (((key == hideButton) || (key == menuHide)) &&
 	   (event->type == EVENT_MOUSE_LEFTUP))
@@ -4367,7 +4365,7 @@ static int textMenu(void)
 
 	case 'f':
 	case 'F':
-	  format(slices[selectedSlice].sliceId);
+	  format(&slices[selectedSlice]);
 	  continue;
 
 	case 'h':

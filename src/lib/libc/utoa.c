@@ -19,18 +19,18 @@
 //  utoa.c
 //
 
-// This is a function that turns an unsigned int into a string.  I don't
+// This is a function that turns an unsigned into a string.  I don't
 // know which regular library function is supposed to do this
 
 #include <stdlib.h>
 #include <errno.h>
 
 
-void utoa(unsigned int number, char *string)
+void utoa(unsigned number, char *string)
 {
-  unsigned int place = 1000000000;  // Decimal - 1 billion
+  unsigned place = 1000000000;  // Decimal - 1 billion
   int leadZero = 1;
-  unsigned int remainder = 0;
+  unsigned remainder = 0;
   int count = 0;
 
   if (string == NULL)

@@ -36,8 +36,8 @@
 static int borderShadingIncrement = DEFAULT_SHADING_INCREMENT;
 static int newWindowX = 0;
 static int newWindowY = 0;
-static unsigned newWindowWidth = 0;
-static unsigned newWindowHeight = 0;
+static int newWindowWidth = 0;
+static int newWindowHeight = 0;
 
 
 static void resizeWindow(void *componentData, windowEvent *event)

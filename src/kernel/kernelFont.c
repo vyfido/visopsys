@@ -257,7 +257,7 @@ int kernelFontLoad(const char* filename, const char *fontname,
   pixel *imageData = NULL;
   unsigned sourcePixel = 0;
   unsigned char *fontData = NULL;
-  int firstOnPixel, lastOnPixel, currentPixel;
+  unsigned firstOnPixel, lastOnPixel, currentPixel;
   int count1, count2, count3;
 
   // Make sure we've been initialized
@@ -438,15 +438,15 @@ int kernelFontLoad(const char* filename, const char *fontname,
 } 
 
 
-unsigned kernelFontGetPrintedWidth(kernelAsciiFont *font, const char *string)
+int kernelFontGetPrintedWidth(kernelAsciiFont *font, const char *string)
 {
   // This function takes a font pointer and a pointer to a string, and
   // calculates/returns the width of screen real-estate that the string
   // will consume if printed.  Use with variable-width fonts, of course, or
   // you're wasting your time.
   
-  unsigned printedWidth = 0;
-  unsigned stringLength = 0;
+  int printedWidth = 0;
+  int stringLength = 0;
   int count;
 
   // Make sure we've been initialized

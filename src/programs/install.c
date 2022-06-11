@@ -58,7 +58,6 @@ static int textProgressBarRow = 0;
 // GUI stuff
 static int graphics = 0;
 static objectKey window = NULL;
-static objectKey dialogWindow = NULL;
 static objectKey installTypeRadio = NULL;
 static objectKey statusLabel = NULL;
 static objectKey progressBar = NULL;
@@ -99,11 +98,7 @@ static void quit(int status, const char *message, ...)
     }
 
   if (graphics)
-    {
-      windowGuiStop();
-      if (dialogWindow)
-	windowDestroy(dialogWindow);
-    }
+    windowGuiStop();
 
   if (message != NULL)
     {

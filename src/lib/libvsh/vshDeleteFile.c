@@ -21,7 +21,6 @@
 
 // This contains some useful functions written for the shell
 
-#include <stdio.h>
 #include <errno.h>
 #include <sys/vsh.h>
 #include <sys/api.h>
@@ -35,16 +34,10 @@ _X_ int vshDeleteFile(const char *deleteFile)
 
   // Make sure file name isn't NULL
   if (deleteFile == NULL)
-    return -1;
+    return (errno = ERR_NULLPARAMETER);
   
   status = fileDelete(deleteFile);
   if (status < 0)
-    {
-      errno = status;
-      perror("delete file");
-      return (status);
-    }
-
-  // Return success
-  return (status = 0);
+    errno = status;
+  return (status);
 }

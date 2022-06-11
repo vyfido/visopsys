@@ -13,9 +13,11 @@ CC		= gcc
 RELEASE		= $(shell ../../utils/release.sh)
 CPU		= $(shell ../../utils/cpu.sh)
 STDDEPS		= *.h ../include/sys/*.h Makefile
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
-WARN		= -Wall -Wmissing-prototypes -Wstrict-prototypes \
-		-Wmissing-declarations -Wredundant-decls -Werror
+CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
+		-ffreestanding
+WARN		= -Wall -W -Wshadow -Wcast-align -Wmissing-prototypes \
+		-Wstrict-prototypes -Wmissing-declarations -Wredundant-decls \
+		-Werror
 INCLUDE		= -nostdinc -I. -I../include
 CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE} -DKERNEL
 LIB		= -L../../build/system/libraries/

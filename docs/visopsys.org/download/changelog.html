@@ -43,6 +43,58 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
 
+<p><font size="4">VERSION 0.53<br>
+</font>01/02/2005</p>
+<p><font size="4">Overview: This is a maintenance release, with numerous small 
+improvements and bug fixes.&nbsp; A number of unnecessary files and programs 
+have been removed.</font></p>
+<ul>
+  <li><font size="4">Re-engineered the kernel's file handling code so that it 
+  uses less stack memory, has less code redundancy, and exports different 
+  functions to the rest of the kernel than it does to user space.</font></li>
+  <li><font size="4">The format operation causes the kernel to re-scan the 
+  partitions, so that the new filesystem type is recorded in the disk structure</font></li>
+  <li><font size="4">The Program Manager now shows overall memory usage totals.</font></li>
+  <li><font size="4">The 'mem' command now prints totals in kilobytes, and uses 
+  a structure from the kernel (a new API function) describing the memory blocks, 
+  rather than the kernel printing out the information directly. Subsequently, 
+  deprecated the kernelMemoryPrintUsage() function.</font></li>
+  <li><font size="4">The shutdown program now attempts to eject the CD-ROM a 
+  second time if required, since it seems that some drives will fail on the 
+  first attempt but succeed on the second.</font></li>
+  <li><font size="4">The FAT boot sectors no longer rely on the disk geometry 
+  they get from the DOS BPB block. They get it from the BIOS instead.</font></li>
+  <li><font size="4">Removed the 'move' command (there's already a 'mv' command)</font></li>
+  <li><font size="4">Removed a large number of unimplemented libc function 
+  files.</font></li>
+  <li><font size="4">Moved the libc global data into crt0.c</font></li>
+  <li><font size="4">The boot sectors/OS loader that capture key presses (&quot;press 
+  any key...&quot;) now use the BIOS' int 16h function instead of trapping the 
+  hardware interrupt.</font></li>
+  <li><font size="4">Deprecated the kernelDisk{Read|Write}Absolute functions. 
+  Instead, the normal kernelDisk{Read|Write} functions are now able to figure 
+  out whether the supplied disk name is physical or logical.</font></li>
+  <li><font size="4">The libvsh functions no longer call perror(). They still 
+  set errno, and then leave perror() up to the caller.</font></li>
+  <li><font size="4">Added the -W and -Wshadow options to Makefiles.</font></li>
+  <li><font size="4">Added -ffreestanding to Makefiles, to ensure that the 
+  compiler isn't including built-in functions we're not expecting.</font></li>
+  <li><font size="4">Got rid of the &quot;unsigned int&quot; terminology everywhere and 
+  replaced it with simple &quot;unsigned&quot;</font></li>
+  <li><font size="4">Fixed: The Disk Manager was showing 1MB total size for all 
+  disks</font></li>
+  <li><font size="4">Fixed: In the Disk Manager's 'create partition' function, 
+  if you supplied bad start/end values, the logical/primary choice would be 
+  disabled when the dialog box came back.</font></li>
+  <li><font size="4">Fixed: When copying a file, if the destination was a 
+  directory (rather than a fully-specified file name), there was a 
+  kernelFileDelete error message</font></li>
+  <li><font size="4">Fixed: when the vshCursorMenu scrolled the screen, it 
+  looked funny.</font></li>
+  <li><font size="4">Fixed: 'ls' an unknown file, hang!</font></li>
+</ul>
+<font SIZE="2"><hr></font>
+
 <p><font size="4">VERSION 0.52<br>
 </font>14/01/2005</p>
 <p><font size="4">Overview: This is a maintenance and bugfix release, with some 

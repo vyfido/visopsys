@@ -138,10 +138,8 @@ static kernelFunctionIndex diskFunctionIndex[] = {
   { _fnum_diskSetDoorState, kernelDiskSetDoorState, 2, PRIVILEGE_USER },
   { _fnum_diskReadSectors, kernelDiskReadSectors, 4, PRIVILEGE_SUPERVISOR },
   { _fnum_diskWriteSectors, kernelDiskWriteSectors, 4, PRIVILEGE_SUPERVISOR },
-  { _fnum_diskReadAbsoluteSectors, kernelDiskReadAbsoluteSectors,
-    4, PRIVILEGE_SUPERVISOR },
-  { _fnum_diskWriteAbsoluteSectors, kernelDiskWriteAbsoluteSectors,
-    4, PRIVILEGE_SUPERVISOR }
+  { /* DEPRECATED kernelDiskReadAbsoluteSectors */ NULL, NULL, NULL, NULL },
+  { /* DEPRECATED kernelDiskWriteAbsoluteSectors */ NULL, NULL, NULL, NULL }
 };
 
 static kernelFunctionIndex filesystemFunctionIndex[] = {
@@ -197,14 +195,17 @@ static kernelFunctionIndex memoryFunctionIndex[] = {
 
   // Memory manager functions (5000-5999 range)
 
-  { _fnum_memoryPrintUsage, kernelMemoryPrintUsage, 1, PRIVILEGE_USER },
+  { /* DEPRECATED kernelMemoryPrintUsage */ NULL, NULL, NULL, NULL },
   { _fnum_memoryGet, kernelMemoryGet, 2, PRIVILEGE_USER },
   { _fnum_memoryGetPhysical, kernelMemoryGetPhysical,
     3, PRIVILEGE_SUPERVISOR },
   { _fnum_memoryRelease, kernelMemoryRelease, 1, PRIVILEGE_USER },
   { _fnum_memoryReleaseAllByProcId, kernelMemoryReleaseAllByProcId,
     1, PRIVILEGE_USER },
-  { _fnum_memoryChangeOwner, kernelMemoryChangeOwner, 4, PRIVILEGE_SUPERVISOR }
+  { _fnum_memoryChangeOwner, kernelMemoryChangeOwner,
+    4, PRIVILEGE_SUPERVISOR },
+  { _fnum_memoryGetStats, kernelMemoryGetStats, 2, PRIVILEGE_USER },
+  { _fnum_memoryGetBlocks, kernelMemoryGetBlocks, 3, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex multitaskerFunctionIndex[] = {
@@ -338,7 +339,7 @@ static kernelFunctionIndex windowFunctionIndex[] = {
   
   // Windowing system functions (12000-12999 range)
 
-  { _fnum_windowLogin, kernelWindowLogin, 2, PRIVILEGE_SUPERVISOR },
+  { _fnum_windowLogin, kernelWindowLogin, 1, PRIVILEGE_SUPERVISOR },
   { _fnum_windowLogout, kernelWindowLogout, 0, PRIVILEGE_USER },
   { _fnum_windowNew, kernelWindowNew, 2, PRIVILEGE_USER },
   { _fnum_windowNewDialog, kernelWindowNewDialog, 2, PRIVILEGE_USER },

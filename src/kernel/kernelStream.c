@@ -113,7 +113,7 @@ static int appendBytes(stream *theStream, unsigned number,
   // Returns 0 on success, negative otherwise.
 
   int status = 0;
-  int added = 0;
+  unsigned added = 0;
 
   // Check parameters
   if ((theStream == NULL) || (buffer == NULL))
@@ -144,7 +144,7 @@ static int appendDwords(stream *theStream, unsigned number, unsigned *buffer)
   // Returns 0 on success, negative otherwise.
 
   int status = 0;
-  int added = 0;
+  unsigned added = 0;
 
   // Check parameters
   if ((theStream == NULL) || (buffer == NULL))
@@ -180,11 +180,11 @@ static int pushByte(stream *theStream, unsigned char byte)
   if (theStream == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  // Move the head of the buffer backwards
-  theStream->first--;
-
-  // Watch out for backwards wrap-around
-  if (theStream->first < 0)
+  // Move the head of the buffer backwards.  Watch out for backwards
+  // wrap-around.
+  if (theStream->first > 0)
+    theStream->first--;
+  else
     theStream->first = (theStream->size - 1);
   
   // Add the byte to the head of the buffer
@@ -209,11 +209,11 @@ static int pushDword(stream *theStream, unsigned dword)
   if (theStream == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  // Move the head of the buffer backwards
-  theStream->first--;
-
-  // Watch out for backwards wrap-around
-  if (theStream->first < 0)
+  // Move the head of the buffer backwards.  Watch out for backwards
+  // wrap-around
+  if (theStream->first > 0)
+    theStream->first--;
+  else
     theStream->first = (theStream->size - 1);
   
   // Add the byte to the head of the buffer
@@ -246,11 +246,11 @@ static int pushBytes(stream *theStream, unsigned number, unsigned char *buffer)
   // Do a loop to add bytes
   while (number > 0)
     {
-      // Move the head of the buffer backwards
-      theStream->first--;
-
-      // Watch out for backwards wrap-around
-      if (theStream->first < 0)
+      // Move the head of the buffer backwards.  Watch out for backwards
+      // wrap-around
+      if (theStream->first > 0)
+	theStream->first--;
+      else
 	theStream->first = (theStream->size - 1);
   
       // Add the byte to the head of the buffer
@@ -286,11 +286,11 @@ static int pushDwords(stream *theStream, unsigned number, unsigned *buffer)
   // Do a loop to add dwords
   while (number > 0)
     {
-      // Move the head of the buffer backwards
-      theStream->first--;
-
-      // Watch out for backwards wrap-around
-      if (theStream->first < 0)
+      // Move the head of the buffer backwards.  Watch out for backwards
+      // wrap-around
+      if (theStream->first > 0)
+	theStream->first--;
+      else
 	theStream->first = (theStream->size - 1);
   
       // Add the byte to the head of the buffer
@@ -379,7 +379,7 @@ static int popBytes(stream *theStream, unsigned number, unsigned char *buffer)
   // and returns them in the buffer provided.  On success, it returns the
   // number of characters it actually removed.  Returns negative on error.
 
-  int removed = 0;
+  unsigned removed = 0;
 
   // Check parameters
   if ((theStream == NULL) || (buffer == NULL))
@@ -421,7 +421,7 @@ static int popDwords(stream *theStream, unsigned number, unsigned *buffer)
   // and returns them in the buffer provided.  On success, it returns the
   // number of dwords it actually removed.  Returns negative on error.
 
-  int removed = 0;
+  unsigned removed = 0;
 
   // Check parameters
   if ((theStream == NULL) || (buffer == NULL))

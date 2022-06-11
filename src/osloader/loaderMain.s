@@ -71,12 +71,6 @@ loaderMain:
 	mov FS, AX
 	mov GS, AX
 
-	;; We have to grab our boot filesystem info from the boot sector's
-	;; stack.  The boot sector will have pushed this information before 
-	;; calling us.
-	pop AX
-	mov word [FSTYPE], AX
-	
 	;; Now ensure the stack segment and stack pointer are set to 
 	;; something more appropriate for the loader
 	mov AX, (LDRSTCKSEGMENTLOCATION / 16)
@@ -88,9 +82,11 @@ loaderMain:
 	;; The boot sector is loaded at location 7C00h and starts with
 	;; some info about the filesystem.  Grab the info we need and store
 	;; it in some more convenient locations
+	
 	push FS
 	xor AX, AX
 	mov FS, AX
+	
 	mov AL, byte [FS:7C0Dh]
 	mov word [SECPERCLUST], AX
 	mov AL, byte [FS:7C10h]
@@ -105,8 +101,38 @@ loaderMain:
 	mov word [ROOTDIRENTS], AX
 	mov AX, word [FS:7C16h]
 	mov word [FATSECS], AX
-	pop FS
+
+	;; Determine the type of FAT filesystem just based on the FSType
+	;; field.  Not reliable, but it's what we do anyway.
+	mov EAX, dword [FS:7C37h]
+	cmp EAX, 0x32315441		; ('AT12')
+	jne .checkFat16
+	mov word [FSTYPE], FS_FAT12
+	jmp .doneFS
+	.checkFat16:
+	cmp EAX, 0x36315441		; ('AT16')
+	jne .checkFat32
+	mov word [FSTYPE], FS_FAT16
+	jmp .doneFS
+	.checkFat32:
+	mov EAX, dword [FS:7C53h]
+	cmp EAX, 0x32335441		; ('AT32')
+	jne .unknown
+	mov word [FSTYPE], FS_FAT32
+	;; With FAT32, some of the values are in different places
+	mov EAX, dword [FS:7C24h]
+	mov dword [FATSECS], EAX
+	mov EAX, dword [FS:7C2Ch]
+	mov dword [ROOTDIRCLUST], EAX
+	mov AL, byte [FS:7C40h]
+	mov word [DRIVENUMBER], AX
+	jmp .doneFS
+	.unknown:
+	mov word [FSTYPE], FS_UNKNOWN
 	
+	.doneFS:
+	pop FS
+
 	;; If we are not booting from a floppy, then the boot sector code
 	;; should have put a pointer to the MBR record for this partition
 	;; in SI.  Copy the entry.
@@ -266,8 +292,6 @@ loaderMain:
 	jmp PRIV_CODESELECTOR:KERNELVIRTUALADDRESS
 
 	BITS 16
-	;; Just in case
-	jmp end
 
 	;;--------------------------------------------------------------
 
@@ -278,7 +302,7 @@ fatalErrorCheck:
 	cmp AX, 0000h
 
 	jne .errors
-	jmp .noErrors
+	ret
 
 	.errors:
 	call loaderPrintNewline
@@ -305,25 +329,31 @@ fatalErrorCheck:
 	mov DL, FOREGROUNDCOLOR
 	call loaderPrint
 	call loaderPrintNewline
-	jmp end
-
-	.noErrors:
-	ret
-
-end:
+	
 	;; Print the message indicating system halt/reboot
 	mov SI, PRESSREBOOT
 	mov DL, FOREGROUNDCOLOR
 	call loaderPrint
 
-	call int9_hook
+	mov AX, 0000h
+	int 16h
 
-stop:
-	;; We just loop and wait for the little keyboard handler
-	;; to intercept a 'key pressed'
+	;; This routine handles the interrupt 9 key pressed event
+	;; All we want to do is restart the machine
+	mov SI, REBOOTING
+	mov DL, FOREGROUNDCOLOR
+	call loaderPrint
 
-	nop
-	jmp stop
+	;; Write the reset command to the keyboard controller
+	mov AL, 0FEh
+	out 64h, AL
+	jecxz $+2
+	jecxz $+2
+
+	;; Done.  The computer is now rebooting.
+
+	;; Just in case.  Should never get here.
+	hlt
 
 
 bootDevice:
@@ -472,10 +502,12 @@ printBootDevice:
 
 	;; Print the Filesystem type
 	mov AX, word [FSTYPE]
-	cmp AX, FAT12
+	cmp AX, FS_FAT12
 	je .fat12
-	cmp AX, FAT16
+	cmp AX, FS_FAT16
 	je .fat16
+	cmp AX, FS_FAT32
+	je .fat32
 
 	;; Fall through for UNKNOWN
 	mov SI, UNKNOWNFS
@@ -484,6 +516,14 @@ printBootDevice:
 	call loaderPrintNewline
 	jmp .done
 	
+	.fat12:
+	;; Print FAT12
+	mov SI, FAT12MES
+	mov DL, FOREGROUNDCOLOR
+	call loaderPrint
+	call loaderPrintNewline
+	jmp .done
+
 	.fat16:
 	;; Print FAT16
 	mov SI, FAT16MES
@@ -492,9 +532,9 @@ printBootDevice:
 	call loaderPrintNewline
 	jmp .done
 
-	.fat12:
-	;; Print FAT12
-	mov SI, FAT12MES
+	.fat32:
+	;; Print FAT32
+	mov SI, FAT32MES
 	mov DL, FOREGROUNDCOLOR
 	call loaderPrint
 	call loaderPrintNewline
@@ -504,61 +544,6 @@ printBootDevice:
 	ret
 		
 
-int9_hook:
-	;; This routine hooks the interrupt 9 key pressed event.
-	;; This will only be used in case we want to reboot the
-	;; machine, so we won't bother saving addresses, etc.
-	pusha
-
-	;; Get the address of the current interrupt 9 handler
-	;; and save it
-
-	;; Set ES so that it points to the beginning of memory
-	push ES
-	xor AX, AX
-	mov ES, AX
-		
-	mov AX, word [ES:0024h]		;; The offset of the routine
-	mov word [OLDINT9], AX
-	mov AX, word [ES:0026h]		;; The segment of the routine
-	mov word [(OLDINT9 + 2)], AX
-
-	cli
-
-	;; Move the address of our new handler into the interrupt
-	;; table
-	mov word [ES:0024h], int9_handler	;; The offset
-	mov word [ES:0026h], CS			;; The segment
-
-	sti
-
-	;; Restore ES
-	pop ES
-
-	popa
-	ret
-	
-
-int9_handler:
-	;; This routine handles the interrupt 9 key pressed event
-	;; All we want to do is restart the machine
-	mov SI, REBOOTING
-	mov DL, FOREGROUNDCOLOR
-
-	call loaderPrint
-
-	;; Write the reset command to the keyboard controller
-	mov AL, 0FEh
-	out 64h, AL
-	jecxz $+2
-	jecxz $+2
-
-	;; Done.  The computer is now rebooting.
-
-	;; Just in case.  Should never get here.
-	hlt
-
-	
 enableA20:
 	;; This routine will enable the A20 address line in the
 	;; keyboard controller.  Takes no arguments.
@@ -1021,7 +1006,6 @@ pagingSetup:
 ;;
 	
 KERNELSIZE	dd 0
-OLDINT9		dd 0	;; Address of the interrupt 9 handler
 ;; This records the number of fatal errors recorded
 PRINTINFO	dw 0	;; Show hardware information messages?
 FATALERROR	db 0 	;; Fatal error encountered?
@@ -1034,9 +1018,10 @@ FATALERROR	db 0 	;; Fatal error encountered?
 
 BYTESPERSECT	dw 0
 ROOTDIRENTS	dw 0
+ROOTDIRCLUST	dd 0
 FSTYPE		dw 0
 RESSECS		dw 0
-FATSECS		dw 0
+FATSECS		dd 0
 TOTALSECS	dd 0
 CYLINDERS	dd 0
 HEADS		dd 0
@@ -1087,7 +1072,7 @@ GDTLENGTH	equ $-dummy_desc
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.52' , 0
+LOADMSG1	db 'Visopsys OS Loader v0.53' , 0
 LOADMSG2	db 'Copyright (C) 1998-2005 J. Andrew McLaughlin', 0
 BOOTDEV		db 'Boot device  ', 10h, ' ', 0
 DEVDISK		db 'Disk ', 0
@@ -1097,6 +1082,7 @@ DEVCYLS		db ' cyls, ', 0
 DEVSECTS	db ' sects, type: ', 0
 FAT12MES	db 'FAT12', 0
 FAT16MES	db 'FAT16', 0
+FAT32MES	db 'FAT32', 0
 UNKNOWNFS	db 'UNKNOWN', 0
 A20		db 'Gate A20     ', 10h, ' ', 0
 A20WARN		db 'Enabled using alternate method.', 0

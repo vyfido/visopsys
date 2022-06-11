@@ -36,22 +36,24 @@
 // Functions exported by kernelFile.c
 int kernelFileInitialize(void);
 int kernelFileSetRoot(kernelFileEntry *);
-int kernelFileFixupPath(const char *, char *);
-int kernelFileGetFullName(kernelFileEntry *, char *);
 kernelFileEntry *kernelFileNewEntry(kernelFilesystem *);
 void kernelFileReleaseEntry(kernelFileEntry *);
 int kernelFileInsertEntry(kernelFileEntry *, kernelFileEntry *);
 int kernelFileRemoveEntry(kernelFileEntry *);
-int kernelFileMakeDotDirs(kernelFileEntry *, kernelFileEntry *);
-int kernelFileCountDirEntries(kernelFileEntry *);
+int kernelFileGetFullName(kernelFileEntry *, char *);
 kernelFileEntry *kernelFileLookup(const char *);
 kernelFileEntry *kernelFileResolveLink(kernelFileEntry *);
+int kernelFileCountDirEntries(kernelFileEntry *);
+int kernelFileMakeDotDirs(kernelFileEntry *, kernelFileEntry *);
+int kernelFileUnbufferRecursive(kernelFileEntry *);
+int kernelFileSetSize(kernelFileEntry *, unsigned);
+// More functions, but also exported to user space
+int kernelFileFixupPath(const char *, char *);
 int kernelFileSeparateLast(const char *, char *, char *);
 int kernelFileGetDisk(const char *, disk *);
 int kernelFileFirst(const char *, file *);
 int kernelFileNext(const char *, file *);
 int kernelFileFind(const char *, file *);
-int kernelFileCreate(const char *);
 int kernelFileOpen(const char *, int, file *);
 int kernelFileClose(file *);
 int kernelFileRead(file *, unsigned, unsigned, unsigned char *);
@@ -63,9 +65,7 @@ int kernelFileRemoveDir(const char *);
 int kernelFileCopy(const char *, const char *);
 int kernelFileCopyRecursive(const char *, const char *);
 int kernelFileMove(const char *, const char *);
-int kernelFileSetSize(file *, unsigned);
 int kernelFileTimestamp(const char *);
-int kernelFileUnbufferRecursive(kernelFileEntry *);
 int kernelFileGetTemp(file *);
 
 #define _KERNELFILE_H

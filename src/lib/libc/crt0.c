@@ -23,11 +23,24 @@
 // programs made for Visopsys using the C language
 
 #include <stdlib.h>
+#include <locale.h>
 
 extern int main(void);
+
+// This is the global 'errno' error status variable for this program
+int errno = 0;
+
+// This allows us to ensure that kernel API functions are not called from
+// within the kernel.
+int visopsys_in_kernel = 0;
+
+// Pointer to the current locale
+extern struct lconv _c_locale;
+struct lconv *_current_locale = &_c_locale;
+
+static int status = 0;
+ 
 void _start(void);
-
-
 void _start(void)
 {
   // This is the code that first gets invoked when the program starts
@@ -36,8 +49,6 @@ void _start(void)
   // be compiled into object format and linked with any programs
   // built for use with Visopsys.
 
-  static int status = 0;
- 
   // NO AUTOMATIC (STACK) VARIABLE DECLARATIONS.
 
   // Our return address should be sitting near the current top of our stack
@@ -48,9 +59,10 @@ void _start(void)
   // contains the original stack pointer.
   //
   // WARNING: Anything else you try to do in this function should consider
-  //          what is being done here.  For example, allocating variables
-  //          in this function is impossible without changes because the
-  //          stack frame is about to be erased.
+  //          what is being done here.  For example, allocating automatic
+  //          (AKA stack or 'local') variables in this function might be
+  //          problematic without changes because the stack frame is about
+  //          to be erased.
 
   // Clear the stack frame
   __asm__ __volatile__ ("movl %%ebp, %%esp" : : : "%esp");

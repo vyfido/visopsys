@@ -224,7 +224,8 @@ static int removeProcessFromQueue(kernelProcess *targetProcess)
 }
 
 
-static int createTaskStateSegment(kernelProcess *process, void *processPageDir)
+static int createTaskStateSegment(kernelProcess *theProcess,
+				  void *processPageDir)
 {
   // This function will create a TSS (Task State Segment) for a new
   // process based on the attributes of the process.  This function relies
@@ -234,15 +235,15 @@ static int createTaskStateSegment(kernelProcess *process, void *processPageDir)
   int status = 0;
 
   // Get a free descriptor for the process' TSS
-  status = kernelDescriptorRequest(&(process->tssSelector));
-  if ((status < 0) || (process->tssSelector == 0))
+  status = kernelDescriptorRequest(&(theProcess->tssSelector));
+  if ((status < 0) || (theProcess->tssSelector == 0))
     // Crap.  An error getting a free descriptor.
     return (status);
   
   // Fill in the process' Task State Segment descriptor
   status = kernelDescriptorSet(
-     process->tssSelector, // TSS selector number
-     &(process->taskStateSegment), // Starts at...
+     theProcess->tssSelector, // TSS selector number
+     &(theProcess->taskStateSegment), // Starts at...
      sizeof(kernelTSS),      // Limit of a TSS segment
      1,                      // Present in memory
      PRIVILEGE_SUPERVISOR,   // TSSs are supervisor privilege level
@@ -253,7 +254,7 @@ static int createTaskStateSegment(kernelProcess *process, void *processPageDir)
   if (status < 0)
     {
       // Crap.  An error getting a free descriptor.
-      kernelDescriptorRelease(process->tssSelector);
+      kernelDescriptorRelease(theProcess->tssSelector);
       return (status);
     }
 
@@ -261,38 +262,39 @@ static int createTaskStateSegment(kernelProcess *process, void *processPageDir)
   // of this will be different depending on whether this is a user
   // or supervisor mode process
 
-  kernelMemClear((void *) &(process->taskStateSegment), sizeof(kernelTSS));
+  kernelMemClear((void *) &(theProcess->taskStateSegment), sizeof(kernelTSS));
 
-  if (process->privilege == PRIVILEGE_SUPERVISOR)
+  if (theProcess->privilege == PRIVILEGE_SUPERVISOR)
     {
-      process->taskStateSegment.CS = PRIV_CODE;
-      process->taskStateSegment.DS = PRIV_DATA;
-      process->taskStateSegment.SS = PRIV_STACK;
+      theProcess->taskStateSegment.CS = PRIV_CODE;
+      theProcess->taskStateSegment.DS = PRIV_DATA;
+      theProcess->taskStateSegment.SS = PRIV_STACK;
     }
   else
     {
-      process->taskStateSegment.CS = USER_CODE;
-      process->taskStateSegment.DS = USER_DATA;
-      process->taskStateSegment.SS = USER_STACK;
+      theProcess->taskStateSegment.CS = USER_CODE;
+      theProcess->taskStateSegment.DS = USER_DATA;
+      theProcess->taskStateSegment.SS = USER_STACK;
     }
 
-  process->taskStateSegment.ES = process->taskStateSegment.DS;
-  process->taskStateSegment.FS = process->taskStateSegment.DS;
-  process->taskStateSegment.GS = process->taskStateSegment.DS;
+  theProcess->taskStateSegment.ES = theProcess->taskStateSegment.DS;
+  theProcess->taskStateSegment.FS = theProcess->taskStateSegment.DS;
+  theProcess->taskStateSegment.GS = theProcess->taskStateSegment.DS;
 
-  process->taskStateSegment.ESP = ((unsigned) process->userStack + 
-				   (process->userStackSize - sizeof(int)));
+  theProcess->taskStateSegment.ESP =
+    ((unsigned) theProcess->userStack +
+     (theProcess->userStackSize - sizeof(int)));
 
-  if (process->privilege == PRIVILEGE_USER)
+  if (theProcess->privilege == PRIVILEGE_USER)
     {
-      process->taskStateSegment.SS0 = PRIV_STACK;
-      process->taskStateSegment.ESP0 = ((unsigned) process->superStack + 
-					(process->superStackSize -
-					 sizeof(int)));
+      theProcess->taskStateSegment.SS0 = PRIV_STACK;
+      theProcess->taskStateSegment.ESP0 = ((unsigned) theProcess->superStack + 
+					   (theProcess->superStackSize -
+					    sizeof(int)));
     }
 
-  process->taskStateSegment.EFLAGS = 0x00000202; // Interrupts enabled
-  process->taskStateSegment.CR3 = ((unsigned) processPageDir);
+  theProcess->taskStateSegment.EFLAGS = 0x00000202; // Interrupts enabled
+  theProcess->taskStateSegment.CR3 = ((unsigned) processPageDir);
 
   // All remaining values will be NULL from initialization.  Note that this 
   // includes the EIP.
@@ -819,7 +821,7 @@ static int scheduler(void)
 
   int status = 0;
   kernelProcess *miscProcess = NULL;
-  volatile unsigned time = 0;
+  volatile unsigned theTime = 0;
   volatile int timeUsed = 0;
   volatile int timerTicks = 0;
   int count;
@@ -959,7 +961,7 @@ static int scheduler(void)
       schedulerTime += timeUsed;
 
       // Get the system timer time
-      time = kernelSysTimerRead();
+      theTime = kernelSysTimerRead();
 
       // Every CPU_PERCENT_TIMESLICES timeslices we will update the %CPU 
       // value for each process currently in the queue
@@ -1007,7 +1009,7 @@ static int scheduler(void)
 	      // If the process is waiting for a specified time.  Has the
 	      // requested time come?
 	      if ((miscProcess->waitUntil != 0) &&
-		  (miscProcess->waitUntil < time))
+		  (miscProcess->waitUntil < theTime))
 		// The process is ready to run
 		miscProcess->state = proc_ready;
 
@@ -1049,7 +1051,7 @@ static int scheduler(void)
 	  // should give it a low weight this time so that high-priority
 	  // processes don't gobble time unnecessarily
 	  else if (schedulerSwitchedByCall &&
-		   (miscProcess->yieldSlice == time))
+		   (miscProcess->yieldSlice == theTime))
 	    processWeight = 0;
 
 	  // Otherwise, calculate the weight of this task, using the
@@ -2077,16 +2079,16 @@ int kernelMultitaskerGetProcessState(int processId, processState *state)
   // internal functions can perform this action very easily themselves.
 
   int status = 0;
-  kernelProcess *process;
+  kernelProcess *theProcess;
 
   // Make sure multitasking has been enabled
   if (!multitaskingEnabled)
     return (status = ERR_NOTINITIALIZED);
   
   // We need to find the process structure based on the process Id
-  process = getProcessById(processId);
+  theProcess = getProcessById(processId);
 
-  if (process == NULL)
+  if (theProcess == NULL)
     // The process does not exist
     return (status = ERR_NOSUCHPROCESS);
 
@@ -2096,7 +2098,7 @@ int kernelMultitaskerGetProcessState(int processId, processState *state)
     return (status = ERR_NULLPARAMETER);
 
   // Set the state value of the process
-  *state = process->state;
+  *state = theProcess->state;
 
   return (status = 0);
 }
@@ -2346,39 +2348,39 @@ kernelTextInputStream *kernelMultitaskerGetTextInput(void)
 }
 
 
-int kernelMultitaskerSetTextInput(int processId, kernelTextInputStream *stream)
+int kernelMultitaskerSetTextInput(int processId,
+				  kernelTextInputStream *theStream)
 {
   // Change the input stream of the process
 
   int status = 0;
-  kernelProcess *process = NULL;
+  kernelProcess *theProcess = NULL;
   int count;
 
   // Make sure multitasking has been enabled
   if (!multitaskingEnabled)
     return (status = ERR_NOTINITIALIZED);
 
-  // stream is allowed to be NULL.
+  // theStream is allowed to be NULL.
 
-  process = getProcessById(processId);
-
-  if (process == NULL)
+  theProcess = getProcessById(processId);
+  if (theProcess == NULL)
     return (status = ERR_NOSUCHPROCESS);
 
-  process->textInputStream = stream;
+  theProcess->textInputStream = theStream;
 
-  if (stream && (process->type == proc_normal))
-    stream->ownerPid = process->processId;
+  if (theStream && (theProcess->type == proc_normal))
+    theStream->ownerPid = theProcess->processId;
 
   // Do any child threads recursively as well.
-  if (process->descendentThreads)
+  if (theProcess->descendentThreads)
     for (count = 0; count < numQueued; count ++)
       if ((processQueue[count]->parentProcessId == processId) &&
 	  (processQueue[count]->type == proc_thread))
 	{
 	  status =
 	    kernelMultitaskerSetTextInput(processQueue[count]->processId,
-					  stream);
+					  theStream);
 	  if (status < 0)
 	    return (status);
 	}
@@ -2403,36 +2405,35 @@ kernelTextOutputStream *kernelMultitaskerGetTextOutput(void)
 
 
 int kernelMultitaskerSetTextOutput(int processId,
-				   kernelTextOutputStream *stream)
+				   kernelTextOutputStream *theStream)
 {
   // Change the output stream of the process
 
   int status = 0;
-  kernelProcess *process = NULL;
+  kernelProcess *theProcess = NULL;
   int count;
 
   // Make sure multitasking has been enabled
   if (!multitaskingEnabled)
     return (status = ERR_NOTINITIALIZED);
 
-  // stream is allowed to be NULL.
+  // theStream is allowed to be NULL.
 
-  process = getProcessById(processId);
-
-  if (process == NULL)
+  theProcess = getProcessById(processId);
+  if (theProcess == NULL)
     return (status = ERR_NOSUCHPROCESS);
 
-  process->textOutputStream = stream;
+  theProcess->textOutputStream = theStream;
 
   // Do any child threads recursively as well.
-  if (process->descendentThreads)
+  if (theProcess->descendentThreads)
     for (count = 0; count < numQueued; count ++)
       if ((processQueue[count]->parentProcessId == processId) &&
 	  (processQueue[count]->type == proc_thread))
 	{
 	  status =
 	    kernelMultitaskerSetTextOutput(processQueue[count]->processId,
-					   stream);
+					   theStream);
 	  if (status < 0)
 	    return (status);
 	}

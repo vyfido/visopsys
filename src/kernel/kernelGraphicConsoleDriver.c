@@ -261,7 +261,7 @@ static int print(kernelTextArea *area, const char *text)
   char lineBuffer[1024];
   int inputCounter = 0;
   int bufferCounter = 0;
-  int count;
+  unsigned count;
 
   // If we are currently scrolled back, this puts us back to normal
   if (area->scrolledBackLines)

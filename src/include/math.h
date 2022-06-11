@@ -45,23 +45,6 @@ double modf(double x, double *);
 double pow(double, double);
 double sqrt(double);
 
-// These functions are unimplemented
-double acos(double);
-double asin(double);
-double atan(double);
-double atan2(double, double);
-double cos(double);
-double cosh(double);
-double exp(double);
-double frexp(double, int *);
-double ldexp(double, int);
-double log(double);
-double log10(double);
-double sin(double);
-double sinh(double);
-double tan(double);
-double tanh(double);
-
 #define _MATH_H
 #endif
 

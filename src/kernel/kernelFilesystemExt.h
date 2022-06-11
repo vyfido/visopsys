@@ -278,16 +278,7 @@ int kernelFilesystemExtInactiveEntry(kernelFileEntry *);
 int kernelFilesystemExtResolveLink(kernelFileEntry *);
 int kernelFilesystemExtReadFile(kernelFileEntry *, unsigned, unsigned,
 				unsigned char *);
-int kernelFilesystemExtWriteFile(kernelFileEntry *, unsigned, unsigned,
-				 unsigned char *);
-int kernelFilesystemExtCreateFile(kernelFileEntry *);
-int kernelFilesystemExtDeleteFile(kernelFileEntry *, int);
-int kernelFilesystemExtFileMoved(kernelFileEntry *);
 int kernelFilesystemExtReadDir(kernelFileEntry *);
-int kernelFilesystemExtWriteDir(kernelFileEntry *);
-int kernelFilesystemExtMakeDir(kernelFileEntry *);
-int kernelFilesystemExtRemoveDir(kernelFileEntry *);
-int kernelFilesystemExtTimestamp(kernelFileEntry *);
 
 #define _KERNELFILESYSTEMEXT_H
 #endif

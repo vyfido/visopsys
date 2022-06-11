@@ -37,25 +37,20 @@ _X_ int vshFileList(const char *itemName)
   int numberFiles = 0;
   file theFile;
   unsigned int bytesFree = 0;
-  static char *cmdName = "list files";
 
   // Make sure file name isn't NULL
   if (itemName == NULL)
-    return -1;
+    return (errno = ERR_NULLPARAMETER);
   
   // Initialize the file structure
-  for (count = 0; count < sizeof(file); count ++)
+  for (count = 0; count < (int) sizeof(file); count ++)
     ((char *) &theFile)[count] = NULL;
 
   // Call the "find file" routine to see if the file exists
   status = fileFind(itemName, &theFile);
   if (status < 0)
-    {
-      errno = status;
-      perror(cmdName);
-      return (status);
-    }
-
+    return (errno = status);
+    
   // Get the bytes free for the filesystem
   bytesFree = filesystemGetFree(theFile.filesystem);
 
@@ -69,7 +64,7 @@ _X_ int vshFileList(const char *itemName)
       printf(theFile.name);
 
       if (strlen(theFile.name) < 24)
-	for (count = 0; count < (26 - strlen(theFile.name)); 
+	for (count = 0; count < (26 - (int) strlen(theFile.name)); 
 	     count ++)
 	  putchar(' ');
       else
@@ -92,11 +87,7 @@ _X_ int vshFileList(const char *itemName)
       // Get the first file
       status = fileFirst(itemName, &theFile);
       if ((status != ERR_NOSUCHFILE) && (status < 0))
-	{
-	  errno = status;
-	  perror(cmdName);
-	  return (status);
-	}
+	return (errno = status);
 
       else if (status >= 0) while (1)
 	{
@@ -108,7 +99,7 @@ _X_ int vshFileList(const char *itemName)
 	    putchar(' ');
 
 	  if (strlen(theFile.name) < 23)
-	    for (count = 0; count < (25 - strlen(theFile.name)); 
+	    for (count = 0; count < (25 - (int) strlen(theFile.name)); 
 		 count ++)
 	      putchar(' ');
 	  else
@@ -143,5 +134,5 @@ _X_ int vshFileList(const char *itemName)
       printf("\n  %u bytes free\n\n", bytesFree);
     }
 
-  return status;
+  return (status = 0);
 }

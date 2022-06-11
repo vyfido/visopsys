@@ -69,13 +69,21 @@ static void eventHandler(objectKey key, windowEvent *event)
 	  else
 	    {
 	      status = diskSetDoorState(sysDisk.name, 1);
-
-	      if (bannerDialog)
-		windowDestroy(bannerDialog);
-
 	      if (status < 0)
-		windowNewInfoDialog(window, "Hmm", "Can't seem to eject.  Try "
-				    "pushing\nthe 'eject' button now.");
+		{
+		  // Try a second time.  Sometimes 2 attempts seems to help.
+		  status = diskSetDoorState(sysDisk.name, 1);
+
+		  if (bannerDialog)
+		    windowDestroy(bannerDialog);
+
+		  if (status < 0)
+		    windowNewInfoDialog(window, "Hmm", "Can't seem to eject.  "
+					"Try pushing\nthe 'eject' button "
+					"now.");
+		}
+	      else if (bannerDialog)
+		windowDestroy(bannerDialog);
 	    }
 	}
       

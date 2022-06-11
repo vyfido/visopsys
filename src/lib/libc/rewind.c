@@ -26,7 +26,7 @@
 #include <sys/api.h>
 
 
-void rewind(FILE *stream)
+void rewind(FILE *theStream)
 {
   // The rewind function sets the file position indicator for the stream
   // pointed to by stream to the beginning of the file.  It is equivalent
@@ -36,7 +36,7 @@ void rewind(FILE *stream)
   // rewind function returns no value.
 
   // Let the kernel do all the work, baby.
-  int status = fileStreamSeek(stream, 0);
+  int status = fileStreamSeek(theStream, 0);
   if (status < 0)
     errno = status;
 

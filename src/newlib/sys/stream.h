@@ -64,7 +64,7 @@ typedef struct
 typedef struct 
 {
   file f;
-  unsigned int block;
+  unsigned block;
   int dirty;
   stream *s;
   streamFunctions *sFn;

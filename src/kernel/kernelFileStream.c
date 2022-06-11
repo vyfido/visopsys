@@ -114,7 +114,7 @@ static int writeBlock(fileStream *theStream)
     {
       newSize =
 	((theStream->block * theStream->f.blockSize) + theStream->s.count);
-      kernelFileSetSize(&(theStream->f), newSize);
+      kernelFileSetSize(theStream->f.handle, newSize);
     }
 
   // Return success
@@ -204,7 +204,7 @@ int kernelFileStreamSeek(fileStream *theStream, int offset)
   // command.
 
   int status = 0;
-  int newBlock = 0;
+  unsigned newBlock = 0;
 
   // Check arguments
   
@@ -275,14 +275,15 @@ int kernelFileStreamSeek(fileStream *theStream, int offset)
 }
 
 
-int kernelFileStreamRead(fileStream *theStream, int readBytes, char *buffer)
+int kernelFileStreamRead(fileStream *theStream, unsigned readBytes,
+			 char *buffer)
 {
   // This function will read the requested number of bytes from the file
   // stream into the supplied buffer 
 
   int status = 0;
   int bytes = 0;
-  int doneBytes = 0;
+  unsigned doneBytes = 0;
 
   // Check arguments
   if ((theStream == NULL) || (buffer == NULL))
@@ -338,14 +339,15 @@ int kernelFileStreamRead(fileStream *theStream, int readBytes, char *buffer)
 }
 
 
-int kernelFileStreamReadLine(fileStream *theStream, int maxBytes, char *buffer)
+int kernelFileStreamReadLine(fileStream *theStream, unsigned maxBytes,
+			     char *buffer)
 {
   // This function will read bytes from the file stream into the supplied
   // buffer until it hits a newline, or until the buffer is full, or until
   // the file is finished
 
   int status = 0;
-  int doneBytes = 0;
+  unsigned doneBytes = 0;
 
   // Check arguments
   
@@ -398,14 +400,15 @@ int kernelFileStreamReadLine(fileStream *theStream, int maxBytes, char *buffer)
 }
 
 
-int kernelFileStreamWrite(fileStream *theStream, int writeBytes, char *buffer)
+int kernelFileStreamWrite(fileStream *theStream, unsigned writeBytes,
+			  char *buffer)
 {
   // This function will write the requested number of bytes from the
   // supplied buffer to the file stream at the current offset.
 
   int status = 0;
   int bytes = 0;
-  int doneBytes = 0;
+  unsigned doneBytes = 0;
 
   // Check arguments
   

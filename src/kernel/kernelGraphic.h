@@ -93,7 +93,7 @@ int kernelFramebufferGraphicDriverInitialize(void);
 int kernelGraphicRegisterDevice(kernelGraphicAdapter *);
 int kernelGraphicInitialize(void);
 int kernelGraphicsAreEnabled(void);
-int kernelGraphicGetModes(videoMode *, int);
+int kernelGraphicGetModes(videoMode *, unsigned);
 int kernelGraphicGetMode(videoMode *);
 int kernelGraphicSetMode(videoMode *);
 int kernelGraphicGetScreenWidth(void);

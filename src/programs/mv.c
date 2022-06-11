@@ -43,7 +43,6 @@ int main(int argc, char *argv[])
   char destFileName[MAX_PATH_NAME_LENGTH];
   int count;
 
-
   // There need to be at least a source and destination file
   if (argc < 3)
     {
@@ -51,12 +50,6 @@ int main(int argc, char *argv[])
       return (status = ERR_ARGUMENTCOUNT);
     }
 
-  // Make sure none of our filenames are NULL
-
-  for (count = 1; count < argc; count ++)
-    if (argv[count] == NULL)
-      return (status = ERR_NULLPARAMETER);
-  
   // If the dest filename is relative, we should fix it up
   vshMakeAbsolutePath(argv[argc - 1], destFileName);
 
@@ -67,7 +60,6 @@ int main(int argc, char *argv[])
       vshMakeAbsolutePath(argv[count], srcFileName);
 
       status = fileMove(srcFileName, destFileName);
-
       if (status < 0)
 	{
 	  errno = status;

@@ -28,30 +28,30 @@
 #include <sys/api.h>
 
 
-int fprintf(FILE *stream, const char *format, ...)
+int fprintf(FILE *theStream, const char *format, ...)
 {
   int status = 0;
   va_list list;
-  int outputlen = 0;
+  int outputLen = 0;
   char output[MAXSTRINGLENGTH];
   
   // Initialize the argument list
   va_start(list, format);
 
   // Fill out the output line
-  outputlen = _expandFormatString(output, format, list);
+  outputLen = _expandFormatString(output, format, list);
 
   va_end(list);
 
-  if (errno)
+  if (outputLen < 0)
     return (0);
 
-  status = fileStreamWrite((fileStream *) stream, outputlen, output);
+  status = fileStreamWrite((fileStream *) theStream, outputLen, output);
   if (status < 0)
     {
       errno = status;
       return (0);
     }
   
-  return (outputlen);
+  return (outputLen);
 }

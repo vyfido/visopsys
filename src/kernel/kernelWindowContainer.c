@@ -225,13 +225,13 @@ static int containerLayout(kernelWindowComponent *containerComponent)
   kernelWindow *window = NULL;
   kernelWindowContainer *container = NULL;
   int columnWidth[WINDOW_MAX_COMPONENTS];
-  unsigned columnStartX[WINDOW_MAX_COMPONENTS];
+  int columnStartX[WINDOW_MAX_COMPONENTS];
   int rowHeight[WINDOW_MAX_COMPONENTS];
-  unsigned rowStartY[WINDOW_MAX_COMPONENTS];
-  unsigned numColumns = 0, numRows = 0, totalWidth = 0, totalHeight = 0;
+  int rowStartY[WINDOW_MAX_COMPONENTS];
+  int numColumns = 0, numRows = 0, totalWidth = 0, totalHeight = 0;
   kernelWindowComponent *component = NULL;
-  unsigned componentSize = 0;
-  unsigned columnSpanWidth, rowSpanHeight;
+  int componentSize = 0;
+  int columnSpanWidth, rowSpanHeight;
   int padWidth = 0, padHeight = 0;
   int xCoord, yCoord, column, row, count1, count2;
 

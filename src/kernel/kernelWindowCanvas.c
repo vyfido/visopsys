@@ -77,6 +77,10 @@ static int setData(void *componentData, void *data, int size)
   int yCoord1 = component->yCoord + params->yCoord1;
   int yCoord2 = component->yCoord + params->yCoord2;
 
+  // We ignore the 'size' parameter.  This keeps the compiler happy.
+  if (size == 0)
+    return (status = ERR_INVALID);
+
   switch (params->operation)
     {
     case draw_pixel:

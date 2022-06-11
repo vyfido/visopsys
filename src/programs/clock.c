@@ -38,17 +38,18 @@ static char timeString[32];
 
 static void makeTime(void)
 {
-  struct tm time;
+  struct tm theTime;
 
-  bzero(&time, sizeof(struct tm));
+  bzero(&theTime, sizeof(struct tm));
 
   // Get the current date and time structure
-  if (rtcDateTime(&time) < 0)
+  if (rtcDateTime(&theTime) < 0)
     return;
 
   // Turn it into a string
-  sprintf(timeString, "%s %s %d - %02d:%02d", weekDay[time.tm_wday],
-	  month[time.tm_mon], time.tm_mday, time.tm_hour, time.tm_min);
+  sprintf(timeString, "%s %s %d - %02d:%02d", weekDay[theTime.tm_wday],
+	  month[theTime.tm_mon], theTime.tm_mday, theTime.tm_hour,
+	  theTime.tm_min);
 
   return;
 }
@@ -70,6 +71,9 @@ int main(int argc, char *argv[])
       errno = ERR_NOTINITIALIZED;
       return (status = errno);
     }
+
+  // We don't use argc.  This keeps the compiler happy
+  argc = 0;
 
   processId = multitaskerGetCurrentProcessId();
 

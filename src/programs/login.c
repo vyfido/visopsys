@@ -417,7 +417,7 @@ int main(int argc, char *argv[])
 	  windowDestroy(window);
 	  
 	  // Log the user into the window manager
-	  shellPid = windowLogin(login, password);
+	  shellPid = windowLogin(login);
 	  if (shellPid < 0)
 	    {
 	      windowNewErrorDialog(window, "Login Failed", "Unable to log in "

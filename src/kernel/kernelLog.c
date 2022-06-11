@@ -234,7 +234,7 @@ int kernelLog(const char *format, ...)
   va_list list;
   char output[MAXSTRINGLENGTH];
   char streamOutput[MAXSTRINGLENGTH];
-  struct tm time;
+  struct tm theTime;
 
   // Do not accept this call unless logging has been initialized
   if (!loggingInitialized)
@@ -259,14 +259,14 @@ int kernelLog(const char *format, ...)
     kernelTextPrintLine(output);
 
   // Get the current date/time so we can prepend it to the logging output
-  status = kernelRtcDateTime(&time);
+  status = kernelRtcDateTime(&theTime);
   if (status < 0)
     // Before RTC initialization (at boot time) the above will fail.
     sprintf(streamOutput, "%s\n", output);
   else
     // Turn the date/time into a string representation (but skip the
     // first 4 'weekday' characters)
-    sprintf(streamOutput, "%s %s\n", (asctime(&time) + 4), output);
+    sprintf(streamOutput, "%s %s\n", (asctime(&theTime) + 4), output);
 
   // Put it all into the log stream
   status = logStream.appendN(&logStream, strlen(streamOutput), streamOutput);

@@ -78,7 +78,7 @@ static int writeConfigFile(void)
 static void fillList(void)
 {
   char *bufferPtr = NULL;
-  int count;
+  unsigned count;
 
   numListStrings = 0;
 

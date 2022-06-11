@@ -31,19 +31,32 @@
   // filename
 
   int status = 0;
-  char path[MAX_PATH_LENGTH];
+  char *path = NULL;
   int pathCount = 0;
-  char pathElement[MAX_PATH_NAME_LENGTH];
+  char *pathElement = NULL;
   int pathElementCount = 0;
   file theFile;
 
+  // Check params
+  if ((orig == NULL) || (new == NULL))
+    return (errno = ERR_NULLPARAMETER);
+
   if ((orig[0] == '/') || (orig[0] == '\\'))
-    return (status = ERR_NOSUCHFILE);
+    return (errno = ERR_NOSUCHFILE);
+
+  path = malloc(MAX_PATH_LENGTH);
+  pathElement = malloc(MAX_PATH_NAME_LENGTH);
+  if ((path == NULL) || (pathElement == NULL))
+    return (errno = ERR_MEMORY);
 
   // Get the value of the PATH environment variable
   status = environmentGet("PATH", path, MAX_PATH_LENGTH);
   if (status < 0)
-    return (status);
+    {
+      free(path);
+      free(pathElement);
+      return (errno = status);
+    }
 
   pathCount = 0;
 
@@ -70,6 +83,7 @@
       strcat(pathElement, orig);
 
       // Does the file exist in the PATH directory?
+      bzero(&theFile, sizeof(file));
       status = fileFind(pathElement, &theFile);
       if (status >= 0)
         {
@@ -77,10 +91,14 @@
           strcpy(new, pathElement);
 
           // Return success
+	  free(path);
+	  free(pathElement);
           return (status = 0);
         }
     }
 
   // If we fall through, no dice
-  return (status = ERR_NOSUCHFILE);
+  free(path);
+  free(pathElement);
+  return (errno = ERR_NOSUCHFILE);
 }

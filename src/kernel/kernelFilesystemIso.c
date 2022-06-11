@@ -103,7 +103,7 @@ static int readPrimaryVolDesc(const kernelDisk *theDisk, unsigned char *buffer)
 
 
 static void makeSystemTime(unsigned char *isoTime, unsigned *date,
-			   unsigned *time)
+			   unsigned *theTime)
 {
   // This function takes an ISO date/time value and returns the equivalent in
   // packed-BCD system format.
@@ -118,13 +118,13 @@ static void makeSystemTime(unsigned char *isoTime, unsigned *date,
   *date |= (isoTime[2] & 0x1F);
 
   // The hour
-  *time = ((isoTime[3] & 0x3F) << 12);
+  *theTime = ((isoTime[3] & 0x3F) << 12);
 
   // The minute
-  *time |= ((isoTime[4] & 0x3F) << 6);
+  *theTime |= ((isoTime[4] & 0x3F) << 6);
 
   // The second
-  *time |= (isoTime[5] & 0x3F);
+  *theTime |= (isoTime[5] & 0x3F);
 
   return;
 }
@@ -538,6 +538,11 @@ unsigned kernelFilesystemIsoGetFree(kernelFilesystem *filesystem)
 {
   // This function returns the amount of free disk space, in bytes,
   // which is always zero.
+
+  // This is unnecessary, but keeps the compiler happy
+  if (filesystem == NULL)
+    return (0);
+
   return (0);
 }
 

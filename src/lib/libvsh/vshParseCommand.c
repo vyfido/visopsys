@@ -26,21 +26,22 @@
 #include <errno.h>
 #include <sys/api.h>
 
-_X_ int vshParseCommand(char *commandLine, char *command, int *argc,
-			char *argv[])
+
+_X_ int vshParseCommand(char *commandLine, char *command, int *argCount,
+			char *args[])
 {
-  // Desc: Attempts to take a raw 'commandLine' string and parse it into a command filename and arguments, suitable for passing to the kernel API functionn loaderLoadAndExec.  The commandLine string will be modified, with NULLs placed at the end of each argument.  'command' must be a buffer suitable for a full filename.  'argc' will receive the number of argument pointers placed in the 'argv' array.  Returns 0 on success, negative otherwise.
+  // Desc: Attempts to take a raw 'commandLine' string and parse it into a command filename and arguments, suitable for passing to the kernel API functionn loaderLoadAndExec.  The commandLine string will be modified, with NULLs placed at the end of each argument.  'command' must be a buffer suitable for a full filename.  'argCount' will receive the number of argument pointers placed in the 'args' array.  Returns 0 on success, negative otherwise.
 
   int status = 0;
   file theFile;
   int count;
 
   // Check params
-  if ((commandLine == NULL) || (command == NULL) || (argc == NULL) ||
-      (argv == NULL))
-    return (status = ERR_NULLPARAMETER);
+  if ((commandLine == NULL) || (command == NULL) || (argCount == NULL) ||
+      (args == NULL))
+    return (errno = ERR_NULLPARAMETER);
 
-  *argc = 0;
+  *argCount = 0;
 
   // Loop through the command string
 
@@ -59,7 +60,7 @@ _X_ int vshParseCommand(char *commandLine, char *command, int *argc,
       // until we hit another double-quote (or the end)
       if (*commandLine != '\"')
 	{
-	  argv[*argc] = commandLine;
+	  args[*argCount] = commandLine;
 
 	  // Accept characters until we hit some whitespace (or the end of
 	  // the arguments)
@@ -71,7 +72,7 @@ _X_ int vshParseCommand(char *commandLine, char *command, int *argc,
 	  // Discard the "
 	  commandLine += 1;
 	  
-	  argv[*argc] = commandLine;
+	  args[*argCount] = commandLine;
 
 	  // Accept characters  until we hit another double-quote (or the
 	  // end of the arguments)
@@ -79,17 +80,17 @@ _X_ int vshParseCommand(char *commandLine, char *command, int *argc,
 	    commandLine += 1;
 	}
 
-      *argc += 1;
+      *argCount += 1;
 
       if (*commandLine == '\0')
 	break;
       *commandLine++ = '\0';
     }
   
-  if (strlen(argv[0]) == 0)
+  if (strlen(args[0]) == 0)
     {
       // Nothing
-      *argc = 0;
+      *argCount = 0;
       return (status = 0);
     }
 
@@ -99,18 +100,19 @@ _X_ int vshParseCommand(char *commandLine, char *command, int *argc,
   // If the command is a RELATIVE pathname, we will try inserting the 
   // pwd before it.  This has the effect of always putting '.' in
   // the PATH
-  if ((argv[0][0] == '/') || (argv[0][0] == '\\'))
-    strcpy(command, argv[0]);
+  if ((args[0][0] == '/') || (args[0][0] == '\\'))
+    strcpy(command, args[0]);
   else
-    vshMakeAbsolutePath(argv[0], command);
+    vshMakeAbsolutePath(args[0], command);
 
   // Can we find the file with the name, "as is"?
+  bzero(&theFile, sizeof(file));
   status = fileFind(command, &theFile);
   if (status < 0)
     {
       // Not found in the current directory.  Try to search the PATH for
       // the file
-      status = vshSearchPath(argv[0], command);
+      status = vshSearchPath(args[0], command);
       if (status < 0)
 	command[0] = '\0';
     }

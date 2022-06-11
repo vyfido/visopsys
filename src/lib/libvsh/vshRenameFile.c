@@ -21,7 +21,6 @@
 
 // This contains some useful functions written for the shell
 
-#include <stdio.h>
 #include <errno.h>
 #include <sys/vsh.h>
 #include <sys/api.h>
@@ -30,22 +29,16 @@
 _X_ int vshRenameFile(const char *srcFile, const char *destFile)
 {
   // Desc: Rename (move) the file specified by the name 'srcFile' to the destination 'destFile'.  Both filenames must be absolute pathnames, beginning with '/'.
- 
+
   int status = 0;
   
   // Make sure filename arguments aren't NULL
   if ((srcFile == NULL) || (destFile == NULL))
-    return -1;
+    return (errno = ERR_NULLPARAMETER);
    
   // Attempt to rename the file
   status = fileMove(srcFile, destFile);
   if (status < 0)
-    {
-      errno = status;
-      perror("rename file");
-      return (status);
-    }
- 
-  // Return success
-  return (status = 0);
+    errno = status;
+  return (status);
 }

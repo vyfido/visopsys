@@ -53,13 +53,5 @@ struct lconv
 #define LC_ALL      (LC_COLLATE & LC_CTYPE & LC_MONETARY & LC_NUMERIC & \
                      LC_TIME)
 
-#ifndef NULL
-#define NULL 0
-#endif
-
-// Functions
-struct lconv *localeconv(void);
-char *setlocale(int, const char *);
-
 #define _LOCALE_H
 #endif

@@ -28,9 +28,9 @@
 
 void itoa(int number, char *string)
 {
-  unsigned int place = 1000000000;  // Decimal - 1 billion
+  unsigned place = 1000000000;  // Decimal - 1 billion
   int leadZero = 1;
-  unsigned int remainder = 0;
+  unsigned remainder = 0;
   int count = 0;
 
   if (string == NULL)

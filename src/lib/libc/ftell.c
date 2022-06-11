@@ -25,7 +25,7 @@
 #include <sys/api.h>
 
 
-long ftell(FILE *stream)
+long ftell(FILE *theStream)
 {
   // The ftell() function obtains the current value of the file-position
   // indicator for the stream pointed to by stream.  Upon successful
@@ -33,5 +33,5 @@ long ftell(FILE *stream)
   // file-position indicator for the stream measured in bytes from the
   // beginning of the file.  Otherwise, they return -1 and sets errno to
   // indicate the error.
-  return ((stream->block * stream->f.blockSize) + stream->s.last);
+  return ((theStream->block * theStream->f.blockSize) + theStream->s.last);
 }

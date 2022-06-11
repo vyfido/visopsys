@@ -30,9 +30,9 @@
 // Functions exported by kernelFileStream.c
 int kernelFileStreamOpen(const char *, int, fileStream *);
 int kernelFileStreamSeek(fileStream *, int);
-int kernelFileStreamRead(fileStream *, int, char *);
-int kernelFileStreamReadLine(fileStream *, int, char *);
-int kernelFileStreamWrite(fileStream *, int, char *);
+int kernelFileStreamRead(fileStream *, unsigned, char *);
+int kernelFileStreamReadLine(fileStream *, unsigned, char *);
+int kernelFileStreamWrite(fileStream *, unsigned, char *);
 int kernelFileStreamWriteStr(fileStream *, char *);
 int kernelFileStreamWriteLine(fileStream *, char *);
 int kernelFileStreamFlush(fileStream *);

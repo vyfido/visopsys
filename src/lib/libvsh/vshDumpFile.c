@@ -32,14 +32,13 @@ _X_ int vshDumpFile(const char *fileName)
   // Desc: Print the contents of the file, specified by 'fileName', to standard output.  'fileName' must be an absolute pathname, beginning with '/'.
 
   int status = 0;
-  int count;
+  unsigned count;
   file theFile;
   char *fileBuffer = NULL;
-  static char *cmdName = "dump file";
 
   // Make sure file name isn't NULL
   if (fileName == NULL)
-    return (status = -1);
+    return (errno = ERR_NULLPARAMETER);
   
   for (count = 0; count < sizeof(file); count ++)
     ((char *) &theFile)[count] = NULL;
@@ -47,17 +46,13 @@ _X_ int vshDumpFile(const char *fileName)
   // Call the "find file" routine to see if we can get the first file
   status = fileFind(fileName, &theFile);
   if (status < 0)
-    {
-      errno = status;
-      perror(cmdName);
-      return (status);
-    }
+    return (errno = status);
 
   // Make sure the file isn't empty.  We don't want to try reading
   // data from a nonexistent place on the disk.
   if (theFile.size == 0)
     // It is empty, so just return
-    return status;
+    return (status = 0);
 
   // The file exists and is non-empty.  That's all we care about (we don't 
   // care at this point, for example, whether it's a file or a directory.  
@@ -67,28 +62,20 @@ _X_ int vshDumpFile(const char *fileName)
   fileBuffer = memoryGet(((theFile.blocks * theFile.blockSize) + 1),
 			 "temporary file data");
   if (fileBuffer == NULL)
-    {
-      errno = ERR_MEMORY;
-      perror(cmdName);
-      return (status = ERR_MEMORY);
-    }
+    return (errno = ERR_MEMORY);
 
   status = fileOpen(fileName, OPENMODE_READ, &theFile);
   if (status < 0)
     {
-      errno = status;
-      perror(cmdName);
       memoryRelease(fileBuffer);
-      return (status);
+      return (errno = status);
     }
 
   status = fileRead(&theFile, 0, theFile.blocks, fileBuffer);
   if (status < 0)
     {
-      errno = status;
-      perror(cmdName);
       memoryRelease(fileBuffer);
-      return (status);
+      return (errno = status);
     }
 
 
@@ -117,5 +104,5 @@ _X_ int vshDumpFile(const char *fileName)
   // Free the memory
   memoryRelease(fileBuffer);
 
-  return status;
+  return (status = 0);
 }

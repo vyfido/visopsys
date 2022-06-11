@@ -1,5 +1,52 @@
 
 ---------------
+Version 0.53
+---------------
+
+  Overview: This is a maintenance release, with numerous small improvements
+  and bugfixes.  A number of unnecessary files and programs have been
+  removed.
+
+- Re-engineered the kernel's file handling code so that it uses less stack
+memory, has less code redundancy, and exports different functions to the
+rest of the kernel than it does to user space.
+- The format operation causes the kernel to re-scan the partitions, so that
+the new filesystem type is recorded in the disk structure
+- The Program Manager now shows overall memory usage totals.
+- The 'mem' command now prints totals in kilobytes, and uses a structure
+from the kernel (a new API function) describing the memory blocks, rather
+than the kernel printing out the information directly.  Subsequently,
+deprecated the kernelMemoryPrintUsage() function.
+- The shutdown program now attempts to eject the CD-ROM a second time if
+required, since it seems that some drives will fail on the first attempt
+but succeed on the second.
+- The FAT boot sectors no longer rely on the disk geometry they get from
+the DOS BPB block.  They get it from the BIOS instead.
+- Removed the 'move' command (there's already a 'mv' command)
+- Removed a large number of unimplemented libc function files.
+- Moved the libc global data into crt0.c
+- The boot sectors/OS loader that capture key presses ("press any key...")
+now use the BIOS' int 16h function instead of trapping the hardware interrupt.
+- Deprecated the kernelDisk{Read|Write}Absolute functions.  Instead,
+the normal kernelDisk{Read|Write} functions are now able to figure out
+whether the supplied disk name is physical or logical.
+- The libvsh functions no longer call perror().  They still set errno, and
+then leave perror() up to the caller.
+- Added the -W and -Wshadow options to Makefiles.
+- Added -ffreestanding to Makefiles, to ensure that the compiler isn't
+including built-in functions we're not expecting.
+- Got rid of the "unsigned int" terminology everywhere and replaced it with
+simple "unsigned"
+- Fixed: The Disk Manager was showing 1MB total size for all disks
+- Fixed: In the Disk Manager's 'create partition' function, if you supplied
+bad start/end values, the logical/primary choice would be disabled when the
+dialog box came back.
+- Fixed: When copying a file, if the destination was a directory (rather than
+a fully-specified file name), there was a kernelFileDelete error message
+- Fixed: when the vshCursorMenu scrolled the screen, it looked funny.
+- Fixed: 'ls' an unknown file, hang!
+
+---------------
 Version 0.52
 ---------------
 

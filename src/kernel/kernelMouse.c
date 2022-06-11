@@ -31,8 +31,8 @@
 
 
 // The graphics environment
-static unsigned screenWidth = 0;
-static unsigned screenHeight = 0;
+static int screenWidth = 0;
+static int screenHeight = 0;
 
 // The system mouse pointers
 static kernelMousePointer *currentPointer;

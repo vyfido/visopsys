@@ -543,13 +543,13 @@ static inline void filesystemNextFilesystem(char *buff)
 
 static inline int filesystemGetFree(const char *fs)
 {
-  // Proto: unsigned int kernelFilesystemGetFree(const char *);
+  // Proto: unsigned kernelFilesystemGetFree(const char *);
   return (sysCall_1(_fnum_filesystemGetFree, (void *) fs));
 }
 
-static inline unsigned int filesystemGetBlockSize(const char *fs)
+static inline unsigned filesystemGetBlockSize(const char *fs)
 {
-  // Proto: unsigned int kernelFilesystemGetBlockSize(const char *);
+  // Proto: unsigned kernelFilesystemGetBlockSize(const char *);
   return (sysCall_1(_fnum_filesystemGetBlockSize, (void *) fs));
 }
 
@@ -595,8 +595,8 @@ static inline int fileClose(file *f)
   return (sysCall_1(_fnum_fileClose, (void *) f));
 }
 
-static inline int fileRead(file *f, unsigned int blocknum,
-			   unsigned int blocks, unsigned char *buff)
+static inline int fileRead(file *f, unsigned blocknum,
+			   unsigned blocks, unsigned char *buff)
 {
   // Proto: int kernelFileRead(file *, unsigned int, unsigned int, 
   //          unsigned char *);
@@ -604,8 +604,8 @@ static inline int fileRead(file *f, unsigned int blocknum,
 		    (void *) blocks, buff));
 }
 
-static inline int fileWrite(file *f, unsigned int blocknum, 
-			    unsigned int blocks, unsigned char *buff)
+static inline int fileWrite(file *f, unsigned blocknum, 
+			    unsigned blocks, unsigned char *buff)
 {
   // Proto: int kernelFileWrite(file *, unsigned int, unsigned int, 
   //          unsigned char *);
@@ -703,7 +703,7 @@ static inline void memoryPrintUsage(void)
   sysCall_0(_fnum_memoryPrintUsage);
 }
 
-static inline void *memoryRequestBlock(unsigned int size, unsigned int align,
+static inline void *memoryRequestBlock(unsigned size, unsigned align,
 				       const char *desc)
 {
   // Proto: void *kernelMemoryRequestBlock(unsigned int, unsigned int, 
@@ -712,8 +712,8 @@ static inline void *memoryRequestBlock(unsigned int size, unsigned int align,
 		    (void *) align, (void *) desc));
 }
 
-static inline void *memoryRequestPhysicalBlock(unsigned int size, 
-				       unsigned int align, const char *desc)
+static inline void *memoryRequestPhysicalBlock(unsigned size, 
+				       unsigned align, const char *desc)
 {
   // Proto: void *kernelMemoryRequestPhysicalBlock(unsigned int, 
   //          unsigned int, char *);
@@ -746,7 +746,7 @@ static inline int memoryChangeOwner(int opid, int npid, void *addr,
 // Multitasker functions
 //
 
-static inline int multitaskerCreateProcess(void *addr, unsigned int size, 
+static inline int multitaskerCreateProcess(void *addr, unsigned size, 
 					   const char *name, int numargs,
 					   void *args)
 {
@@ -840,7 +840,7 @@ static inline void multitaskerYield(void)
   sysCall_0(_fnum_multitaskerYield);
 }
 
-static inline void multitaskerWait(unsigned int ticks)
+static inline void multitaskerWait(unsigned ticks)
 {
   // Proto: void kernelMultitaskerWait(unsigned int);
   sysCall_1(_fnum_multitaskerWait, (void *) ticks);
@@ -931,9 +931,9 @@ static inline int rtcReadYear(void)
   return (sysCall_0(_fnum_rtcReadYear));
 }
 
-static inline unsigned int rtcUptimeSeconds(void)
+static inline unsigned rtcUptimeSeconds(void)
 {
-  // Proto: unsigned int kernelRtcUptimeSeconds(void);
+  // Proto: unsigned kernelRtcUptimeSeconds(void);
   return (sysCall_0(_fnum_rtcUptimeSeconds));
 }
 
@@ -949,29 +949,29 @@ static inline int rtcDateTime(struct tm *time)
 // Random number functions
 //
 
-static inline unsigned int randomUnformatted(void)
+static inline unsigned randomUnformatted(void)
 {
-  // Proto: unsigned int kernelRandomUnformatted(void);
+  // Proto: unsigned kernelRandomUnformatted(void);
   return (sysCall_0(_fnum_randomUnformatted));
 }
 
-static inline unsigned int randomFormatted(unsigned int start,
-					   unsigned int end)
+static inline unsigned randomFormatted(unsigned start,
+					   unsigned end)
 {
-  // Proto: unsigned int kernelRandomFormatted(unsigned int, unsigned int);
+  // Proto: unsigned kernelRandomFormatted(unsigned int, unsigned int);
   return (sysCall_2(_fnum_randomFormatted, (void *) start, (void *) end));
 }
 
-static inline unsigned int randomSeededUnformatted(unsigned int seed)
+static inline unsigned randomSeededUnformatted(unsigned seed)
 {
-  // Proto: unsigned int kernelRandomSeededUnformatted(unsigned int);
+  // Proto: unsigned kernelRandomSeededUnformatted(unsigned int);
   return (sysCall_1(_fnum_randomSeededUnformatted, (void *) seed));
 }
 
-static inline unsigned int randomSeededFormatted(unsigned int seed,
-					 unsigned int start, unsigned int end)
+static inline unsigned randomSeededFormatted(unsigned seed,
+					 unsigned start, unsigned end)
 {
-  // Proto: unsigned int kernelRandomSeededFormatted(unsigned int,
+  // Proto: unsigned kernelRandomSeededFormatted(unsigned int,
   //                                   unsigned int, unsigned int);
   return (sysCall_3(_fnum_randomSeededFormatted, (void *) seed,
 		    (void *) start, (void *) end));
@@ -983,7 +983,7 @@ static inline unsigned int randomSeededFormatted(unsigned int seed,
 //
 
 static inline int environmentGet(const char *var, char *buf,
-				 unsigned int bufsz)
+				 unsigned bufsz)
 {
   // Proto: int kernelEnvironmentGet(const char *, char *, unsigned int);
   return (sysCall_3(_fnum_environmentGet, (void *) var, buf, (void *) bufsz));

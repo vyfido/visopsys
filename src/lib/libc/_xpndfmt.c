@@ -56,10 +56,7 @@ int _expandFormatString(char *output, const char *format, va_list list)
   // How long is the format string?
   formatlen = strlen(format);
   if (formatlen > MAXSTRINGLENGTH)
-    {
-      errno = ERR_BOUNDS;
-      return (outCount = ERR_BOUNDS);
-    }
+    return (errno = ERR_BOUNDS);
 
   // The argument list must already have been initialized using va_start
 

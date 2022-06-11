@@ -63,7 +63,6 @@ long int labs(long int);
 ldiv_t ldiv(long int, long int);
 void *malloc(size_t);
 int rand(void);
-void *realloc(void *, size_t);
 void srand(unsigned int);
 int system(const char *);
 
@@ -76,14 +75,6 @@ void itoa(int, char *);
 void itox(int, char *);
 int xtoi(const char *);
 void utoa(unsigned int, char *);
-
-// These functions are unimplemented
-int atexit(void (*)(void));
-double atof(const char *);
-long atol(const char *);
-void *bsearch(const void *, const void *, size_t, size_t size,
-	      int (*)(const void *, const void *));
-char *getenv(const char *);
 
 #define _STDLIB_H
 #endif

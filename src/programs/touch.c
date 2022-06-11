@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
       vshMakeAbsolutePath(argv[argNumber], fileName);
 
       // Initialize the file structure
-      for (count = 0; count < sizeof(file); count ++)
+      for (count = 0; count < (int) sizeof(file); count ++)
 	((char *) &theFile)[count] = NULL;
 
       // Call the "find file" routine to see if the file exists

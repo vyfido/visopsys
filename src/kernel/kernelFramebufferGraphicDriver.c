@@ -756,15 +756,15 @@ static int drawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
   // Draws the supplied image on the screen at the requested coordinates
 
   int status = 0;
-  int lineLength = 0;
-  int lineBytes = 0;
+  unsigned lineLength = 0;
+  unsigned lineBytes = 0;
   int numberLines = 0;
   unsigned char *framebufferPointer = NULL;
   unsigned char *monoImageData = NULL;
   int lineCounter = 0;
   unsigned pixelCounter = 0;
   short onPixel, offPixel;
-  int count;
+  unsigned count;
 
   // If the supplied kernelGraphicBuffer is NULL, we draw directly to the
   // whole screen
@@ -782,14 +782,14 @@ static int drawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
 
   // If the image goes off the right edge of the screen, only attempt to
   // display what will fit
-  if ((xCoord + drawImage->width) < buffer->width)
+  if ((int)(xCoord + drawImage->width) < buffer->width)
     lineLength = drawImage->width;
   else
     lineLength = (buffer->width - xCoord);
 
   // If the image goes off the bottom of the screen, only show the
   // lines that will fit
-  if ((yCoord + drawImage->height) < buffer->height)
+  if ((int)(yCoord + drawImage->height) < buffer->height)
     numberLines = drawImage->height;
   else
     numberLines = (buffer->height - yCoord);
@@ -905,15 +905,15 @@ static int drawImage(kernelGraphicBuffer *buffer, image *drawImage,
   // at the requested coordinates, with the requested offset
 
   int status = 0;
-  int lineLength = 0;
-  int lineBytes = 0;
+  unsigned lineLength = 0;
+  unsigned lineBytes = 0;
   int numberLines = 0;
   unsigned char *framebufferPointer = NULL;
   pixel *imageData = NULL;
   int lineCounter = 0;
   unsigned pixelCounter = 0;
   short pix = 0;
-  int count;
+  unsigned count;
 
   // If the supplied kernelGraphicBuffer is NULL, we draw directly to the
   // whole screen
@@ -941,9 +941,9 @@ static int drawImage(kernelGraphicBuffer *buffer, image *drawImage,
       xOffset += -xCoord;
       xCoord = 0;
     }
-  if ((xCoord + lineLength) >= buffer->width)
+  if ((int)(xCoord + lineLength) >= buffer->width)
     lineLength -= ((xCoord + lineLength) - buffer->width);
-  if ((xOffset + lineLength) >= drawImage->width)
+  if ((unsigned)(xOffset + lineLength) >= drawImage->width)
     lineLength -= ((xOffset + lineLength) - drawImage->width);
 
   if (height)
@@ -961,7 +961,7 @@ static int drawImage(kernelGraphicBuffer *buffer, image *drawImage,
     }
   if ((yCoord + numberLines) >= buffer->height)
     numberLines -= ((yCoord + numberLines) - buffer->height);
-  if ((yOffset + numberLines) >= drawImage->height)
+  if ((unsigned)(yOffset + numberLines) >= drawImage->height)
     numberLines -= ((yOffset + numberLines) - drawImage->height);
 
   // Images are lovely little data structures that give us image data in the
@@ -1008,28 +1008,28 @@ static int drawImage(kernelGraphicBuffer *buffer, image *drawImage,
 
       else if ((adapter->bitsPerPixel == 16) || (adapter->bitsPerPixel == 15))
 	{
-	for (count = 0; count < lineLength; count ++)
-	  {
-	    if (adapter->bitsPerPixel == 16)
-	      pix = (((imageData[pixelCounter].red >> 3) << 11) |
-		     ((imageData[pixelCounter].green >> 2) << 5) |
-		     (imageData[pixelCounter].blue >> 3));
-	    else
-	      pix = (((imageData[pixelCounter].red >> 3) << 10) |
-		     ((imageData[pixelCounter].green >> 3) << 5) |
-		     (imageData[pixelCounter].blue >> 3));
+	  for (count = 0; count < lineLength; count ++)
+	    {
+	      if (adapter->bitsPerPixel == 16)
+		pix = (((imageData[pixelCounter].red >> 3) << 11) |
+		       ((imageData[pixelCounter].green >> 2) << 5) |
+		       (imageData[pixelCounter].blue >> 3));
+	      else
+		pix = (((imageData[pixelCounter].red >> 3) << 10) |
+		       ((imageData[pixelCounter].green >> 3) << 5) |
+		       (imageData[pixelCounter].blue >> 3));
 
-	    if ((mode != draw_translucent) ||
-		((imageData[pixelCounter].red !=
-		  drawImage->translucentColor.red) ||
-		 (imageData[pixelCounter].green !=
-		  drawImage->translucentColor.green) ||
-		 (imageData[pixelCounter].blue !=
-		  drawImage->translucentColor.blue)))
-	      ((short *) framebufferPointer)[count] = pix;
-
-	    pixelCounter += 1;
-	  }
+	      if ((mode != draw_translucent) ||
+		  ((imageData[pixelCounter].red !=
+		    drawImage->translucentColor.red) ||
+		   (imageData[pixelCounter].green !=
+		    drawImage->translucentColor.green) ||
+		   (imageData[pixelCounter].blue !=
+		    drawImage->translucentColor.blue)))
+		((short *) framebufferPointer)[count] = pix;
+	      
+	      pixelCounter += 1;
+	    }
 	}
 
       // Move to the next line in the framebuffer

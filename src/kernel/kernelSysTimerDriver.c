@@ -63,6 +63,10 @@ int kernelSysTimerDriverRegisterDevice(void *timer)
 {
   // Initializes the system timer itself.
 
+  // We ignore the timer argument.  This keeps the compiler happy
+  if (timer == NULL)
+    return (ERR_NULLPARAMETER);
+
   // Make sure that counter 0 is set to operate in mode 3 
   // (some systems erroneously use mode 2) with an initial value of 0
   return (kernelSysTimerDriverSetTimer(0, 3, 0));

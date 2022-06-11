@@ -25,7 +25,7 @@
 #include <sys/api.h>
 
 
-int fgetpos(FILE *stream, fpos_t *pos)
+int fgetpos(FILE *theStream, fpos_t *pos)
 {
   // The fgetpos() function stores the current value of the file position
   // indicator for the stream pointed to by stream in the object pointed
@@ -34,6 +34,6 @@ int fgetpos(FILE *stream, fpos_t *pos)
   // of the call to fgetpos().  Upon successful completion, fgetpos()
   // returns 0.  Otherwise, it returns a non-zero value and sets errno to
   // indicate the error.
-  *pos = ((stream->block * stream->f.blockSize) + stream->s.last);
+  *pos = ((theStream->block * theStream->f.blockSize) + theStream->s.last);
   return (0);
 }

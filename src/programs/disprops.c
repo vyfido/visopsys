@@ -403,6 +403,9 @@ int main(int argc, char *argv[])
       return (status = errno);
     }
 
+  // We don't use argc.  This keeps the compiler happy
+  argc = 0;
+
   // Find out whether we are currently running on a read-only filesystem
   if (!fileGetDisk("/system", &sysDisk))
     readOnly = sysDisk.readOnly;

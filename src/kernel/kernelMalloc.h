@@ -23,6 +23,8 @@
 
 #define MEMORY_HEAP_MULTIPLE (1024 * 1024)  // 1 meg
 
+#include <sys/memory.h>
+
 typedef volatile struct
 {
   int used;
@@ -40,7 +42,8 @@ typedef volatile struct
 void *_kernelMalloc(const char *, unsigned);
 #define kernelFree(ptr) _kernelFree(__FUNCTION__, ptr);
 int _kernelFree(const char *, void *);
-void kernelMallocDump(void);
+int kernelMallocGetStats(memoryStats *);
+int kernelMallocGetBlocks(memoryBlock *, int);
 
 #define _KERNELMALLOC_H
 #endif

@@ -62,8 +62,9 @@ static int draw(void *componentData)
   strcpy(textBuffer, item->text);
       
   // Don't draw text outside our component area
-  while ((kernelFontGetPrintedWidth(component->parameters.font, textBuffer) >
-	  component->width) && strlen(textBuffer))
+  while (((int) kernelFontGetPrintedWidth(component->parameters.font,
+					  textBuffer) > component->width) &&
+	 strlen(textBuffer))
     textBuffer[strlen(textBuffer) - 1] = '\0';
 
   if (item->selected)

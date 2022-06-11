@@ -83,6 +83,11 @@ static int currentInputIntercept(stream *theStream, unsigned char byte)
 
   int status = 0;
 
+  // We always use currentInput and currentOutput.  This keeps the compiler
+  // happy
+  if (theStream == NULL)
+    return (status = ERR_NULLPARAMETER);
+
   // Check for a few special scenarios
   
   // Check for CTRL-C

@@ -119,8 +119,8 @@ extern int visopsys_in_kernel;
 #define _fnum_diskSetDoorState                       2010
 #define _fnum_diskReadSectors                        2011
 #define _fnum_diskWriteSectors                       2012
-#define _fnum_diskReadAbsoluteSectors                2013
-#define _fnum_diskWriteAbsoluteSectors               2014
+// DEPRECATED _fnum_diskReadAbsoluteSectors          2013
+// DEPRECATED _fnum_diskWriteAbsoluteSectors         2014
 
 // Filesystem functions.  All are in the 3000-3999 range.
 #define _fnum_filesystemFormat                       3000
@@ -162,12 +162,14 @@ extern int visopsys_in_kernel;
 #define _fnum_fileStreamClose                        4027
 
 // Memory manager functions.  All are in the 5000-5999 range.
-#define _fnum_memoryPrintUsage                       5000
+// DEPRECATED _fnum_memoryPrintUsage                 5000
 #define _fnum_memoryGet                              5001
 #define _fnum_memoryGetPhysical                      5002
 #define _fnum_memoryRelease                          5003
 #define _fnum_memoryReleaseAllByProcId               5004
 #define _fnum_memoryChangeOwner                      5005
+#define _fnum_memoryGetStats                         5006
+#define _fnum_memoryGetBlocks                        5007
 
 // Multitasker functions.  All are in the 6000-6999 range.
 #define _fnum_multitaskerCreateProcess               6000
@@ -1000,7 +1002,7 @@ _X_ static inline int diskSetDoorState(const char *name, int state)
 _X_ static inline int diskReadSectors(const char *name, unsigned sect, unsigned count, void *buf)
 {
   // Proto: int kernelDiskReadSectors(const char *, unsigned, unsigned, void *)
-  // Desc : Read 'count' sectors from disk 'name', starting at (zero-based) logical sector number 'sect'.  Put the data in memory area 'buf'.
+  // Desc : Read 'count' sectors from disk 'name', starting at (zero-based) logical sector number 'sect'.  Put the data in memory area 'buf'.  This function requires supervisor privilege.
   return (sysCall_4(_fnum_diskReadSectors, (void *) name, (void *) sect,
 		    (void *) count, buf));
 }
@@ -1008,7 +1010,7 @@ _X_ static inline int diskReadSectors(const char *name, unsigned sect, unsigned 
 _X_ static inline int diskWriteSectors(const char *name, unsigned sect, unsigned count, void *buf)
 {
   // Proto: int kernelDiskWriteSectors(const char *, unsigned, unsigned, void *)
-  // Desc : Write 'count' sectors to disk 'name', starting at (zero-based) logical sector number 'sect'.  Get the data from memory area 'buf'.
+  // Desc : Write 'count' sectors to disk 'name', starting at (zero-based) logical sector number 'sect'.  Get the data from memory area 'buf'.  This function requires supervisor privilege.
   return (sysCall_4(_fnum_diskWriteSectors, (void *) name, (void *) sect,
 		    (void *) count, buf));
 }
@@ -1016,17 +1018,17 @@ _X_ static inline int diskWriteSectors(const char *name, unsigned sect, unsigned
 _X_ static inline int diskReadAbsoluteSectors(const char *name, unsigned sect, unsigned count, void *buf)
 {
   // Proto: int kernelDiskReadAbsoluteSectors(const char *, unsigned, unsigned, void *)
-  // Desc : Read 'count' sectors from disk 'name', starting at (zero-based) absolute sector number 'sect'.  Put the data in memory area 'buf'.  This function requires supervisor privilege and is used to read outside the logical confines of a volume, such as a hard disk partition.  Not very useful unless you know what you're doing.
-  return (sysCall_4(_fnum_diskReadAbsoluteSectors, (void *) name,
-		    (void *) sect, (void *) count, buf));
+  // Desc : *DEPRECATED*
+  return (sysCall_4(_fnum_diskReadSectors, (void *) name, (void *) sect,
+		    (void *) count, buf));
 }
 
 _X_ static inline int diskWriteAbsoluteSectors(const char *name, unsigned sect, unsigned count, void *buf)
 {
   // Proto: int kernelDiskWriteAbsoluteSectors(const char *, unsigned, unsigned, void *)
-  // Desc : Write 'count' sectors to disk 'name', starting at (zero-based) absolute sector number 'sect'.  Get the data from memory area 'buf'.  This function requires supervisor privilege and is used to write outside the logical confines of a volume, such as a hard disk partition.  Don't use this unless you know what you're doing.
-  return (sysCall_4(_fnum_diskWriteAbsoluteSectors, (void *) name,
-		    (void *) sect, (void *) count, buf));
+  // Desc : *DEPRECATED*
+  return (sysCall_4(_fnum_diskWriteSectors, (void *) name, (void *) sect,
+		    (void *) count, buf));
 }
 
 
@@ -1034,11 +1036,11 @@ _X_ static inline int diskWriteAbsoluteSectors(const char *name, unsigned sect, 
 // Filesystem functions
 //
 
-_X_ static inline int filesystemFormat(const char *disk, const char *type, const char *label, int longFormat)
+_X_ static inline int filesystemFormat(const char *theDisk, const char *type, const char *label, int longFormat)
 {
   // Proto: int kernelFilesystemFormat(const char *, const char *, const char *, int);
-  // Desc : Format the logical volume 'disk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported.  It is optional for filesystem drivers to implement this function.
-  return (sysCall_4(_fnum_filesystemFormat, (void *) disk, (void *) type,
+  // Desc : Format the logical volume 'theDisk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported.  It is optional for filesystem drivers to implement this function.
+  return (sysCall_4(_fnum_filesystemFormat, (void *) theDisk, (void *) type,
 		    (void *) label, (void *) longFormat));
 }
 
@@ -1073,14 +1075,14 @@ _X_ static inline int filesystemUnmount(const char *mp)
 
 _X_ static inline int filesystemGetFree(const char *fs)
 {
-  // Proto: unsigned int kernelFilesystemGetFree(const char *);
+  // Proto: unsigned kernelFilesystemGetFree(const char *);
   // Desc : Returns the amount of free space on the filesystem represented by the mount point 'fs'.
   return (sysCall_1(_fnum_filesystemGetFree, (void *) fs));
 }
 
-_X_ static inline unsigned int filesystemGetBlockSize(const char *fs)
+_X_ static inline unsigned filesystemGetBlockSize(const char *fs)
 {
-  // Proto: unsigned int kernelFilesystemGetBlockSize(const char *);
+  // Proto: unsigned kernelFilesystemGetBlockSize(const char *);
   // Desc : Returns the block size (for example, 512 or 1024) of the filesystem represented by the mount point 'fs'.
   return (sysCall_1(_fnum_filesystemGetBlockSize, (void *) fs));
 }
@@ -1148,7 +1150,7 @@ _X_ static inline int fileClose(file *f)
   return (sysCall_1(_fnum_fileClose, (void *) f));
 }
 
-_X_ static inline int fileRead(file *f, unsigned int blocknum, unsigned int blocks, unsigned char *buff)
+_X_ static inline int fileRead(file *f, unsigned blocknum, unsigned blocks, unsigned char *buff)
 {
   // Proto: int kernelFileRead(file *, unsigned int, unsigned int, unsigned char *);
   // Desc : Read data from the previously opened file 'f'.  'f' should have been opened in a read or read/write mode.  Read 'blocks' blocks (see the filesystem functions for information about getting the block size of a given filesystem) and put them in buffer 'buff'.
@@ -1242,24 +1244,24 @@ _X_ static inline int fileStreamSeek(fileStream *f, int offset)
   return (sysCall_2(_fnum_fileStreamSeek, (void *) f, (void *) offset));
 }
 
-_X_ static inline int fileStreamRead(fileStream *f, int bytes, char *buff)
+_X_ static inline int fileStreamRead(fileStream *f, unsigned bytes, char *buff)
 {
-  // Proto: int kernelFileStreamRead(fileStream *, int, char *);
+  // Proto: int kernelFileStreamRead(fileStream *, unsigned, char *);
   // Desc : Read 'bytes' bytes from the filestream 'f' and put them into 'buff'.
   return (sysCall_3(_fnum_fileStreamRead, (void *) f, (void *) bytes, buff));
 }
 
-_X_ static inline int fileStreamReadLine(fileStream *f, int bytes, char *buff)
+_X_ static inline int fileStreamReadLine(fileStream *f, unsigned bytes, char *buff)
 {
-  // Proto: int kernelFileStreamReadLine(fileStream *, int, char *);
+  // Proto: int kernelFileStreamReadLine(fileStream *, unsigned, char *);
   // Desc : Read a complete line of text from the filestream 'f', and put up to 'bytes' characters into 'buff'
   return (sysCall_3(_fnum_fileStreamReadLine, (void *) f, (void *) bytes,
 		    buff));
 }
 
-_X_ static inline int fileStreamWrite(fileStream *f, int bytes, char *buff)
+_X_ static inline int fileStreamWrite(fileStream *f, unsigned bytes, char *buff)
 {
-  // Proto: int kernelFileStreamWrite(fileStream *, int, char *);
+  // Proto: int kernelFileStreamWrite(fileStream *, unsigned, char *);
   // Desc : Write 'bytes' bytes from the buffer 'buff' to the filestream 'f'.
   return (sysCall_3(_fnum_fileStreamWrite, (void *) f, (void *) bytes, buff));
 }
@@ -1300,8 +1302,9 @@ _X_ static inline int fileStreamClose(fileStream *f)
 _X_ static inline void memoryPrintUsage(int kernel)
 {
   // Proto: void kernelMemoryPrintUsage(int);
-  // Desc : Prints the current memory usage statistics to the current output stream.  If non-zero, the flag 'kernel' will show usage of kernel dynamic memory as well.
-  sysCall_1(_fnum_memoryPrintUsage, (void *) kernel);
+  // Desc : *DEPRECATED*
+  kernel = 0;
+  return;
 }
 
 _X_ static inline void *memoryGet(unsigned size, const char *desc)
@@ -1341,12 +1344,27 @@ _X_ static inline int memoryChangeOwner(int opid, int npid, void *addr, void **n
 		    addr, (void *) naddr));
 }
 
+_X_ static inline int memoryGetStats(memoryStats *stats, int kernel)
+{
+  // Proto: int kernelMemoryGetStats(memoryStats *, int);
+  // Desc : Returns the current memory totals and usage values to the current output stream.  If non-zero, the flag 'kernel' will return kernel heap statistics instead of overall system statistics.
+  return (sysCall_2(_fnum_memoryGetStats, stats, (void *) kernel));
+}
+
+_X_ static inline int memoryGetBlocks(memoryBlock *blocksArray, unsigned buffSize, int kernel)
+{
+  // Proto: int kernelMemoryGetBlocks(memoryBlock *, unsigned, int);
+  // Desc : Returns a copy of the array of used memory blocks in 'blocksArray', up to 'buffSize' bytes.  If non-zero, the flag 'kernel' will return kernel heap blocks instead of overall heap allocations.
+  return (sysCall_3(_fnum_memoryGetBlocks, blocksArray, (void *) buffSize,
+		    (void *) kernel));
+}
+
 
 //
 // Multitasker functions
 //
 
-_X_ static inline int multitaskerCreateProcess(void *addr, unsigned int size, const char *name, int numargs, void *args)
+_X_ static inline int multitaskerCreateProcess(void *addr, unsigned size, const char *name, int numargs, void *args)
 {
   // Proto: int kernelMultitaskerCreateProcess(void *, unsigned int, const char *, int, void *);
   // Desc : Create a new process.  The code should have been loaded at the address 'addr' and be of size 'size'.  'name' will be the new process' name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new process.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new process' process ID.  New processes are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState().
@@ -1486,7 +1504,7 @@ _X_ static inline void multitaskerYield(void)
   sysCall_0(_fnum_multitaskerYield);
 }
 
-_X_ static inline void multitaskerWait(unsigned int ticks)
+_X_ static inline void multitaskerWait(unsigned ticks)
 {
   // Proto: void kernelMultitaskerWait(unsigned int);
   // Desc : Yield the remainder of the current processor timeslice back to the multitasker's scheduler, and wait at least 'ticks' timer ticks before running the calling process again.  On the PC, one second is approximately 20 system timer ticks.
@@ -1622,19 +1640,19 @@ _X_ static inline int rtcReadYear(void)
   return (sysCall_0(_fnum_rtcReadYear));
 }
 
-_X_ static inline unsigned int rtcUptimeSeconds(void)
+_X_ static inline unsigned rtcUptimeSeconds(void)
 {
-  // Proto: unsigned int kernelRtcUptimeSeconds(void);
+  // Proto: unsigned kernelRtcUptimeSeconds(void);
   // Desc : Get the number of seconds the system has been running.
   return (sysCall_0(_fnum_rtcUptimeSeconds));
 }
 
 
-_X_ static inline int rtcDateTime(struct tm *time)
+_X_ static inline int rtcDateTime(struct tm *theTime)
 {
   // Proto: int kernelRtcDateTime(struct tm *);
-  // Desc : Get the current data and time as a tm data structure in 'time'.
-  return (sysCall_1(_fnum_rtcDateTime, (void *) time));
+  // Desc : Get the current data and time as a tm data structure in 'theTime'.
+  return (sysCall_1(_fnum_rtcDateTime, (void *) theTime));
 }
 
 
@@ -1642,30 +1660,30 @@ _X_ static inline int rtcDateTime(struct tm *time)
 // Random number functions
 //
 
-_X_ static inline unsigned int randomUnformatted(void)
+_X_ static inline unsigned randomUnformatted(void)
 {
-  // Proto: unsigned int kernelRandomUnformatted(void);
+  // Proto: unsigned kernelRandomUnformatted(void);
   // Desc : Get an unformatted random unsigned number.  Just any unsigned number.
   return (sysCall_0(_fnum_randomUnformatted));
 }
 
-_X_ static inline unsigned int randomFormatted(unsigned int start, unsigned int end)
+_X_ static inline unsigned randomFormatted(unsigned start, unsigned end)
 {
-  // Proto: unsigned int kernelRandomFormatted(unsigned int, unsigned int);
+  // Proto: unsigned kernelRandomFormatted(unsigned int, unsigned int);
   // Desc : Get a random unsigned number between the start value 'start' and the end value 'end', inclusive.
   return (sysCall_2(_fnum_randomFormatted, (void *) start, (void *) end));
 }
 
-_X_ static inline unsigned int randomSeededUnformatted(unsigned int seed)
+_X_ static inline unsigned randomSeededUnformatted(unsigned seed)
 {
-  // Proto: unsigned int kernelRandomSeededUnformatted(unsigned int);
+  // Proto: unsigned kernelRandomSeededUnformatted(unsigned int);
   // Desc : Get an unformatted random unsigned number, using the random seed 'seed' instead of the kernel's default random seed.
   return (sysCall_1(_fnum_randomSeededUnformatted, (void *) seed));
 }
 
-_X_ static inline unsigned int randomSeededFormatted(unsigned int seed, unsigned int start, unsigned int end)
+_X_ static inline unsigned randomSeededFormatted(unsigned seed, unsigned start, unsigned end)
 {
-  // Proto: unsigned int kernelRandomSeededFormatted(unsigned int, unsigned int, unsigned int);
+  // Proto: unsigned kernelRandomSeededFormatted(unsigned int, unsigned int, unsigned int);
   // Desc : Get a random unsigned number between the start value 'start' and the end value 'end', inclusive, using the random seed 'seed' instead of the kernel's default random seed.
   return (sysCall_3(_fnum_randomSeededFormatted, (void *) seed,
 		    (void *) start, (void *) end));
@@ -1676,7 +1694,7 @@ _X_ static inline unsigned int randomSeededFormatted(unsigned int seed, unsigned
 // Environment functions
 //
 
-_X_ static inline int environmentGet(const char *var, char *buf, unsigned int bufsz)
+_X_ static inline int environmentGet(const char *var, char *buf, unsigned bufsz)
 {
   // Proto: int kernelEnvironmentGet(const char *, char *, unsigned int);
   // Desc : Get the value of the environment variable named 'var', and put it into the buffer 'buf' of size 'bufsz' if successful.
@@ -1716,9 +1734,9 @@ _X_ static inline int graphicsAreEnabled(void)
   return (sysCall_0(_fnum_graphicsAreEnabled));
 }
 
-_X_ static inline int graphicGetModes(videoMode *buffer, int size)
+_X_ static inline int graphicGetModes(videoMode *buffer, unsigned size)
 {
-  // Proto: int kernelGraphicGetModes(videoMode *, int);
+  // Proto: int kernelGraphicGetModes(videoMode *, unsigned);
   // Desc : Get up to 'size' bytes worth of videoMode structures in 'buffer' for the supported video modes of the current hardware.
   return (sysCall_2(_fnum_graphicGetModes, buffer, (void *) size));
 }
@@ -1873,12 +1891,11 @@ _X_ static inline int graphicRenderBuffer(objectKey buffer, int drawX, int drawY
 // Windowing system functions
 //
 
-_X_ static inline int windowLogin(const char *userName, const char *passwd)
+_X_ static inline int windowLogin(const char *userName)
 {
   // Proto: kernelWindowLogin(const char *, const char *);
-  // Desc : Log the user into the window environment with 'userName' and 'passwd'.  The return value is the PID of the window shell for this session.
-  return (sysCall_2(_fnum_windowLogin, (void *) userName,
-		    (void *) passwd));
+  // Desc : Log the user into the window environment with 'userName'.  The return value is the PID of the window shell for this session.  The calling program must have supervisor privilege in order to use this function.
+  return (sysCall_1(_fnum_windowLogin, (void *) userName));
 }
 
 _X_ static inline int windowLogout(void)
@@ -1916,7 +1933,7 @@ _X_ static inline int windowUpdateBuffer(void *buffer, int xCoord, int yCoord, i
   // Proto: kernelWindowUpdateBuffer(kernelGraphicBuffer *, int, int, int, int);
   // Desc : Tells the windowing system to redraw the visible portions of the graphic buffer 'buffer', using the given clip coordinates/size.
   return (sysCall_5(_fnum_windowUpdateBuffer, buffer, (void *) xCoord,
-					    (void *) xCoord, (void *) width,
+					    (void *) yCoord, (void *) width,
 					    (void *) height));
 }
 
@@ -1962,6 +1979,7 @@ _X_ static inline int windowPack(objectKey window)
 {
   // Proto: int kernelWindowPack(kernelWindow *);
   // Desc : *DEPRECATED*
+  window = NULL;
   return (0);
 }
 
@@ -2011,6 +2029,8 @@ _X_ static inline int windowSetPacked(objectKey window, int trueFalse)
 {
   // Proto: int kernelWindowSetPacked(kernelWindow *, int);
   // Desc : *DEPRECATED*
+  window = 0;
+  trueFalse = 0;
   return (0);
 }
 
@@ -2081,18 +2101,18 @@ _X_ static inline int windowComponentEventGet(objectKey key, windowEvent *event)
   return(sysCall_2(_fnum_windowComponentEventGet, key, event));
 }
 
-_X_ static inline int windowTileBackground(const char *file)
+_X_ static inline int windowTileBackground(const char *theFile)
 {
   // Proto: int kernelWindowTileBackground(const char *);
-  // Desc : Load the image file specified by the pathname 'file', and if successful, tile the image on the background root window.
-  return (sysCall_1(_fnum_windowTileBackground, (void *) file));
+  // Desc : Load the image file specified by the pathname 'theFile', and if successful, tile the image on the background root window.
+  return (sysCall_1(_fnum_windowTileBackground, (void *) theFile));
 }
 
-_X_ static inline int windowCenterBackground(const char *file)
+_X_ static inline int windowCenterBackground(const char *theFile)
 {
-  // Proto: int kernelWindowCenterBackground(const char *file);
-  // Desc : Load the image file specified by the pathname 'file', and if successful, center the image on the background root window.
-  return (sysCall_1(_fnum_windowCenterBackground, (void *) file));
+  // Proto: int kernelWindowCenterBackground(const char *);
+  // Desc : Load the image file specified by the pathname 'theFile', and if successful, center the image on the background root window.
+  return (sysCall_1(_fnum_windowCenterBackground, (void *) theFile));
 }
 
 _X_ static inline int windowScreenShot(image *saveImage)
@@ -2456,9 +2476,9 @@ _X_ static inline int fontLoad(const char* filename, const char *fontname, objec
 		    pointer, (void *) fixedWidth));
 }
 
-_X_ static inline unsigned fontGetPrintedWidth(objectKey font, const char *string)
+_X_ static inline int fontGetPrintedWidth(objectKey font, const char *string)
 {
-  // Proto: unsigned kernelFontGetPrintedWidth(kernelAsciiFont *, const char *);
+  // Proto: int kernelFontGetPrintedWidth(kernelAsciiFont *, const char *);
   // Desc : Given the supplied string, return the screen width that the text will consume given the font 'font'.  Useful for placing text when using a variable-width font, but not very useful otherwise.
   return (sysCall_2(_fnum_fontGetPrintedWidth, font, (void *) string));
 }
@@ -2479,7 +2499,7 @@ _X_ static inline int imageSaveBmp(const char *filename, image *saveImage)
 
 _X_ static inline int shutdown(int reboot, int nice)
 {
-  // Proto: int kernelShutdown(kernelShutdownType, int);
+  // Proto: int kernelShutdown(int, int);
   // Desc : Shut down the system.  If 'reboot' is non-zero, the system will reboot.  If 'nice' is zero, the shutdown will be orderly and will abort if serious errors are detected.  If 'nice' is non-zero, the system will go down like a kamikaze regardless of errors.
   return (sysCall_2(_fnum_shutdown, (void *) reboot, (void *) nice));
 }

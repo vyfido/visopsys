@@ -29,8 +29,11 @@
 #include <sys/api.h>
 #include <sys/vsh.h>
 
-#define PROCESS_STRING_LENGTH 64
-#define SHOW_MAX_PROCESSES 100
+#define SHOW_MAX_PROCESSES     100
+#define PROCESS_STRING_LENGTH  64
+#define USEDBLOCKS_STRING      "Memory blocks: "
+#define USEDMEM_STRING         "Used Memory: "
+#define FREEMEM_STRING         "Free Memory: "
 
 static int processId = 0;
 static int privilege = 0;
@@ -39,6 +42,9 @@ static char *processStrings[SHOW_MAX_PROCESSES];
 static process *processes = NULL;
 static int numProcesses = 0;
 static objectKey window = NULL;
+static objectKey memoryBlocksLabel = NULL;
+static objectKey memoryUsedLabel = NULL;
+static objectKey memoryFreeLabel = NULL;
 static objectKey processList = NULL;
 static objectKey showThreadsCheckbox = NULL;
 static objectKey runProgramButton = NULL;
@@ -125,17 +131,57 @@ static void sortChildren(process *tmpProcessArray, int tmpNumProcesses)
 }
 
 
-static int getProcesses(void)
+static int getUpdate(void)
 {
   // Get the list of processes from the kernel
 
   int status = 0;
+  memoryStats memStats;
+  char labelChar[32];
+  unsigned totalFree = 0;
+  int percentUsed = 0;
   char *bufferPointer = NULL;
   process *tmpProcessArray = NULL;
   process *tmpProcess = NULL;
   int tmpNumProcesses = 0;
   int count;
-  
+
+  // Try to get the memory stats
+  bzero(&memStats, sizeof(memoryStats));
+  status = memoryGetStats(&memStats, 0);
+  if (status >= 0)
+    {
+      // Switch raw bytes numbers to kilobytes.  This will also prevent
+      // overflow when we calculate percentage, below.
+      memStats.totalMemory >>= 10;
+      memStats.usedMemory >>= 10;
+
+      totalFree = (memStats.totalMemory - memStats.usedMemory);
+      percentUsed = ((memStats.usedMemory * 100) / memStats.totalMemory);
+
+      // Assign the strings to our labels
+      if (memoryBlocksLabel)
+	{
+	  sprintf(labelChar, USEDBLOCKS_STRING "%d", memStats.usedBlocks);
+	  windowComponentSetData(memoryBlocksLabel, labelChar,
+				 strlen(labelChar));
+	}
+      if (memoryUsedLabel)
+	{
+	  sprintf(labelChar, USEDMEM_STRING "%u Kb - %d%%",
+		  memStats.usedMemory, percentUsed);
+	  windowComponentSetData(memoryUsedLabel, labelChar,
+				 strlen(labelChar));
+	}
+      if (memoryFreeLabel)
+	{
+	  sprintf(labelChar, FREEMEM_STRING "%u Kb - %d%%", totalFree,
+		  (100 - percentUsed));
+	  windowComponentSetData(memoryFreeLabel, labelChar,
+				 strlen(labelChar));
+	}
+    }
+
   tmpProcessArray = malloc(SHOW_MAX_PROCESSES * sizeof(process));
   if (tmpProcessArray == NULL)
     {
@@ -327,7 +373,7 @@ static int setPriority(int whichProcess)
     multitaskerSetProcessPriority(changeProcess->processId, newPriority);
 
   // Refresh our list of processes
-  getProcesses();
+  getUpdate();
   windowComponentSetData(processList, processStrings, numProcesses);
 
   return (status);
@@ -339,15 +385,15 @@ static int killProcess(int whichProcess)
   // Tells the kernel to kill the requested process
 
   int status = 0;
-  process *killProcess = NULL;
+  process *theProcess = NULL;
 
   // Get the process to kill
-  killProcess = &processes[whichProcess];
+  theProcess = &processes[whichProcess];
   
-  status = multitaskerKillProcess(killProcess->processId, 0);
+  status = multitaskerKillProcess(theProcess->processId, 0);
 
   // Refresh our list of processes
-  getProcesses();
+  getUpdate();
   windowComponentSetData(processList, processStrings, numProcesses);
 
   return (status);
@@ -370,7 +416,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	   (event->type == EVENT_MOUSE_LEFTDOWN))
     {
       showThreads = windowComponentGetSelected(showThreadsCheckbox);  
-      getProcesses();
+      getUpdate();
       windowComponentSetData(processList, processStrings, numProcesses);
     }
   
@@ -419,18 +465,30 @@ static void constructWindow(void)
   params.orientationY = orient_top;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
+
+  memoryBlocksLabel = windowNewTextLabel(window, USEDBLOCKS_STRING, &params);
+
+  params.gridY = 1;
+  memoryUsedLabel = windowNewTextLabel(window, USEDMEM_STRING, &params);
+
+  params.gridY = 2;
+  params.padBottom = 10;
+  memoryFreeLabel = windowNewTextLabel(window, FREEMEM_STRING, &params);
+
+  params.gridY = 3;
+  params.padBottom = 0;
   fontGetDefault(&(params.font));
   // Create the label of column headers for the list below
   windowNewTextLabel(window, "Process                   PID PPID UID Pri Priv "
 		     "CPU% STATE   ", &params);
 
   // Create the list of processes
-  params.gridY = 1;
+  params.gridY = 4;
   processList =
     windowNewList(window, 20, 1, 0, processStrings, numProcesses, &params);
 
   // Create a 'show sub-processes' checkbox
-  params.gridY = 3;
+  params.gridY = 5;
   params.padBottom = 5;
   params.font = NULL;
   showThreadsCheckbox =
@@ -440,7 +498,7 @@ static void constructWindow(void)
 
   // Make a container for the right hand side components
   params.gridX = 1;
-  params.gridY = 1;
+  params.gridY = 4;
   params.padRight = 5;
   container = windowNewContainer(window, "rightContainer", &params);
   
@@ -486,6 +544,9 @@ int main(int argc, char *argv[])
       return (errno = ERR_NOTINITIALIZED);
     }
 
+  // We don't use argc.  This keeps the compiler happy
+  argc = 0;
+
   processId = multitaskerGetCurrentProcessId();
   privilege = multitaskerGetProcessPrivilege(processId);
 
@@ -506,7 +567,7 @@ int main(int argc, char *argv[])
 
 
   // Get the list of process strings
-  status = getProcesses();
+  status = getUpdate();
   if (status < 0)
     {
       free(processes);
@@ -526,7 +587,7 @@ int main(int argc, char *argv[])
     {
       windowComponentSetData(processList, processStrings, numProcesses);
       multitaskerWait(20);
-      getProcesses();
+      getUpdate();
     }
 
   free(processes);

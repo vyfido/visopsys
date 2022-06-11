@@ -25,7 +25,7 @@
 #include <sys/api.h>
 
 // The application's random seed for rand() and srand()
-unsigned int __random_seed = 1;
+unsigned __random_seed = 1;
 
 
 int rand(void)

@@ -169,7 +169,6 @@ int kernelFilesystemFatUnmount(kernelFilesystem *);
 unsigned kernelFilesystemFatGetFreeBytes(kernelFilesystem *);
 int kernelFilesystemFatNewEntry(kernelFileEntry *);
 int kernelFilesystemFatInactiveEntry(kernelFileEntry *);
-int kernelFilesystemFatResolveLink(kernelFileEntry *);
 int kernelFilesystemFatReadFile(kernelFileEntry *, unsigned, unsigned,
 				unsigned char *);
 int kernelFilesystemFatWriteFile(kernelFileEntry *, unsigned, unsigned,

@@ -53,7 +53,10 @@ int main(int argc, char *argv[])
       // If any of the arguments are RELATIVE pathnames, we should
       // insert the pwd before it
       vshMakeAbsolutePath(argv[count], fileName);
-      vshDumpFile(fileName);
+
+      status = vshDumpFile(fileName);
+      if (status < 0)
+	perror(argv[0]);
     }
 
   // Return success

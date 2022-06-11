@@ -25,6 +25,7 @@
 #include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include <stdio.h>
+#include <sys/errors.h>
 
 static int borderThickness = 3;
 static int borderShadingIncrement = 15;
@@ -98,6 +99,10 @@ static int setData(void *componentData, void *data, int length)
   kernelWindow *window = (kernelWindow *) component->window;
   kernelWindowProgressBar *progressBar =
     (kernelWindowProgressBar *) component->data;
+
+  // We ignore 'length'.  This keeps the compiler happy
+  if (length == 0)
+    return (status = ERR_NULLPARAMETER);
 
   if (component->erase)
     component->erase(componentData);

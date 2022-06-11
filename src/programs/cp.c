@@ -59,8 +59,10 @@ int main(int argc, char *argv[])
   // insert the pwd before it
   vshMakeAbsolutePath(argv[1], srcFileName);
   vshMakeAbsolutePath(argv[2], destFileName);
-  vshCopyFile(srcFileName, destFileName);
 
-  // Return success
-  return (status = 0);
+  status = vshCopyFile(srcFileName, destFileName);
+  if (status < 0)
+    perror(argv[0]);
+
+  return (status);
 }

@@ -27,7 +27,7 @@
 
 #define SHOW_MAX_PROCESSES 100
 
-int main(int argc, char *argv[])
+int main(void)
 {
   // This command will query the kernel for a list of all active processes,
   // and print information about them on the screen.

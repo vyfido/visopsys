@@ -44,8 +44,16 @@ void *memmove(void *dest, const void *src, size_t len)
     }
   else
     {
-      for (count = (len - 1); count >= 0; count --)
-	((char *) dest)[count] = ((char *) src)[count];
+      count = (len - 1);
+      while(1)
+	{
+	  ((char *) dest)[count] = ((char *) src)[count];
+
+	  if (count == 0)
+	    break;
+
+	  count--;
+	}
     }
 
       

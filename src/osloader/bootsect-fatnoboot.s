@@ -63,30 +63,10 @@ bootCode:
 	mov SI, NOBOOT
 	call print
 
-	;; Hook the keyboard interrupt 9.
-
-	;; Get the address of the current interrupt 9 handler and save it
-	mov AX, word [0024h]			;; The offset
-	mov word [OLDINT9], AX
-	mov AX, word [0026h]			;; The segment
-	mov word [OLDINT9 + 2], AX
-
-	;; Move the address of our new handler into the interrupt
-	;; table
-	mov word [0024h], int9_handler		;; The offset
-	mov word [0026h], CS			;; The segment
-
 	;; Wait for a key press
-	.wait:
-	cmp byte [GOTKEY], 1
-	jne .wait
-	
-	;; Restore the old interrupt 9 handler
-	mov AX, word [OLDINT9]
-	mov word [0024h], AX			;; The offset
-	mov AX, word [OLDINT9 + 2]
-	mov word [0026h], AX			;; The segment
-	
+	mov AX, 0000h
+	int 16h
+
 	pop DS
 	popa
 	
@@ -100,24 +80,6 @@ bootCode:
 	hlt
 
 	
-int9_handler:
-	;; This routine handles the interrupt 9 key pressed event
-
-	cli
-	push DS
-	push word 0
-	pop DS
-	mov byte [GOTKEY], 1
-	mov AX, word [OLDINT9 + 2]
-	mov BX, word [OLDINT9]
-	pop DS
-
-	;; Call the original handler
-	push AX
-	push BX
-	retf
-
-		
 print:
 	;; The offset to the chars should already be in SI
 
@@ -143,8 +105,6 @@ print:
 
 NOBOOT		db 'This is not a bootable Visopsys disk.', 0Dh, 0Ah
 		db 'Press any key to continue.', 0Dh, 0Ah, 0
-OLDINT9		dd 0	;; Address of the interrupt 9 handler
-GOTKEY		db 0
 	
 ;; This puts the value AA55h in the last two bytes of the boot
 ;; sector.  The BIOS uses this to determine whether this sector was

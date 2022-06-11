@@ -303,6 +303,9 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
     // Return the code that the driver routine produced
     return (status);
 
+  // Get the kernel to re-scan the partition tables
+  kernelDiskReadPartitions();
+
   // Finished
   return (status);
 }
@@ -528,9 +531,8 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 
   if (!strcmp(mountPoint, "/"))
     {
-      // The root directory is its own parent
-      theFilesystem->filesystemRoot->parentDirectory = (void *)
-	theFilesystem->filesystemRoot;
+      // The root directory has no parent
+      theFilesystem->filesystemRoot->parentDirectory = NULL;
 
       // Set the root filesystem pointer
       status = kernelFileSetRoot(theFilesystem->filesystemRoot);
@@ -886,4 +888,3 @@ unsigned kernelFilesystemGetBlockSize(const char *path)
 
   return (blockSize);
 }
-

@@ -32,7 +32,7 @@ int memcmp(const void *first, const void *second, size_t length)
   // "length" and everything matches, we return 0.  Otherwise, we return
   // whether first is less than or greater than second
 
-  for (result = 1; result <= length; result ++)
+  for (result = 1; result <= (int) length; result ++)
     if (((unsigned char *) first)[result - 1] !=
 	((unsigned char *) second)[result - 1])
       {

@@ -22,20 +22,11 @@
 #if !defined(_KERNELMEMORYMANAGER_H)
 
 #include "loaderInfo.h"
+#include <sys/memory.h>
 
 // Definitions
 #define MAXMEMORYBLOCKS 2048
 #define MEMBLOCKSIZE MEMORY_PAGE_SIZE
-#define MAX_DESC_LENGTH 24
-
-typedef volatile struct
-{
-  int processId;
-  char description[MAX_DESC_LENGTH];
-  unsigned startLocation;
-  unsigned endLocation;
-
-} kernelMemoryBlock;
 
 // Functions from kernelMemoryManager.c
 int kernelMemoryInitialize(unsigned, loaderInfoStruct *);
@@ -48,7 +39,8 @@ int kernelMemoryReleasePhysical(void *);
 int kernelMemoryReleaseAllByProcId(int);
 int kernelMemoryChangeOwner(int, int, int, void *, void **);
 int kernelMemoryShare(int, int, void *, void **);
-void kernelMemoryPrintUsage(int);
+int kernelMemoryGetStats(memoryStats *, int);
+int kernelMemoryGetBlocks(memoryBlock *, unsigned, int);
 
 #define _KERNELMEMORYMANAGER_H
 #endif

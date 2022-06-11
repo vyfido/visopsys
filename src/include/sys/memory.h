@@ -25,7 +25,28 @@
 #if !defined(_MEMORY_H)
 
 // Definitions
-#define MEMORY_PAGE_SIZE 4096
+#define MEMORY_PAGE_SIZE        4096
+#define MEMORY_MAX_DESC_LENGTH  32
+
+// Struct that describes one memory block
+typedef struct
+{
+  int processId;
+  char description[MEMORY_MAX_DESC_LENGTH];
+  unsigned startLocation;
+  unsigned endLocation;
+
+} memoryBlock;
+
+// Struct that describes overall memory statistics
+typedef struct
+{
+  unsigned totalBlocks;
+  unsigned usedBlocks;
+  unsigned totalMemory;
+  unsigned usedMemory;
+
+} memoryStats;
 
 #define _MEMORY_H
 #endif

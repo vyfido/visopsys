@@ -21,6 +21,7 @@
 
 // Yup, it's the UNIX-style command for viewing directory listings
 
+#include <stdio.h>
 #include <sys/vsh.h>
 #include <sys/api.h>
 
@@ -28,17 +29,23 @@
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char cwd[MAX_PATH_LENGTH];
   char fileName[MAX_PATH_NAME_LENGTH];
   int count;
-
-  // Get the current directory
-  multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
 
   // If we got no arguments, then we assume we are operating on the
   // current directory.
   if (argc == 1)
-    vshFileList(cwd);
+    {
+      // Get the current directory
+      multitaskerGetCurrentDirectory(fileName, MAX_PATH_NAME_LENGTH);
+
+      status = vshFileList(fileName);
+      if (status < 0)
+	{
+	  perror(argv[0]);
+	  return (status);
+	}
+    }
 
   else
     for (count = 1; count < argc; count ++)
@@ -46,9 +53,12 @@ int main(int argc, char *argv[])
 	// If any of the arguments are RELATIVE pathnames, we should
 	// insert the pwd before it
 	vshMakeAbsolutePath(argv[count], fileName);
-	vshFileList(fileName);
+
+	status = vshFileList(fileName);
+	if (status < 0)
+	  perror(argv[0]);
       }
-  
+
   // Return success
   return (status = 0);
 }

@@ -33,6 +33,7 @@ _X_ void vshPrintDate(unsigned unformattedDate)
   int month = 0;
   int year = 0;
 
+  const char *monthString = NULL;
   day = (unformattedDate & 0x0000001F);
   month = ((unformattedDate & 0x000001E0) >> 5);
   year = ((unformattedDate & 0xFFFFFE00) >> 9);
@@ -40,47 +41,47 @@ _X_ void vshPrintDate(unsigned unformattedDate)
   switch(month)
     {
     case 1:
-      printf("Jan");
+      monthString = "Jan";
       break;
     case 2:
-      printf("Feb");
+      monthString = "Feb";
       break;
     case 3:
-      printf("Mar");
+      monthString = "Mar";
       break;
     case 4:
-      printf("Apr");
+      monthString = "Apr";
       break;
     case 5:
-      printf("May");
+      monthString = "May";
       break;
     case 6:
-      printf("Jun");
+      monthString = "Jun";
       break;
     case 7:
-      printf("Jul");
+      monthString = "Jul";
       break;
     case 8:
-      printf("Aug");
+      monthString = "Aug";
       break;
     case 9:
-      printf("Sep");
+      monthString = "Sep";
       break;
     case 10:
-      printf("Oct");
+      monthString = "Oct";
       break;
     case 11:
-      printf("Nov");
+      monthString = "Nov";
       break;
     case 12:
-      printf("Dec");
+      monthString = "Dec";
       break;
     default:
-      printf("???");
+      monthString = "???";
       break;
     }
 
-  printf(" %02u %u", day, year);
+  printf("%s %02u %u", monthString, day, year);
 
   return;
 }

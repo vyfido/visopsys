@@ -42,7 +42,7 @@
 #define SEEK_END 0x03
 
 // fpos_t
-typedef unsigned int fpos_t;
+typedef unsigned fpos_t;
 
 // Available functions
 int fgetpos(FILE *, fpos_t *);

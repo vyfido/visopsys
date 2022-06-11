@@ -11,8 +11,9 @@ CC		= gcc
 AR		= ar
 CPU		= $(shell ../../../utils/cpu.sh)
 STDDEPS		= Makefile ../shared/*
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
-WARN		= -Wall -Wmissing-prototypes -Wstrict-prototypes \
+CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
+		-ffreestanding
+WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
 INCLUDE         = -nostdinc -I../../include
 CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE}
@@ -36,36 +37,19 @@ CTYPENAMES	= isalnum \
 
 FCNTLNAMES	= open
 
-LOCALENAMES	= localeconv \
-		setlocale
+LOCALENAMES	= setlocale
 
-MATHNAMES	= acos \
-		asin \
-		atan \
-		atan2 \
-		ceil \
-		cos \
-		cosh \
-		exp \
+MATHNAMES	= ceil \
 		fabs \
 		floor \
 		fmod \
-		frexp \
-		ldexp \
-		log \
-		log10 \
 		modf \
 		pow \
-		sin \
-		sinh \
-		sqrt \
-		tan \
-		tanh
+		sqrt
 
 MISCNAMES	= readline
 
-SIGNALNAMES	= raise \
-		signal
+SIGNALNAMES	= 
 
 STDIONAMES	= _fmtinpt \
 		_xpndfmt \
@@ -92,23 +76,17 @@ STDIONAMES	= _fmtinpt \
 
 STDLIBNAMES	= abort \
 		abs \
-		atexit \
-		atof \
 		atoi \
-		atol \
-		bsearch \
 		calloc \
 		div \
 		exit \
 		free \
-		getenv \
 		itoa \
 		itox \
 		labs \
 		ldiv \
 		malloc \
 		rand \
-		realloc \
 		srand \
 		system \
 		utoa \
@@ -136,11 +114,7 @@ STRINGNAMES	= bcopy \
 
 TIMENAMES	= asctime \
 		clock \
-		ctime \
 		difftime \
-		gmtime \
-		localtime \
-		mktime \
 		time
 
 UNISTDNAMES	= close \
@@ -150,9 +124,7 @@ UNISTDNAMES	= close \
 		stat \
 		write
 
-GLOBALNAMES  	= _globdata
-
-ALLNAMES = ${CTYPENAMES} ${FCNTLNAMES} ${LOCALENAMES} ${MATHNAMES} ${MISCNAMES} ${STDIONAMES} ${STDLIBNAMES} ${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES} ${GLOBALNAMES}
+ALLNAMES = ${CTYPENAMES} ${FCNTLNAMES} ${LOCALENAMES} ${MATHNAMES} ${MISCNAMES} ${STDIONAMES} ${STDLIBNAMES} ${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES}
 OBJS = $(addprefix obj/, $(addsuffix .o, ${ALLNAMES}))
 CRT0 = ${BUILDDIR}/crt0.o
 LIBRARY = ${BUILDDIR}/libc.a

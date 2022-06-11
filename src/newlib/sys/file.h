@@ -54,15 +54,15 @@ typedef struct
   char name[MAX_NAME_LENGTH];
   fileType type;
   char filesystem[MAX_PATH_LENGTH];
-  unsigned int creationDate;
-  unsigned int creationTime;
-  unsigned int accessedTime;
-  unsigned int accessedDate;
-  unsigned int modifiedDate;
-  unsigned int modifiedTime;
-  unsigned int size;
-  unsigned int blocks;
-  unsigned int blockSize;
+  unsigned creationDate;
+  unsigned creationTime;
+  unsigned accessedTime;
+  unsigned accessedDate;
+  unsigned modifiedDate;
+  unsigned modifiedTime;
+  unsigned size;
+  unsigned blocks;
+  unsigned blockSize;
   int openMode;
 
 } file;

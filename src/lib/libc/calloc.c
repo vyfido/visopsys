@@ -35,8 +35,7 @@ void *calloc(size_t items, size_t itemSize)
 
   size_t totalSize = 0;
   void *memoryPointer = NULL;
-  int count; 
-
+  unsigned count; 
 
   // Total size is (items * itemSize)
   totalSize = (items * itemSize);

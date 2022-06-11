@@ -71,9 +71,9 @@ static int draw(void *componentData)
       tmpY = component->yCoord +
 	((component->height - button->buttonImage.height) / 2);
       
-      if (button->buttonImage.width > component->width)
+      if (button->buttonImage.width > (unsigned) component->width)
 	tmpXoff = -((button->buttonImage.width - component->width) / 2);
-      if (button->buttonImage.height > component->height)
+      if (button->buttonImage.height > (unsigned) component->height)
 	tmpYoff = -((button->buttonImage.height - component->height) / 2);
 
       kernelGraphicDrawImage(buffer, (image *) &(button->buttonImage),
@@ -111,12 +111,17 @@ static int draw(void *componentData)
 
 static int focus(void *componentData, int focus)
 {
-  // Just redraw
+  // Just redraw.
 
   int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelGraphicBuffer *buffer = (kernelGraphicBuffer *)
     &(((kernelWindow *) component->window)->buffer);
+
+  // Ignore the 'focus' argument.  This keeps the compiler happy.
+  if (focus)
+    {
+    }
 
   if (component->draw)
     status = component->draw(componentData);
@@ -278,9 +283,10 @@ kernelWindowComponent *kernelWindowNewButton(volatile void *parent,
   if (label)
     {
       strncpy((char *) button->label, label, WINDOW_MAX_LABEL_LENGTH);
-      unsigned tmp = (kernelFontGetPrintedWidth(labelFont,
-						(const char *) button->label) +
-		      (borderThickness * 2) + 6);
+      int tmp =
+	(kernelFontGetPrintedWidth(labelFont, (const char *) button->label) +
+	 (borderThickness * 2) + 6);
+
       if (tmp > component->width)
 	component->width = tmp;
       tmp = (labelFont->charHeight + (borderThickness * 2) + 6);

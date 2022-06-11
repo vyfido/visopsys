@@ -101,7 +101,7 @@ int kernelEncryptMD5(const char *input, char *output)
   unsigned C = 0x98BADCFE;
   unsigned D = 0x10325476;
   unsigned AA, BB, CC, DD;
-  int blockCount, bufcnt, count;
+  unsigned blockCount, bufcnt, count;
 
   // Calculate the number of bits and padding bits
   bits = (strlen(input) * 8);

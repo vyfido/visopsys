@@ -36,8 +36,5 @@
 #define SIG_ERR   (void(*)())0
 #define SIG_IGN   (void(*)())0
 
-int raise(int);
-void (*signal(int, void (*)(int)))(int); 
-
 #define _SIGNAL_H
 #endif

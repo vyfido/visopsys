@@ -35,6 +35,9 @@ int main(int argc, char *argv[])
   disk diskInfo[DISK_MAXDEVICES];
   int count;
 
+  // We don't use argc.  This keeps the compiler happy
+  argc = 0;
+
   // Call the kernel to give us the number of available disks
   availableDisks = diskGetCount();
 

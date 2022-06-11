@@ -58,8 +58,7 @@ int scanf(const char *format, ...)
 
   // Read the line
   input = readline(format);
-
-  if (errno)
+  if (input == NULL)
     // We matched zero items
     return (matchItems = 0);
 

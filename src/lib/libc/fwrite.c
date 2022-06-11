@@ -25,16 +25,17 @@
 #include <sys/api.h>
 
 
-size_t fwrite(const void *buf, size_t size, size_t number, FILE *stream)
+size_t fwrite(const void *buf, size_t size, size_t number, FILE *theStream)
 {
   // Write 'size' bytes to the stream 'number' times
   
   int status = 0;
-  int count;
+  unsigned count;
 
   for (count = 0 ; count < number; count ++)
     {
-      status = fileStreamWrite(stream, size, (void *) (buf + (count * size)));
+      status =
+	fileStreamWrite(theStream, size, (void *) (buf + (count * size)));
       if (status < 0)
 	return (-1);
     }

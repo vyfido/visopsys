@@ -43,8 +43,8 @@ static volatile int memoryManagerInitialized = 0;
 static lock memoryManagerLock;
 
 static volatile unsigned totalMemory = 0;
-static kernelMemoryBlock usedBlockMemory[MAXMEMORYBLOCKS];
-static kernelMemoryBlock *usedBlockList[MAXMEMORYBLOCKS];
+static memoryBlock usedBlockMemory[MAXMEMORYBLOCKS];
+static memoryBlock * volatile usedBlockList[MAXMEMORYBLOCKS];
 static volatile unsigned usedBlocks = 0;
 static unsigned char * volatile freeBlockBitmap = NULL;
 static volatile unsigned totalBlocks = 0;
@@ -56,7 +56,7 @@ static volatile unsigned totalUsed = 0;
 // will be marked as "used" by the memory manager and then left alone.
 // It should be terminated with a NULL entry.  The addresses used here
 // are defined in kernelParameters.h
-static kernelMemoryBlock reservedBlocks[] =
+static memoryBlock reservedBlocks[] =
 {
   // { processId, description, startlocation, endlocation }
 
@@ -97,8 +97,7 @@ static int allocateBlock(int processId, unsigned start, unsigned end,
   // The description pointer is allowed to be NULL
 
   // Clear the memory occupied by the first unused memory block structure
-  kernelMemClear((void *) usedBlockList[usedBlocks], 
-			sizeof(kernelMemoryBlock));
+  kernelMemClear((void *) usedBlockList[usedBlocks], sizeof(memoryBlock));
 
   // Assign the appropriate values to the block structure
   usedBlockList[usedBlocks]->processId = processId;
@@ -107,8 +106,9 @@ static int allocateBlock(int processId, unsigned start, unsigned end,
   if (description)
     {
       strncpy((char *) usedBlockList[usedBlocks]->description, 
-	      description, MAX_DESC_LENGTH);
-      usedBlockList[usedBlocks]->description[MAX_DESC_LENGTH - 1] = '\0';
+	      description, MEMORY_MAX_DESC_LENGTH);
+      usedBlockList[usedBlocks]
+	->description[MEMORY_MAX_DESC_LENGTH - 1] = '\0';
     }
   else
     usedBlockList[usedBlocks]->description[0] = '\0';
@@ -150,7 +150,7 @@ static int requestBlock(int processId, unsigned requestedSize,
   void *blockPointer = NULL;
   unsigned consecutiveBlocks = 0;
   int foundBlock = 0;
-  int count;
+  unsigned count;
 
 
   // If the requested block size is zero, forget it.  We can probably
@@ -256,7 +256,7 @@ static int requestBlock(int processId, unsigned requestedSize,
 }
 
 
-static int releaseBlock(int blockLocation)
+static int releaseBlock(unsigned blockLocation)
 {
   // This routine will remove a block from the used block list, mark the
   // corresponding blocks as free in the free-block bitmap, and adjust
@@ -264,12 +264,12 @@ static int releaseBlock(int blockLocation)
   // negative otherwise.
 
   int status = 0;
-  kernelMemoryBlock *unused;
+  memoryBlock *unused;
   unsigned temp = 0;
   unsigned lastBit = 0;
 
   // Make sure the block location is reasonable
-  if ((blockLocation < 0) || (blockLocation > (usedBlocks - 1)))
+  if (blockLocation > (usedBlocks - 1))
     return (status = ERR_NOSUCHENTRY);
 
   // Mark all of the applicable blocks in the free block bitmap as unused
@@ -303,17 +303,6 @@ static int releaseBlock(int blockLocation)
 
   // Return success
   return (status = 0);
-}
-
-
-static unsigned percentUsage(void)
-{
-  // Calculates the percent usage of total memory (base + extended)
-  
-  if (totalMemory == 0)
-    return (0);
-  else
-    return ((totalUsed * 100) / totalMemory);
 }
 
 
@@ -619,9 +608,9 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
 
   int status = 0;
   void *physicalAddress = NULL;
-  kernelMemoryBlock *block = NULL;
+  memoryBlock *block = NULL;
   unsigned blockSize = 0;
-  int count;
+  unsigned count;
   
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
@@ -723,9 +712,9 @@ int kernelMemoryShare(int sharerPid, int shareePid, void *oldVirtualAddress,
 
   int status = 0;
   void *physicalAddress = NULL;
-  kernelMemoryBlock *block = NULL;
+  memoryBlock *block = NULL;
   unsigned blockSize = 0;
-  int count;
+  unsigned count;
   
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
@@ -806,8 +795,8 @@ int kernelMemoryRelease(void *virtualAddress)
   int status = 0;
   int currentPid = 0;
   void *physicalAddress = NULL;
-  kernelMemoryBlock *block = NULL;
-  int count;
+  memoryBlock *block = NULL;
+  unsigned count;
 
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
@@ -893,8 +882,8 @@ int kernelMemoryReleaseSystem(void *virtualAddress)
 
   int status = 0;
   void *physicalAddress = NULL;
-  kernelMemoryBlock *block = NULL;
-  int count;
+  memoryBlock *block = NULL;
+  unsigned count;
 
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
@@ -974,8 +963,8 @@ int kernelMemoryReleasePhysical(void *physicalAddress)
   // 0 if successful, negative otherwise.
 
   int status = 0;
-  kernelMemoryBlock *block = NULL;
-  int count;
+  memoryBlock *block = NULL;
+  unsigned count;
 
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
@@ -1022,8 +1011,7 @@ int kernelMemoryReleaseAllByProcId(int procId)
   // on success, negative otherwise.
 
   int status = 0;
-  int count;
-
+  unsigned count;
 
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
@@ -1059,74 +1047,98 @@ int kernelMemoryReleaseAllByProcId(int procId)
 }
 
 
-void kernelMemoryPrintUsage(int showKernel)
+int kernelMemoryGetStats(memoryStats *stats, int kernel)
 {
-  // This routine prints some formatted information about the 
-  // current usage of memory
-
+  // Return overall memory usage statistics
+  
   int status = 0;
-  kernelMemoryBlock *temp = NULL;
-  char buffer[1024];
-  int count, count2;
 
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
-    return;
+    return (status = ERR_NOTINITIALIZED);
 
-  if (showKernel)
-    kernelMallocDump();
+  if (kernel)
+    // Do kernelMalloc stats instead
+    return (kernelMallocGetStats(stats));
 
-  else
+  // Check params
+  if (stats == NULL)
     {
-      // Obtain a lock on the memory data
-      status = kernelLockGet(&memoryManagerLock);
-      if (status < 0)
-	return;
-
-      // Before we display the list of used memory blocks, we should sort it
-      // so that it's a little easier to see the distribution of memory.
-      // This will not help the memory manager to function more efficiently
-      // or anything, it's purely cosmetic.  Just a bubble sort.
-      for (count = 0; count < usedBlocks; count ++)
-	for (count2 = 0;  count2 < (usedBlocks - 1); count2 ++)
-	  if (usedBlockList[count2]->startLocation > 
-	      usedBlockList[count2 + 1]->startLocation)
-	    {
-	      temp = usedBlockList[count2 + 1];
-	      usedBlockList[count2 + 1] = usedBlockList[count2];
-	      usedBlockList[count2] = temp;
-	    }
-
-      // Release the lock on the memory data
-      kernelLockRelease(&memoryManagerLock);
-
-      // Print the header lines
-      kernelTextPrintLine(" --- Memory usage information by block ---");
-
-      // Here's the loop through the used list
-      for (count = 0; count < usedBlocks; count ++)
-	{
-	  // go to the "count"th element and print the asociated info
-	  sprintf(buffer, " proc=%d %u", usedBlockList[count]->processId,
-		  usedBlockList[count]->startLocation);
-	  kernelTextPrint(buffer);
-	  kernelTextTab();
-	  sprintf(buffer, "-> %u", usedBlockList[count]->endLocation);
-	  kernelTextPrint(buffer);
-	  kernelTextTab();
-	  sprintf(buffer, " size=%u", usedBlockList[count]->endLocation - 
-		  usedBlockList[count]->startLocation + 1);
-	  kernelTextPrint(buffer);
-	  kernelTextTab();
-	  kernelTextPrintLine((char *) usedBlockList[count]->description);
-	}
-
-      // Print out the percent usage information
-      kernelTextPrintLine(" --- Usage totals ---\nTotal used blocks - %d\n"
-			  "Total used - %u - %d%%\nTotal free - %u - %d%%",
-			  usedBlocks, totalUsed, percentUsage(), totalFree,
-			  (100 - percentUsage()));
+      kernelError(kernel_error, "Stats structure pointer is NULL");
+      return (status = ERR_NULLPARAMETER);
     }
 
-  return;
+  stats->totalBlocks = totalBlocks;
+  stats->usedBlocks = usedBlocks;
+  stats->totalMemory = totalMemory;
+  stats->usedMemory = totalUsed;
+  return (status = 0);
+}
+
+
+int kernelMemoryGetBlocks(memoryBlock *blocksArray, unsigned buffSize,
+			  int kernel)
+{
+  // Fill a memoryBlock array with used blocks information, up to buffSize
+  // bytes.
+  
+  int status = 0;
+  unsigned doBlocks = 0;
+  memoryBlock *temp = NULL;
+  unsigned count1, count2;
+
+  // Make sure the memory manager has been initialized
+  if (!memoryManagerInitialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  if (!buffSize)
+    // Alrighty then
+    return (status = 0);
+
+  doBlocks = (buffSize / sizeof(memoryBlock));
+
+  if (kernel)
+    // Do kernelMalloc blocks instead
+    return (kernelMallocGetBlocks(blocksArray, doBlocks));
+
+  // Check params
+  if (blocksArray == NULL)
+    {
+      kernelError(kernel_error, "Blocks array pointer is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Obtain a lock on the memory data
+  status = kernelLockGet(&memoryManagerLock);
+  if (status < 0)
+    return (status);
+
+  // Before we return the list of used memory blocks, we should sort it
+  // so that it's a little easier to see the distribution of memory.
+  // This will not help the memory manager to function more efficiently
+  // or anything, it's purely cosmetic.  Just a bubble sort.
+  for (count1 = 0; count1 < usedBlocks; count1 ++)
+    for (count2 = 0;  count2 < (usedBlocks - 1); count2 ++)
+      if (usedBlockList[count2]->startLocation > 
+	  usedBlockList[count2 + 1]->startLocation)
+	{
+	  temp = usedBlockList[count2 + 1];
+	  usedBlockList[count2 + 1] = usedBlockList[count2];
+	  usedBlockList[count2] = temp;
+	}
+
+  // Release the lock on the memory data
+  kernelLockRelease(&memoryManagerLock);
+
+  // Here's the loop through the used list
+  for (count1 = 0; count1 < doBlocks; count1 ++)
+    {
+      blocksArray[count1].processId = usedBlockList[count1]->processId;
+      strncpy(blocksArray[count1].description,
+	      usedBlockList[count1]->description, MEMORY_MAX_DESC_LENGTH);
+      blocksArray[count1].startLocation = usedBlockList[count1]->startLocation;
+      blocksArray[count1].endLocation = usedBlockList[count1]->endLocation;
+    }
+  
+  return (status = 0);
 }

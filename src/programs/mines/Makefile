@@ -11,7 +11,7 @@ CC		= gcc
 CPU		= $(shell ../../utils/cpu.sh)
 STDDEPS		= Makefile*
 CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
-WARN		= -Wall -Wmissing-prototypes -Wstrict-prototypes \
+WARN		= -Wall -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
 INCLUDE         = -nostdinc -I../../include
 CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE}

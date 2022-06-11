@@ -26,7 +26,7 @@
 #include <sys/api.h>
 
 
-int fsetpos(FILE *stream, fpos_t *pos)
+int fsetpos(FILE *theStream, fpos_t *pos)
 {
   // The fsetpos() function sets the file position indicator for the
   // stream pointed to by stream according to the value of the object
@@ -37,7 +37,7 @@ int fsetpos(FILE *stream, fpos_t *pos)
 
   // Let the kernel do the work, baby.
 
-  int status = fileStreamSeek(stream, *pos);
+  int status = fileStreamSeek(theStream, *pos);
   if (status < 0)
     {
       errno = status;

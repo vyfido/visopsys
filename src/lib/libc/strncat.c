@@ -32,7 +32,7 @@
 
 char *strncat(char *destString, const char *sourceString, size_t maxLength)
 {
-  int count1, count2;
+  unsigned count1, count2;
   int endFlag = 0;
   char sourceChar;
   

@@ -83,9 +83,10 @@
 %define LDRCODESELECTOR   0x0020
 
 ;; Filesystem types
-%define FAT12 0
-%define FAT16 1
-%define FAT32 2
+%define FS_UNKNOWN  0
+%define FS_FAT12    1
+%define FS_FAT16    2
+%define FS_FAT32    3
 
 ;; CPU types
 %define i486       0

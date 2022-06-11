@@ -166,8 +166,6 @@ int kernelDiskSetLockState(const char *diskName, int state);
 int kernelDiskSetDoorState(const char *, int);
 int kernelDiskReadSectors(const char *, unsigned, unsigned, void *);
 int kernelDiskWriteSectors(const char *, unsigned, unsigned, void *);
-int kernelDiskReadAbsoluteSectors(const char *, unsigned, unsigned, void *);
-int kernelDiskWriteAbsoluteSectors(const char *, unsigned, unsigned, void *);
 
 #define _KERNELDISK_H
 #endif

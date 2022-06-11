@@ -36,7 +36,7 @@
 #define MAX_LINELENGTH    256
 
 static int myProcId, myPrivilege;
-static char cwd[MAX_PATH_LENGTH];
+static char *cwd = NULL;
 static int promptCatchup = 0;
 
 
@@ -64,8 +64,8 @@ static void showPrompt(void)
 static void interpretCommand(char *commandLine)
 {
   int status = 0;
-  int argc = 0;
-  char *argv[MAX_ARGS];
+  int numArgs = 0;
+  char *args[MAX_ARGS];
   char *fileName1 = NULL;
   char *fileName2 = NULL;
   char *getEnvBuff = NULL;
@@ -74,7 +74,7 @@ static void interpretCommand(char *commandLine)
   int count;
 
   // Initialize stack memory
-  bzero(argv, (MAX_ARGS * sizeof(char *)));
+  bzero(args, (MAX_ARGS * sizeof(char *)));
 
   fileName1 = malloc(MAX_PATH_NAME_LENGTH);
   fileName2 = malloc(MAX_PATH_NAME_LENGTH);
@@ -87,9 +87,10 @@ static void interpretCommand(char *commandLine)
 
   // We have to separate the command and arguments into an array of
   // strings
-  status = vshParseCommand(commandLine, fileName1, &argc, argv);
+  status = vshParseCommand(commandLine, fileName1, &numArgs, args);
   if (status < 0)
     {
+      perror(args[0]);
       free(fileName1);
       free(fileName2);
       return;
@@ -97,13 +98,13 @@ static void interpretCommand(char *commandLine)
 
   // Try to match the command with the list of built-in commands
 
-  if (!strcmp(argv[0], "pwd"))
+  if (!strcmp(args[0], "pwd"))
     printf("%s\n", cwd);
 
-  else if (!strcmp(argv[0], "cd"))
+  else if (!strcmp(args[0], "cd"))
     {
-      if (argc > 1)
-	vshMakeAbsolutePath(argv[1], fileName1);
+      if (numArgs > 1)
+	vshMakeAbsolutePath(args[1], fileName1);
 
       else
 	// No arg means / for now
@@ -123,113 +124,130 @@ static void interpretCommand(char *commandLine)
 	}
     }
 
-  else if (!strcmp(argv[0], "dir") || !strcmp(argv[0], "ls"))
+  else if (!strcmp(args[0], "dir") || !strcmp(args[0], "ls"))
     {
       // Built in file-listing commands
-      if (argc == 1)
-	vshFileList(cwd);
+      if (numArgs == 1)
+	{
+	  status = vshFileList(cwd);
+	  if (status < 0)
+	    perror(args[0]);
+	}
 
       else
 	{
-	  for (count = 1; count < argc; count ++)
+	  for (count = 1; count < numArgs; count ++)
 	    {
 	      // If any of the arguments are RELATIVE pathnames, we should
 	      // insert the pwd before it
-	      vshMakeAbsolutePath(argv[count], fileName1);
-	      vshFileList(fileName1);
+	      vshMakeAbsolutePath(args[count], fileName1);
+	      status = vshFileList(fileName1);
+	      if (status < 0)
+		perror(args[0]);
 	    }
 	}
     }
 
-  else if (!strcmp(argv[0], "type"))
+  else if (!strcmp(args[0], "type"))
     {
       // We want to dump the file to the screen
-      if (argc > 1)
+      if (numArgs > 1)
 	{
-	  for (count = 1; count < argc; count ++)
+	  for (count = 1; count < numArgs; count ++)
 	    {
 	      // If any of the arguments are RELATIVE pathnames, we should
 	      // insert the pwd before it
-	      vshMakeAbsolutePath(argv[count], fileName1);
-	      vshDumpFile(fileName1);
+	      vshMakeAbsolutePath(args[count], fileName1);
+	      status = vshDumpFile(fileName1);
+	      if (status < 0)
+		perror(args[0]);
 	    }
 	}
       else
 	{
 	  errno = ERR_ARGUMENTCOUNT;
-	  perror(argv[0]);
-	  printf("Usage: %s <file1> [file2] [...]\n", argv[0]);
+	  perror(args[0]);
+	  printf("Usage: %s <file1> [file2] [...]\n", args[0]);
 	}
     }
 
-  else if (!strcmp(argv[0], "del"))
+  else if (!strcmp(args[0], "del"))
     {
-      if (argc > 1)
+      if (numArgs > 1)
 	{
-	  for (count = 1; count < argc; count ++)
+	  for (count = 1; count < numArgs; count ++)
 	    {
 	      // If any of the arguments are RELATIVE pathnames, we should
 	      // insert the pwd before it
-	      vshMakeAbsolutePath(argv[count], fileName1);
-	      vshDeleteFile(fileName1);
+	      vshMakeAbsolutePath(args[count], fileName1);
+	      status = vshDeleteFile(fileName1);
+	      if (status < 0)
+		perror(args[0]);
 	    }
 	}
       else
 	{
 	  errno = ERR_ARGUMENTCOUNT;
-	  perror(argv[0]);
-	  printf("Usage: %s <file1> [file2] [...]\n", argv[0]);
+	  perror(args[0]);
+	  printf("Usage: %s <file1> [file2] [...]\n", args[0]);
 	}
     }
 
-  else if (!strcmp(argv[0], "copy"))
+  else if (!strcmp(args[0], "copy"))
     {
-      if (argc > 2)
+      if (numArgs > 2)
 	{
 	  // If any of the arguments are RELATIVE pathnames, we should
 	  // insert the pwd before it
-	  vshMakeAbsolutePath(argv[1], fileName1);
-	  vshMakeAbsolutePath(argv[2], fileName2);
-	  vshCopyFile(fileName1, fileName2);
+	  vshMakeAbsolutePath(args[1], fileName1);
+	  vshMakeAbsolutePath(args[2], fileName2);
+
+	  status = vshCopyFile(fileName1, fileName2);
+	  if (status < 0)
+	    perror(args[0]);
 	}
       else
 	{
 	  errno = ERR_ARGUMENTCOUNT;
-	  perror(argv[0]);
-	  printf("Usage: %s <source file> <destination file>\n", argv[0]);
+	  perror(args[0]);
+	  printf("Usage: %s <source file> <destination file>\n", args[0]);
 	}
     }
 
-  else if (!strcmp(argv[0], "ren") || !strcmp(argv[0], "rename"))
+  else if (!strcmp(args[0], "ren") || !strcmp(args[0], "rename") ||
+	   !strcmp(args[0], "move"))
     {
-      if (argc > 2)
+      if (numArgs > 2)
 	{
 	  // If any of the arguments are RELATIVE pathnames, we should
 	  // insert the pwd before it
-	  vshMakeAbsolutePath(argv[1], fileName1);
-	  vshMakeAbsolutePath(argv[2], fileName2);
-	  vshRenameFile(fileName1, fileName2);
+	  vshMakeAbsolutePath(args[1], fileName1);
+	  vshMakeAbsolutePath(args[2], fileName2);
+
+	  status = vshRenameFile(fileName1, fileName2);
+	  if (status < 0)
+	    perror(args[0]);
 	}
       else
 	{
 	  errno = ERR_ARGUMENTCOUNT;
-	  perror(argv[0]);
-	  printf("Usage: %s <source file> <destination file>\n", argv[0]);
+	  perror(args[0]);
+	  printf("Usage: %s <source file> <destination file>\n", args[0]);
 	}
     }
 
-  else if (!strcmp(argv[0], "getenv"))
+  else if (!strcmp(args[0], "getenv"))
     {
-      if (argc == 2)
+      if (numArgs == 2)
 	{
 	  getEnvBuff = malloc(MAX_ENVVAR_LENGTH);
 	  if (getEnvBuff != NULL)
 	    {
-	      status = environmentGet(argv[1], getEnvBuff, MAX_ENVVAR_LENGTH);
+	      status = environmentGet(args[1], getEnvBuff, MAX_ENVVAR_LENGTH);
 	      if (status < 0)
 		{
 		  errno = status;
-		  perror(argv[0]);
+		  perror(args[0]);
 		}
 	      else
 		printf("%s\n", getEnvBuff);
@@ -239,59 +257,59 @@ static void interpretCommand(char *commandLine)
 	  else
 	    {
 	      errno = ERR_MEMORY;
-	      perror(argv[0]);
+	      perror(args[0]);
 	    }
 	}
       else
 	{
 	  errno = ERR_ARGUMENTCOUNT;
-	  perror(argv[0]);
-	  printf("Usage: %s <variable_name>\n", argv[0]);
+	  perror(args[0]);
+	  printf("Usage: %s <variable_name>\n", args[0]);
 	}
     }
 
-  else if (!strcmp(argv[0], "setenv"))
+  else if (!strcmp(args[0], "setenv"))
     {
-      if (argc == 3)
+      if (numArgs == 3)
 	{
-	  if (strlen(argv[2]) > MAX_ENVVAR_LENGTH)
+	  if (strlen(args[2]) > MAX_ENVVAR_LENGTH)
 	    printf("Shouldn't set an env variable that long\n");
 
-	  status = environmentSet(argv[1], argv[2]);
+	  status = environmentSet(args[1], args[2]);
 	  if (status < 0)
 	    {
 	      errno = status;
-	      perror(argv[0]);
+	      perror(args[0]);
 	    }
 	}
       else
 	{
 	  errno = ERR_ARGUMENTCOUNT;
-	  perror(argv[0]);
-	  printf("Usage: %s <variable_name> <variable_value>\n", argv[0]);
+	  perror(args[0]);
+	  printf("Usage: %s <variable_name> <variable_value>\n", args[0]);
 	}
     }
 
-  else if (!strcmp(argv[0], "unsetenv"))
+  else if (!strcmp(args[0], "unsetenv"))
     {
-      if (argc == 2)
+      if (numArgs == 2)
 	{
-	  status = environmentUnset(argv[1]);
+	  status = environmentUnset(args[1]);
 	  if (status < 0)
 	    {
 	      errno = status;
-	      perror(argv[0]);
+	      perror(args[0]);
 	    }
 	}
       else
 	{
 	  errno = ERR_ARGUMENTCOUNT;
-	  perror(argv[0]);
-	  printf("Usage: %s <variable_name>\n", argv[0]);
+	  perror(args[0]);
+	  printf("Usage: %s <variable_name>\n", args[0]);
 	}
     }
 
-  else if (!strcmp(argv[0], "printenv"))
+  else if (!strcmp(args[0], "printenv"))
     environmentDump();
 
   else if (fileName1[0] != '\0')
@@ -299,28 +317,28 @@ static void interpretCommand(char *commandLine)
       // The user has typed the name of a program (s)he wants to execute
 
       // Should we block on the command?
-      if (argv[argc - 1][0] == '&')
+      if (args[numArgs - 1][0] == '&')
 	{
 	  block = 0;
-	  argc -= 1;
+	  numArgs -= 1;
 	}
-      else if (argv[argc - 1][strlen(argv[argc - 1]) - 1] == '&')
+      else if (args[numArgs - 1][strlen(args[numArgs - 1]) - 1] == '&')
 	{
 	  block = 0;
-	  argv[argc - 1][strlen(argv[argc - 1]) - 1] = '\0';
+	  args[numArgs - 1][strlen(args[numArgs - 1]) - 1] = '\0';
 	}
 
       // Shift the arg list down by one, as the exec function will prepend
       // it when starting the program
-      for (count = 1; count < argc; count ++)
-	argv[count - 1] = argv[count];
-      argc -= 1;
+      for (count = 1; count < numArgs; count ++)
+	args[count - 1] = args[count];
+      numArgs -= 1;
 
-      loaderLoadAndExec(fileName1, myPrivilege, argc, argv, block);
+      loaderLoadAndExec(fileName1, myPrivilege, numArgs, args, block);
     }
 
   else
-    printf("Unknown command \"%s\".\n", argv[0]);
+    printf("Unknown command \"%s\".\n", args[0]);
 
   free(fileName1);
   free(fileName2);
@@ -667,11 +685,21 @@ int main(int argc, char *argv[])
   printf("Type \"help\" for commands.\n");
 
   // Get the starting current directory
+
+  cwd = malloc(MAX_PATH_LENGTH);
+  if (cwd == NULL)
+    {
+      errno = ERR_MEMORY;
+      perror(argv[0]);
+      return (errno);
+    }
+  
   status = multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
   if (status < 0)
     {
       printf("Can't determine current directory\n");
-      return (-1);
+      free(cwd);
+      return (errno = status);
     }
 
   // Show a prompt
@@ -683,5 +711,6 @@ int main(int argc, char *argv[])
   // We'll end up here at 'logout'
 
   printf("exiting.\n");
-  return status;
+  free(cwd);
+  return (status = 0);
 }

@@ -93,7 +93,7 @@ static void messageBox(kernelAsciiFont *font, int numLines, char *message[])
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelShutdown(kernelShutdownType shutdownType, int force)
+int kernelShutdown(int reboot, int force)
 {
   // This function will shut down the kernel, and reboot the computer
   // if the shutdownType argument dictates.  This function must include
@@ -157,7 +157,7 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
 	  params.useDefaultBackground = 1;
 	  label1 = kernelWindowNewTextLabel(window, SHUTDOWN_MSG1, &params);
 
-	  if (shutdownType == halt)
+	  if (!reboot)
 	    {
 	      params.gridY = 1;
 	      params.padTop = 0;
@@ -176,7 +176,7 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
 
   // Echo the appropriate message(s) to the console [as well]
   kernelTextPrintLine("\n%s", SHUTDOWN_MSG1);
-  if (shutdownType == halt)
+  if (!reboot)
     kernelTextPrintLine(SHUTDOWN_MSG2);
 
   // Detach from our parent process, if applicable, so we won't get killed
@@ -252,7 +252,7 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
   kernelMouseShutdown();
 
   // What final message will we be displaying today?
-  if (shutdownType == reboot)
+  if (reboot)
     finalMessage = SHUTDOWN_MSG_REBOOT;
   else
     finalMessage = SHUTDOWN_MSG_POWER;
@@ -271,7 +271,7 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
     }
 
   // Finally, we either halt or reboot the computer
-  if (shutdownType == reboot)
+  if (reboot)
     {
       kernelSysTimerWaitTicks(20); // Wait ~2 seconds
       kernelProcessorReboot();

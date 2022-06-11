@@ -104,8 +104,8 @@ typedef struct {
 // A structure for containing various types of window events.
 typedef struct {
   unsigned type;
-  unsigned xPosition;
-  unsigned yPosition;
+  int xPosition;
+  int yPosition;
   unsigned key;
 
 } windowEvent;

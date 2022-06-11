@@ -21,7 +21,6 @@
 
 // This contains some useful functions written for the shell
 
-#include <stdio.h>
 #include <errno.h>
 #include <sys/vsh.h>
 #include <sys/api.h>
@@ -35,16 +34,12 @@ _X_ int vshCopyFile(const char *srcFile, const char *destFile)
  
   // Make sure filenames aren't NULL
   if ((srcFile == NULL) || (destFile == NULL))
-    return -1;
+    return (errno = ERR_NULLPARAMETER);
   
   // Attempt to copy the file
   status = fileCopy(srcFile, destFile);
   if (status < 0)
-    {
-      errno = status;
-      perror("copy file");
-      return (status);
-    }
+    return (errno = status);
  
   // Return success
   return (status = 0);

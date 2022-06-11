@@ -52,7 +52,7 @@ static kernelFilesystemDriver defaultFatDriver = {
   kernelFilesystemFatGetFreeBytes,
   kernelFilesystemFatNewEntry,
   kernelFilesystemFatInactiveEntry,
-  kernelFilesystemFatResolveLink,
+  NULL, // driverResolveLink,
   kernelFilesystemFatReadFile,
   kernelFilesystemFatWriteFile,
   kernelFilesystemFatCreateFile,
@@ -770,7 +770,7 @@ static int writeDirtyFatSects(fatInternalData *fatData)
 
   int status = 0;
   int errors = 0;
-  int fatCount, sectorCount;
+  unsigned fatCount, sectorCount;
   
   if (!fatData->numDirtyFatSects)
     // Nothing to do
@@ -808,7 +808,7 @@ static int markDiryFatSect(fatInternalData *fatData, unsigned sectNum)
 
   int status = 0;
   int errors = 0;
-  int count;
+  unsigned count;
 
   if (fatData->numDirtyFatSects >= FAT_MAX_DIRTY_FATSECTS)
     {
@@ -1446,7 +1446,7 @@ static int getUnusedClusters(fatInternalData *fatData,
 
   int status = 0;
   unsigned terminate = 0;
-  unsigned div, mod;
+  unsigned quotient, remainder;
   unsigned biggestSize = 0;
   unsigned biggestLocation = 0;
   unsigned consecutive = 0;
@@ -1491,28 +1491,28 @@ static int getUnusedClusters(fatInternalData *fatData,
       // We are searching a bitmap for a sequence of one or more zero bits,
       // which signify that the disk clusters are unused.  
 
-      // Calculate the current "div" and "mod" for this operation so
+      // Calculate the current quotient and remainder for this operation so
       // we only have to do it once
-      div = count / 8;
-      mod = count % 8;
+      quotient = count / 8;
+      remainder = count % 8;
 
       // There will be a couple of little tricks we can do to speed up this
       // search.  If this iteration of "count" is divisible by 8, then we can
       // let the processor scan the whole byte ahead looking for ANY unused
       // clusters.  If the char value is 0xFF, we can skip all eight bits
       // of the byte in one shot
-      if ((mod == 0) && (count < (terminate - 8)))
+      if ((remainder == 0) && (count < (terminate - 8)))
 	{
 	  // There might be other tricky things I'll do here later, but this
 	  // will be all for now
-	  if (fatData->freeClusterBitmap[div] == (unsigned char) 0xFF)
+	  if (fatData->freeClusterBitmap[quotient] == (unsigned char) 0xFF)
 	    {
 	      count += 8;
 	      continue;
 	    }
 	}
 
-      if (fatData->freeClusterBitmap[div] & (0x80 >> mod))
+      if (fatData->freeClusterBitmap[quotient] & (0x80 >> remainder))
 	{
 	  // This cluster is used
 	  consecutive = 0;
@@ -1703,7 +1703,7 @@ static unsigned makeDosDate(unsigned date)
 }
 
 
-static inline unsigned makeDosTime(unsigned time)
+static inline unsigned makeDosTime(unsigned theTime)
 {
   // This function takes a packed-BCD time value in system format and returns
   // the equivalent in packed-BCD DOS format.
@@ -1713,7 +1713,7 @@ static inline unsigned makeDosTime(unsigned time)
   // The quick way to fix all of this is to simply shift the whole thing
   // by 1 bit, creating a nice 16-bit DOS time.
 
-  return (time >> 1);
+  return (theTime >> 1);
 }
 
 
@@ -1743,7 +1743,7 @@ static unsigned makeSystemDate(unsigned date)
 }
 
 
-static inline unsigned makeSystemTime(unsigned time)
+static inline unsigned makeSystemTime(unsigned theTime)
 {
   // This function takes a packed-BCD time value in DOS format and returns
   // the equivalent in packed-BCD system format.
@@ -1754,12 +1754,11 @@ static inline unsigned makeSystemTime(unsigned time)
   // thing left by 1 bit, which results in a time with the correct number
   // of bits, but always an even number of seconds.
 
-  return (time << 1);
+  return (theTime << 1);
 }
 
 
-static int fillDirectory(kernelFileEntry *currentDir, 
-			 unsigned dirBufferSize, char *dirBuffer)
+static int fillDirectory(kernelFileEntry *currentDir, char *dirBuffer)
 {
   // This function takes a directory structure and writes it to the
   // appropriate directory on disk.
@@ -1770,10 +1769,8 @@ static int fillDirectory(kernelFileEntry *currentDir,
   int longFilenameSlots = 0;
   int longFilenamePos = 0;
   unsigned char fileCheckSum = 0;
-
   unsigned char *dirEntry = NULL;
   unsigned char *subEntry = NULL;
-
   kernelFileEntry *listItemPointer = NULL;
   kernelFileEntry *realEntry = NULL;
   fatEntryData *entryData = NULL;
@@ -2401,11 +2398,11 @@ static int makeShortAlias(kernelFileEntry *theFile)
   char nameCopy[MAX_NAME_LENGTH];
   char aliasName[9];
   char aliasExt[4];
-  int lastDot = 0;
+  unsigned lastDot = 0;
   int shortened = 0;
   int tildeSpot = 0;
   int tildeNumber = 1;
-  int count;
+  unsigned count;
   
   // Get the entry's data
   entryData = (fatEntryData *) theFile->driverData;
@@ -2597,7 +2594,7 @@ static int scanDirectory(fatInternalData *fatData,
   unsigned char *subEntry;
   int longFilename = 0;
   int longFilenamePos = 0;
-  int count1, count2, count3;
+  unsigned count1, count2, count3;
 
   kernelFileEntry *newItem = NULL;
   fatEntryData *entryData = NULL;
@@ -3550,7 +3547,7 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
   unsigned doSectors = 0;
   unsigned char *sectorBuff = NULL;
   fatInternalData fatData;
-  int count;
+  unsigned count;
   #define BUFFERSIZE 1048576
 
   // For calculating cluster sizes, below.
@@ -3887,6 +3884,11 @@ int kernelFilesystemFatCheck(kernelFilesystem *checkFilesystem, int force,
     {
       kernelError(kernel_error, "NULL filesystem structure");
       return (status = ERR_NULLPARAMETER);
+    }
+
+  // We ignore the 'force' flag for now.  This keeps the compiler happy.
+  if (force)
+    {
     }
 
   kernelTextPrintLine("Checking FAT filesystem...");
@@ -4245,19 +4247,6 @@ int kernelFilesystemFatInactiveEntry(kernelFileEntry *inactiveEntry)
 
   // Return success
   return (status = 0);
-}
-
-
-int kernelFilesystemFatResolveLink(kernelFileEntry *theFile)
-{
-  // This gets called to resolve any unresolved links, but that should
-  // not happen in this type of filesystem.
-
-  if (!initialized)
-    return (ERR_NOTINITIALIZED);
-
-  // All links should already have been resolved.
-  return (ERR_NOSUCHFILE);
 }
 
 
@@ -4760,7 +4749,7 @@ int kernelFilesystemFatWriteDir(kernelFileEntry *directory)
     }
 
   // Fill in the directory entries
-  status = fillDirectory(directory, dirBufferSize, dirBuffer);
+  status = fillDirectory(directory, dirBuffer);
   if (status < 0)
     {
       kernelError(kernel_error, "Error filling directory structure");

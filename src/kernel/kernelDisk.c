@@ -145,7 +145,7 @@ static int getDiskCache(kernelPhysicalDisk *physicalDisk)
   // control structures..
 
   int status = 0;
-  int count;
+  unsigned count;
 
   if (!physicalDisk->cache.initialized)
     {
@@ -200,7 +200,7 @@ static inline int findCachedSector(kernelPhysicalDisk *physicalDisk,
   // sector, if found
   
   int status = 0;
-  int count;
+  unsigned count;
 
   status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
@@ -217,8 +217,9 @@ static inline int findCachedSector(kernelPhysicalDisk *physicalDisk,
 }
 
 
-static int countUncachedSectors(kernelPhysicalDisk *physicalDisk,
-				unsigned startSector, int sectorCount)
+static unsigned countUncachedSectors(kernelPhysicalDisk *physicalDisk,
+				     unsigned startSector,
+				     unsigned sectorCount)
 {
   // This function returns the number of consecutive uncached clusters
   // starting in the range supplied.  For example, if none of the sectors
@@ -226,7 +227,7 @@ static int countUncachedSectors(kernelPhysicalDisk *physicalDisk,
   // the first sector is cached, it will return 0.
   
   int status = 0;
-  int index;
+  unsigned index;
 
   status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
@@ -261,9 +262,9 @@ static int writeConsecutiveDirty(kernelPhysicalDisk *physicalDisk,
   // held
 
   int status = 0;
-  int consecutive = 0;
+  unsigned consecutive = 0;
   void *data = NULL;
-  int count;
+  unsigned count;
 
   // Get a count of the consecutive dirty sectors
   for (count = start; count < physicalDisk->cache.usedSectors; count ++)
@@ -317,7 +318,7 @@ static int cacheSync(kernelPhysicalDisk *physicalDisk)
 
   int status = 0;
   int errors = 0;
-  int count;
+  unsigned count;
 
   if (!(physicalDisk->cache.dirty) || physicalDisk->readOnly)
     return (0);
@@ -352,7 +353,7 @@ static int cacheInvalidate(kernelPhysicalDisk *physicalDisk)
   // Evacuate the disk cache
 
   int status = 0;
-  int count;
+  unsigned count;
 
   status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
@@ -380,7 +381,7 @@ static int uncacheSectors(kernelPhysicalDisk *physicalDisk,
   int status = 0;
   int errors = 0;
   kernelDiskCacheSector *tmpSector = NULL;
-  int count1, count2;
+  unsigned count1, count2;
 
   status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
@@ -462,7 +463,7 @@ static int addCacheSectors(kernelPhysicalDisk *physicalDisk,
 
   int status = 0;
   kernelDiskCacheSector *cacheSector = NULL;
-  int index, count;
+  unsigned index, count;
 
   // Only cache what will fit
   if (sectorCount > physicalDisk->cache.numSectors)
@@ -514,14 +515,18 @@ static int addCacheSectors(kernelPhysicalDisk *physicalDisk,
 	    // We will have to shift all sectors starting from here to make
 	    // room for our new ones.
 
-	    for (count = (physicalDisk->cache.usedSectors - (index + 1));
-		 count >= 0; count --)
+	    count = (physicalDisk->cache.usedSectors - (index + 1));
+
+	    while(1)
 	      {
 		cacheSector =
 		  physicalDisk->cache.sectors[index + sectorCount + count];
 		physicalDisk->cache.sectors[index + sectorCount + count] =
 		  physicalDisk->cache.sectors[index + count];
 		physicalDisk->cache.sectors[index + count] = cacheSector;
+		if (count == 0)
+		  break;
+		count -= 1;
 	      }
 	    break;
 	  }
@@ -531,7 +536,7 @@ static int addCacheSectors(kernelPhysicalDisk *physicalDisk,
 
   // Now copy our new sectors into the cache
   
-  for ( count = 0; count < sectorCount; count ++)
+  for (count = 0; count < sectorCount; count ++)
     {
       cacheSector = physicalDisk->cache.sectors[index + count];
 
@@ -565,13 +570,14 @@ static int getCachedSectors(kernelPhysicalDisk *physicalDisk,
   // pointer supplied and returns the number it copied.
 
   int status = 0;
-  int index;
+  unsigned index;
   int copied = 0;
   kernelDiskCacheSector *cacheSector = NULL;
 
-  index = findCachedSector(physicalDisk, sectorNum);
-  if (index < 0)
+  status = findCachedSector(physicalDisk, sectorNum);
+  if (status < 0)
     return (copied = 0);
+  index = status;
 
   status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
@@ -610,13 +616,14 @@ static int writeCachedSectors(kernelPhysicalDisk *physicalDisk,
   // the pointer supplied and returns the number it copied.
 
   int status = 0;
-  int index;
+  unsigned index;
   int copied = 0;
   kernelDiskCacheSector *cacheSector = NULL;
 
-  index = findCachedSector(physicalDisk, sectorNum);
-  if (index < 0)
+  status = findCachedSector(physicalDisk, sectorNum);
+  if (status < 0)
     return (copied = 0);
+  index = status;
 
   status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
@@ -1057,8 +1064,8 @@ int kernelDiskReadPartitions(void)
 	  kernelMemClear(sectBuf, 512);
       
 	  // Read the first sector of the disk
-	  status = kernelDiskReadAbsoluteSectors((char *) physicalDisk->name,
-						 0, 1, sectBuf);
+	  status =
+	    kernelDiskReadSectors((char *) physicalDisk->name, 0, 1, sectBuf);
 	  if (status < 0)
 	    continue;
 
@@ -1151,8 +1158,8 @@ int kernelDiskReadPartitions(void)
 	      else
 		startSector += extendedStartSector;	
 
-	      if (kernelDiskReadAbsoluteSectors((char *) physicalDisk->name,
-						startSector, 1, sectBuf) < 0)
+	      if (kernelDiskReadSectors((char *) physicalDisk->name,
+					startSector, 1, sectBuf) < 0)
 		break;
 	    }
 	}
@@ -1776,8 +1783,8 @@ int kernelDiskReadSectors(const char *diskName, unsigned logicalSector,
   // that helps ensure correct use of the "read-write" method.  
 
   int status = 0;
-  kernelDisk *theDisk = NULL;
   kernelPhysicalDisk *physicalDisk = NULL;
+  kernelDisk *theDisk = NULL;
 
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
@@ -1786,28 +1793,35 @@ int kernelDiskReadSectors(const char *diskName, unsigned logicalSector,
   if ((diskName == NULL) || (dataPointer == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  // Get the disk structure
-  theDisk = kernelGetDiskByName(diskName);
-  if (theDisk == NULL)
-    return (status = ERR_NOSUCHENTRY);
-
-  // Start at the beginning of the logical volume.
-  logicalSector += theDisk->startSector;
-
-  // Make sure the logical sector number does not exceed the number
-  // of logical sectors on this volume
-  if ((logicalSector >= (theDisk->startSector + theDisk->numSectors)) ||
-      ((logicalSector + numSectors) >
-       (theDisk->startSector + theDisk->numSectors)))
+  // Get the disk structure.  Try a physical disk first.
+  physicalDisk = kernelGetPhysicalDiskByName(diskName);
+  if (physicalDisk == NULL)
     {
-      // Make a kernelError.
-      kernelError(kernel_error, "Sector range %u-%u exceeds volume boundary "
-		  "of %u", logicalSector, (logicalSector + numSectors - 1),
-		  (theDisk->startSector + theDisk->numSectors));
-      return (status = ERR_BOUNDS);
-    }
+      // Try logical
+      theDisk = kernelGetDiskByName(diskName);
+      if (theDisk == NULL)
+	// No such disk.
+	return (status = ERR_NOSUCHENTRY);
 
-  physicalDisk = (kernelPhysicalDisk *) theDisk->physical;
+      // Start at the beginning of the logical volume.
+      logicalSector += theDisk->startSector;
+      
+      // Make sure the logical sector number does not exceed the number
+      // of logical sectors on this volume
+      if ((logicalSector >= (theDisk->startSector + theDisk->numSectors)) ||
+	  ((logicalSector + numSectors) >
+	   (theDisk->startSector + theDisk->numSectors)))
+	{
+	  // Make a kernelError.
+	  kernelError(kernel_error, "Sector range %u-%u exceeds volume "
+		      "boundary of %u", logicalSector,
+		      (logicalSector + numSectors - 1),
+		      (theDisk->startSector + theDisk->numSectors));
+	  return (status = ERR_BOUNDS);
+	}
+
+      physicalDisk = (kernelPhysicalDisk *) theDisk->physical;
+    }
 
   // Reset the 'idle since' value
   physicalDisk->idleSince = kernelSysTimerRead();
@@ -1839,8 +1853,8 @@ int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector,
   // that helps ensure correct use of the "read-write" method.  
   
   int status = 0;
-  kernelDisk *theDisk = NULL;
   kernelPhysicalDisk *physicalDisk = NULL;
+  kernelDisk *theDisk = NULL;
 
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
@@ -1849,27 +1863,31 @@ int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector,
   if ((diskName == NULL) || (dataPointer == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  // Get the disk structure
-  theDisk = kernelGetDiskByName(diskName);
-
-  if (theDisk == NULL)
-    return (status = ERR_NOSUCHENTRY);
-
-  // Start at the beginning of the logical volume.
-  logicalSector += theDisk->startSector;
-
-  // Make sure the logical sector number does not exceed the number
-  // of logical sectors on this volume
-  if ((logicalSector >= (theDisk->startSector + theDisk->numSectors)) ||
-      ((logicalSector + numSectors) >
-       (theDisk->startSector + theDisk->numSectors)))
+  // Get the disk structure.  Try a physical disk first.
+  physicalDisk = kernelGetPhysicalDiskByName(diskName);
+  if (physicalDisk == NULL)
     {
-      // Make a kernelError.
-      kernelError(kernel_error, "Exceeding volume boundary");
-      return (status = ERR_BOUNDS);
-    }
+      // Try logical
+      theDisk = kernelGetDiskByName(diskName);
+      if (theDisk == NULL)
+	return (status = ERR_NOSUCHENTRY);
 
-  physicalDisk = (kernelPhysicalDisk *) theDisk->physical;
+      // Start at the beginning of the logical volume.
+      logicalSector += theDisk->startSector;
+      
+      // Make sure the logical sector number does not exceed the number
+      // of logical sectors on this volume
+      if ((logicalSector >= (theDisk->startSector + theDisk->numSectors)) ||
+	  ((logicalSector + numSectors) >
+	   (theDisk->startSector + theDisk->numSectors)))
+	{
+	  // Make a kernelError.
+	  kernelError(kernel_error, "Exceeding volume boundary");
+	  return (status = ERR_BOUNDS);
+	}
+      
+      physicalDisk = (kernelPhysicalDisk *) theDisk->physical;
+    }
 
   // Reset the 'idle since' value
   physicalDisk->idleSince = kernelSysTimerRead();
@@ -1881,96 +1899,6 @@ int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector,
 
   // Call the read-write routine for a write operation
   status = readWriteSectors(physicalDisk, logicalSector, numSectors,
-			    dataPointer, IOMODE_WRITE);
-
-  // Reset the 'idle since' value
-  physicalDisk->idleSince = kernelSysTimerRead();
-  
-  // Unlock the disk
-  kernelLockRelease(&(physicalDisk->diskLock));
-
-  return (status);
-}
- 
-
-int kernelDiskReadAbsoluteSectors(const char *diskName,
-				  unsigned absoluteSector, 
-				  unsigned numSectors, void *dataPointer)
-{
-  // This routine is the user-accessible interface to reading absolute sectors
-  // from a physical hard disk.  Basically, it is a gatekeeper that helps
-  // ensure correct use of the "read-write" method.  
-
-  int status = 0;
-  kernelPhysicalDisk *physicalDisk = NULL;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check params
-  if ((diskName == NULL) || (dataPointer == NULL))
-    return (status = ERR_NULLPARAMETER);
-
-  // Get the disk structure
-  physicalDisk = kernelGetPhysicalDiskByName(diskName);
-  if (physicalDisk == NULL)
-    return (status = ERR_NOSUCHENTRY);
-
-  // Reset the 'idle since' value
-  physicalDisk->idleSince = kernelSysTimerRead();
-  
-  // Lock the disk
-  status = kernelLockGet(&(physicalDisk->diskLock));
-  if (status < 0)
-    return (status = ERR_NOLOCK);
-
-  // Call the read-write routine for a read operation
-  status = readWriteSectors(physicalDisk, absoluteSector, numSectors,
-			    dataPointer, IOMODE_READ);
-
-  // Reset the 'idle since' value
-  physicalDisk->idleSince = kernelSysTimerRead();
-  
-  // Unlock the disk
-  kernelLockRelease(&(physicalDisk->diskLock));
-
-  return (status);
-}
-
-
-int kernelDiskWriteAbsoluteSectors(const char *diskName,
-				   unsigned absoluteSector,
-				   unsigned numSectors, void *dataPointer)
-{
-  // This routine is the user-accessible interface to writing absolute sectors
-  // from a physical hard disk.  Basically, it is a gatekeeper that helps
-  // ensure correct use of the "read-write" method.  
-
-  int status = 0;
-  kernelPhysicalDisk *physicalDisk = NULL;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check params
-  if ((diskName == NULL) || (dataPointer == NULL))
-    return (status = ERR_NULLPARAMETER);
-
-  // Get the disk structure
-  physicalDisk = kernelGetPhysicalDiskByName(diskName);
-  if (physicalDisk == NULL)
-    return (status = ERR_NOSUCHENTRY);
-
-  // Reset the 'idle since' value
-  physicalDisk->idleSince = kernelSysTimerRead();
-  
-  // Lock the disk
-  status = kernelLockGet(&(physicalDisk->diskLock));
-  if (status < 0)
-    return (status = ERR_NOLOCK);
-
-  // Call the read-write routine for a read operation
-  status = readWriteSectors(physicalDisk, absoluteSector, numSectors,
 			    dataPointer, IOMODE_WRITE);
 
   // Reset the 'idle since' value

@@ -155,7 +155,7 @@ static void runPrograms(void)
 
   variableList *settings = NULL;
   char programName[MAX_PATH_NAME_LENGTH];
-  int count;
+  unsigned count;
 
   // Read the config file
   settings = kernelConfigurationReader(DEFAULT_WINDOWMANAGER_CONFIG);
@@ -249,7 +249,7 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   kernelWindowComponent *iconComponent = NULL;
   kernelWindowComponent *menuComponent = NULL;
   componentParameters params;
-  int count1, count2;
+  unsigned count1, count2;
 
   // We get default colors from here
   extern color kernelDefaultDesktop;

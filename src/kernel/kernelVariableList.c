@@ -39,7 +39,7 @@ static int findVariable(variableList *list, const char *variable)
   // it returns negative.
 
   int slot = ERR_NOSUCHENTRY;
-  int count;
+  unsigned count;
 
   // Search through the list of variables in the supplied list for the one
   // requested by the caller
@@ -63,7 +63,7 @@ static int unsetVariable(variableList *list, const char *variable)
   int status = 0;
   int slot = 0;
   int subtract = 0;
-  int count;
+  unsigned count;
   
   // Search the list of variables for the requested one.
   slot = findVariable(list, variable);

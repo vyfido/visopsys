@@ -32,7 +32,7 @@
 
 char *strncpy(char *destString, const char *sourceString, size_t maxLength)
 {
-  int count;
+  unsigned count;
 
   // Make sure neither of the pointers are NULL
   if ((destString == (char *) NULL) || (sourceString == (char *) NULL))

@@ -50,7 +50,8 @@ static int viewFile(const char *fileName)
   int charEntered = 0;
   int charsSoFar = 0;
   int cursorPos1, cursorPos2;
-  int count, count2;
+  unsigned count1;
+  int count2;
 
   // Initialize the file structure
   bzero(&theFile, sizeof(file));
@@ -92,7 +93,7 @@ static int viewFile(const char *fileName)
   charsSoFar = 0;
 
   // Print the file, one screen at a time
-  for (count = 0; count < theFile.size; count ++)
+  for (count1 = 0; count1 < theFile.size; count1 ++)
     {
       // Are we at the end of a screenful of data?
       if (charsSoFar >= (screenColumns * (screenRows - 1)))
@@ -101,7 +102,7 @@ static int viewFile(const char *fileName)
 	  textSetForeground(backgroundColor);
 	  textSetBackground(foregroundColor);
 	  
-	  printf("--More--(%d%%)", ((count * 100) / theFile.size));
+	  printf("--More--(%d%%)", ((count1 * 100) / theFile.size));
 	  
 	  // Restore the colors
 	  textSetForeground(foregroundColor);
@@ -133,7 +134,7 @@ static int viewFile(const char *fileName)
 	}
       
       // Look out for tab characters
-      if (fileBuffer[count] == (char) 9)
+      if (fileBuffer[count1] == (char) 9)
 	{
 	  // We need to keep track of how many characters get printed
 	  cursorPos1 = textGetColumn();
@@ -150,7 +151,7 @@ static int viewFile(const char *fileName)
 	}
       
       // Look out for newline characters
-      else if (fileBuffer[count] == (char) 10)
+      else if (fileBuffer[count1] == (char) 10)
 	{
 	  // We need to keep track of how many characters get printed
 	  cursorPos1 = textGetColumn();
@@ -162,7 +163,7 @@ static int viewFile(const char *fileName)
       
       else
 	{
-	  textPutc(fileBuffer[count]);
+	  textPutc(fileBuffer[count1]);
 	  charsSoFar += 1;
 	}
     }

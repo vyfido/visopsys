@@ -46,7 +46,8 @@ static volatile unsigned usedMemory = 0;
 static const char *FUNCTION;
 static lock locksLock;
 
-#define blockSize(block) ((block->end - block->start) + 1)
+#define blockSize(block) \
+  (((unsigned) block->end - (unsigned) block->start) + 1)
 
 
 /*
@@ -113,6 +114,7 @@ static void check(void)
     }  
 }
 */
+
 
 static inline void insertBlock(kernelMallocBlock *firstBlock,
 			       kernelMallocBlock *secondBlock)
@@ -556,26 +558,58 @@ int _kernelFree(const char *function, void *start)
 }
 
 
-void kernelMallocDump(void)
+int kernelMallocGetStats(memoryStats *stats)
 {
-  kernelMallocBlock *block = NULL;
+  // Return kernelMalloc memory usage statistics
+  
+  int status = 0;
 
-  kernelTextPrintLine("\n --- Dynamic memory ---");
-  block = blockList;
-  while (block && (block != firstUnusedBlock))
+  // Check params
+  if (stats == NULL)
     {
-      kernelTextPrintLine("%u->%u (%u) %s %d%s %s", block->start,
-			  block->end, blockSize(block),
-			  (block->used? "Used" : "Free"), block->process,
-			  ((block->used &&
-			    !kernelMultitaskerProcessIsAlive(block->process))?
-			   "(?)" : ""),
-			  (block->used? block->function : ""));
-      block = (kernelMallocBlock *) block->next;
+      kernelError(kernel_error, "Stats structure pointer is NULL");
+      return (status = ERR_NULLPARAMETER);
     }
 
-  kernelTextPrintLine("%u blocks, %u used (%u%%)\n%u bytes, %u used "
-		      "(%u%%)", totalBlocks, usedBlocks,
-		      ((usedBlocks * 100) / totalBlocks), totalMemory,
-		      usedMemory, ((usedMemory * 100) / totalMemory));
+  stats->totalBlocks = totalBlocks;
+  stats->usedBlocks = usedBlocks;
+  stats->totalMemory = totalMemory;
+  stats->usedMemory = usedMemory;
+  return (status = 0);
+}
+
+
+int kernelMallocGetBlocks(memoryBlock *blocksArray, int doBlocks)
+{
+  // Fill a memoryBlock array with 'doBlocks' used kernelMalloc blocks
+  // information
+  
+  int status = 0;
+  kernelMallocBlock *block = NULL;
+  int count;
+
+  // Check params
+  if (blocksArray == NULL)
+    {
+      kernelError(kernel_error, "Blocks array pointer is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Loop through the block list
+  for (count = 0, block = blockList;
+       (block && (block != firstUnusedBlock) && (count < doBlocks));
+       count ++)
+    {
+      blocksArray[count].processId = block->process;
+      strncpy(blocksArray[count].description,
+	      (block->used? block->function : "--free--"),
+	      MEMORY_MAX_DESC_LENGTH);
+      blocksArray[count].description[MEMORY_MAX_DESC_LENGTH - 1] = '\0';
+      blocksArray[count].startLocation = (unsigned) block->start;
+      blocksArray[count].endLocation = (unsigned) block->end;
+
+      block = (kernelMallocBlock *) block->next;
+    }
+  
+  return (status = 0);
 }

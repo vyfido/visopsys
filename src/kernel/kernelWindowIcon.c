@@ -249,7 +249,7 @@ kernelWindowComponent *kernelWindowNewIcon(volatile void *parent,
   kernelWindowComponent *component = NULL;
   kernelWindowIcon *iconComponent = NULL;
   int labelSplit = 0;
-  int count1, count2;
+  unsigned count1, count2;
 
   // Check parameters
   if ((parent == NULL) || (imageCopy == NULL) || (label == NULL) ||
@@ -374,7 +374,7 @@ kernelWindowComponent *kernelWindowNewIcon(volatile void *parent,
 
   // Now populate the main component
   component->type = iconComponentType;
-  if (imageCopy->width > iconComponent->labelWidth)
+  if (imageCopy->width > (unsigned) iconComponent->labelWidth)
     component->width = imageCopy->width;
   else
     component->width = (iconComponent->labelWidth + 2);

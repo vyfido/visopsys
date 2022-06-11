@@ -28,21 +28,21 @@
 int main(int argc, char *argv[])
 {
   int status = 0;
-  struct tm time;
-  char *timeString = NULL;
+  struct tm theTime;
   
+  // We don't use argc.  This keeps the compiler happy
+  argc = 0;
+
   // Get the current date and time structure
-  status = rtcDateTime(&time);
+  status = rtcDateTime(&theTime);
   if (status < 0)
     {
       perror(argv[0]);
       return (status);
     }
 
-  // Turn it into an ascii string
-  timeString = asctime(&time);
-
-  printf("%s\n", timeString);
+  // Turn it into an ascii string and print it
+  printf("%s\n", asctime(&theTime));
 
   // Done
   return (0);

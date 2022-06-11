@@ -253,9 +253,9 @@ static int tileBackgroundImage(kernelWindow *window)
   int status = 0;
   int clientAreaX = 0;
   int clientAreaY = 0;
-  int clientAreaWidth = window->buffer.width;
-  int clientAreaHeight = window->buffer.height;
-  int count1, count2;
+  unsigned clientAreaWidth = window->buffer.width;
+  unsigned clientAreaHeight = window->buffer.height;
+  unsigned count1, count2;
 
   // The window needs to have been assigned a background image
   if (window->backgroundImage.data == NULL)
@@ -519,7 +519,7 @@ static void renderVisiblePortions(kernelWindow *window, screenArea *bufferClip)
 
 static void flattenContainer(kernelWindowContainer *originalContainer,
 			     kernelWindowContainer *flatContainer,
-			     int flags)
+			     unsigned flags)
 {
   // Given a container, recurse through any of its subcontainers (if
   // applicable) and return a flattened one
@@ -552,11 +552,15 @@ static int drawWindow(kernelWindow *window)
   int status = 0;
   int clientAreaX = 0;
   int clientAreaY = 0;
-  int clientAreaWidth = window->buffer.width;
-  int clientAreaHeight = window->buffer.height;
+  int clientAreaWidth = 0;
+  int clientAreaHeight = 0;
   kernelWindowContainer flatContainer;
   kernelWindowComponent *component = NULL;
   int count;
+
+  status = kernelWindowGetSize(window, &clientAreaWidth, &clientAreaHeight);
+  if (status < 0)
+    return (status);
 
   // Adjust the dimensions of our drawing area if necessary to accommodate
   // other things outside the client area
@@ -572,7 +576,7 @@ static int drawWindow(kernelWindow *window)
       clientAreaY += titleBarHeight;
       clientAreaHeight -= titleBarHeight;
     }
-  
+
   // Draw a blank background
   kernelGraphicDrawRect(&(window->buffer),
 			(color *) &(window->background), draw_normal,
@@ -1704,7 +1708,7 @@ int kernelWindowInitialize(void)
 }
 
 
-int kernelWindowLogin(const char *userName, const char *passwd)
+int kernelWindowLogin(const char *userName)
 {
   // This gets called after the user has logged in.
 
@@ -2476,7 +2480,7 @@ int kernelWindowSetColors(kernelWindow *window, color *background)
 
   kernelMemCopy(background, (void *) &(window->background), sizeof(color));
 
-  if (window->draw)
+  if ((window->flags & WINFLAG_VISIBLE) && window->draw)
     window->draw((void *) window);
 
   return (status = 0);
@@ -3143,7 +3147,7 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
       container = (kernelWindowContainer *) containerComponent->data;
       if (container == NULL)
 	{
-	  kernelError(kernel_error, "Container fata is null");
+	  kernelError(kernel_error, "Container data is null");
 	  return;
 	}
       container->containerRemove(containerComponent, component);

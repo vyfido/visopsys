@@ -27,14 +27,24 @@
 // Prototype:
 //   void abspath(const char *orig, char *new)
 {
-  char cwd[MAX_PATH_LENGTH];
+  int status = 0;
 
-  // Get the current directory
-  multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
+  // Check params
+  if ((orig == NULL) || (new == NULL))
+    {
+      errno = ERR_NULLPARAMETER;
+      return;
+    }
 
   if ((orig[0] != '/') && (orig[0] != '\\'))
     {
-      strcpy(new, cwd);
+      // Get the current directory
+      status = multitaskerGetCurrentDirectory(new, MAX_PATH_LENGTH);
+      if (status < 0)
+	{
+	  errno = status;
+	  return;
+	}
 
       if ((new[strlen(new) - 1] != '/') &&
           (new[strlen(new) - 1] != '\\'))

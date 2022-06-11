@@ -26,7 +26,7 @@
 #include <sys/api.h>
 
 
-int putc(int c, FILE *stream)
+int putc(int c, FILE *theStream)
 {
   // putc() is equivalent to fputc() except that it may be implemented
   // as a macro which evaluates stream more than once.  OK, it's not a
@@ -34,7 +34,7 @@ int putc(int c, FILE *stream)
 
   int status = 0;
 
-  if (stream != stdin)
+  if (theStream != stdin)
     {
       // We are only implementing for stdin at the moment
       errno = ERR_NOTIMPLEMENTED;

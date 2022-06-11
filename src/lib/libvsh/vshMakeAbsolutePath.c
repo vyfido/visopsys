@@ -22,6 +22,7 @@
 // This contains some useful functions written for the shell
 
 #include <string.h>
+#include <errno.h>
 #include <sys/vsh.h>
 #include <sys/api.h>
 

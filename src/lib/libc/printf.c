@@ -31,19 +31,19 @@
 int printf(const char *format, ...)
 {
   va_list list;
-  int outputlen = 0;
+  int outputLen = 0;
   char output[MAXSTRINGLENGTH];
   
   // Initialize the argument list
   va_start(list, format);
 
   // Fill out the output line based on 
-  outputlen = _expandFormatString(output, format, list);
+  outputLen = _expandFormatString(output, format, list);
 
   va_end(list);
 
-  if (!errno)
+  if (outputLen > 0)
     textPrint(output);
   
-  return (outputlen);
+  return (outputLen);
 }

@@ -29,7 +29,7 @@
 #include <sys/vsh.h>
 
 
-static void recurseDirectory(const char *dirPath, file *directory)
+static void recurseDirectory(const char *dirPath)
 {
   int status = 0;
   file theFile;
@@ -38,7 +38,7 @@ static void recurseDirectory(const char *dirPath, file *directory)
   int count = 0;
 
   // Initialize the file structure
-  for (count = 0; count < sizeof(file); count ++)
+  for (count = 0; count < (int) sizeof(file); count ++)
     ((char *) &theFile)[count] = NULL;
 
   // Get the absolute name of the directory
@@ -61,7 +61,7 @@ static void recurseDirectory(const char *dirPath, file *directory)
 	    {
 	      // Construct the relative pathname for this directory
 	      sprintf(newDirPath, "%s/%s", dirPath, theFile.name);
-	      recurseDirectory(newDirPath, &theFile);
+	      recurseDirectory(newDirPath);
 	    }
 	}
 
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
   int count = 0;
 
   // Initialize the file structure
-  for (count = 0; count < sizeof(file); count ++)
+  for (count = 0; count < (int) sizeof(file); count ++)
     ((char *) &theFile)[count] = NULL;
 
   if (argc == 1)
@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
 
   if (theFile.type == dirT)
     // If it's a directory, we start our recursion.  Otherwise just print it
-    recurseDirectory(fileName, &theFile);
+    recurseDirectory(fileName);
 
   // Return success
   return (status = 0);

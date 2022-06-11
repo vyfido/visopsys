@@ -183,7 +183,7 @@ int kernelGraphicsAreEnabled(void)
 }
 
 
-int kernelGraphicGetModes(videoMode *modeBuffer, int size)
+int kernelGraphicGetModes(videoMode *modeBuffer, unsigned size)
 {
   // Return the list of graphics modes supported by the adapter
 
@@ -224,7 +224,7 @@ int kernelGraphicSetMode(videoMode *mode)
 
   status = kernelFileWrite(&modeFile, 0, 1, (unsigned char *) buffer);
 
-  kernelFileSetSize(&modeFile, 16);
+  kernelFileSetSize(modeFile.handle, 16);
   kernelFileClose(&modeFile);
 
   return (status);

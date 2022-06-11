@@ -371,7 +371,7 @@ int kernelWindowStart(void);
 kernelWindow *kernelWindowMakeRoot(variableList *);
 int kernelWindowShell(int);
 void kernelWindowShellUpdateList(kernelWindow *[], int);
-int kernelWindowLogin(const char *, const char *);
+int kernelWindowLogin(const char *);
 int kernelWindowLogout(void);
 void kernelWindowRefresh(void);
 kernelWindow *kernelWindowNew(int, const char *);

@@ -21,7 +21,6 @@
 
 // This contains some useful functions written for the shell
 
-//#include <string.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -38,23 +37,30 @@ _X_ int vshCursorMenu(const char *prompt, int numItems, char *items[],
   int backgroundColor = textGetBackground();
   int itemWidth = 0;
   int selectedOption = defaultSelection;
-  char character;
   int count1, count2;
+
+  // Check params
+  if ((prompt == NULL) || (items == NULL))
+    return (errno = ERR_NULLPARAMETER);
 
   // Get the width of the widest item and set our item width
   for (count1 = 0; count1 < numItems; count1 ++)
-    if (strlen(items[count1]) > itemWidth)
+    if ((int) strlen(items[count1]) > itemWidth)
       itemWidth = strlen(items[count1]);
 
   // Print prompt message
   printf("\n%s\n", prompt);
 
-  int column = textGetColumn();
-  int row = textGetRow();
+  // Now, print 'numItems' newlines before calculating the current row so
+  // that we don't get messed up if the screen scrolls
+  for (count1 = 0; count1 < (numItems + 3); count1 ++)
+    printf("\n");
+
+  int row = (textGetRow() - (numItems + 3));
 
   while(1)
     {
-      textSetColumn(column);
+      textSetColumn(0);
       textSetRow(row);
       textSetCursor(0);
       
@@ -70,8 +76,8 @@ _X_ int vshCursorMenu(const char *prompt, int numItems, char *items[],
 	    }
 	  
 	    printf(" %s ", items[count1]);
-	    for (count2 = 0; count2 < (itemWidth - strlen(items[count1]));
-		 count2 ++)
+	    for (count2 = 0;
+		 count2 < (itemWidth - (int) strlen(items[count1])); count2 ++)
 	      printf(" ");
 	    printf("\n");
 	  
@@ -84,35 +90,34 @@ _X_ int vshCursorMenu(const char *prompt, int numItems, char *items[],
 	}
 
       printf("\n  [Cursor up/down to change, Enter to select, 'Q' to quit]\n");
-      
       textInputSetEcho(0);
-      character = getchar();
-      
-      if (character == (unsigned char) 17)
-	{
-	  if (selectedOption > 0)
-	    // Cursor up.
-	    selectedOption -= 1;
-	}
+      char c = getchar();
+      textInputSetEcho(1);
 
-      else if (character == (unsigned char) 20)
+      switch(c)
 	{
+	case (unsigned char) 17:
+	  // Cursor up.
+	  if (selectedOption > 0)
+	    selectedOption -= 1;
+	  break;
+
+	case (unsigned char) 20:
 	  // Cursor down.
 	  if (selectedOption < (numItems - 1))
 	    selectedOption += 1;
-	}
+	  break;
 
-      else if ((character == (unsigned char) 10) ||
-	       (character == 'Q') || (character == 'q'))
-	{
+	case (unsigned char) 10:
 	  // Enter
 	  textSetCursor(1);
-	  textInputSetEcho(1);
-	  printf("\n");
-	  if (character == (unsigned char) 10)
-	    return (selectedOption);
-	  else
-	    return (ERR_CANCELLED);
+	  return (selectedOption);
+
+	case 'Q':
+	case 'q':
+	  // Cancel
+	  textSetCursor(1);
+	  return (errno = ERR_CANCELLED);
 	}
-    }  
+    }
 }

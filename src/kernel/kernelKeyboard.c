@@ -168,7 +168,7 @@ int kernelKeyboardGetMaps(char *buffer, unsigned size)
   
   int status = 0;
   int buffCount = 0;
-  int bytes = 0;
+  unsigned bytes = 0;
   int names = 1;
   int count;
 

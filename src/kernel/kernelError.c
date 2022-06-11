@@ -34,6 +34,7 @@ static char *warningConst = "Warning";
 static char *messageConst = "Message";
 
 
+/*
 static void errorDialogThread(int numberArgs, void *args[])
 {
   int status = 0;
@@ -125,6 +126,7 @@ static void errorDialogThread(int numberArgs, void *args[])
  exit:
   kernelMultitaskerTerminate(status);
 }
+*/
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -209,6 +211,7 @@ void kernelErrorOutput(const char *module, const char *function, int line,
 }
 
 
+/*
 void kernelErrorDialog(const char *title, const char *message)
 {
   // This will make a simple error dialog message, and wait until the button
@@ -221,3 +224,4 @@ void kernelErrorDialog(const char *title, const char *message)
 
   return;
 }
+*/

@@ -79,7 +79,7 @@ static int getData(void *componentData, void *buffer, int size)
   kernelWindowScrollBar *scrollBar = (kernelWindowScrollBar *) component->data;
 
   kernelMemCopy((void *) &(scrollBar->state), buffer,
-		max(size, sizeof(scrollBarState)));
+		max(size, (int) sizeof(scrollBarState)));
 
   return (0);
 }
@@ -94,7 +94,7 @@ static int setData(void *componentData, void *buffer, int size)
   kernelWindow *window = (kernelWindow *) component->window;
 
   kernelMemCopy(buffer, (void *) &(scrollBar->state),
-		max(size, sizeof(scrollBarState)));
+		max(size, (int) sizeof(scrollBarState)));
 
   scrollBar->sliderHeight = (((component->height - (borderThickness * 2)) *
 			      scrollBar->state.displayPercent) / 100);

@@ -50,15 +50,15 @@ static kernelFilesystemDriver defaultExtDriver = {
   kernelFilesystemExtInactiveEntry,
   kernelFilesystemExtResolveLink,
   kernelFilesystemExtReadFile,
-  kernelFilesystemExtWriteFile,
-  kernelFilesystemExtCreateFile,
-  kernelFilesystemExtDeleteFile,
-  kernelFilesystemExtFileMoved,
+  NULL, // driverWriteFile
+  NULL, // driverCreateFile
+  NULL, // driverDeleteFile,
+  NULL, // driverFileMoved,
   kernelFilesystemExtReadDir,
-  kernelFilesystemExtWriteDir,
-  kernelFilesystemExtMakeDir,
-  kernelFilesystemExtRemoveDir,
-  kernelFilesystemExtTimestamp
+  NULL, // driverWriteDir
+  NULL, // driverMakeDir
+  NULL, // driverRemoveDir
+  NULL  // driverTimestamp
 };
 
 // These hold free private data memory
@@ -302,7 +302,7 @@ static int readIndirectBlocks(extInternalData *extData, unsigned indirectBlock,
 
   int status = 0;
   unsigned *indexBuffer = NULL;
-  int count;
+  unsigned count;
 
   // Get memory to hold a block
   indexBuffer = kernelMalloc(extData->blockSize);
@@ -400,8 +400,8 @@ static int readFile(extInternalData *extData, kernelFileEntry *fileEntry,
   dataPointer = buffer;
 
   // Read (up to) the first 12 direct blocks
-  for (count = 0; ((numBlocks > 0) && (count < 12) &&
-		   (dataPointer < (buffer + inode->size))); count ++)
+  for (count = startBlock; ((numBlocks > 0) && (count < 12) &&
+			    (dataPointer < (buffer + inode->size))); count ++)
     {
       if (inode->block[count] < 2)
 	return (status = 0);
@@ -447,7 +447,7 @@ static int readFile(extInternalData *extData, kernelFileEntry *fileEntry,
 }
 
 
-static unsigned makeSystemTime(unsigned time)
+static unsigned makeSystemTime(unsigned theTime)
 {
   // This function takes a UNIX time value and returns the equivalent in
   // packed-BCD system format.
@@ -458,17 +458,17 @@ static unsigned makeSystemTime(unsigned time)
   // Unix time is seconds since 00:00:00 January 1, 1970
 
   // Remove all but the current day
-  time %= 86400;
+  theTime %= 86400;
 
   // The hour
-  temp = (time / 3600);
+  temp = (theTime / 3600);
   returnedTime |= ((temp & 0x0000003F) << 12);
-  time %= 3600;
+  theTime %= 3600;
 
   // The minute
-  temp = (time / 60);
+  temp = (theTime / 60);
   returnedTime |= ((temp & 0x0000003F) << 6);
-  time %= 60;
+  theTime %= 60;
 
   // The second
   returnedTime |= (temp & 0x0000003F);
@@ -1118,69 +1118,6 @@ int kernelFilesystemExtReadFile(kernelFileEntry *theFile, unsigned blockNum,
 }
 
 
-int kernelFilesystemExtWriteFile(kernelFileEntry *theFile, unsigned blockNum, 
-				 unsigned blocks, unsigned char *buffer)
-{
-  // This function is the "write file" function that the filesystem
-  // driver exports to the world.  It is mainly a wrapper for the
-  // internal function of the same purpose, but with some additional
-  // argument checking.  Returns 0 on success, negative otherwise.
-
-  int status = 0;
-  
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  return (status = ERR_NOTIMPLEMENTED);
-}
-
-
-int kernelFilesystemExtCreateFile(kernelFileEntry *theFile)
-{
-  // This function does the EXT-specific initialization of a new file.
-  // There's not much more to this than getting a new entry data structure
-  // and attaching it.  Returns 0 on success, negative otherwise
-
-  int status = 0;
-  
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  return (status = ERR_NOTIMPLEMENTED);
-}
-
-
-int kernelFilesystemExtDeleteFile(kernelFileEntry *theFile, int secure)
-{
-  // This function deletes a file.  It returns 0 on success, negative
-  // otherwise
-
-  int status = 0;
-  
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  return (status = ERR_NOTIMPLEMENTED);
-}
-
-
-int kernelFilesystemExtFileMoved(kernelFileEntry *entry)
-{
-  // This function is called by the filesystem manager whenever a file
-  // has been moved from one place to another.  This allows us the chance
-  // do to any EXT-specific things to the file that are necessary.  In our
-  // case, we need to re-create the file's short alias, since this is
-  // directory-dependent.
-
-  int status = 0;
-  
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  return (status = ERR_NOTIMPLEMENTED);
-}
-
-
 int kernelFilesystemExtReadDir(kernelFileEntry *directory)
 {
   // This function receives an emtpy file entry structure, which represents
@@ -1215,62 +1152,4 @@ int kernelFilesystemExtReadDir(kernelFileEntry *directory)
     return (status = ERR_BADDATA);
 
   return (status = scanDirectory(extData, directory));
-}
-
-
-int kernelFilesystemExtWriteDir(kernelFileEntry *directory)
-{
-  // This function takes a directory entry structure and updates it 
-  // appropriately on the disk volume.  On success it returns zero,
-  // negative otherwise.
-
-  int status = 0;
-  
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  return (status = ERR_NOTIMPLEMENTED);
-}
-
-
-int kernelFilesystemExtMakeDir(kernelFileEntry *directory)
-{
-  // This function is used to create a directory on disk.  The caller will
-  // create the file entry data structures, and it is simply the
-  // responsibility of this function to make the on-disk structures reflect
-  // the new entry.  It returns 0 on success, negative otherwise.
-
-  int status = 0;
-  
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  return (status = ERR_NOTIMPLEMENTED);
-}
-
-
-int kernelFilesystemExtRemoveDir(kernelFileEntry *directory)
-{
-  // This function deletes a directory, but only if it is empty.  
-  // It returns 0 on success, negative otherwise
-
-  int status = 0;
-  
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  return (status = ERR_NOTIMPLEMENTED);
-}
-
-
-int kernelFilesystemExtTimestamp(kernelFileEntry *theFile)
-{
-  // This function does EXT-specific stuff for time stamping a file.
-
-  int status = 0;
-  
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  return (status = ERR_NOTIMPLEMENTED);
 }

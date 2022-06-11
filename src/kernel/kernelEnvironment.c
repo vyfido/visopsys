@@ -55,7 +55,7 @@ kernelEnvironment *kernelEnvironmentCreate(int processId,
   unsigned variablesOffset, valuesOffset;
   char **peekVariables;
   char **peekValues;
-  int count;
+  unsigned count;
 
   // It's OK for the 'copy' pointer to be NULL, but if it is not, it is
   // assumed that it is in the current process' address space.
@@ -191,7 +191,7 @@ int kernelEnvironmentUnset(const char *variable)
 
 void kernelEnvironmentDump(void)
 {
-  int count;
+  unsigned count;
 
   kernelTextPrintLine("Diagnostic process environment dump:");
 

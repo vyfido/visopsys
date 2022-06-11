@@ -26,15 +26,8 @@
 #define SHUTDOWN_MSG_REBOOT "Rebooting."
 #define SHUTDOWN_MSG_POWER "OK to power off now."
 
-typedef enum 
-{  
-  halt = 0,
-  reboot = 1
-
-} kernelShutdownType;
-
 // Functions exported by kernelShutdown.c
-int kernelShutdown(kernelShutdownType, int);
+int kernelShutdown(int, int);
 void kernelPanicOutput(const char *, const char *, int, const char *, ...);
 
 #define kernelPanic(message, arg...) \

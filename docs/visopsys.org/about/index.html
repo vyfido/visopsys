@@ -56,19 +56,18 @@ border="0" width="291" height="56"></strong></font></p>
 <p align="left"><strong><big>INTRODUCTION</big></strong></p>
 
 <p><big>Visopsys (<font color="#FFFF00">VIS</font>ual <font color="#FFFF00">OP</font>erating
-<font color="#FFFF00">SYS</font>tem) is a home brewed computer operating system kernel,
-which is still -- and is continually -- in development.&nbsp; It consists of code created
-entirely from the ground up (i.e. no &quot;borrowed&quot; or &quot;supporting&quot; code).
-Visopsys has initially been designed to support PC-compatible computers.&nbsp; The source
+<font color="#FFFF00">SYS</font>tem) is an alternative operating system for 
+PC-compatible computers
+which is continually in development.&nbsp; It consists of code written
+entirely from scratch.&nbsp; The source
 code is available under the terms of the <a href="gpl.html">GNU General Public License</a>.&nbsp; 
-The libraries and include files are licensed under the terms of the
+The libraries and header files are licensed under the terms of the
 <a href="lgpl.html">GNU Lesser General Public License</a>.</big></p>
 
-<p><big>The design and interface philosophies of Visopsys are driven by the fundamental
-goal of keeping some of the best features of other successful systems, while discarding
-many of their notorious weaknesses.&nbsp; </big></p>
+<p><big>The overall goal of Visopsys is to create something new, keep some of the best features of other successful systems, 
+and avoid introducing the more annoying elements.</big></p>
 
-<p><big>It follows then, that however many ideas Visopsys borrows from other operating
+<p><font size="4">H</font><big>owever many ideas Visopsys borrows from other operating
 environments, it is not -- and does not try to be -- entirely compatible with any of those
 other systems.&nbsp; Although some aspects of Visopsys will probably seem familiar, it is
 not a &quot;clone&quot; of any other operating environment.</big></p>
@@ -85,13 +84,13 @@ objectives. Not always achieved, but always important.</big></p>
     will be integrated into the kernel.&nbsp; A default GUI shell environment must load and
     run &quot;straight out of the box&quot;, with no complicated setup procedure.</big></li>
   <li><big>The interface must be trivial to learn and use, even for a computer 
-  novice. Most of its elements should be familiar to all computer users. Just 
-  like the old software industry cliche: &quot;Something my Mom can use&quot;.</big></li>
-  <li><big>Something which might seem like a contradiction of the previous item: A new
+  novice. Most of its elements should be familiar to all computer users.  </big></li>
+  <li><font size="4">A partial</font><big> contradiction of the previous item: A new
     metaphor for the GUI environment. The tried and true desktop/office/files/folders
     paradigm is becoming a little bit dated. While not intended to be 
-  revolutionary, the planned interface will put a new spin on graphical
-    shell design -- without making it unfamiliar or non-intuitive. Stay tuned for details.</big></li>
+  revolutionary, the planned interface will eventually try to put a new spin on 
+  graphical shell design -- without making it unfamiliar or non-intuitive.&nbsp; 
+  The ideas are formed, but the code is not written.</big></li>
   <li><big>To the greatest extent possible, the user should be able to perform all tasks,
     including administrative ones, using this &quot;point and click&quot; interface -- no
     need to edit mysterious configuration files by hand.</big></li>
@@ -113,12 +112,11 @@ scripting) </big>
     configuration files by hand is, therefore, optional.</big></li>
 </ul>
 
-<p><big>4. <strong>Highly networkable.</strong>&nbsp; Visopsys will be very network
-oriented. &nbsp; Stay tuned for more details about this as well.</big></p>
+<p><big>4. <strong>Highly networkable.</strong></big></p>
 
 <p><big>5. <strong>Highly compatible.</strong> Visopsys will conform to existing standards
-to the greatest extent possible. It is not desirable for Visopsys to define new formats
-(such as a new filesystem type). Examples of supported standards will include: </big>
+to the greatest extent possible.&nbsp; It is not a goal for Visopsys to define new formats
+(such as a new filesystem type).&nbsp; Examples of supported standards will include: </big>
 
 <ul>
   <li><big>Filesystem types</big></li>
@@ -129,20 +127,20 @@ to the greatest extent possible. It is not desirable for Visopsys to define new 
   <li><big>Software development environment conventions</big></li>
   <li><big>Operating system API calls.</big></li>
   <li><big>Hardware interface standards (e.g. VESA)</big></li>
-  <li><big>Basic POSIX compliance, where possible<br>
+  <li><big>Basic POSIX compliance, where possible, eventually.<br>
     </big></li>
 </ul>
 
 <p><strong><big>CURRENT DEVELOPMENT STATUS</big></strong></p>
 
 <p><big>Visopsys is starting to look and feel like a 'real' operating system.&nbsp; 
-Provided that the video card in a system meets the requirements, the system 
+Provided that the video card in a system supports the VESA 2 standard, the system 
 boots up quickly into a simple, functional (but nice looking!) GUI.&nbsp; 
 There's still a long way to go before Visopsys might be useful to the average 
 person, but it's getting there little by little.</big></p>
 
 <p><big>Coding work was begun as a part-time operation in late 1997.&nbsp; The 
-majority of the code is written in C, with portions written in x86 Assembly 
+large majority of the code is written in C, with portions in x86 Assembly 
 Language.&nbsp; Following is a list of implemented and unimplemented 
 functionality; keep in mind that this does not represent the complete list of 
 planned features -- only short- and medium term goals are listed here:</big></p>
@@ -168,10 +166,12 @@ planned features -- only short- and medium term goals are listed here:</big></p>
     CD-ROM filesystems (ISO9660/Joliet)</li>
   <li><big>Abstracted loading and management of device drivers</big></li>
   <li><big>Native command line shell</big></li>
+  <li><big>Small, native C library</big></li>
   <li><font size="4">Native installer program</font></li>
+  <li><font size="4">Native hard disk partitioning program (Disk Manager)</font></li>
   <li><big>Runtime loader</big></li>
   <li><font size="4">Hardware d</font><big>evice support for:<br>
-    </big>Single  K6/MII/Pentium processor (or better)<br>
+    </big>Single    Pentium  (or better) processor<br>
     <a href="memory-management.html">RAM above 64Mb</a><br>
     Programmable Interrupt Controller (PIC)<br>
     System timer chip<br>
@@ -186,18 +186,6 @@ planned features -- only short- and medium term goals are listed here:</big></p>
     PS2 mouse</li>
 </ul>
 
-<p><big>In development: </big>
-
-<ul>
-  <li><big>Kernel API</big></li>
-  <li><big>Small 'native' C library</big></li>
-  <li><big>Assembler and compiler (ports of <a href="http://sourceforge.net/projects/nasm">NASM</a>/<a
-    href="http://www.gnu.org/software/binutils/binutils.html">GAS</a> and <a
-    href="http://www.gnu.org/software/gcc/gcc.html">gcc</a>)</big></li>
-  <li><big>Native linker, or satisfactory port of <a
-    href="http://www.gnu.org/software/binutils/binutils.html">GNU linker, ld</a></big></li>
-</ul>
-
 <p><big>Unimplemented (or mostly unimplemented): </big>
 
 <ul>
@@ -207,6 +195,11 @@ planned features -- only short- and medium term goals are listed here:</big></p>
   <li><a href="wrong.html#float"><big>FPU state saves</big></a></li>
   <li><big>Support for a.out, and PE executable formats, loader relocation</big></li>
   <li><big>Dynamically loaded/linked libraries</big></li>
+  <li><big>Assembler and compiler (ports of <a href="http://sourceforge.net/projects/nasm">NASM</a>/<a
+    href="http://www.gnu.org/software/binutils/binutils.html">GAS</a> and <a
+    href="http://www.gnu.org/software/gcc/gcc.html">gcc</a>)</big></li>
+  <li><big>Native linker, or satisfactory port of <a
+    href="http://www.gnu.org/software/binutils/binutils.html">GNU linker, ld</a></big></li>
   <li><big>Emulation of other operating systems' APIs</big></li>
   <li><big>Filesystem support for:<br>
     </big>Writable Ext2/Ext3<br>
@@ -230,20 +223,17 @@ planned features -- only short- and medium term goals are listed here:</big></p>
 
 <p><big><a name="TEAM"></a><strong>DEVELOPMENT ENVIRONMENT</strong></big></p>
 
-<p><big>Visopsys is developed under Red Hat Linux 9.x, using the latest GNU C compiler and the NASM assembler.<br>
+<p><big>Visopsys is developed under Red Hat Linux 9, using the included GNU C compiler and  NASM assembler.<br>
 </big></p>
 
 <p><strong><big>A TEAM OF HIGHLY SKILLED PROGRAMMERS</big></strong></p>
 
-<p><big>Who's working on Visopsys?&nbsp; It's a very small team.&nbsp;
+<p><big>It's a very small team.&nbsp;
 <a href="../andy/img/andy-nj.jpg">Andy McLaughlin</a>: 31 year
 old programmer from </big><font size="4">Calgary, Canada</font><big>.&nbsp;
 I have recently moved to London, UK, after a year in Boston and 2 years in Silicon Valley (San Jose, California). Like many other hobby OS writers, I build Visopsys in my
-spare time.</big></p>
-
-<p><big>Visopsys.org?&nbsp; An &quot;organization&quot; of one person?&nbsp; See the 
-next section (&quot;want to help?&quot;) for an explanation.<br>
-</big></p>
+spare time.<br>
+&nbsp;</big></p>
 
 <p><big><strong>WANT TO HELP?</strong></big></p>
 
@@ -251,14 +241,11 @@ next section (&quot;want to help?&quot;) for an explanation.<br>
 Visopsys at this time, but I am open to considering the possibility if talented
 programmers express interest. My main concern is that I want Visopsys to be
 &quot;presentable&quot; before I even attempt to get anyone else excited about it.&nbsp; 
-It's pretty presentable now, but I'm unreasonable about it of course.&nbsp; It's 
-my baby.&nbsp;
-Unfortunately, that means that the project only progresses when I have the time to work on
-it (this takes up a considerable amount of time).</big></p>
+It's pretty presentable now, but I'm unreasonable about it of course (it's 
+my baby).</big></p>
 
-<p><big>An operating system kernel is a big enough challenge to be discouraging at times.
-As an example, the Pascal compiler I wrote over an eight month period is trivial by
-comparison. On the other hand, since I do everything by myself I am able to keep the
+<p><big>An operating system kernel is a big enough challenge to be discouraging at times.&nbsp; 
+In comparison, the Pascal compiler I wrote over an eight month period is trivial.&nbsp; On the other hand, since I do everything by myself I am able to keep the
 development on a unified path. The architecture that develops is -- I hope -- consistent
 (for better or worse) and thus the end product reflects the vision of a single
 programmer.&nbsp; It can be argued that this is the good, old-fashioned way of producing
@@ -270,7 +257,7 @@ software.<br>
 <p><big>The binary
 version that you'll find on the <a href="../download/index.html">download page</a> 
 is intended for anyone who wants to try Visopsys on their own computer. It can 
-install on a single floppy disk, or on a hard disk partition.&nbsp; There's also
+install on a single floppy disk, a CD-ROM, or on a hard disk partition.&nbsp; There's also
 a source code distribution on the same page, and there are also some screen shots <a
 href="screenshots.html">here</a>.<br>
 </big></p>
@@ -284,6 +271,9 @@ knowledge) to the success of this project: </big>
   <li><big>Graeme McLaughlin (<a href="mailto:graeme@cpsc.ucalgary.ca">graeme@cpsc.ucalgary.ca</a>)
     for patiently helping me test each version of Visopsys. Graeme is the #1 Alpha Tester.
     Also, big thanks for hosting the Visopsys.org web site.</big></li>
+  <li><font size="4">Thomas Kreitner for all his testing and interest, and for 
+  finding the weird bugs.&nbsp; Only an evil genius would discover some of these 
+  things.</font></li>
   <li><big>Katrin Becker (<a href="mailto:becker@cpsc.ucalgary.ca">becker@cpsc.ucalgary.ca</a>)
     at the University of Calgary for helpful advice about free-list management in filesystems.&nbsp; I should have paid more attention in class. </big></li>
   <li><big>John Fine (<a href="mailto:johnfine@erols.com">johnfine@erols.com</a>), Alexei A.
@@ -293,9 +283,6 @@ knowledge) to the success of this project: </big>
     the time to help people.</big></li>
   <li><big>Jerry Coffin (<a href="mailto:(jcoffin@taeus.com">jcoffin@taeus.com</a>) and Ratko
     Tomic for posting information about alternate text mode video configurations.</big></li>
-  <li><big>Linus Torvalds (<a href="mailto:torvalds@transmeta.com">torvalds@transmeta.com</a>)
-    for showing the rest of us that it can be done.&nbsp; Besides, he and I share the same
-    birthday.</big></li>
 </ul>
 
 <p><font size="4">Bibliography:</font></p>

@@ -105,7 +105,7 @@ int kernelMemCmp(const void *src, const void *dest, unsigned bytes)
   // Return 1 if the memory area is different, 0 otherwise.
 
   unsigned dwords = (bytes >> 2);
-  int count;
+  unsigned count;
 
   if (((unsigned) dest % 4) || (bytes % 4))
     {
@@ -306,7 +306,7 @@ int kernelConfigurationWriter(const char *fileName, variableList *list)
   char lineBuffer[256];
   char *variable = NULL;
   char *value = NULL;
-  int count;
+  unsigned count;
 
   if ((fileName == NULL) || (list == NULL))
     {
@@ -406,7 +406,7 @@ int kernelReadSymbols(const char *filename)
   
   int status = 0;
   variableList *tmpList = NULL;
-  int count;
+  unsigned count;
 
   // Make a log message
   kernelLog("Reading kernel symbols from \"%s\"", filename);

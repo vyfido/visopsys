@@ -72,7 +72,7 @@ static kernelPageTable *findPageTable(kernelPageDirectory *directory,
 }
 
 
-static int countFreePages(kernelPageDirectory *directory)
+static unsigned countFreePages(kernelPageDirectory *directory)
 {
   // Returns the number of unallocated pages in all the page tables
   // of the supplied page directory

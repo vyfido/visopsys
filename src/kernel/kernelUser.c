@@ -45,7 +45,7 @@ static void readPasswordFile(void)
   int status = 0;
   file tmpFile;
   variableList *tmpUserList = NULL;
-  int count;
+  unsigned count;
 
   // Check whether the password file exists
   status = kernelFileFind(USER_PASSWORDFILE, &tmpFile);
@@ -288,7 +288,7 @@ int kernelUserGetNames(char *buffer, unsigned bufferSize)
   // Returns all the user names (up to bufferSize bytes) as NULL-separated
   // strings, and returns the number copied.
 
-  int names = 0;
+  unsigned names = 0;
   char *bufferPointer = NULL;
   int count;
 

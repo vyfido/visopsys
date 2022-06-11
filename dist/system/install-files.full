@@ -38,6 +38,7 @@
 /system/headers/sys/lock.h
 /system/headers/sys/memory.h
 /system/headers/sys/process.h
+/system/headers/sys/stat.h
 /system/headers/sys/stream.h
 /system/headers/sys/types.h
 /system/headers/sys/variable.h

@@ -5,15 +5,16 @@
 ##  Makefile
 ##
 
-# This makefile builds all the necessary parts of the boot sector and OS
-# loader.
+# This makefile builds all the MBRs, boot sectors, and the OS loader.
 
 BOOTBUILDDIR=../../build/system/boot
 LOADERBUILDDIR=../../build
 
 AS		= nasm
 CC		= gcc
-OPTS		= -f aout -w+orphan-labels
+WARNOPTS	= -w+orphan-labels
+SECTOPTS	= -f bin ${WARNOPTS}
+LDROPTS		= -f aout ${WARNOPTS}
 LINKOPTS	= -mcpu=pentium -Wl,-warn-common,-X,--oformat,binary,-e,loaderMain,-Ttext,0x00000000
 STDDEPEND	= loader.h Makefile
 OBJS		= obj/loaderMain.o \
@@ -36,10 +37,10 @@ bootsectors: ${BOOTBUILDDIR}/bootsect.fatnoboot ${BOOTBUILDDIR}/bootsect.fat12
 #
 
 ${BOOTBUILDDIR}/bootsect.fatnoboot: bootsect-fatnoboot.s ${STDDEPEND}
-	${AS} -f bin -w+orphan-labels bootsect-fatnoboot.s -o $@
+	${AS} ${SECTOPTS} $< -o $@
 
 ${BOOTBUILDDIR}/bootsect.fat12: bootsect-fat12.s ${STDDEPEND}
-	${AS} -f bin -w+orphan-labels bootsect-fat12.s -o $@
+	${AS} ${SECTOPTS} $< -o $@
 
 #
 # Loader files
@@ -48,26 +49,8 @@ ${BOOTBUILDDIR}/bootsect.fat12: bootsect-fat12.s ${STDDEPEND}
 ${LOADERBUILDDIR}/vloader: ${OBJS} ${STDDEPEND}
 	${CC} -nodefaultlibs -nostartfiles -O2 -Wall ${LINKOPTS} ${OBJS} -o $@
 
-obj/loaderMain.o: loaderMain.s ${STDDEPEND}
-	${AS} ${OPTS} loaderMain.s -o $@
-
-obj/loaderVideo.o: loaderVideo.s ${STDDEPEND}
-	${AS} ${OPTS} loaderVideo.s -o $@
-
-obj/loaderDetectHardware.o: loaderDetectHardware.s ${STDDEPEND}
-	${AS} ${OPTS} loaderDetectHardware.s -o $@
-
-obj/loaderDiskError.o: loaderDiskError.s ${STDDEPEND}
-	${AS} ${OPTS} loaderDiskError.s -o $@
-
-obj/loaderLoadFile.o: loaderLoadFile.s ${STDDEPEND}
-	${AS} ${OPTS} loaderLoadFile.s -o $@
-
-obj/loaderLoadKernel.o: loaderLoadKernel.s ${STDDEPEND}
-	${AS} ${OPTS} loaderLoadKernel.s -o $@
-
-obj/loaderPrintRoutines.o: loaderPrintRoutines.s ${STDDEPEND}
-	${AS} ${OPTS} loaderPrintRoutines.s -o $@
+obj/%.o: %.s ${STDDEPS}
+	${AS} ${LDROPTS} $< -o $@
 
 #
 # Miscellany

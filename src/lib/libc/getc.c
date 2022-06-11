@@ -26,7 +26,7 @@
 #include <sys/api.h>
 
 
-int getc(FILE *stream)
+int getc(FILE *theStream)
 {
   // getc() is equivalent to fgetc() except that it may be implemented as
   // a macro which evaluates stream more than once.  OK, it's not a macro,
@@ -35,7 +35,7 @@ int getc(FILE *stream)
   int status = 0;
   char c = '\0';
 
-  if (stream != stdin)
+  if (theStream != stdin)
     {
       // We are only implementing for stdin at the moment
       errno = ERR_NOTIMPLEMENTED;

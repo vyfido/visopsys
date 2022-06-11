@@ -49,9 +49,8 @@ char *readline(const char *prompt)
 
   // Allocate an array of 4096 chars to hold the data
   returnString = malloc(4096);
-
-  if (errno)
-    return (returnString = NULL);
+  if (returnString == NULL)
+    return (returnString);
 
   // Output the prompt, if there is any
   if (prompt != NULL)

@@ -48,15 +48,8 @@ typedef unsigned time_t;
 
 char *asctime(const struct tm *timeptr);
 clock_t clock(void);
-char *ctime(const time_t *timep);
 double difftime(time_t, time_t);
-struct tm *gmtime(const time_t *timep);
-struct tm *localtime(const time_t *timep);
-time_t mktime(struct tm *timeptr);
 time_t time(time_t *t);
-
-// These functions are unimplemented
-size_t strftime(char *s, size_t max, const char *format, const struct tm *tm);
 
 #define _TIME_H
 #endif

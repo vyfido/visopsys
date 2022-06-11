@@ -208,8 +208,8 @@ static int mouseEvent(void *componentData, windowEvent *event)
       menuComponent = menuBar->components[count];
       menu = (kernelWindowMenu *) menuComponent->data;
 	      
-      unsigned tmpWidth = kernelFontGetPrintedWidth(component->parameters.font,
-						    (const char *) menu->name);
+      int tmpWidth = kernelFontGetPrintedWidth(component->parameters.font,
+					       (const char *) menu->name);
       
       if ((event->yPosition < (window->yCoord + menuComponent->yCoord)) &&
 	  (event->xPosition >= (window->xCoord + menuComponent->xCoord)) &&

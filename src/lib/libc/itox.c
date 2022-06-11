@@ -28,7 +28,7 @@
 
 void itox(int number, char *string)
 {
-  unsigned int remainder;
+  unsigned remainder;
   int leadZero = 1;
   int place = 0;
   int count;

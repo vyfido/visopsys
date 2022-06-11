@@ -23,10 +23,11 @@
 
 #include "kernelDriverManagement.h" // Contains my prototypes
 #include "kernelProcessorX86.h"
-
+#include <sys/errors.h>
 
 int kernelPicDriverRegisterDevice(void *);
 void kernelPicDriverEndOfInterrupt(int);
+
 
 // Our driver structure.
 static kernelPicDriver defaultPicDriver =
@@ -48,9 +49,11 @@ static kernelPicDriver defaultPicDriver =
 
 int kernelPicDriverRegisterDevice(void *thePic)
 {
-  // Initialize the PIC controllers
+  // Initialize the PIC master controller
 
-  // The master controller
+  // We ignore the PIC argument.  This keeps the compiler happy
+  if (thePic == NULL)
+    return (ERR_NULLPARAMETER);
 
   // Initialization word 1
   kernelProcessorOutPort8(0x20, 0x11);

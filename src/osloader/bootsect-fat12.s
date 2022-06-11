@@ -21,8 +21,6 @@
 
 ;; This code is a boot sector for FAT12 filesystems
 
-	GLOBAL main
-
 	ORG 7C00h
 	SEGMENT .text
 
@@ -39,8 +37,10 @@
 %define WORD			2
 %define DWORD			4
 	
+;; Memory for storing things...
+
 ;; For int13 disk ops
-%define HEAD			(endsector + 2)
+%define HEAD			(ENDSECTOR + 2)
 %define HEAD_SZ			BYTE
 %define SECTOR			(HEAD + HEAD_SZ)
 %define SECTOR_SZ		BYTE
@@ -123,6 +123,22 @@ bootCode:
 	mov EAX, dword [SI + 8]
 	mov dword [PARTSTART], EAX
 	.noOffset:
+
+	;; Get the drive parameters
+	;; ES:DI = 0000h:0000h to guard against BIOS bugs
+	xor DI, DI
+	mov ES, DI
+	mov AX, 0800h
+	;; DL still has [DriveNumber]
+	int 13h
+	jc near IOError
+
+	;; Save info
+	shr DX, 8				; Number of heads, 0-based
+	inc DX
+	mov word [Heads], DX
+	and CX, 003Fh				; Sectors per cylinder
+	mov word [SecPerTrack], CX
 
 	;; Load FAT sectors
 	
@@ -225,15 +241,26 @@ bootCode:
 	jmp .FATLoop
 
 	.done:
-	;; Before we turn over control to the kernel loader, we need to
-	;; tell it the filesystem type of the boot device
-	push word 0			; FAT12 is filesystem type 0
-
 	;; Pass the pointer to the partition table entry in SI
 	mov SI, word [PARTENTRY]
 	
 	;; Go!
 	jmp LOADERSEGMENT:LOADEROFFSET
+
+
+IOError:
+	;; If we got a fatal IO error or something, we just have to stop.
+	;; This isn't very helpful, but unfortunately this piece of code
+	;; is too small to do very much else.
+
+	;; We used to stop here, but according to the docs by compaq/intel,
+	;; we should issue an int 18h instead to allow the BIOS to attempt
+	;; loading some other operating system
+	int 18h
+
+	;; Stop, just in case
+	.fatalErrorLoop:
+	jmp .fatalErrorLoop
 
 
 read:
@@ -273,7 +300,7 @@ read:
 	mov DL, byte [DriveNumber]
 	mov SI, DISKPACKET
 	int 13h
-	jc .IOError
+	jc IOError
 
 	;; Done
 	jmp .done
@@ -309,25 +336,11 @@ read:
 	mov ES, word [SS:(BP + 22)]	; Use user-supplied segment
 	int 13h
 	pop ES				; Restore ES
-	jc .IOError
+	jc IOError
 
 	.done:	
 	popa
 	ret
-
-	.IOError:
-	;; If we got a fatal IO error or something, we just have to stop.
-	;; This isn't very helpful, but unfortunately this piece of code
-	;; is too small to do very much else.
-
-	;; We used to stop here, but according to the docs by compaq/intel,
-	;; we should issue an int 18h instead to allow the BIOS to attempt
-	;; loading some other operating system
-	int 18h
-
-	;; Stop, just in case
-	.fatalErrorLoop:
-	jmp .fatalErrorLoop
 
 		
 ;; This puts the value AA55h in the last two bytes of the boot
@@ -335,5 +348,5 @@ read:
 ;; meant to be booted from (and also helps prevent us from making the
 ;; boot sector code larger than 512 bytes)
 	
-TIMES (510-($-$$))	db 0
-endsector:		dw 0AA55h
+times (510-($-$$))	db 0
+ENDSECTOR:		dw 0AA55h

@@ -26,7 +26,7 @@
 #include <sys/api.h>
 
 
-int fseek(FILE *stream, long offset, int whence)
+int fseek(FILE *theStream, long offset, int whence)
 {
   // The fseek() function sets the file-position indicator for the
   // stream pointed to by stream.  The new position, measured in bytes
@@ -52,21 +52,18 @@ int fseek(FILE *stream, long offset, int whence)
   else if (whence == SEEK_CUR)
     {
       // What is the current position in the file?
-      pos = ((stream->block * stream->f.blockSize) + stream->s.last);
+      pos = ((theStream->block * theStream->f.blockSize) + theStream->s.last);
 
       // Set position to current location plus offset.
       new_pos = (pos + offset);
     }
 
   else if (whence == SEEK_END)
-    {
-      // What is the current EOF of the file?  Set position to EOF plus
-      // offset.
-      new_pos = (stream->f.size + offset);
-    }
+    // What is the current EOF of the file?  Set position to EOF plus offset.
+    new_pos = (theStream->f.size + offset);
 
   // Let the kernel do the rest of the work, baby.
-  status = fileStreamSeek(stream, new_pos);
+  status = fileStreamSeek(theStream, new_pos);
   if (status < 0)
     {
       errno = status;

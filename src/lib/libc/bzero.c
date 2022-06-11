@@ -31,7 +31,7 @@
 
 void bzero(void *string, size_t number)
 {
-  int count;
+  unsigned count;
 
   // Check params
   if (string == NULL)

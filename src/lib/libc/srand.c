@@ -23,10 +23,10 @@
 
 #include <stdlib.h>
 
-extern unsigned int __random_seed;
+extern unsigned __random_seed;
 
 
-void srand(unsigned int seed)
+void srand(unsigned seed)
 {
   // The srand() function sets its argument as the seed for a new sequence
   // of pseudo-random integers to be returned by rand().  These sequences

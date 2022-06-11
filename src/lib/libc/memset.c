@@ -32,7 +32,7 @@
 
 void *memset(void *string, int value, size_t number)
 {
-  int count;
+  unsigned count;
 
   // Check params
   if (string == NULL)
