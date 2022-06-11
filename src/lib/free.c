@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -35,6 +35,6 @@ void free(void *oldMemory)
   // already been called before,  undefined  behaviour  occurs.
   // If ptr is NULL, no operation is performed.
   
-  errno = memoryReleaseByPointer(oldMemory);
+  errno = memoryReleaseBlock(oldMemory);
   return;
 }

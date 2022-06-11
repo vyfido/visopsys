@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2001 J. Andrew McLaughlin
+##  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ## 
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
@@ -24,16 +24,14 @@
 
 
 CC		= gcc
-AS              = nasm
 AR		= ar
 PLATFORM	= $(shell ../platform.sh)
 BUILD		= ${PLATFORM}
 
-OPTS		= -nodefaultlibs -nostartfiles -nostdinc -O2 -m486 -Wall \
-		-malign-functions=2 -fno-strength-reduce -malign-loops=2 \
-		-malign-jumps=2 -Werror
+OPTS		= -nostdlib -nodefaultlibs -nostartfiles -nostdinc -O2 \
+		-falign-loops=2 -falign-jumps=2 -falign-functions=2 \
+		-mcpu=pentium -Wall -fno-strength-reduce -Werror
 
-ASMOPTS         = -f elf -w+orphan-labels
 INCLUDES	= -I../include
 STDDEP		= Makefile
 
@@ -78,10 +76,13 @@ MATHOBJS	= ${BUILD}/acos.o \
 		${BUILD}/tan.o \
 		${BUILD}/tanh.o
 
+MISCOBJS	= ${BUILD}/readline.o
+
 SIGNALOBJS	= ${BUILD}/raise.o \
 		${BUILD}/signal.o
 
-STDIOOBJS	= ${BUILD}/_xpndfmt.o \
+STDIOOBJS	= ${BUILD}/_fmtinpt.o \
+		${BUILD}/_xpndfmt.o \
 		${BUILD}/fgetpos.o \
 		${BUILD}/fseek.o \
 		${BUILD}/fsetpos.o \
@@ -97,15 +98,23 @@ STDIOOBJS	= ${BUILD}/_xpndfmt.o \
 		${BUILD}/remove.o \
 		${BUILD}/rename.o \
 		${BUILD}/rewind.o \
+		${BUILD}/scanf.o \
 		${BUILD}/sprintf.o
 
-STDLIBOBJS	= ${BUILD}/abs.o \
+STDLIBOBJS	= ${BUILD}/abort.o \
+		${BUILD}/abs.o \
+		${BUILD}/atexit.o \
+		${BUILD}/atof.o \
 		${BUILD}/atoi.o \
+		${BUILD}/atol.o \
+		${BUILD}/bsearch.o \
 		${BUILD}/calloc.o \
 		${BUILD}/div.o \
 		${BUILD}/exit.o \
 		${BUILD}/free.o \
+		${BUILD}/getenv.o \
 		${BUILD}/itoa.o \
+		${BUILD}/itox.o \
 		${BUILD}/labs.o \
 		${BUILD}/ldiv.o \
 		${BUILD}/malloc.o \
@@ -114,16 +123,18 @@ STDLIBOBJS	= ${BUILD}/abs.o \
 		${BUILD}/srand.o \
 		${BUILD}/utoa.o
 
-STRINGOBJS	= ${BUILD}/memcpy.o \
+STRINGOBJS	= ${BUILD}/memcmp.o \
+		${BUILD}/memcpy.o \
 		${BUILD}/memmove.o \
 		${BUILD}/strcasecmp.o \
 		${BUILD}/strcat.o \
 		${BUILD}/strcmp.o \
-		${BUILD}/strncmp.o \
 		${BUILD}/strcpy.o \
 		${BUILD}/strlen.o \
 		${BUILD}/strncat.o \
+		${BUILD}/strncmp.o \
 		${BUILD}/strncpy.o \
+		${BUILD}/strspn.o \
 		${BUILD}/strstr.o
 
 TIMEOBJS	= ${BUILD}/asctime.o \
@@ -136,12 +147,12 @@ TIMEOBJS	= ${BUILD}/asctime.o \
 		${BUILD}/time.o
 
 STARTOBJS  	= ${BUILD}/_globdata.o \
-		${BUILD}/start.o
+		${BUILD}/_start.o
 
 
 all: target-dir libc
 
-libc: ${CTYPEOBJS} ${LOCALEOBJS} ${MATHOBJS} ${SIGNALOBJS} ${STDIOOBJS} ${STRINGOBJS} ${STDLIBOBJS} ${TIMEOBJS} ${STARTOBJS} ${STDDEP}
+libc: ${CTYPEOBJS} ${LOCALEOBJS} ${MATHOBJS} ${MISCOBJS} ${SIGNALOBJS} ${STDIOOBJS} ${STRINGOBJS} ${STDLIBOBJS} ${TIMEOBJS} ${STARTOBJS} ${STDDEP}
 	${AR} -rs ${PLATFORM}/libc.a  ${CTYPEOBJS} ${LOCALEOBJS} ${MATHOBJS} ${SIGNALOBJS} ${STDIOOBJS} ${STRINGOBJS} ${STDLIBOBJS} ${TIMEOBJS} ${STARTOBJS}
 
 target-dir:
@@ -277,6 +288,12 @@ ${BUILD}/tanh.o: tanh.c ../include/math.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c tanh.c -o $@
 
 
+# Misc
+
+${BUILD}/readline.o: readline.c ../include/readline.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c readline.c -o $@
+
+
 # Signal.h
 
 ${BUILD}/raise.o: raise.c ../include/signal.h ${STDDEP}
@@ -287,6 +304,9 @@ ${BUILD}/signal.o: signal.c ../include/signal.h ${STDDEP}
 
 
 # Stdio.h
+
+${BUILD}/_fmtinpt.o : _fmtinpt.c ../include/stdio.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c _fmtinpt.c -o $@
 
 ${BUILD}/_xpndfmt.o : _xpndfmt.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c _xpndfmt.c -o $@
@@ -336,17 +356,35 @@ ${BUILD}/rename.o: rename.c ../include/stdio.h ${STDDEP}
 ${BUILD}/rewind.o: rewind.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c rewind.c -o $@
 
+${BUILD}/scanf.o: scanf.c ../include/stdio.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c scanf.c -o $@
+
 ${BUILD}/sprintf.o: sprintf.c ../include/stdio.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c sprintf.c -o $@
 
 
 # Stdlib.h
 
+${BUILD}/abort.o: abort.c ../include/stdlib.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c abort.c -o $@
+
 ${BUILD}/abs.o: abs.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c abs.c -o $@
 
+${BUILD}/atexit.o: atexit.c ../include/stdlib.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c atexit.c -o $@
+
+${BUILD}/atof.o: atof.c ../include/stdlib.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c atof.c -o $@
+
 ${BUILD}/atoi.o: atoi.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c atoi.c -o $@
+
+${BUILD}/atol.o: atol.c ../include/stdlib.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c atol.c -o $@
+
+${BUILD}/bsearch.o: bsearch.c ../include/stdlib.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c bsearch.c -o $@
 
 ${BUILD}/calloc.o: calloc.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c calloc.c -o $@
@@ -360,8 +398,14 @@ ${BUILD}/exit.o: exit.c ../include/stdlib.h ${STDDEP}
 ${BUILD}/free.o: free.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c free.c -o $@
 
+${BUILD}/getenv.o: getenv.c ../include/stdlib.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c getenv.c -o $@
+
 ${BUILD}/itoa.o: itoa.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c itoa.c -o $@
+
+${BUILD}/itox.o: itox.c ../include/stdlib.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c itox.c -o $@
 
 ${BUILD}/labs.o: labs.c ../include/stdlib.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c labs.c -o $@
@@ -387,6 +431,9 @@ ${BUILD}/utoa.o: utoa.c ../include/stdlib.h ${STDDEP}
 
 # String.h
 
+${BUILD}/memcmp.o: memcmp.c ../include/string.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c memcmp.c -o $@
+
 ${BUILD}/memcpy.o: memcpy.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c memcpy.c -o $@
 
@@ -402,9 +449,6 @@ ${BUILD}/strcat.o: strcat.c ../include/string.h ${STDDEP}
 ${BUILD}/strcmp.o: strcmp.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strcmp.c -o $@
 
-${BUILD}/strncmp.o: strncmp.c ../include/string.h ${STDDEP}
-	${CC} ${OPTS} ${INCLUDES} -c strncmp.c -o $@
-
 ${BUILD}/strcpy.o: strcpy.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strcpy.c -o $@
 
@@ -414,8 +458,14 @@ ${BUILD}/strlen.o: strlen.c ../include/string.h ${STDDEP}
 ${BUILD}/strncat.o: strncat.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strncat.c -o $@
 
+${BUILD}/strncmp.o: strncmp.c ../include/string.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c strncmp.c -o $@
+
 ${BUILD}/strncpy.o: strncpy.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strncpy.c -o $@
+
+${BUILD}/strspn.o: strspn.c ../include/string.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c strspn.c -o $@
 
 ${BUILD}/strstr.o: strstr.c ../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c strstr.c -o $@
@@ -453,8 +503,8 @@ ${BUILD}/time.o: time.c ../include/time.h ${STDDEP}
 ${BUILD}/_globdata.o: _globdata.c ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c _globdata.c -o $@
 
-${BUILD}/start.o: start.c ${STDDEP}
-	${CC} ${OPTS} ${INCLUDES} -c start.c -o $@
+${BUILD}/_start.o: _start.c ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c _start.c -o $@
 
 
 # Miscellany

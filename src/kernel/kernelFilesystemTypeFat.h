@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,9 +25,7 @@
 #include "kernelFilesystem.h"
 
 // Definitions
-
-// Driver things
-#define MAX_FATSECTORS 100
+#define MAX_FATSECTORS 300
 
 // FAT-specific Filesystem things
 #define FAT_MAX_SECTORSIZE 4096
@@ -40,19 +38,6 @@
 #define FAT_ATTRIB_VOLUMELABEL 0x08
 #define FAT_ATTRIB_SUBDIR      0x10
 #define FAT_ATTRIB_ARCHIVE     0x20
-
-// Error messages
-#define FAT_NO_BOOTSECTOR "Unable to gather information about the FAT filesystem from the boot block"
-#define FAT_NO_FSINFOSECTOR "Unable to read or write the FAT32 FSInfo structure after the boot block"
-#define FAT_NULL_DISK_OBJECT "The disk object passed or referenced is NULL"
-#define FAT_NULL_DRIVER "The disk object passed or referenced has a NULL driver"
-#define FAT_NULL_DRIVER_ROUTINE "The disk object passed or referenced has a NULL driver routine"
-#define FAT_BAD_VOLUME "The FAT volume is corrupt"
-#define FAT_MEDIA_REMOVED "Mounted media has been changed or removed.  No operations until replaced"
-#define FAT_NOT_ENOUGH_FREE "There is not enough free space on the volume to complete the operation"
-#define FAT_CANT_OVERWRITE "The target file exists and cannot be overwritten"
-#define FAT_MEMORY "Could not allocate the memory needed to complete the operation"
-#define FAT_ALIGN_CLUSTERS "Number of pages does not correspond to an even number of clusters"
 
 // Structures used internally by the filesystem driver to keep track
 // of files and directories
@@ -67,80 +52,77 @@ typedef volatile struct
 {
   // These are taken directly from directory entries
   unsigned char shortAlias[12];
-  unsigned int attributes;
-  unsigned int res;
-  unsigned int timeTenth;
-  unsigned int startCluster;
+  unsigned attributes;
+  unsigned res;
+  unsigned timeTenth;
+  unsigned startCluster;
  
 } fatEntryData;
-
 
 typedef volatile struct
 {
   // This little structure is used to contain an individual sector
   // of the FAT
-
-  unsigned int index;
+  unsigned index;
   unsigned char *data;
   int dirty;
-  unsigned int lastAccess;
+  unsigned lastAccess;
 
 } fatSector;
-
 
 // This structure will contain all of the internal global data
 // for a particular filesystem on a particular volume
 typedef volatile struct
 {
   // Buffer for keeping track of FAT sectors in a single filesystem.
-  fatSector FAT[MAX_FATSECTORS];
+  fatSector FAT[MAX_FATSECTORS];  // This looks like a problem.  Or something.
   unsigned char *fatBuffer;
-  unsigned int fatBufferSize;
-  unsigned int fatSectorsBuffered;
+  unsigned fatBufferSize;
+  unsigned fatSectorsBuffered;
   
   // Bitmap of free clusters
   unsigned char *freeClusterBitmap;
-  unsigned int freeBitmapSize;
-  unsigned int freeClusters;
+  unsigned freeBitmapSize;
+  unsigned freeClusters;
   int buildingFreeBitmap;
   int freeBitmapLock;
 
   // Variables for storing information about the current volume.  All
   // of the ones in this list are read directly from the boot block
   // at mount time.
-  unsigned int bytesPerSector;
-  unsigned int sectorsPerCluster;
-  unsigned int reservedSectors;
-  unsigned int numberOfFats;
-  unsigned int rootDirEntries;
-  unsigned int totalSectors16;
-  unsigned int mediaType;
-  unsigned int fatSectors;
-  unsigned int sectorsPerTrack;
-  unsigned int heads;
-  unsigned int hiddenSectors;
-  unsigned int totalSectors32;
-  unsigned int driveNumber;
-  unsigned int bootSignature;
-  unsigned int volumeId;
+  unsigned bytesPerSector;
+  unsigned sectorsPerCluster;
+  unsigned reservedSectors;
+  unsigned numberOfFats;
+  unsigned rootDirEntries;
+  unsigned totalSectors16;
+  unsigned mediaType;
+  unsigned fatSectors;
+  unsigned sectorsPerTrack;
+  unsigned heads;
+  unsigned hiddenSectors;
+  unsigned totalSectors32;
+  unsigned driveNumber;
+  unsigned bootSignature;
+  unsigned volumeId;
   unsigned char volumeLabel[12];
   unsigned char fsSignature[9];
 
   // These fields are specific to the FAT32 filesystem type, and
   // are not applicable to FAT12 or FAT16
-  unsigned int rootDirClusterF32;
-  unsigned int fsInfoSectorF32;
-  unsigned int freeClusterCountF32;
-  unsigned int firstFreeClusterF32;
+  unsigned rootDirClusterF32;
+  unsigned fsInfoSectorF32;
+  unsigned freeClusterCountF32;
+  unsigned firstFreeClusterF32;
 
   // Things that need to be calculated after we have all of the FAT
   // volume data from the boot block (see above)
   fatType fsType;
-  unsigned int terminalCluster;
-  unsigned int totalSectors;
-  unsigned int rootDirSectors;
-  unsigned int dataSectors;
-  unsigned int dataClusters;
+  unsigned terminalCluster;
+  unsigned totalSectors;
+  unsigned rootDirSectors;
+  unsigned dataSectors;
+  unsigned dataClusters;
 
   // Miscellany
   int changedLock;
@@ -148,20 +130,19 @@ typedef volatile struct
   
 } fatInternalData;
 
-
 // Functions exported by kernelFileSystemTypeFat.c
 int kernelFilesystemTypeFatDetect(const kernelDiskObject *);
-int kernelFilesystemTypeFatCheck(const kernelDiskObject *);
+int kernelFilesystemTypeFatCheck(kernelFilesystem *, int, int);
 int kernelFilesystemTypeFatMount(kernelFilesystem *);
 int kernelFilesystemTypeFatSync(kernelFilesystem *);
 int kernelFilesystemTypeFatUnmount(kernelFilesystem *);
-unsigned int kernelFilesystemTypeFatGetFreeBytes(kernelFilesystem *);
+unsigned kernelFilesystemTypeFatGetFreeBytes(kernelFilesystem *);
 int kernelFilesystemTypeFatNewEntry(kernelFileEntry *);
 int kernelFilesystemTypeFatInactiveEntry(kernelFileEntry *);
-int kernelFilesystemTypeFatReadFile(kernelFileEntry *, unsigned int,
-				    unsigned int, unsigned char *);
-int kernelFilesystemTypeFatWriteFile(kernelFileEntry *, unsigned int,
-				     unsigned int, unsigned char *);
+int kernelFilesystemTypeFatReadFile(kernelFileEntry *, unsigned,
+				    unsigned, unsigned char *);
+int kernelFilesystemTypeFatWriteFile(kernelFileEntry *, unsigned,
+				     unsigned, unsigned char *);
 int kernelFilesystemTypeFatCreateFile(kernelFileEntry *);
 int kernelFilesystemTypeFatDeleteFile(kernelFileEntry *, int);
 int kernelFilesystemTypeFatFileMoved(kernelFileEntry *);

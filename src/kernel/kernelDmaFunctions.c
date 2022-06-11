@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,6 +27,7 @@
 #include <sys/errors.h>
 #include <string.h>
 
+
 static kernelDmaObject *kernelDma = NULL;
 
 
@@ -45,7 +46,7 @@ static int checkObjectAndDriver(char *invokedBy)
   if (kernelDma == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_DMA_OBJECT);
+      kernelError(kernel_error, "DMA controller is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -53,7 +54,7 @@ static int checkObjectAndDriver(char *invokedBy)
   if (kernelDma->deviceDriver == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_DMA_DRIVER);
+      kernelError(kernel_error, "DMA driver has not been installed");
       return (status = ERR_NOSUCHDRIVER);
     }
 
@@ -82,7 +83,7 @@ int kernelDmaRegisterDevice(kernelDmaObject *theDma)
   if (theDma == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_DMA_OBJECT);
+      kernelError(kernel_error, "DMA controller is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -105,7 +106,7 @@ int kernelDmaFunctionsInstallDriver(kernelDmaDeviceDriver *theDriver)
   if (kernelDma == NULL)
     {
       // Ooops.  It's NULL.  Make an error.
-      kernelError(kernel_error, NULL_DMA_OBJECT);
+      kernelError(kernel_error, "DMA controller is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -113,7 +114,7 @@ int kernelDmaFunctionsInstallDriver(kernelDmaDeviceDriver *theDriver)
   if (theDriver == NULL)
     {
       // Ooops.  It's NULL.  Make an error.
-      kernelError(kernel_error, NULL_DMA_DRIVER);
+      kernelError(kernel_error, "DMA driver has not been installed");
       return (status = ERR_NOSUCHDRIVER);
     }
 
@@ -143,7 +144,7 @@ int kernelDmaInitialize(void)
   if (kernelDma->deviceDriver->driverInitialize == NULL)
     {
       // Ooops.  Driver function is NULL.  Make an error.
-      kernelError(kernel_error, NO_INITIALIZE_FN);
+      kernelError(kernel_error, "Driver function is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -155,7 +156,7 @@ int kernelDmaInitialize(void)
   if (status < 0)
     {
       // Make the error
-      kernelError(kernel_error, INITIALIZATION_ERROR);
+      kernelError(kernel_error, "DMA driver initialization failed");
     }
 
   return (status);
@@ -181,7 +182,7 @@ int kernelDmaFunctionsEnableChannel(int channelNumber)
   if (kernelDma->deviceDriver->driverEnableChannel == NULL)
     {
       // Ooops.  Driver function is NULL.  Make an error.
-      kernelError(kernel_error, NO_ENABLECHANNEL_FN);
+      kernelError(kernel_error, "Driver function is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -193,7 +194,7 @@ int kernelDmaFunctionsEnableChannel(int channelNumber)
   if (status < 0)
     {
       // Make the error
-      kernelError(kernel_error, CHANNELENABLE_ERROR);
+      kernelError(kernel_error, "Error while enabling the DMA channel");
     }
 
   return (status);
@@ -219,7 +220,7 @@ int kernelDmaFunctionsCloseChannel(int channelNumber)
   if (kernelDma->deviceDriver->driverCloseChannel == NULL)
     {
       // Ooops.  Driver function is NULL.  Make an error.
-      kernelError(kernel_error, NO_CLOSECHANNEL_FN);
+      kernelError(kernel_error, "Driver function is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -231,7 +232,7 @@ int kernelDmaFunctionsCloseChannel(int channelNumber)
   if (status < 0)
     {
       // Make the error
-      kernelError(kernel_error, CHANNELCLOSE_ERROR);
+      kernelError(kernel_error, "Error while closing the DMA channel");
     }
 
   return (status);
@@ -260,15 +261,15 @@ int kernelDmaFunctionsSetupChannel(int channelNumber, void *address,
   if (kernelDma->deviceDriver->driverSetupChannel == NULL)
     {
       // Ooops.  Driver function is NULL.  Make an error.
-      kernelError(kernel_error, NO_SETUPCHANNEL_FN);
+      kernelError(kernel_error, "Driver function is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Convert the "address" argument we were passed into a base address
   // and page register
-  pageRegister = (int) ((unsigned int) address >> 16);
-  baseAndCurrentAddress = (int) ((unsigned int) address - 
-				 ((unsigned int) pageRegister << 16));
+  pageRegister = (int) ((unsigned) address >> 16);
+  baseAndCurrentAddress = (int) ((unsigned) address - 
+				 ((unsigned) pageRegister << 16));
 
   status = kernelDma->deviceDriver->driverSetupChannel(channelNumber, 
 		baseAndCurrentAddress, baseAndCurrentCount, pageRegister);
@@ -279,7 +280,7 @@ int kernelDmaFunctionsSetupChannel(int channelNumber, void *address,
   if (status < 0)
     {
       // Make the error
-      kernelError(kernel_error, CHANNELSETUP_ERROR);
+      kernelError(kernel_error, "Error while setting up DMA channel");
     }
 
   return (status);
@@ -305,7 +306,7 @@ int kernelDmaFunctionsReadData(int channelNumber, int mode)
   if (kernelDma->deviceDriver->driverSetMode == NULL)
     {
        // Ooops.  Driver function is NULL.  Make an error.
-      kernelError(kernel_error, NO_READDATA_FN);
+      kernelError(kernel_error, "Driver function is NULL");
       return (status = ERR_NOSUCHFUNCTION);
    }
 
@@ -320,7 +321,7 @@ int kernelDmaFunctionsReadData(int channelNumber, int mode)
   if (status < 0)
     {
       // Make the error
-      kernelError(kernel_error, DMAREAD_ERROR);
+      kernelError(kernel_error, "Error while performing a DMA read");
     }
 
   return (status);
@@ -346,7 +347,7 @@ int kernelDmaFunctionsWriteData(int channelNumber, int mode)
   if (kernelDma->deviceDriver->driverSetMode == NULL)
     {
       // Ooops.  Driver function is NULL.  Make an error.
-      kernelError(kernel_error, NO_WRITEDATA_FN);
+      kernelError(kernel_error, "Driver function is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -361,7 +362,7 @@ int kernelDmaFunctionsWriteData(int channelNumber, int mode)
   if (status < 0)
     {
       // Make the error
-      kernelError(kernel_error, DMAWRITE_ERROR);
+      kernelError(kernel_error, "Error while performing a DMA write");
     }
 
   return (status);

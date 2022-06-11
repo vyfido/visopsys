@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,7 +49,7 @@ static int checkObjectAndDriver(char *invokedBy)
   if (kernelKeyboard == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_KBRD_MESS);
+      kernelError(kernel_error, "The keyboard is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -57,7 +57,7 @@ static int checkObjectAndDriver(char *invokedBy)
   if (kernelKeyboard->deviceDriver == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_KBRD_DRIVER_MESS);
+      kernelError(kernel_error, "The driver is NULL");
       return (status = ERR_NOSUCHDRIVER);
     }
 
@@ -85,7 +85,7 @@ int kernelKeyboardRegisterDevice(kernelKeyboardObject *theKeyboard)
   if (theKeyboard == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_KBRD_MESS);
+      kernelError(kernel_error, "The keyboard is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -107,7 +107,7 @@ int kernelKeyboardInstallDriver(kernelKeyboardDriver *theDriver)
   if (theDriver == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_KBRD_DRIVER_MESS);
+      kernelError(kernel_error, "The driver is NULL");
       return (status = ERR_NOSUCHDRIVER);
     }
 
@@ -126,8 +126,7 @@ int kernelKeyboardInitialize(void)
   // valid.
 
   int status = 0;
-  kernelTextStream *console = NULL;
-
+  kernelTextInputStream *console = NULL;
 
   // Check the keyboard object and device driver before proceeding
   status = checkObjectAndDriver(__FUNCTION__);
@@ -140,18 +139,46 @@ int kernelKeyboardInitialize(void)
   if (kernelKeyboard->deviceDriver->driverInitialize == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_KBRD_FUNC_MESS);
+      kernelError(kernel_error, "The driver function is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
-  // Ok, find out which kernelTextStream represents the console input
-  console = kernelTextStreamGetConsoleInput();
+  // Ok, find out which kernelTextInputStream represents the console input
+  console = kernelTextGetConsoleInput();
 
   if (console == NULL)
     {
-      kernelError(kernel_error,
-		  "Unable to determine the console input stream");
+      kernelError(kernel_error, "Unable to determine the console input "
+		  "stream");
       return (status = ERR_NOSUCHENTRY);
+    }
+
+  // Ok, now we can call the routine.
+  status = kernelKeyboard->deviceDriver->driverInitialize();
+
+  return (status);
+}
+
+
+int kernelKeyboardSetStream(stream *newStream)
+{
+  // Set the current stream used by the keyboard driver
+  
+  int status = 0;
+
+  // Check the keyboard object and device driver before proceeding
+  status = checkObjectAndDriver(__FUNCTION__);
+  if (status < 0)
+    // Something went wrong, so we can't continue
+    return (status);
+
+  // Now make sure the device driver initialize routine has been 
+  // installed
+  if (kernelKeyboard->deviceDriver->driverSetStream == NULL)
+    {
+      // Make the error
+      kernelError(kernel_error, "The driver function is NULL");
+      return (status = ERR_NOSUCHFUNCTION);
     }
 
   // We need to unscramble some of the goop surrounding this text input
@@ -159,12 +186,9 @@ int kernelKeyboardInitialize(void)
   // initialize routine:
   // 1. A stream to append characters to (the console input stream)
   // 2. A function for appending single characters to a stream
-
-  // Ok, now we can call the routine.
-  status =
-    kernelKeyboard->deviceDriver->driverInitialize(console->s,
-						   console->sFn->append);
-
+  status = kernelKeyboard->deviceDriver
+    ->driverSetStream(newStream, (void *) newStream->append);
+  
   return (status);
 }
 
@@ -178,7 +202,6 @@ int kernelKeyboardReadData(void)
 
   int status = 0;
 
-
   // Check the keyboard object and device driver before proceeding
   status = checkObjectAndDriver(__FUNCTION__);
   if (status < 0)
@@ -190,7 +213,7 @@ int kernelKeyboardReadData(void)
   if (kernelKeyboard->deviceDriver->driverReadData == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_KBRD_FUNC_MESS);
+      kernelError(kernel_error, "The driver function is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 

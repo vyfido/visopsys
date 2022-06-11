@@ -2,7 +2,7 @@
 
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2001 J. Andrew McLaughlin
+##  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ## 
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
@@ -45,7 +45,7 @@ endif
 #  Make sure that the kernel has been built
 if !(-e $kernel) then
 	echo ""
-	echo "$targetfile is missing.  Have you done a make yet?"
+	echo "$kernel is missing.  Have you done a make yet?"
 	echo Terminating.
 	echo ""
 	exit 6

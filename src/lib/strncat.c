@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -20,6 +20,11 @@
 //
 
 // This is the standard "strncat" function, as found in standard C libraries
+// The strncat() function appends the first n characters of the source string
+// to the dest string overwriting the `\0' character at the end of dest, and
+// then adds a terminating `\0' character.  The strings may not overlap, and
+// the dest string must have enough space for the result.
+
 
 #include <string.h>
 #include <errno.h>
@@ -34,8 +39,10 @@ char *strncat(char *destString, const char *sourceString, size_t maxLength)
   // Find the end of the first String
   for (count1 = 0; count1 < MAXSTRINGLENGTH; )
     {
-      if (destString[count1] == (char) NULL) break;
-      else count1++;
+      if (destString[count1] == '\0')
+	break;
+      else
+	count1++;
     }
 
   // If this is true, then we probably have an unterminated string
@@ -51,8 +58,7 @@ char *strncat(char *destString, const char *sourceString, size_t maxLength)
   // maxLength, pad dest with NULL characters.
   for (count2 = 0; count2 < maxLength; )
     {
-      if ((sourceString[count2] == (char) NULL) ||
-	  (endFlag == 1))
+      if ((sourceString[count2] == '\0') || (endFlag == 1))
 	{
 	  endFlag = 1;
 	  sourceChar = (char) NULL;

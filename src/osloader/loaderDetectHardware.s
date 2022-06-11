@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -22,11 +22,15 @@
 	GLOBAL loaderDetectHardware
 	GLOBAL HARDWAREINFO
 
+	EXTERN loaderFindFile
 	EXTERN loaderDetectVideo
 	EXTERN loaderPrint
 	EXTERN loaderPrintNewline
 	EXTERN loaderPrintNumber
 	EXTERN FATALERROR
+	EXTERN PRINTINFO
+	EXTERN DRIVENUMBER
+	EXTERN PARTENTRY
 
 	SEGMENT .text
 	BITS 16
@@ -57,17 +61,31 @@ loaderDetectHardware:
 	;; Detect the memory
 	call detectMemory
 
+	;; Before we check video, make sure that the user hasn't specified
+	;; text-only mode
+        push word NOGRAPHICS
+        call loaderFindFile
+        add SP, 2
+
+        ;; Does the file exist?
+        cmp AX, 1
+        je .skipVideo	; The user doesn't want graphics
+
 	;; Detect video.  Push a pointer to the start of the video
 	;; information in the hardware structure
 	push word VIDEOMEMORY
 	call loaderDetectVideo
 	add SP, 2
 	
+	.skipVideo:
 	;; Detect floppy drives, if any
 	call detectFloppies
 
 	;; Detect Fixed disk drives, if any
 	call detectHardDisks
+
+	;; Serial ports
+	call detectSerial
 
 	;; Restore flags
 	popa
@@ -77,7 +95,6 @@ loaderDetectHardware:
 	mov AL, byte [FATALERROR]
 
 	ret
-
 	
 	
 detectProcessor:
@@ -95,143 +112,52 @@ detectProcessor:
 	;; mov byte [INVALIDOPCODE], 1
 	;; jmp .goodCPU
 	
-	;; Try an opcode which is only good on 386+
+	;; Try an opcode which is only good on 486+
 	mov word [ISRRETURNADDR], .return1
-	mov EDX, CR0
-
-	;; OK, now try an opcode which is only good on 486+
-	.return1:	
-	mov word [ISRRETURNADDR], .return2
 	xadd DX, DX
 
 	;; Now try an opcode which is only good on a pentium+
-	.return2:	
-	mov word [ISRRETURNADDR], .return3
+	.return1:	
+	mov word [ISRRETURNADDR], .return2
 	mov EAX, dword [0000h]
 	not EAX
 	cmpxchg8b [0000h]
 
 	;; We know we're OK, but let's check for Pentium Pro+
-	.return3:	
-	mov word [ISRRETURNADDR], .return4
+	.return2:	
+	mov word [ISRRETURNADDR], .return3
 	cmovne AX, BX
 
 	;; Now we have to compare the number of 'invalid opcodes'
 	;; generated
-	.return4:	
+	.return3:	
 	mov AL, byte [INVALIDOPCODE]
 
 	cmp AL, 3
 	jae .badCPU
 
-	.goodCPU:		
 	;; If we fall through, we have an acceptible CPU
-	;; Use green colour
-	mov DL, 02h
-		
-	mov SI, HAPPY
-	call loaderPrint
-	mov SI, PROCESSOR
-	call loaderPrint
 
-	;; Now again, we make the distinction between different processors
+	;; We make the distinction between different processors
 	;; based on how many invalid opcodes we got
 	mov AL, byte [INVALIDOPCODE]
 
-	;; Switch to foreground colour
-	mov DL, FOREGROUNDCOLOUR
-	
 	cmp AL, 2
-	je .cpu486
-	cmp AL, 1
-	je .cpuPentium
-
-	;; Say we found a pentium pro CPU
-	mov SI, CPUPPRO
-	call loaderPrint
-	mov dword [CPUTYPE], pentiumPro
-	jmp .cpuId
-
-	.cpuPentium:	
-	;; Say we found a Pentium CPU
-	mov SI, CPUPENTIUM
-	call loaderPrint
-	mov dword [CPUTYPE], pentium
-	jmp .cpuId
-
-	.cpu486:	
-	;; Say we found a 486 CPU
-	mov SI, CPU486
-	call loaderPrint
+	jb .checkPentium
+	;; It's a 486
 	mov dword [CPUTYPE], i486
-	;; 486 doesn't support CPUID, but maybe some MMX?
+	jmp .detectMMX
+	
+	.checkPentium:	
+	cmp AL, 1
+	jb .pentiumPro
+	;; Pentium CPU
+	mov dword [CPUTYPE], pentium
 	jmp .detectMMX
 
-
-	.badCPU:	
-	;; Print out the fatal message that we're not running an
-	;; adequate processor
-
-	;; Use error colour
-	mov DL, ERRORCOLOUR
-
-	mov SI, SAD
-	call loaderPrint
-	mov SI, PROCESSOR
-	call loaderPrint
-
-	cmp byte [INVALIDOPCODE], 4
-	jae .older
-
-	mov SI, CPU386
-	call loaderPrint
-	jmp .endBadCPUMessages
-
-	.older:	
-	mov SI, CPU286
-	call loaderPrint
-
-	.endBadCPUMessages:	
-	mov SI, CPUCHECKBAD
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, CPUCHECKBAD2
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, BLANK
-	call loaderPrint
-	mov SI, CPUCHECKBAD3
-	call loaderPrint
-
-	;; Register the fatal error
-	add byte [FATALERROR], 01h
-
-	;; We're finished
-	jmp .unhook6
-
-	
-	.cpuId:
-	;; If we have a pentium or better, we can find out some more
-	;; information using the cpuid instruction
-	mov EAX, 0
-	cpuid
-	
-	;; Now, EBX:EDX:ECX should contain the vendor "string".  This might
-	;; be, for example "AuthenticAMD" or "GenuineIntel"
-	mov dword [CPUVEND], EBX
-	mov dword [(CPUVEND + 4)], EDX
-	mov dword [(CPUVEND + 8)], ECX
-
-	;; Print the CPU vendor string
-	mov CX, 12
-	mov SI, CPUVEND
-	mov DL, FOREGROUNDCOLOUR
-	call loaderPrint
-	mov SI, CLOSEBRACKETS
-	call loaderPrint
-	
+	.pentiumPro:	
+	;; Pentium pro CPU
+	mov dword [CPUTYPE], pentiumPro
 	
 	.detectMMX:
 	;; Are MMX or 3DNow! extensions supported by the processor?
@@ -247,20 +173,53 @@ detectProcessor:
 	;; If it was an invalid opcode, the processor does not support
 	;; MMX extensions
 	cmp byte [INVALIDOPCODE], 0
-	jnz .unhook6
+	jnz .print
 
 	mov dword [MMXEXT], 1
 	
-	mov SI, MMX			;; Say we found MMX
-	mov DL, FOREGROUNDCOLOUR
-
+	.print:
+	;; Done.  Print information about what we found
+	cmp word [PRINTINFO], 1
+	jne .unhook6
+	call printCpuInfo
+	jmp .unhook6
+		
+	.badCPU:	
+	;; Print out the fatal message that we're not running an
+	;; adequate processor
+	mov DL, ERRORCOLOR	; Use error color
+	mov SI, SAD
+	call loaderPrint
+	mov SI, PROCESSOR
 	call loaderPrint
 
-	.unhook6:
+	mov SI, CPU386
+	call loaderPrint
+
+	mov SI, CPUCHECKBAD
+	call loaderPrint
 	call loaderPrintNewline
+	mov SI, BLANK
+	call loaderPrint
+	mov SI, CPUCHECKBAD2
+	call loaderPrint
+	call loaderPrintNewline
+	mov SI, BLANK
+	call loaderPrint
+	mov SI, CPUCHECKBAD3
+	call loaderPrint
+	call loaderPrintNewline
+
+	;; Register the fatal error
+	add byte [FATALERROR], 01h
+
+	;; We're finished
+
+	.unhook6:
 	;; Unhook the 'invalid opcode' interrupt
 	call int6_restore
 
+	.done:	
 	;; Restore regs
 	popa
 	ret
@@ -269,20 +228,9 @@ detectProcessor:
 detectMemory:	
 	;; Determine the amount of extended memory
 
-
 	;; Save regs
 	pusha
 	
-	;; Print out a message about memory
-
-	;; Use green colour
-	mov DL, 02h
-
-	mov SI, HAPPY
-	call loaderPrint
-	mov SI, MEMDETECT1
-	call loaderPrint
-
 	mov dword [EXTENDEDMEMORY], 0
 	
 	;; This BIOS function will give us the amount of extended memory
@@ -319,13 +267,11 @@ detectMemory:
 	mov byte [(EXTENDEDMEMORY + 1)], AL
 
 	.printMemory:
-	mov EAX, dword [EXTENDEDMEMORY]
-	call loaderPrintNumber
-	mov SI, KREPORTED
-	mov DL, FOREGROUNDCOLOUR
-	call loaderPrint
-	call loaderPrintNewline
-
+	cmp word [PRINTINFO], 1
+	jne .noPrint
+	call printMemoryInfo
+	.noPrint:
+	
 	;; Now, can the system supply us with a memory map?  If it can,
 	;; this will allow us to supply a list of unusable memory to the
 	;; kernel (which will improve reliability, we hope).  Try to call
@@ -382,7 +328,6 @@ detectFloppies:
 	;; We need to test for up to two floppy disks.  We could do this
 	;; in a loop, but that would be silly for two iterations
 
-
 	;; Test for floppy 0.  
 	
 	;; This interrupt call will destroy ES, so save it
@@ -417,7 +362,6 @@ detectFloppies:
 	mov dword [FDD0TRACKS], EAX
 	mov AL, CL
 	mov dword [FDD0SECTS], EAX
-
 	
 	;; Test for floppy 1
 
@@ -456,19 +400,18 @@ detectFloppies:
 
 
 	.print:
+	cmp word [PRINTINFO], 1
+	jne .done
+	
 	;; Print message about the disk scan
 
-	;; Use green colour
-	mov DL, 02h
-
+	mov DL, 02h		; Use green color
 	mov SI, HAPPY
 	call loaderPrint
 	mov SI, FDDCHECK
 	call loaderPrint
 
-	;; Switch to foreground colour
-	mov DL, FOREGROUNDCOLOUR
-	
+	mov DL, FOREGROUNDCOLOR	; Switch to foreground color
 	mov EAX, dword [FLOPPYDISKS]
 	call loaderPrintNumber
 	mov SI, DISKCHECK
@@ -486,7 +429,6 @@ detectFloppies:
 	;; Print information about the disk.  EBX contains the pointer...
 	mov EBX, FDD1TYPE
 	call printFddInfo
-	
 
 	.done:
 	;; Restore regs
@@ -505,16 +447,6 @@ detectHardDisks:
 	;; Initialize
 	mov dword [HARDDISKS], 0
 	
-	;; Print messages about the disk scan
-
-	;; Use green colour
-	mov DL, 02h
-
-	mov SI, HAPPY
-	call loaderPrint
-	mov SI, HDDCHECK
-	call loaderPrint
-
 	;; Call the BIOS int13h function with the number of the first
 	;; disk drive.  Doesn't matter if it's actually present -- all
 	;; we want to do is find out how many drives there are
@@ -539,13 +471,22 @@ detectHardDisks:
 	mov dword [HARDDISKS], EAX
 
 	.printDisks:
+	cmp word [PRINTINFO], 1
+	jne .noPrint1
+	;; Print messages about the disk scan
+	mov DL, 02h		; Use green color
+	mov SI, HAPPY
+	call loaderPrint
+	mov SI, HDDCHECK
+	call loaderPrint
+
 	mov EAX, dword [HARDDISKS]
 	call loaderPrintNumber
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	mov SI, DISKCHECK
 	call loaderPrint
 	call loaderPrintNewline
-
+	.noPrint1:	
 	
 	;; Attempt to determine information about the drives
 
@@ -554,8 +495,20 @@ detectHardDisks:
 	mov EDI, HDD0HEADS
 
 	.driveLoop:
-	;; First try an advanced EBIOS function that will give us nice,
-	;; modern, large values
+	
+	;; If we are booting from this disk, put the boot sector LBA into the
+	;; active partition area
+	mov AX, CX
+	add AX, 80h
+	cmp AX, word [DRIVENUMBER]
+	jne .notBoot		; This is not the boot device
+	mov SI, PARTENTRY
+	mov EAX, dword [SI + 8]
+	mov dword [EDI + (HDD0ACTIVE - HDD0HEADS)], EAX
+	.notBoot:
+	
+	;; Try an advanced EBIOS function that will give us nice,
+	;; modern, large values about the disk
 	mov word [HDDINFO], 42h  ; Size of the info buffer we provide
 	mov AH, 48h
 	mov DL, CL
@@ -564,40 +517,20 @@ detectHardDisks:
 	int 13h
 	
 	;; Function call successful?
-	jc near .noEBIOS
+	jc .noEBIOS
 
 	;; Save the numbers of heads, cylinders, and sectors, and the
 	;; sector size (usually 512)
-	mov EAX, dword [(HDDINFO + 08h)]
-	mov dword [(EDI + 00h)], EAX		; heads
-	mov EAX, dword [(HDDINFO + 04h)]
-	mov dword [(EDI + 04h)], EAX 	; cylinders
-	mov EAX, dword [(HDDINFO + 0Ch)]
-	mov dword [(EDI + 08h)], EAX		; sectors
+	mov EAX, dword [HDDINFO + 08h]
+	mov dword [EDI], EAX					; heads
+	mov EAX, dword [HDDINFO + 04h]
+	mov dword [EDI + (HDD0CYLS - HDD0HEADS)], EAX		; cylinders
+	mov EAX, dword [HDDINFO + 0Ch]
+	mov dword [EDI + (HDD0SECTS - HDD0HEADS)], EAX		; sectors
 	xor EAX, EAX
-	mov AX, word [(HDDINFO + 18h)]
-	mov dword [(EDI + 0Ch)], EAX		; bytes per sector
+	mov AX, word [HDDINFO + 18h]
+	mov dword [EDI + (HDD0SECSIZE - HDD0HEADS)], EAX	; BPS
 	
-	;; Calculate the disk size.  EDI contains the pointer...
-	call diskSize
-
-	;; Is there any additional EDD info?
-	cmp dword [(HDDINFO + 1Ah)], 0FFFFFFFFh
-	je .noEDD0
-
-	.noEDD0:
-	;; Print information about the disk.  EBX contains the pointer...
-	mov EBX, EDI
-	call printHddInfo
-
-	;; Reset/specify/recalibrate the disk and controller
-	push ECX
-	mov AX, 0D00h
-	mov DL, 80h
-	add DL, CL
-	int 13h
-	pop ECX
-
 	;; Tell the controller to use the default PIO mode (and disable
 	;; DMA in the process)
 	push ECX
@@ -607,28 +540,15 @@ detectHardDisks:
 	int 13h
 	pop ECX	
 
-	;; Any more disks to inventory?
-	inc ECX
-	cmp ECX, dword [HARDDISKS]
-	jae near .done
-
-	;; Go to the next drive
-	add EDI, HDDBLOCKSIZE
-	jmp .driveLoop
-
+	jmp .gotInfo
+	
 	.noEBIOS:
 	;; We use this part if there is no EBIOS call supported to
 	;; determine hard disk info.  This is an old-fashioned call
 	;; that should be available on all PC systems
 
-	;; Start with drive 0.
-	mov ECX, 0
-	mov EDI, HDD0HEADS
-	
-	.noEBDiskLoop:
-	push ECX		; Save this
-
 	;; This interrupt call will destroy ES, so save it
+	push ECX		; Save this first
 	push ES
 	
 	mov AH, 08h		; Read disk drive parameters
@@ -636,47 +556,55 @@ detectHardDisks:
 	add DL, 80h
 	int 13h
 
-	;; Restore ES
+	;; Restore
 	pop ES
 	
 	;; If carry set, the call was unsuccessful (for whatever reason)
-	;; and we will consider ourselves finished
-	jnc .ok
+	;; and we will move to the next disk
+	jnc .okOldCall
 
-	;; There was an error
+	;; Error
 	pop ECX
-	jmp .done
-	
-	.ok:
+	jmp .nextDisk
+
+	.okOldCall:
 	;; Save the numbers of heads, cylinders, and sectors, and the
 	;; sector size (usually 512)
-	xor EAX, EAX		; heads
+
+	;; heads
+	xor EAX, EAX
 	mov AL, DH
 	inc AX			; Number is 0-based
-	mov dword [(EDI + 00h)], EAX 
-	xor EAX, EAX		; cylinders
+	mov dword [EDI], EAX
+	;; cylinders
+	xor EAX, EAX
 	mov AL, CL		; Two bits of cylinder number in bits 6&7
 	and AL, 11000000b	; Mask it
 	shl AX, 2		; Move them to bits 8&9
 	mov AL, CH		; Rest of the cylinder bits
 	inc AX			; Number is 0-based
-	mov dword [(EDI + 04h)], EAX 
-	xor EAX, EAX		; sectors
+	mov dword [EDI + (HDD0CYLS - HDD0HEADS)], EAX
+	;; sectors
+	xor EAX, EAX
 	mov AL, CL		; Bits 0-5
 	and AL, 00111111b	; Mask it
-	mov dword [(EDI + 08h)], EAX
-	mov dword [(EDI + 0Ch)], 512		; Assume 512 bps
+	mov dword [EDI + (HDD0SECTS - HDD0HEADS)], EAX
+	mov dword [EDI + (HDD0SECSIZE - HDD0HEADS)], 512 ; Assume 512 BPS
 
 	;; Restore ECX
 	pop ECX
-	
+
+	.gotInfo:
 	;; Calculate the disk size.  EDI contains the pointer...
 	call diskSize
-	
+
+	cmp word [PRINTINFO], 1
+	jne .noPrint2
 	;; Print information about the disk.  EBX contains the pointer...
 	mov EBX, EDI
 	call printHddInfo
-
+	.noPrint2:	
+	
 	;; Reset/specify/recalibrate the disk and controller
 	push ECX
 	mov AX, 0D00h
@@ -685,20 +613,45 @@ detectHardDisks:
 	int 13h
 	pop ECX
 
-	
+	.nextDisk:	
 	;; Any more disks to inventory?
 	inc ECX
 	cmp ECX, dword [HARDDISKS]
 	jae .done
 
 	;; Go to the next drive
-	add EDI, HDDBLOCKSIZE
-	jmp .noEBDiskLoop
+	add EDI, (HDD1HEADS - HDD0HEADS)
+	jmp .driveLoop
 
 	.done:
 	;; Restore regs
 	popa
 
+	ret
+
+
+detectSerial:
+	;; Detects the serial ports
+
+	pusha
+	push GS
+
+	xor EAX, EAX
+
+	push 0040h
+	pop GS
+	
+	mov AX, word [GS:00h]
+	mov dword [SERIAL1], EAX
+	mov AX, word [GS:02h]
+	mov dword [SERIAL2], EAX
+	mov AX, word [GS:04h]
+	mov dword [SERIAL3], EAX
+	mov AX, word [GS:06h]
+	mov dword [SERIAL4], EAX
+
+	pop GS
+	popa
 	ret
 
 
@@ -713,25 +666,118 @@ diskSize:
 
 	;; Calculate the disk size, in megabytes
 	
-	mov EAX, dword [(EDI + 0)]
-	mov EBX, dword [(EDI + 4)]
-	mul EBX
-	mov ECX, EAX
-
-	mov EAX, dword [(EDI + 8)]
-	mov EBX, dword [(EDI + 12)]
-	mul EBX
-	
-	mul ECX			; Combine
+	mov EAX, dword [EDI]				; heads
+	mul dword [EDI + (HDD0CYLS - HDD0HEADS)]	; cylinders
+	mul dword [EDI + (HDD0SECTS - HDD0HEADS)]	; sectors
+	mul dword [EDI + (HDD0SECSIZE - HDD0HEADS)]	; sector size
 	
 	;; Divide EDX:EAX by 1Mb
-	mov EBX, 1000000
+	mov EBX, 1048576
 	div EBX
-	mov dword [(EDI + 16)], EAX
+	mov dword [EDI + (HDD0SIZE - HDD0HEADS)], EAX
 
 	;; Restore regs
 	popa
 
+	ret
+
+
+printCpuInfo:
+	;; Takes no parameter, and prints info about the CPU that was
+	;; detected
+
+	pusha		
+
+	mov DL, 02h		; Use green color
+	mov SI, HAPPY
+	call loaderPrint
+	mov SI, PROCESSOR
+	call loaderPrint
+
+	;; Switch to foreground color
+	mov DL, FOREGROUNDCOLOR
+	
+	;; What type of CPU was it?
+	mov EAX, dword [CPUTYPE]
+	
+	cmp EAX, pentiumPro
+	jne .notPPro
+	;; Say we found a pentium pro CPU
+	mov SI, CPUPPRO
+	jmp .printType
+	
+	.notPPro:
+	cmp EAX, pentium
+	jne .notPentium
+	;; Say we found a Pentium CPU
+	mov SI, CPUPENTIUM
+	jmp .printType
+	
+	.notPentium:
+	;; Say we found a 486 CPU
+	mov SI, CPU486
+	
+	.printType:
+	call loaderPrint
+
+	
+	;; If we have a pentium or better, we can find out some more
+	;; information using the cpuid instruction
+	cmp dword [CPUTYPE], i486
+	je .noCPUID
+	
+	mov EAX, 0
+	cpuid
+	
+	;; Now, EBX:EDX:ECX should contain the vendor "string".  This might
+	;; be, for example "AuthenticAMD" or "GenuineIntel"
+	mov dword [CPUVEND], EBX
+	mov dword [(CPUVEND + 4)], EDX
+	mov dword [(CPUVEND + 8)], ECX
+	mov byte [(CPUVEND + 12)], 0
+	
+	;; Print the CPU vendor string
+	mov SI, CPUVEND
+	mov DL, FOREGROUNDCOLOR
+	call loaderPrint
+	mov SI, CLOSEBRACKETS
+	call loaderPrint
+	.noCPUID:
+
+	
+	;; Do we have MMX?
+	cmp dword [MMXEXT], 1
+	jne .noMMX
+	mov SI, MMX			;; Say we found MMX
+	mov DL, FOREGROUNDCOLOR
+	call loaderPrint
+	.noMMX:	
+	
+	call loaderPrintNewline
+
+	popa
+	ret
+
+	
+printMemoryInfo:
+	;;  Takes no parameters and prints out the amount of memory detected
+
+	pusha
+	
+	mov DL, 02h		; Use green color
+	mov SI, HAPPY
+	call loaderPrint
+	mov SI, MEMDETECT1
+	call loaderPrint
+
+	mov EAX, dword [EXTENDEDMEMORY]
+	call loaderPrintNumber
+	mov SI, KREPORTED
+	mov DL, FOREGROUNDCOLOR
+	call loaderPrint
+	call loaderPrintNewline
+
+	popa
 	ret
 	
 	
@@ -750,21 +796,21 @@ printFddInfo:
 	mov EAX, dword [(EBX + 4)]
 	call loaderPrintNumber
 
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	mov SI, HEADS
 	call loaderPrint
 				
 	mov EAX, dword [(EBX + 8)]
 	call loaderPrintNumber
 
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	mov SI, TRACKS
 	call loaderPrint
 				
 	mov EAX, dword [(EBX + 12)]
 	call loaderPrintNumber
 
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	mov SI, SECTS
 	call loaderPrint
 	call loaderPrintNewline
@@ -790,38 +836,37 @@ printHddInfo:
 	mov EAX, dword [(EBX + 0)]
 	call loaderPrintNumber
 
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	mov SI, HEADS
 	call loaderPrint
 				
 	mov EAX, dword [(EBX + 4)]
 	call loaderPrintNumber
 
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	mov SI, CYLS
 	call loaderPrint
 				
 	mov EAX, dword [(EBX + 8)]
 	call loaderPrintNumber
 
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	mov SI, SECTS
 	call loaderPrint
 
 	mov EAX, dword [(EBX + 16)]
 	call loaderPrintNumber
 	
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	mov SI, MEGA
 	call loaderPrint
 	call loaderPrintNewline
 				
 	;; Restore regs
 	popa
-
 	ret
 
-	
+
 int6_hook:
 	;; This sets up our hook for interrupt 6, in order to catch
 	;; invalid opcodes for CPU determination
@@ -944,6 +989,7 @@ HARDWAREINFO:
 	MEMORYMAP	times (MEMORYMAPSIZE * 20) db 0
 	;; This is all the information about the video capabilities
 	VIDEOMEMORY	dd 0 	;; In Kbytes
+	VIDEOMODE	dd 0 	;; Mode
 	VIDEOLFB	dd 0 	;; Address
 	VIDEOX		dd 0	;; maximum X resolution
 	VIDEOY		dd 0	;; maximum Y resolution
@@ -968,25 +1014,37 @@ HARDWAREINFO:
 	HDD0SECTS	dd 0	;; Number of sectors, disk 0
 	HDD0SECSIZE	dd 0	;; Bytes per sector, disk 0
 	HDD0SIZE	dd 0	;; Size in Mb, disk 0
+	HDD0ACTIVE	dd 0	;; Active partition, disk 0
 	;; Disk 1
 	HDD1HEADS	dd 0	;; Number of heads, disk 1
 	HDD1CYLS	dd 0	;; Number of cylinders, disk 1
 	HDD1SECTS	dd 0	;; Number of sectors, disk 1
 	HDD1SECSIZE	dd 0	;; Bytes per sector, disk 1
 	HDD1SIZE	dd 0	;; Size in Mb, disk 1
+	HDD1ACTIVE	dd 0	;; Active partition, disk 1
 	;; Disk 2
 	HDD2HEADS	dd 0	;; Number of heads, disk 2
 	HDD2CYLS	dd 0	;; Number of cylinders, disk 2
 	HDD2SECTS	dd 0	;; Number of sectors, disk 2
 	HDD2SECSIZE	dd 0	;; Bytes per sector, disk 2
 	HDD2SIZE	dd 0	;; Size in Mb, disk 2
+	HDD2ACTIVE	dd 0	;; Active partition, disk 2
 	;; Disk 3
 	HDD3HEADS	dd 0	;; Number of heads, disk 3
 	HDD3CYLS	dd 0	;; Number of cylinders, disk 3
 	HDD3SECTS	dd 0	;; Number of sectors, disk 3
 	HDD3SECSIZE	dd 0	;; Bytes per sector, disk 3
 	HDD3SIZE	dd 0	;; Size in Mb, disk 3
-
+	HDD3ACTIVE	dd 0	;; Active partition, disk 3
+	;; Info about the serial ports
+	SERIAL1		dd 0	;; Port address
+	SERIAL2		dd 0	;; Port address
+	SERIAL3		dd 0	;; Port address
+	SERIAL4		dd 0	;; Port address
+	;; Info about mouses
+	MOUSEPORT	dd 0	;; Port address
+	MOUSETYPE	dd 0	;; ID byte 
+	
 ;; 
 ;; These are general messages related to hardware detection
 ;;
@@ -994,11 +1052,10 @@ HARDWAREINFO:
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
 PROCESSOR	db 'Processor    ', 10h, ' ', 0
-CPUPPRO		db 'pentium pro or better ("', 0
-CPUPENTIUM	db 'pentium ("', 0
+CPUPPRO		db 'Pentium Pro or better ("', 0
+CPUPENTIUM	db 'Pentium ("', 0
 CPU486		db 'i486', 0
-CPU386		db 'i386', 0
-CPU286		db 'i286 (or lower)', 0
+CPU386		db 'i386 (or lower)', 0
 CLOSEBRACKETS	db '") ', 0
 MMX		db 'with MMX', 0
 MEMDETECT1	db 'Extended RAM ', 10h, ' ', 0
@@ -1011,6 +1068,7 @@ TRACKS		db ' tracks, ', 0
 CYLS		db ' cyls, ', 0
 SECTS		db ' sects   ', 0
 MEGA		db ' Mbytes', 0
+NOGRAPHICS	db 'NOGRAPH    ', 0
 
 	
 ;;

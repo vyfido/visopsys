@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,255 +21,203 @@
 
 #include "kernelDriverManagement.h"
 #include "kernelHardwareEnumeration.h"
-#include "kernelMiscAsmFunctions.h"
 #include "kernelError.h"
-#include <string.h>
 #include <sys/errors.h>
 
 
-// A bucket sctructure to hold all the drivers
-static kernelDriverManager kernelAllDrivers;
+// Static default driver structures
 
-// Static driver structures
-static kernelProcessorDriver defaultProcessorDriver;
-static kernelPicDeviceDriver defaultPicDriver;
-static kernelSysTimerDriver defaultSysTimerDriver;
-static kernelRtcDeviceDriver defaultRtcDriver;
-static kernelDmaDeviceDriver defaultDmaDriver;
-static kernelKeyboardDriver defaultKeyboardDriver;
-static kernelDiskDeviceDriver defaultFloppyDriver;
-static kernelDiskDeviceDriver defaultHardDiskDriver;
+// Default Processor routines
+static kernelProcessorDriver defaultProcessorDriver =
+{
+  kernelProcessorDriverInitialize,
+  kernelProcessorDriverReadTimestamp
+};
+
+// Default PIC routines
+static kernelPicDeviceDriver defaultPicDriver =
+{
+  kernelPicDriverInitialize,
+  kernelPicDriverEndOfInterrupt
+};
+
+// Default System Timer routines
+static kernelSysTimerDriver defaultSysTimerDriver =
+{
+  kernelSysTimerDriverInitialize,
+  kernelSysTimerDriverTick,
+  kernelSysTimerDriverRead,
+  kernelSysTimerDriverReadTimer,
+  kernelSysTimerDriverSetTimer
+};
+
+// Default Real-Time clock routines
+static kernelRtcDeviceDriver defaultRtcDriver =
+{
+  kernelRtcDriverInitialize,
+  kernelRtcDriverReadSeconds,
+  kernelRtcDriverReadMinutes,
+  kernelRtcDriverReadHours,
+  kernelRtcDriverReadDayOfWeek,
+  kernelRtcDriverReadDayOfMonth,
+  kernelRtcDriverReadMonth,
+  kernelRtcDriverReadYear
+};
+
+// Default serial port routines
+static kernelSerialDriver defaultSerialDriver =
+{
+  NULL,
+  NULL
+};
+
+// Default DMA driver routines
+static kernelDmaDeviceDriver defaultDmaDriver =
+{
+  kernelDmaDriverInitialize,
+  kernelDmaDriverSetupChannel,
+  kernelDmaDriverSetMode,
+  kernelDmaDriverEnableChannel,
+  kernelDmaDriverCloseChannel
+};
+
+// Default keyboard driver routines
+static kernelKeyboardDriver defaultKeyboardDriver =
+{
+  kernelKeyboardDriverInitialize,
+  kernelKeyboardDriverSetStream,
+  kernelKeyboardDriverReadData
+};
+
+// Default mouse driver routines
+static kernelMouseDriver defaultMouseDriver =
+{
+  kernelPS2MouseDriverInitialize,
+  kernelPS2MouseDriverReadData
+};
+
+// Default floppy driver routines
+static kernelDiskDeviceDriver defaultFloppyDriver =
+{
+  kernelFloppyDriverInitialize,
+  kernelFloppyDriverDescribe,
+  kernelFloppyDriverReset,
+  kernelFloppyDriverRecalibrate,
+  kernelFloppyDriverMotorOn,
+  kernelFloppyDriverMotorOff,
+  kernelFloppyDriverDiskChanged,
+  kernelFloppyDriverReadSectors,
+  kernelFloppyDriverWriteSectors,
+  kernelFloppyDriverLastErrorCode,
+  kernelFloppyDriverLastErrorMessage
+};
+
+static kernelDiskDeviceDriver defaultHardDiskDriver =
+{
+  kernelIdeDriverInitialize,
+  NULL,
+  kernelIdeDriverReset,
+  kernelIdeDriverRecalibrate,
+  NULL,
+  NULL,
+  NULL,
+  kernelIdeDriverReadSectors,
+  kernelIdeDriverWriteSectors,
+  kernelIdeDriverLastErrorCode,
+  kernelIdeDriverLastErrorMessage
+};
+
+// Default framebuffer graphic driver routines
+static kernelGraphicDriver defaultGraphicDriver =
+{
+  kernelLFBGraphicDriverInitialize,
+  kernelLFBGraphicDriverClearScreen,
+  kernelLFBGraphicDriverDrawPixel,
+  kernelLFBGraphicDriverDrawLine,
+  kernelLFBGraphicDriverDrawRect,
+  kernelLFBGraphicDriverDrawOval,
+  kernelLFBGraphicDriverDrawMonoImage,
+  kernelLFBGraphicDriverDrawImage,
+  kernelLFBGraphicDriverGetImage,
+  kernelLFBGraphicDriverCopyArea,
+  kernelLFBGraphicDriverRenderBuffer
+};
+
+// A bucket sctructure to hold all the drivers
+kernelDriverManager kernelAllDrivers = 
+{
+  &defaultProcessorDriver,
+  &defaultPicDriver,
+  &defaultSysTimerDriver,
+  &defaultRtcDriver,
+  &defaultSerialDriver,
+  &defaultDmaDriver,
+  &defaultKeyboardDriver,
+  &defaultMouseDriver,
+  &defaultFloppyDriver,
+  &defaultHardDiskDriver,
+  &defaultGraphicDriver
+};
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 
 int kernelInstallProcessorDriver(void)
 {
-  // This function knows about all of the default device driver for the
-  // indicated device, and will install it.  It is called by the 
-  // kernelDriverManagementInitialize(void) routine, and is not exported
-  // to the rest of the kernel.  It takes no arguments and returns
-  // an integer as a status indicator.  0 means success, negative otherwise.
-
-  int status = 0;
-
-
   // Install the default Processor Driver
-
-  // Initialize the space we've reserved for the default kernelProcessorDriver
-  // structure we're using
-  kernelMemClear(&defaultProcessorDriver, 
-			sizeof(kernelProcessorDriver));
-  // Put the processor driver into the kernelAllDrivers structure
-  kernelAllDrivers.processorDriver = &defaultProcessorDriver;
-
-  kernelAllDrivers.processorDriver->driverInitialize = DEFAULTPROCINIT;
-  kernelAllDrivers.processorDriver->driverReadTimestamp = DEFAULTPROCRDTSC;
-
-  kernelProcessorInstallDriver(kernelAllDrivers.processorDriver);
-
-  status = kernelAllDrivers.processorDriver->driverInitialize();
-  
-  return (status);
+  return (kernelProcessorInstallDriver(kernelAllDrivers.processorDriver));
 }
-
 
 int kernelInstallPicDriver(void)
 {
-  // This function knows about all of the default device driver for the
-  // indicated device, and will install it.  It is called by the 
-  // kernelDriverManagementInitialize(void) routine, and is not exported
-  // to the rest of the kernel.  It takes no arguments and returns
-  // an integer as a status indicator.  0 means success, negative otherwise.
-
-  int status = 0;
-
-
   // Install the default PIC driver
-
-  // Initialize the space we've reserved for the default kernelPicDeviceDriver
-  // structure we're using
-  kernelMemClear(&defaultPicDriver, sizeof(kernelPicDeviceDriver));
-  // Put the PIC driver into the kernelAllDrivers structure
-  kernelAllDrivers.picDriver = &defaultPicDriver;
-
-  kernelAllDrivers.picDriver->driverInitialize = DEFAULTPICINITIALIZE;
-  kernelAllDrivers.picDriver->driverEndOfInterrupt = DEFAULTPICEOI;
-
-  kernelPicInstallDriver(kernelAllDrivers.picDriver);
-  
-  status = kernelAllDrivers.picDriver->driverInitialize();
-
-  return (status);
+  return (kernelPicInstallDriver(kernelAllDrivers.picDriver));
 }
-
 
 int kernelInstallSysTimerDriver(void)
 {
-  // This function knows about all of the default device driver for the
-  // indicated device, and will install it.  It is called by the 
-  // kernelDriverManagementInitialize(void) routine, and is not exported
-  // to the rest of the kernel.  It takes no arguments and returns
-  // an integer as a status indicator.  0 means success, negative otherwise.
-
-  int status = 0;
-
-
   // Install the default System Timer Driver
-
-  // Initialize the space we've reserved for the default kernelSysTimerDriver
-  // structure we're using
-  kernelMemClear(&defaultSysTimerDriver, sizeof(kernelSysTimerDriver));
-  // Put the system timer driver into the kernelAllDrivers structure
-  kernelAllDrivers.sysTimerDriver = &defaultSysTimerDriver;
-
-  kernelAllDrivers.sysTimerDriver->driverInitialize = DEFAULTSYSTIMERINIT;
-  kernelAllDrivers.sysTimerDriver->driverTimerTick = DEFAULTSYSTIMERTICK;
-  kernelAllDrivers.sysTimerDriver->driverReadTicks = DEFAULTSYSTIMERREADTICKS;
-  kernelAllDrivers.sysTimerDriver->driverReadValue = DEFAULTSYSTIMERREADVALUE;
-  kernelAllDrivers.sysTimerDriver->driverSetupTimer = 
-    DEFAULTSYSTIMERSETUPTIMER;
-
-  kernelSysTimerInstallDriver(kernelAllDrivers.sysTimerDriver);
-
-  status = kernelAllDrivers.sysTimerDriver->driverInitialize();
-
-  return (status);
+  return (kernelSysTimerInstallDriver(kernelAllDrivers.sysTimerDriver));
 }
-
 
 int kernelInstallRtcDriver(void)
 {
-  // This function knows about all of the default device driver for the
-  // indicated device, and will install it.  It is called by the 
-  // kernelDriverManagementInitialize(void) routine, and is not exported
-  // to the rest of the kernel.  It takes no arguments and returns
-  // an integer as a status indicator.  0 means success, negative otherwise.
-
-  int status = 0;
-
-
   // Install the default Real-Time clock driver
-
-  // Initialize the space we've reserved for the default kernelRtcDeviceDriver
-  // structure we're using
-  kernelMemClear(&defaultRtcDriver, sizeof(kernelRtcDeviceDriver));
-  // Put the RTC driver into the kernelAllDrivers structure
-  kernelAllDrivers.rtcDriver = &defaultRtcDriver;
-
-  kernelAllDrivers.rtcDriver->driverInitialize = DEFAULTRTCINITIALIZE;
-  kernelAllDrivers.rtcDriver->driverReadSeconds = DEFAULTRTCSECONDS;
-  kernelAllDrivers.rtcDriver->driverReadMinutes = DEFAULTRTCMINUTES;
-  kernelAllDrivers.rtcDriver->driverReadHours = DEFAULTRTCHOURS;
-  kernelAllDrivers.rtcDriver->driverReadDayOfWeek = DEFAULTRTCDAYOFWEEK;
-  kernelAllDrivers.rtcDriver->driverReadDayOfMonth = DEFAULTRTCDAYOFMONTH;
-  kernelAllDrivers.rtcDriver->driverReadMonth = DEFAULTRTCMONTH;
-  kernelAllDrivers.rtcDriver->driverReadYear = DEFAULTRTCYEAR;
-
-  kernelRtcInstallDriver(kernelAllDrivers.rtcDriver);
-  
-  status = kernelAllDrivers.rtcDriver->driverInitialize();
-
-  return (status);
+  return (kernelRtcInstallDriver(kernelAllDrivers.rtcDriver));
 }
-
 
 int kernelInstallDmaDriver(void)
 {
-  // This function knows about all of the default device driver for the
-  // indicated device, and will install it.  It is called by the 
-  // kernelDriverManagementInitialize(void) routine, and is not exported
-  // to the rest of the kernel.  It takes no arguments and returns
-  // an integer as a status indicator.  0 means success, negative otherwise.
-
-  int status = 0;
-
   // Install the default DMA driver
-
-  // Initialize the space we've reserved for the default kernelDmaDriver
-  // structure we're using
-  kernelMemClear(&defaultDmaDriver, sizeof(kernelDmaDeviceDriver));
-  // Put the DMA driver into the kernelAllDrivers structure
-  kernelAllDrivers.dmaDriver = &defaultDmaDriver;
-
-  kernelAllDrivers.dmaDriver->driverInitialize = DEFAULTDMAINIT;
-  kernelAllDrivers.dmaDriver->driverSetupChannel = DEFAULTDMASETUPCHANNEL;
-  kernelAllDrivers.dmaDriver->driverSetMode = DEFAULTDMASETMODE;
-  kernelAllDrivers.dmaDriver->driverEnableChannel = DEFAULTDMAENABLECHANNEL;
-  kernelAllDrivers.dmaDriver->driverCloseChannel = DEFAULTDMACLOSECHANNEL;
-
-  kernelDmaFunctionsInstallDriver(kernelAllDrivers.dmaDriver);
-
-  status = kernelAllDrivers.dmaDriver->driverInitialize();
-
-  return (status);
+  return (kernelDmaFunctionsInstallDriver(kernelAllDrivers.dmaDriver));
 }
-
 
 int kernelInstallKeyboardDriver(void)
 {
-  // This function knows about all of the default device driver for the
-  // indicated device, and will install it.  It is called by the 
-  // kernelDriverManagementInitialize(void) routine, and is not exported
-  // to the rest of the kernel.  It takes no arguments and returns
-  // an integer as a status indicator.  0 means success, negative otherwise.
-
-  int status = 0;
-
   // Install the default keyboard driver
-
-  // Initialize the space we've reserved for the default kernelKeyboardDriver
-  // structure we're using
-  kernelMemClear(&defaultKeyboardDriver, sizeof(kernelKeyboardDriver));
-  // Put the keyboard driver into the kernelAllDrivers structure
-  kernelAllDrivers.keyboardDriver = &defaultKeyboardDriver;
-
-  kernelAllDrivers.keyboardDriver->driverInitialize = DEFAULTKBRDINIT;
-  kernelAllDrivers.keyboardDriver->driverReadData = DEFAULTKBRDREADDATA;
-
-  kernelKeyboardInstallDriver(kernelAllDrivers.keyboardDriver);
-
-  return (status);
+  return(kernelKeyboardInstallDriver(kernelAllDrivers.keyboardDriver));
 }
 
+int kernelInstallMouseDriver(void)
+{
+  // Install the default mouse driver
+  return(kernelMouseInstallDriver(kernelAllDrivers.mouseDriver));
+}
 
 int kernelInstallFloppyDriver(void)
 {
-  // This function knows about all of the default device driver for the
-  // indicated device, and will install it.  It is called by the 
-  // kernelDriverManagementInitialize(void) routine, and is not exported
-  // to the rest of the kernel.  It takes no arguments and returns
-  // an integer as a status indicator.  0 means success, negative otherwise.
-
-  int status = 0;
-  int numDisks = 0;
-  int count;
-
-  // Temp variable for installing drivers
-  kernelDiskObject *theDisk;
-
-
   // Install the default Floppy disk driver
 
-  // Initialize the space we've reserved for the default
-  // kernelDiskDeviceDriver structure we're using
-  kernelMemClear(&defaultFloppyDriver, sizeof(kernelDiskDeviceDriver));
-
-  kernelAllDrivers.floppyDriver = &defaultFloppyDriver;
-
-  // Add the required driver routines to the kernelDiskDeviceDriver
-  // structure.  These are already pointers (see header)
-  kernelAllDrivers.floppyDriver->driverInitialize = DEFAULTFLOPPYINIT;
-  kernelAllDrivers.floppyDriver->driverDescribe = DEFAULTFLOPPYDESCRIBE;
-  kernelAllDrivers.floppyDriver->driverReset = DEFAULTFLOPPYRESET;
-  kernelAllDrivers.floppyDriver->driverRecalibrate = DEFAULTFLOPPYRECALIBRATE;
-  kernelAllDrivers.floppyDriver->driverMotorOn = DEFAULTFLOPPYMOTORON;
-  kernelAllDrivers.floppyDriver->driverMotorOff = DEFAULTFLOPPYMOTOROFF;
-  kernelAllDrivers.floppyDriver->driverDiskChanged = DEFAULTFLOPPYDISKCHANGED;
-  kernelAllDrivers.floppyDriver->driverReadSectors = DEFAULTFLOPPYREAD;
-  kernelAllDrivers.floppyDriver->driverWriteSectors = DEFAULTFLOPPYWRITE;
-  kernelAllDrivers.floppyDriver->driverLastErrorCode = DEFAULTFLOPPYERRCODE;
-  kernelAllDrivers.floppyDriver->driverLastErrorMessage =DEFAULTFLOPPYERRMESS;
-  
-  // Install the floppy disk driver objects
+  int status = 0;
+  kernelDiskObject *theDisk;
+  int count;
 
   if (systemInfo == NULL)
     {
@@ -278,94 +226,49 @@ int kernelInstallFloppyDriver(void)
       return (status = ERR_NOTINITIALIZED);
     }
 
-  numDisks = systemInfo->floppyDisks;
-
-  for (count = 0; count < numDisks; count ++)
+  for (count = 0; count < systemInfo->floppyDisks; count ++)
     {
       theDisk = kernelGetFloppyDiskObject(count);
 
       // Put the floppy driver into the kernelDiskObject structures
-      kernelDiskFunctionsInstallDriver(theDisk, 
-				       kernelAllDrivers.floppyDriver);
+      status = kernelDiskFunctionsInstallDriver(theDisk, 
+						kernelAllDrivers
+						.floppyDriver);
+      if (status < 0)
+	return (status);
     }
   
-  status = kernelAllDrivers.floppyDriver->driverInitialize();
-
-  return (status);
+  return (status = 0);
 }
-
 
 int kernelInstallHardDiskDriver(void)
 {
-  // This function knows about all of the default device driver for the
-  // indicated device, and will install it.  It is called by the 
-  // kernelDriverManagementInitialize(void) routine, and is not exported
-  // to the rest of the kernel.  It takes no arguments and returns
-  // an integer as a status indicator.  0 means success, negative otherwise.
+  // Install the hard disk driver
 
   int status = 0;
   int numDisks = 0;
+  kernelDiskObject *theDisk;
   int count;
 
-  // Temp variable for installing drivers
-  kernelDiskObject *theDisk;
-
-
-  // Install the hard disk driver
-
-  // Initialize the space we've reserved for the default
-  // kernelDiskDeviceDriver structure we're using
-  kernelMemClear(&defaultHardDiskDriver, 
-			sizeof(kernelDiskDeviceDriver));
-
-  kernelAllDrivers.hardDiskDriver = &defaultHardDiskDriver;
-
-  // Add the required driver routines to the kernelDiskDeviceDriver
-  // structure.  These are already pointers (see header)
-  kernelAllDrivers.hardDiskDriver->driverInitialize = DEFAULTHDDINIT;
-  kernelAllDrivers.hardDiskDriver->driverDescribe = DEFAULTHDDESCRIBE;
-  kernelAllDrivers.hardDiskDriver->driverReset = DEFAULTHDDRESET;
-  kernelAllDrivers.hardDiskDriver->driverRecalibrate = DEFAULTHDDRECALIBRATE;
-  kernelAllDrivers.hardDiskDriver->driverMotorOn = DEFAULTHDDMOTORON;
-  kernelAllDrivers.hardDiskDriver->driverMotorOff = DEFAULTHDDMOTOROFF;
-  kernelAllDrivers.hardDiskDriver->driverDiskChanged = DEFAULTHDDDISKCHANGED;
-  kernelAllDrivers.hardDiskDriver->driverReadSectors = DEFAULTHDDREAD;
-  kernelAllDrivers.hardDiskDriver->driverWriteSectors = DEFAULTHDDWRITE;
-  kernelAllDrivers.hardDiskDriver->driverLastErrorCode = DEFAULTHDDERRCODE;
-  kernelAllDrivers.hardDiskDriver->driverLastErrorMessage = DEFAULTHDDERRMESS;
-  
-  // Install the hard disk drivers
-
   numDisks = kernelGetNumberLogicalHardDisks();
+
   for (count = 0; count < numDisks; count ++)
     {
       theDisk = kernelGetHardDiskObject(count);
       
       // Put the hard disk driver into the kernelDiskObject structures
-      kernelDiskFunctionsInstallDriver(theDisk, 
-				       kernelAllDrivers.hardDiskDriver);
+      status = kernelDiskFunctionsInstallDriver(theDisk, 
+						kernelAllDrivers
+						.hardDiskDriver);
+      if (status < 0)
+	return (status);
     }
   
-  status = kernelAllDrivers.hardDiskDriver->driverInitialize();
-
-  return (status);
+  return (status = 0);
 }
 
-
-int kernelDriverManagementInitialize(void)
+int kernelInstallGraphicDriver(void)
 {
-  // This routine is used to initialize the driver management functions,
-  // install the default drivers, etc.  It takes no arguments and returns
-  // an integer as a status indicator.  0 means success, negative otherwise.
-
-  int status = 0;
-
-  // Put some meat into the structure (initialize it)
-  kernelMemClear(&kernelAllDrivers, sizeof(kernelDriverManager));
-
-  // That's all we do.  The hardware enumeration routines will call 
-  // each of the functions above to initialize the drivers of the 
-  // devices in order.
-  
-  return (status = 0);
+  // Install the default graphic adapter driver
+  return (kernelGraphicInstallDriver(kernelAllDrivers.graphicDriver));
 }

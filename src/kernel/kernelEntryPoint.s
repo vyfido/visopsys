@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -47,10 +47,27 @@ kernelEntryPoint:
 	;; Save regs
 	pusha
 
-	;; Get the calling function's stack pointer.
-	;; The stack pointer will be at [ESP + 44].
-	mov EAX, dword [ESP + 44]
+	;; We get a pointer to the calling function's parameters differently
+	;; depending on whether there was a privilege level switch.  Find
+	;; out by checking the privilege of the CS register pushed as
+	;; part of the return address.
+	mov EAX, dword [ESP + 40]
+	and AL, 00000011b
+	cmp AL, 0
+	je .privilegedCaller
 	
+	;; The caller is unprivileged, so its stack pointer is on our stack
+	;; just beyond the return address, at [ESP + 44].
+	mov EAX, dword [ESP + 44]
+	jmp .call
+
+	.privilegedCaller:
+	;; Point to the first parameter, located just beyond the return
+	;; address
+	mov EAX, ESP
+	add EAX, 44
+
+	.call:
 	;; Call a C function to to all the work
 	push dword EAX		; arg pointer
 	call kernelApi

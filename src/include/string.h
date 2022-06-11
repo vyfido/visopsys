@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -36,6 +36,7 @@
 // typedef unsigned int size_t;
 
 // Functions
+int memcmp(const void *, const void *, size_t);
 void *memcpy(void *, const void *, size_t);
 void *memmove(void *, const void *, size_t);
 int strcasecmp(const char *, const char *);
@@ -46,6 +47,7 @@ size_t strlen(const char *);
 char *strncat(char *, const char *, size_t);
 int strncmp(const char *, const char *, size_t);
 char *strncpy(char *, const char *, size_t);
+size_t strspn(const char *, const char *);
 
 #if !defined(__cplusplus)
 char *strstr(const char *, const char *);
@@ -68,21 +70,19 @@ char *strstr(const char *, const char *);
     return 0;                    \
   }
 
-#if !defined(__cplusplus)
 // These functions are unimplemented
+
+#if !defined(__cplusplus)
 #define memchr(s, c, n) not_implemented_ptr()
 #define strchr(s, c) not_implemented_ptr()
 #define strpbrk(s1, s2) not_implemented_ptr()
 #define strrchr(s, c) not_implemented_ptr()
 #endif
 
-// These functions are unimplemented
-#define memcmp(s1, s2, n) not_implemented_int()
 #define memset(s, c, n) not_implemented_ptr()
 #define strcoll(s1, s2) not_implemented_int()
 #define strcspn(s1, s2) not_implemented_uns()
 #define strerror(errcode) not_implemented_ptr()
-#define strspn(s1, s2) not_implemented_uns()
 #define strtok(s1, s2) not_implemented_ptr()
 #define strxfrm(s1, s2, n) not_implemented_uns()
 

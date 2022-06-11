@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,9 +23,6 @@
 // resource management facilities (resource locking, etc.)
 
 #if !defined(_KERNELRESOURCEMANAGER_H)
-
-// Definitions
-#define RESOURCE_MAX_SPINS 10000
 
 // Functions exported by kernelResourceManager.c
 int kernelResourceManagerLock(volatile int *);

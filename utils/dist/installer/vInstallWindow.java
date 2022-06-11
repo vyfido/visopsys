@@ -1,6 +1,6 @@
 //
 //  Visopsys Java Installer
-//  Copyright (C) 2001 J. Andrew McLaughlin
+//  Copyright (C) 2002-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -387,7 +387,7 @@ public class vInstallWindow
 	    {
 		String aboutText =
 		    "Visopsys Java Installer\n" +
-		    "Copyright 2001 J. Andrew McLaughlin\n\n" +
+		    "Copyright (C) 2002-2003 J. Andrew McLaughlin\n\n" +
 		    "Distributed as part of the Visopsys Operating " +
 		    " System\n\n" +
 		    "This program is free software; you can redistribute " +
@@ -559,16 +559,18 @@ class vInstallThread
 	Process process = null;
 	InputStreamReader stderr = null;
 	
-	// for (int count = 0; count < command.length; count ++)
-	//     System.out.print("\"" + command[count] + "\"" + " ");
-	// System.out.println();
+	/*
+	for (int count = 0; count < command.length; count ++)
+	    System.out.print(command[count] + " ");
+	System.out.println();
+	*/
 
 	try {
 	    process = java.lang.Runtime.getRuntime().exec(command);
 	}
-	catch (IOException e) {
+	catch (Exception e) {
 	    // Oops, couldn't execute the command
-	    System.out.println(e.toString());
+	    e.printStackTrace();
 	    throw new Exception("Execution failed");
 	}
 
@@ -885,19 +887,16 @@ class vInstallThread
     {
 	// Writes the boot sector
 
-	File bootSectorFile = new File(win.bootSectorName);
-	File installDeviceFile = new File(win.installDeviceString);
-	FileInputStream inStream = null;
-	FileOutputStream outStream = null;
+	String[] writebootCommand = new String[3];
 
 	// Since writing the bootsector happens last, do this first
 	updateProgress(progress += PROGRESS_BOOTSECT);
 
 	if (win.platform == vInstallWindow.PLATFORM_WINDOWS)
 	    {
-		// If this is a Windows machine, we need to call an external
-		// program to write the boot sector for us (since there's no
-		// 'file' representation of the device in WindowsLand)
+		// If this is a Windows machine, we need to calculate the
+		// drive number, and call a DOS .bat file to write the
+		// boot sector to it.
 
 		char driveLetter =
 		    Character.toUpperCase(win.installDeviceString.charAt(0));
@@ -913,62 +912,31 @@ class vInstallThread
 			return (false);
 		    }
 	    
-		String[] writebootCommand = new String[3];
 		writebootCommand[0] = "dosutil\\writeboot.bat";
 		writebootCommand[1] = win.bootSectorName;
 		writebootCommand[2] = "" + driveNumber;
-		try {
-		    externalCommand(writebootCommand);
-		}
-		catch (Exception e) {
-		    // Couldn't write the boot sector
-		    new vInstallInfoDialog(win, "Writing boot sector failed",
-				   true, "Unable to write the boot sector " +
-				   " on device \"" + win.installDeviceString +
-				   "\"");
-		    return (false);
-		}
 	    }
 	else
 	    {
-		// Not Windows, so we can write the boot sector directly
-		// to the device file.
-
-		try {
-		    inStream = new FileInputStream(bootSectorFile);
-		    outStream = new FileOutputStream(installDeviceFile);
-
-		    // Read/write
-		    byte[] buffer = new byte[(int) bootSectorFile.length()];
-		    while (true)
-			{
-			    // Read all available bytes
-			    int bytesRead = inStream.read(buffer, 0,
-							  buffer.length);
-			    
-			    // Are we finished?
-			    if (bytesRead == -1)
-				break;
-
-			    // Write all the bytes we read
-			    outStream.write(buffer, 0, bytesRead);
-			}
-
-		    // Close the streams for this file
-		    inStream.close();
-		    outStream.close();
-		}
-		catch (Exception e) {
-		    // Miscellaneous failures
-		    System.out.println(e.toString());
-		    try {
-			inStream.close();
-			outStream.close();
-		    }
-		    catch (Exception ee) { } 
-		    return (false);
-		}
+		// Not Windows, so we use a different unix script
+		
+		writebootCommand[0] = "unixutil/copy-boot.sh";
+		writebootCommand[1] = win.bootSectorName;
+		writebootCommand[2] = win.installDeviceString;
 	    }
+
+	// Run the command
+	try {
+	    externalCommand(writebootCommand);
+	}
+	catch (Exception e) {
+	    // Couldn't write the boot sector
+	    new vInstallInfoDialog(win, "Writing boot sector failed",
+				   true, "Unable to write the boot sector " +
+				   " on device \"" + win.installDeviceString +
+				   "\"");
+	    return (false);
+	}
 
 	return (true);
     }

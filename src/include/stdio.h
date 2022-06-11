@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -63,10 +63,12 @@ int putchar(int);
 int puts(const char *);
 int remove(const char *);
 void rewind(FILE *);
+int scanf(const char *, ...);
 int sprintf(char *, const char *, ...);
 
 // Internal routines, but are exported
-int _expand_format_string(char *, const char *, va_list);
+int _expandFormatString(char *, const char *, va_list);
+int _formatInput(const char *, const char *, va_list);
 
 
 // For dealing with unimplemented routines
@@ -107,7 +109,6 @@ int _expand_format_string(char *, const char *, va_list);
 #define freopen(filename, mode, stream) not_implemented_ptr()
 #define fscanf(stream, format, ...) not_implemented_int()
 #define fwrite(ptr, size, nelem, stream) not_implemented_uns()
-#define scanf(format, ...) not_implemented_int()
 #define setbuf(stream, buf) not_implemented_void()
 #define setvbuf(stream, buf, mode, size) not_implemented_int()
 #define sscanf(s, format, ...) not_implemented_int()

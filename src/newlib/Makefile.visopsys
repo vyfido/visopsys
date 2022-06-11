@@ -1,0 +1,66 @@
+##
+##  Visopsys
+##  Copyright (C) 1998-2003 J. Andrew McLaughlin
+## 
+##  This program is free software; you can redistribute it and/or modify it
+##  under the terms of the GNU General Public License as published by the Free
+##  Software Foundation; either version 2 of the License, or (at your option)
+##  any later version.
+## 
+##  This program is distributed in the hope that it will be useful, but
+##  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+##  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+##  for more details.
+##  
+##  You should have received a copy of the GNU General Public License along
+##  with this program; if not, write to the Free Software Foundation, Inc.,
+##  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+##
+##  Makefile
+##
+
+# This stuff is compile-only.  It is not linked except into a single
+# cohesive object file.
+
+
+CC		= gcc
+LD		= ld
+
+CCOPTS		= -nostdlib -nodefaultlibs -nostartfiles -nostdinc -O2 \
+		-falign-loops=2 -falign-jumps=2 -falign-functions=2 \
+		-mcpu=pentium -Wall -fno-strength-reduce -Werror
+
+INCLUDES	= -I. -I ../../include
+STDDEP		= Makefile.am sys/*.h
+
+OBJS  	= close.o \
+	crt0.o \
+	execve.o \
+	fcntl.o \
+	fork.o \
+	fstat.o \
+	getpid.o \
+	gettod.o \
+	kill.o \
+	link.o \
+	lseek.o \
+	open.o \
+	read.o \
+	sbrk.o \
+	stat.o \
+	times.o \
+	unlink.o \
+	wait.o \
+	write.o
+
+
+all: ${OBJS}
+
+.c.o:
+	${CC} ${CCOPTS} ${INCLUDES} -c $<
+
+
+# Miscellany
+
+clean:
+	rm -Rf *~ *.o core

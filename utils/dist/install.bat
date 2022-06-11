@@ -2,7 +2,7 @@
 
 ::
 ::  Visopsys Java Installer
-::  Copyright (C) 2001 J. Andrew McLaughlin
+::  Copyright (C) 2003 J. Andrew McLaughlin
 :: 
 ::  This program is free software; you can redistribute it and/or modify it
 ::  under the terms of the GNU General Public License as published by the Free
@@ -24,3 +24,16 @@
 :: This just runs the Java installer
 set CLASSPATH=vInstall.jar
 java vInstall
+
+if ERRORLEVEL 0 goto done
+
+:: Maybe no Java?
+echo.
+echo Error executing installation program: Maybe no Java available on your system?
+echo Trying basic installation script instead...
+echo.
+
+:: Try our other batch script instead
+
+:done
+

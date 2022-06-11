@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,25 +25,6 @@
 
 // Here is a list of all of the external interrupt handlers we will be
 // installing into the descriptor table
-extern void kernelExceptionHandler0(void);
-extern void kernelExceptionHandler1(void);
-extern void kernelExceptionHandler2(void);
-extern void kernelExceptionHandler3(void);
-extern void kernelExceptionHandler4(void);
-extern void kernelExceptionHandler5(void);
-extern void kernelExceptionHandler6(void);
-extern void kernelExceptionHandler7(void);
-extern void kernelExceptionHandler8(void);
-extern void kernelExceptionHandler9(void);
-extern void kernelExceptionHandlerA(void);
-extern void kernelExceptionHandlerB(void);
-extern void kernelExceptionHandlerC(void);
-extern void kernelExceptionHandlerD(void);
-extern void kernelExceptionHandlerE(void);
-extern void kernelExceptionHandlerF(void);
-extern void kernelExceptionHandler10(void);
-extern void kernelExceptionHandler11(void);
-extern void kernelExceptionHandler12(void);
 extern void kernelInterruptHandler20(void);
 extern void kernelInterruptHandler21(void);
 extern void kernelInterruptHandler25(void);
@@ -58,7 +39,6 @@ extern void kernelInterruptHandler2D(void);
 extern void kernelInterruptHandler2E(void);
 extern void kernelInterruptHandler2F(void);
 extern void kernelInterruptHandlerUnimp(void);
-
 
 // The list of functions exported from kernelInterruptsInit.c
 int kernelInterruptVectorsInstall(void);

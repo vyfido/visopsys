@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,7 +22,6 @@
 #include "kernelMain.h"
 #include "kernelParameters.h"
 #include "kernelInitialize.h"
-#include "kernelText.h"
 #include "kernelSysTimerFunctions.h"
 #include "kernelMultitasker.h"
 #include "kernelMiscFunctions.h"
@@ -30,22 +29,17 @@
 #include "kernelShutdown.h"
 #include "kernelError.h"
 
-
-// This is the global 'errno' variable that will be set on error by
-// any standard library functions we use.  We need to declare it here
-// because the kernel doesn't use the start.o code used by applications
-int errno = 0;
-
 // This is a variable that is checked by the standard library before calling
 // any kernel API functions.  This helps to prevent any API functions from
 // being called from within the kernel (which is bad).  For example, it is
 // permissable to use sprintf() inside the kernel, but not printf().  This
 // should help to catch mistakes.
-int visopsys_in_kernel = 1;
+extern int visopsys_in_kernel;
+
+int kernelBootDisk = 0;
 
 
-void kernelMain(int bootDevice, unsigned int kernelMemory,
-		loaderInfoStruct *info)
+void kernelMain(int bootDevice, unsigned kernelMemory, loaderInfoStruct *info)
 {
 
   // This is the kernel entry point -- and main routine --
@@ -54,12 +48,17 @@ void kernelMain(int bootDevice, unsigned int kernelMemory,
   int status = 0;
   loaderInfoStruct systemInfo;
 
+  visopsys_in_kernel = 1;
+
+  // This will need adjustment after we enumerate the *volumes* on all
+  // the physical devices
+  kernelBootDisk = bootDevice;
 
   // Copy the loaderHardware structure we were passed into kernel memory
   kernelMemCopy(info, &systemInfo, sizeof(loaderInfoStruct));
 
   // Call the kernel initialization routine
-  status = kernelInitialize(bootDevice, kernelMemory, &systemInfo);
+  status = kernelInitialize(kernelMemory, &systemInfo);
   
   if (status < 0)
     {
@@ -68,7 +67,8 @@ void kernelMain(int bootDevice, unsigned int kernelMemory,
       // error routine, but we'll do it anyway.
 
       // Make the error
-      kernelError(kernel_error, "Initialization failed.  Press any key (or the \"reset\" button) to reboot.");
+      kernelError(kernel_error, "Initialization failed.  Press any key "
+		  "(or the \"reset\" button) to reboot.");
 
       // Do a loop, manually polling the keyboard input buffer
       // looking for the key press to reboot.

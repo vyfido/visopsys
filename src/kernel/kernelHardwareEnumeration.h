@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,10 +27,10 @@
 extern loaderInfoStruct *systemInfo;
 
 // Functions exported by kernelHardwareEnumeration.c
+int kernelHardwareEnumerate(loaderInfoStruct *);
 
 // These ones can be used by external routines to get information 
 // about the hardware
-int kernelHardwareEnumerate(loaderInfoStruct *);
 kernelDiskObject *kernelGetFloppyDiskObject(int);
 int kernelGetNumberLogicalHardDisks(void);
 kernelDiskObject *kernelGetHardDiskObject(int);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,11 +21,15 @@
 
 #if !defined(_KERNELPAGEMANAGER_H)
 
+// Definitions
+#define TABLES_PER_DIR  1024
+#define PAGES_PER_TABLE 1024
+
 // Data structures
 
 typedef volatile struct 
 {
-  unsigned int table[1024];
+  unsigned table[TABLES_PER_DIR];
 
 } kernelPageDirPhysicalMem;
 
@@ -33,21 +37,11 @@ typedef kernelPageDirPhysicalMem kernelPageDirVirtualMem;
 
 typedef volatile struct 
 {
-  unsigned int page[1024];
+  unsigned page[PAGES_PER_TABLE];
 
 } kernelPageTablePhysicalMem;
 
 typedef kernelPageTablePhysicalMem kernelPageTableVirtualMem;
-
-typedef volatile struct
-{
-  int tableNumber;
-  kernelPageTablePhysicalMem *physical;
-  kernelPageTableVirtualMem *virtual;
-  void *next;
-  void *previous;
-
-} kernelPageTable;
 
 typedef volatile struct
 {
@@ -57,25 +51,33 @@ typedef volatile struct
   int privilege;
   kernelPageDirPhysicalMem *physical;
   kernelPageDirVirtualMem *virtual;
-  int lastPageTableNumber;
-  kernelPageTable *firstTable;
+  int dirLock;
 
 } kernelPageDirectory;
 
+typedef volatile struct
+{
+  kernelPageDirectory *directory;
+  int tableNumber;
+  int freePages;
+  kernelPageTablePhysicalMem *physical;
+  kernelPageTableVirtualMem *virtual;
+
+} kernelPageTable;
 
 // Functions exported by kernelPageManager.c
-int kernelPageManagerInitialize(unsigned int);
+int kernelPageManagerInitialize(unsigned);
 void *kernelPageGetDirectory(int);
 void *kernelPageNewDirectory(int, int);
 void *kernelPageShareDirectory(int, int);
 int kernelPageDeleteDirectory(int);
-int kernelPageMapToFree(int, void *, void **, unsigned int);
-int kernelPageUnmap(int, void **, void *, unsigned int);
+int kernelPageMapToFree(int, void *, void **, unsigned);
+int kernelPageUnmap(int, void *, unsigned);
 void *kernelPageGetPhysical(int, void *);
 
 // Macros
-#define tableNumber(address) ((unsigned int) address >> 22);
-#define pageNumber(address) (((unsigned int) address >> 12) & 0x000003FF);
+#define getTableNumber(address) ((((unsigned) address) >> 22) & 0x000003FF)
+#define getPageNumber(address) ((((unsigned) address) >> 12) & 0x000003FF)
 
 #define _KERNELPAGEMANAGER_H
 #endif

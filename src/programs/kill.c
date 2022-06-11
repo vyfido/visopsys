@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,13 +23,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/api.h>
 
 
 static void usage(char *name)
 {
   printf("usage:\n");
-  printf("%s <process1> [process2] [...]\n", name);
+  printf("%s [-f] <process1> [process2] [...]\n", name);
   return;
 }
 
@@ -41,7 +42,8 @@ int main(int argc, char *argv[])
   
   int status = 0;
   int processId = 0;
-  int count;
+  int force = 0;
+  int count = 1;
 
 
   if (argc < 2)
@@ -50,8 +52,14 @@ int main(int argc, char *argv[])
       return (status = ERR_ARGUMENTCOUNT);
     }
 
+  if (strcmp(argv[1], "-f") == 0)
+    {
+      force = 1;
+      count++;
+    }
+
   // Loop through all of our process ID arguments
-  for (count = 1; count < argc; count ++)
+  for ( ; count < argc; count ++)
     {
       // Make sure our argument isn't NULL
       if (argv[count] == NULL)
@@ -68,7 +76,7 @@ int main(int argc, char *argv[])
 	}
 
       // Kill a process
-      status = multitaskerKillProcess(processId);
+      status = multitaskerKillProcess(processId, force);
 
       if (status < 0)
 	{

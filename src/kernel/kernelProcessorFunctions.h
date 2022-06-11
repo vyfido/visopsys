@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,15 +21,17 @@
 
 #if !defined(_KERNELPROCESSORFUNCTIONS_H)
 
-// Error messages
-#define NULL_PROC_MESS "The processor object passed or referenced was NULL"
-#define NULL_PROC_DRIVER_MESS "The processor driver passed or referenced was NULL"
-#define NULL_PROC_FUNC_MESS "The processor driver function requested was NULL"
+// Definitions
+#define PAGEPRESENT_BIT   0x00000001
+#define WRITABLE_BIT      0x00000002
+#define USER_BIT          0x00000004
+#define WRITETHROUGH_BIT  0x00000008
+#define CACHEDISABLE_BIT  0x00000010
+#define GLOBAL_BIT        0x00000100
 
 // A structure for holding pointers to the processor driver functions
 typedef struct
 {
-
   int (*driverInitialize) (void);
   unsigned long *(*driverReadTimestamp) (void);
 
@@ -38,19 +40,20 @@ typedef struct
 // A structure for holding information about the processor object
 typedef struct
 {
-
   kernelProcessorDriver *deviceDriver;
 
 } kernelProcessorObject;
-
 
 // Functions exported by kernelProcessorFunctions.c
 int kernelProcessorRegisterDevice(kernelProcessorObject *);
 int kernelProcessorInstallDriver(kernelProcessorDriver *);
 int kernelProcessorInitialize(void);
-unsigned long *kernelProcessorReadTimestamp(void);
 
 // Functions simulated with preprocessor macros
+
+#define kernelProcessorClearAddressCache(address) \
+  __asm__ __volatile__ ("invlpg %0 \n\t" \
+                        : : "m" (*((char *) address)))
 
 #define kernelProcessorGetCR3(variable)       \
   __asm__ __volatile__ ("movl %%cr3, %0 \n\t" \
@@ -60,15 +63,8 @@ unsigned long *kernelProcessorReadTimestamp(void);
   __asm__ __volatile__ ("movl %0, %%cr3 \n\t" \
                         : : "r" (variable))
 
-#define kernelProcessorGetEFlags(variable) \
-  __asm__ __volatile__ ("pushfl \n\t"      \
-                        "popl %0 \n\t"     \
-                        : "=r" (variable) : : "memory")
-
-#define kernelProcessorSetEFlags(variable) \
-  __asm__ __volatile__ ("pushl %0 \n\t"    \
-                        "popfl \n\t"       \
-                        : : "r" (variable))
+#define kernelProcessorIntReturn() \
+  __asm__ __volatile__ ("iret \n\t")
 
 #define kernelProcessorLoadTaskReg(selector) \
   __asm__ __volatile__ ("pushfl \n\t"        \
@@ -77,8 +73,13 @@ unsigned long *kernelProcessorReadTimestamp(void);
                         "popfl \n\t"         \
                         : : "a" (selector))
 
-#define kernelProcessorIntReturn() \
-  __asm__ __volatile__ ("iret \n\t")
+#define kernelProcessorInPort8(port, data)  \
+  __asm__ __volatile__ ("inb %%dx, %%al \n\t" \
+                        : "=a" (data) : "d" (port) : "memory")
+
+#define kernelProcessorOutPort8(port, data)  \
+  __asm__ __volatile__ ("outb %%al, %%dx \n\t" \
+                        : : "a" (data), "d" (port))
 
 #define _KERNELPROCESSORFUNCTIONS_H
 #endif

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,11 +23,10 @@
 
 // Functions exported by kernelRandom.c
 int kernelRandomInitialize(void);
-unsigned int kernelRandomUnformatted(void);
-unsigned int kernelRandomFormatted(unsigned int, unsigned int);
-unsigned int kernelRandomSeededUnformatted(unsigned int);
-unsigned int kernelRandomSeededFormatted(unsigned int, unsigned int,
-					 unsigned int);
+unsigned kernelRandomUnformatted(void);
+unsigned kernelRandomFormatted(unsigned, unsigned);
+unsigned kernelRandomSeededUnformatted(unsigned);
+unsigned kernelRandomSeededFormatted(unsigned, unsigned, unsigned);
 
 #define _KERNELRANDOM_H
 #endif

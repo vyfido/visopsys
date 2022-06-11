@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -21,6 +21,7 @@
 
 	GLOBAL loaderFindFile
 	GLOBAL loaderLoadFile
+	GLOBAL PARTENTRY
  
         EXTERN loaderPrint
         EXTERN loaderPrintNewline
@@ -268,45 +269,22 @@ loadDirectory:
 	;; Save the stack pointer
 	mov BP, SP
 
-	;; Calculate the logical starting sector of the root directory
-	mov AX, word [FATSECS]	; Sectors for 1 FAT
-	;; Multiply by the number of FATs on the volume
-	mov CX, word [FATS]
-	mul CX			; (the result should fit in a word)
-	add AX, word [RESSECS]	; Add the number of reserved sectors
-		
-	;; Now we have the logical sector number in AX
-	mov BX, AX   	; So we have the value for the next op
-
-	;; We'll calculate the head, track and sector without the
-	;; help of the headTrackSector routine, since it ignores
-	;; everything before the first data cluster
+	;; Get the logical sector number of the root directory
+	mov AX, word [RESSECS]		; The reserved sectors
+	add AX, word [FATSECS]		; Sectors for 1st FAT
+	add AX, word [FATSECS]		; Sectors for 2nd FAT
 	
-	;; First the sector
-	xor DX, DX
-	div word [SECPERTRACK]
-	inc DL				; Sectors start at 1
-	mov byte [CURRENTSECTOR], DL	; The remainder
-	mov AX, BX
-
-	;; Now the head and track
-	xor DX, DX
-	div word [SECPERTRACK]
-	xor DX, DX
-	div word [HEADS]
-	mov byte [CURRENTHEAD], DL		; The remainder
-	mov byte [CURRENTTRACK], AL
-
-	push word 0	; To keep track of read attempts
+	;; Calculate the head, track and sector
+	call headTrackSector
+	
+	push word 0		; To keep track of read attempts
 
 	.readAttempt:
-
 	;; We need to make ES point to the data buffer.  This is normally
 	;; where we will keep the FAT data, but we will put the directory
 	;; here temporarily
 	push ES
 	mov ES, word [FATSEGMENT]
-		
 	xor BX, BX			; Load at offset 0 of the data buffer
 	mov CH, byte [CURRENTTRACK]
 	mov CL, byte [CURRENTSECTOR]
@@ -390,6 +368,17 @@ searchFile:
 	mov ES, word [FATSEGMENT]
 		
 	.entryLoop:
+
+	;; Determine whether this is a valid, undeleted file.
+	;; E5 means this is a deleted entry
+	mov DI, word [ENTRYSTART]
+	mov AL, byte [ES:DI]
+	cmp AL, 0E5h
+	je .notThisEntry	; Deleted
+	;; 00 means that there are no more entries
+	cmp AL, 0
+	je .noFile
+
 	xor CX, CX
 
 	.nextLetter:
@@ -414,13 +403,11 @@ searchFile:
 
 	;; Make sure we're not at the end of the directory
 	mov AX, word [BYTESPERSECT]
-	mov BX, word [DIRSECTORS]
-	mul BX
+	mul word [DIRSECTORS]
 	cmp word [ENTRYSTART], AX
 	jae .noFile
 
 	jmp .entryLoop
-
 	
 	.noFile:
 	;; Restore ES
@@ -429,7 +416,6 @@ searchFile:
 	mov word [SS:(BP + 16)], -1
 	;; Jump to the end.  We're finished
 	jmp .done
-
 	
 	.foundFile:	
 	;; Return the starting cluster number of the file
@@ -474,21 +460,22 @@ loadFAT:
 	;; Save the stack pointer
 	mov BP, SP
 
+	mov AX, word [RESSECS]		; FAT starts after reserved sectors
+	call headTrackSector
+	
 	;; Now load the FAT table.  Push a counter to keep track
 	;; of read attempts
 	push word 0
 
 	.readFATAttempt:	
-
 	;; We need to make ES point to the data buffer
 	push ES
 	mov ES, word [FATSEGMENT]
-		
 	xor BX, BX			; Put at beginning of buffer
-	mov DX, word [DRIVENUMBER]	; Boot device
-	xor DH, DH			; Head 0
-	mov CX, 1			; Sectors start at 1
-	add CX, word [RESSECS]		; FAT starts after reserved sectors
+	mov CH, byte [CURRENTTRACK]
+	mov CL, byte [CURRENTSECTOR]
+	mov DX, word [DRIVENUMBER]
+	mov DH, byte [CURRENTHEAD]
 	mov AX, word [FATSECS]		; Read entire FAT
 	mov AH, 02h			; Subfunction 2
 	int 13h
@@ -556,9 +543,12 @@ loadFile:
 	;; The second parameter is a DWORD pointer to the absolute memory
 	;; location where we should load the file.
 
-	;; Make a little progress spinner so the user gets transfixed,
+	mov word [BYTESREAD], 0
+	mov word [OLDPROGRESS], 0
+	
+	;; Make a little progress indicator so the user gets transfixed,
 	;; and suddenly doesn't mind the time it takes to load the file.
-	call makeSpinner
+	call makeProgress
 
 	;; Put the starting cluster number in NEXTCLUSTER
 	mov AX, word [SS:(BP + 20)]
@@ -580,13 +570,13 @@ loadFile:
 	;; Get headTrackSector to calculate the physical head, track, and
 	;; sector of the logical cluster number
 	mov AX, word [NEXTCLUSTER]
+	call clusterToLogical
 	call headTrackSector
 
 	;; We need to make ES point to the portion of loader's data buffer
 	;; that comes AFTER the FAT data.  This is where we will initially
 	;; load each cluster's contents.
 	mov ES, word [CLUSTERSEGMENT]
-	
 	xor BX, BX			; ES:BX is real-mode buffer for data
 	mov CH, byte [CURRENTTRACK]
 	mov CL, byte [CURRENTSECTOR]
@@ -616,6 +606,7 @@ loadFile:
 	;; Get rid of the read-attempt counter
 	add SP, 2
 	;; Make an error message
+	call killProgress
 	call loaderDiskError
 	;; Return -1 as our error code
 	mov word [SS:(BP + 16)], -1
@@ -626,13 +617,24 @@ loadFile:
 	;; Get rid of the read-attempt counter
 	add SP, 2
 
-	;; If the head number is 0 and the sector number is 1 (i.e. we're at
-	;; the beginning of a new cylinder), spin the spinner
-	cmp byte [CURRENTHEAD], 0
-	jne .noSpin
-	cmp byte [CURRENTSECTOR], 1
-	jne .noSpin
-	call spinSpinner
+	;; Update the number of bytes read
+	mov AX, word [BYTESREAD]
+	add AX, word [BYTESPERCLUST]
+	mov word [BYTESREAD], AX
+
+	;; Determine whether we should update the progress indicator
+	mov AX, word [BYTESREAD]
+	shr AX, 10
+	mov BX, 100
+	mul BX
+	xor DX, DX
+	div word [FILESIZE]
+	mov BX, AX
+	sub BX, word [OLDPROGRESS]
+	cmp BX, (100 / PROGRESSLENGTH)
+	jb .noSpin
+	mov word [OLDPROGRESS], AX
+	call updateProgress
 	.noSpin:
 	
 	;; This part of the function operates in "big real mode" so that it
@@ -655,7 +657,7 @@ loadFile:
 	
 	;; ES currently holds the segment of the cluster data.  Now load 
 	;; it with the global data segment selector
-	mov EAX, ALLDATASELECTOR
+	mov EAX, PRIV_DATASELECTOR
 	mov ES, AX
 
 	;; Return to real mode
@@ -740,8 +742,7 @@ loadFile:
 	.done:
 	;; Restore ES
 	pop ES
-	;; Kill the little spinner
-	call killSpinner
+
 	popa
 	;; Pop our return code
 	xor EAX, EAX
@@ -749,15 +750,19 @@ loadFile:
 	ret
 
 
-headTrackSector:
-	;; this routine accepts the cluster number in AX.
-	;; First it calculates the logical sector, then
-	;; the head, track and sector number on disk.  It
-	;; places them in the variables of the same name
+clusterToLogical:
+	;; This takes the cluster number in AX and returns the logical
+	;; sector number in AX
 
-	;; We destroy a bunch of registers, so save them
+	;; Save a word for our return code
+	sub SP, 2
+
+	;; Save regs
 	pusha
 
+	;; Save the stack pointer
+	mov BP, SP
+	
 	;; Subtract 2 from the logical cluster number (because they
 	;; start at 2)
 	sub AX, 2	
@@ -770,36 +775,53 @@ headTrackSector:
 	;; start on this volume
 
 	add AX, word [RESSECS]		; The reserved sectors
-	add AX, word [DIRSECTORS]		; Root dir sectors
 	add AX, word [FATSECS]		; Sectors for 1st FAT
 	add AX, word [FATSECS]		; Sectors for 2nd FAT
+	add AX, word [DIRSECTORS]	; Root dir sectors
 
+	mov word [SS:(BP + 16)], AX
+	
+	popa
+	pop AX
+	ret
+	
+	
+headTrackSector:
+	;; this routine accepts the cluster number in AX.
+	;; First it calculates the logical sector, then
+	;; the head, track and sector number on disk.  It
+	;; places them in the variables of the same name
+
+	;; We destroy a bunch of registers, so save them
+	pusha
+
+	;; Add the partition starting LBA offset, if applicable
+	cmp word [DRIVENUMBER], 80h
+	jne .noOffset
+	add AX, word [PARTENTRY + 8]
+
+	.noOffset:
 	;; Now we have the logical sector number in AX
-	mov BX, AX   	; So we have the value for the next op
 
 	;; First the sector
 	xor DX, DX
 	div word [SECPERTRACK]
-	add DL, 01h			; Sectors start at 1
-	mov byte [CURRENTSECTOR], DL	; The remainder
-	mov AX, BX
-
+	mov byte [CURRENTSECTOR], DL		; The remainder
+	add byte [CURRENTSECTOR], 1		; Sectors start at 1
+	
 	;; Now the head and track
-	xor DX, DX
-	div word [SECPERTRACK]
-	xor DX, DX
+	xor DX, DX			; Don't need the remainder anymore
 	div word [HEADS]
-	mov byte [CURRENTHEAD], DL		; The remainder
+	mov byte [CURRENTHEAD], DL	; The remainder
 	mov byte [CURRENTTRACK], AL
-
+	
 	popa
 	ret
 
 
-makeSpinner:
-	;; This routine sets up a little progress spinner
-	;; Get the current cursor address and make it the position
-	;; of the spinner
+makeProgress:
+	;; This routine sets up a little progress indicator.
+
 	pusha
 
 	;; Disable the cursor
@@ -807,41 +829,51 @@ makeSpinner:
 	mov AH, 01h
 	int 10h
 
-	mov word [SPINNERPOINT], SPINNERCHARS
+	mov DL, FOREGROUNDCOLOR
+	mov SI, PROGRESSTOP
+	call loaderPrint
+	call loaderPrintNewline
+	call loaderGetCursorAddress
+	add AX, 1
+	push AX
+	mov SI, PROGRESSMIDDLE
+	call loaderPrint
+	call loaderPrintNewline
+	mov SI, PROGRESSBOTTOM
+	call loaderPrint
+	pop AX
+	call loaderSetCursorAddress
+
+	;; To keep track of how many characters we've printed in the
+	;; progress indicator
+	mov word [PROGRESSCHARS], 0
+	
 	popa
 
 	
-spinSpinner:
+updateProgress:
 	pusha
 
-	mov AX, word [SPINNERPOINT]
-	add AX, 2
-	cmp AX, (SPINNERCHARS + 8)
-	jnae .printSpinner
-
-	;; otherwise, we wrap around
-	mov AX, SPINNERCHARS
-
-	.printSpinner:
-	mov word [SPINNERPOINT], AX
-
+	;; Make sure we're not already at the end
+	mov AX, word [PROGRESSCHARS]
+	cmp AX, PROGRESSLENGTH
+	jae .done
+	inc AX
+	mov word [PROGRESSCHARS], AX
+	
 	;; Print the character on the screen
-	mov SI, word [SPINNERPOINT]
+	mov DL, 2
 	mov CX, 1
-	mov DL, FOREGROUNDCOLOUR
+	mov SI, PROGRESSCHAR
 	call loaderPrint
 
-	;; Get the cursor address, move the cursor back 1 character
-	call loaderGetCursorAddress
-	sub AX, 1
-	call loaderSetCursorAddress
-
+	.done:	
 	popa
 	ret
 
 	
-killSpinner:
-	;; Get rid of the little spinner
+killProgress:
+	;; Get rid of the progress indicator
 
 	pusha
 
@@ -851,6 +883,9 @@ killSpinner:
 	;; mov AH, 01h
 	;; int 10h
 
+	call loaderPrintNewline
+	call loaderPrintNewline
+	
 	popa
 	ret
 
@@ -865,11 +900,22 @@ DIRSECTORS	dw 0	;; The size of the root directory, in sectors
 BYTESPERCLUST   dw 0	;; Bytes per cluster
 ENTRYSTART	dw 0 	;; Directory entry start
 FILESIZE	dw 0	;; Size of the file we're loading
+BYTESREAD	dw 0    ;; Number of bytes read so far
+OLDPROGRESS	dw 0	;; Percentage of file load completed
 NEXTCLUSTER	dw 0	;; Next cluster to load
-SPINNERPOINT	dw 0	;; State of spinner on screen
+PROGRESSCHARS	dw 0	;; Number of progress indicator chars showing
+PARTENTRY	times 16 db 0	;; Partition table entry of bootable partition
 CURRENTHEAD	db 0	;; Of disk seek
 CURRENTTRACK	db 0	;; Of disk seek
 CURRENTSECTOR	db 0	;; Of disk seek
-SPINNERCHARS	db 0B3h, 0, '/', 0, 0C4h, 0, '\', 0
-OK	db 'OK', 0
-SPACE	db ' ', 0
+PROGRESSTOP	db 218
+		times PROGRESSLENGTH db 196
+		db 191, 0
+PROGRESSMIDDLE	db 179
+		times PROGRESSLENGTH db ' '
+		db 179, 0
+PROGRESSBOTTOM	db 192
+		times PROGRESSLENGTH db 196
+		db 217, 0
+PROGRESSCHAR	db 177, 0
+SPACE		db ' ', 0

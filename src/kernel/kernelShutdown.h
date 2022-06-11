@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,9 +21,10 @@
 
 #if !defined(_KERNELSHUTDOWN_H)
 
-
-// Shutdown error messages
-#define NO_SHUTDOWN_FS "Unable to sync/unmount filesystems.  Shutdown aborted." 
+#define SHUTDOWN_MSG1 "Shutting down Visopsys, please wait..."
+#define SHUTDOWN_MSG2 "[ Wait for \"OK to power off\" message ]"
+#define SHUTDOWN_MSG_REBOOT "Rebooting."
+#define SHUTDOWN_MSG_POWER "OK to power off now."
 
 typedef enum 
 {  
@@ -31,10 +32,8 @@ typedef enum
 
 } kernelShutdownType;
 
-
 // Functions exported by kernelShutdown.c
 int kernelShutdown(kernelShutdownType, int);
-
 
 #define _KERNELSHUTDOWN_H
 #endif

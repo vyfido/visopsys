@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -107,13 +107,13 @@ loaderSetCursorAddress:
 
 loaderPrint:
 	;; This routine takes a pointer to the chars to print in DS:SI,
-	;; and the colour in DL.
+	;; and the color in DL.
 
 	pusha
 
-	;; OR the desired foreground colour with the desired
-	;; background colour
-	mov DH, BACKGROUNDCOLOUR
+	;; OR the desired foreground color with the desired
+	;; background color
+	mov DH, BACKGROUNDCOLOR
 	and DH, 00000111b
 	shl DH, 4
 	or DL, DH
@@ -158,7 +158,7 @@ loaderPrint:
 	mov EAX, (LDRCODESEGMENTLOCATION / 16)
 	mov DS, AX
 	
-	;; Get the colour (DX) from the stack into AL (AX)
+	;; Get the color (DX) from the stack into AL (AX)
 	mov AX, word [SS:(BP + 2)]
 	xor AH, AH
 
@@ -255,8 +255,8 @@ loaderPrintNumber:
 
 	;; Print a digit on the screen
 
-	mov DL, FOREGROUNDCOLOUR
-	or DL, (BACKGROUNDCOLOUR * 16)
+	mov DL, FOREGROUNDCOLOR
+	or DL, (BACKGROUNDCOLOR * 16)
 
 	mov CX, 1
 	call loaderPrint
@@ -318,10 +318,10 @@ scrollLine:
 	mov CX, COLUMNS
 
 	xor AL, AL		; 'null' character;
-	mov AH, BACKGROUNDCOLOUR
+	mov AH, BACKGROUNDCOLOR
 	and AH, 00000111b
 	shl AH, 4
-	or AH, FOREGROUNDCOLOUR
+	or AH, FOREGROUNDCOLOR
 	cld
 	rep stosw
 

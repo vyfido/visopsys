@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,7 +30,7 @@ double modf(double x, double *pint)
 {
   // The modf() function breaks the argument x into an integral part and
   // a fractional  part, each of which has the same sign as x.  The
-  // integral part is stored in iptr.
+  // integral part is stored in pint
 
   int i;
 

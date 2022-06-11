@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,7 @@
 //  more.c
 //
 
-// This is the UNIX-style command for reading files
+// This is the UNIX-style command for reading files page by page
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,13 +68,12 @@ int main(int argc, char *argv[])
   char *fileBuffer = NULL;
   int screenColumns = 0;
   int screenRows = 0;
-  int foregroundColour = 0;
-  int backgroundColour = 0;
+  int foregroundColor = 0;
+  int backgroundColor = 0;
   int charEntered = 0;
   int charsSoFar = 0;
   int cursorPos1, cursorPos2;
   int count, count2;
-
 
   if (argc < 2)
     {
@@ -148,8 +147,9 @@ int main(int argc, char *argv[])
 
       screenColumns = textGetNumColumns();
       screenRows = textGetNumRows();
-      foregroundColour = textStreamGetForeground();
-      backgroundColour = textStreamGetBackground();
+      foregroundColor = textGetForeground();
+      backgroundColor = textGetBackground();
+      textInputSetEcho(0);
       charsSoFar = 0;
 
       // Print the file, one screen at a time
@@ -158,27 +158,17 @@ int main(int argc, char *argv[])
 	  // Are we at the eld of a screenful of data?
 	  if (charsSoFar >= (screenColumns * (screenRows - 1)))
 	    {
-	      // Reverse the colours
-	      textStreamSetForeground(backgroundColour);
-	      textStreamSetBackground(foregroundColour);
+	      // Reverse the colors
+	      textSetForeground(backgroundColor);
+	      textSetBackground(foregroundColor);
 
 	      printf("--More--(%d%%)", ((count * 100) / theFile.size));
 
-	      // Restore the colours
-	      textStreamSetForeground(foregroundColour);
-	      textStreamSetBackground(backgroundColour);
+	      // Restore the colors
+	      textSetForeground(foregroundColor);
+	      textSetBackground(backgroundColor);
 
 	      // Wait for user input
-	      while(1)
-		{
-		  if (textInputCount() == 0)
-		    {
-		      multitaskerYield();
-		      continue;
-		    }
-		  else
-		    break;
-		}
 	      charEntered = getchar();
 
 	      // Erase the "more" thing
@@ -235,6 +225,8 @@ int main(int argc, char *argv[])
 	      charsSoFar += 1;
 	    }
 	}
+
+      textInputSetEcho(1);
 
       // If the file did not end with a newline character...
       // if (fileBuffer[count - 1] != '\n')

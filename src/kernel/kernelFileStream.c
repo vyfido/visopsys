@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,11 +26,9 @@
 #include "kernelFileStream.h"
 #include "kernelFile.h"
 #include "kernelStream.h"
-#include "kernelText.h"
 #include "kernelMiscAsmFunctions.h"
 #include "kernelError.h"
 #include <string.h>
-#include <sys/stream.h>
 #include <sys/errors.h>
 
 
@@ -41,13 +39,12 @@ static int readBlock(fileStream *theStream, int blockNumber)
 
   int status = 0;
 
-
   // Make sure we're not at the end of the file
   if (blockNumber >= theStream->f.blocks)
     return (status = ERR_NODATA);
 
   // Clear the stream
-  theStream->sFn->clear(theStream->s);
+  theStream->s->clear(theStream->s);
 
   // Read the next block of the file, and put it into the stream.  The
   // way we do this is a bit of a cheat as far as streams are concerned, as
@@ -74,6 +71,10 @@ static int readBlock(fileStream *theStream, int blockNumber)
       // The stream is only partially full.
       theStream->s->next = (theStream->f.size % theStream->f.blockSize);
       theStream->s->count = theStream->s->next;
+
+      // Make sure that there are NULLs after the valid data
+      kernelMemClear((theStream->s->buffer + theStream->s->count),
+		     (theStream->f.blockSize - theStream->s->count));
     }
   else
     {
@@ -95,14 +96,7 @@ static int writeBlock(fileStream *theStream, int blockNumber)
   // from the supplied stream.
 
   int status = 0;
-  unsigned int newSize = 0;
-
-
-  /*
-  kernelTextPrint("writing stream block ");
-  kernelTextPrintInteger(blockNumber);
-  kernelTextPrint(" ");
-  */
+  unsigned newSize = 0;
 
   // Write the requested block of the file from the stream.
   status = kernelFileWrite(&(theStream->f), blockNumber, 1,
@@ -146,7 +140,6 @@ int kernelFileStreamOpen(const char *name, int openMode,
   int status = 0;
   int blockToRead = 0;
 
-
   // Check arguments
   if (name == NULL)
     {
@@ -186,10 +179,6 @@ int kernelFileStreamOpen(const char *name, int openMode,
       return (status = ERR_NOTINITIALIZED);
     }
 
-  // For convenience, we save the pointer to the stream's functions
-  // so we don't always have to cast it from a void * to a streamFunctions *
-  newStream->sFn = (streamFunctions *) newStream->s->functions;
-
   if (newStream->f.blocks > 0)
     {
       if (newStream->f.openMode & OPENMODE_WRITE)
@@ -218,7 +207,7 @@ int kernelFileStreamOpen(const char *name, int openMode,
     {
       // Otherwise, simply clear the stream regardless of whether we are
       // doing a read or a write.
-      newStream->sFn->clear(newStream->s);
+      newStream->s->clear(newStream->s);
     }
 
   // Yahoo, all set. 
@@ -235,7 +224,6 @@ int kernelFileStreamSeek(fileStream *theStream, int offset)
 
   int status = 0;
   int newBlock = 0;
-
 
   // Check arguments
   
@@ -287,7 +275,6 @@ int kernelFileStreamRead(fileStream *theStream, int readBytes, char *buffer)
   int bytes = 0;
   int doneBytes = 0;
 
-
   // Check arguments
   
   if (theStream == NULL)
@@ -337,8 +324,8 @@ int kernelFileStreamRead(fileStream *theStream, int readBytes, char *buffer)
 	bytes = readBytes;
 
       // Get 'bytes' bytes from the stream, and put them in the buffer
-      status = theStream->sFn->popN(theStream->s, bytes,
-				    (buffer + doneBytes));
+      status = theStream->s->popN(theStream->s, bytes,
+				  (buffer + doneBytes));
       if (status < 0)
 	return (status);
 
@@ -350,15 +337,14 @@ int kernelFileStreamRead(fileStream *theStream, int readBytes, char *buffer)
 }
 
 
-int kernelFileStreamWrite(fileStream *theStream, int writeBytes, char *buffer)
+int kernelFileStreamReadLine(fileStream *theStream, int maxBytes, char *buffer)
 {
-  // This function will write the requested number of bytes from the
-  // supplied buffer to the file stream at the current offset.
+  // This function will read bytes from the file stream into the supplied
+  // buffer until it hits a newline, or until the buffer is full, or until
+  // the file is finished
 
   int status = 0;
-  int bytes = 0;
   int doneBytes = 0;
-
 
   // Check arguments
   
@@ -371,6 +357,75 @@ int kernelFileStreamWrite(fileStream *theStream, int writeBytes, char *buffer)
   if (buffer == NULL)
     {
       kernelError(kernel_error, "NULL buffer argument");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Make sure this file is open in a read mode
+  if (!(theStream->f.openMode & OPENMODE_READ))
+    {
+      kernelError(kernel_error, "file not open in read mode");
+      return (status = ERR_INVALID);
+    }
+
+  while (doneBytes < (maxBytes - 1))
+    {
+      // How many bytes are in the stream currently?  We will grab either
+      // readBytes bytes, or all the bytes depending on which is greater
+      
+      if (theStream->s->count == 0)
+	{
+	  // Oops, the stream is empty.  We need to read another block
+	  // from the file
+	  status = readBlock(theStream, ++(theStream->block));
+	  
+	  if (status < 0)
+	    // File finished?
+	    break;
+	}
+      
+      // Get a byte from the stream, and put it in the buffer
+      status = theStream->s->pop(theStream->s, (buffer + doneBytes));
+      
+      if (status < 0)
+	break;
+
+      doneBytes++;
+
+      if (buffer[doneBytes - 1] == '\n')
+	break;
+    }
+
+  buffer[doneBytes] = '\0';
+  return (doneBytes);
+}
+
+
+int kernelFileStreamWrite(fileStream *theStream, int writeBytes, char *buffer)
+{
+  // This function will write the requested number of bytes from the
+  // supplied buffer to the file stream at the current offset.
+
+  int status = 0;
+  int bytes = 0;
+  int doneBytes = 0;
+
+  // Check arguments
+  
+  if (theStream == NULL)
+    {
+      kernelError(kernel_error, "NULL file stream argument");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  if (buffer == NULL)
+    {
+      kernelError(kernel_error, "NULL buffer argument");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  if (theStream->s == NULL)
+    {
+      kernelError(kernel_error, "NULL stream in fileStream");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -400,7 +455,7 @@ int kernelFileStreamWrite(fileStream *theStream, int writeBytes, char *buffer)
 	bytes = (writeBytes - doneBytes);  
 
       // Append 'bytes' bytes to the stream from the buffer
-      status = theStream->sFn->appendN(theStream->s, bytes,
+      status = theStream->s->appendN(theStream->s, bytes,
 				       (buffer + doneBytes));
       if (status < 0)
 	{
@@ -424,8 +479,12 @@ int kernelFileStreamWrite(fileStream *theStream, int writeBytes, char *buffer)
 	  // We are now using the next block
 	  theStream->block++;
 
-	  // Try to read the next block of the file, if applicable.
-	  if (theStream->block < theStream->f.blocks)
+	  // If we are writing the last (possibly partial) block, and if
+	  // the file is longer than the block we're writing, we need to
+	  // read the current block first.
+
+	  if (((writeBytes - doneBytes) < theStream->f.blockSize) &&
+	      (theStream->block < theStream->f.blocks))
 	    {
 	      status = readBlock(theStream, theStream->block);
 
@@ -434,7 +493,7 @@ int kernelFileStreamWrite(fileStream *theStream, int writeBytes, char *buffer)
 	    }
 	  else
 	    // Simply clear the stream
-	    theStream->sFn->clear(theStream->s);
+	    theStream->s->clear(theStream->s);
 	}
     }
 
@@ -461,7 +520,7 @@ int kernelFileStreamWriteLine(fileStream *theStream, char *buffer)
   // it adds a newline to the stream after the line has been added.
 
   // Add a newline to the end of the stream
-  theStream->sFn->append(theStream->s, '\n');
+  theStream->s->append(theStream->s, '\n');
 
   return (kernelFileStreamWrite(theStream, strlen(buffer), buffer));
 }
@@ -474,7 +533,6 @@ int kernelFileStreamFlush(fileStream *theStream)
   // the stream to the disk.
 
   int status = 0;
-
 
   // Check arguments
   
@@ -509,7 +567,6 @@ int kernelFileStreamClose(fileStream *theStream)
   // that gets allocated by the kernelFileStreamNew function.
 
   int status = 0;
-
 
   // Check arguments
   

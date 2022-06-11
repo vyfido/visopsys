@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,8 +27,17 @@
 #include <stdio.h>
 
 
-static int errorForeground = 0;  // The colour of error messages
+static int errorForeground = 0;  // The color of error messages
 static int initialized = 0;
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 
 int kernelErrorInitialize(void)
@@ -42,7 +51,7 @@ int kernelErrorInitialize(void)
   // We are now initialized
   initialized = 1;
 
-  // By default, we set the colour of error messages to red
+  // By default, we set the color of error messages to red
   kernelErrorSetForeground(DEFAULTERRORFOREGROUND);
 
   // Return success
@@ -50,9 +59,9 @@ int kernelErrorInitialize(void)
 }
 
 
-int kernelErrorSetForeground(int colour)
+int kernelErrorSetForeground(int foreground)
 {
-  // Sets the colour of error message printouts.
+  // Sets the color of error message printouts.
 
   int status = 0;
 
@@ -61,24 +70,11 @@ int kernelErrorSetForeground(int colour)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  // Take the colour and save it.
-  errorForeground = colour;
+  // Take the color and save it.
+  errorForeground = foreground;
 
   // Return success
   return (status = 0);
-}
-
-
-int kernelErrorGetForeground(void)
-{
-  // Returns the colour of error message printouts.
-
-  // Don't do anything until we're initialized
-  if (!initialized)
-    return (ERR_NOTINITIALIZED);
-
-  // Take the colour and return it.
-  return (errorForeground);
 }
 
 
@@ -135,11 +131,11 @@ void kernelErrorOutput(const char *module, const char *function, int line,
   // Add the line number
   sprintf((errorText + strlen(errorText)), "(%d):", line);
 
-  // Save the current text foreground colour so we can re-set it.
-  regularForeground = kernelTextStreamGetForeground();
+  // Save the current text foreground color so we can re-set it.
+  regularForeground = kernelTextGetForeground();
 
-  // Now set the foreground colour to the error colour
-  kernelTextStreamSetForeground(errorForeground);
+  // Now set the foreground color to the error color
+  kernelTextSetForeground(errorForeground);
 
   // Output the context of the message
   kernelLog(errorText);
@@ -153,7 +149,7 @@ void kernelErrorOutput(const char *module, const char *function, int line,
   va_start(list, message);
 
   // Expand the message if there were any parameters
-  _expand_format_string(errorText, message, list);
+  _expandFormatString(errorText, message, list);
 
   va_end(list);
 
@@ -163,8 +159,8 @@ void kernelErrorOutput(const char *module, const char *function, int line,
   if (!kernelLogGetToConsole())
     kernelTextPrintLine(errorText);
   
-  // Set the foreground colour back to what it was
-  kernelTextStreamSetForeground(regularForeground);
+  // Set the foreground color back to what it was
+  kernelTextSetForeground(regularForeground);
 
   return;
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -33,23 +33,22 @@
 #include "kernelResourceManager.h"
 #include "kernelMiscAsmFunctions.h"
 #include "kernelError.h"
-#include <sys/memory.h>
 #include <sys/errors.h>
+#include <stdio.h>
 #include <string.h>
 
 
 static volatile int memoryManagerInitialized = 0;
 static volatile int memoryManagerLock = 0;
 
-static volatile unsigned int totalMemory = 0;
+static volatile unsigned totalMemory = 0;
 static kernelMemoryBlock usedBlockMemory[MAXMEMORYBLOCKS];
 static kernelMemoryBlock *usedBlockList[MAXMEMORYBLOCKS];
-static volatile unsigned int usedBlocks = 0;
+static volatile unsigned usedBlocks = 0;
 static unsigned char * volatile freeBlockBitmap = NULL;
-static volatile unsigned int totalBlocks = 0;
-static volatile unsigned int freeBlocks = 0;
-static volatile unsigned int totalFree = 0;
-static volatile unsigned int totalUsed = 0;
+static volatile unsigned totalBlocks = 0;
+static volatile unsigned totalFree = 0;
+static volatile unsigned totalUsed = 0;
 
 
 // This structure can be used to "reserve" memory blocks so that they
@@ -60,17 +59,13 @@ static kernelMemoryBlock reservedBlocks[] =
 {
   // { processId, description, startlocation, endlocation }
 
-  { 1, "BIOS data area", BIOS_DATA_AREA, 
-    (BIOS_DATA_AREA + BIOS_DATA_AREA_SIZE - 1) },
-
-  { 1, "reserved", UNKNOWN1, 
-    (UNKNOWN1 + UNKNOWN1_SIZE - 1) },
+  { 1, "conventional memory", 0, (VIDEO_MEMORY - 1) },
 
   { 1, "video memory", VIDEO_MEMORY, 
     (VIDEO_MEMORY + VIDEO_MEMORY_SIZE - 1) },
 
-  { 1, "high memory area", HIGH_MEMORY_AREA, 
-    (HIGH_MEMORY_AREA + HIGH_MEMORY_AREA_SIZE - 1) },
+  { 1, "conventional memory", (VIDEO_MEMORY + VIDEO_MEMORY_SIZE),
+    (KERNEL_LOAD_ADDRESS - 1) },
 
   // Ending value is set during initialization, since it is variable
   { 1, "kernel memory", KERNEL_LOAD_ADDRESS, 0 },
@@ -86,108 +81,8 @@ static kernelMemoryBlock reservedBlocks[] =
   { 0, "", 0, 0 }
 };
 
-// These additional memory ranges are 'default' ones for cases in which the
-// system BIOS doesn't provide a memory map.
-static kernelMemoryBlock noMemoryMap[] =
-{
-  { 0, "", 0, 0 }
-};
 
-
-static int checkIntegrity(void)
-{
-  // This routine is kind of important.  It will check the validity
-  // of the global values.  If any of these are invalid, we have a 
-  // dangerous situation which will be very diffcult to recover from
-  // gracefully.
-
-  int status = 0;
-  unsigned int usedTally = 0;
-  unsigned int freeTally = 0;
-  int count;
-
-  
-  // Make sure the usedBlockList size is valid.
-  if (usedBlocks > MAXMEMORYBLOCKS)
-    {
-      // Make the error
-      kernelError(kernel_warn, FAIL_INTEGRITY_CHECK);
-      kernelError(kernel_warn, USEDBLOCKS_TOOBIG);
-      return (status = ERR_BUG);
-    }
-
-  // Make sure we're not leaking memory by comparing the total available 
-  // memory with the numbers in totalFree and totalUsed
-  if (totalMemory != (totalUsed + totalFree))
-    {
-      // Make the error
-      kernelError(kernel_warn, FAIL_INTEGRITY_CHECK);
-      kernelError(kernel_warn, TOTAL_INCONSISTENT);
-      return (status = ERR_BUG);
-    }
-
-  // Go through the used list looking for invalid blocks.  Make sure the 
-  // startLocation and endLocation values are reasonable, and keep a count 
-  // of the amount of used memory described by the blocks
-
-  for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
-       count ++)
-    {
-      // Make sure the startLocation and endLocation values in the memory 
-      // block structure are, at least,  reasonable
-      if ((usedBlockList[count]->startLocation >=
-	   usedBlockList[count]->endLocation) ||
-	  (usedBlockList[count]->endLocation > totalMemory))
-	{
-	  // This block has become invalid somehow.  Issue a warning
-	  // and remove the memory block.
-	  kernelError(kernel_warn, FAIL_INTEGRITY_CHECK);
-	  kernelError(kernel_warn, INVALID_USED_MEMORY_BLOCK);
-	  return (status = ERR_BUG);
-	}
-
-      // Add the amount of used memory in this block to the tally
-      // we're keeping
-      usedTally += ((usedBlockList[count]->endLocation -
-		     usedBlockList[count]->startLocation) + 1);
-
-    } // "count" loop
-
-
-  // Go through the free block bitmap, adding all the free memory there
-  for (count = 0; count < totalBlocks; count ++)
-    if (!(freeBlockBitmap[count / 8] & (0x80 >> (count % 8))))
-      freeTally += MEMBLOCKSIZE;
-
-  // After we've done the previous two loops, we can make sure that the
-  // tallied amounts of memory match the totals being kept by the
-  // memory manager
-
-  if (usedTally != totalUsed)
-    {
-      // kernelTextPrintUnsigned(usedTally);
-      // kernelTextPrintLine(" tally");
-      // kernelTextPrintUnsigned(totalUsed);
-      // kernelTextPrintLine(" total");
-
-      kernelError(kernel_warn, FAIL_INTEGRITY_CHECK);
-      kernelError(kernel_warn, TOTAL_INCONSISTENT);
-      return (status = ERR_BUG);
-    }
-
-  if (freeTally != totalFree)
-    {
-      kernelError(kernel_warn, FAIL_INTEGRITY_CHECK);
-      kernelError(kernel_warn, TOTAL_INCONSISTENT);
-      return (status = ERR_BUG);
-    }
-
-  // Return success
-  return (status = 0);
-}
-
-
-static int allocateBlock(int processId, unsigned int start, unsigned int end, 
+static int allocateBlock(int processId, unsigned start, unsigned end, 
 			 const char *description)
 {
   // This routine will allocate a block in the used block list, mark the
@@ -196,24 +91,8 @@ static int allocateBlock(int processId, unsigned int start, unsigned int end,
   // negative otherwise.
 
   int status = 0;
-  unsigned int temp = 0;
-  unsigned int lastBit = 0;
-
-
-  // Make sure the start and end locations are reasonable
-  if ((start >= end) || (end >= totalMemory))
-    {
-      kernelError(kernel_error, "Invalid start or end to allocation request");
-      return (status = ERR_INVALID);
-    }
-
-  // Make sure those same locations fall on block boundaries
-  if (((start % MEMBLOCKSIZE) != 0) ||
-      (((end + 1) % MEMBLOCKSIZE) != 0))
-    {
-      kernelError(kernel_error, "Bad alignment to allocation request");
-      return (status = ERR_ALIGN);
-    }
+  unsigned temp = 0;
+  unsigned lastBit = 0;
 
   // The description pointer is allowed to be NULL
 
@@ -226,10 +105,13 @@ static int allocateBlock(int processId, unsigned int start, unsigned int end,
   usedBlockList[usedBlocks]->startLocation = start;
   usedBlockList[usedBlocks]->endLocation = end;
   if (description != NULL)
-    strncpy((char *) usedBlockList[usedBlocks]->description, 
-	    description, MAX_DESC_LENGTH);
+    {
+      strncpy((char *) usedBlockList[usedBlocks]->description, 
+	      description, MAX_DESC_LENGTH);
+      usedBlockList[usedBlocks]->description[MAX_DESC_LENGTH - 1] = '\0';
+    }
   else
-    usedBlockList[usedBlocks]->description[0] = NULL;
+    usedBlockList[usedBlocks]->description[0] = '\0';
 
   // Adjust the total used and free memory quantities
   temp = ((usedBlockList[usedBlocks]->endLocation - 
@@ -238,24 +120,21 @@ static int allocateBlock(int processId, unsigned int start, unsigned int end,
   totalFree -= temp;
 
   // Now increase the total count of used memory blocks.
-  usedBlocks++;
+  usedBlocks += 1;
 
   // Take the whole range of memory covered by this new block, and mark
   // each of its physical memory blocks as "used" in the free-block bitmap.
   lastBit = (end / MEMBLOCKSIZE);
   for (temp = (start / MEMBLOCKSIZE); temp <= lastBit; temp ++)
-    {
-      freeBlockBitmap[temp / 8] |= (0x80 >> (temp % 8));
-      freeBlocks--;
-    }
+    freeBlockBitmap[temp / 8] |= (0x80 >> (temp % 8));
 
   // Return success
   return (status = 0);
 }
 
 
-static int requestBlock(int processId, unsigned int requestedSize, 
-			unsigned int alignment, const char *description,
+static int requestBlock(int processId, unsigned requestedSize, 
+			unsigned alignment, const char *description,
 			void **memory)
 {
   // This routine takes a pointer and some other information, and allocates
@@ -269,7 +148,7 @@ static int requestBlock(int processId, unsigned int requestedSize,
 
   int status = 0;
   void *blockPointer = NULL;
-  unsigned int consecutiveBlocks = 0;
+  unsigned consecutiveBlocks = 0;
   int foundBlock = 0;
   int count;
 
@@ -279,29 +158,13 @@ static int requestBlock(int processId, unsigned int requestedSize,
   if (requestedSize == 0)
     return (status = ERR_INVALID);
 
-  // Obtain a lock on the memory data
-  status = kernelResourceManagerLock(&memoryManagerLock);
-  if (status < 0)
-    return (status);
-
-  // Check the integrity of the memory manager's internal values
-  status = checkIntegrity();
-
-  if (status < 0)
-    {
-      // Release the lock on the memory data
-      kernelResourceManagerUnlock(&memoryManagerLock);
-      return (status);
-    }
-
   // Make sure that we have room for a new block.  If we don't, return
   // NULL.
   if (usedBlocks >= MAXMEMORYBLOCKS)
     {
       // Not enough memory blocks left over
-      kernelError(kernel_error, OUT_OF_MEMORY_BLOCKS);
-      // Release the lock on the memory data
-      kernelResourceManagerUnlock(&memoryManagerLock);
+      kernelError(kernel_error, "The number of memory blocks has been "
+		  "exhausted");
       return (status = ERR_MEMORY);
     }
   
@@ -311,11 +174,7 @@ static int requestBlock(int processId, unsigned int requestedSize,
   // of blocks
   if (alignment != 0)
     if ((alignment % MEMBLOCKSIZE) != 0)
-      {
-	// Release the lock on the memory data
-	kernelResourceManagerUnlock(&memoryManagerLock);
-	return (status = ERR_ALIGN);
-      }
+      return (status = ERR_ALIGN);
 
   // Make the requested size be a multiple of MEMBLOCKSIZE.  Our memory 
   // blocks are all going to be multiples of this size
@@ -329,9 +188,7 @@ static int requestBlock(int processId, unsigned int requestedSize,
   if (requestedSize > totalFree)
     {
       // There is not enough free memory
-      kernelError(kernel_error, OUT_OF_MEMORY);
-      // Release the lock on the memory data
-      kernelResourceManagerUnlock(&memoryManagerLock);
+      kernelError(kernel_error, "The computer is out of physical memory");
       return (status = ERR_MEMORY);
     }
 
@@ -376,23 +233,16 @@ static int requestBlock(int processId, unsigned int requestedSize,
 
   // If we found an appropriate block, blockPointer will be non-NULL
   if (!foundBlock)
-    {
-      // Release the lock on the memory data
-      kernelResourceManagerUnlock(&memoryManagerLock);
-      return (status = ERR_MEMORY);
-    }
+    return (status = ERR_MEMORY);
 
   // Otherwise, it looks like we will be able to satisfy this request.  
   // We found a block in the loop above.  We now have to allocate the new 
   // "used" block.
 
   // blockPointer should point to the start of the memory area.
-  status = allocateBlock(processId, (unsigned int) blockPointer, 
-			 (unsigned int) (blockPointer + requestedSize - 1),
+  status = allocateBlock(processId, (unsigned) blockPointer, 
+			 (unsigned) (blockPointer + requestedSize - 1),
 			 description);
-
-  // Release the lock on the memory data
-  kernelResourceManagerUnlock(&memoryManagerLock);
 
   // Make sure we were successful with the allocation, above
   if (status < 0)
@@ -415,9 +265,8 @@ static int releaseBlock(int blockLocation)
 
   int status = 0;
   kernelMemoryBlock *unused;
-  unsigned int temp = 0;
-  unsigned int lastBit = 0;
-
+  unsigned temp = 0;
+  unsigned lastBit = 0;
 
   // Make sure the block location is reasonable
   if ((blockLocation < 0) || (blockLocation > (usedBlocks - 1)))
@@ -425,13 +274,9 @@ static int releaseBlock(int blockLocation)
 
   // Mark all of the applicable blocks in the free block bitmap as unused
   lastBit = (usedBlockList[blockLocation]->endLocation / MEMBLOCKSIZE);
-
   for (temp = (usedBlockList[blockLocation]->startLocation / MEMBLOCKSIZE);
        temp <= lastBit; temp ++)
-    {
-      freeBlockBitmap[temp / 8] &= (0xFF7F >> (temp % 8));
-      freeBlocks++;
-    }
+    freeBlockBitmap[temp / 8] &= (0xFF7F >> (temp % 8));
 
   // Adjust the total used and free memory quantities
   temp = ((usedBlockList[blockLocation]->endLocation -
@@ -461,7 +306,7 @@ static int releaseBlock(int blockLocation)
 }
 
 
-static unsigned int percentUsage(void)
+static unsigned percentUsage(void)
 {
   // Calculates the percent usage of total memory (base + extended)
   
@@ -481,7 +326,7 @@ static unsigned int percentUsage(void)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelMemoryInitialize(unsigned int kernelMemory, loaderInfoStruct *info)
+int kernelMemoryInitialize(unsigned kernelMemory, loaderInfoStruct *info)
 {
   // This routine will initialize all of the machine's memory between the
   // starting point and the ending point.  It will call a routine to test 
@@ -490,10 +335,8 @@ int kernelMemoryInitialize(unsigned int kernelMemory, loaderInfoStruct *info)
 
   int status = 0;
   unsigned char *bitmapPhysical = NULL;
-  unsigned int bitmapSize = 0;
-  unsigned int rangeStart, rangeSize;
+  unsigned bitmapSize = 0;
   int count;
-
 
   // Make sure that this initialization routine only gets called once
   if (memoryManagerInitialized)
@@ -527,7 +370,6 @@ int kernelMemoryInitialize(unsigned int kernelMemory, loaderInfoStruct *info)
   
   totalBlocks = (totalMemory / MEMBLOCKSIZE);
   usedBlocks = 0;
-  freeBlocks = totalBlocks;
 
   // We need to define memory for the free-block bitmap.  However,
   // we will have to do it manually since, without the bitmap, we can't
@@ -547,6 +389,7 @@ int kernelMemoryInitialize(unsigned int kernelMemory, loaderInfoStruct *info)
   // have to map it into the kernel's address space
   status = kernelPageMapToFree(KERNELPROCID, (void *) bitmapPhysical, 
 			       (void **) &freeBlockBitmap, bitmapSize);
+
   // Was this successful?
   if (status < 0)
     return (status);
@@ -584,7 +427,7 @@ int kernelMemoryInitialize(unsigned int kernelMemory, loaderInfoStruct *info)
       if (!strcmp((char *) reservedBlocks[count].description,
 		  "free memory bitmap"))
 	{
-	  reservedBlocks[count].startLocation = (unsigned int) bitmapPhysical;
+	  reservedBlocks[count].startLocation = (unsigned) bitmapPhysical;
 	  reservedBlocks[count].endLocation =
 	    (reservedBlocks[count].startLocation + bitmapSize - 1);
 	}
@@ -607,63 +450,6 @@ int kernelMemoryInitialize(unsigned int kernelMemory, loaderInfoStruct *info)
 	}
     }
 
-  // What if the BIOS was not able to provide a memory map to the OS
-  // loader?  In that case, we will need to guess, and block off a couple
-  // of default ranges
-  if (info->memoryMap[0].size == 0)
-    {
-      // No memory map.  Use the defaults.
-      for (count = 0; noMemoryMap[count].processId != 0; count ++)
-	{
-	  status = allocateBlock(noMemoryMap[count].processId,
-				 noMemoryMap[count].startLocation, 
-				 noMemoryMap[count].endLocation, 
-				 (char *) noMemoryMap[count].description);
-	  if (status < 0)
-	    {
-	      // Release the lock on the memory data
-	      kernelResourceManagerUnlock(&memoryManagerLock);
-	      return (status);
-	    }
-	}
-    }
-
-  else
-    {
-      // Go through each memory range listed in the memory map (if any) and
-      // identify any memory that has been marked as 'reserved' by the
-      // BIOS.  We will need to add these to our list of reserved blocks
-      for (count = 0; info->memoryMap[count].size > 0; count ++)
-	if (info->memoryMap[count].type == reserved)
-	  {
-	    // We can't use this memory.  Reserve it.
-
-	    // Make sure that it corresponds to a block boundary.  We
-	    // will round down for start addresses, and round up for
-	    // sizes.
-	    rangeStart = (unsigned int) info->memoryMap[count].start;
-	    if (rangeStart > 0)
-	      rangeStart -= (rangeStart % MEMBLOCKSIZE);
-	    rangeSize = (unsigned int) info->memoryMap[count].size;
-	    rangeSize += (MEMBLOCKSIZE - (rangeSize % MEMBLOCKSIZE));
-
-	    if (rangeStart < totalMemory)
-	      {
-		/*
-		status = allocateBlock(KERNELPROCID, rangeStart,
-				       (rangeStart + rangeSize - 1),
-				       "BIOS reserved");
-		if (status < 0)
-		  {
-		    // Release the lock on the memory data
-		    kernelResourceManagerUnlock(&memoryManagerLock);
-		    return (status);
-		  }
-		*/
-	      }
-	  }
-    }
-
   // Release the lock on the memory data
   kernelResourceManagerUnlock(&memoryManagerLock);
 
@@ -675,49 +461,8 @@ int kernelMemoryInitialize(unsigned int kernelMemory, loaderInfoStruct *info)
 }
 
 
-int kernelMemoryReserveBlock(unsigned int start, unsigned int size,
-			     const char *description)
-{
-  // This allows other parts of the kernel to reserve a block of physical
-  // memory.  This allows the hardware enumeration routine to block off
-  // pieces of hardware-owned memory such as the video card's linear
-  // framebuffer
-
-  int status = 0;
-
-  // Make sure the memory manager has been initialized
-  if (!memoryManagerInitialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  if (description == NULL)
-    return (status = ERR_NULLPARAMETER);
-  
-  // kernelTextPrint("Attempting to reserve ");
-  // kernelTextPrintUnsigned(size);
-  // kernelTextPrint(" bytes starting at ");
-  // kernelTextPrintUnsigned(start);
-  // kernelTextNewline();
-
-  // Obtain a lock on the memory data
-  status = kernelResourceManagerLock(&memoryManagerLock);
-  if (status < 0)
-    return (status);
-
-  status = allocateBlock(KERNELPROCID, start, (start + (size - 1)),
-			 description);
-
-  // Release the lock on the memory data
-  kernelResourceManagerUnlock(&memoryManagerLock);
-
-  if (status < 0)
-    kernelError(kernel_error, "Unable to reserve physical memory block");
-    
-  return (status);
-}
-
-
-void *kernelMemoryRequestBlock(unsigned int requestedSize, 
-		       unsigned int alignment, const char *description)
+void *kernelMemoryRequestBlock(unsigned requestedSize, unsigned alignment,
+			       const char *description)
 {
   // This is a wrapper function for the real requestBlock routine.
   // It will take the physical memory address returned by requestBlock
@@ -740,14 +485,22 @@ void *kernelMemoryRequestBlock(unsigned int requestedSize,
 
   if (processId < 0)
     {
-      kernelError(kernel_error, UNKNOWN_PROCESS);
+      kernelError(kernel_error, "Unable to determine the current process");
       return (virtualMemoryBlock = NULL);
     }
+
+  // Obtain a lock on the memory data
+  status = kernelResourceManagerLock(&memoryManagerLock);
+  if (status < 0)
+    return (virtualMemoryBlock = NULL);
 
   // Call requestBlock to do all the real work of finding a free
   // memory region
   status = requestBlock(processId, requestedSize, alignment, description,
 			&physicalMemoryBlock);
+
+  // Release the lock on the memory data
+  kernelResourceManagerUnlock(&memoryManagerLock);
 
   // Make sure it was successful
   if (status < 0)
@@ -762,7 +515,7 @@ void *kernelMemoryRequestBlock(unsigned int requestedSize,
   if (status < 0)
     {
       // Attempt to deallocate the physical memory block.
-      kernelMemoryReleaseByPointer(physicalMemoryBlock);
+      kernelMemoryReleaseBlock(physicalMemoryBlock);
       return (virtualMemoryBlock = NULL);
     }
 
@@ -773,8 +526,9 @@ void *kernelMemoryRequestBlock(unsigned int requestedSize,
 }
 
 
-void *kernelMemoryRequestSystemBlock(unsigned int requestedSize, 
-			     unsigned int alignment, const char *description)
+void *kernelMemoryRequestSystemBlock(unsigned requestedSize,
+				     unsigned alignment,
+				     const char *description)
 {
   // This is a wrapper function for the real requestBlock routine.
   // It will take the physical memory address returned by requestBlock
@@ -791,10 +545,18 @@ void *kernelMemoryRequestSystemBlock(unsigned int requestedSize,
   if (!memoryManagerInitialized)
     return (virtualMemoryBlock = NULL);
 
+  // Obtain a lock on the memory data
+  status = kernelResourceManagerLock(&memoryManagerLock);
+  if (status < 0)
+    return (virtualMemoryBlock = NULL);
+
   // Call requestBlock to do all the real work of finding a free
   // memory region
   status = requestBlock(KERNELPROCID, requestedSize, alignment, description,
 			&physicalMemoryBlock);
+
+  // Release the lock on the memory data
+  kernelResourceManagerUnlock(&memoryManagerLock);
 
   // Make sure it was successful
   if (status < 0)
@@ -809,7 +571,17 @@ void *kernelMemoryRequestSystemBlock(unsigned int requestedSize,
   if (status < 0)
     {
       // Attempt to deallocate the physical memory block.
-      kernelMemoryReleaseByPointer(physicalMemoryBlock);
+      kernelError(kernel_error, "Unable to map system memory block");
+      kernelMemoryReleasePhysicalBlock(physicalMemoryBlock);
+      return (virtualMemoryBlock = NULL);
+    }
+
+  // Make sure the memory is really in the kernel's address space
+  if (virtualMemoryBlock < (void *) KERNEL_VIRTUAL_ADDRESS)
+    {
+      kernelError(kernel_error, "Page manager did not correctly map system "
+		  "memory block");
+      kernelMemoryReleasePhysicalBlock(physicalMemoryBlock);
       return (virtualMemoryBlock = NULL);
     }
 
@@ -820,8 +592,9 @@ void *kernelMemoryRequestSystemBlock(unsigned int requestedSize,
 }
 
 
-void *kernelMemoryRequestPhysicalBlock(unsigned int requestedSize, 
-		       unsigned int alignment, const char *description)
+void *kernelMemoryRequestPhysicalBlock(unsigned requestedSize, 
+				       unsigned alignment,
+				       const char *description)
 {
   // This is a wrapper function for the real requestBlock routine.
   // It return the physical memory address returned by requestBlock
@@ -835,13 +608,21 @@ void *kernelMemoryRequestPhysicalBlock(unsigned int requestedSize,
 
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
-    return (NULL);
+    return (memory = NULL);
+
+  // Obtain a lock on the memory data
+  status = kernelResourceManagerLock(&memoryManagerLock);
+  if (status < 0)
+    return (memory = NULL);
 
   // Call requestBlock to do all the real work of finding a free
   // memory region.  We will call it system memory for the time being.
   status = requestBlock(KERNELPROCID, requestedSize, alignment, description,
 			&memory);
   
+  // Release the lock on the memory data
+  kernelResourceManagerUnlock(&memoryManagerLock);
+
   if (status < 0)
     return (memory = NULL);
   
@@ -860,7 +641,7 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
 
   int status = 0;
   void *physicalAddress = NULL;
-  unsigned int blockSize = 0;
+  unsigned blockSize = 0;
   int count;
 
   
@@ -868,15 +649,11 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
   if (!memoryManagerInitialized)
     return (status = ERR_NOTINITIALIZED);
 
-  if (remap)
+  // Make sure newVirtualAddress isn't NULL if we're remapping
+  if (remap && (newVirtualAddress == NULL))
     {
-      // Make sure newVirtualAddress isn't NULL
-      if (newVirtualAddress == NULL)
-	{
-	  kernelError(kernel_error, 
-		      "Pointer for new virtual address is NULL");
-	  return (status = ERR_NULLPARAMETER);
-	}
+      kernelError(kernel_error, "Pointer for new virtual address is NULL");
+      return (status = ERR_NULLPARAMETER);
     }
 
   // We do a privilege check here, to make sure that this operation
@@ -898,7 +675,7 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
   if (physicalAddress == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_MEMORY_POINTER);
+      kernelError(kernel_error, "The memory pointer is NULL");
       return (status = ERR_NOSUCHENTRY);
     }
   
@@ -912,21 +689,26 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
   for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
        count ++)
     {
-      if ((usedBlockList[count]->startLocation <= 
-	   (unsigned int) physicalAddress) &&
-	  (usedBlockList[count]->endLocation >= 
-	   (unsigned int) physicalAddress))
+      if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
 	{
 	  // This is the one.
 
-	  blockSize = (usedBlockList[count]->endLocation - 
-		       usedBlockList[count]->startLocation + 1);
+	  if (usedBlockList[count]->processId != oldPid)
+	    {
+	      kernelError(kernel_error, "Attempt to change memory ownership "
+			  "from incorrect owner (%d should be %d)", oldPid,
+			  usedBlockList[count]->processId);
+	      return (status = ERR_PERMISSION);
+	    }
 
 	  if (remap)
 	    {
-	      // Unmap the memory from the old owner's address space
-	      status = kernelPageUnmap(usedBlockList[count]->processId, 
-		       &physicalAddress, oldVirtualAddress, blockSize);
+	      blockSize = ((usedBlockList[count]->endLocation - 
+			    usedBlockList[count]->startLocation) + 1);
+
+	      // Map the memory into the new owner's address space
+	      status = kernelPageMapToFree(newPid, physicalAddress, 
+					   newVirtualAddress, blockSize);
 
 	      if (status < 0)
 		{
@@ -934,10 +716,9 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
 		  return (status);
 		}
 
-	      // Map the memory into the new owner's address space
-	      status = kernelPageMapToFree(newPid, physicalAddress, 
-					   newVirtualAddress, blockSize);
-
+	      // Unmap the memory from the old owner's address space
+	      status = kernelPageUnmap(oldPid, oldVirtualAddress, blockSize);
+	      
 	      if (status < 0)
 		{
 		  kernelResourceManagerUnlock(&memoryManagerLock);
@@ -976,7 +757,7 @@ int kernelMemoryShare(int sharerPid, int shareePid, void *oldVirtualAddress,
 
   int status = 0;
   void *physicalAddress = NULL;
-  unsigned int blockSize = 0;
+  unsigned blockSize = 0;
   int count;
 
   
@@ -1002,7 +783,7 @@ int kernelMemoryShare(int sharerPid, int shareePid, void *oldVirtualAddress,
   if (physicalAddress == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_MEMORY_POINTER);
+      kernelError(kernel_error, "The memory pointer is NULL");
       return (status = ERR_NOSUCHENTRY);
     }
   
@@ -1011,20 +792,25 @@ int kernelMemoryShare(int sharerPid, int shareePid, void *oldVirtualAddress,
   if (status < 0)
     return (status);
 
-  // Now we can go through the "used" list watching for a start-end
-  // range that encompasses this pointer
+  // Now we can go through the "used" list watching for a start value
+  // that matches this pointer
   for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
        count ++)
     {
-      if ((usedBlockList[count]->startLocation <= 
-	   (unsigned int) physicalAddress) &&
-	  (usedBlockList[count]->endLocation >= 
-	   (unsigned int) physicalAddress))
+      if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
 	{
 	  // This is the one.
 
-	  blockSize = (usedBlockList[count]->endLocation - 
-		       usedBlockList[count]->startLocation + 1);
+	  if (usedBlockList[count]->processId != sharerPid)
+	    {
+	      kernelError(kernel_error, "Attempt to share memory from "
+			  "incorrect owner (%d should be %d)", sharerPid,
+			  usedBlockList[count]->processId);
+	      return (status = ERR_PERMISSION);
+	    }
+
+	  blockSize = ((usedBlockList[count]->endLocation - 
+			usedBlockList[count]->startLocation) + 1);
 
 	  // Map the memory into the sharee's address space
 	  status = kernelPageMapToFree(shareePid, physicalAddress, 
@@ -1054,17 +840,19 @@ int kernelMemoryShare(int sharerPid, int shareePid, void *oldVirtualAddress,
 }
 
 
-int kernelMemoryReleaseByPointer(void *virtualAddress)
+int kernelMemoryReleaseBlock(void *virtualAddress)
 {
   // This routine will determine the blockId of the block that contains
   // the memory location pointed to by the parameter.  After it has done
   // this, it calls the kernelMemoryReleaseByBlockId routine.  It returns
   // 0 if successful, negative otherwise.
 
+  int currentPid = 0;
   void *physicalAddress = NULL;
   int status = 0;
   int count;
 
+  //return (0);
 
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
@@ -1072,17 +860,29 @@ int kernelMemoryReleaseByPointer(void *virtualAddress)
 
   // It's OK for virtualAddress to be NULL.
 
+  currentPid = kernelMultitaskerGetCurrentProcessId();
+
+  // Permission check: This function can only be used to release system
+  // blocks by privileged processes because it is accessible to user functions
+  if ((virtualAddress >= (void *) KERNEL_VIRTUAL_ADDRESS) &&
+      (currentPid != KERNELPROCID) &&
+      (kernelMultitaskerGetProcessPrivilege(currentPid) !=
+       PRIVILEGE_SUPERVISOR))
+    {
+      kernelError(kernel_error, "Cannot release system memory block from "
+		  "unprivileged user process %d", currentPid);
+      return (status = ERR_PERMISSION);
+    }
+
   // The caller will be pass memoryPointer as a virtual address.  Turn the 
   // memoryPointer into a physical address.  We could simply unmap it
   // here except that we don't yet know the size of the block.
-  physicalAddress = 
-    kernelPageGetPhysical(kernelMultitaskerGetCurrentProcessId(), 
-			  virtualAddress);
+  physicalAddress = kernelPageGetPhysical(currentPid, virtualAddress);
 
   if (physicalAddress == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_MEMORY_POINTER);
+      kernelError(kernel_error, "The memory pointer is NULL");
       return (status = ERR_NOSUCHENTRY);
     }
   
@@ -1091,26 +891,24 @@ int kernelMemoryReleaseByPointer(void *virtualAddress)
   if (status < 0)
     return (status);
 
-  // Now we can go through the "used" block list watching for a start-end
-  // range that encompasses this pointer
+  // Now we can go through the "used" block list watching for a start
+  // value that matches this pointer
   for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
        count ++)
-    if ((usedBlockList[count]->startLocation <= 
-	 (unsigned int) physicalAddress) &&
-	(usedBlockList[count]->endLocation >= 
-	 (unsigned int) physicalAddress))
+    if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
       {
 	// This is the one.  Now that we know the size of the memory
 	// block, we can unmap it from the virtual address space.
-	status = kernelPageUnmap(kernelMultitaskerGetCurrentProcessId(), 
-				 &physicalAddress, virtualAddress, 
+	status = kernelPageUnmap(currentPid, virtualAddress, 
 				 (usedBlockList[count]->endLocation - 
 				  usedBlockList[count]->startLocation + 1));
-
+	
 	if (status < 0)
 	  {
 	    // Make the error
-	    kernelError(kernel_error, UNMAPPING_ERROR);
+	    kernelError(kernel_error, "Unable to unmap memory from the "
+			"virtual address space");
+	    kernelResourceManagerUnlock(&memoryManagerLock);
 	    return (status);
 	  }
 
@@ -1120,12 +918,7 @@ int kernelMemoryReleaseByPointer(void *virtualAddress)
 	// Release the lock on the memory data
 	kernelResourceManagerUnlock(&memoryManagerLock);
 
-	// Make sure it was successful
-	if (status < 0)
-	  return (status);
-
-	// Otherwise, return success
-	return (status = 0);
+	return (status);
       }
 
   // If we fall through, we didn't find the requested block
@@ -1137,7 +930,95 @@ int kernelMemoryReleaseByPointer(void *virtualAddress)
 }
 
 
-int kernelMemoryReleaseByPhysicalPointer(void *physicalAddress)
+int kernelMemoryReleaseSystemBlock(void *virtualAddress)
+{
+  // This routine will determine the blockId of the block that contains
+  // the memory location pointed to by the parameter.  After it has done
+  // this, it calls the kernelMemoryReleaseByBlockId routine.  It returns
+  // 0 if successful, negative otherwise.
+
+  void *physicalAddress = NULL;
+  int status = 0;
+  int count;
+
+  // Make sure the memory manager has been initialized
+  if (!memoryManagerInitialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // It is NOT OK for virtualAddress to be NULL in this function.  System
+  // memory blocks should never start at 0
+  if (virtualAddress == NULL)
+    {
+      kernelError(kernel_error, "The memory pointer is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // The virtual address must be in kernel address space
+  if (virtualAddress < (void *) KERNEL_VIRTUAL_ADDRESS)
+    {
+      kernelError(kernel_error, "The system memory block to release is not "
+		  "in the kernel's address space");
+      return (status = ERR_INVALID);
+    }
+
+  // The caller will be pass memoryPointer as a virtual address.  Turn the 
+  // memoryPointer into a physical address.  We could simply unmap it
+  // here except that we don't yet know the size of the block.
+  physicalAddress = 
+    kernelPageGetPhysical(KERNELPROCID, virtualAddress);
+
+  if (physicalAddress == NULL)
+    {
+      // Make the error
+      kernelError(kernel_error, "The memory pointer is NULL");
+      return (status = ERR_NOSUCHENTRY);
+    }
+  
+  // Obtain a lock on the memory data
+  status = kernelResourceManagerLock(&memoryManagerLock);
+  if (status < 0)
+    return (status);
+
+  // Now we can go through the "used" block list watching for a start
+  // value that matches this pointer
+  for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
+       count ++)
+    if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
+      {
+	// This is the one.  Now that we know the size of the memory
+	// block, we can unmap it from the virtual address space.
+	status = kernelPageUnmap(KERNELPROCID, virtualAddress, 
+				 ((usedBlockList[count]->endLocation - 
+				   usedBlockList[count]->startLocation) + 1));
+
+	if (status < 0)
+	  {
+	    // Make the error
+	    kernelError(kernel_error, "Unable to unmap memory from the "
+			"virtual address space");
+	    kernelResourceManagerUnlock(&memoryManagerLock);
+	    return (status);
+	  }
+
+	// Call the releaseBlock routine with this block's blockId.
+	status = releaseBlock(count);
+	
+	// Release the lock on the memory data
+	kernelResourceManagerUnlock(&memoryManagerLock);
+
+	return (status);
+      }
+
+  // If we fall through, we didn't find the requested block
+  
+  // Release the lock on the memory data
+  kernelResourceManagerUnlock(&memoryManagerLock);
+  
+  return (status = ERR_NOSUCHENTRY);
+}
+
+
+int kernelMemoryReleasePhysicalBlock(void *physicalAddress)
 {
   // This routine will determine the blockId of the block that contains
   // the memory location pointed to by the parameter.  After it has done
@@ -1161,14 +1042,11 @@ int kernelMemoryReleaseByPhysicalPointer(void *physicalAddress)
   if (status < 0)
     return (status);
 
-  // Now we can go through the "used" block list watching for a start-end
-  // range that encompasses this pointer
+  // Now we can go through the "used" block list watching for a start
+  // value that matches this pointer
   for (count = 0; ((count < usedBlocks) && (count < MAXMEMORYBLOCKS)); 
        count ++)
-    if ((usedBlockList[count]->startLocation <= 
-	 (unsigned int) physicalAddress) &&
-	(usedBlockList[count]->endLocation >= 
-	 (unsigned int) physicalAddress))
+    if (usedBlockList[count]->startLocation == (unsigned) physicalAddress)
       {
 	// Call the releaseBlock routine with this block's blockId.
 	status = releaseBlock(count);
@@ -1245,12 +1123,18 @@ void kernelMemoryPrintUsage(void)
   // This routine prints some formatted information about the 
   // current usage of memory
 
+  int status = 0;
   kernelMemoryBlock *temp = NULL;
+  char buffer[1024];
   int count, count2;
-
 
   // Make sure the memory manager has been initialized
   if (!memoryManagerInitialized)
+    return;
+
+  // Obtain a lock on the memory data
+  status = kernelResourceManagerLock(&memoryManagerLock);
+  if (status < 0)
     return;
 
   // Before we display the list of used memory blocks, we should sort it so
@@ -1267,6 +1151,9 @@ void kernelMemoryPrintUsage(void)
 	  usedBlockList[count2] = temp;
 	}
 
+  // Release the lock on the memory data
+  kernelResourceManagerUnlock(&memoryManagerLock);
+
   // Print the header lines
   kernelTextPrintLine(" --- Memory usage information by block ---");
 
@@ -1274,24 +1161,24 @@ void kernelMemoryPrintUsage(void)
   for (count = 0; count < usedBlocks; count ++)
     {
       // go to the "count"th element and print the asociated info
-      kernelTextPrint(" proc=%d %u", usedBlockList[count]->processId,
-		      usedBlockList[count]->startLocation);
+      sprintf(buffer, " proc=%d %u", usedBlockList[count]->processId,
+	      usedBlockList[count]->startLocation);
+      kernelTextPrint(buffer);
       kernelTextTab();
-      kernelTextPrint("-> %u", usedBlockList[count]->endLocation);
+      sprintf(buffer, "-> %u", usedBlockList[count]->endLocation);
+      kernelTextPrint(buffer);
       kernelTextTab();
-      kernelTextPrint(" size=%u", usedBlockList[count]->endLocation - 
-		      usedBlockList[count]->startLocation + 1);
+      sprintf(buffer, " size=%u", usedBlockList[count]->endLocation - 
+	      usedBlockList[count]->startLocation + 1);
+      kernelTextPrint(buffer);
       kernelTextTab();
       kernelTextPrintLine((char *) usedBlockList[count]->description);
     }
 
-  kernelTextPrintLine("Total used blocks - %d", usedBlocks);
-
   // Print out the percent usage information
-  kernelTextPrintLine(" --- Usage totals ---");
-  kernelTextPrintLine("Total used - %u - %d%", totalUsed, percentUsage());
-  kernelTextPrintLine("Total free - %u - %d%", totalFree,
-		      100 - percentUsage());
-
+  kernelTextPrintLine(" --- Usage totals ---\nTotal used blocks - %d\nTotal "
+		      "used - %u - %d%%\nTotal free - %u - %d%%", usedBlocks,
+		      totalUsed, percentUsage(), totalFree,
+		      (100 - percentUsage()));
   return;
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,10 +19,12 @@
 //  kernelHardwareEnumeration.c
 //
 
+// These routines enumerate all of the hardware devices in the system based
+// on the hardware data structure passed to the kernel by the os loader.
+
 #include "kernelHardwareEnumeration.h"
 #include "kernelParameters.h"
 #include "kernelDriverManagement.h"
-#include "kernelMemoryManager.h"
 #include "kernelText.h"
 #include "kernelMiscAsmFunctions.h"
 #include "kernelLog.h"
@@ -40,14 +42,14 @@ static kernelSysTimerObject systemTimerDevice;
 static kernelRtcObject rtcDevice;
 static kernelDmaObject dmaDevice;
 static kernelKeyboardObject keyboardDevice;
+static kernelMouseObject mouseDevice;
 static kernelDiskObject floppyDevices[MAXFLOPPIES];  
-int numberFloppies = 0;
+static int numberFloppies = 0;
 static kernelDiskObject hardDiskDevices[MAXHARDDISKS];  
-int numberHardDisks = 0;
+static int numberHardDisks = 0;
+static kernelGraphicAdapterObject graphicAdapterDevice;
 
-
-// These routines enumerate all of the hardware devices in the system based
-// on the hardware data structure passed to the kernel by the os loader.
+extern kernelDriverManager kernelAllDrivers;
 
 
 static int kernelHardwareEnumerateProcessorDevice(void)
@@ -82,7 +84,6 @@ static int kernelHardwareEnumeratePicDevice(void)
   // the device and initializes the functions in the abstracted driver.
 
   int status = 0;
-
 
   status = kernelPicRegisterDevice(&picDevice);
   if (status < 0)
@@ -133,7 +134,6 @@ static int kernelHardwareEnumerateRtcDevice(void)
 
   int status = 0;
 
-
   status = kernelRtcRegisterDevice(&rtcDevice);
   if (status < 0)
     return (status);
@@ -149,6 +149,31 @@ static int kernelHardwareEnumerateRtcDevice(void)
 
   return (status = 0);
 }
+
+
+/*
+static int kernelHardwareEnumerateSerialDevices(void)
+{
+  // Enumerate the serial ports installed on this machine, register them.
+
+  int status = 0;
+
+  status = kernelSerialRegisterDevice(&rtcDevice);
+  if (status < 0)
+    return (status);
+
+  status = kernelInstallSerialDriver();
+  if (status < 0)
+    return (status);
+
+  // Initialize the serial port functions
+  status = kernelSerialInitialize();
+  if (status < 0)
+    return (status);
+
+  return (status = 0);
+}
+*/
 
 
 static int kernelHardwareEnumerateDmaDevice(void)
@@ -197,6 +222,35 @@ static int kernelHardwareEnumerateKeyboardDevice(void)
   if (status < 0)
     return (status);
 
+  // Set the default keyboard data stream to be the console input
+  status = kernelKeyboardSetStream(kernelTextGetConsoleInput()->s);
+  if (status < 0)
+    return (status);
+
+  return (status = 0);
+}
+
+
+static int kernelHardwareEnumerateMouseDevice(void)
+{
+  // This routine enumerates the system's mouse device.  For the time
+  // being it assumes that the mouse is a PS2 type
+
+  int status = 0;
+
+  status = kernelMouseRegisterDevice(&mouseDevice);
+  if (status < 0)
+    return (status);
+
+  status = kernelInstallMouseDriver();
+  if (status < 0)
+    return (status);
+
+  // Initialize the keyboard functions
+  status = kernelMouseInitialize();
+  if (status < 0)
+    return (status);
+
   return (status = 0);
 }
 
@@ -216,11 +270,11 @@ static int kernelHardwareEnumerateFloppyDevices(void)
   int headUnload = 0;
   int gapLength = 0;
 
-
   // We'll need to call a couple of the driver functions
-  int (*floppyInitialize) (void) = DEFAULTFLOPPYINIT;
+  int (*floppyInitialize) (void) =
+    kernelAllDrivers.floppyDriver->driverInitialize;
   int (*floppyDescribe) (int, ...) =
-    DEFAULTFLOPPYDESCRIBE;
+    kernelAllDrivers.floppyDriver->driverDescribe;
 
   // Initialize the floppy disk driver code
   floppyInitialize();
@@ -352,20 +406,25 @@ static int kernelHardwareEnumerateHardDiskDevices(void)
   // previously detected.
 
   int status = 0;
-  int physicalDisks = 0;
+  int physicalDisk = 0;
+  int foundPhysical = 0;
+  int partition = 0;
   unsigned char sectBuf[512];
   unsigned char partitionType = 0;
-  char *partitionRecord = NULL;
+  unsigned char *partitionRecord = NULL;
   char *partitionDescription = NULL;
-  int count1, count2, count3;
+  int count;
 
   // These are the default hard disk driver functions that we need to
   // use to examine the hard disks.  We need to do this since there 
   // obviously isn't a driver preattached to the disks we're creating.
-  int (*hddInitialize) (void) = DEFAULTHDDINIT;
-  int (*hddRecalibrate) (int) = DEFAULTHDDRECALIBRATE;
-  int (*hddReadSectors) (int, unsigned int, unsigned int,
-	 unsigned int, unsigned int, unsigned int, void *) = DEFAULTHDDREAD;
+  int (*hddInitialize) (void) = kernelAllDrivers.hardDiskDriver
+    ->driverInitialize;
+  int (*hddRecalibrate) (int) = kernelAllDrivers.hardDiskDriver
+    ->driverRecalibrate;
+  int (*hddReadSectors) (int, unsigned, unsigned,
+	 unsigned, unsigned, unsigned, void *) =
+    kernelAllDrivers.hardDiskDriver->driverReadSectors;
 
   // This structure is used to describe a known partition type
   typedef struct
@@ -377,15 +436,15 @@ static int kernelHardwareEnumerateHardDiskDevices(void)
   // This is a table for keeping partition types
   static partType partitionTypes[] =
   {
-    { 0x01, "12-bit FAT"},
-    { 0x04, "16-bit FAT"},
+    { 0x01, "FAT12"},
+    { 0x04, "FAT16"},
     { 0x05, "Extended partition"},
-    { 0x06, "16-bit FAT"},
+    { 0x06, "FAT16"},
     { 0x07, "OS/2 HPFS, or NTFS"},
     { 0x0A, "OS/2 Boot Manager"},
     { 0x0B, "FAT32"},
     { 0x0C, "FAT32 (LBA)"},
-    { 0x0E, "16-bit FAT (LBA)"},
+    { 0x0E, "FAT16 (LBA)"},
     { 0x0F, "Extended partition (LBA)"},
     { 0x63, "GNU HURD"},
     { 0x80, "Minix"},
@@ -414,39 +473,48 @@ static int kernelHardwareEnumerateHardDiskDevices(void)
 
   // Reset the number of physical hard disk devices we've actually
   // examined, and reset the number of logical disks we've created
-  physicalDisks = 0; numberHardDisks = 0;
+  numberHardDisks = 0;
 
   // Make a message
   kernelLog("Examining hard disk partitions...");
 
-  for (count1 = 0; ((physicalDisks < systemInfo->hardDisks) &&
-		    (count1 < MAXHARDDISKDEVICES)); count1 ++)
+  for (physicalDisk = 0; ((foundPhysical < systemInfo->hardDisks) &&
+			  (physicalDisk < MAXHARDDISKDEVICES));
+       physicalDisk ++)
     {
       // We need to read the master boot record, and make disk objects
       // for each of the partitions we find
 
-      // Recalibrate the disk before we attempt to do a read
-      status = hddRecalibrate(count1);
-
+      for (count = 0; count < 3; count ++)
+	{
+	  // Recalibrate the disk before we attempt to do a read
+	  status = hddRecalibrate(physicalDisk);
+	  if (status == 0)
+	    break;
+	}
       if (status < 0)
-	// There might not really be any such device
-	continue;
+	{
+	  // There might not really be any such device
+	  kernelError(kernel_warn, "Hard disk %d did not respond (error %d)",
+		      physicalDisk, status);
+	  continue;
+	}
 
       // The hard disk responded to our query.  We will add it to the
       // number of physical devices we found
-      physicalDisks++;
 
       // Initialize the sector buffer
       kernelMemClear(sectBuf, 512);
 
       // Read the first sector of the disk
-      status = hddReadSectors(count1, 0 /* head */, 0 /* cylinder */,
+      status = hddReadSectors(physicalDisk, 0 /* head */, 0 /* cylinder */,
 			      1 /* startsector */, 0 /* LBA */, 
 			      1 /* numsectors */, sectBuf /* buffer */);
       if (status < 0)
 	{
 	  // We couldn't read from the disk
-	  kernelError(kernel_error, "Error reading MBR on hard disk");
+	  kernelError(kernel_error, "Error %d reading MBR on hard disk %d",
+		      status, physicalDisk);
 	  continue;
 	}
 
@@ -463,8 +531,8 @@ static int kernelHardwareEnumerateHardDiskDevices(void)
       // boot record
       partitionRecord = (sectBuf + 0x01BE);
 
-      // Loop through the partition records, looking for non-zero entries
-      for (count2 = 0; count2 < 4; count2 ++)
+     // Loop through the partition records, looking for non-zero entries
+      for (partition = 0; partition < 4; partition ++)
 	{
 	  partitionType = partitionRecord[4];
 	  
@@ -474,92 +542,148 @@ static int kernelHardwareEnumerateHardDiskDevices(void)
 	    break;
 
 	  partitionDescription = "Unsupported partition type";
-	  for (count3 = 0; partitionTypes[count3].index != 0; count3 ++)
-	    if (partitionTypes[count3].index == partitionType)
-	      partitionDescription = partitionTypes[count3].description;
-	  
+	  for (count = 0; partitionTypes[count].index != 0; count ++)
+	    if (partitionTypes[count].index == partitionType)
+	      partitionDescription = partitionTypes[count].description;
 	  
 	  // We will make a disk object to correspond with the
 	  // partition we've discovered
 
-	  hardDiskDevices[numberHardDisks].driverDiskNumber = count1;
+	  hardDiskDevices[numberHardDisks].driverDiskNumber = physicalDisk;
 	  hardDiskDevices[numberHardDisks].dmaChannel = 3;
-	  hardDiskDevices[numberHardDisks].description = 
-	    "Standard ATA(IDE) hard disk";
+	  hardDiskDevices[numberHardDisks].description = partitionDescription;
 	  hardDiskDevices[numberHardDisks].fixedRemovable = fixed;
 	  hardDiskDevices[numberHardDisks].type = idedisk;
 
 	  hardDiskDevices[numberHardDisks].startHead = 
-	    (unsigned int) partitionRecord[0x01];
+	    (unsigned) partitionRecord[0x01];
 	  hardDiskDevices[numberHardDisks].startSector = 
-	    (unsigned int) (partitionRecord[0x02] & 0x3F);
+	    (unsigned) (partitionRecord[0x02] & 0x3F);
 	  hardDiskDevices[numberHardDisks].startCylinder = 
-	    (unsigned int) (partitionRecord[0x02] & 0xC0);
+	    (unsigned) (partitionRecord[0x02] & 0xC0);
 	  hardDiskDevices[numberHardDisks].startCylinder = 
 	    (hardDiskDevices[numberHardDisks].startCylinder << 2);
 	  hardDiskDevices[numberHardDisks].startCylinder += 
-	    (unsigned int) partitionRecord[0x03];
+	    (unsigned) partitionRecord[0x03];
 	  hardDiskDevices[numberHardDisks].startLogicalSector = 
-	    *((unsigned int *)(partitionRecord + 0x08));
+	    *((unsigned *)(partitionRecord + 0x08));
 	  hardDiskDevices[numberHardDisks].logicalSectors = 
-	    *((unsigned int *)(partitionRecord + 0x0C));
+	    *((unsigned *)(partitionRecord + 0x0C));
 
 	  // We get more hard disk info from the physical disk
-	  // info we were passed.  We need to get it from 
-	  // hddInfo[physicalDisks - 1] since we have already added
-	  // one to that number
+	  // info we were passed.
 	  hardDiskDevices[numberHardDisks].heads = 
-	    systemInfo->hddInfo[physicalDisks - 1].heads;
+	    systemInfo->hddInfo[foundPhysical].heads;
 	  hardDiskDevices[numberHardDisks].cylinders = 
-	    systemInfo->hddInfo[physicalDisks - 1].cylinders;
+	    systemInfo->hddInfo[foundPhysical].cylinders;
 	  hardDiskDevices[numberHardDisks].sectors = 
-	    systemInfo->hddInfo[physicalDisks - 1].sectors;
+	    systemInfo->hddInfo[foundPhysical].sectors;
 	  hardDiskDevices[numberHardDisks].sectorSize = 
-	    systemInfo->hddInfo[physicalDisks - 1].bytesPerSector;
+	    systemInfo->hddInfo[foundPhysical].bytesPerSector;
+	  // Sometimes 0?  We can't have that as we are about to use it to
+	  // perform a division operation.
+	  if (hardDiskDevices[numberHardDisks].sectorSize == 0)
+	    {
+	      kernelError(kernel_warn, "Physical disk %d sector size 0; "
+			  "assuming 512", physicalDisk);
+	      hardDiskDevices[numberHardDisks].sectorSize = 512;
+	    }
 	  hardDiskDevices[numberHardDisks].maxSectorsPerOp = 
 	    ((128 * 1024) / hardDiskDevices[numberHardDisks].sectorSize);
 	  
 	  // Does this disk use LBA or CHS?
-	  if (hardDiskDevices[numberHardDisks].heads > 16)
-	    // This disk MUST use LBA, since 16 heads is the maximum.
-	    hardDiskDevices[numberHardDisks].addressingMethod = addr_lba;
-	  else
-	    // Use CHS
-	    hardDiskDevices[numberHardDisks].addressingMethod = addr_pchs;
+	  // if ((hardDiskDevices[numberHardDisks].heads > 16) ||
+	  //     (systemInfo->hddInfo[foundPhysical].megaBytes > 512))
+	  // This disk MUST use LBA, since 16 heads is the maximum.
+	  hardDiskDevices[numberHardDisks].addressingMethod = addr_lba;
+	  // else
+	  // Use CHS
+	  // hardDiskDevices[numberHardDisks].addressingMethod = addr_pchs;
 	  
 	  hardDiskDevices[numberHardDisks].lock = 0;
 	  hardDiskDevices[numberHardDisks].motorStatus = 1;
 
 	  // Register the hard disk device
 	  status = kernelDiskFunctionsRegisterDevice(
-			     &hardDiskDevices[numberHardDisks]);
+				      &hardDiskDevices[numberHardDisks]);
 	  if (status < 0)
 	    return (status);
 
-	  kernelLog("Disk %d (hard disk %d, partition %d): %s",
+	  // If this partition was the one we booted from, change the
+	  // active partition starting sector to a partition number
+	  if (hardDiskDevices[numberHardDisks].startLogicalSector ==
+	      systemInfo->hddInfo[foundPhysical].activePartition)
+	    systemInfo->hddInfo[foundPhysical].activePartition = partition;
+
+	  /*
+	  kernelTextPrintLine("Disk %d (hard disk %d, partition %d, %s): %s",
+		      hardDiskDevices[numberHardDisks].diskNumber,
+		      physicalDisk, partition,
+			      ((hardDiskDevices[numberHardDisks]
+			.addressingMethod == addr_lba)? "LBA" : "CHS"),
+			      partitionDescription);
+	  */
+	  kernelLog("Disk %d (hard disk %d, partition %d, %s): %s",
 		    hardDiskDevices[numberHardDisks].diskNumber,
-		    count1, count2, partitionDescription);
-	  
+		    physicalDisk, partition,
+		    ((hardDiskDevices[numberHardDisks]
+		      .addressingMethod == addr_lba)? "LBA" : "CHS"),
+		    partitionDescription);
+
 	  // Increase the number of logical hard disk devices
 	  numberHardDisks++;
 
 	  // Move to the next partition record
 	  partitionRecord += 16;
 	}
+
+      // Got one of the physical disks reported by BIOS
+      foundPhysical++;
     }
+
+  //kernelTextPrint("\n");
 
   status = kernelInstallHardDiskDriver();
   if (status < 0)
     return (status);
 
-  // What if we didn't successfully examine all the disks?
-  if (physicalDisks < systemInfo->hardDisks)
+  return (numberHardDisks);
+}
+
+
+static int kernelHardwareEnumerateGraphicDevice(void)
+{
+  // This routine enumerates the system's graphic adapter device.  
+  // They doesn't really need enumeration; this really just registers the 
+  // device and initializes the functions in the abstracted driver.
+
+  int status = 0;
+
+  // Set up the device parameters
+  graphicAdapterDevice.videoMemory = systemInfo->graphicsInfo.videoMemory;
+  graphicAdapterDevice.mode = systemInfo->graphicsInfo.mode;
+  graphicAdapterDevice.framebuffer = systemInfo->graphicsInfo.framebuffer;
+  graphicAdapterDevice.xRes = systemInfo->graphicsInfo.xRes;
+  graphicAdapterDevice.yRes = systemInfo->graphicsInfo.yRes;
+  graphicAdapterDevice.bitsPerPixel = systemInfo->graphicsInfo.bitsPerPixel;
+
+  status = kernelGraphicRegisterDevice(&graphicAdapterDevice);
+  if (status < 0)
+    return (status);
+
+  status = kernelInstallGraphicDriver();
+  if (status < 0)
+    return (status);
+
+  // If we are in a graphics mode, initialize the graphics functions
+  if (graphicAdapterDevice.mode != 0)
     {
-      // Make a warning
-      kernelError(kernel_warn, "Some hard disks could not be enumerated");
+      status = kernelGraphicInitialize();
+      if (status < 0)
+	return (status);
     }
 
-  return (numberHardDisks);
+  return (status = 0);
 }
 
 
@@ -570,7 +694,6 @@ static int kernelHardwareEnumerationInitialize(void)
 
   int status = 0;
 
-
   // Initialize the memory for the various objects we're managing
   kernelMemClear(&processorDevice, sizeof(kernelProcessorObject));
   kernelMemClear(&picDevice, sizeof(kernelPicObject));
@@ -578,10 +701,12 @@ static int kernelHardwareEnumerationInitialize(void)
   kernelMemClear(&rtcDevice, sizeof(kernelRtcObject));
   kernelMemClear(&dmaDevice, sizeof(kernelDmaObject));
   kernelMemClear(&keyboardDevice, sizeof(kernelKeyboardObject));
+  kernelMemClear(&mouseDevice, sizeof(kernelMouseObject));
   kernelMemClear((void *) floppyDevices, 
 			(sizeof(kernelDiskObject) * MAXFLOPPIES));
   kernelMemClear((void *) hardDiskDevices, 
 			(sizeof(kernelDiskObject) * MAXHARDDISKS));
+  kernelMemClear(&graphicAdapterDevice, sizeof(kernelGraphicAdapterObject));
 
   // Make a note of the fact that the devices have been initialized
   kernelHardwareObjectsInitialized = 1;
@@ -606,7 +731,6 @@ int kernelHardwareEnumerate(loaderInfoStruct *info)
   // return an error (negative), in which case it relays the error code.
 
   int status = 0;
-
 
   // Make sure the info structure isn't NULL
   if (info == NULL)
@@ -644,6 +768,13 @@ int kernelHardwareEnumerate(loaderInfoStruct *info)
   if (status < 0)
     return (status);
 
+  /*
+  // The serial ports
+  status = kernelHardwareEnumerateSerialDevices();
+  if (status < 0)
+    return (status);
+  */
+
   // The DMA controller device
   status = kernelHardwareEnumerateDmaDevice();
   if (status < 0)
@@ -664,17 +795,16 @@ int kernelHardwareEnumerate(loaderInfoStruct *info)
   if (status < 0)
     return (status);
 
-  /*
-  if (systemInfo->videoLFB)
-    {
-      // Reserve the memory block that belongs to the linear framebuffer
-      status = kernelMemoryReserveBlock((unsigned int) systemInfo->videoLFB,
-					(systemInfo->videoMemory * 1024),
-					"video linear framebuffer");
-      if (status < 0)
-	return (status);
-    }
-  */
+  // Enumerate the graphic adapter
+  status = kernelHardwareEnumerateGraphicDevice();
+  if (status < 0)
+    return (status);
+
+  // Do the mouse device after the graphic device so we can get screen
+  // parameters, etc
+  status = kernelHardwareEnumerateMouseDevice();
+  if (status < 0)
+    return (status);
 
   // Return success
   return (status = 0);

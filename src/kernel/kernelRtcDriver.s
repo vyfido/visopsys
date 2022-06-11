@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -106,6 +106,9 @@ kernelRtcDriverRead:
 	;; Get the data back
 	pop EAX
 
+	;; Reenable interrupts
+	popfd
+
 	;; The data is in BCD format.  Sucks.  Convert it to binary.  We
 	;; Deal with the "tens" column in AL, and the "ones" column in BL.
 	mov BL, AL
@@ -117,9 +120,6 @@ kernelRtcDriverRead:
 	;; from BL.
 	and BL, 00001111b
 	add AL, BL
-
-	;; Reenable interrupts
-	popfd
 
 	pop EBP
 	pop ECX

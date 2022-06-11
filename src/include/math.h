@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,23 +23,25 @@
 
 #if !defined(_MATH_H)
 
+double ceil(double);
+double fabs(double);
+double floor(double);
+double fmod(double, double);
+double modf(double x, double *);
+double pow(double, double);
+
+// These functions are unimplemented
 double acos(double);
 double asin(double);
 double atan(double);
 double atan2(double, double);
-double ceil(double);
 double cos(double);
 double cosh(double);
 double exp(double);
-double fabs(double);
-double floor(double);
-double fmod(double, double);
 double frexp(double, int *);
 double ldexp(double, int);
 double log(double);
 double log10(double);
-double modf(double x, double *pint);
-double pow(double, double);
 double sin(double);
 double sinh(double);
 double sqrt(double);

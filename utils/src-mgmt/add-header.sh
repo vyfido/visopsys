@@ -2,8 +2,8 @@
 
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2001 J. Andrew McLaughlin
-## 
+##  Copyright (C) 1998-2003 J. Andrew McLaughlin
+##
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
 ##  Software Foundation; either version 2 of the License, or (at your option)
@@ -26,85 +26,73 @@
 #  easier.
 
 
-# We expect two sets of parameters.  One is the name of a text file 
-# containing the new header text.  The rest of the parameters are the names
-# of the files to add the header to.  Like so:
-#    add-header.sh <header-text-file> <file> [file2 file3 ... fileN]
+# We expect three parameters.  The first is the number of lines of header
+# to add to the destination file.  The next is the name of a text file 
+# containing the new header text.  The last is the name of the file to add
+# the header to.  Like so:
+#    add-header.sh <number of lines> <header-text-file> <file>
 
 if ("$1" == "" || "$1" == "-h" || "$1" == "-help") then
     goto Usage
+    exit 0
 endif
 
-# First we get the name of the file to use as the new header
+# First we get the number of lines to add
 
-set HEADER = "$1"
+set NUMBERLINES = "$1"
+
+# Next we get the name of the file to use as the new header
+
+set HEADER = "$2"
 
 if !(-e "$HEADER") then
     echo "Header file $HEADER cannot be found!"
     goto Usage
-endif
-
-# Ok, the file exists.  Make sure there's at least one more parameter
-# (shift out the ones we're finished with)
-shift
-
-if ("$1" == "") then
-    echo "No files to attach header to!"
-    goto Usage
     exit 1
 endif
 
-# We have at least one more argument (a file to add the header to).
-# Now we will loop for each of the trailing arguments
+# Get the name of the target file
+
+set TARGET = "$3"
+
+# Make sure the file exists
+if !(-e "$TARGET") then
+    echo "File $TARGET does not exist!"
+    exit 1
+endif
 
 set BACKUPDIR = ./add-header-backup
 
-# Remove any previous backup directory and temp-file
+# Remove any previous temp-file
 rm -f ./add-header-tmpfile.tmp
 
-# Make a new backup directory
+# Make a new backup directory if necessary
 mkdir -p $BACKUPDIR
 
-while ("$1" != "")
-    
-    # Get the next file
-    set ARGFILE = $1
-    
-    # Shift it out of the argument list
-    shift
+# Copy it to a safe location for backup
+cp $TARGET $BACKUPDIR/
 
-    # Make sure the file exists
-    if !(-e "$ARGFILE") then
-	echo "File $ARGFILE does not exist!"
-	exit 2
-    endif
+# Copy it to the temp file
+cp $TARGET ./add-header-tmpfile.tmp
 
-    # Copy it to a safe location for backup
-    cp $ARGFILE $BACKUPDIR/
+# Replace the file with the new standard header
+head -$NUMBERLINES $HEADER > $TARGET
 
-    # Copy it to the temp file
-    cp $ARGFILE ./add-header-tmpfile.tmp
+# Attach the file to the end
+cat ./add-header-tmpfile.tmp >> $TARGET
 
-    # Replace the file with the new standard header
-    cat $HEADER > $ARGFILE
+# Remove the temp-file
+rm -f ./add-header-tmpfile.tmp
 
-    # Attach the file to the end
-    cat ./add-header-tmpfile.tmp >> $ARGFILE
-
-    # Remove the temp-file
-    rm -f ./add-header-tmpfile.tmp
-
-    echo "changed $ARGFILE"
-end
-
-    echo "Backups are in $BACKUPDIR"
+echo "changed $TARGET"
+echo "Backup is in $BACKUPDIR"
 
 exit 0
 
 Usage:
     echo ""
     echo "Usage:"
-    echo "       $0 <header-text-file> <file> [file2 file3 ... fileN]"
+    echo "       $0 <lines to add> <header-text-file> <file>"
     echo ""
     exit 0
 

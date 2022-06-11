@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,18 +21,7 @@
 
 #if !defined(_KERNELSYSTIMERFUNCTIONS_H)
 
-// Some definitions
-#define NULL_TIMER_OBJECT "The system timer object passed or referenced is NULL"
-#define NULL_TIMER_DRIVER_OBJECT "The system timer driver object passed or referenced is NULL"
-#define NULL_TIMER_DRIVER_ROUTINE "The system timer device driver routine that corresponds to this one is NULL"
-#define BAD_WAIT_TICKS "The timer ticks to wait is negative.  Not possible in this dimension.  :-)"
-#define NULL_EVENT_FUNCTION "The function being scheduled as a timed event in this instance is NULL"
-
-#define MAXTIMEDEVENTS 100
-
-
 // Some system timer structures
-
 typedef struct
 {
 
@@ -44,37 +33,21 @@ typedef struct
 
 } kernelSysTimerDriver;
 
-
 typedef struct
 {
-
   kernelSysTimerDriver *deviceDriver;
 
 } kernelSysTimerObject;
-
-
-typedef struct
-{
-
-  int targetTime;
-  void (*targetCode) (void);
-  unsigned int eventCode;
-
-} kernelTimedEvent;
-
 
 // Functions exported by kernelSysTimerFunctions.c
 int kernelSysTimerRegisterDevice(kernelSysTimerObject *);
 int kernelSysTimerInstallDriver(kernelSysTimerDriver *);
 int kernelSysTimerInitialize(void);
 void kernelSysTimerTick(void);
-unsigned int kernelSysTimerRead(void);
+unsigned kernelSysTimerRead(void);
 int kernelSysTimerReadValue(int);
 int kernelSysTimerSetupTimer(int, int, int);
 void kernelSysTimerWaitTicks(int);
-unsigned int kernelTimedEventScheduler(void *, unsigned int);
-void kernelTimedEventDispatchAll(void);
-int kernelTimedEventCancel(unsigned int);
 
 
 #define _KERNELSYSTIMERFUNCTIONS_H

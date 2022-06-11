@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,22 +31,20 @@
 #include "kernelMultitasker.h"
 #include "kernelMiscAsmFunctions.h"
 #include "kernelSysTimerFunctions.h"
-#include "kernelDebug.h"
 #include "kernelError.h"
 #include <sys/errors.h>
+#include <stdio.h>
 #include <string.h>
 
 
+extern int kernelBootDisk;
+
 // Probably should implement this as a linked list.  Nah, it's small.
-static kernelDiskObject *kernelDiskObjectArray[MAXDISKDEVICES];
-static volatile int kernelDiskObjectCounter = 0;
-
-static unsigned int scheduledMotorOffId = 0;
-static char errorBuff[200];
+static kernelDiskObject *diskObjectArray[MAXDISKDEVICES];
+static volatile int diskObjectCounter = 0;
 
 
-static int checkObjectAndDriver(kernelDiskObject *theDisk, 
-				char *invokedBy)
+static int checkObjectAndDriver(kernelDiskObject *theDisk, char *invokedBy)
 {
   // This routine consists of a couple of things commonly done by the
   // other driver wrapper routines.  I've done this to minimize the amount
@@ -56,15 +54,12 @@ static int checkObjectAndDriver(kernelDiskObject *theDisk,
 
   int status = 0;
 
-
-  kernelDebugEnter();
-
   // Make sure the disk object isn't NULL (which could indicate that the
   // device has not been properly registered)
   if (theDisk == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_DISK_OBJECT);
+      kernelError(kernel_error, "Disk object disk is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -72,53 +67,12 @@ static int checkObjectAndDriver(kernelDiskObject *theDisk,
   if (theDisk->deviceDriver == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_DRIVER_OBJECT);
+      kernelError(kernel_error, "Disk driver is NULL");
       return (status = ERR_NOSUCHDRIVER);
     }
 
   return (status = 0);
 }
-
-
-/*
-static int reset(kernelDiskObject *theDisk)
-{
-  // This is the generic disk "reset" routine which invokes 
-  // the driver routine designed for that function.  Normally it simply 
-  // returns the status as returned by the driver routine, unless
-  // there is an error, in which case it returns negative
-
-  int status = 0;
-
-
-  kernelDebugEnter();
-
-  // Make sure the device driver reset routine has been installed
-  if (theDisk->deviceDriver->driverReset == NULL)
-    {
-      // Make the error
-      kernelError(kernel_error, NULL_DRIVER_ROUTINE);
-      return (status = ERR_NOSUCHFUNCTION);
-    }
-
-  // Ok, now we can call the routine.
-  status = theDisk->deviceDriver->driverReset(theDisk->driverDiskNumber);
-
-  // Make sure the driver routine didn't return an error code
-  if (status < 0)
-    {
-      // Make the error
-      strcpy(errorBuff, RESET_ERROR);
-      strncat(errorBuff, 
-		    theDisk->deviceDriver->driverLastErrorMessage(), 100);
-      status = theDisk->deviceDriver->driverLastErrorCode();
-      kernelError(kernel_error, errorBuff);
-      return (status);
-    }
-
-  return (status = 0);
-}
-*/
 
 
 static int recalibrate(kernelDiskObject *theDisk)
@@ -130,40 +84,119 @@ static int recalibrate(kernelDiskObject *theDisk)
 
   int status = 0;
 
-
-  kernelDebugEnter();
-
   // Make sure the device driver recalibrate routine has been installed
   if (theDisk->deviceDriver->driverRecalibrate == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_DRIVER_ROUTINE);
+      kernelError(kernel_error, "Driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Ok, now we can call the routine.
-  status =
-    theDisk->deviceDriver->driverRecalibrate(theDisk->driverDiskNumber);
+  status = theDisk->deviceDriver
+    ->driverRecalibrate(theDisk->driverDiskNumber);
 
   // Make sure the driver routine didn't return an error code
   if (status < 0)
     {
       // Make the error
-      strcpy(errorBuff, CALIBRATE_ERROR);
-      strncat(errorBuff, 
-		    theDisk->deviceDriver->driverLastErrorMessage(), 100);
-      status = theDisk->deviceDriver->driverLastErrorCode();
-      kernelError(kernel_error, errorBuff);
-      return (status);
+      kernelError(kernel_error, "Recalibrate error: %s",
+		  theDisk->deviceDriver->driverLastErrorMessage());
+      return (theDisk->deviceDriver->driverLastErrorCode());
     }
 
   return (status = 0);
 }
 
 
-static int readWriteSectors(kernelDiskObject *theDisk,
-			    unsigned int logicalSector,
-			    unsigned int numSectors, void *dataPointer,
+static int getTransferArea(kernelDiskObject *theDisk)
+{
+  // This routine should (MUST) be called after the memory management
+  // routine has been run, and after all of the other disk objects
+  // have been installed.
+
+  int status = 0;
+
+  // Check the disk object and device driver before proceeding
+  status = checkObjectAndDriver(theDisk, __FUNCTION__);
+  if (status < 0)
+    // Something went wrong, so we can't continue.   Return the status
+    // that the routine gave us, since it tells whether the disk or the 
+    // driver was the source of the problem
+    return (status);  
+
+  // Call the memory management routine to allocate some memory
+  // for the disk transfer area.  Get a 64K-aligned block of memory
+  // for each floppy device.  It should be the size of one complete track
+  // (heads * sectors * sectorSize).  For fixed disks, get a 128K
+  // transfer area.  It does not need to be aligned.
+
+  if (theDisk->fixedRemovable == fixed)
+    {
+      theDisk->transferAreaSize = (unsigned) (128 * 1024);
+      theDisk->transferArea = 
+	kernelMemoryRequestSystemBlock(theDisk->transferAreaSize, 
+				 0, "disk transfer area");
+      
+      // Make sure it's not NULL
+      if (theDisk->transferArea == NULL)
+	{
+	  // Make the error
+	  kernelError(kernel_error, "Unable to allocate memory for transfer "
+		      "areas");
+	  return (status = ERR_MEMORY);
+	}
+	  
+      theDisk->transferAreaPhysical = NULL;
+    }
+  else
+    {
+      theDisk->transferAreaSize = (unsigned) 
+	(theDisk->heads * theDisk->sectors * theDisk->sectorSize);
+	  
+      // We need to get a physical memory address to pass to the
+      // DMA controller.  Therefore, we ask the memory manager 
+      // specifically for the physical address.  We  
+      theDisk->transferAreaPhysical = 
+	kernelMemoryRequestPhysicalBlock(theDisk->transferAreaSize, 
+				 TRANSFER_AREA_ALIGN, "disk transfer area");
+
+      // Make sure it's not NULL
+      if (theDisk->transferAreaPhysical == NULL)
+	{
+	  // Make the error
+	  kernelError(kernel_error, "Unable to allocate memory for transfer "
+		      "areas");
+	  return (status = ERR_MEMORY);
+	}
+
+      // Map it into the kernel's address space
+      status = 
+	kernelPageMapToFree(KERNELPROCID, theDisk->transferAreaPhysical,
+			    (void **) &(theDisk->transferArea),
+			    theDisk->transferAreaSize);
+
+      // Make sure it's not NULL
+      if (status < 0)
+	{
+	  // Make the error
+	  kernelError(kernel_error, "Unable to allocate memory for transfer "
+		      "areas");
+	  return (status);
+	}
+
+      // Clear it out, since the kernelMemoryRequestPhysicalBlock()
+      // routine doesn't do it for us
+      kernelMemClear(theDisk->transferArea, theDisk->transferAreaSize);
+    }
+  
+  // Return success
+  return (status = 0);
+}
+
+
+static int readWriteSectors(kernelDiskObject *theDisk, unsigned logicalSector,
+			    unsigned numSectors, void *dataPointer,
 			    kernelDiskOp readWrite)
 {
   // This is the combined "read sectors" and "write sectors" routine 
@@ -176,45 +209,45 @@ static int readWriteSectors(kernelDiskObject *theDisk,
 
   int status = 0;
   int retryCount = 0;
-  unsigned int head = 0;
-  unsigned int cylinder = 0;
-  unsigned int sector = 0;
-  unsigned int currentHead = 0;
-  unsigned int currentCylinder = 0;
-  unsigned int currentSector = 0;
-  unsigned int currentLogical = 0;
-  unsigned int remainingSectors = 0;
-  unsigned int doSectors = 0;
-  unsigned int maxSectors = 0;
+  unsigned head = 0;
+  unsigned cylinder = 0;
+  unsigned sector = 0;
+  unsigned currentHead = 0;
+  unsigned currentCylinder = 0;
+  unsigned currentSector = 0;
+  unsigned currentLogical = 0;
+  unsigned remainingSectors = 0;
+  unsigned doSectors = 0;
+  unsigned maxSectors = 0;
   void *transferArea = NULL;
+  char errorBuff[512];
 
-
-  kernelDebugEnter();
-
-  // Now make sure the device driver read routine has been installed
-  if (theDisk->deviceDriver->driverReadSectors == NULL)
+  // Now make sure the appropriate device driver routine has been installed
+  if (((readWrite == readoperation) &&
+       (theDisk->deviceDriver->driverReadSectors == NULL)) ||
+      ((readWrite == writeoperation) &&
+       (theDisk->deviceDriver->driverWriteSectors == NULL)))
     {
       // Make the error
-      kernelError(kernel_error, NULL_DRIVER_ROUTINE);
+      kernelError(kernel_error, "Driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
-  // Now make sure the device driver write routine has been installed
-  if (theDisk->deviceDriver->driverWriteSectors == NULL)
-    {
-      // Make the error
-      kernelError(kernel_error, NULL_DRIVER_ROUTINE);
-      return (status = ERR_NOSUCHFUNCTION);
-    }
-
-  // Check that the disk's transfer area has been properly initialized
+  // Check that the disk's transfer area has been properly initialized.
+  // If not, then it hasn't been used previously, and we'll have to allocate
+  // one.
   if ((theDisk->transferArea == NULL) || (theDisk->transferAreaSize == NULL))
     {
-      // Make the error
-      kernelError(kernel_error, XFER_NOT_INITIALIZED);
-      return (status = ERR_NOTINITIALIZED);
-    }
+      status = getTransferArea(theDisk);
 
+      if (status < 0)
+	{
+	  // Ack, no transfer area
+	  kernelError(kernel_error, "Unable to allocate memory for transfer "
+		      "areas");
+	  return (status);
+	}
+    }
 
   // Check the parameters we've got to make sure they're legal
   // for this disk object.
@@ -235,7 +268,7 @@ static int readWriteSectors(kernelDiskObject *theDisk,
       if (logicalSector >= 
 	  (theDisk->startLogicalSector + theDisk->logicalSectors))
 	{
-	  // Don't make a kernelError.  Just return an error code
+	  // Make a kernelError.
 	  kernelError(kernel_error, "Logical sector exceeds volume boundary");
 	  return (status = ERR_BOUNDS);
 	}
@@ -263,15 +296,9 @@ static int readWriteSectors(kernelDiskObject *theDisk,
       // We will be using P-CHS.  Make sure the head, track, and cylinder
       // are within the legal range of values
 
-      if (sector > theDisk->sectors)
-	// Don't make a kernelError.  Just return an error code
-	return (status = ERR_BADADDRESS);
-
-      if (cylinder >= theDisk->cylinders)
-	// Don't make a kernelError.  Just return an error code
-	return (status = ERR_BADADDRESS);
-
-      if (head >= theDisk->heads)
+      if ((sector > theDisk->sectors) ||
+	  (cylinder >= theDisk->cylinders) ||
+	  (head >= theDisk->heads))
 	// Don't make a kernelError.  Just return an error code
 	return (status = ERR_BADADDRESS);
 
@@ -290,12 +317,9 @@ static int readWriteSectors(kernelDiskObject *theDisk,
       if (status < 0)
 	{
 	  // Make the error
-	  strcpy(errorBuff, MOTORON_ERROR);
-	  strncat(errorBuff, 
-			theDisk->deviceDriver->driverLastErrorMessage(), 100);
-	  status = theDisk->deviceDriver->driverLastErrorCode();
-	  kernelError(kernel_error, errorBuff);
-	  return (status);
+	  kernelError(kernel_error, "Motor on error: %s",
+		      theDisk->deviceDriver->driverLastErrorMessage());
+	  return (theDisk->deviceDriver->driverLastErrorCode());
 	}
       
       // We don't have to wait for the disk to spin up on a read 
@@ -360,34 +384,6 @@ static int readWriteSectors(kernelDiskObject *theDisk,
       // We attempt the basic read/write operation RETRY_ATTEMPTS times
       for (retryCount = 0; retryCount < RETRY_ATTEMPTS; retryCount ++)
 	{
-	  /*
-	  if (readWrite == readoperation)
-	    kernelTextPrint("Read ");
-	  else
-	    kernelTextPrint("Write ");
-	  if (theDisk->addressingMethod == addr_lba)
-	    {
-	      kernelTextPrintInteger(doSectors);
-	      kernelTextPrint(" sectors at logical ");
-	      kernelTextPrintUnsigned(currentLogical);
-	    }
-	  else
-	    {
-	      kernelTextPrintInteger(doSectors);
-	      kernelTextPrint(" sectors at cylinder ");
-	      kernelTextPrintInteger(currentCylinder);
-	      kernelTextPrint(" head ");
-	      kernelTextPrintInteger(currentHead);
-	      kernelTextPrint(", sector ");
-	      kernelTextPrintInteger(currentSector);
-	    }
-	  kernelTextPrint(" device logical ");
-	  kernelTextPrintInteger(theDisk->diskNumber);
-	  kernelTextPrint(" physical ");
-	  kernelTextPrintInteger(theDisk->driverDiskNumber);
-	  kernelTextNewline();
-	  */
-
 	  // Call the read or write routine
 	  if (readWrite == readoperation)
 	    status = theDisk->deviceDriver->driverReadSectors(
@@ -404,12 +400,9 @@ static int readWriteSectors(kernelDiskObject *theDisk,
 	    break;
 
 	  // The disk drive returned an error code.  
-	  if (readWrite == readoperation)
-	    strcpy(errorBuff, READ_ERROR);
-	  else
-	    strcpy(errorBuff, WRITE_ERROR);
-	  strncat(errorBuff, 
-		theDisk->deviceDriver->driverLastErrorMessage(), 100);
+	  sprintf(errorBuff, (readWrite == readoperation)?
+		  "Read error: %s" : "Write error: %s",
+		  (char *) theDisk->deviceDriver->driverLastErrorMessage());
 	  status = theDisk->deviceDriver->driverLastErrorCode();
 	  
 	  // Should we retry the operation?
@@ -477,97 +470,254 @@ static int readWriteSectors(kernelDiskObject *theDisk,
       
     } // per-operation loop
 
-  // If this is a removable device, turn off the motor
-  if (theDisk->fixedRemovable == removable)
-    kernelDiskFunctionsMotorOff(theDisk->diskNumber);
-
   // Finished.  Return success
   return (status = 0);
 }
 
 
-static int getTransferArea(kernelDiskObject *theDisk)
+static int readWriteAbsoluteSectors(int physicalDevice,
+				    unsigned absoluteSector,
+				    unsigned numSectors, void *dataPointer,
+				    kernelDiskOp readWrite)
 {
-  // This routine should (MUST) be called after the memory management
-  // routine has been run, and after all of the other disk objects
-  // have been installed.
+  // This is the combined "read absolute sectors" and "write absolute sectors"
+  // routine which invokes the driver routines designed for those functions.  
+  // This should not be exported, and should not be called by users.
 
   int status = 0;
+  kernelDiskObject *tmpObject = NULL;
+  int retryCount = 0;
+  unsigned head = 0;
+  unsigned cylinder = 0;
+  unsigned sector = 0;
+  unsigned currentHead = 0;
+  unsigned currentCylinder = 0;
+  unsigned currentSector = 0;
+  unsigned currentLogical = 0;
+  unsigned remainingSectors = 0;
+  unsigned doSectors = 0;
+  unsigned maxSectors = 0;
+  char errorBuff[512];
+  int count;
 
-
-  kernelDebugEnter();
-
-  // Check the disk object and device driver before proceeding
-  status = checkObjectAndDriver(theDisk, __FUNCTION__);
-  if (status < 0)
-    // Something went wrong, so we can't continue.   Return the status
-    // that the routine gave us, since it tells whether the disk or the 
-    // driver was the source of the problem
-    return (status);  
-
-  // Call the memory management routine to allocate some memory
-  // for the disk transfer area.  Get a 64K-aligned block of memory
-  // for each floppy device.  It should be the size of one complete track
-  // (heads * sectors * sectorSize).  For fixed disks, get a 128K
-  // transfer area.  It does not need to be aligned.
-
-  if (theDisk->fixedRemovable == fixed)
+  // We don't want to really use any disk objects because absolute sectors
+  // are not strictly "related" to the logical volumes they represent.
+  // However, we will find one that shares the same physical device so that
+  // we can ensure it's a fixed disk, and so that we can use the correct
+  // driver and parameters, etc.
+  for (count = 0; count < diskObjectCounter; count ++)
     {
-      theDisk->transferAreaSize = (unsigned int) (128 * 1024);
-      theDisk->transferArea = 
-	kernelMemoryRequestSystemBlock(theDisk->transferAreaSize, 
-				 0, "disk transfer area");
-      
-      // Make sure it's not NULL
-      if (theDisk->transferArea == NULL)
+      if (diskObjectArray[count]->driverDiskNumber == physicalDevice)
+	tmpObject = diskObjectArray[count];
+    }
+
+  // Find it?  Is it a fixed disk?
+  if ((tmpObject == NULL) || (tmpObject->fixedRemovable != fixed))
+    {
+      // Make an error
+      kernelError(kernel_error, "Disk number is invalid");
+      return (ERR_INVALID);
+    }
+
+  // Reset the 'idle since' value
+  tmpObject->idleSince = kernelSysTimerRead();
+  
+  // Now make sure the appropriate device driver routine has been installed
+  if (((readWrite == readoperation) &&
+       (tmpObject->deviceDriver->driverReadSectors == NULL)) ||
+      ((readWrite == writeoperation) &&
+       (tmpObject->deviceDriver->driverWriteSectors == NULL)))
+    {
+      // Make the error
+      kernelError(kernel_error, "Driver routine is NULL");
+      return (status = ERR_NOSUCHFUNCTION);
+    }
+
+  // Check that the disk's transfer area has been properly initialized.
+  // If not, then it hasn't been used previously, and we'll have to allocate
+  // one.
+  if ((tmpObject->transferArea == NULL) ||
+      (tmpObject->transferAreaSize == NULL))
+    {
+      status = getTransferArea(tmpObject);
+
+      if (status < 0)
 	{
-	  // Make the error
-	  kernelError(kernel_error, MEMORY_ALLOC_ERROR);
-	  return (status = ERR_MEMORY);
+	  // Ack, no transfer area
+	  kernelError(kernel_error, "Unable to allocate memory for transfer "
+		      "areas");
+	  return (status);
 	}
-	  
-      theDisk->transferAreaPhysical = NULL;
+    }
+
+  // Make sure we've been actually been told to read one or more sectors
+  if (numSectors == 0)
+    // Don't make a kernelError.  Just return an error code
+    return (status = ERR_INVALID);
+  
+  // Should we use LBA for this operation?
+  if (tmpObject->addressingMethod == addr_lba)
+    {
+      // To save confusion later, make sure that the rest of the CHS values 
+      // are all zero
+      head = 0;
+      cylinder = 0;
+      sector = 0;
     }
   else
     {
-      theDisk->transferAreaSize = (unsigned int) 
-	(theDisk->heads * theDisk->sectors * theDisk->sectorSize);
-	  
-      // We need to get a physical memory address to pass to the
-      // DMA controller.  Therefore, we ask the memory manager 
-      // specifically for the physical address.  We  
-      theDisk->transferAreaPhysical = 
-	kernelMemoryRequestPhysicalBlock(theDisk->transferAreaSize, 
-				 TRANSFER_AREA_ALIGN, "disk transfer area");
-
-      // Make sure it's not NULL
-      if (theDisk->transferAreaPhysical == NULL)
+      // Calculate the physical head, track and sector to use
+      if ((tmpObject->sectors != 0) && (tmpObject->heads != 0))
 	{
-	  // Make the error
-	  kernelError(kernel_error, MEMORY_ALLOC_ERROR);
-	  return (status = ERR_MEMORY);
+	  head = 
+	    ((absoluteSector % (tmpObject->sectors * tmpObject->heads)) 
+	     / tmpObject->sectors);
+	  cylinder = (absoluteSector /
+		      (tmpObject->sectors * tmpObject->heads));
+	  sector = (absoluteSector % tmpObject->sectors) + 1;
 	}
+      else
+	return (status = ERR_BADADDRESS);
+      
+      // We will be using P-CHS.  Make sure the head, track, and cylinder
+      // are within the legal range of values
 
-      // Map it into the kernel's address space
-      status = 
-	kernelPageMapToFree(KERNELPROCID, theDisk->transferAreaPhysical,
-			    (void **) &(theDisk->transferArea),
-			    theDisk->transferAreaSize);
+      if ((sector > tmpObject->sectors) ||
+	  (cylinder >= tmpObject->cylinders) ||
+	  (head >= tmpObject->heads))
+	// Don't make a kernelError.  Just return an error code
+	return (status = ERR_BADADDRESS);
 
-      // Make sure it's not NULL
-      if (status < 0)
-	{
-	  // Make the error
-	  kernelError(kernel_error, MEMORY_ALLOC_ERROR);
-	  return (status);
-	}
-
-      // Clear it out, since the kernelMemoryRequestPhysicalBlock()
-      // routine doesn't do it for us
-      kernelMemClear(theDisk->transferArea, theDisk->transferAreaSize);
+      // To save confusion later, make sure that the LBA value is zero
+      absoluteSector = 0;
     }
+
+  // What is the maximum number of sectors we can transfer at one time?
+  // This is dependent on the disk's sector size (512, usually).
+  maxSectors = tmpObject->maxSectorsPerOp;
+
+  // Set the initial currentHead, currentCylinder, currentSector 
+  // and currentLogical values
+  currentHead = head;
+  currentCylinder = cylinder;
+  currentSector = sector;
+  currentLogical = absoluteSector;
+
+  // Make doSectors be zero to start
+  doSectors = 0;
+
+  // Now we start the actual read/write operation
+
+  // This loop will ensure that we do not try to transfer more than
+  // maxSectors per operation.
+  for (remainingSectors = numSectors; remainingSectors > 0; )
+    {
+      // Figure out the number of sectors to transfer in this pass.
+      if (remainingSectors > maxSectors)
+	doSectors = maxSectors;
+      else
+	doSectors = remainingSectors;
+
+      // If it's a write operation, copy the data from the user
+      // area to the disk transfer area.  This will be up to
+      // transferAreaSize bytes at any one time
+      if (readWrite == writeoperation)
+	kernelMemCopy(dataPointer, tmpObject->transferArea,
+		      (tmpObject->sectorSize * doSectors));
+
+      // We attempt the basic read/write operation RETRY_ATTEMPTS times
+      for (retryCount = 0; retryCount < RETRY_ATTEMPTS; retryCount ++)
+	{
+	  // Call the read or write routine
+	  if (readWrite == readoperation)
+	    status = tmpObject->deviceDriver->driverReadSectors(
+		      physicalDevice, currentHead, currentCylinder,
+		      currentSector, currentLogical, doSectors,
+		      tmpObject->transferArea);
+	  else
+	    status = tmpObject->deviceDriver->driverWriteSectors(
+		       physicalDevice, currentHead, currentCylinder,
+		       currentSector, currentLogical, doSectors,
+		       tmpObject->transferArea);
+
+	  if (status >= 0)
+	    break;
+
+	  // The disk drive returned an error code.  
+	  sprintf(errorBuff, (readWrite == readoperation)?
+		  "Read error: %s" : "Write error: %s",
+		  (char *) tmpObject->deviceDriver->driverLastErrorMessage());
+	  status = tmpObject->deviceDriver->driverLastErrorCode();
+	  
+	  // Should we retry the operation?
+	  if (retryCount < (RETRY_ATTEMPTS - 1))
+	    {
+	      // Recalibrate the disk and try again
+	      if (recalibrate(tmpObject) < 0)
+		{
+		  // Something went wrong, so we can't continue.  Make 
+		  // the error, with the status and error saved by the driver
+		  kernelError(kernel_error, errorBuff);
+		  return (status);
+		}
+	    }
+	  else
+	    {
+	      // Make the error, with the status and error saved by the driver
+	      kernelError(kernel_error, errorBuff);
+	      return (status);
+	    }
+
+	} // retry loop
+      
+      // If it's a read operation, copy the data from the
+      // disk transfer area to the user area.  This will be up to
+      // transferAreaSize bytes at any one time
+      if (readWrite == readoperation)
+	kernelMemCopy(tmpObject->transferArea, dataPointer, 
+			     (tmpObject->sectorSize * doSectors));
+
+      // Now, if this is a multi-part operation, we should update
+      // a bunch of values.
+
+      // Figure out what the current CHS or LBA values should be, based
+      // on how many we've written previously.  If it's LBA, it's
+      // easy.  CHS is a little harder.
+
+      if (tmpObject->addressingMethod == addr_lba)
+	currentLogical += doSectors;
+
+      else
+	{
+	  currentSector += doSectors;
+	  
+	  // Did we move to another head?
+	  if (currentSector > tmpObject->sectors)
+	    {
+	      currentHead += (currentSector / tmpObject->sectors);
+	      currentSector = (currentSector % tmpObject->sectors);
+	      
+	      // Did we move to another cylinder?
+	      if (currentHead >= tmpObject->heads)
+		{
+		  currentCylinder += (currentHead / tmpObject->heads);
+		  currentHead = (currentHead % tmpObject->heads);
+		}
+	    }
+	}
+
+      // We subtract the number read from the total number to read
+      remainingSectors -= doSectors;
+
+      // Increment the place in the buffer we're using
+      dataPointer += (doSectors * tmpObject->sectorSize);
+      
+    } // per-operation loop
+
+  // Reset the 'idle since' value
+  tmpObject->idleSince = kernelSysTimerRead();
   
-  // Return success
+  // Finished.  Return success
   return (status = 0);
 }
 
@@ -590,96 +740,52 @@ int kernelDiskFunctionsRegisterDevice(kernelDiskObject *theDisk)
   int status = 0;
   int diskId = 0;
 
-
-  kernelDebugEnter();
-
   if (theDisk == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_DISK_OBJECT);
+      kernelError(kernel_error, "Disk object disk is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
   // We think it's an OK pointer.  So, we should make sure the array of
   // disk objects isn't full
-  if (kernelDiskObjectCounter >= (MAXDISKDEVICES - 1))
+  if (diskObjectCounter >= (MAXDISKDEVICES - 1))
     {
       // Make the error
-      kernelError(kernel_error, TOO_MANY_DISKS);
+      kernelError(kernel_error, "Max disk objects already registered");
       return (status = ERR_NOFREE);
     }
 
   // Alright.  We'll put the device at the end of the list
-  kernelDiskObjectArray[kernelDiskObjectCounter] = theDisk;
+  diskObjectArray[diskObjectCounter] = theDisk;
   
   // Make the disk's Id number be the same as its index in the 
   // array of disks, and increment the counter
-  diskId = kernelDiskObjectCounter++;
+  diskId = diskObjectCounter++;
 
   // Set the disk's disk number
   theDisk->diskNumber = diskId;
-      
-  // kernelTextPrint("Registered disk device ");
-  // kernelTextPrintInteger(diskId);
-  // kernelTextNewline();
+
+  // Reset the 'idle since' value
+  theDisk->idleSince = kernelSysTimerRead();
   
   return (diskId);
 }
 
 
-int kernelDiskFunctionsRemoveDevice(int diskId)
-{
-  // This routine will remove a disk object from the list.  It takes the 
-  // disk number and returns the new number of disks in the array.  On error
-  // it returns negative
-
-  int numberDisks = -1;
-  int status = 0;
-  int count;
-
-
-  kernelDebugEnter();
-
-  // Make sure the object is valid, but we don't need the actual object
-  // for anything.
-  if (kernelFindDiskObjectByNumber(diskId) == NULL)
-    {
-      // Make the error
-      kernelError(kernel_error, NULL_DISK_OBJECT);
-      return (status = ERR_NULLPARAMETER);
-    }
-
-
-  // We have to remove that disk device by shifting all of the following
-  // devices in the array up by one spot and reduce the counter that keeps
-  // track of the number of devices.  If the device was the last spot,
-  // all we do is reduce the counter.
-  for (count = diskId; count < (kernelDiskObjectCounter - 1); count ++)
-      kernelDiskObjectArray[count] = kernelDiskObjectArray[count + 1];
-
-  kernelDiskObjectCounter --;
-
-  numberDisks = kernelDiskObjectCounter;
-  return (numberDisks);
-}
-
-
 int kernelDiskFunctionsInstallDriver(kernelDiskObject *theDisk, 
-			    kernelDiskDeviceDriver *theDriver)
+				     kernelDiskDeviceDriver *theDriver)
 {
   // Attaches a driver object to a disk object.  If the operation is
   // successful, the routine returns 0.  Otherwise, it returns negative.
 
   int status = 0;
 
-
-  kernelDebugEnter();
-
   // Make sure the disk object isn't NULL
   if (theDisk == NULL)
     {
       // Make the error
-      kernelError(kernel_error, INVALID_DISK_NUMBER);
+      kernelError(kernel_error, "Disk number is invalid");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -687,13 +793,13 @@ int kernelDiskFunctionsInstallDriver(kernelDiskObject *theDisk,
   if (theDriver == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_DRIVER_OBJECT);
+      kernelError(kernel_error, "Disk driver is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
   // Install the device driver
   theDisk->deviceDriver = theDriver;
-  
+
   return (status = 0);
 }
 
@@ -708,22 +814,19 @@ int kernelDiskFunctionsInitialize(void)
   int status = 0;
   kernelDiskObject *theDisk;
 
-
-  kernelDebugEnter();
-
   // Check whether any disks have been registered.  If not, that's 
   // an indication that the hardware enumeration has not been done
   // properly.  We'll issue an error in this case
-  if (kernelDiskObjectCounter <= 0)
+  if (diskObjectCounter <= 0)
     {
       // Make the error
-      kernelError(kernel_error, NO_DISKS_REGISTERED);
+      kernelError(kernel_error, "No disks have been registered");
       return (status = ERR_NOTINITIALIZED);
     }
 
   // Do a loop to step through all of the disk objects, initializing
   // and specifying each one
-  for (count = 0; count < kernelDiskObjectCounter; count ++)
+  for (count = 0; count < diskObjectCounter; count ++)
     {
       // Get the disk object
       theDisk = kernelFindDiskObjectByNumber(count);
@@ -740,7 +843,7 @@ int kernelDiskFunctionsInitialize(void)
       if (theDisk->deviceDriver->driverInitialize == NULL)
 	{
 	  // Make the error
-	  kernelError(kernel_error, NULL_DRIVER_ROUTINE);
+	  kernelError(kernel_error, "Driver routine is NULL");
 	  return (status = ERR_NOSUCHFUNCTION);
 	}
 
@@ -751,17 +854,90 @@ int kernelDiskFunctionsInitialize(void)
       if (status < 0)
 	{
 	  // Make the error
-	  strcpy(errorBuff, INITIALIZE_ERROR);
-	  strncat(errorBuff, 
-		       theDisk->deviceDriver->driverLastErrorMessage(), 100);
-	  status = theDisk->deviceDriver->driverLastErrorCode();
-	  kernelError(kernel_error, errorBuff);
-	  return (status);
+	  kernelError(kernel_error, "Driver error: %s",
+		      theDisk->deviceDriver->driverLastErrorMessage());
+	  return (theDisk->deviceDriver->driverLastErrorCode());
 	}
+
+      // If it's removable, make sure the motor is off
+      if (theDisk->fixedRemovable == removable)
+	kernelDiskFunctionsMotorOff(theDisk->diskNumber);
     }
 
-  // Initialize the scheduled-motor-off thing
-  scheduledMotorOffId = -1;
+  return (status = 0);
+}
+
+
+int kernelDiskFunctionsShutdown(void)
+{
+  // Shut down.
+
+  int count;
+
+  // Loop through all the disks, looking for removable drives whose motors
+  // we should ensure are turned off
+  for (count = 0; count < diskObjectCounter; count ++)
+    if (diskObjectArray[count]->fixedRemovable == removable)
+      kernelDiskFunctionsMotorOff(diskObjectArray[count]->diskNumber);
+
+  return (0);
+}
+
+
+int kernelDiskFunctionsGetBoot(void)
+{
+  // Returns the disk number of the boot device
+  return (kernelBootDisk);
+}
+
+
+int kernelDiskFunctionsGetCount(void)
+{
+  // Returns the number of registered disk objects.  Useful for iterating
+  // through calls to kernelFindDiskObjectByNumber or
+  // kernelDiskFunctionsGetInfo
+  return (diskObjectCounter);
+}
+
+
+int kernelDiskFunctionsGetInfo(int diskId, disk *theDisk)
+{
+  // Fills a simplified disk info structure for use by external programs,
+  // since the kernelDiskObject structure is for internal kernel use
+
+  int status = 0;
+  kernelDiskObject *diskObject = NULL;
+
+  if (theDisk == NULL)
+    {
+      // Make the error
+      kernelError(kernel_error, "Disk object disk is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+ 
+  // Try to find the requested disk object
+  diskObject = kernelFindDiskObjectByNumber(diskId);
+
+  if (diskObject == NULL)
+    // The previous call makes a kernelError
+    return (status = ERR_NOSUCHENTRY);
+
+  // Got it.  Fill in the relevant information
+  theDisk->number = diskObject->diskNumber;
+  theDisk->physicalDevice = diskObject->driverDiskNumber;
+  strncpy(theDisk->description, diskObject->description,
+	  MAX_DESCRIPTION_LENGTH);
+  theDisk->type = diskObject->type;
+  theDisk->fixedRemovable = diskObject->fixedRemovable;
+  theDisk->startHead = diskObject->startHead;
+  theDisk->startCylinder = diskObject->startCylinder;
+  theDisk->startSector = diskObject->startSector;
+  theDisk->startLogicalSector = diskObject->startLogicalSector;
+  theDisk->heads = diskObject->heads;
+  theDisk->cylinders = diskObject->cylinders;
+  theDisk->sectors = diskObject->sectors;
+  theDisk->logicalSectors = diskObject->logicalSectors;
+  theDisk->sectorSize = diskObject->sectorSize;
 
   return (status = 0);
 }
@@ -775,95 +951,34 @@ kernelDiskObject *kernelFindDiskObjectByNumber(int diskId)
 
   kernelDiskObject *theDisk = NULL;
 
-
-  kernelDebugEnter();
-
   // Make sure the number is valid
-  if ((diskId < 0) || (diskId >= kernelDiskObjectCounter))
+  if ((diskId < 0) || (diskId >= diskObjectCounter))
     {
       // Make an error
-      kernelError(kernel_error, INVALID_DISK_NUMBER);
+      kernelError(kernel_error, "Disk number is invalid");
       return (theDisk = NULL);
     }
 
   // Make sure the pointer isn't NULL before we try to access
   // its member
-  if (kernelDiskObjectArray[diskId] == NULL)
+  if (diskObjectArray[diskId] == NULL)
     {
       // Just skip this one, I guess, but send a warning
-      kernelError(kernel_error, NULL_DISK_OBJECT);
+      kernelError(kernel_error, "Disk object disk is NULL");
       return (theDisk = NULL);
     }
 
-  if (kernelDiskObjectArray[diskId]->diskNumber == diskId)
-    theDisk = kernelDiskObjectArray[diskId];
+  if (diskObjectArray[diskId]->diskNumber == diskId)
+    theDisk = diskObjectArray[diskId];
   else
     {
       // The disk numer doesn't appear to be consistent
-      kernelError(kernel_error, INCONSISTENT_DISK_NUMBER);
+      kernelError(kernel_error, "The disk's number is not consistent with "
+		  "its array index");
       return (theDisk = NULL);
     }
 
   return (theDisk);
-}
-
-
-int kernelDiskFunctionsLockDisk(int diskId)
-{
-  // This function is used to lock a disk object for exclusive use by
-  // a particular process.  It should be called by any functions that 
-  // require disk service from the functions found here.  Each of the
-  // applicable functions here will verify that a lock has been obtained
-  // before any further action is taken.  This function makes use of the
-  // general resource locking facilities provided by the kernel.  The 
-  // function returns 0 if successful, and negative on error.
-
-  int status = 0;
-  kernelDiskObject *theDisk = NULL;
-
-
-  kernelDebugEnter();
-
-  // Get the disk object
-  theDisk = kernelFindDiskObjectByNumber(diskId);
-
-  // Check the disk object and device driver before proceeding
-  status = checkObjectAndDriver(theDisk, __FUNCTION__);
-  if (status < 0)
-    // Something went wrong, so we can't continue.   Return the status
-    // that the routine gave us, since it tells whether the disk or the 
-    // driver was the source of the problem
-    return (status);
-
-  // Now, try to lock the resource
-  return (status = kernelResourceManagerLock(&(theDisk->lock)));
-}
-
-
-int kernelDiskFunctionsUnlockDisk(int diskId)
-{
-  // This function corresponds to the lockDisk function.  It enables a 
-  // process to release a disk object that it had previously locked.
-
-  int status = 0;
-  kernelDiskObject *theDisk = NULL;
-
-
-  kernelDebugEnter();
-
-  // Get the requested disk object
-  theDisk = kernelFindDiskObjectByNumber(diskId);
-  
-  // Check the disk object and device driver before proceeding
-  status = checkObjectAndDriver(theDisk, __FUNCTION__);
-  if (status < 0)
-    // Something went wrong, so we can't continue.   Return the status
-    // that the routine gave us, since it tells whether the disk or the 
-    // driver was the source of the problem
-    return (status);
-  
-  // Now, try to unlock the resource
-  return (status = kernelResourceManagerUnlock(&(theDisk->lock)));
 }
 
 
@@ -877,9 +992,6 @@ int kernelDiskFunctionsMotorOn(int diskId)
   int status = 0;
   kernelDiskObject *theDisk = NULL;
 
-
-  kernelDebugEnter();
-
   // Get the disk object
   theDisk = kernelFindDiskObjectByNumber(diskId);
 
@@ -892,11 +1004,9 @@ int kernelDiskFunctionsMotorOn(int diskId)
     // driver was the source of the problem
     return (status);
 
-  // Check for a disk lock.  The calling process must have already
-  // obtained a lock on this disk before we can proceed
-  if (theDisk->lock != kernelMultitaskerGetCurrentProcessId())
-    return (status = ERR_NOLOCK);
-
+  // Reset the 'idle since' value
+  theDisk->idleSince = kernelSysTimerRead();
+  
   // If it's a fixed disk, we don't need to turn the motor on, of course.
   if (theDisk->fixedRemovable == fixed)
     return (status = 0);
@@ -909,38 +1019,36 @@ int kernelDiskFunctionsMotorOn(int diskId)
   if (theDisk->deviceDriver->driverMotorOn == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_DRIVER_ROUTINE);
+      kernelError(kernel_error, "Driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
-  // Make sure there are no pending motor-off operations.  We will
-  // attempt to call up the event scheduler and cancel the most recent
-  // scheduled disk-off operation.  There will be no ill effect if it's
-  // an old event that has already occurred
-  if (scheduledMotorOffId != -1)
-    {
-      kernelTimedEventCancel(scheduledMotorOffId);
-      scheduledMotorOffId = -1;
-    }
+  // Lock the disk
+  status = kernelResourceManagerLock(&(theDisk->lock));
+  if (status < 0)
+    return (status = ERR_NOLOCK);
 
   // Ok, now we can call the routine.
   status = theDisk->deviceDriver->driverMotorOn(theDisk->driverDiskNumber);
+
+  // Unlock the disk
+  kernelResourceManagerUnlock(&(theDisk->lock));
 
   // Make sure the driver routine didn't return an error code
   if (status < 0)
     {
       // Make the error
-      strcpy(errorBuff, MOTORON_ERROR);
-      strncat(errorBuff, 
-		    theDisk->deviceDriver->driverLastErrorMessage(), 100);
-      status = theDisk->deviceDriver->driverLastErrorCode();
-      kernelError(kernel_error, errorBuff);
-      return (status);
+      kernelError(kernel_error, "Motor on error: %s",
+		  theDisk->deviceDriver->driverLastErrorMessage());
+      return (theDisk->deviceDriver->driverLastErrorCode());
     }
 
   // Make note of the fact that the motor is on
   theDisk->motorStatus = 1;
 
+  // Reset the 'idle since' value
+  theDisk->idleSince = kernelSysTimerRead();
+  
   return (status = 0);
 }
 
@@ -965,9 +1073,6 @@ int kernelDiskFunctionsMotorOff(int diskId)
   int status = 0;
   kernelDiskObject *theDisk = NULL;
 
-
-  kernelDebugEnter();
-
   // Get the disk object
   theDisk = kernelFindDiskObjectByNumber(diskId);
 
@@ -980,11 +1085,9 @@ int kernelDiskFunctionsMotorOff(int diskId)
     // driver was the source of the problem
     return (status);
 
-  // Check for a disk lock.  The calling process must have already
-  // obtained a lock on this disk before we can proceed
-  if (theDisk->lock != kernelMultitaskerGetCurrentProcessId())
-    return (status = ERR_NOLOCK);
-
+  // Reset the 'idle since' value
+  theDisk->idleSince = kernelSysTimerRead();
+  
   // If it's a fixed disk, we don't need to turn the motor off, of course.
   if (theDisk->fixedRemovable == fixed)
     return (status = 0);
@@ -997,31 +1100,27 @@ int kernelDiskFunctionsMotorOff(int diskId)
   if (theDisk->deviceDriver->driverMotorOff == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_DRIVER_ROUTINE);
+      kernelError(kernel_error, "Driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
-  // Make sure there are no existing motor-off operations.  We will
-  // attempt to call up the event scheduler and cancel the most recent
-  // scheduled disk-off operation.  There will be no ill effect if it's
-  // an old event that has already occurred
-  if (scheduledMotorOffId != -1)
-    {
-      kernelTimedEventCancel(scheduledMotorOffId);
-      scheduledMotorOffId = -1;
-    }
+  // Lock the disk
+  status = kernelResourceManagerLock(&(theDisk->lock));
+  if (status < 0)
+    return (status = ERR_NOLOCK);
 
-  // Ok, now we schedule the event
-  scheduledMotorOffId = kernelTimedEventScheduler(
-			 theDisk->deviceDriver->driverMotorOff,
-			 (kernelSysTimerRead() + MOTOROFF_DELAY));
+  // Ok, now turn the motor off
+  theDisk->deviceDriver->driverMotorOff(theDisk->driverDiskNumber);
 
-  if (scheduledMotorOffId < 0)
-    return (scheduledMotorOffId);
+  // Unlock the disk
+  kernelResourceManagerUnlock(&(theDisk->lock));
 
   // Make note of the fact that the motor is off
   theDisk->motorStatus = 0;
 
+  // Reset the 'idle since' value
+  theDisk->idleSince = kernelSysTimerRead();
+  
   return (status = 0);
 }
 
@@ -1035,10 +1134,6 @@ int kernelDiskFunctionsDiskChanged(int diskId)
 
   int status = 0;
   kernelDiskObject *theDisk = NULL;
-  int motorTurnedOn = 0;
-
-
-  kernelDebugEnter();
 
   // Get the disk object
   theDisk = kernelFindDiskObjectByNumber(diskId);
@@ -1052,18 +1147,21 @@ int kernelDiskFunctionsDiskChanged(int diskId)
     // driver was the source of the problem
     return (status);
 
-  // Check for a disk lock.  The calling process must have already
-  // obtained a lock on this disk before we can proceed
-  if (theDisk->lock != kernelMultitaskerGetCurrentProcessId())
-    return (status = ERR_NOLOCK);
-
+  // Reset the 'idle since' value
+  theDisk->idleSince = kernelSysTimerRead();
+  
   // Now make sure the device driver media check routine has been installed
   if (theDisk->deviceDriver->driverDiskChanged == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_DRIVER_ROUTINE);
+      kernelError(kernel_error, "Driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
+
+  // Lock the disk
+  status = kernelResourceManagerLock(&(theDisk->lock));
+  if (status < 0)
+    return (status = ERR_NOLOCK);
 
   // The disk change line appears to only get checked when the motor
   // is turned on; thus, if the motor is off we must turn it on, then
@@ -1075,19 +1173,15 @@ int kernelDiskFunctionsDiskChanged(int diskId)
       if (status < 0)
 	{
 	  // Make the error
-	  strcpy(errorBuff, MOTORON_ERROR);
-	  strncat(errorBuff, 
-			theDisk->deviceDriver->driverLastErrorMessage(), 100);
-	  status = theDisk->deviceDriver->driverLastErrorCode();
-	  kernelError(kernel_error, errorBuff);
-	  return (status);
+	  kernelError(kernel_error, "Motor on error: %s",
+		      theDisk->deviceDriver->driverLastErrorMessage());
+	  kernelResourceManagerUnlock(&(theDisk->lock));
+	  return (theDisk->deviceDriver->driverLastErrorCode());
 	}
-      motorTurnedOn = 1;
     }
 
   // Ok, now we can call the routine.
-  status = 
-    theDisk->deviceDriver->driverDiskChanged(theDisk->driverDiskNumber);
+  status = theDisk->deviceDriver->driverDiskChanged(theDisk->driverDiskNumber);
 
   // The driver function should return 1 if the media has changed, 
   // and 0 if it has not changed.  We'll simply return these
@@ -1097,27 +1191,24 @@ int kernelDiskFunctionsDiskChanged(int diskId)
   if (status < 0)
     {
       // Make the error
-      strcpy(errorBuff, DISKCHANGED_ERROR);
-      strncat(errorBuff, 
-		    theDisk->deviceDriver->driverLastErrorMessage(), 100);
-      status = theDisk->deviceDriver->driverLastErrorCode();
-      kernelError(kernel_error, errorBuff);
-      return (status);
+      kernelError(kernel_error, "Media check error: %s",
+		  theDisk->deviceDriver->driverLastErrorMessage());
+      kernelResourceManagerUnlock(&(theDisk->lock));
+      return (theDisk->deviceDriver->driverLastErrorCode());
     }
 
-  // If we turned the motor on, we should turn it off now.  We do
-  // not care about the status of the opertation, and more importantly,
-  // we don't want to overwrite the status information we got from
-  // the driver diskchanged call
-  if (motorTurnedOn == 1)
-    kernelDiskFunctionsMotorOff(theDisk->diskNumber);
+  // Unlock the disk
+  kernelResourceManagerUnlock(&(theDisk->lock));
 
+  // Reset the 'idle since' value
+  theDisk->idleSince = kernelSysTimerRead();
+  
   return (status = 0);
 }
  
 
-int kernelDiskFunctionsReadSectors(int diskId, unsigned int logicalSector, 
-		   unsigned int numSectors, void *dataPointer)
+int kernelDiskFunctionsReadSectors(int diskId, unsigned logicalSector, 
+		   unsigned numSectors, void *dataPointer)
 {
   // This routine is the user-accessible interface to reading data using
   // the various disk routines in this file.  Basically, it is a gatekeeper
@@ -1126,9 +1217,6 @@ int kernelDiskFunctionsReadSectors(int diskId, unsigned int logicalSector,
   int status = 0;
   kernelDiskObject *theDisk = NULL;
 
-
-  kernelDebugEnter();
-
   // Get the disk object
   theDisk = kernelFindDiskObjectByNumber(diskId);
 
@@ -1141,33 +1229,33 @@ int kernelDiskFunctionsReadSectors(int diskId, unsigned int logicalSector,
     // driver was the source of the problem
     return (status);
 
-  // Check for a disk lock.  The calling process must have already
-  // obtained a lock on this disk before we can proceed
-  if (theDisk->lock != kernelMultitaskerGetCurrentProcessId())
+  // Reset the 'idle since' value
+  theDisk->idleSince = kernelSysTimerRead();
+  
+  // Lock the disk
+  status = kernelResourceManagerLock(&(theDisk->lock));
+  if (status < 0)
     return (status = ERR_NOLOCK);
 
-  // Make sure the disk has a transfer area.  If not, then it hasn't been
-  // used previously, and we'll have to allocate one.
-  if (theDisk->transferArea == NULL)
-    {
-      status = getTransferArea(theDisk);
-
-      if (status < 0)
-	{
-	  // Ack, no transfer area
-	  kernelError(kernel_error, MEMORY_ALLOC_ERROR);
-	  return (status);
-	}
-    }
-
   // Call the read-write routine for a read operation
-  return (readWriteSectors(theDisk, logicalSector, numSectors,
-			   dataPointer, readoperation));
+  status = readWriteSectors(theDisk, logicalSector, numSectors,
+			    dataPointer, readoperation);
+
+  // Unlock the disk
+  kernelResourceManagerUnlock(&(theDisk->lock));
+
+  // Reset the 'idle since' value
+  theDisk->idleSince = kernelSysTimerRead();
+  
+  // Reset the 'idle since' value
+  theDisk->idleSince = kernelSysTimerRead();
+  
+  return (status);
 }
 
 
-int kernelDiskFunctionsWriteSectors(int diskId, unsigned int logicalSector, 
-		    unsigned int numSectors, void *dataPointer)
+int kernelDiskFunctionsWriteSectors(int diskId, unsigned logicalSector, 
+		    unsigned numSectors, void *dataPointer)
 {
   // This routine is the user-accessible interface to writing data using
   // the various disk routines in this file.  Basically, it is a gatekeeper
@@ -1176,9 +1264,6 @@ int kernelDiskFunctionsWriteSectors(int diskId, unsigned int logicalSector,
   int status = 0;
   kernelDiskObject *theDisk = NULL;
 
-
-  kernelDebugEnter();
-
   // Get the disk object
   theDisk = kernelFindDiskObjectByNumber(diskId);
 
@@ -1191,26 +1276,59 @@ int kernelDiskFunctionsWriteSectors(int diskId, unsigned int logicalSector,
     // driver was the source of the problem
     return (status);
 
-  // Check for a disk lock.  The calling process must have already
-  // obtained a lock on this disk before we can proceed
-  if (theDisk->lock != kernelMultitaskerGetCurrentProcessId())
+  // Reset the 'idle since' value
+  theDisk->idleSince = kernelSysTimerRead();
+  
+  // Lock the disk
+  status = kernelResourceManagerLock(&(theDisk->lock));
+  if (status < 0)
     return (status = ERR_NOLOCK);
 
-  // Make sure the disk has a transfer area.  If not, then it hasn't been
-  // used previously, and we'll have to allocate one.
-  if (theDisk->transferArea == NULL)
-    {
-      status = getTransferArea(theDisk);
-
-      if (status < 0)
-	{
-	  // Ack, no transfer area
-	  kernelError(kernel_error, MEMORY_ALLOC_ERROR);
-	  return (status);
-	}
-    }
-
   // Call the read-write routine for a write operation
-  return (readWriteSectors(theDisk, logicalSector, numSectors,
-			   dataPointer, writeoperation));
+  status = readWriteSectors(theDisk, logicalSector, numSectors,
+			    dataPointer, writeoperation);
+
+  // Unlock the disk
+  kernelResourceManagerUnlock(&(theDisk->lock));
+
+  // Reset the 'idle since' value
+  theDisk->idleSince = kernelSysTimerRead();
+  
+  return (status);
+}
+ 
+
+int kernelDiskFunctionsReadAbsoluteSectors(int physicalDevice,
+					   unsigned absoluteSector, 
+					   unsigned numSectors,
+					   void *dataPointer)
+{
+  // This routine is the user-accessible interface to reading absolute sectors
+  // from a physical hard disk.  Basically, it is a gatekeeper that helps
+  // ensure correct use of the "read-write-absolute" method.  
+
+  int status = 0;
+
+  // Call the read-write routine for a read operation
+  status = readWriteAbsoluteSectors(physicalDevice, absoluteSector, numSectors,
+				    dataPointer, readoperation);
+  return (status);
+}
+
+
+int kernelDiskFunctionsWriteAbsoluteSectors(int physicalDevice,
+					    unsigned absoluteSector,
+					    unsigned numSectors,
+					    void *dataPointer)
+{
+  // This routine is the user-accessible interface to writing absolute sectors
+  // from a physical hard disk.  Basically, it is a gatekeeper that helps
+  // ensure correct use of the "read-write-absolute" method.  
+
+  int status = 0;
+
+  // Call the read-write routine for a read operation
+  status = readWriteAbsoluteSectors(physicalDevice, absoluteSector, numSectors,
+				    dataPointer, writeoperation);
+  return (status);
 }

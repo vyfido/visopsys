@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,9 +25,9 @@
 #include "kernelFilesystem.h"
 #include "kernelFile.h"
 #include "kernelFilesystemTypeFat.h"
-#include "kernelText.h"
-#include "kernelMultitasker.h"
 #include "kernelResourceManager.h"
+#include "kernelMultitasker.h"
+#include "kernelSysTimerFunctions.h"
 #include "kernelMiscAsmFunctions.h"
 #include "kernelLog.h"
 #include "kernelError.h"
@@ -35,32 +35,75 @@
 #include <string.h>
 
 
-static kernelFilesystem kernelFilesystemArray[MAX_FILESYSTEMS];
+static kernelFilesystem filesystemArray[MAX_FILESYSTEMS];
 static kernelFilesystem *filesystemPointerArray[MAX_FILESYSTEMS];
 static int filesystemCounter = 0;
-static kernelFilesystemDriver kernelFilesystemDriverArray[MAX_FILESYSTEMS];
+static kernelFilesystemDriver filesystemDriverArray[MAX_FILESYSTEMS];
 static kernelFilesystemDriver *driverPointerArray[MAX_FILESYSTEMS];
 static int driverCounter = 0;
 
 static int filesystemIdCounter = 1;
-static int filesystemManagerInitialized = 0;
+static int initialized = 0;
 
 
 static void kernelFilesystemSyncd(void)
 {
   // This function will be a new thread spawned by the filesystem manager
   // that synchronizes filesystems as a low-priority process.  
+  
+  int status = 0;
+  kernelDiskObject *disk = NULL;
+  int count;
 
-  // Wait 10 seconds to let the system get moving
-  kernelMultitaskerWait(200);
+  // Don't try to do anything until we have mounted filesystems
+  while (!initialized || (filesystemCounter <= 0))
+    kernelMultitaskerWait(60);
 
   while(1)
     {
-      // Let "sync" do all filesystems
-      kernelFilesystemSync(NULL);
+      // Check to see whether any of the filesystems' disks have been idle
+      // for a while.  If so, sync the filesystem
+      for (count = 0; count < filesystemCounter; count ++)
+	{
+	  disk = (kernelDiskObject *) filesystemPointerArray[count]->disk;
 
-      // Yield the rest of the timeslice and wait for at least 10 seconds
-      kernelMultitaskerWait(200);
+	  // Lock the disk so that any 'sync' and 'motor off' operations
+	  // are atomic.
+	  status = kernelResourceManagerLock(&(disk->lock));
+	  if (status < 0)
+	    continue;
+
+	  if (kernelSysTimerRead() > (disk->idleSince + 40))
+	    {
+	      if (!filesystemPointerArray[count]->hasSyncErrors)
+		{
+		  // Sync the filesystem
+		  status =
+		    kernelFilesystemSync((char *) filesystemPointerArray[count]
+					 ->mountPoint);
+		  if (status < 0)
+		    {
+		      // We don't want to keep trying if it failed.  It's not
+		      // going to suddenly fix itself.
+		      filesystemPointerArray[count]->hasSyncErrors = 1;
+		      kernelError(kernel_warn, "No longer attempting to keep "
+				  "filesystem \"%s\" synchronized",
+				  filesystemPointerArray[count]->mountPoint);
+		    }
+		}
+
+	      // If it's a removable disk, it should have its motor turned off.
+
+	      if ((disk->fixedRemovable == removable) && disk->motorStatus)
+		// It's a removable disk with its motor on.  Turn it off.
+		kernelDiskFunctionsMotorOff(disk->diskNumber);
+	    }
+
+	  kernelResourceManagerUnlock(&(disk->lock));
+	}
+
+      // Yield the rest of the timeslice and wait for 1 second
+      kernelMultitaskerWait(20);
     }
 }
 
@@ -80,7 +123,6 @@ static kernelFileSysTypeEnum detectType(const kernelDiskObject *theDisk)
   kernelFileSysTypeEnum filesystemType = unknown;
   char *typeName = NULL;
 
-
   int (*detectFat) (const kernelDiskObject *) = FATDETECT;
 
   // We will assume that the detection routines being called will do
@@ -99,7 +141,7 @@ static kernelFileSysTypeEnum detectType(const kernelDiskObject *theDisk)
   else
     {
       filesystemType = unknown;
-      typeName = "unsupported";
+      typeName = "Unsupported";
     }
 
   kernelLog("%s filesystem found on disk %d", typeName, theDisk->diskNumber);
@@ -120,41 +162,33 @@ static kernelFileSysTypeEnum installDriver(kernelFilesystem *theFilesystem)
   kernelFilesystemDriver *theDriver = NULL;
   kernelFileSysTypeEnum theType = unknown;
 
-
   // Now, we have make sure the filesystem's disk object has been properly
   // installed
   if (theFilesystem->disk == NULL)
     {
       // Make an error
-      kernelError(kernel_error, NULL_FS_DISK_OBJECT);
+      kernelError(kernel_error, "The filesystem object has a NULL disk "
+		  "object");
       return (unknown);
     }
 
-
   // OK, now call the routine that checks the types
   theType = detectType(theFilesystem->disk);
-
 
   if (theType == unknown)
     {
       // Oops.  We don't know the filesystem type, so we have to make
       // an error and return a bad status.
-      kernelError(kernel_error, UNKNOWN_FS_TYPE);
+      kernelError(kernel_error, "The system was not able to determine the "
+		  "type of this filesystem");
       return (unknown);
     }
-
 
   // Create the new driver object
   theDriver = driverPointerArray[driverCounter++];
 
   // Initialize a filesystem driver object.
   kernelMemClear(theDriver, sizeof(kernelFilesystemDriver));
-  
-  // kernelTextPrint("Making new driver in position ");
-  // kernelTextPrintInteger(driverCounter - 1);
-  // kernelTextPrint(", dr P is ");
-  // kernelTextPrintInteger((unsigned int) theDriver);
-  // kernelTextNewline();
   
   // Now, we use the type to install the driver
   
@@ -166,6 +200,7 @@ static kernelFileSysTypeEnum installDriver(kernelFilesystem *theFilesystem)
 
       theDriver->driverDetect = FATDETECT;
       theDriver->driverCheck = FATCHECK;
+      theDriver->driverDefragment = FATDEFRAG;
       theDriver->driverMount = FATMOUNT;
       theDriver->driverSync = FATSYNC;
       theDriver->driverUnmount = FATUNMOUNT;
@@ -188,7 +223,8 @@ static kernelFileSysTypeEnum installDriver(kernelFilesystem *theFilesystem)
     {
       // Ack!  This is some new enumeration type that we've not been
       // trained for!
-      kernelError(kernel_error, UNKNOWN_FS_TYPE);
+      kernelError(kernel_error, "The system was not able to determine the "
+		  "type of this filesystem");
       return (unknown);
     }
 
@@ -210,13 +246,12 @@ static int checkObjectAndDriver(kernelFilesystem *theFilesystem,
 
   int status = 0;
 
-
   // Make sure the filesystem object isn't NULL (which could indicate that the
   // filesystem has not been properly mounted)
   if (theFilesystem == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_FS_OBJECT);
+      kernelError(kernel_error, "The filesystem object is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -224,7 +259,8 @@ static int checkObjectAndDriver(kernelFilesystem *theFilesystem,
   if (theFilesystem->filesystemDriver == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_FS_DRIVER);
+      kernelError(kernel_error, "The filesystem driver attached to the "
+		  "filesystem object is NULL");
       return (status = ERR_NOSUCHDRIVER);
     }
 
@@ -233,11 +269,121 @@ static int checkObjectAndDriver(kernelFilesystem *theFilesystem,
   if (theFilesystem->disk == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_FS_DISK_OBJECT);
+      kernelError(kernel_error, "The filesystem object has a NULL disk "
+		  "object");
       return (status = ERR_NULLPARAMETER);
     }
 
   return (status = 0);
+}
+
+
+static int releaseFilesystemAndDriver(kernelFilesystem *theFilesystem)
+{
+  // We have to remove that filesystem by shifting all of the following
+  // objects in the array up by one spot and reduce the counter that keeps
+  // track of the number of devices.  If the device was the last spot,
+  // all we do is reduce the counter.
+
+  int status = 0;
+  void *temp = NULL;
+  int pointerArrayPosition = 0;
+  int count;
+
+  // Find the position of the filesystem's pointer in the pointer array
+  for (pointerArrayPosition = 0; 
+       ((filesystemPointerArray[pointerArrayPosition] != theFilesystem &&
+	 (pointerArrayPosition < filesystemCounter))); pointerArrayPosition++)
+    // Empty loop body is deliberate
+    ;
+
+  // What if we didn't find it?
+  if (pointerArrayPosition >= filesystemCounter)
+    {
+      // We didn't find the filesystem in the pointer list!
+      kernelError(kernel_error, "The filesystem cannot be found in the "
+		  "filesystem list");
+      return (status = ERR_NOSUCHENTRY);
+    }
+  
+  for (count = pointerArrayPosition; count < (filesystemCounter - 1); 
+       count ++)
+    filesystemPointerArray[count] = filesystemPointerArray[count + 1];
+
+  // Move the removed one to the end if there was more than 1
+  if (filesystemCounter > 1)
+    filesystemPointerArray[filesystemCounter - 1] = theFilesystem;
+
+  // Now do the same thing for the driver objects
+
+  temp = (void *) driverPointerArray[pointerArrayPosition];
+
+  for (count = pointerArrayPosition; count < (filesystemCounter - 1); 
+       count ++)
+    driverPointerArray[count] = driverPointerArray[count + 1];
+
+  if (driverCounter > 1)
+    // Move the removed one to the end if there was more than 1
+    driverPointerArray[filesystemCounter - 1] = 
+      (kernelFilesystemDriver *) temp;
+
+  // Reduce the counters
+  filesystemCounter -= 1;
+  driverCounter -= 1;  
+
+  return (status = 0);
+}
+
+
+static kernelFilesystem *getNewFilesystemAndDriver(kernelDiskObject *theDisk)
+{
+  // Get a new filesystem object from the list, fill in some values,
+  // detect the filesystem type, and install the driver.
+
+  kernelFilesystem *theFilesystem = NULL;
+  kernelFileSysTypeEnum theType = unknown;
+
+  // Make sure there aren't already too many filesystems mounted
+  if (filesystemCounter >= MAX_FILESYSTEMS)
+    {
+      // Make the error
+      kernelError(kernel_error, "The maximum number of filesystems (%d) "
+		  "has been reached", MAX_FILESYSTEMS);
+      return (theFilesystem = NULL);
+    }
+
+  // Get a new filesystem object from the list
+  theFilesystem = filesystemPointerArray[filesystemCounter];
+
+  // Initialize the filesystem object
+  kernelMemClear((void *) theFilesystem, sizeof(kernelFilesystem));
+
+  // Set the filesystem's Id number
+  theFilesystem->filesystemNumber = filesystemIdCounter;
+
+  // Make "theDisk" be the filesystem's disk object
+  theFilesystem->disk = theDisk;
+  
+  // Now install the filesystem driver functions
+  theType = installDriver(theFilesystem);
+  
+  // Make sure it was successful
+  if (theType == unknown)
+    {
+      // We don't need to make an error, since this will already have 
+      // been done by the installDriver routine.  Release the filesystem
+      // again.
+      releaseFilesystemAndDriver(theFilesystem);
+      return (theFilesystem = NULL);
+    }
+
+  // Looks like we were successful.  Increment the filesystem counter 
+  // and Id counter
+  filesystemCounter += 1;
+  filesystemIdCounter+= 1;
+
+  // All set
+  return (theFilesystem);
 }
 
 
@@ -248,7 +394,6 @@ static kernelFilesystem *filesystemFromPath(const char *path)
 
   kernelFilesystem *theFilesystem = NULL;
   int count;
-
 
   // Ok, we need to loop through the filesystems that are currently in use.
   // We will use the strncmp function to find one whose name matches
@@ -287,16 +432,15 @@ int kernelFilesystemInitialize(void)
   int status = 0;
   int syncerPID = 0;
   int count;
-
-  
+ 
   // Reset the counters 
   filesystemCounter = 0;
   driverCounter = 0;
 
   for (count = 0; count < MAX_FILESYSTEMS; count ++)
     {
-      filesystemPointerArray[count] = &kernelFilesystemArray[count];
-      driverPointerArray[count] = &kernelFilesystemDriverArray[count];
+      filesystemPointerArray[count] = &filesystemArray[count];
+      driverPointerArray[count] = &filesystemDriverArray[count];
     }
 
   // Initialize the file entry manager
@@ -309,30 +453,33 @@ int kernelFilesystemInitialize(void)
     }
 
   // Spawn the filesystem synchronizer
-  syncerPID = kernelMultitaskerSpawn(kernelFilesystemSyncd, 
-		     "filesystem synchronizer", 0 /* no args */, NULL);
+  syncerPID = kernelMultitaskerSpawn(kernelFilesystemSyncd, "synchronizer",
+				     0, NULL);
 
   // Make sure we were successful
   if (syncerPID < 0)
     {
-      // Make a kernelError
-      kernelError(kernel_error, NOSYNCD_MESG);
-      return (syncerPID);
+      // Not fatal to kernel initialization, but make a warning.
+      kernelError(kernel_warn, "Unable to create the filesystem synchronizer "
+		  "process");
     }
-
-  // Re-nice the synchronizer
-  status = kernelMultitaskerSetProcessPriority(syncerPID, 
-					       (PRIORITY_LEVELS - 2));
-  
-  if (status < 0)
+  else
     {
-      // Oops, we couldn't make it low-priority.  This is probably
-      // bad, but not fatal.  Make a kernelError.
-      kernelError(kernel_warn, BADSYNCDPRIORITY_MESG);
+      // Re-nice the synchronizer
+      status = kernelMultitaskerSetProcessPriority(syncerPID, 
+						   (PRIORITY_LEVELS - 2));
+  
+      if (status < 0)
+	{
+	  // Oops, we couldn't make it low-priority.  This is probably
+	  // bad, but not fatal.  Make a kernelError.
+	  kernelError(kernel_warn, "Could not lower the priority of the "
+		      "filesystem synchronizer");
+	}
     }
 
   // We're initialized
-  filesystemManagerInitialized = 1;
+  initialized = 1;
 
   return (status = 0);
 }
@@ -355,12 +502,12 @@ int kernelFilesystemSync(const char *path)
   kernelFilesystem *theFilesystem = NULL;
   kernelFilesystemDriver *theDriver = NULL;
 
-
   // Do NOT do anything until we have been initialized
-  if (filesystemManagerInitialized == 0)
+  if (!initialized)
     {
       // Make the error
-      kernelError(kernel_error, FS_NOT_INITIALIZED);
+      kernelError(kernel_error, "The filesystem manager has not been "
+		  "initialized.");
       return (status = ERR_NOTINITIALIZED);
     }
 
@@ -378,8 +525,8 @@ int kernelFilesystemSync(const char *path)
 	}
     }
   else
-    strncpy(fileName, "/", 1);
-  
+    strncpy(fileName, "/", 2);
+
   // Call the function to write all the dirty directories to the disks,
   // starting at the appropriate point.
   status = kernelFileWriteDirtyDirs(fileName);
@@ -487,6 +634,158 @@ int kernelFilesystemSync(const char *path)
 }
 
 
+int kernelFilesystemCheck(int diskNumber, int force, int repair)
+{
+  // This function is a wrapper for the filesystem driver's 'check' function,
+  // if applicable.
+
+  int status = 0;
+  kernelDiskObject *theDisk = NULL;
+  kernelFilesystem *tmpFilesystem = NULL;
+  kernelFilesystemDriver *theDriver = NULL;
+ 
+  // Do NOT check any filesystems until we have been initialized
+  if (!initialized)
+    {
+      // Make the error
+      kernelError(kernel_error, "The filesystem manager has not been "
+		  "initialized.");
+      return (status = ERR_NOTINITIALIZED);
+    }
+
+  theDisk = kernelFindDiskObjectByNumber(diskNumber);
+
+  // Make sure it exists
+  if (theDisk == NULL)
+    {
+      // Make the error
+      kernelError(kernel_error, "The disk to be checked does not exist");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Get a temporary filesystem to use for checking
+  tmpFilesystem = getNewFilesystemAndDriver(theDisk);
+
+  if (tmpFilesystem == NULL)
+    {
+      kernelError(kernel_error, "Unable to allocate a temporary filesystem "
+		  "object for checking");
+      return (status = ERR_NOFREE);
+    }
+  
+  theDriver = (kernelFilesystemDriver *) tmpFilesystem->filesystemDriver;
+
+  // Make sure the driver's checking routine is not NULL
+  if (theDriver->driverCheck == NULL)
+    {
+      // Make the error
+      kernelError(kernel_error, "The filesystem driver does not support the "
+		  "'check' operation");
+      return (status = ERR_NOSUCHFUNCTION);
+    }
+
+  // Check the filesystem
+  status = theDriver->driverCheck(tmpFilesystem, force, repair);
+
+  if (status < 0)
+    {
+      // Make the error
+      kernelError(kernel_error, "Filesystem integrity checking failed");
+      // Return the code that the driver routine produced
+      return (status);
+    }
+
+  // Release the temporary filesystem object we allocated
+  status = releaseFilesystemAndDriver(tmpFilesystem);
+
+  if (status < 0)
+    {
+      // Not fatal, we don't suppose
+      kernelError(kernel_warn, "Unable to deallocate the filesystem object "
+		  "and/or its driver");
+    }
+
+  // Finished
+  return (status);
+}
+
+
+int kernelFilesystemDefragment(int diskNumber)
+{
+  // This function is a wrapper for the filesystem driver's 'defragment'
+  // function, if applicable.
+  
+  int status = 0;
+  kernelDiskObject *theDisk = NULL;
+  kernelFilesystem *tmpFilesystem = NULL;
+  kernelFilesystemDriver *theDriver = NULL;
+
+  // Do NOT defragment any filesystems until we have been initialized
+  if (!initialized)
+    {
+      // Make the error
+      kernelError(kernel_error, "The filesystem manager has not been "
+		  "initialized.");
+      return (status = ERR_NOTINITIALIZED);
+    }
+
+  theDisk = kernelFindDiskObjectByNumber(diskNumber);
+
+  // Make sure it exists
+  if (theDisk == NULL)
+    {
+      // Make the error
+      kernelError(kernel_error, "The disk to be defragmented does not exist");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  // Get a temporary filesystem to use for defragging
+  tmpFilesystem = getNewFilesystemAndDriver(theDisk);
+
+  if (tmpFilesystem == NULL)
+    {
+      kernelError(kernel_error, "Unable to allocate a temporary filesystem "
+		  "object for defragmenting");
+      return (status = ERR_NOFREE);
+    }
+  
+  theDriver = (kernelFilesystemDriver *) tmpFilesystem->filesystemDriver;
+
+  // Make sure the driver's checking routine is not NULL
+  if (theDriver->driverCheck == NULL)
+    {
+      // Make the error
+      kernelError(kernel_error, "The filesystem driver does not support the "
+		  "'defragment' operation");
+      return (status = ERR_NOSUCHFUNCTION);
+    }
+
+  // Defrag the filesystem
+  status = theDriver->driverDefragment(tmpFilesystem);
+
+  if (status < 0)
+    {
+      // Make the error
+      kernelError(kernel_error, "Filesystem defragmentation failed");
+      // Return the code that the driver routine produced
+      return (status);
+    }
+
+  // Release the temporary filesystem object we allocated
+  status = releaseFilesystemAndDriver(tmpFilesystem);
+
+  if (status < 0)
+    {
+      // Not fatal, we don't suppose
+      kernelError(kernel_warn, "Unable to deallocate the filesystem object "
+		  "and/or its driver");
+    }
+
+  // Finished
+  return (status);
+}
+
+
 int kernelFilesystemMount(int diskNumber, const char *path)
 {
   // This function creates and registers (mounts) a new filesystem definition.
@@ -502,15 +801,15 @@ int kernelFilesystemMount(int diskNumber, const char *path)
   kernelFilesystem *theFilesystem = NULL;
   kernelFilesystemDriver *theDriver = NULL;
   kernelFileEntry *parentDir = NULL;
-  kernelFileSysTypeEnum theType = unknown;
+  char yesNo = '\0';
   int count;
 
-
   // Do NOT mount any filesystems until we have been initialized
-  if (filesystemManagerInitialized == 0)
+  if (!initialized)
     {
       // Make the error
-      kernelError(kernel_error, FS_NOT_INITIALIZED);
+      kernelError(kernel_error, "The filesystem manager has not been "
+		  "initialized.");
       return (status = ERR_NOTINITIALIZED);
     }  
 
@@ -524,7 +823,8 @@ int kernelFilesystemMount(int diskNumber, const char *path)
   if (theDisk == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_FS_DISK_OBJECT);
+      kernelError(kernel_error, "The filesystem object has a NULL disk "
+		  "object");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -536,14 +836,6 @@ int kernelFilesystemMount(int diskNumber, const char *path)
   kernelLog("Mounting %s filesystem on disk %d", mountPoint,
 	    theDisk->diskNumber);
 
-  // Make sure there aren't already too many filesystems mounted
-  if (filesystemCounter >= MAX_FILESYSTEMS)
-    {
-      // Make the error
-      kernelError(kernel_error, MAX_FS_EXCEEDED);
-      return (status = ERR_NOFREE);
-    }
-
   // Make sure that the filesystem hasn't already been mounted (or
   // more precisely, that the requested mount point is not already
   // in use).  Also make sure that the disk object has not already been 
@@ -554,14 +846,15 @@ int kernelFilesystemMount(int diskNumber, const char *path)
 	(theDisk == filesystemPointerArray[count]->disk))
       {
 	// Make the error
-	kernelError(kernel_error, FS_ALREADY_MOUNTED);
+	kernelError(kernel_error, "The requested disk or mount point is "
+		    "already in use by the system");
 	return (status = ERR_ALREADY);
       }
 
   // If this is NOT the root filesystem we're mounting, we need to make
   // sure that the mount point doesn't already exist.  This is because
   // The root directory of the new filesystem will be inserted into its
-  // parent directory here.
+  // parent directory here.  This is un-UNIXy.
 
   if (strcmp(mountPoint, "/") != 0)
     {
@@ -595,62 +888,34 @@ int kernelFilesystemMount(int diskNumber, const char *path)
 
       if (parentDir == NULL)
 	{
-	  kernelError(kernel_error, 
-		      "Mount point parent directory doesn't exist");
+	  kernelError(kernel_error, "Mount point parent directory doesn't "
+		      "exist");
 	  return (status = ERR_NOCREATE);
 	}
     }
+
+  theFilesystem = getNewFilesystemAndDriver(theDisk);
+
+  if (theFilesystem == NULL)
+    {
+      kernelError(kernel_error, "Unable to get filesystem object for "
+		  "mounting");
+      return (status = ERR_NOSUCHENTRY);
+    }
   
-  // Get a new filesystem object from the list
-  theFilesystem = filesystemPointerArray[filesystemCounter];
-
-  // Initialize the filesystem object
-  kernelMemClear((void *) theFilesystem, sizeof(kernelFilesystem));
-
-  // Fill in the information that we already know for this filesystem
-
-  // Set the filesystem's Id number
-  theFilesystem->filesystemNumber = filesystemIdCounter;
+  // Fill in any information that we already know for this filesystem
 
   // Make "mountPoint" be the filesystem's mount point
   strcpy((char *) theFilesystem->mountPoint, mountPoint);
 
-  // Make "theDisk" be the filesystem's disk object
-  theFilesystem->disk = theDisk;
-  
-  // Now install the filesystem driver functions
-  theType = installDriver(theFilesystem);
-  
-  // Make sure it was successful
-  if (theType == unknown)
-    {
-      // We don't need to make an error, since this will already have 
-      // been done by the installDriver routine.
-      return (status = ERR_INVALID);
-    }
-
   theDriver = (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
-
-  // If the driver has a 'check' function, run it now.  The function
-  // can make up its own mind whether the filesystem really needs to be
-  // checked or not.
-  if (theDriver->driverCheck != NULL)
-    {
-      status = theDriver->driverCheck(theFilesystem->disk);
-
-      if (status < 0)
-	{
-	  // Make the error
-	  kernelError(kernel_error, "Filesystem consistency check failed");
-	  return (status);
-	}
-    }
 
   // Make sure the driver's mounting routine is not NULL
   if (theDriver->driverMount == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_FS_DRIVER);
+      kernelError(kernel_error, "The filesystem driver does not support the "
+		  "'mount' operation");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -659,17 +924,51 @@ int kernelFilesystemMount(int diskNumber, const char *path)
 
   if (status < 0)
     {
-      // Make the error
-      kernelError(kernel_error, FS_DRIVER_INIT_FAILED);
-      // Return the code that the driver routine produced
-      return (status);
+      // If the driver has a 'check' function, run it now.  The function can
+      // make up its own mind whether the filesystem really needs to be checked
+      // or not.
+      if (theDriver->driverCheck != NULL)
+	{
+	  // No force, no repair
+	  status = theDriver->driverCheck(theFilesystem, 0, // no force
+					  0); // no repair
+	  if (status < 0)
+	    {
+	      // The filesystem may contain errors.  Before we fail the whole
+	      // operation, ask whether the user wants to try and repair it.
+	      kernelTextPrint("The filesystem may contain errors.\nDo you "
+			      "want to try to repair it? (y/n): ");
+	      kernelTextInputGetc(&yesNo);
+	      kernelTextNewline();
+
+	      if ((yesNo == 'y') || (yesNo == 'Y'))
+		// Force, repair
+		status = theDriver->driverCheck(theFilesystem, 1, // force
+						1); // repair
+
+	      if (status < 0)
+		{
+		  // Make the error
+		  kernelError(kernel_error, "Filesystem consistency check "
+			      "failed.  Mount aborted.");
+		  return (status);
+		}
+	    }
+	}
+      else
+	{      
+	  // Make the error
+	  kernelError(kernel_error, "Error %d mounting filesystem", status);
+	  // Return the code that the driver routine produced
+	  return (status);
+	}
     }
 
   if (strcmp(mountPoint, "/") == 0)
     {
       // Set the root filesystem pointer
       status = kernelFileSetRoot(theFilesystem->filesystemRoot);
-
+      
       if (status < 0)
 	{
 	  kernelError(kernel_error, "Unable to set root directory");
@@ -695,14 +994,6 @@ int kernelFilesystemMount(int diskNumber, const char *path)
 	}
     }
 
-  // Looks like we were successful.  Increment the filesystem counter 
-  // and Id counter
-  filesystemCounter += 1;
-  filesystemIdCounter+= 1;
-
-  // kernelTextPrintInteger(filesystemCounter);
-  // kernelTextPrintLine(" filesystems mounted");
-
   return (theFilesystem->filesystemNumber);
 }
 
@@ -719,17 +1010,14 @@ int kernelFilesystemUnmount(const char *path)
   kernelFilesystem *theFilesystem = NULL;
   kernelFilesystemDriver *theDriver = NULL;
   kernelFileEntry *mountPoint = NULL;
-  void *temp = NULL;
   int numberFilesystems = -1;
-  int pointerArrayPosition = 0;
-  int count;
-
 
   // Do NOT unmount any filesystems until we have been initialized
-  if (filesystemManagerInitialized == 0)
+  if (!initialized)
     {
       // Make the error
-      kernelError(kernel_error, FS_NOT_INITIALIZED);
+      kernelError(kernel_error, "The filesystem manager has not been "
+		  "initialized.");
       return (status = ERR_NOTINITIALIZED);
     }  
 
@@ -756,14 +1044,9 @@ int kernelFilesystemUnmount(const char *path)
   theDriver = (kernelFilesystemDriver *) theFilesystem->filesystemDriver;
 
   // (Redundantly check the filesystem) its driver, and its disk object
-  status = 
-    checkObjectAndDriver(theFilesystem, __FUNCTION__);
-
+  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
   if (status < 0)
     return (status);
-
-  // kernelTextPrint("Unmounting ");
-  // kernelTextPrintLine(theFilesystem->mountPoint);
   
   // DO NOT attempt to unmount the root filesystem if there are
   // ANY other filesystems mounted.  This would be bad, since root is
@@ -772,7 +1055,8 @@ int kernelFilesystemUnmount(const char *path)
     if (filesystemCounter > 1)
       {
 	// Make the error
-	kernelError(kernel_error, FS_ROOT_ORPHANS);
+	kernelError(kernel_error, "Cannot unmount / when child filesystems "
+		    "are still mounted");
 	return (status = ERR_BUSY);
       }
 
@@ -784,7 +1068,8 @@ int kernelFilesystemUnmount(const char *path)
   if (status < 0)
     {
       // Make the error
-      kernelError(kernel_error, NO_SYNCHY_NO_UMOUNT);
+      kernelError(kernel_error, "The driver was unable to sync the "
+		  "filesystem.  Unmount aborted");
       return (status);
     }
 
@@ -829,53 +1114,19 @@ int kernelFilesystemUnmount(const char *path)
   // If it wasn't, there's really nothing we can do about it from
   // here.
 
-  // We have to remove that filesystem by shifting all of the following
-  // objects in the array up by one spot and reduce the counter that keeps
-  // track of the number of devices.  If the device was the last spot,
-  // all we do is reduce the counter.
+  if ((theFilesystem->disk->fixedRemovable == removable) &&
+      theFilesystem->disk->motorStatus)
+    // It's a removable disk with its motor on.  Turn it off.
+    kernelDiskFunctionsMotorOff(theFilesystem->disk->diskNumber);
 
-  // Find the position of the filesystem's pointer in the pointer array
-  for (pointerArrayPosition = 0; 
-       ((filesystemPointerArray[pointerArrayPosition] != theFilesystem &&
-	 (pointerArrayPosition < filesystemCounter)));
-	pointerArrayPosition++);
-  // Empty loop body is deliberate
-
-  // What if we didn't find it?
-  if (pointerArrayPosition >= filesystemCounter)
-    {
-      // We didn't find the filesystem in the pointer list!
-      kernelError(kernel_error, MISSING_FS_OBJECT);
-      return (status = ERR_NOSUCHENTRY);
-    }
+  status = releaseFilesystemAndDriver(theFilesystem);
   
-  for (count = pointerArrayPosition; count < (filesystemCounter - 1); 
-       count ++)
-    filesystemPointerArray[count] = filesystemPointerArray[count + 1];
-
-  // Move the removed one to the end if there was more than 1
-  if (filesystemCounter > 1)
-    filesystemPointerArray[filesystemCounter - 1] = theFilesystem;
-
-  // Now do the same thing for the driver objects
-
-  temp = (void *) driverPointerArray[pointerArrayPosition];
-
-  for (count = pointerArrayPosition; count < (filesystemCounter - 1); 
-       count ++)
-    driverPointerArray[count] = driverPointerArray[count + 1];
-
-  if (driverCounter > 1)
-    // Move the removed one to the end if there was more than 1
-    driverPointerArray[filesystemCounter - 1] = 
-      (kernelFilesystemDriver *) temp;
-
-  // Reduce the counters
-  filesystemCounter -= 1;
-  driverCounter -= 1;  
-
-  // kernelTextPrintInteger(filesystemCounter);
-  // kernelTextPrintLine(" filesystems mounted");
+  if (status < 0)
+    {
+      // Not fatal, we don't suppose
+      kernelError(kernel_warn, "Unable to deallocate the filesystem object "
+		  "and/or its driver");
+    }
   
   return (numberFilesystems = filesystemCounter);
 }
@@ -892,12 +1143,12 @@ int kernelFilesystemUnmountAll(void)
   int errors = 0;
   int count;
 
-
   // Do NOT unmount any filesystems until we have been initialized
-  if (filesystemManagerInitialized == 0)
+  if (!initialized)
     {
       // Make the error
-      kernelError(kernel_error, FS_NOT_INITIALIZED);
+      kernelError(kernel_error, "The filesystem manager has not been "
+		  "initialized.");
       return (status = ERR_NOTINITIALIZED);
     }  
 
@@ -909,7 +1160,7 @@ int kernelFilesystemUnmountAll(void)
 
   for (count = 0; count < filesystemCounter; count ++)
     {
-      fs = &kernelFilesystemArray[count];
+      fs = &filesystemArray[count];
 
       if (!strcmp((char *) fs->mountPoint, "/"))
 	{
@@ -977,12 +1228,12 @@ int kernelFilesystemNumberMounted(void)
 
   int status = 0;
 
-
   // Do not report filesystems until we have been initialized
-  if (filesystemManagerInitialized == 0)
+  if (!initialized)
     {
       // Make the error
-      kernelError(kernel_error, FS_NOT_INITIALIZED);
+      kernelError(kernel_error, "The filesystem manager has not been "
+		  "initialized.");
       return (status = ERR_NOTINITIALIZED);
     }  
 
@@ -996,12 +1247,12 @@ void kernelFilesystemFirstFilesystem(char *fsName)
   // filesystem in the list.  Returns NULL in the first character
   // of the filesystem name if there are no filesystems mounted.
 
-
   // Do not look for filesystems until we have been initialized
-  if (filesystemManagerInitialized == 0)
+  if (!initialized)
     {
       // Make the error
-      kernelError(kernel_error, FS_NOT_INITIALIZED);
+      kernelError(kernel_error, "The filesystem manager has not been "
+		  "initialized.");
       fsName[0] = NULL;
       return;
     }  
@@ -1031,12 +1282,12 @@ void kernelFilesystemNextFilesystem(char *fsName)
   char mountPoint[MAX_PATH_LENGTH];
   int count;
 
-
   // Do not look for filesystems until we have been initialized
-  if (filesystemManagerInitialized == 0)
+  if (!initialized)
     {
       // Make the error
-      kernelError(kernel_error, FS_NOT_INITIALIZED);
+      kernelError(kernel_error, "The filesystem manager has not been "
+		  "initialized.");
       fsName[0] = NULL;
       return;
     }  
@@ -1076,24 +1327,24 @@ void kernelFilesystemNextFilesystem(char *fsName)
 }
 
 
-unsigned int kernelFilesystemGetFree(const char *path)
+unsigned kernelFilesystemGetFree(const char *path)
 {
   // This is merely a wrapper function for the equivalent function
   // in the requested filesystem's own driver.  It takes nearly-identical
   // arguments and returns the same status as the driver function.
 
   int status = 0;
-  unsigned int freeSpace = 0;
+  unsigned freeSpace = 0;
   char mountPoint[MAX_PATH_LENGTH];
   kernelFilesystem *theFilesystem = NULL;
   kernelFilesystemDriver *theDriver = NULL;
 
-
   // Do NOT look at any filesystems until we have been initialized
-  if (filesystemManagerInitialized == 0)
+  if (!initialized)
     {
       // Make the error
-      kernelError(kernel_error, FS_NOT_INITIALIZED);
+      kernelError(kernel_error, "The filesystem manager has not been "
+		  "initialized.");
       return (freeSpace = 0);
     }  
 
@@ -1128,7 +1379,8 @@ unsigned int kernelFilesystemGetFree(const char *path)
   if (theDriver->driverGetFree == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_FS_DRIVER_FUNCTION);
+      kernelError(kernel_error, "The filesystem driver does not support the"
+		  "'getFree' operation");
       // Report NO free space
       return (freeSpace = 0);
     }
@@ -1141,22 +1393,22 @@ unsigned int kernelFilesystemGetFree(const char *path)
 }
 
 
-unsigned int kernelFilesystemGetBlockSize(const char *path)
+unsigned kernelFilesystemGetBlockSize(const char *path)
 {
   // This function simply returns the block size of the filesystem
   // that contains the specified path.
 
   int status = 0;
-  unsigned int blockSize = 0;
+  unsigned blockSize = 0;
   char fixedPath[MAX_PATH_LENGTH];
   kernelFilesystem *theFilesystem = NULL;
 
-
   // Do NOT look at any filesystems until we have been initialized
-  if (filesystemManagerInitialized == 0)
+  if (!initialized)
     {
       // Make the error
-      kernelError(kernel_error, FS_NOT_INITIALIZED);
+      kernelError(kernel_error, "The filesystem manager has not been "
+		  "initialized.");
       return (blockSize = 0);
     }  
 
@@ -1183,3 +1435,4 @@ unsigned int kernelFilesystemGetBlockSize(const char *path)
 
   return (blockSize);
 }
+

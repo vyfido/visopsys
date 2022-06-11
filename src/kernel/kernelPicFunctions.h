@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,14 +21,6 @@
 
 #if !defined(_KERNELPICFUNCTIONS_H)
 
-// Definitions
-
-// Error Messages
-#define NULL_PIC_OBJECT "The interrupt controller device object that was passed or referenced is NULL"
-#define NULL_PIC_DRIVER_OBJECT "The interrupt controller device driver that was passed or referenced is NULL"
-#define NULL_PIC_DRIVER_ROUTINE "The corresponding interrupt controller device driver routine is NULL"
-#define PIC_INIT_FAILED "The interrupt controller driver initialization returned this error code"
-
 // Structures for the PIC device
 
 typedef struct
@@ -43,7 +35,6 @@ typedef struct
   kernelPicDeviceDriver *deviceDriver;
 
 } kernelPicObject;
-
 
 // Functions exported by kernelPicFunctions.c
 int kernelPicRegisterDevice(kernelPicObject *);
@@ -60,7 +51,6 @@ int kernelPicEndOfInterrupt(int);
                          "shr $9, %0 \n\t" \
                          "and $1, %0 \n\t" \
                          : "=r" (variable) : : "memory")
-
 
 #define _KERNELPICFUNCTIONS_H
 #endif

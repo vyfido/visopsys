@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -39,9 +39,11 @@ char *asctime(const struct tm *timePtr)
   // ctime() time format:
   // "Wed Jun 30 21:49:08 1993\n"
 
+  char *weekDay[] = { "Mon ", "Tue ", "Wed ", "Thu ", "Fri ", 
+		      "Sat ", "Sun "};
+  char *month[] = { "Jan ", "Feb ", "Mar ", "Apr ", "May ", "Jun ", 
+		    "Jul ", "Aug ", "Sep ", "Oct ", "Nov ", "Dec " };
   static char timeString[25];
-  char *misc = NULL;
-
 
   // Make sure timePtr is not NULL
   if (timePtr == NULL)
@@ -52,86 +54,13 @@ char *asctime(const struct tm *timePtr)
   
   errno = 0;
 
-  // What's the day of the week?
-  switch (timePtr->tm_wday)
-    {
-    case 0:
-      misc = "Sun ";
-      break;
-    case 1:
-      misc = "Mon ";
-      break;
-    case 2:
-      misc = "Tue ";
-      break;
-    case 3:
-      misc = "Wed ";
-      break;
-    case 4:
-      misc = "Thu ";
-      break;
-    case 5:
-      misc = "Fri ";
-      break;
-    case 6:
-      misc = "Sat ";
-      break;
-    default:
-      misc = "??? ";
-      break;
-    }
+  // Get the day of the week
+  strncpy(timeString, weekDay[timePtr->tm_wday], 5);
 
-  // Copy it into our time string
-  strncpy(timeString, misc, 4);
+  // Month
+  strncat(timeString, month[timePtr->tm_mon], 4);
 
-  // Month?
-  switch (timePtr->tm_wday)
-    {
-    case 0:
-      misc = "Jan ";
-      break;
-    case 1:
-      misc = "Feb ";
-      break;
-    case 2:
-      misc = "Mar ";
-      break;
-    case 3:
-      misc = "Apr ";
-      break;
-    case 4:
-      misc = "May ";
-      break;
-    case 5:
-      misc = "Jun ";
-      break;
-    case 6:
-      misc = "Jul ";
-      break;
-    case 7:
-      misc = "Aug ";
-      break;
-    case 8:
-      misc = "Sep ";
-      break;
-    case 9:
-      misc = "Oct ";
-      break;
-    case 10:
-      misc = "Nov ";
-      break;
-    case 11:
-      misc = "Dec ";
-      break;
-    default:
-      misc = "??? ";
-      break;
-    }
-
-  // Copy it into our time string
-  strncat(timeString, misc, 4);
-
-  // Day of the month?
+  // Day of the month
   itoa(timePtr->tm_mday, (timeString + strlen(timeString)));
   strncat(timeString, " ", 1);
 

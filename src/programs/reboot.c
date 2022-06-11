@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,6 +23,7 @@
 // asked
 
 #include <stdio.h>
+#include <string.h>
 #include <sys/api.h>
 
 typedef enum 
@@ -45,7 +46,7 @@ int main(int argc, char *argv[])
     if (argv[count] == NULL)
       return (status = ERR_NULLPARAMETER);
 
-  if (strcmp(argv[1], "-f") == 0)
+  if ((argc > 1) && (strcmp(argv[1], "-f") == 0))
     // Do a nasty reboot
     status = shutdown(reboot, 1);
 

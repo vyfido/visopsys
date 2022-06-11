@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,14 +21,16 @@
 
 #if !defined(_KERNELTEXTCONSOLEDRIVER_H)
 
+#include "kernelText.h"
+
 // Functions exported from kernelTextConsoleDriver.c
-void kernelTextConsoleInitialize(void *, int, int, int, int);
-int kernelTextConsoleGetCursorAddress(void);
-void kernelTextConsoleSetCursorAddress(int);
-void kernelTextConsoleSetForeground(int);
-void kernelTextConsoleSetBackground(int);
-void kernelTextConsolePrint(const char *);
-void kernelTextConsoleClearScreen(void);
+int kernelTextConsoleInitialize(kernelTextArea *);
+int kernelTextConsoleGetCursorAddress(kernelTextArea *);
+int kernelTextConsoleSetCursorAddress(kernelTextArea *, int, int);
+int kernelTextConsoleSetForeground(kernelTextArea *, int);
+int kernelTextConsoleSetBackground(kernelTextArea *, int);
+int kernelTextConsolePrint(kernelTextArea *, const char *);
+int kernelTextConsoleClearScreen(kernelTextArea *);
 
 #define _KERNELTEXTCONSOLEDRIVER_H
 #endif

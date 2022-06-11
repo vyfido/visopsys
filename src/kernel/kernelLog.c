@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,18 +24,11 @@
 
 #include "kernelLog.h"
 #include "kernelParameters.h"
-#include "kernelText.h"
 #include "kernelFileStream.h"
 #include "kernelMultitasker.h"
-#include "kernelMiscAsmFunctions.h"
 #include "kernelRtcFunctions.h"
-#include "kernelDebug.h"
 #include "kernelError.h"
 #include <stdio.h>
-#include <stdarg.h>
-#include <time.h>
-#include <sys/file.h>
-#include <sys/errors.h>
 #include <string.h>
 
 
@@ -58,15 +51,10 @@ static int flushLogStream(void)
   int bufferSize = 0;
   char buffer[LOG_STREAM_SIZE];
 
-
   // If there's no log stream, there's no point in going any further
   // (there will be nothing to flush)
   if (logStream == NULL)
     return (status = 0);
-
-  // kernelTextPrintUnsigned(logFileStream->s->count);
-  // kernelTextPrint(" -> log file stream count ");
-  // kernelTextPrintLine(__FUNCTION__);
 
   // How much stuff is in the log stream?
   bufferSize = logStream->count;
@@ -74,8 +62,7 @@ static int flushLogStream(void)
   if (bufferSize > 0)
     {
       // Take the contents of the log stream...
-      status = ((streamFunctions *) logStream->functions)->popN(logStream,
-						bufferSize, buffer);
+      status = logStream->popN(logStream, bufferSize, buffer);
 
       if (status < 0)
 	{
@@ -121,8 +108,8 @@ static void kernelLogUpdater(void)
 
   int status = 0;
 
-  // Wait 5 seconds to let the system get moving
-  kernelMultitaskerWait(100);
+  // Wait a few seconds to let the system get moving
+  kernelMultitaskerWait(200);
 
   while(1)
     {
@@ -137,8 +124,8 @@ static void kernelLogUpdater(void)
 	  kernelMultitaskerTerminate(status);
 	}
 
-      // Yield the rest of the timeslice and wait for at least 1 second
-      kernelMultitaskerWait(20);
+      // Yield the rest of the timeslice and wait
+      kernelMultitaskerWait(40);
     }
 }
 
@@ -158,9 +145,6 @@ int kernelLogInitialize(void)
   // initiated, log messages are not written to files.
 
   int status = 0;
-
-
-  kernelDebugEnter();
 
   // Initially, we will log to the console, and not to a file
   logToConsole = 1;
@@ -184,9 +168,6 @@ int kernelLogSetFile(const char *logFileName)
 
   int status = 0;
   static fileStream theStream;
-
-
-  kernelDebugEnter();
 
   // Do not accept this call unless logging has been initialized
   if (!loggingInitialized)
@@ -246,7 +227,7 @@ int kernelLogSetFile(const char *logFileName)
       // bad, but not fatal.  Make a kernelError.
       kernelError(kernel_warn, "Couldn't re-nice the log updater thread");
     }
-  
+
   // Return success
   return (status = 0);
 }
@@ -266,14 +247,61 @@ void kernelLogSetToConsole(int onOff)
 }
 
 
+int kernelLog(const char *format, ...)
+{
+  // This is the function that does all of the kernel logging.
+  // Returns 0 on success, negative otherwise
+
+  int status = 0;
+  va_list list;
+  char output[MAXSTRINGLENGTH];
+  char streamOutput[MAXSTRINGLENGTH];
+  struct tm time;
+
+  // Do not accept this call unless logging has been initialized
+  if (!loggingInitialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Make sure the format string isn't NULL
+  if (format == NULL)
+    return (status = ERR_NULLPARAMETER);
+
+  // Initialize the argument list
+  va_start(list, format);
+
+  // Expand the format string into an output string
+  _expandFormatString(output, format, list);
+
+  va_end(list);
+
+  // Now take care of the output part
+
+  // Are we logging to the console?  Just print the message itself.
+  if (logToConsole)
+    kernelTextPrintLine(output);
+
+  // Get the current date/time so we can prepend it to the logging output
+  status = kernelRtcDateTime(&time);
+  
+  if (status < 0)
+    // Before RTC initialization (at boot time) the above will fail.
+    sprintf(streamOutput, "%s\n", output);
+  else
+    // Turn the date/time into a string representation (but skip the
+    // first 4 'weekday' characters)
+    sprintf(streamOutput, "%s %s\n", (asctime(&time) + 4), output);
+
+  // Put it all into the log stream
+  status = logStream->appendN(logStream, strlen(streamOutput), streamOutput);
+  return (status);
+}
+
+
 int kernelLogShutdown(void)
 {
   // This function stops kernel logging to the log file.
 
   int status = 0;
-
-
-  kernelDebugEnter();
 
   if (logToFile)
     {
@@ -294,60 +322,4 @@ int kernelLogShutdown(void)
 
   // Return success
   return (status = 0);
-}
-
-
-int kernelLog(const char *format, ...)
-{
-  // This is the function that does all of the kernel logging.
-  // Returns 0 on success, negative otherwise
-
-  int status = 0;
-  va_list list;
-  char output[MAXSTRINGLENGTH];
-  char streamOutput[MAXSTRINGLENGTH];
-  struct tm time;
-
-
-  kernelDebugEnter();
-
-  // Do not accept this call unless logging has been initialized
-  if (!loggingInitialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Make sure the format string isn't NULL
-  if (format == NULL)
-    return (status = ERR_NULLPARAMETER);
-
-  // Initialize the argument list
-  va_start(list, format);
-
-  // Expand the format string into an output string
-  _expand_format_string(output, format, list);
-
-  va_end(list);
-
-
-  // Now take care of the output part
-
-  // Are we logging to the console?  Just print the message itself.
-  if (logToConsole)
-    kernelTextPrintLine(output);
-
-  // Get the current date/time so we can prepend it to the logging output
-  status = kernelRtcDateTime(&time);
-  
-  if (status < 0)
-    // Before RTC initialization (at boot time) the above will fail.
-    sprintf(streamOutput, "%s\n", output);
-  else
-    // Turn the date/time into a string representation (but skip the
-    // first 4 'weekday' characters)
-    sprintf(streamOutput, "%s %s\n", (asctime(&time) + 4), output);
-
-
-  // Put it all into the log stream
-  status = ((streamFunctions *) logStream->functions)->appendN(logStream,
-				       strlen(streamOutput), streamOutput);
-  return (status);
 }

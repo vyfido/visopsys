@@ -1,6 +1,6 @@
 //
 //  Visopsys Java Installer
-//  Copyright (C) 2001 J. Andrew McLaughlin
+//  Copyright (C) 2002-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,7 +29,7 @@ public class vInstall
     public static void main(String[] args)
     {
 	System.out.println("\nVisopsys Java Installer");
-	System.out.println("Copyright (C) 2001 J. Andrew McLaughlin\n");
+	System.out.println("Copyright (C) 2002-2003 J. Andrew McLaughlin\n");
 	System.out.println("Loading, one moment please...");
 	new vInstall(args).run();
 	return;

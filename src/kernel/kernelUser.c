@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,30 +22,11 @@
 // This file contains the routines designed for managing user access
 
 #include "kernelUser.h"
-#include "kernelMultitasker.h"
 
-
-int kernelUserGetUid(void)
-{
-  // This routine will return the user id of the current task.
-
-  int currentPID = 0;
-  int currentUID = 0;
-
-  // We have to call the multitasker function to identify the PID
-  // of the current process
-  currentPID = kernelMultitaskerGetCurrentProcessId();
-
-  if (currentPID < 0)
-    // We couldn't determine the current process
-    return (currentPID);
-
-  // We have to call the multitasker function to identify the user
-  // owner of the current thread/process.
-
-  currentUID = kernelMultitaskerGetProcessOwner(currentPID);
-
-  // Return whatever was returned from the previous call
-  return (currentUID);
-}
-
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+// Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////

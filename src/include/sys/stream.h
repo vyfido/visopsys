@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -38,23 +38,17 @@ typedef struct
   int next;
   int count;
 
-  void *functions;
+  // Stream functions
+  int (*clear) (void *);
+  int (*intercept) (void *, ...);
+  int (*append) (void *, ...);
+  int (*appendN) (void *, int, ...);
+  int (*push) (void *, ...);
+  int (*pushN) (void *, int, ...);
+  int (*pop) (void *, ...);
+  int (*popN) (void *, int, ...);
 
 } stream;
-
-// This data structure holds pointers to the generic routines for
-// manipulation of a given stream
-typedef struct
-{
-  int (*clear) (stream *);
-  int (*append) (stream *, ...);
-  int (*appendN) (stream *, int, ...);
-  int (*push) (stream *, ...);
-  int (*pushN) (stream *, int, ...);
-  int (*pop) (stream *, ...);
-  int (*popN) (stream *, int, ...);
-
-} streamFunctions;
 
 
 // Some specialized kinds of streams
@@ -67,7 +61,6 @@ typedef struct
   unsigned int block;
   int dirty;
   stream *s;
-  streamFunctions *sFn;
 
 } fileStream;
 

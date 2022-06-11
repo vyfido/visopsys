@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,16 +25,15 @@
 
 typedef struct 
 {
-  int functionNumber;
+  unsigned functionNumber;
   void *functionPointer;
-  const char *functionName;
   int argCount;
   int privilege;
 
 } kernelFunctionIndex;
 
 // Functions exported from kernelApi.c and kernelEntryPoint.s
-int kernelApi(unsigned int *);
+int kernelApi(unsigned *);
 int kernelEntryPoint(int);
 
 #define _KERNELAPI_H

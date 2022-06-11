@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,77 +27,78 @@
 #include "kernelMiscAsmFunctions.h"
 #include <string.h>
 
-static volatile void *screenAddress = NULL;
-static volatile int screenColumns = 0;
-static volatile int screenRows = 0;
-static volatile int cursorPosition = 0;
-static char colourByte = 0;
+
+// Macro used strictly within this file
+#define cursorPosition ((area->cursorRow * area->columns) + area->cursorColumn)
 
 
-static void scrollLine(void)
+static void toggleCursor(kernelTextArea *area)
+{
+  // This just reverses the foreground and background colors at the
+  // requested cursor position
+
+  char foregroundColor;
+  char *cursorAddress = NULL;
+
+  cursorAddress = area->data + (((area->cursorRow * area->columns) +
+				 area->cursorColumn) * 2);
+
+  // Reverse foreground and background colors
+  foregroundColor = *(cursorAddress + 1);
+  foregroundColor = (((foregroundColor & 0x0F) << 4) |
+		     ((foregroundColor & 0xF0) >> 4));
+  *(cursorAddress + 1) = foregroundColor;
+
+  return;
+}
+
+
+static void scrollLine(kernelTextArea *area)
 {
   // This will scroll the screen by 1 line
   
   // The start of the new screen is one row down
-  void *newScreenTop = (void *) screenAddress + (screenColumns * 2);
-  char *lastRow =
-    (void *) screenAddress + (screenColumns * (screenRows - 1) * 2);
+  void *newScreenTop = area->data + (area->columns * 2);
+  char *lastRow = area->data + (area->columns * (area->rows - 1) * 2);
   int count;
 
+  toggleCursor(area);
+
   // Copy
-  kernelMemCopy(newScreenTop, (void *) screenAddress,
-		(screenColumns * (screenRows - 1) * 2));
+  kernelMemCopy(newScreenTop, area->data,
+		(area->columns * (area->rows - 1) * 2));
   
+  // Clear out the bottom row
+  for (count = 0; count < (area->columns * 2); )
+    {
+      lastRow[count++] = ' ';
+      lastRow[count++] = area->foreground.blue;
+    }
+
   // Move the cursor up by one row.  Don't use the SetCursorAddress
   // routine because we don't want to actually move the cursor like
   // normal
-  cursorPosition -= screenColumns;
-
-  // Clear out the bottom row
-  for (count = 0; count < (screenColumns * 2); )
-    {
-      lastRow[count++] = ' ';
-      lastRow[count++] = colourByte;
-    }
+  area->cursorRow--;
+  toggleCursor(area);
 
   return;
 }
 
 
-static void newline(void)
+static void newline(kernelTextArea *area)
 {
   // Just moves the cursor to the next new line, unless we are on the last
   // line of the screen, in which case we need to scroll 1 line also.
 
-  if (cursorPosition >= (screenColumns * (screenRows - 1)))
-    {
-      scrollLine();
-      cursorPosition = (screenColumns * (screenRows - 1));
-    }
-  else
-    // Calculate the new position
-    cursorPosition = (((cursorPosition / screenColumns) * screenColumns) +
-		      screenColumns);
+  // Will this cause a scroll?
+  if (area->cursorRow >= (area->rows - 1))
+    scrollLine(area);
 
-  return;
-}
+  // Cursor advances one row, goes to column 0
+  area->cursorRow += 1;
+  area->cursorColumn = 0;
 
-
-static void toggleCursor(int position)
-{
-  // This just reverses the foreground and background colours at the
-  // requested cursor position
-
-  char colour;
-  char *cursorAddress = NULL;
-
-  cursorAddress = (char *) screenAddress + (position * 2);
-
-  // Reverse foreground and background colours
-  colour = *(cursorAddress + 1);
-  colour = (((colour & 0x0F) << 4) | ((colour & 0xF0) >> 4));
-  *(cursorAddress + 1) = colour;
-
+  // Simple
   return;
 }
 
@@ -111,68 +112,61 @@ static void toggleCursor(int position)
 /////////////////////////////////////////////////////////////////////////
 
 
-void kernelTextConsoleInitialize(void *sAddr, int sCols, int sRows,
-				 int foregroundColour, int backgroundColour)
+int kernelTextConsoleInitialize(kernelTextArea *area)
 {
-  // Called before the first use of the text console
-
-  // Save information about our screen
-  screenAddress = sAddr;
-  screenColumns = sCols;
-  screenRows = sRows;
-
-  kernelTextConsoleSetForeground(foregroundColour);
-  kernelTextConsoleSetBackground(backgroundColour);
-
-  // Clear the screen
-  kernelTextConsoleClearScreen();
-
-  // We're ready
-  return;
+  // Called before the first use of the text console.  We don't need to do
+  // any initialization
+  return (0);
 }
 
 
-int kernelTextConsoleGetCursorAddress(void)
+int kernelTextConsoleGetCursorAddress(kernelTextArea *area)
 {
-  // This routine gathers the current cursor address and returns it
-  return (cursorPosition);
+  // Returns the cursor address as an integer
+  return ((area->cursorRow * area->columns) + area->cursorColumn);
 }
 
 
-void kernelTextConsoleSetCursorAddress(int newPosition)
+int kernelTextConsoleSetCursorAddress(kernelTextArea *area, int row, int col)
 {
-  // This routine takes a new cursor address offset as a parameter.
+  // Moves the cursor
 
-  toggleCursor(cursorPosition);
+  toggleCursor(area);
+  area->cursorRow = row;
+  area->cursorColumn = col;
+  toggleCursor(area);
 
-  // Set the new position
-  cursorPosition = newPosition;
-
-  toggleCursor(cursorPosition);
-
-  return;
+  return (0);
 }
 
 
-void kernelTextConsoleSetForeground(int newForeground)
+int kernelTextConsoleSetForeground(kernelTextArea *area, int newForeground)
 {
-  // Sets a new foreground colour
-  colourByte &= 0xF0;
-  colourByte |= (newForeground & 0x0F);
-  return;
+  // Sets a new foreground color
+
+  // We just use the first byte of the foreground color structure (the 'blue'
+  // byte) to store our 1-byte foreground/background color value
+  area->foreground.blue &= 0xF0;
+  area->foreground.blue |= (newForeground & 0x0F);
+
+  return (0);
 }
 
 
-void kernelTextConsoleSetBackground(int newBackground)
+int kernelTextConsoleSetBackground(kernelTextArea *area, int newBackground)
 {
-  // Sets a new background colour
-  colourByte &= 0x0F;
-  colourByte |= (newBackground & 0x0F) << 4;
-  return;
+  // Sets a new background color
+
+  // We just use the first byte of the foreground color structure (the 'blue'
+  // byte) to store our 1-byte foreground/background color value
+  area->foreground.blue &= 0x0F;
+  area->foreground.blue |= (newBackground & 0x0F) << 4;
+
+  return (0);
 }
 
 
-void kernelTextConsolePrint(const char *string)
+int kernelTextConsolePrint(kernelTextArea *area, const char *string)
 {
   // Prints ascii text strings to the text console.
 
@@ -183,57 +177,58 @@ void kernelTextConsolePrint(const char *string)
   int advanceCursor = 0;
   int count;
 
-  // Turn off the cursor
-  toggleCursor(cursorPosition);
-
   // How long is the string?
   length = strlen(string);
 
+  // Turn off the cursor
+  toggleCursor(area);
+
   // Will this printing cause our screen to scroll?  If so, do it in advance
   // so we can get on with our business
-  if ((cursorPosition + length) > ((screenColumns * screenRows) - 1))
+  if ((cursorPosition + length) > ((area->columns * area->rows) - 1))
     {
-      overFlow = (cursorPosition + length) - (screenColumns * screenRows) + 1;
-      scrollLines = overFlow / screenColumns;
-      if (overFlow % screenColumns)
+      overFlow = (cursorPosition + length) - (area->columns * area->rows) + 1;
+      scrollLines = overFlow / area->columns;
+      if (overFlow % area->columns)
 	scrollLines++;
 
       for (count = 0; count < scrollLines; count ++)
-	scrollLine();
+	scrollLine(area);
     }
 
   // Where is the cursor currently?
-  cursorAddress = (char *) screenAddress + (cursorPosition * 2);
+  cursorAddress = area->data + (cursorPosition * 2);
 
   // Loop through the string, putting one byte into every even-numbered
-  // screen address.  Put the colour byte into every odd address
+  // screen address.  Put the color byte into every odd address
   for (count = 0; count < length; count ++)
     {
       // Check for a newline
       if (string[count] == '\n')
 	{
-	  newline();
-	  cursorAddress = (char *) screenAddress + (cursorPosition * 2);
+	  newline(area);
+	  cursorAddress = area->data + (cursorPosition * 2);
 	  advanceCursor = 0;
-	  continue;
 	}
-	    
-      *(cursorAddress++) = string[count];
-      *(cursorAddress++) = colourByte;
-      advanceCursor++;
+      else
+	{
+	  *(cursorAddress++) = string[count];
+	  *(cursorAddress++) = area->foreground.blue;
+	  advanceCursor++;
+	}
     }
 
   // Increment the cursor position
-  cursorPosition += advanceCursor;
+  area->cursorColumn += advanceCursor;
 
   // Turn on the cursor
-  toggleCursor(cursorPosition);
+  toggleCursor(area);
 
-  return;
+  return (0);
 }
 
 
-void kernelTextConsoleClearScreen(void)
+int kernelTextConsoleClearScreen(kernelTextArea *area)
 {
   // Clears the screen, and puts the cursor in the top left (starting)
   // position
@@ -244,23 +239,25 @@ void kernelTextConsoleClearScreen(void)
   int count;
 
   // Construct the dword of data that we will replicate all over the screen.
-  // It consists of the 'space' character twice, plus the colour byte twice
-  tmpData = ((colourByte << 24) | (0x20 << 16) | (colourByte << 8) | 0x20);
+  // It consists of the 'space' character twice, plus the color byte twice
+  tmpData = ((area->foreground.blue << 24) | (0x20 << 16) |
+	     (area->foreground.blue << 8) | 0x20);
 
   // Calculate the number of dwords that make up the screen
   // Formula is ((COLS * ROWS) / 2)
-  dwords = (screenColumns * screenRows) / 2;
+  dwords = (area->columns * area->rows) / 2;
 
   // Start at the beginning of screen memory
-  position = (int *) screenAddress;
+  position = (int *) area->data;
 
   // Write tmpData to the screen dwords times
   for (count = 0; count < dwords; count ++)
     position[count] = tmpData;
 
   // Make the cursor go to the top left
-  cursorPosition = 0;
-  toggleCursor(cursorPosition);
+  area->cursorColumn = 0;
+  area->cursorRow = 0;
+  toggleCursor(area);
 
-  return;
+  return (0);
 }

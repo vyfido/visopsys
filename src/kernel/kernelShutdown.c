@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,7 +23,8 @@
 // the kernel
 
 #include "kernelShutdown.h"
-#include "kernelText.h"
+#include "kernelGraphicFunctions.h"
+#include "kernelWindowManager.h"
 #include "kernelMultitasker.h"
 #include "kernelLog.h"
 #include "kernelFilesystem.h"
@@ -31,7 +32,17 @@
 #include "kernelDiskFunctions.h"
 #include "kernelMiscAsmFunctions.h"
 #include "kernelError.h"
+#include <sys/errors.h>
 #include <string.h>
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 
 int kernelShutdown(kernelShutdownType shutdownType, int force)
@@ -42,25 +53,124 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
   // and/or require such activity
 
   int status = 0;
+  int graphics = 0;
+  static int shutdownInProgress = 0;
+  char *finalMessage = NULL;
 
+  // We only use these if grapics are enabled
+  kernelAsciiFont *font = NULL;
+  kernelWindow *window = NULL;
+  componentParameters params;
+  kernelWindowComponent *label1 = NULL;
+  kernelWindowComponent *label2 = NULL;
+  unsigned screenWidth = 0;
+  unsigned screenHeight = 0;
+  unsigned windowWidth, windowHeight,
+    finalMessageWidth, finalMessageHeight,
+    boxWidth, boxHeight;
+  
+  if (shutdownInProgress)
+    {
+      kernelError(kernel_error, "The system is already shutting down");
+      return (status = ERR_ALREADY);
+    }
+  shutdownInProgress = 1;
 
-  // Echo the appropriate message(s)
-  kernelTextPrintLine("\nShutting down Visopsys, please wait...");
+  // Are grapics enabled?  If so, we will try to output our initial message
+  // to a window
+  graphics = kernelGraphicsAreEnabled();
+
+  if (graphics)
+    {
+      screenWidth = kernelGraphicGetScreenWidth();
+      screenHeight = kernelGraphicGetScreenHeight();
+
+      // Try to load a nice-looking font
+      status = kernelFontLoad(DEFAULT_VARIABLEFONT_SMALL_FILE,
+			      DEFAULT_VARIABLEFONT_SMALL_NAME, &font);
+      if (status < 0)
+	{
+	  // Font's not there, we suppose.  There's always a default.
+	  kernelFontGetDefault(&font);
+	}
+ 
+      window =
+	kernelWindowManagerNewWindow(kernelMultitaskerGetCurrentProcessId(),
+				     "Shutting down", 0, 0, 100, 100);
+      if (window != NULL)
+	{
+	  label1 = kernelWindowNewTextLabelComponent(window,
+			     NULL /* default font */, SHUTDOWN_MSG1);
+
+	  if (label1 != NULL)
+	    {
+	      params.gridX = 0;
+	      params.gridY = 0;
+	      params.gridWidth = 1;
+	      params.gridHeight = 1;
+	      params.padLeft = 10;
+	      params.padRight = 10;
+	      params.padTop = 5;
+	      params.padBottom = 5;
+	      params.orientationX = orient_center;
+	      params.orientationY = orient_top;
+	      params.hasBorder = 0;
+	      params.useDefaultForeground = 1;
+	      params.useDefaultBackground = 1;
+
+	      kernelWindowAddClientComponent(window, label1, &params);
+
+	      if (shutdownType == halt)
+		{
+		  label2 = kernelWindowNewTextLabelComponent(window,
+					     NULL /* default font */,
+					     SHUTDOWN_MSG2);
+		  if (label2 != NULL)
+		    {
+		      params.gridY = 1;
+		      params.padTop = 0;
+		      kernelWindowAddClientComponent(window, label2, &params);
+		    }
+		}
+	    }
+
+	  kernelWindowSetHasCloseButton(window, 0);
+	  kernelWindowLayout(window);
+	  kernelWindowAutoSize(window);
+	  kernelWindowGetSize(window, &windowWidth, &windowHeight);
+	  kernelWindowSetLocation(window, ((screenWidth - windowWidth) / 2),
+				  ((screenHeight - windowHeight) / 3));
+	  kernelWindowSetVisible(window, 1);
+	}
+    }
+
+  // Echo the appropriate message(s) to the console [as well]
+  kernelTextPrintLine("\n%s", SHUTDOWN_MSG1);
   if (shutdownType == halt)
-    kernelTextPrintLine("[ Wait for \"OK to power off\" message ]");
+    kernelTextPrintLine(SHUTDOWN_MSG2);
+
+  if (kernelGraphicsAreEnabled())
+    {
+      // Shut down the window manager
+      kernelLog("Stopping window manager");
+      status = kernelWindowManagerShutdown();
+      if (status < 0)
+	// Not fatal by any means
+	kernelError(kernel_warn, "Unable to shut down the window manager");
+    }
 
   // Kill all the processes, except this one and the kernel.
   kernelLog("Stopping all processes");
-  status = multitaskerKillAllProcesses();
+  status = kernelMultitaskerKillAll();
 
   if ((status < 0) && (!force))
     {
       // Eek.  We couldn't kill the processes nicely
-      kernelError(kernel_error,
-		  "Unable to stop processes nicely.  Shutdown aborted.");
+      kernelError(kernel_error, "Unable to stop processes nicely.  "
+		  "Shutdown aborted.");
+      shutdownInProgress = 0;
       return (status);
     }
-
 
   // Synchronize all filesystems
   kernelLog("Synchronizing filesystems");
@@ -70,10 +180,11 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
     {
       // Eek.  We couldn't synchronize the filesystems.  We should
       // stop and allow the user to try to save their data
-      kernelError(kernel_error, NO_SHUTDOWN_FS);
+      kernelError(kernel_error, "Unable to sync/unmount filesystems.  "
+		  "Shutdown aborted.");
+      shutdownInProgress = 0;
       return (status);
     }
-
 
   // Shut down the multitasker
   status = kernelMultitaskerShutdown(1 /* nice shutdown */);
@@ -83,8 +194,9 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
       if (!force)
 	{
 	  // Abort the shutdown
-	  kernelError(kernel_error,
-		      "Unable to stop multitasker.  Shutdown aborted.");
+	  kernelError(kernel_error, "Unable to stop multitasker.  Shutdown "
+		      "aborted.");
+	  shutdownInProgress = 0;
 	  return (status);
 	}
       else
@@ -97,46 +209,82 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
 
   // After this point, don't abort.  We're running the show.
 
+
   // Shut down kernel logging
   kernelLog("Stopping kernel logging");
-
   status = kernelLogShutdown();
-  
   if (status < 0)
     kernelError(kernel_error, "The kernel logger could not be stopped.");
 
+
   // Unmount all filesystems.
   kernelLog("Unmounting filesystems");
-
   status = kernelFilesystemUnmountAll();
-    
   if (status < 0)
-    kernelError(kernel_error,
-		"The filesystems were not all unmounted successfully");
+    kernelError(kernel_error, "The filesystems were not all unmounted "
+		"successfully");
 
 
-  // Power off any removable disk drives
-  kernelDiskFunctionsMotorOff(0);
+  // Shut down the disks
+  status = kernelDiskFunctionsShutdown();
+  if (status < 0)
+    kernelError(kernel_error, "The disks were not stopped successfully");
 
 
-  // Clear any pending scheduled events
-  kernelLog("Dispatching all pending timed events");
-  kernelTimedEventDispatchAll();
+  // What final message will we be displaying today?
+  if (shutdownType == reboot)
+    finalMessage = SHUTDOWN_MSG_REBOOT;
+  else
+    finalMessage = SHUTDOWN_MSG_POWER;
 
+  // Last words.
+  kernelTextPrintLine("\n%s", finalMessage);
+
+  if (graphics)
+    {
+      // Get rid of the window we showed.  No need to properly destroy it.
+      if (window != NULL)
+	kernelWindowSetVisible(window, 0);
+
+      // Draw a box with the final message
+
+      finalMessageWidth = kernelFontGetPrintedWidth(font, finalMessage);
+      finalMessageHeight = font->charHeight;
+      boxWidth = (finalMessageWidth + 30);
+      boxHeight = (finalMessageHeight * 3);
+
+      // The box
+      kernelGraphicDrawRect(NULL,
+			    &((color)
+			    { DEFAULT_ROOTCOLOR_BLUE, DEFAULT_ROOTCOLOR_GREEN,
+				DEFAULT_ROOTCOLOR_RED }), draw_normal,
+			    ((screenWidth - boxWidth) / 2),
+			    ((screenHeight - boxHeight) / 2),
+			    boxWidth, boxHeight, 1, 1);
+      // Nice white border
+      kernelGraphicDrawRect(NULL,
+			    &((color)
+			    { 255, 255,	255 }), draw_normal,
+			    ((screenWidth - boxWidth) / 2),
+			    ((screenHeight - boxHeight) / 2),
+			    boxWidth, boxHeight, 2, 0);
+      // The message
+      kernelGraphicDrawText(NULL,
+			    &((color ) { 255, 255, 255 }),
+			    font, finalMessage, draw_normal,
+			    ((screenWidth - finalMessageWidth) / 2),
+			    ((screenHeight - finalMessageHeight) / 2));
+    }
 
   // Finally, we either halt or reboot the computer
   if (shutdownType == reboot)
     {
-      kernelTextPrint("\nRebooting\n");
       kernelSysTimerWaitTicks(20); // Wait ~2 seconds
       kernelSuddenReboot();
     }
   else
-    {
-      kernelTextPrint("\nOK to power off now.");
-      kernelSuddenStop();
-    }
+    kernelSuddenStop();
 
-  // Just for good measure
+  // Just for good form
   return (status);
 }

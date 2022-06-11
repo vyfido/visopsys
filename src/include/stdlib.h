@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,6 +52,7 @@ typedef struct
 // they were defined in stddef.h.  Oh well, we're including stddef.h anyway.
 
 // Functions
+void abort(void);
 int abs(int);
 int atoi(const char *);
 void *calloc(size_t, size_t);
@@ -88,12 +89,12 @@ void srand(unsigned int);
   }
 
 // These functions are unimplemented
-#define abort() not_implemented_void()
-#define atexit(func) not_implemented_int()
-#define atof(s) not_implemented_int()
-#define atol(s) not_implemented_int()
-#define bsearch(key, base, nelem, size, cmp) not_implemented_ptr()
-#define getenv(name) not_implemented_ptr()
+int atexit(void (*)(void));
+double atof(const char *);
+long atol(const char *);
+void *bsearch(const void *, const void *, size_t, size_t size,
+	      int (*)(const void *, const void *));
+char *getenv(const char *);
 #define mblen(s, n) not_implemented_int()
 #define mbstowcs(wcs, s, n) not_implemented_uns()
 #define mbtowc(pwc, s, n) not_implemented_int()
@@ -107,7 +108,7 @@ void srand(unsigned int);
 
 // Argh.  Isn't there a function that does these?  These are andy-special.
 void itoa(int, char *);
+void itox(int, char *);
 void utoa(unsigned int, char *);
-
 #define _STDLIB_H
 #endif

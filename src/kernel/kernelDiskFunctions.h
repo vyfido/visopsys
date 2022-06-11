@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,59 +25,10 @@
 
 #if !defined(_KERNELDISKFUNCTIONS_H)
 
+#include <sys/disk.h>
+
 #define TRANSFER_AREA_ALIGN (64 * 1024)
-#define MOTOROFF_DELAY 40  // System timer ticks -- approx 2 seconds
 #define RETRY_ATTEMPTS 5
-#define DISK_BUFFER_HASH_SIZE 100
-
-// Error messages
-#define NO_DISKS_REGISTERED "Attempt to initialize the disk functions, but no disks have been registered"
-#define NULL_DISK_OBJECT "The kernelDiskObject passed or referenced is NULL"
-#define INVALID_DISK_NUMBER "The disk number used to refer to a disk object is not valid"
-#define INCONSISTENT_DISK_NUMBER "The kernelDiskObject's diskNumber is not consistent with its array index"
-#define NULL_DRIVER_OBJECT "The kernelDiskDeviceDriver object passed or referenced is NULL"
-#define NULL_DRIVER_ROUTINE "The associated device driver routine is NULL or has not been installed"
-#define TOO_MANY_DISKS "kernelDiskObjectArray full.  Max disk objects already registered"
-#define XFER_NOT_INITIALIZED "The requested kernelDiskObject has not been assigned a data transfer area"
-#define MEMORY_ALLOC_ERROR "Unable to allocate memory for all of the disk objects' transfer areas"
-#define INITIALIZE_ERROR "Disk driver initialize routine: "
-#define SPECIFY_ERROR "Disk driver specify routine: "
-#define SELECT_ERROR "Disk driver select routine: "
-#define MOTORON_ERROR "Disk driver motor on routine: "
-#define CALIBRATE_ERROR "Disk driver recalibrate routine: "
-#define RESET_ERROR "Disk driver reset routine: "
-#define SEEK_ERROR "Disk driver seek routine: "
-#define READ_ERROR "Disk driver read sectors routine: "
-#define WRITE_ERROR "Disk driver write sectors routine: "
-#define DISKCHANGED_ERROR "Disk driver media check routine: "
-#define NOT_FIXED_DISK "The requested removable disk is incorrectly being used as a fixed disk"
-#define NOT_REMOVABLE_DISK "The requested fixed disk is incorrectly being used as a removable disk"
-
-/*
-  These will eventually be used for the disk buffer cache
-
-typedef struct
-{
-  int number;
-  int dirty;
-  void *buffer;
-
-} kernelDiskSector;
-
-typedef struct
-{
-  int startSector;
-  unsigned int numSectors;
-  kernelDiskSector *sectors;
-  void *next;
-
-} kernelDiskBuffer;
-*/
-
-typedef enum { fixed, removable } kernelDiskRemove;
-
-typedef enum { floppy, idecdrom, scsicdrom,
-	       idedisk, scsidisk } kernelDiskType;
 
 typedef enum { readoperation, writeoperation } kernelDiskOp;
 
@@ -95,10 +46,10 @@ typedef struct
   int (*driverMotorOn) (int);
   int (*driverMotorOff) (int);
   int (*driverDiskChanged) (int);
-  int (*driverReadSectors) (int, unsigned int, unsigned int,
-		   unsigned int, unsigned int, unsigned int, void *);
-  int (*driverWriteSectors) (int, unsigned int, unsigned int,
-		   unsigned int, unsigned int, unsigned int, void *);
+  int (*driverReadSectors) (int, unsigned, unsigned,
+		   unsigned, unsigned, unsigned, void *);
+  int (*driverWriteSectors) (int, unsigned, unsigned,
+		   unsigned, unsigned, unsigned, void *);
   int (*driverLastErrorCode) (void);
   void *(*driverLastErrorMessage) (void);
 
@@ -113,49 +64,51 @@ typedef volatile struct
   int driverDiskNumber;
   int dmaChannel;
   char *description;
-  kernelDiskRemove fixedRemovable;
-  kernelDiskType type;
+  diskType type;
+  mediaType fixedRemovable;
   kernelAddrMethod addressingMethod;
 
-  unsigned int startHead;
-  unsigned int startCylinder;
-  unsigned int startSector;
-  unsigned int startLogicalSector;
+  unsigned startHead;
+  unsigned startCylinder;
+  unsigned startSector;
+  unsigned startLogicalSector;
 
-  unsigned int heads;
-  unsigned int cylinders;
-  unsigned int sectors;
-  unsigned int logicalSectors;
-  unsigned int sectorSize;
-  unsigned int maxSectorsPerOp;
+  unsigned heads;
+  unsigned cylinders;
+  unsigned sectors;
+  unsigned logicalSectors;
+  unsigned sectorSize;
+  unsigned maxSectorsPerOp;
 
   void *transferArea;
   void *transferAreaPhysical;
-  unsigned int transferAreaSize;
+  unsigned transferAreaSize;
 
   int lock;
   int motorStatus;
+  unsigned idleSince;
 
   kernelDiskDeviceDriver *deviceDriver;
 
 } kernelDiskObject;
 
-
 // Functions exported by kernelDiskFunctions.c
-
 int kernelDiskFunctionsRegisterDevice(kernelDiskObject *);
-int kernelDiskFunctionsRemoveDevice(int);
-int kernelDiskFunctionsInstallDriver(kernelDiskObject *, 
+int kernelDiskFunctionsInstallDriver(kernelDiskObject *,
 				     kernelDiskDeviceDriver *);
 int kernelDiskFunctionsInitialize(void);
+int kernelDiskFunctionsShutdown(void);
+int kernelDiskFunctionsGetBoot(void);
+int kernelDiskFunctionsGetCount(void);
+int kernelDiskFunctionsGetInfo(int, disk *);
 kernelDiskObject *kernelFindDiskObjectByNumber(int);
-int kernelDiskFunctionsLockDisk(int);
-int kernelDiskFunctionsUnlockDisk(int);
 int kernelDiskFunctionsMotorOn(int);
 int kernelDiskFunctionsMotorOff(int);
 int kernelDiskFunctionsDiskChanged(int);
-int kernelDiskFunctionsReadSectors(int, unsigned int, unsigned int, void *);
-int kernelDiskFunctionsWriteSectors(int, unsigned int, unsigned int, void *);
+int kernelDiskFunctionsReadSectors(int, unsigned, unsigned, void *);
+int kernelDiskFunctionsWriteSectors(int, unsigned, unsigned, void *);
+int kernelDiskFunctionsReadAbsoluteSectors(int, unsigned, unsigned, void *);
+int kernelDiskFunctionsWriteAbsoluteSectors(int, unsigned, unsigned, void *);
 
 #define _KERNELDISKFUNCTIONS_H
 #endif

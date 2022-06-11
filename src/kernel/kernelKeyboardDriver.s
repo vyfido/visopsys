@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -23,36 +23,20 @@
 	BITS 32
 
 	GLOBAL kernelKeyboardDriverInitialize
+	GLOBAL kernelKeyboardDriverSetStream
 	GLOBAL kernelKeyboardDriverReadData
+	GLOBAL kernelKeyboardDriverReadMouseData
 
 	%include "kernelAssemblerHeader.h"
 
 
 consoleLogin:
-	;; This function gets called when the console user presss F2
+	;; This function gets called when the console user presses F1
 	;; to launch a new console login process
 
 	pusha
 	sti	; Enable interrupts
 	call kernelConsoleLogin
-	popa
-	ret
-	
-
-showProcesses:
-	;; This function gets called when the console user presses F1
-	;; to see a list of running processes
-	pusha
-	call kernelMultitaskerDumpProcessList
-	popa
-	ret
-
-	
-killProcess:
-	;; This function gets called when the console user presses
-	;; CTRL-C to stop the foreground process
-	pusha
-	call kernelMultitaskerTerminate
 	popa
 	ret
 	
@@ -67,18 +51,18 @@ reboot:
 	push dword 1		; force the reboot
 	push dword 1		; reboot enum
 	call kernelShutdown
-	add ESP, 4
+	add ESP, 8
 
 	;; Wait
 	jmp $
-	
 
+	
 kernelKeyboardDriverInitialize:
 	;; This routine accepts parameters from the caller, then issues
 	;; the appropriate commands to the keyboard controller to set
 	;; keyboard settings.
 	;; The C prototype is:
-	;; int kernelKeyboardDriverInitialize(stream *, <append function>)
+	;; int kernelKeyboardDriverInitialize(void)
 
 	pusha
 
@@ -97,95 +81,29 @@ kernelKeyboardDriverInitialize:
 	mov AL, 0AEh
 	out 64h, AL
 	
-	;; Delay
-	jecxz $+2
-	jecxz $+2
+	mov byte [INITIALIZED], 1
+	popa
+	mov EAX, 0		; return success
+	ret
 
-	;; We flash the keyboard lights on during initialization, then flash 
-	;; them off to show that everything's good -- and also just to show 
-	;; that we can, and because it looks cool
 
-	;; Make the little keyboard lights go on
-
-	;; Wait for port 60h to be ready for a command.  We know it's
-	;; ready when port 64h bit 1 is 0
-	.onWaitLoop1:
-	in AL, 64h
-	bt AX, 1
-	jc .onWaitLoop1
-
-	;; Tell the keyboard we want to change them
-	mov AL, 0EDh
-	out 60h, AL
+kernelKeyboardDriverSetStream:	
+	;; Set the incoming characters to be placed in the requested stream
+	;; The C prototype is:
+	;; int kernelKeyboardDriverSetStream(stream *, <append function>)
 	
-	;; Delay
-	jecxz $+2
-	jecxz $+2
+	pusha
 
-	;; Wait for port 60h to be ready for a command.  We know it's
-	;; ready when port 64h bit 1 is 0
-	.onWaitLoop2:
-	in AL, 64h
-	bt AX, 1
-	jc .onWaitLoop2
+	;; Save the stack pointer
+	mov EBP, ESP
 
-	;; Tell the keyboard to turn them on!
-	mov AL, 00000111b
-	out 60h, AL
-
-	;; Delay
-	jecxz $+2
-	jecxz $+2
-
-
-	;; OK, now we can do something worthwhile.  Save the address of
-	;; the kernelStream we were passed to use for keyboard data
+	;; Save the address of the kernelStream we were passed to use for
+	;; keyboard data
 	mov EAX, dword [SS:(EBP + 36)]
 	mov dword [CONSOLESTREAM], EAX
 	mov EAX, dword [SS:(EBP + 40)]
 	mov dword [APPENDFUNCTION], EAX
 	
-	
-	;; Delay so the keyboard lights-on we did above is visible
-	mov ECX, 0000FFFFh
-	.delayLoop:
-	dec ECX
-	jnz .delayLoop
-
-	;; Now make the little keyboard lights go off again
-
-	;; Wait for port 60h to be ready for a command.  We know it's
-	;; ready when port 64h bit 1 is 0
-	.offWaitLoop1:
-	in AL, 64h
-	bt AX, 1
-	jc .offWaitLoop1
-
-	;; Tell the keyboard we want to change them
-	mov AL, 0EDh
-	out 60h, AL
-	
-	;; Delay
-	jecxz $+2
-	jecxz $+2
-
-	;; Wait for port 60h to be ready for a command.  We know it's
-	;; ready when port 64h bit 1 is 0
-	
-	.offWaitLoop2:
-	in AL, 64h
-	bt AX, 1
-	jc .offWaitLoop2
-
-	;; Tell the keyboard to turn them off again!
-	mov AL, 00000000b
-	out 60h, AL
-	
-	;; Delay
-	jecxz $+2
-	jecxz $+2
-
-	.done:
 	popa
 	mov EAX, 0		; return success
 	ret
@@ -196,20 +114,14 @@ kernelKeyboardDriverReadData:
 	;; keyboard console text input stream
 
 	pusha
-	
-	;; Make sure the routine has been initialized to get the address
-	;; of the keyboard input stream buffer from the kernel
+
+	;; Don't do anything unless we're initialized
 	cmp byte [INITIALIZED], 1
-	je .initialized
-
-	mov byte [INITIALIZED], 1
+	jne near .done
 	
-	.initialized:	
 	;; Read the data from port 60h
+	xor EAX, EAX
 	in AL, 60h
-
-	;; Clear out the top of the register
-	and EAX, 000000FFh
 
 	;; We only care about a couple of cases if it's a key release
 	cmp AL, 128
@@ -267,22 +179,6 @@ kernelKeyboardDriverReadData:
 	;; The last one was an extended flag.  Clear the flag
 	mov byte [EXTENDED], 0
 
-	;; The following scan codes should be treated the same as
-	;; if they were not extended
-	cmp AL, 28		; Keypad enter
-	je .notExtended
-	cmp AL, 29		; Right control
-	je .notExtended
-	cmp AL, 53		; Keypad '/'
-	je .notExtended
-	cmp AL, 56		; Right alt
-	je .notExtended
-	cmp AL, 83		; Del (not keypad)
-	je .notExtended
-	
-	;; Jump to the code that puts FFh and scan codes into the buffer
-	jmp .unprintable
-
 	.notExtended:	
 	;; Check for a few 'special action' keys
 	
@@ -314,13 +210,13 @@ kernelKeyboardDriverReadData:
 	jmp .done
 
 	.F1Press:
-	call showProcesses
+	call consoleLogin
 	jmp .done
 
 	.F2Press:
-	call consoleLogin
+	call kernelMultitaskerDumpProcessList
 	jmp .done
-	
+
 	.regularKey:	
 	;; Now the regular keys
 
@@ -344,17 +240,6 @@ kernelKeyboardDriverReadData:
 	jmp .gotASCII
 
 	.controlDown:
-	;; There are a couple of special cases we want to look for here.
-	
-	;; CTRL-C means kill the current process
-	cmp EAX, 46
-	jne .rebootCheck
-
-	;; We stop the current process
-	call killProcess
-	jmp .noSpecial
-
-	.rebootCheck:
 	;; CTRL-ALT-DEL means reboot
 	cmp byte [ALT_DOWN], 1
 	jne .noSpecial
@@ -372,31 +257,10 @@ kernelKeyboardDriverReadData:
 	;; Fall through to .gotASCII
 	
 	.gotASCII:
-	;; If it's unprintable, put an FF into the buffer followed by the
-	;; scan code
-	cmp byte [EBX], 0
-	jne .printable
-
-	.unprintable:		
-	push EAX
+	;; Make sure we have a text stream to append to.  If not, do nothing.
+	cmp dword [CONSOLESTREAM], 0
+	je .done
 	
-	;; Put an FF into the keyboard buffer
-	push dword 000000FFh
-	push dword [CONSOLESTREAM]
-	call dword [APPENDFUNCTION]
-	add ESP, 8
-
-	pop EAX
-	
-	;; Put the scan code into the buffer
-	push dword EAX
-	push dword [CONSOLESTREAM]
-	call dword [APPENDFUNCTION]
-	add ESP, 8
-
-	jmp .done
-
-	.printable:	
 	push dword [EBX]	; The character to print
 	push dword [CONSOLESTREAM]
 	call dword [APPENDFUNCTION]
@@ -410,6 +274,7 @@ kernelKeyboardDriverReadData:
 	SEGMENT .data
 	ALIGN 4
 	
+	
 ;; Keyboard handler data
 
 INITIALIZED	db 0
@@ -420,13 +285,14 @@ EXTENDED	db 0
 	
 CONSOLESTREAM	dd 0
 APPENDFUNCTION  dd 0
-	
+
 KEYMAP		db 27, '1234567890-=', 8, 9, 'q'		;; 00-0F
 		db 'wertyuiop[]', 10, 0, 'asd'			;; 10=1F 
 		db 'fghjkl;', 39, 96, 0, '\', 'zxcvb'		;; 20-2F
 		db 'nm,./', 0, '*', 0, ' ', 0, 0, 0, 0, 0, 0, 0	;; 30-3F
-		db 0, 0, 0, 0, 0, 0, '789-456+12'		;; 40-4F
-		db '30.', 0, 0					;; 50-54
+		db 0, 0, 0, 0, 0, 0, 13, 17			;; 40-47
+		db 11, '-', 18, '5', 19, '+1', 20		;; 48-4F
+		db 12, '0', 127, 0, 0				;; 50-54
 
 SHIFTKEYMAP	db 27, '!@#$%^&*()_+', 8, 9, 'Q'		;; 00-0F
 		db 'WERTYUIOP{}', 10, 0, 'ASD'			;; 10=1F 
@@ -442,5 +308,6 @@ CONTROLKEYMAP	db 27, '1234567890-=', 8, 9, 17			;; 00-0F
 		db '`', 0, 0, 26, 24, 3, 22, 2			;; 20-2F
 		db 14, 13, ',./', 0, '*', 0
 		db ' ', 0, 0, 0, 0, 0, 0, 0			;; 30-3F
-		db 0, 0, 0, 0, 0, 0, '789-456+12'		;; 40-4F
-		db '30.', 0, 0					;; 50-54
+		db 0, 0, 0, 0, 0, 0, 13, 17			;; 40-47
+		db 11, '-', 18, '5', 19, '+1', 20		;; 48-4F
+		db 12, '0', 127, 0, 0				;; 50-54

@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -123,8 +123,8 @@ kernelMemCopy:
 kernelMemClear:
 	;; This routine will do the fastest possible memory clear
 	;; Prototype:	
-	;; void kernelFastMemoryClear(void *area, unsigned int numBytes); 
-	
+	;; void kernelFastMemoryClear(void *area, unsigned numBytes); 
+
 	pusha
 
 	;; Save the stack pointer
@@ -166,7 +166,7 @@ kernelMemClear:
 
 	ret
 
-
+	
 kernelInstallGDT:
 	;; This function takes a pointer to the global descriptor table,
 	;; and its size, and installs it into the global descriptor table

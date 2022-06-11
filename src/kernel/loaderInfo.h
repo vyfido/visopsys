@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,6 +24,9 @@
 
 #if !defined(_LOADERINFO_H)
 
+// The data structure created by the loader (actually, by the BIOS) to
+// describe a memory range
+
 // The types of memory ranges described by the memoryInfoBlock structure,
 // below
 typedef enum
@@ -34,8 +37,6 @@ typedef enum
   nvs = 4
 } memoryRangeType;
 
-// The data structure created by the loader (actually, by the BIOS) to
-// describe a memory range
 typedef struct
 {
   long long start;
@@ -43,6 +44,19 @@ typedef struct
   memoryRangeType type;
 
 } memoryInfoBlock;
+
+// The data structure created by the loader to describe the particulars
+// about the current graphics mode
+typedef struct
+{
+  unsigned videoMemory;
+  int mode;
+  void *framebuffer;
+  int xRes;
+  int yRes;
+  int bitsPerPixel;
+
+} graphicsInfoBlock;
 
 // The data structure created by the loader to describe the
 // particulars about a floppy disk drive to the kernel
@@ -59,13 +73,33 @@ typedef struct
 // particulars about a hard disk drive to the kernel
 typedef struct
 {
-  int heads;
-  int cylinders;
-  int sectors;
-  int bytesPerSector;
-  int megaBytes;
+  unsigned heads;
+  unsigned cylinders;
+  unsigned sectors;
+  unsigned bytesPerSector;
+  unsigned megaBytes;
+  unsigned activePartition;
 
 } hddInfoBlock;
+
+// The data structure created by the loader to hold info about the serial
+// ports
+typedef struct
+{
+  unsigned port1;
+  unsigned port2;
+  unsigned port3;
+  unsigned port4;
+
+} serialInfoBlock;
+
+// The data structure created by the loader to hold info about the mouse
+typedef struct
+{
+  unsigned port;
+  unsigned idByte;
+
+} mouseInfoBlock;
 
 // The data structure created by the loader to describe the
 // system's hardware to the kernel
@@ -74,17 +108,15 @@ typedef struct
   int cpuType;
   char cpuVendor[12];
   int mmxExtensions;
-  unsigned int extendedMemory;
+  unsigned extendedMemory;
   memoryInfoBlock memoryMap[50];
-  unsigned int videoMemory;
-  void *videoLFB;
-  int videoXRes;
-  int videoYRes;
-  int videoBitsPerPixel;
+  graphicsInfoBlock graphicsInfo;
   int floppyDisks;
   fddInfoBlock fddInfo[2];
   int hardDisks;
   hddInfoBlock hddInfo[4];
+  serialInfoBlock serialPorts;
+  mouseInfoBlock mouseInfo;
 
 } loaderInfoStruct;
 

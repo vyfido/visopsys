@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,18 +24,17 @@
 #if !defined(_KERNELDESCRIPTOR_H)
 
 // Definitions
-#define PRIV_CODE 0x00000008
-#define PRIV_DATA 0x00000010
-#define PRIV_STACK 0x00000018
-#define USER_CODE 0x00000023
-#define USER_DATA 0x0000002B
-#define USER_STACK 0x00000033
+#define PRIV_CODE       0x00000008
+#define PRIV_DATA       0x00000010
+#define PRIV_STACK      0x00000018
+#define USER_CODE       0x00000023
+#define USER_DATA       0x0000002B
+#define USER_STACK      0x00000033
 #define KERNEL_CALLGATE 0x0000003B
 
 #define RES_GLOBAL_DESCRIPTORS 8  // (0 is unusable)
 #define GDT_SIZE 1024
 #define IDT_SIZE 256
-
 
 // This is just so we know when we're dealing with a descriptor rather
 // than a regular integer
@@ -43,7 +42,6 @@ typedef int kernelSelector;
 
 // This structure describes the fields of a descriptor in the x86
 // architecture
-
 typedef struct
 {
   unsigned char segSizeByte1;
@@ -57,7 +55,6 @@ typedef struct
 
 } kernelDescriptor;
 
-
 // Functions exported by kernelDescriptor.c
 int kernelDescriptorInitialize(void);
 int kernelDescriptorRequest(volatile kernelSelector *);
@@ -66,11 +63,9 @@ int kernelDescriptorSetUnformatted(volatile kernelSelector, unsigned char,
 	   unsigned char, unsigned char, unsigned char, unsigned char, 
 	   unsigned char, unsigned char, unsigned char);
 int kernelDescriptorSet(volatile kernelSelector, volatile void *, 
-			unsigned int, int, int, int, int, int, int);
+			unsigned, int, int, int, int, int, int);
 int kernelDescriptorGet(volatile kernelSelector, kernelDescriptor *);
-int kernelDescriptorChangePrivilege(kernelSelector, int);
 int kernelDescriptorSetIDTInterruptGate(int, void *);
-void *kernelDescriptorGetIDTInterruptVector(int);
 int kernelDescriptorSetIDTTaskGate(int, kernelSelector);
 
 #define _KERNELDESCRIPTOR_H

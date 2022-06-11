@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,7 +47,7 @@ static int checkObjectAndDriver(char *invokedBy)
   if (kernelProcessor == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_PROC_MESS);
+      kernelError(kernel_error, "The processor is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -55,7 +55,7 @@ static int checkObjectAndDriver(char *invokedBy)
   if (kernelProcessor->deviceDriver == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_PROC_DRIVER_MESS);
+      kernelError(kernel_error, "The driver is NULL");
       return (status = ERR_NOSUCHDRIVER);
     }
 
@@ -83,7 +83,7 @@ int kernelProcessorRegisterDevice(kernelProcessorObject *theProcessor)
   if (theProcessor == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_PROC_MESS);
+      kernelError(kernel_error, "The processor is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -105,7 +105,7 @@ int kernelProcessorInstallDriver(kernelProcessorDriver *theDriver)
   if (theDriver == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_PROC_DRIVER_MESS);
+      kernelError(kernel_error, "The driver is NULL");
       return (status = ERR_NOSUCHDRIVER);
     }
 
@@ -136,7 +136,7 @@ int kernelProcessorInitialize(void)
   if (kernelProcessor->deviceDriver->driverInitialize == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_PROC_FUNC_MESS);
+      kernelError(kernel_error, "The driver function is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -144,37 +144,4 @@ int kernelProcessorInitialize(void)
   status = kernelProcessor->deviceDriver->driverInitialize();
 
   return (status);
-}
-
-
-unsigned long *kernelProcessorReadTimestamp(void)
-{
-  // This function calls the processor driver to read the processor's
-  // internal timestamp counter.  It pretty much just calls the associated 
-  // driver routines, but it also does some checks and whatnot to make 
-  // sure that the device, driver, and driver routines are installed
-
-  int status = 0;
-  unsigned long *timestampPointer = NULL;
-
-
-  // Check the processor object and device driver before proceeding
-  status = checkObjectAndDriver(__FUNCTION__);
-  if (status < 0)
-    // Something went wrong, so we can't continue
-    return (timestampPointer = NULL);
-
-  // Now make sure the device driver initialize routine has been 
-  // installed
-  if (kernelProcessor->deviceDriver->driverReadTimestamp == NULL)
-    {
-      // Make the error
-      kernelError(kernel_error, NULL_PROC_FUNC_MESS);
-      return (timestampPointer = NULL);
-    }
-
-  // Ok, now we can call the routine.
-  timestampPointer = kernelProcessor->deviceDriver->driverReadTimestamp();
-
-  return (timestampPointer);
 }

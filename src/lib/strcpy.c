@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -20,6 +20,13 @@
 //
 
 // This is the standard "strcpy" function, as found in standard C libraries
+
+// The description from the GNU man page reads as follows:
+// The  strcpy() function copies the string pointed to be src (including
+// the terminating `\0' character)  to  the  array pointed  to by dest.  The
+// strings may not overlap, and the destination string dest must be large
+// enough  to  receive the copy.
+
 
 #include <string.h>
 #include <errno.h>

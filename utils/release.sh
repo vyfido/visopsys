@@ -2,8 +2,8 @@
 
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2001 J. Andrew McLaughlin
-## 
+##  Copyright (C) 1998-2003 J. Andrew McLaughlin
+##
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
 ##  Software Foundation; either version 2 of the License, or (at your option)
@@ -23,5 +23,5 @@
 
 # Echoes the release number of Visopsys to the stdout
 
-echo "0.1"
+echo "0.2"
 exit 0

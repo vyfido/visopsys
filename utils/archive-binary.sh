@@ -2,7 +2,7 @@
 
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2001 J. Andrew McLaughlin
+##  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ## 
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
@@ -89,7 +89,9 @@ set DOSFILES    = ( dist/dos/format.bat \
 		    dist/dos/writeboot.bat \
 		    dist/dos/writeboot.com )
 
-set UNIXFILES   = ( ./platform.sh )
+set UNIXFILES   = ( ./platform.sh \
+		    ./copy-boot.sh \
+		    dist/unix/floppy-install.sh )
 
 set DOCSFILES   = ( ../docs/docs/visopsys.org )
 
@@ -117,24 +119,17 @@ mkdir -p $DOCSDIR      ; cp -R $DOCSFILES $DOCSDIR
 echo done
 
 # Remove all of the CVS droppings from directories we copied
-find $DESTDIR -name CVS -exec rm -R {} \; >& /dev/null
+find $DESTDIR -name CVS -exec rm -Rf {} \; >& /dev/null
 
 # Archive everything
 echo -n "Archiving... "
 
 # Archive-name variables
 set ZIPNAME = $DESTDIR.zip
-set TARNAME = $DESTDIR.tar
-
-rm -f $ZIPNAME $TARNAME.gz
-    
+rm -f $ZIPNAME    
 
 # Now we need to zip/tar/gzip everything
 zip -r $ZIPNAME $DESTDIR >& /dev/null
-# Tar the directory
-tar cf $TARNAME $DESTDIR >& /dev/null
-# Gzip the tar file
-gzip $TARNAME
 
 echo done
 
@@ -143,9 +138,7 @@ echo -n "Cleaning up... "
 rm -Rf $DESTDIR visopsys.zip
 echo done
 
-echo "Files are:"
-echo $ZIPNAME
-echo $TARNAME.gz
+echo "File is: $ZIPNAME"
 echo ""
 
 # Done

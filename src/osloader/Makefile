@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2001 J. Andrew McLaughlin
+##  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ## 
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
@@ -26,11 +26,10 @@ AS		= nasm
 CC		= gcc
 PLATFORM	= $(shell ../platform.sh)
 OPTS		= -f aout -w+orphan-labels
-LINKOPTS	= -m486 -Wl,-warn-common,-X,-oformat,binary,-e,loaderMain,-Ttext,0x00000000
+LINKOPTS	= -mcpu=pentium -Wl,-warn-common,-X,--oformat,binary,-e,loaderMain,-Ttext,0x00000000
 STDDEPEND	= loader.h ../kernel/kernelAssemblerHeader.h Makefile
 OBJS		= ${PLATFORM}/loaderMain.o \
 		${PLATFORM}/loaderVideo.o \
-		${PLATFORM}/loaderSplash.o \
 		${PLATFORM}/loaderDetectHardware.o \
 		${PLATFORM}/loaderLoadFile.o \
 		${PLATFORM}/loaderLoadKernel.o \
@@ -61,9 +60,6 @@ ${PLATFORM}/loaderMain.o: loaderMain.s ${STDDEPEND}
 
 ${PLATFORM}/loaderVideo.o: loaderVideo.s ${STDDEPEND}
 	${AS} ${OPTS} loaderVideo.s -o $@
-
-${PLATFORM}/loaderSplash.o: loaderSplash.s ${STDDEPEND}
-	${AS} ${OPTS} loaderSplash.s -o $@
 
 ${PLATFORM}/loaderDetectHardware.o: loaderDetectHardware.s ${STDDEPEND}
 	${AS} ${OPTS} loaderDetectHardware.s -o $@

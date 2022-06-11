@@ -2,7 +2,7 @@
 
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2001 J. Andrew McLaughlin
+##  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ## 
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
@@ -75,14 +75,9 @@ echo -n "Archiving... "
 
 # Remove any existing archive files here
 rm -f visopsys/utils/$DESTDIR.zip
-rm -f visopsys/utils/$DESTDIR.tar.gz
 
 # Zip the directory
 zip -r visopsys/utils/$DESTDIR.zip $DESTDIR >& /dev/null
-# Tar the directory
-tar cf visopsys/utils/$DESTDIR.tar $DESTDIR >& /dev/null
-# Gzip the tar file
-gzip visopsys/utils/$DESTDIR.tar
 
 echo done
 echo -n "Cleaning up... "
@@ -92,10 +87,7 @@ rm -Rf $DESTDIR
 
 echo done
 
-
-echo "Files are:"
-echo $DESTDIR.zip
-echo $DESTDIR.tar.gz
+echo "File is: $DESTDIR.zip"
 echo ""
 
 exit 0

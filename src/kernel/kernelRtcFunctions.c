@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,9 +21,7 @@
 
 #include "kernelRtcFunctions.h"
 #include "kernelError.h"
-#include "kernelDebug.h"
 #include <sys/errors.h>
-#include <string.h>
 
 
 static kernelRtcObject *kernelRtc = NULL;
@@ -47,7 +45,7 @@ static int checkObjectAndDriver(char *invokedBy)
   if (kernelRtc == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_RTC_OBJECT);
+      kernelError(kernel_error, "The Real-Time clock object is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -55,7 +53,7 @@ static int checkObjectAndDriver(char *invokedBy)
   if (kernelRtc->deviceDriver == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_RTC_DRIVER_OBJECT);
+      kernelError(kernel_error, "The device driver is NULL");
       return (status = ERR_NOSUCHDRIVER);
     }
 
@@ -77,14 +75,14 @@ int kernelRtcRegisterDevice(kernelRtcObject *theRtc)
 {
   // This routine will register a new RTC object.  It takes a 
   // kernelRtcObject structure and returns 0 if successful.  It returns 
-  // negative if the device srtucture is NULL.
+  // negative if the device structure is NULL.
 
   int status = 0;
 
   if (theRtc == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_RTC_OBJECT);
+      kernelError(kernel_error, "The Real-Time clock object is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -107,7 +105,7 @@ int kernelRtcInstallDriver(kernelRtcDeviceDriver *theDriver)
   if (kernelRtc == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_RTC_OBJECT);
+      kernelError(kernel_error, "The Real-Time clock object is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -115,7 +113,7 @@ int kernelRtcInstallDriver(kernelRtcDeviceDriver *theDriver)
   if (theDriver == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_RTC_DRIVER_OBJECT);
+      kernelError(kernel_error, "The device driver is NULL");
       return (status = ERR_NOSUCHDRIVER);
     }
 
@@ -147,7 +145,7 @@ int kernelRtcInitialize(void)
   if (kernelRtc->deviceDriver->driverInitialize == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_RTC_DRIVER_ROUTINE);
+      kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -157,7 +155,8 @@ int kernelRtcInitialize(void)
   if (status < 0)
     {
       // Make the error
-      kernelError(kernel_error, RTC_INIT_FAILED);
+      kernelError(kernel_error, "The Real-Time clock driver initialization "
+		  "failed");
       return (status = ERR_NOTINITIALIZED);
     }
 
@@ -196,7 +195,7 @@ int kernelRtcReadSeconds(void)
   if (kernelRtc->deviceDriver->driverReadSeconds == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_RTC_DRIVER_ROUTINE);
+      kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -226,7 +225,7 @@ int kernelRtcReadMinutes(void)
   if (kernelRtc->deviceDriver->driverReadMinutes == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_RTC_DRIVER_ROUTINE);
+      kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -256,7 +255,7 @@ int kernelRtcReadHours(void)
   if (kernelRtc->deviceDriver->driverReadHours == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_RTC_DRIVER_ROUTINE);
+      kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -286,7 +285,7 @@ int kernelRtcReadDayOfWeek(void)
   if (kernelRtc->deviceDriver->driverReadDayOfWeek == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_RTC_DRIVER_ROUTINE);
+      kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -316,7 +315,7 @@ int kernelRtcReadDayOfMonth(void)
   if (kernelRtc->deviceDriver->driverReadDayOfMonth == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_RTC_DRIVER_ROUTINE);
+      kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -346,7 +345,7 @@ int kernelRtcReadMonth(void)
   if (kernelRtc->deviceDriver->driverReadMonth == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_RTC_DRIVER_ROUTINE);
+      kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -376,7 +375,7 @@ int kernelRtcReadYear(void)
   if (kernelRtc->deviceDriver->driverReadYear == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_RTC_DRIVER_ROUTINE);
+      kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -416,12 +415,12 @@ int kernelRtcReadYear(void)
 }
 
 
-unsigned int kernelRtcUptimeSeconds(void)
+unsigned kernelRtcUptimeSeconds(void)
 {
   // This returns the number of seconds since the RTC driver was
   // initialized.
 
-  unsigned int upSeconds = 0;
+  unsigned upSeconds = 0;
 
   upSeconds += (kernelRtcReadSeconds() - startSeconds);
   upSeconds += ((kernelRtcReadMinutes() - startMinutes) * 60);
@@ -434,20 +433,17 @@ unsigned int kernelRtcUptimeSeconds(void)
 }
 
 
-unsigned int kernelRtcPackedDate(void)
+unsigned kernelRtcPackedDate(void)
 {
-  // This function takes a pointer to an unsigned int and places the
+  // This function takes a pointer to an unsigned and places the
   // current date in the variable, in a packed format.  It returns 0 on
   // success, negative on error
 
   // The format for dates is as follows:
   // [year (n bits)] [month (4 bits)] [day (5 bits)]
 
-  unsigned int temp = 0;
-  unsigned int returnedDate = 0;
-
-
-  kernelDebugEnter();
+  unsigned temp = 0;
+  unsigned returnedDate = 0;
 
   if (!initialized)
     return (returnedDate = 0);
@@ -478,19 +474,16 @@ unsigned int kernelRtcPackedDate(void)
 }
 
 
-unsigned int kernelRtcPackedTime(void)
+unsigned kernelRtcPackedTime(void)
 {
-  // This function takes a pointer to an unsigned int and places the
+  // This function takes a pointer to an unsigned and places the
   // current time in the variable, in a packed format.  It returns 0 on
   // success, negative on error
   // The format for times is as follows:
   // [hours (5 bits)] [minutes (6 bits)] [seconds (6 bits)]
 
-  unsigned int temp = 0;
-  unsigned int returnedTime = 0;
-
-
-  kernelDebugEnter();
+  unsigned temp = 0;
+  unsigned returnedTime = 0;
 
   if (!initialized)
     return (returnedTime = 0);
@@ -529,10 +522,7 @@ int kernelRtcDateTime(struct tm *timeStruct)
   // functionality here could be reproduced with other calls
   
   int status = 0;
-
   
-  kernelDebugEnter();
-
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,24 +28,22 @@
 #include "kernelSysTimerFunctions.h"
 #include "kernelRtcFunctions.h"
 #include "kernelPicFunctions.h"
+#include "kernelSerialFunctions.h"
 #include "kernelDmaFunctions.h"
 #include "kernelKeyboardFunctions.h"
+#include "kernelMouseFunctions.h"
 #include "kernelDiskFunctions.h"
-#include <sys/stream.h>
+#include "kernelGraphicFunctions.h"
 
-// Definitions
+// These driver functions are not declared in other header files
 
 // Default Processor routines
 int kernelProcessorDriverInitialize(void);
 unsigned long *kernelProcessorDriverReadTimestamp(void);
-#define DEFAULTPROCINIT &kernelProcessorDriverInitialize
-#define DEFAULTPROCRDTSC &kernelProcessorDriverReadTimestamp
 
 // Default PIC routines
 int kernelPicDriverInitialize(void);
 void kernelPicDriverEndOfInterrupt(int);
-#define DEFAULTPICINITIALIZE &kernelPicDriverInitialize
-#define DEFAULTPICEOI &kernelPicDriverEndOfInterrupt
 
 // Default System Timer routines
 int kernelSysTimerDriverInitialize(void);
@@ -53,11 +51,6 @@ void kernelSysTimerDriverTick(void);
 int kernelSysTimerDriverRead(void);
 int kernelSysTimerDriverSetTimer(int, int, int);
 int kernelSysTimerDriverReadTimer(int);
-#define DEFAULTSYSTIMERINIT &kernelSysTimerDriverInitialize
-#define DEFAULTSYSTIMERTICK &kernelSysTimerDriverTick
-#define DEFAULTSYSTIMERREADTICKS &kernelSysTimerDriverRead
-#define DEFAULTSYSTIMERREADVALUE &kernelSysTimerDriverReadTimer
-#define DEFAULTSYSTIMERSETUPTIMER &kernelSysTimerDriverSetTimer
 
 // Default Real-Time clock routines
 int kernelRtcDriverInitialize(void);
@@ -68,14 +61,6 @@ int kernelRtcDriverReadDayOfWeek(void);
 int kernelRtcDriverReadDayOfMonth(void);
 int kernelRtcDriverReadMonth(void);
 int kernelRtcDriverReadYear(void);
-#define DEFAULTRTCINITIALIZE &kernelRtcDriverInitialize
-#define DEFAULTRTCSECONDS &kernelRtcDriverReadSeconds
-#define DEFAULTRTCMINUTES &kernelRtcDriverReadMinutes
-#define DEFAULTRTCHOURS &kernelRtcDriverReadHours
-#define DEFAULTRTCDAYOFWEEK &kernelRtcDriverReadDayOfWeek
-#define DEFAULTRTCDAYOFMONTH &kernelRtcDriverReadDayOfMonth
-#define DEFAULTRTCMONTH &kernelRtcDriverReadMonth
-#define DEFAULTRTCYEAR &kernelRtcDriverReadYear
 
 // Default DMA driver routines
 int kernelDmaDriverInitialize(void);
@@ -83,17 +68,15 @@ int kernelDmaDriverSetupChannel(int, int, int, int);
 int kernelDmaDriverSetMode(int, int);
 int kernelDmaDriverEnableChannel(int);
 int kernelDmaDriverCloseChannel(int);
-#define DEFAULTDMAINIT &kernelDmaDriverInitialize;
-#define DEFAULTDMASETUPCHANNEL &kernelDmaDriverSetupChannel;
-#define DEFAULTDMASETMODE &kernelDmaDriverSetMode;
-#define DEFAULTDMAENABLECHANNEL &kernelDmaDriverEnableChannel;
-#define DEFAULTDMACLOSECHANNEL &kernelDmaDriverCloseChannel;
 
 // Default keyboard driver routines
-int kernelKeyboardDriverInitialize(stream *, int (*)(stream *, ...));
+int kernelKeyboardDriverInitialize(void);
+int kernelKeyboardDriverSetStream(stream *, int (*)(stream *, ...));
 void kernelKeyboardDriverReadData(void);
-#define DEFAULTKBRDINIT &kernelKeyboardDriverInitialize
-#define DEFAULTKBRDREADDATA &kernelKeyboardDriverReadData
+
+// Default PS2 mouse driver routines
+int kernelPS2MouseDriverInitialize(void);
+void kernelPS2MouseDriverReadData(void);
 
 // Default floppy driver routines
 int kernelFloppyDriverInitialize(void);
@@ -103,47 +86,46 @@ int kernelFloppyDriverRecalibrate(int);
 int kernelFloppyDriverMotorOn(int);
 int kernelFloppyDriverMotorOff(int);
 int kernelFloppyDriverDiskChanged(int);
-int kernelFloppyDriverReadSectors(int, unsigned int, unsigned int,
-		   unsigned int, unsigned int, unsigned int, void *);
-int kernelFloppyDriverWriteSectors(int, unsigned int, unsigned int,
-		   unsigned int, unsigned int, unsigned int, void *);
+int kernelFloppyDriverReadSectors(int, unsigned, unsigned, unsigned,
+				  unsigned, unsigned, void *);
+int kernelFloppyDriverWriteSectors(int, unsigned, unsigned, unsigned,
+				   unsigned, unsigned, void *);
 int kernelFloppyDriverLastErrorCode(void);
 void *kernelFloppyDriverLastErrorMessage(void);
-#define DEFAULTFLOPPYINIT &kernelFloppyDriverInitialize
-#define DEFAULTFLOPPYDESCRIBE &kernelFloppyDriverDescribe
-#define DEFAULTFLOPPYRESET &kernelFloppyDriverReset
-#define DEFAULTFLOPPYRECALIBRATE &kernelFloppyDriverRecalibrate
-#define DEFAULTFLOPPYMOTORON &kernelFloppyDriverMotorOn
-#define DEFAULTFLOPPYMOTOROFF &kernelFloppyDriverMotorOff
-#define DEFAULTFLOPPYDISKCHANGED &kernelFloppyDriverDiskChanged
-#define DEFAULTFLOPPYREAD &kernelFloppyDriverReadSectors
-#define DEFAULTFLOPPYWRITE &kernelFloppyDriverWriteSectors
-#define DEFAULTFLOPPYERRCODE &kernelFloppyDriverLastErrorCode
-#define DEFAULTFLOPPYERRMESS &kernelFloppyDriverLastErrorMessage
-
 
 // Default hard disk driver routines
-int kernelHardDiskDriverInitialize(void);
-int kernelHardDiskDriverReset(int);
-int kernelHardDiskDriverRecalibrate(int);
-int kernelHardDiskDriverReadSectors(int, unsigned int, unsigned int,
-		   unsigned int, unsigned int, unsigned int, void *);
-int kernelHardDiskDriverWriteSectors(int, unsigned int, unsigned int,
-		   unsigned int, unsigned int, unsigned int, void *);
-int kernelHardDiskDriverLastErrorCode(void);
-void *kernelHardDiskDriverLastErrorMessage(void);
-#define DEFAULTHDDINIT &kernelHardDiskDriverInitialize
-#define DEFAULTHDDESCRIBE NULL
-#define DEFAULTHDDRESET &kernelHardDiskDriverReset
-#define DEFAULTHDDRECALIBRATE &kernelHardDiskDriverRecalibrate
-#define DEFAULTHDDMOTORON NULL
-#define DEFAULTHDDMOTOROFF NULL
-#define DEFAULTHDDDISKCHANGED NULL
-#define DEFAULTHDDREAD &kernelHardDiskDriverReadSectors
-#define DEFAULTHDDWRITE &kernelHardDiskDriverWriteSectors
-#define DEFAULTHDDERRCODE &kernelHardDiskDriverLastErrorCode
-#define DEFAULTHDDERRMESS &kernelHardDiskDriverLastErrorMessage
+int kernelIdeDriverInitialize(void);
+int kernelIdeDriverReset(int);
+int kernelIdeDriverRecalibrate(int);
+int kernelIdeDriverReadSectors(int, unsigned, unsigned, unsigned, unsigned,
+			       unsigned, void *);
+int kernelIdeDriverWriteSectors(int, unsigned, unsigned, unsigned, unsigned,
+				unsigned, void *);
+int kernelIdeDriverLastErrorCode(void);
+void *kernelIdeDriverLastErrorMessage(void);
 
+// Default framebuffer graphic driver routines
+int kernelLFBGraphicDriverInitialize(void *);
+int kernelLFBGraphicDriverClearScreen(color *);
+int kernelLFBGraphicDriverDrawPixel(kernelGraphicBuffer *, color *, drawMode,
+				    int, int);
+int kernelLFBGraphicDriverDrawLine(kernelGraphicBuffer *, color *, drawMode,
+				   int, int, int, int);
+int kernelLFBGraphicDriverDrawRect(kernelGraphicBuffer *, color *, drawMode,
+				   int, int, unsigned, unsigned, unsigned,
+				   int);
+int kernelLFBGraphicDriverDrawOval(kernelGraphicBuffer *, color *, drawMode,
+				   int, int, unsigned, unsigned, unsigned,
+				   int);
+int kernelLFBGraphicDriverDrawMonoImage(kernelGraphicBuffer *, image *,
+					color *, color *, int, int);
+int kernelLFBGraphicDriverDrawImage(kernelGraphicBuffer *, image *, int, int);
+int kernelLFBGraphicDriverGetImage(kernelGraphicBuffer *, image *, int, int,
+				   unsigned, unsigned);
+int kernelLFBGraphicDriverCopyArea(kernelGraphicBuffer *, int, int, unsigned,
+				   unsigned, int, int);
+int kernelLFBGraphicDriverRenderBuffer(kernelGraphicBuffer *, int, int, int,
+				       int, unsigned, unsigned);
 
 // Structures
 
@@ -156,24 +138,27 @@ typedef struct
   kernelPicDeviceDriver *picDriver;
   kernelSysTimerDriver *sysTimerDriver;
   kernelRtcDeviceDriver *rtcDriver;
+  kernelSerialDriver *serialDriver;
   kernelDmaDeviceDriver *dmaDriver;
   kernelKeyboardDriver *keyboardDriver;
+  kernelMouseDriver *mouseDriver;
   kernelDiskDeviceDriver *floppyDriver;
   kernelDiskDeviceDriver *hardDiskDriver;
+  kernelGraphicDriver *graphicDriver;
 
 } kernelDriverManager;
 
-
 // Functions exported by kernelDriverManagement.c
-int kernelDriverManagementInitialize(void);
 int kernelInstallProcessorDriver(void);
 int kernelInstallPicDriver(void);
 int kernelInstallSysTimerDriver(void);
 int kernelInstallRtcDriver(void);
 int kernelInstallDmaDriver(void);
 int kernelInstallKeyboardDriver(void);
+int kernelInstallMouseDriver(void);
 int kernelInstallFloppyDriver(void);
 int kernelInstallHardDiskDriver(void);
+int kernelInstallGraphicDriver(void);
 
 #define _KERNELDRIVERMANAGEMENT_H
 #endif

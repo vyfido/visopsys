@@ -2,8 +2,8 @@
 
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2001 J. Andrew McLaughlin
-## 
+##  Copyright (C) 1998-2003 J. Andrew McLaughlin
+##
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
 ##  Software Foundation; either version 2 of the License, or (at your option)
@@ -28,7 +28,7 @@
 
 # We expect two sets of parameters.  One is the number of lines to remove
 # from the destination files.  The rest of the parameters are the names
-# of the files to add the header to.  Like so:
+# of the files to remove the header from.  Like so:
 #    strip-header.sh <lines-to-remove> <file> [file2 file3 ... fileN]
 
 if ("$1" == "" || "$1" == "-h" || "$1" == "-help") then
@@ -45,18 +45,15 @@ if ("$NUMBERLINES" == "0") then
     exit 1
 endif
 
-# Ok, we got the number.  Make sure there's at least one more parameter
-# (shift out the ones we're finished with)
-shift
+# Get the name of the target file
 
-if ("$1" == "") then
-    echo "No files to attach header to!"
-    goto Usage
-    exit 2
+set TARGET = "$2"
+
+# Make sure the file exists
+if !(-e "$TARGET") then
+    echo "File $TARGET does not exist!"
+    exit 1
 endif
-
-# We have at least one more argument (a file to add the header to).
-# Now we will loop for each of the trailing arguments
 
 set BACKUPDIR = ./strip-header-backup
 
@@ -66,46 +63,30 @@ rm -f ./strip-header-tmpfile.tmp
 # Make a new backup directory
 mkdir -p $BACKUPDIR
 
-while ("$1" != "")
-    
-    # Get the next file
-    set ARGFILE = $1
-    
-    # Shift it out of the argument list
-    shift
+# Copy it to a safe location for backup
+cp $TARGET $BACKUPDIR/
 
-    # Make sure the file exists
-    if !(-e "$ARGFILE") then
-	echo "File $ARGFILE does not exist!"
-	exit 3
-    endif
+# Copy it to the temp file
+cp $TARGET ./strip-header-tmpfile.tmp
 
-    # Copy it to a safe location for backup
-    cp $ARGFILE $BACKUPDIR/
+# Add one to the number of lines to remove
+@ NUMBERLINES++
 
-    # Copy it to the temp file
-    cp $ARGFILE ./strip-header-tmpfile.tmp
+# Replace the file with the tail-ified version
+tail +$NUMBERLINES ./strip-header-tmpfile.tmp > $TARGET
 
-    # Add one to the number of lines to remove
-    @ NUMBERLINES++
+# Remove the temp-file
+rm -f ./strip-header-tmpfile.tmp
 
-    # Replace the file with the tail-ified version
-    tail +$NUMBERLINES ./strip-header-tmpfile.tmp > $ARGFILE
-
-    # Remove the temp-file
-    rm -f ./strip-header-tmpfile.tmp
-
-    echo "changed $ARGFILE"
-end
-
-    echo "Backups are in $BACKUPDIR"
+echo "changed $TARGET"
+echo "Backup is in $BACKUPDIR"
 
 exit 0
 
 Usage:
     echo ""
     echo "Usage:"
-    echo "       $0 <lines-to-remove> <file> [file2 file3 ... fileN]"
+    echo "       $0 <lines-to-remove> <file>"
     echo ""
     exit 0
 

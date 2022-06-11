@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,22 +23,33 @@
 #include "kernelParameters.h"
 #include "kernelMiscFunctions.h"
 #include "kernelLog.h"
-#include "kernelError.h"
 #include "kernelInterruptsInit.h"
 #include "kernelHardwareEnumeration.h"
-#include "kernelDriverManagement.h"
 #include "kernelRandom.h"
 #include "kernelMemoryManager.h"
 #include "kernelDescriptor.h"
 #include "kernelPageManager.h"
 #include "kernelMultitasker.h"
-#include "kernelExceptionHandler.h"
 #include "kernelFilesystem.h"
+#include "kernelGraphicFunctions.h"
+#include "kernelWindowManager.h"
+#include "kernelError.h"
 #include <sys/errors.h>
 
 
-int kernelInitialize(int bootDevice, unsigned int kernelMemory, 
-		     loaderInfoStruct *info)
+extern int kernelBootDisk;
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+// Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
 {
   // Does a bunch of calls involved in initializing the kernel.
   // kernelMain passes all of the kernel's arguments to this function
@@ -46,8 +57,6 @@ int kernelInitialize(int bootDevice, unsigned int kernelMemory,
 
   int status;
   int rootFilesystemId = -1;
-  // void *foo = NULL;
-
 
   // Initialize the page manager
   status = kernelPageManagerInitialize(kernelMemory);
@@ -69,13 +78,10 @@ int kernelInitialize(int bootDevice, unsigned int kernelMemory,
   // Initialize kernel logging
   status = kernelLogInitialize();
   if (status < 0)
-    return (status);
-
-  // Now that text input/output has been initialized, we can print the
-  // welcome message.  Then turn off console logging.
-  kernelLog(kernelVersion());
-  kernelLog("Copyright (C) 1998-2001 J. Andrew McLaughlin");
-  kernelTextPrintLine("Starting, one moment please...");
+    {
+      kernelTextPrintLine("Logging initialization failed");
+      return (status);
+    }
 
   // Disable console logging after this point, since it fills up the screen
   // with unnecessary details.
@@ -84,7 +90,10 @@ int kernelInitialize(int bootDevice, unsigned int kernelMemory,
   // Initialize the error output early, for the best diagnostic results.
   status = kernelErrorInitialize();
   if (status < 0)
-    return (status);
+    {
+      kernelTextPrintLine("Error reporting initialization failed");
+      return (status);
+    }
 
   // Initialize the descriptor tables (GDT and IDT)
   status = kernelDescriptorInitialize();
@@ -105,16 +114,6 @@ int kernelInitialize(int bootDevice, unsigned int kernelMemory,
       return (status);
     }
 
-  // Initialize the kernel's driver management routines before we
-  // go calling any driver functions.
-  status = kernelDriverManagementInitialize();
-  if (status < 0)
-    {
-      kernelError(kernel_error,
-		  "Device driver manager initialization failed");
-      return (status);
-    }
-
   // Pass the loader's info structure to the hardware enumeration
   // routine
   status = kernelHardwareEnumerate(info);
@@ -123,6 +122,11 @@ int kernelInitialize(int bootDevice, unsigned int kernelMemory,
       kernelError(kernel_error, "Hardware initialization failed");
       return (status);
     }
+
+  // Now that text input/output has been initialized, we can print the
+  // welcome message.  Then turn off console logging.
+  kernelTextPrintLine("%s\nCopyright (C) 1998-2003 J. Andrew McLaughlin\n"
+		      "Starting, one moment please...", kernelVersion());
 
   // Initialize the kernel's random number generator.
   // has been initialized.
@@ -138,15 +142,6 @@ int kernelInitialize(int bootDevice, unsigned int kernelMemory,
   if (status < 0)
     {
       kernelError(kernel_error, "Multitasker initialization failed");
-      return (status);
-    }
-
-  // Initialize the new exception handler process, now that multitasking
-  // is enabled.
-  status = kernelExceptionHandlerInitialize();
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Exception handler initialization failed");
       return (status);
     }
 
@@ -167,8 +162,21 @@ int kernelInitialize(int bootDevice, unsigned int kernelMemory,
       return (status);
     }
 
-  // Mount the root filesystem
-  rootFilesystemId = kernelFilesystemMount(bootDevice, "/");
+  // Mount the root filesystem.
+
+  // Turn the hardware boot device number into a logical disk.  If the boot
+  // device number is greater than or equal to 0x80, it is a hard disk and
+  // the number needs to be adjusted.  Otherwise leave it alone.
+  if (kernelBootDisk >= 0x80)
+    {
+      kernelBootDisk -= 0x80;
+      // Adjust by the number of floppy disks
+      kernelBootDisk += info->floppyDisks;
+      // Adjust by the number of the booted partition
+      kernelBootDisk += info->hddInfo[0].activePartition;
+    }
+
+  rootFilesystemId = kernelFilesystemMount(kernelBootDisk, "/");
   if (rootFilesystemId < 0)
     {
       kernelError(kernel_error, "Mounting root filesystem failed");
@@ -180,6 +188,20 @@ int kernelInitialize(int bootDevice, unsigned int kernelMemory,
   if (status < 0)
     // Make a warning, but don't return error.  This is not fatal.
     kernelError(kernel_warn, "Unable to open the kernel log file");
+
+  // Start the window management system.  Don't bother checking for an
+  // error code.
+  if (kernelGraphicsAreEnabled())
+    {
+      status = kernelWindowManagerInitialize();
+      if (status < 0)
+	{
+	  // Make a warning, but don't return error.  This is not fatal.
+	  kernelError(kernel_warn, "Unable to start the window manager");
+	}
+    }
+  else
+    kernelTextPrint("\nGraphics are not enabled.  Operating in text mode.\n");
 
   // Done setup.  Return success.
   return (status = 0);

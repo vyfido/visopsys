@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,7 +26,6 @@
 #include "kernelStream.h"
 #include "kernelMemoryManager.h"
 #include "kernelMiscAsmFunctions.h"
-#include <sys/memory.h>
 #include <sys/errors.h>
 #include <string.h>
 
@@ -37,7 +36,6 @@ static int clear(stream *theStream)
   // negative otherwise.
 
   int status = 0;
-
 
   // Make sure the stream pointer isn't NULL
   if (theStream == NULL)
@@ -61,7 +59,6 @@ static int appendByte(stream *theStream, unsigned char byte)
   // successful, negative otherwise.
 
   int status = 0;
-
 
   // Make sure the stream pointer isn't NULL
   if (theStream == NULL)
@@ -93,7 +90,6 @@ static int appendBytes(stream *theStream, int number, unsigned char *buffer)
 
   int status = 0;
   int added = 0;
-
 
   // Make sure the stream pointer isn't NULL
   if (theStream == NULL)
@@ -137,7 +133,6 @@ static int pushByte(stream *theStream, unsigned char byte)
 
   int status = 0;
 
-
   // Make sure the stream pointer isn't NULL
   if (theStream == NULL)
     return (status = ERR_NULLPARAMETER);
@@ -172,7 +167,6 @@ static int pushBytes(stream *theStream, int number,
 
   int status = 0;
   int added = 0;
-
 
   // Make sure the stream pointer isn't NULL
   if (theStream == NULL)
@@ -221,7 +215,6 @@ static int popByte(stream *theStream, unsigned char *byte)
 
   int status = 0;
 
-
   // Make sure the stream pointer isn't NULL
   if (theStream == NULL)
     return (status = ERR_NULLPARAMETER);
@@ -259,7 +252,6 @@ static int popBytes(stream *theStream, int number, unsigned char *buffer)
   // number of characters it actually removed.  Returns negative on error.
 
   int removed = 0;
-
 
   // Make sure the stream pointer isn't NULL
   if (theStream == NULL)
@@ -308,21 +300,6 @@ static int popBytes(stream *theStream, int number, unsigned char *buffer)
 }
 
 
-// This data structure is set to point to all of the manipulation functions
-// that are appropriate for a stream made up of bytes
-
-static streamFunctions byteStreamFunctions =
-{
-  clear,
-  (int (*) (stream *, ...)) appendByte,
-  (int (*) (stream *, int, ...)) appendBytes,
-  (int (*) (stream *, ...)) pushByte,
-  (int (*) (stream *, int, ...)) pushBytes,
-  (int (*) (stream *, ...)) popByte,
-  (int (*) (stream *, int, ...)) popBytes
-};
-
-
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -338,25 +315,20 @@ stream *kernelStreamNew(int items, streamItemSize itemSize)
   // Returns a pointer to the stream if successful, NULL otherwise
 
   int size = 0;
-  streamFunctions *functions = NULL;
   stream *theStream = NULL;
-
 
   // Items should be greater than zero
   if (items <= 0)
     return (theStream = NULL);
 
-  // What is the size, in bytes, of the requested stream?  Also make note
-  // of the appropriate manipulation functions for this stream.
+  // What is the size, in bytes, of the requested stream?
   switch(itemSize)
     {
     case itemsize_char:
       size = (items * sizeof(char));
-      functions = &byteStreamFunctions;
       break;
     case itemsize_int:
       size = (items * sizeof(int));
-      functions = NULL;
       break;
     default:
       return (theStream = NULL);
@@ -368,7 +340,7 @@ stream *kernelStreamNew(int items, streamItemSize itemSize)
   // will just be wasted
   size += sizeof(stream);
 
-  theStream = kernelMemoryRequestBlock(size, 0, "data stream memory");
+  theStream = kernelMemoryRequestSystemBlock(size, 0, "data stream memory");
 
   // Were we successful?
   if (theStream == NULL)
@@ -380,7 +352,26 @@ stream *kernelStreamNew(int items, streamItemSize itemSize)
   // Set up the stream's internal data.  All the other bits are zero
   theStream->buffer = (unsigned char *) (theStream + sizeof(stream));
   theStream->size = items;
-  theStream->functions = functions;
+
+  // Set the appropriate manipulation functions for this stream.
+
+  switch(itemSize)
+    {
+    case itemsize_char:
+      // Copy the byte stream functions
+      theStream->clear = (int(*)(void *)) &clear;
+      theStream->intercept = (int(*)(void *, ...)) NULL;
+      theStream->append = (int(*)(void *, ...)) &appendByte;
+      theStream->appendN = (int(*)(void *, int, ...)) &appendBytes;
+      theStream->push = (int(*)(void *, ...)) &pushByte;
+      theStream->pushN = (int(*)(void *, int, ...)) &pushBytes;
+      theStream->pop = (int(*)(void *, ...)) &popByte;
+      theStream->popN = (int(*)(void *, int, ...)) &popBytes;
+      break;
+    case itemsize_int:
+      // Nothing implemented
+      break;
+    }
 
   // Return the pointer to the stream
   return (theStream);

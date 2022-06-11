@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,40 +26,51 @@
 
 #include "kernelResourceManager.h"
 #include "kernelMultitasker.h"
+#include "kernelPicFunctions.h"
 #include <sys/errors.h>
 #include <string.h>
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+// Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 
 int kernelResourceManagerLock(volatile int *lock)
 {
   // This function is used to lock a resource for exclusive use by a 
-  // particular process.  If the resource is not being used, the lock is
-  // granted, and the requesting process can proceed to use the resource.  
+  // particular process.
 
-  // If a lock is already in place by another process at the time of the 
-  // request, this routine will go into a multitasker yield() loop until 
-  // the lock can be obtained (up to a maximum of RESOURCE_MAX_SPINS) times.  
+  // The function scans the list of lock structures looking for an existing
+  // lock on the same resource.  If the resource is not being used, a lock
+  // structure is filled and the lock is granted.
 
-  // As a safeguard, this loop will make sure that the other process is
-  // still viable (i.e. it still exists, and is not stopped or zombie).
+  // If a lock is already held by another process at the time of the 
+  // request, this routine will add the requesting process' id to the list
+  // of 'waiters' in the lock structure, and go into a multitasker yield()
+  // loop until the lock can be obtained -- on a first come, first served 
+  // basis for the time being.  Waiters wait in a queue.
+
+  // As a safeguard, this loop will make sure that the holding process is
+  // still viable (i.e. it still exists, and is not stopped or anything
+  // like that).
 
   // This yielding loop serves the dual purpose of maintaining exclusivity
   // and also allows the first process to terminate more quickly, since it
   // will not be contending with other resource-bound processes for processor
   // time.
 
-  // The int* argument passed to the function must be a pointer to a
-  // single "lock" flag for the resource (shared by all requesting
-  // processes).  The lock flag should be zero when the resource is not
-  // locked.
-
-  // This lock flag is read to check for existing locks, and when a lock
-  // is granted it is set to the process Id of the locking function.  The
-  // function returns 0 if successful, and negative on error.
+  // The void* argument passed to the function must be a pointer to some
+  // identifiable part of the resource (shared by all requesting
+  // processes) such as a pointer to a data structure, or to a 'lock' flag.
 
   int status = 0;
-  // volatile int spins = 0;
-  int currentProcess = 0;
+  int interrupts = 0;
+  int currentProcId = 0;
 
   // These are for priority inversion
   int myPriority = 0;
@@ -67,35 +78,53 @@ int kernelResourceManagerLock(volatile int *lock)
   volatile int holderPriority = 0;
   volatile int inversion = 0;
 
-
   // Make sure the pointer we were given is not NULL
   if (lock == NULL)
     return (status = ERR_NULLPARAMETER);
 
   // Get the process Id of the current process
-  currentProcess = kernelMultitaskerGetCurrentProcessId();
+  currentProcId = kernelMultitaskerGetCurrentProcessId();
 
   // Make sure it's a valid process Id
-  if (currentProcess < 0)
-    return (currentProcess);
+  if (currentProcId < 0)
+    return (currentProcId);
 
-  // Check to see whether another lock is already in place, and whether
-  // that process is actually the current one
-  if (*lock == currentProcess)
+  // Check to see whether the process already owns the lock.  This can
+  // happen, and it's okay.
+  if (*lock == currentProcId)
     // This process already owns the resource
     return (status = 0);
 
-  // This label allows us to jump back in case the loop below exits
-  // prematurely.  This is necessary to prevent "simultaneous" granting
-  // of a resource to multiple processes -- see the comments at the bottom
-  // of the loop near the "goto" statement.
-
- waitForLock:
-
-  while(*lock != 0)
+  while(1)
     {
       // This is the loop of death, where the requesting process will live
       // until it is allowed to use the resource
+
+      // Disable interrupts from here, so that we don't get the lock granted
+      // or released out from under us.
+      kernelPicInterruptStatus(interrupts);
+      kernelPicDisableInterrupts();
+
+      if (*lock == 0)
+	{
+	  // Give the lock to the requesting process
+	  *lock = currentProcId;
+
+	  // If we inverted the priority of some process to achieve this lock,
+	  // we need to reset it to its old priority
+	  if (inversion)
+	    {
+	      kernelMultitaskerSetProcessPriority(holder, holderPriority);
+	      holder = 0;
+	      inversion = 0;
+	    }
+	}
+      if (interrupts)
+	kernelPicEnableInterrupts();
+
+      // Got it?
+      if (*lock == currentProcId)
+	return (status = 0);
 
       // Some other process has locked the resource.  Make sure the process
       // is still alive, and that it is not sleeping, and that it has not
@@ -109,17 +138,6 @@ int kernelResourceManagerLock(volatile int *lock)
 	  break;
 	}
 
-      // If priority inversion was done in a previous loop, it is possible
-      // that a new, DIFFERENT process has locked the resource in the
-      // meantime.  If that's the case, we need to reset the priority
-      // of the process we previously inverted.
-      if ((inversion) && (*lock != holder))
-	{
-	  kernelMultitaskerSetProcessPriority(holder, holderPriority);
-	  holder = 0;
-	  inversion = 0;
-	}
-      
       if (!inversion)
 	{
 	  // Here's where we do priority inversion, if applicable.  
@@ -132,88 +150,28 @@ int kernelResourceManagerLock(volatile int *lock)
 	  // This prevents a lower priority process from delaying a higher
 	  // priority process for too long a time.
 
-	  myPriority = kernelMultitaskerGetProcessPriority(currentProcess);
+	  myPriority = kernelMultitaskerGetProcessPriority(currentProcId);
 	  holderPriority = kernelMultitaskerGetProcessPriority(*lock);
 
-	  if ((myPriority >= 0) && (holderPriority >= 0))
-	    if (holderPriority < myPriority)
+	  if ((myPriority >= 0) && (holderPriority > myPriority))
 	      {
+		// Priority inversion.
 		holder = *lock;
-		kernelMultitaskerSetProcessPriority(*lock, myPriority);
+		kernelMultitaskerSetProcessPriority(holder, myPriority);
 		inversion = 1;
-
-		// kernelTextNewline();
-		// kernelTextPrintLine(
-		// "Priority inversion invoked");
 	      }
 	}
 
       // This process will now have to continue waiting until the lock has 
       // been released or becomes invalid
       
-      /*
-      // Increase our counter on the number of spins
-      spins++;
-
-      // Have we reached the maximum number of spins?
-      if (spins >= RESOURCE_MAX_SPINS)
-	{
-	  // We've been spinning for too long.  Deny the lock to help
-	  // avoid deadlock conditions.
-
-	  // Undo any priority inversions first
-	  if (inversion)
-	    {
-	      kernelMultitaskerSetProcessPriority(holder, holderPriority);
-	      holder = 0;
-	      inversion = 0;
-	    }
-
-	  kernelError(kernel_error, "Deadlock prevention");
-	  return (status = ERR_DEADLOCK);
-	}
-      */
-
-      // yield this time slice back to the scheduler while the process
+      // Yield this time slice back to the scheduler while the process
       // waits for the lock
       kernelMultitaskerYield();
 	  
       // Loop again
       continue;
     }
-
-  // If we ever fall through to here, that means we can *ALMOST* give the 
-  // lock to the requesting process.  But wait: it is technically possible
-  // for two processes to get here at the "same time" (because of the
-  // possibility that the scheduler will interrupt us before the next
-  // instruction completes).  What we will do here is attempt to check
-  // for a preexisting lock one more time.  Hopefully, because the 
-  // granularity of the scheduler's timeslices should be greater than one 
-  // or two instructions, we will then be able to avoid simultaneous locks.
-
-  if (*lock == 0)
-    {
-      // Give the lock to the requesting process
-      *lock = currentProcess;
-
-      // If we inverted the priority of some process to achieve this lock,
-      // we need to reset it to its old priority
-      if (inversion)
-	{
-	  kernelMultitaskerSetProcessPriority(holder, holderPriority);
-	  holder = 0;
-	  inversion = 0;
-	}
-    }
-
-  else
-    // Crap.  Someone else grabbed it first.  We will enter the wait
-    // loop again
-    goto waitForLock;
-
-  // kernelTextPrint("Lock granted to process ");
-  // kernelTextPrintInteger(currentProcess);
-  // kernelTextNewline();
 
   return (status = 0);
 }
@@ -225,32 +183,24 @@ int kernelResourceManagerUnlock(volatile int *lock)
   // process to release a resource that it had previously locked.
 
   int status = 0;
-  int currentProcess = 0;
-
+  int currentProcId = 0;
   
   // Make sure the pointer we were given is not NULL
   if (lock == NULL)
     return (status = ERR_NULLPARAMETER);
 
   // Get the process Id of the current process
-  currentProcess = kernelMultitaskerGetCurrentProcessId();
+  currentProcId = kernelMultitaskerGetCurrentProcessId();
 
   // Make sure it's a valid process Id
-  if (currentProcess < 0)
-    return (currentProcess);
+  if (currentProcId < 0)
+    return (currentProcId);
   
-  // Make sure that the current disk lock, if any, really belongs
-  // to this process.  This prevents any trickery that might be possible
-  // if one process could unlock a disk belonging to another process
+  // Make sure that the current lock, if any, really belongs to this process.
 
-  if (*lock == currentProcess)
+  if (*lock == currentProcId)
     {
       *lock = 0;
-
-      // kernelTextPrint("Lock released by process ");
-      // kernelTextPrintInteger(currentProcess);
-      // kernelTextNewline();
-
       return (status = 0);
     }
 
@@ -270,7 +220,6 @@ int kernelResourceManagerVerifyLock(volatile int *lock)
 
   int status = 0;
   kernelProcessState tmpState;
-
   
   // Make sure the pointer we were given is not NULL
   if (lock == NULL)
@@ -285,11 +234,10 @@ int kernelResourceManagerVerifyLock(volatile int *lock)
       
   // Is the process that holds the lock still valid?
   if ((status < 0) || 
-      (tmpState == sleeping) || 
-      (tmpState == stopped) || 
-      (tmpState == zombie))
+      (tmpState == sleeping) || (tmpState == stopped) ||
+      (tmpState == finished) || (tmpState == zombie))
     {
-      // This process either no longer exists, or it has no right to
+      // This process either no longer exists, or else it shouldn't
       // continue holding this lock.
       return (status = 0);
     }

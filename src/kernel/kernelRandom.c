@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,7 +23,6 @@
 // the Visopsys kernel.
 
 #include "kernelRandom.h"
-#include "kernelText.h"
 #include "kernelSysTimerFunctions.h"
 #include "kernelRtcFunctions.h"
 #include "kernelLog.h"
@@ -32,16 +31,15 @@
 static volatile unsigned kernelRandomSeed;
 
 
-static unsigned int random(unsigned int seed)
+static unsigned random(unsigned seed)
 {
   // This routine will return a pseudo-random number based on the seed
   // supplied.  I made up the algorithm and it's not too terriffic.  It
   // should be replaced with a commonly accepted one.
   
   int count, mod;
-  unsigned int otherOperand = 0;
-  unsigned int oldSeed = 0;
-
+  unsigned otherOperand = 0;
+  unsigned oldSeed = 0;
 
   // Save the old random seed temporarily
   oldSeed = seed;
@@ -106,7 +104,6 @@ int kernelRandomInitialize(void)
   int status = 0;
   int count;
 
-
   // This isn't great.  It will be better after the kernel can save its
   // random seed from the last session, and use it to help further 
   // the randomization.
@@ -137,7 +134,7 @@ int kernelRandomInitialize(void)
 }
 
 
-unsigned int kernelRandomUnformatted(void)
+unsigned kernelRandomUnformatted(void)
 {
   // This is for getting an unformatted random number using the kernel's
   // random seed.
@@ -146,7 +143,7 @@ unsigned int kernelRandomUnformatted(void)
 }
 
 
-unsigned int kernelRandomFormatted(unsigned int start, unsigned int end)
+unsigned kernelRandomFormatted(unsigned start, unsigned end)
 {
   // This function will return a random number between "start" and "end"
   // using the kernel's random seed.
@@ -155,7 +152,7 @@ unsigned int kernelRandomFormatted(unsigned int start, unsigned int end)
 }
 
 
-unsigned int kernelRandomSeededUnformatted(unsigned int seed)
+unsigned kernelRandomSeededUnformatted(unsigned seed)
 {
   // This is for getting an unformatted random number using the user's
   // random seed.
@@ -163,8 +160,8 @@ unsigned int kernelRandomSeededUnformatted(unsigned int seed)
 }
 
 
-unsigned int kernelRandomSeededFormatted(unsigned int seed, 
-					 unsigned int start, unsigned int end)
+unsigned kernelRandomSeededFormatted(unsigned seed, unsigned start,
+				     unsigned end)
 {
   // This function will return a random number between "start" and "end"
   // using the user's random seed.

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,7 +34,6 @@ int printf(const char *format, ...)
   int outputlen = 0;
   char output[MAXSTRINGLENGTH];
   
-
   // We don't set errno in this function
   errno = 0;
 
@@ -42,7 +41,7 @@ int printf(const char *format, ...)
   va_start(list, format);
 
   // Fill out the output line based on 
-  outputlen = _expand_format_string(output, format, list);
+  outputlen = _expandFormatString(output, format, list);
 
   va_end(list);
 

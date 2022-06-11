@@ -1,7 +1,7 @@
 ( This text file is formatted for viewing with UNIX utilities.  If it looks funny on your DOS/Windows system, try reopening this file with the WordPad utility: START/Programs/Accessories/WordPad )
 
 VISOPSYS (Binary Distribution)
-Copyright (C) 1998-2001 Andrew McLaughlin
+Copyright (C) 1998-2003 Andrew McLaughlin
 
 
 Thank you for trying Visopsys!  Please see the DISCLAIMER section near the
@@ -95,31 +95,6 @@ RESULTING FROM THE USE OF THIS SOFTWARE.  YOU MUST ACCEPT THESE TERMS IN
 ORDER TO USE VISOPSYS.
 
 
-ACKNOWLEDGEMENTS
+Good luck,
+-Andy McLaughlin
 
-I'd like to thank the following individuals who contribute (with or without
-their knowledge) to the success of this project:
-
-- Graeme McLaughlin (graeme@cpsc.ucalgary.ca) for patiently helping me test
-  each version of Visopsys.  Graeme is the #1 Alpha Tester.  Also, thanks
-  for hosting the Visopsys.org web site, and for the cool new logo.
-- John Fine (johnfine@erols.com), Alexei A. Founze (alex.fru@mtu-net.ru),
-  and the rest of the regular contributors to the comp.lang.asm.x86 and
-  alt.os.development newsgroups.  Thanks for always taking the time to 
-  help people.
-- Ralf Brown (ralf@pobox.com) for creating and maintaining the indispensable
-  Interrupt List (http://www.cs.cmu.edu/afs/cs/user/ralf/pub/WWW/files.html);
-  David Jurgens for creating HelpPC.  Both are excellent PC programming 
-  resources.
-- Katrin Becker (becker@cpsc.ucalgary.ca) at the University of Calgary for 
-  helpful advice about free- list management in filesystems.  I should have 
-  paid more attention in class
-- Frank van Gilluwe for writing "The Undocumented PC" (Addison-Wesley, ISBN#
-  0-201-47950-8); Tom Shanley for writing "Protected Mode Software 
-  Architecture" (Addison-Wesley/Mindshare ISBN# 0-201-55447-X)
-- Bob Watson (rhwatson@sympatico.ca) for maintaining the MS-DOS7 Commands 
-  page at http://www3.sympatico.ca/rhwatson/dos7/.  Visopsys' DOS/Windows 
-  installation tools wouldn't work as well as they do without the aid of 
-  this site.
-- Linus Torvalds for showing the rest of us that it can be done.  Besides,
-  he and I share the same birthday.

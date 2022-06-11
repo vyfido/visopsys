@@ -1,58 +1,85 @@
 ISSUES.txt
 ---
 
-This file contains current issues, problems, and development direction for 
-the Visopsys kernel.  Basically, it's a notepad for random thoughts, and
-for bugs. -A
+This file contains current issues, problems, and notes for Visopsys.
 
 
-ISSUES ( next issue number : 324 )
+ISSUES ( next issue number : 437 )
 
+- 435 - Change start.o (.c) to crt0.o
+/*------------------------------------------------------------------------*/
+- 431 - When writing a file using the file stream functions, it seems that
+appending a certain number of bytes (> 512?) causes an error/crash.
+/*------------------------------------------------------------------------*/
+- 430 - rm system/windowmanager.conf ; sync   ...Errors in the filesystem.
+/*------------------------------------------------------------------------*/
+- 429 - The FAT filesystem checker needs serious work.  It doesn't seem
+to be able to repair anything very effectively.
+/*------------------------------------------------------------------------*/
+- 428 - When writing a file using the file stream functions, it seems that
+there is a newline inserted at the beginning of a file.  The case I'm
+seeing now with the windowmanager.conf file uses the mode (OPENMODE_WRITE |
+OPENMODE_CREATE | OPENMODE_TRUNCATE).
+/*------------------------------------------------------------------------*/
+- 425 - When a user logs out of the window manager, all windows belonging to
+that user should be destroyed
+/*------------------------------------------------------------------------*/
+- 422 - Mouse driver initialization is sometimes still causing the boot
+sequence to 'hang' a little bit -- wiggling the mouse or pressing keys is
+required to continue
+/*------------------------------------------------------------------------*/
+- 421 - Add an event notification callback mechanism for user programs that
+use the GUI.  The first, most obvious widget that needs this right now is
+the button component.
+/*------------------------------------------------------------------------*/
+- 419 - The kernel log utility seems to 'lose' some log messages that come
+early in the boot process, before the root filesystem is mounted.
+/*------------------------------------------------------------------------*/
+- 418 - The list of API calls in kernelApi.c should be hashed according to
+their function number.  Right now, for every API call, the kernel has to
+loop through that (rather large) list until it finds the function.
+/*------------------------------------------------------------------------*/
+- 404 - The window icon code should be able to deal better with long icon
+names.  Currently it prints the whole name on one long line.
+/*------------------------------------------------------------------------*/
+- 396 - When the text is a different color (such as a kernelError) and the
+screen scrolls, the cursor can remain the color of the previous line.  Text
+mode only, but the same problem might occur if we could do colors in graphics
+mode.
+/*------------------------------------------------------------------------*/
+- 393 - The new exception handler needs to print out more diagnostic
+information (exception type, more if possible) about the exception, a la
+the old version.
+/*------------------------------------------------------------------------*/
+- 388 - Implment the FAT filesystem driver formatting functionality
+/*------------------------------------------------------------------------*/
+- 386 - In the filesystem functions there should be an 'accessed' flag
+rather than just a 'dirty' flag.  Things that are accessed should maybe only
+have their access times updated on disk when the filesystem is unmounted.
+/*------------------------------------------------------------------------*/
+- 373 - Typing during a graphics mode screen scroll leaves stray cursors
+on the screen and can cause crashes
+/*------------------------------------------------------------------------*/
+- 364 - Add support in the image functions for RLE encoded bitmaps (loading
+and saving)
+/*------------------------------------------------------------------------*/
+- 362 - Add LFB graphic driver support for bit depths other than 24.  32
+would be a nice place to start.
+/*------------------------------------------------------------------------*/
+- 360 - Add resizing capability to the windows in the window manager
+/*------------------------------------------------------------------------*/
+- 348 - The resource manager should have a more complex lock structure to
+work with, so that it can keep track of which processes are waiting for
+locks and therefore provide better deadlock prevention.  
+/*------------------------------------------------------------------------*/
+- 343 - In the FAT filesystem driver, file names that start with '.' are
+listed, but they cannot be created or accessed.
+/*------------------------------------------------------------------------*/
+- 324 - Need to finish all the scanf stuff.  Doesn't know how to fill in
+the requested values from the input data.  As a prerequisite, this should
+be implemented in parallel with a new readline library function.
+/*------------------------------------------------------------------------*/
 - 322 - the lib/_xpndfmt.c module doesn't know how to expand long values
-/*------------------------------------------------------------------------*/
-- 319 - When in the multitasker the killing of a process is delayed because
-of child threads, the process never seems to be killed when the children
-have all terminated.  For example, when you mount a large FAT filesystem
-(C:), the thread that reads the FAT keeps the "mount" process alive, waiting,
-forever.
-/*------------------------------------------------------------------------*/
-- 310 - The scheduler should not spawn a new idle thread while the
-multitasker is in the process of shutting down.
-/*------------------------------------------------------------------------*/
-- 291 - There's some sort of funny memory problem.  It's necessary to do
-a 'fake' memory allocation in kernelInitialize.c to keep the LOGIN program
-from crashing.  It seems as if the physical locations of LOGIN's page
-directory and page table in memory are important.  Here's a list of the
-memory locations that seem to work and those that don't:
-Good				Bad
-581632 589823 test		581632 585727 test	
-589824 610303 disk tran		585728 589823 page dir
-610304 618495 process code	589824 610303 disk tran
-618496 622591 page dir		610304 618495 process code
-622592 626687 page table	618496 622591 page table
-655360 1048575 high mem		655360 1048575 high mem
-/*------------------------------------------------------------------------*/
-- 265 - As part of code cleanup, go through each .h file and ensure that
-each of the things that are defined there are necessary
-/*------------------------------------------------------------------------*/
-- 262 - It's not currently possible to run the shell as a supervisor
-process: It appears to run in an endless loop doing nothing.  Why?
-/*------------------------------------------------------------------------*/
-- 243 - Make it easy to produce a version of the Visopsys kernel that has
-multitasking disabled.  All of the kernel threads that currently rely
-on multithreading should be able to operate without it.  It would be nice
-if this could be specified in a non-static way (for example, via a file)
-but this may not be possible in an elegant way.   Otherwise, it should be
-specified by a compile-time constant.
-/*------------------------------------------------------------------------*/
-- 220 - Need to start thinking ahead and adding permission checking to the
-kernel functions that will be exported to the rest of the world.
-/*------------------------------------------------------------------------*/
-- 219 - The kernel's exception handler should possibly be a spawned thread
-with its own stack, etc., so that it doesn't run as part of whatever process
-caused the exception in the first place.  This would help to prevent the
-exception handler itself from crashing if things have gone seriously wrong
-with a process.
 /*------------------------------------------------------------------------*/
 - 189 - A disk's transfer area should actually be used all the time.  A
 reason for this (other than the DMA issue that makes DTAs a requirement
@@ -62,15 +89,6 @@ read and write routines provide random and character-based access (i.e.
 we don't want to re-read a sector every time a function requests a single 
 byte from a file, for example).  The disk functions must be augmented to 
 keep track of sectors cached in the transfer area.
-/*------------------------------------------------------------------------*/
-- 181 - Write "how to use Visopsys" documentation for distribution kits.
-This should be geared towards someone who's never seen it before, of course.
-Add the documentation to the binary distribution.
-/*------------------------------------------------------------------------*/
-- 180 - The Visopsys installation utilities for UNIX (floppy-install.csh)
-should not rely on the mkdosfs command.  I should write a little something
-of my own that will create a simple FAT12 filesystem.  It would be nice if I
-could do something similar for DOS as well. 
 /*------------------------------------------------------------------------*/
 - 168 - When the hardware enumeration routine is detecting drives, if there is
 a SCSI drive that shows up in the list, it seems that the SCSI drive
@@ -86,20 +104,422 @@ dirty and clean, respectively.  [The MS-standard way is ONLY available
 on FAT16 and FAT32 volumes.  Not available on FAT12 volumes.  Perhaps
 there is another, clandestine way?]
 /*------------------------------------------------------------------------*/
-- 157 - Need the ability to copy directory trees, either as a function of the 
-filesystem driver or as a recursive driver function in the shell commands
-section.  [This is not a function of the filesystem driver I think, 
-but rather of the copy command].
-/*------------------------------------------------------------------------*/
 - 155 - The routine that prints non-integer numbers is broken
 /*------------------------------------------------------------------------*/
 
 
 OLD/FIXED/IGNORED
 
-
-- 323 - There is a problem with getting/setting the text console colours.
-In particular, the colours want to keep being black (numberically zero).
+- 181 - Write "how to use Visopsys" documentation for distribution kits.
+This should be geared towards someone who's never seen it before, of course.
+Add the documentation to the binary distribution.
+/*------------------------------------------------------------------------*/
+- 436 - Take another little peek at the way page caching is being done.
+Seems like when Win2K reboots it leaves caching off or something.  Also
+investigate whether better LFB performance is achieved by turning off
+caching for the LFB pages since they're memory-mapped IO pages.  Also
+investigate whether to set the 'global' flag (bit 8 in page directory
+and page table entries) so that kernel pages aren't invalidated during
+task switches.  [ Turning off write-through seemed to be a huge improvement,
+at least in the performance of the graphics code.  Leaving it off for now ].
+/*------------------------------------------------------------------------*/
+- 434 - Update the shell 'help' text before the release
+/*------------------------------------------------------------------------*/
+- 427 - Can't move/copy a file over top of another by the same name in a
+different location unless you specify the destination filename explicitly
+(i.e. if you just specify the directory, it fails)
+/*------------------------------------------------------------------------*/
+- 265 - As part of code cleanup, go through each .h file and ensure that
+each of the things that are defined there are necessary
+/*------------------------------------------------------------------------*/
+- 400 - It seems as if when rebooting from Windows 2000 (professional, if
+that makes a difference) to Visopsys, the kernel immediately triple-faults,
+whether in graphics or text mode.  Something being left in a weird state
+when that OS reboots?  Doesn't seem to happen with my WinXP machine.  I
+tried to ensure that I wasn't inadvertently toggling A20 to off in the loader
+or anything, but it doesn't look as if that's the case.  WooWoo!  400!!
+[ Also happens with Win95.  I've traced this to the moment that the osloader
+turns on its simple paging.  Some of the control registers left in an
+unusual state? ] [ Yup.  Bits 30 and 29 of CR0 register cleared.  Mow we
+set them explicitly ] [ Reopened this one.  That fix had bad results in
+that it slowed things down dramatically (memory cacheing turned off in the
+processor), but still didn't stop the triple-fault on a machine at work ]
+[ Clearing the page cache seems to do the trick ]
+/*------------------------------------------------------------------------*/
+- 433 - When using the 'more' program, pressing [enter] to list a new line
+leaves the "--More--(xx%)--" message on the screen
+/*------------------------------------------------------------------------*/
+- 432 - Get rid of the 'timed event scheduler' and have the floppy motor
+turned off by a daemon
+/*------------------------------------------------------------------------*/
+- 426 - Login too quickly in graphics mode?  Kaboom.
+/*------------------------------------------------------------------------*/
+- 424 - When a process has finished but is waiting for its child threads to
+terminate (a la mount in issue 319), any process that is blocking on that
+process should stop waiting.
+/*------------------------------------------------------------------------*/
+- 394 - There are still crashes when running the 'install' program, and
+other types of long disk writes.  When this happened under the old exception
+handler, the handler used to go into an endless loop complaining about
+an exception in the idle process.  Now there seems to be a triple-fault
+instead (better?  Probably not).  Problem with the interrupt handlers and
+how they interact with the multitasker's scheduler?
+/*------------------------------------------------------------------------*/
+- 384 - The floppy motor seems to be staying on all the time on many machines
+/*------------------------------------------------------------------------*/
+- 391 - The window manager should load the specifications for icons (positions,
+names, images, associated commands) from the windowmanager.conf file, and
+rewrite those settings when it shuts down so that the windowing environment
+is "customized".
+/*------------------------------------------------------------------------*/
+- 399 - The FAT filesystem code is not properly filling all long filenames.
+They seem to get cut off after some number of characters.  Not processing
+all the long filename entries in the directory properly?
+/*------------------------------------------------------------------------*/
+- 423 - Closing windows either a) kills the wrong shell process; or b) causes
+the 'window' program to fault when it tries to kill the window (the window
+is already gone -- which should be fine because we want it to work when the
+shell exits by itself -- the kernelWindowDestroy() function should obviously
+not crash in this case)
+/*------------------------------------------------------------------------*/
+- 319 - When in the multitasker the killing of a process is delayed because
+of child threads, the process never seems to be killed when the children
+have all terminated.  For example, when you mount a large FAT filesystem
+(C:), the thread that reads the FAT keeps the "mount" process alive, waiting,
+forever.
+/*------------------------------------------------------------------------*/
+- 412 - If a window's title is too long to fit properly on the title bar,
+the title bar code should probably make sure it doesn't get printed "as is"
+anyway.
+/*------------------------------------------------------------------------*/
+- 416 - There's still some funny stuff going on with closing windows.  Crashes
+and mouse droppings all over the screen.  Related to 405?
+/*------------------------------------------------------------------------*/
+- 420 - Add a grid layout system to windows in the window manager, a la
+Java.  That way the program doesn't have to set the X and Y coordinates
+of each component explicitly
+/*------------------------------------------------------------------------*/
+- 417 - Implement a window label component, so we can make more use of those
+nice font functions we added.  It would be nice to have the login window
+use a couple of pretty fonts as labels.
+/*------------------------------------------------------------------------*/
+- 414 - Export external functions for changing window attributes such as
+whether it has a border, has a close button, is movable, etc.
+/*------------------------------------------------------------------------*/
+- 408 - Same-line file completion should probably not be allowed to screw
+up the line by overprinting characters with other, different ones.
+/*------------------------------------------------------------------------*/
+- 405 - When the 'draw console' routine of the window manager sets the
+console output to the console window, it sets the input/output streams of
+the kernel to the window.  However, the change doesn't affect any kernel
+threads that are already running.  Perhaps the kernelMultitaskerSetText*
+routines should propagate changes to any child threads of the given process.
+/*------------------------------------------------------------------------*/
+- 403 - When pushing some of the "non-printable" keys such as 'num lock'
+and then doing command history, the simple shell backs up by one character
+before completing the filename.
+/*------------------------------------------------------------------------*/
+- 415 - Add support for non-fixed-width fonts in the kernelFontFunctions.
+/*------------------------------------------------------------------------*/
+- 413 - Add support for loading fonts.  The current system font looks lame
+on titles and whatnot, particularly on the login screen.
+/*------------------------------------------------------------------------*/
+- 411 - There are lots of memory 'leaks' in the window manager code.  Make
+sure that closing the window/destroying components is properly deallocating
+all the things they allocate.
+/*------------------------------------------------------------------------*/
+- 410 - When wallpaper images are centered in the window manager, dragging
+icons redraws the wrong stuff underneath.
+/*------------------------------------------------------------------------*/
+- 409 - The desktop wallpaper should be centered rather than tiled if its
+width or height is more than half the screen.
+/*------------------------------------------------------------------------*/
+- 407 - Make the login a little more meaningful in graphics mode.  Currently
+a console window opens with a login: prompt, but the user can happily start
+opening command windows and such, and ignore the login (unless they want
+root permissions).  Maybe have the window manager wait until the login
+command has finished before it shows the root window, (console window, etc.)
+/*------------------------------------------------------------------------*/
+- 406 - Add loading support for 24-bit bitmaps.  We already save in that
+format.
+/*------------------------------------------------------------------------*/
+- 401 - If the console window is closed and text output is attempted, crash.
+We have to ensure that if a process' text output stream is in a text area
+that gets destroyed, the output stream is made NULL.
+/*------------------------------------------------------------------------*/
+- 387 - Wiggling the mouse during window manager startup can cause some
+funny things to happen on the display (i.e. windows that aren't supposed
+to be visible yet get redrawn under the pointer)
+/*------------------------------------------------------------------------*/
+- 398 - Umounting a filesystem is not properly dereferencing either the
+filesystem or the disk.  Can't mount->unmount->mount the same disk.
+/*------------------------------------------------------------------------*/
+- 402 - It would be nice if the simple shell did filename completions on
+the same line as the current line, rather than starting on the next line.
+/*------------------------------------------------------------------------*/
+- 361 - Make it possible to have multiple text output streams, so that
+we can have multiple text windows open at the same time
+/*------------------------------------------------------------------------*/
+- 355 - The window manager thread seems to miss updating cursor movements,
+for example during shutdown, but other times as well
+/*------------------------------------------------------------------------*/
+- 397 - Implment the FAT filesystem driver checking functionality [It's
+very primitive, but it does detect and fix some errors]
+/*------------------------------------------------------------------------*/
+- 390 - Dragging icons is new functionality.  Works pretty well except that
+it doesn't correctly redraw background image (if any) underneath the place
+where the icon is moved from.  Just didn't quite get around to doing it
+properly today.
+/*------------------------------------------------------------------------*/
+- 395 - Maybe move the exception handler code into the multitasker.  It
+really needs to interact with the multitasker quite a bit.
+/*------------------------------------------------------------------------*/
+- 392 - The new exception handler thread hangs the terminal (breakable with
+CTRL-C) when the exception message happens at the bottom of the text area
+and causes the screen to scroll
+/*------------------------------------------------------------------------*/
+- 219 - The kernel's exception handler should possibly be a spawned thread
+with its own stack, etc., so that it doesn't run as part of whatever process
+caused the exception in the first place.  This would help to prevent the
+exception handler itself from crashing if things have gone seriously wrong
+with a process.
+/*------------------------------------------------------------------------*/
+- 243 - Make it easy to produce a version of the Visopsys kernel that has
+multitasking disabled.  All of the kernel threads that currently rely
+on multithreading should be able to operate without it.  It would be nice
+if this could be specified in a non-static way (for example, via a file)
+but this may not be possible in an elegant way.   Otherwise, it should be
+specified by a compile-time constant.  [No, finally I've come to the
+conclusion that there's no simple way to do this, and no really good reason
+for making the effort]
+/*------------------------------------------------------------------------*/
+- 389 - The icons in the windowmanager should be aligned to a grid.  Right
+now they're kind of skewed depending on how wide they are.
+/*------------------------------------------------------------------------*/
+- 349 - Add a proper atomic spinlock to the resource manager, probably
+using the Intel test-and-set command.  [Not really necessary until we 
+support multiprocessor operation.  In the meantime I've simplified things
+and disabled interrupts while the lock is being set]
+/*------------------------------------------------------------------------*/
+- 337 - In the multitasker, get rid of the idle process and simply run
+a loop in the scheduler.  Idle time statistics should still be kept.
+[Not sure that this is the right approach.  An idle process is fine.]
+/*------------------------------------------------------------------------*/
+- 220 - Need to start thinking ahead and adding permission checking to the
+kernel functions that will be exported to the rest of the world.  [This was
+added a long time ago.  May be that the permissions need to be examined in
+detail later, but for now there's basic permission checking]
+/*------------------------------------------------------------------------*/
+- 380 - Dragging windows is broken.  Something to do with the 'draw' stuff
+I changed yesterday?
+/*------------------------------------------------------------------------*/
+- 382 - The progress indicator is progressing beyond the end of the indicator
+/*------------------------------------------------------------------------*/
+- 383 - The bitmap writing routine is mixing up the color orders
+/*------------------------------------------------------------------------*/
+- 381 - The 'getchar' routine should do the work of polling/yielding, rather
+than the programs that call it.
+/*------------------------------------------------------------------------*/
+- 385 - Write a basic 'fdisk' program that can do things like swap the
+active partition on hard disks
+/*------------------------------------------------------------------------*/
+- 379 - The graphics mode text driver scolling routine is missing scrolling
+the whole top line off the screen if every other line is shorter than the
+top line.
+/*------------------------------------------------------------------------*/
+- 377 - Seems like when text gets appended too quickly in a graphical text
+window, crashola.  Could have something to do with text streams or else
+with the text routines in graphic mode.  Actually, looks like a problem with
+the scrolling routine (#379).  The last line can get screwed up and the
+graphical text driver starts writing outside the area.
+/*------------------------------------------------------------------------*/
+- 378 - The hard disk enumeration routine is crashing when there is more
+than one physical disk
+/*------------------------------------------------------------------------*/
+- 157 - Need the ability to copy directory trees, either as a function of the 
+filesystem driver or as a recursive driver function in the shell commands
+section.  [This is not a function of the filesystem driver I think, 
+but rather of the copy command]. [Made it in the filesystem functions, one
+level up from the filesystem driver.  Could be a library routine instead
+someday].
+/*------------------------------------------------------------------------*/
+- 376 - The 'cp' command seems to crash when copying files involving
+the hard disk
+/*------------------------------------------------------------------------*/
+- 375 - Implment the 'write' function in the IDE disk driver.  Probably
+still need to deactivate it for the 0.2 release since the filesystem
+driver is still imperfect.
+/*------------------------------------------------------------------------*/
+- 367 - cd system
+rm windowmanager.conf backgrnd.bmp
+watch the fireworks.  shit
+/*------------------------------------------------------------------------*/
+- 374 - Mounting hard disk partitions on my 30GB hard disk is not working.
+LBA versus CHS issue
+/*------------------------------------------------------------------------*/
+- 372 - The shutdown icon in the window manager crashes with a page fault
+/*------------------------------------------------------------------------*/
+- 340 - The graphics text driver often prints characters without erasing
+a previous one at the same address
+/*------------------------------------------------------------------------*/
+- 335 - In graphics mode, when the cursor is not on the last line of the
+screen, tabs don't seem to print correctly.
+/*------------------------------------------------------------------------*/
+- 363 - When writing 256-color bitmaps, the image functions should be able
+to average colors in the color map so that it doesn't run out of them
+/*------------------------------------------------------------------------*/
+- 371 - The window manager's 'render window visible areas' function is
+not perfect.  Move a bunch of little windows over the console window, then
+run a command that scrolls the screen
+/*------------------------------------------------------------------------*/
+- 370 - Try to eliminate stray graphic lines, etc., that can appear when
+moving windows around (particularly when the window is updating itself)
+/*------------------------------------------------------------------------*/
+- 369 - When rendering a window buffer, if the whole area to update is off
+the screen, crash
+/*------------------------------------------------------------------------*/
+- 358 - In the window manager, moving one same-size-or-larger window over
+another, and dropping it, then picking it up and moving it again, causes a
+crash.  Contrariwise, if a smaller window is placed on top of a larger one,
+moving it again does not redraw the portion of the larger window underneath
+/*------------------------------------------------------------------------*/
+- 368 - When the mouse is being erased, the area being erased is probably
+four times as large as it should be
+/*------------------------------------------------------------------------*/
+- 357 - Mouse click events in the window manager are coming through as
+two - the 'mouse up' event is not being recognized as such
+/*------------------------------------------------------------------------*/
+- 356 - When moving a window off the left or top edges of the screen
+(negative coordinates, with the XORed line showing), something goes screwy.
+Actually the whole thingamajig crashes.
+/*------------------------------------------------------------------------*/
+- 366 - After moving a window, redraw the mouse after the window is redrawn
+/*------------------------------------------------------------------------*/
+- 354 - The mouse driver initialization sometimes hangs, waiting for a
+response from the mouse to a command
+/*------------------------------------------------------------------------*/
+- 365 - Removing 'system/windowmanager.conf' causes the mouse pointer to
+not get loaded
+/*------------------------------------------------------------------------*/
+- 359 - Add ELF executable capability and move the programs to ELF format
+/*------------------------------------------------------------------------*/
+- 352 - The mouse driver needs to be able to ask the window manager for
+the current contents of the screen wherever it is, so that it redraws
+properly whatever is underneath it.  Actually what it needs is to be
+able to tell the window manager to redraw whatever was underneath it.
+/*------------------------------------------------------------------------*/
+- 346 - Incomplete filenames are still having an / appended to them
+by the sish
+/*------------------------------------------------------------------------*/
+- 353 - Wiggling the mouse during initialization can cause crashes
+/*------------------------------------------------------------------------*/
+- 351 - The PS2 mouse driver and the keyboard driver need to share a lock
+on the device, since they both deal with the same registers, etc. [the
+lock is unnecessary since the two drivers are only active when they
+are triggered by the appropriate interrupt]
+/*------------------------------------------------------------------------*/
+- 350 - During shutdown, don't kill kernel threads.  I don't think so.
+[Yeah, kill them too.  Skip the obvious ones, and call shutdown methods
+for anything else that needs to prepare to die]
+/*------------------------------------------------------------------------*/
+- 347 - First, sometimes an error in another program can cause a fault
+in the idle process (?!?), then the exception handler routines get into
+an endless loop
+/*------------------------------------------------------------------------*/
+- 345 - Graphical mode initialization is currently hanging
+/*------------------------------------------------------------------------*/
+- 344 - Related to 291: When a process creates a new process, the unmapping
+of the new process' memory from the parent process space can cause a page
+fault.  Demonstrated in kernelMemoryChangeOwner by commenting out the
+'unmap' part. 
+/*------------------------------------------------------------------------*/
+- 341 - The 'log file updater' thread has been crashing frequently, most
+often when another process crashes
+/*------------------------------------------------------------------------*/
+- 310 - The scheduler should not spawn a new idle thread while the
+multitasker is in the process of shutting down.
+/*------------------------------------------------------------------------*/
+- 342 - The 'date' command is producing wrong results.  Seems like the year,
+dotm, hour, minute, etc., are correct, but the month and dotw are wrong. 
+/*------------------------------------------------------------------------*/
+- 330 - In graphical mode, the kernel cannot immediately start a login
+process without triple-faulting the machine.  Seems to happen right in the
+kernelLoader code.
+/*------------------------------------------------------------------------*/
+- 262 - It's not currently possible to run the shell as a supervisor
+process: It appears to run in an endless loop doing nothing.  Why?
+/*------------------------------------------------------------------------*/
+- 339 - When shortening a filename, one extra character from the old
+filename gets left on the end of the new name.  This will be because of
+the strncpy changes.  Don't know if it's in the generic filesystem
+code or the FAT driver.
+/*------------------------------------------------------------------------*/
+- 329 - When processes are killed in graphical mode (such as hitting CTRL-C
+when the login prompt is up) the screen gets filled with garbage and the
+machine triple-faults.  This is probably something about the scheduler
+not having anything to schedule.
+/*------------------------------------------------------------------------*/
+- 338 - Seems like if there is a problem loading the background bitmap,
+the kernelWindowManager fails and the screen stays blank
+/*------------------------------------------------------------------------*/
+- 291 - There's some sort of funny memory problem.  It's necessary to do
+a 'fake' memory allocation in kernelInitialize.c to keep the LOGIN program
+from crashing.  It seems as if the physical locations of LOGIN's page
+directory and page table in memory are important.  Here's a list of the
+memory locations that seem to work and those that don't:
+Good				Bad
+581632 589823 test		581632 585727 test	
+589824 610303 disk tran		585728 589823 page dir
+610304 618495 process code	589824 610303 disk tran
+618496 622591 page dir		610304 618495 process code
+622592 626687 page table	618496 622591 page table
+655360 1048575 high mem		655360 1048575 high mem
+[ugh, this was a little sequencing error in the kernelMemoryManager's
+ share memory routine -- it was deallocating the memory from the sharer
+ process before allocating it to the sharee.  Not sure why this is so
+ important in some cases ]
+/*------------------------------------------------------------------------*/
+- 333 - File input/output streams are just broken somehow.  Take a look at
+the kernel.log sometime.  Also, writing a bit image file that way is a
+hopeless cause.  [seems to be beneath the level of file streams]
+/*------------------------------------------------------------------------*/
+- 331 - The graphic utility function that loads and formats bitmap image
+files doesn't work on images that have line lengths other than multiples
+of 4.  This implies that the padding bytes are somehow not being handled
+correctly.
+/*------------------------------------------------------------------------*/
+- 336 - Simplify the default driver management.  Right now it is ridiculously
+overcomplicated.
+/*------------------------------------------------------------------------*/
+- 334 - Trying to print non-ascii-printable characters in graphic mode
+results in death
+/*------------------------------------------------------------------------*/
+- 332 - When doing a screen shot (i.e. a long file write) a deadlock occurs
+involving the filesystem synchronizer thread.  [priority inversion in the
+resource manager was implemented incorrectly]
+/*------------------------------------------------------------------------*/
+- 328 - Long lines of text are not being properly redrawn by the graphical
+text driver.  They are being drawn outside the window.
+/*------------------------------------------------------------------------*/
+- 180 - The Visopsys installation utilities for UNIX (floppy-install.csh)
+should not rely on the mkdosfs command.  I should write a little something
+of my own that will create a simple FAT12 filesystem.  It would be nice if I
+could do something similar for DOS as well.  [I don't want to get into
+writing OS-specific binaries for installations.  Instead, the Java
+installer will only work on systems that have a command for formatting DOS
+filesystems.  Solaris has one, but it's not called mkdosfs, for example]
+/*------------------------------------------------------------------------*/
+- 327 - The FAT code that lowercases short filenames doesn't lowercase the
+file extensions
+/*------------------------------------------------------------------------*/
+- 326 - Rewrite the memory manager.  It's shite.  [probably not the problem]
+/*------------------------------------------------------------------------*/
+- 325 - Most of the device driver initialization routines are being called
+twice; once in kernelDriverManagement.c and once in the abstraction layer
+initialization
+/*------------------------------------------------------------------------*/
+- 323 - There is a problem with getting/setting the text console colors.
+In particular, the colors want to keep being black (numberically zero).
 /*------------------------------------------------------------------------*/
 - 321 - After replacing the text console driver, there seems to be a problem
 printing lines of text when we're on the last line of the screen, and the
@@ -114,9 +534,9 @@ be marked as 'reserved' by the memory manager
 - 320 - the lib/_xpndfmt.c module doesn't know how to expand unsigned/long
 values
 /*------------------------------------------------------------------------*/
-- 317 - The colourful error messages are currently broken (related to a
+- 317 - The colorful error messages are currently broken (related to a
 change I made in the text console driver which detects newline characters).
-Only the first character of the error message has the new colour.
+Only the first character of the error message has the new color.
 /*------------------------------------------------------------------------*/
 - 244 - Eliminate the kernelTextConsoleDriver.  All of that work can (and
 should, I think) be done from within kernelText.c.  Alternatively make
@@ -228,7 +648,7 @@ hits 'enter' without a login name.
 input stream or output stream) it causes a page fault (so does 'LOGIN')
 /*------------------------------------------------------------------------*/
 - 296 - A process which is not attached to the console output stream should
-not be able to change the foreground colour.  Foreground colour should be
+not be able to change the foreground color.  Foreground color should be
 an attribute of a text stream, not a global value.
 /*------------------------------------------------------------------------*/
 - 294 - Running some programs in a non-blocking (i.e. background) way

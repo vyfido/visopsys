@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -22,17 +22,14 @@
 	EXTERN loaderPrint
 	EXTERN loaderPrintNumber
 	EXTERN loaderPrintNewline
-	
+	EXTERN PRINTINFO
+		
 	GLOBAL loaderSetTextDisplay
 	GLOBAL loaderDetectVideo
 	GLOBAL loaderSetGraphicDisplay
-	GLOBAL loaderFindGraphicMode
-	GLOBAL loaderGetLinearFramebuffer
-	GLOBAL loaderGetScanlineLength
-	GLOBAL SVGAAVAIL
 	GLOBAL KERNELGMODE
 	GLOBAL CURRENTGMODE
-	
+		
 	SEGMENT .text
 	BITS 16
 	ALIGN 4
@@ -56,12 +53,12 @@ loaderSetTextDisplay:
 	mov AL, VIDEOPAGE
 	int 10h
 
-	;; Set the overscan colour.  That's the colour that forms the
+	;; Set the overscan color.  That's the color that forms the
 	;; default backdrop, and sometimes appears as a border around
 	;; the printable screen
 	mov AX, 0B00h
 	mov BH, 0
-	mov BL, BACKGROUNDCOLOUR
+	mov BL, BACKGROUNDCOLOR
 	int 10h
 
 	;; We will try to change text modes to a more attractive 80x50
@@ -95,10 +92,10 @@ loaderSetTextDisplay:
 	cmp word [SS:(BP + 18)], 0
 	jne .done	
         mov AX, 0700h
-        mov BH, BACKGROUNDCOLOUR
+        mov BH, BACKGROUNDCOLOR
         and BH, 00000111b
         shl BH, 4
-        or BH, FOREGROUNDCOLOUR
+        or BH, FOREGROUNDCOLOR
         mov CX, 0000h
         mov DH, ROWS
         mov DL, COLUMNS
@@ -150,10 +147,7 @@ loaderDetectVideo:
 
 	.noSVGA:	
 	;; There is no SVGA video detected
-
-	;; Use the error colour
-	mov DL, ERRORCOLOUR
-
+	mov DL, ERRORCOLOR	; Use the error color
 	mov SI, SAD
 	call loaderPrint
 	mov SI, SVGA
@@ -196,10 +190,7 @@ loaderDetectVideo:
 	
 	;; This video card is too old to support VESA version 2.0.  We won't
 	;; be able to use the Linear Frame Buffer
-	
-	;; Use the error colour
-	mov DL, ERRORCOLOUR
-
+	mov DL, ERRORCOLOR	; Use the error color
 	mov SI, SAD
 	call loaderPrint
 	mov SI, SVGA
@@ -231,23 +222,22 @@ loaderDetectVideo:
 	jmp .done
 
 	
-	.okVersion:	
-	;; Indicate SVGA detected
+	.okVersion:
 
-	;; Use green colour
-	mov DL, 02h
-	
+	cmp word [PRINTINFO], 1
+	jne .noPrint1
+	;; Indicate SVGA detected
+	mov DL, 02h		; Use green color
 	mov SI, HAPPY
 	call loaderPrint
 	mov SI, SVGA
 	call loaderPrint
 
-	;; Switch to foreground colour
-	mov DL, FOREGROUNDCOLOUR
-
+	mov DL, FOREGROUNDCOLOR	; Switch to foreground color
 	mov SI, VESA20
 	call loaderPrint
-	
+	.noPrint1:	
+		
 	;; Get the amount of video memory
 	xor EAX, EAX
 	mov AX, word [(VESAINFO + 12h)]
@@ -256,11 +246,14 @@ loaderDetectVideo:
 	mov dword [SI], EAX
 
 	;; Write out how much video memory detected.  The amount is in EAX.
+	cmp word [PRINTINFO], 1
+	jne .noPrint2
 	call loaderPrintNumber
 	mov SI, VIDEORAM
 	call loaderPrint
 	call loaderPrintNewline
-
+	.noPrint2:	
+	
 	;; Make note that we can use SVGA.
 	mov byte [SVGAAVAIL], 1
 
@@ -273,7 +266,7 @@ loaderDetectVideo:
 	call loaderGetLinearFramebuffer
 	add SP, 2
 	mov SI, word [VIDEODATA_P]
-	mov dword [SI + 4], EAX
+	mov dword [SI + 8], EAX
 	
 	.done:
 	;; Restore regs
@@ -319,10 +312,7 @@ loaderSetGraphicDisplay:
 	je .switchok
 
 	;; Couldn't switch to graphics mode.  Print an error message.
-
-	;; Switch to the error colour
-	mov DL, ERRORCOLOUR
-	
+	mov DL, ERRORCOLOR	; Switch to the error color
 	mov SI, SAD
 	call loaderPrint
 	mov SI, VIDMODE
@@ -530,40 +520,6 @@ loaderGetLinearFramebuffer:
 	ret
 		
 	
-loaderGetScanlineLength:
-
-	;; This will return the length of a scan line for
-	;; the current video mode
-
-	pusha
-
-	;; Make sure SVGA is available
-	cmp byte [SVGAAVAIL], 1
-	jne near .error
-
-	;; Are we currently in a graphics mode?
-	cmp word [CURRENTGMODE], 0
-	je .error
-		
-	mov AX, 4F01h
-	mov CX, word [CURRENTGMODE]
-	mov DI, MODEINFO
-	int 10h
-
-	;; Make sure the function call was successful
-	cmp AX, 004Fh
-	jne .error
-
-	popa
-	mov AX, word [MODEINFO + 10h]
-	ret
-
-	.error:
-	popa
-	mov AX, 0
-	ret
-		
-	
 selectGraphicMode:
 	
 	;; This function will select a graphics mode for the kernel based
@@ -577,17 +533,17 @@ selectGraphicMode:
 	;; on modes supported by the adapter
 
 	;; Check for a mode with 1024 x 768 x 32 bpp
-	push word 32
-	push word 768
-	push word 1024
-	call loaderFindGraphicMode
+	;; push word 32
+	;; push word 768
+	;; push word 1024
+	;; call loaderFindGraphicMode
 
 	;; Supported?
-	cmp AX, 0
-	jne near .success
+	;; cmp AX, 0
+	;; jne near .success
 
 	;; Remove those unsuccessful values from the stack
-	add SP, 6
+	;; add SP, 6
 	
 	;; Check for a mode with 1024 x 768 x 24 bpp
 	push word 24
@@ -603,43 +559,43 @@ selectGraphicMode:
 	add SP, 6
 	
 	;; Check for a mode with 1024 x 768 x 16 bpp
-	push word 16
-	push word 768
-	push word 1024
-	call loaderFindGraphicMode
+	;; push word 16
+	;; push word 768
+	;; push word 1024
+	;; call loaderFindGraphicMode
 
 	;; Supported?
-	cmp AX, 0
-	jne near .success
+	;; cmp AX, 0
+	;; jne near .success
 
 	;; Remove those unsuccessful values from the stack
-	add SP, 6
+	;; add SP, 6
 	
 	;; Check for a mode with 1024 x 768 x 15 bpp
-	push word 15
-	push word 768
-	push word 1024
-	call loaderFindGraphicMode
+	;; push word 15
+	;; push word 768
+	;; push word 1024
+	;; call loaderFindGraphicMode
 
 	;; Supported?
-	cmp AX, 0
-	jne near .success
+	;; cmp AX, 0
+	;; jne near .success
 
 	;; Remove those unsuccessful values from the stack
-	add SP, 6
+	;; add SP, 6
 	
 	;; Check for a mode with 800 x 600 x 32 bpp
-	push word 32
-	push word 600
-	push word 800
-	call loaderFindGraphicMode
+	;; push word 32
+	;; push word 600
+	;; push word 800
+	;; call loaderFindGraphicMode
 
 	;; Supported?
-	cmp AX, 0
-	jne near .success
+	;; cmp AX, 0
+	;; jne near .success
 
 	;; Remove those unsuccessful values from the stack
-	add SP, 6
+	;; add SP, 6
 	
 	;; Check for a mode with 800 x 600 x 24 bpp
 	push word 24
@@ -655,37 +611,34 @@ selectGraphicMode:
 	add SP, 6
 	
 	;; Check for a mode with 800 x 600 x 16 bpp
-	push word 16
-	push word 600
-	push word 800
-	call loaderFindGraphicMode
+	;; push word 16
+	;; push word 600
+	;; push word 800
+	;; call loaderFindGraphicMode
 
 	;; Supported?
-	cmp AX, 0
-	jne near .success
+	;; cmp AX, 0
+	;; jne near .success
 
 	;; Remove those unsuccessful values from the stack
-	add SP, 6
+	;; add SP, 6
 	
 	;; Check for a mode with 800 x 600 x 15 bpp
-	push word 15
-	push word 600
-	push word 800
-	call loaderFindGraphicMode
+	;; push word 15
+	;; push word 600
+	;; push word 800
+	;; call loaderFindGraphicMode
 
 	;; Supported?
-	cmp AX, 0
-	jne near .success
+	;; cmp AX, 0
+	;; jne near .success
 
 	;; Remove those unsuccessful values from the stack
-	add SP, 6
+	;; add SP, 6
 	
 	;; If we fall through to here, none of our supported modes are
 	;; available.  Make an error message.
-	
-	;; Switch to the error colour
-	mov DL, ERRORCOLOUR
-	
+	mov DL, ERRORCOLOR	; Switch to the error color
 	mov SI, SAD
 	call loaderPrint
 	mov SI, VIDMODE
@@ -727,44 +680,50 @@ selectGraphicMode:
 	mov SI, word [VIDEODATA_P]
 	xor EAX, EAX
 
-	;; The horizontal resolution
-	pop AX
+	;; The graphic mode
+	;; mov word [KERNELGMODE], 0 ;; NO GRAPHICS
+	mov AX, word [KERNELGMODE]
 	mov dword [SI + 4], EAX
 
-	;; The vertical resolution
-	pop AX
-	mov dword [SI + 8], EAX
-
-	;; The bits per pixel
+	;; The horizontal resolution
 	pop AX
 	mov dword [SI + 12], EAX
 
+	;; The vertical resolution
+	pop AX
+	mov dword [SI + 16], EAX
+
+	;; The bits per pixel
+	pop AX
+	mov dword [SI + 20], EAX
+
+	cmp word [PRINTINFO], 1
+	jne .noPrint
 	;; Say we found a mode. 
-	;; Use green colour
-	mov DL, 02h
+	mov DL, 02h		; Use green color
 	mov SI, BLANK
 	call loaderPrint
-	;; Switch to foreground colour
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR	; Switch to foreground color
 	mov SI, MODESTATS1
-	call loaderPrint
-	mov SI, word [VIDEODATA_P]
-	mov EAX, dword [SI + 4]
-	call loaderPrintNumber
-	mov SI, MODESTATS2
-	call loaderPrint
-	mov SI, word [VIDEODATA_P]
-	mov EAX, dword [SI + 8]
-	call loaderPrintNumber
-	mov SI, SPACE
 	call loaderPrint
 	mov SI, word [VIDEODATA_P]
 	mov EAX, dword [SI + 12]
 	call loaderPrintNumber
+	mov SI, MODESTATS2
+	call loaderPrint
+	mov SI, word [VIDEODATA_P]
+	mov EAX, dword [SI + 16]
+	call loaderPrintNumber
+	mov SI, SPACE
+	call loaderPrint
+	mov SI, word [VIDEODATA_P]
+	mov EAX, dword [SI + 20]
+	call loaderPrintNumber
 	mov SI, MODESTATS3
 	call loaderPrint
 	call loaderPrintNewline
-
+	.noPrint:	
+	
 	popa
 	mov AX, 1
 	ret

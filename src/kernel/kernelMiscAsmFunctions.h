@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,12 +24,11 @@
 // Functions exported by kernelMiscAsmFunctions.s
 void kernelSuddenStop(void);
 void kernelSuddenReboot(void);
-void kernelMemCopy(const void *, void *, unsigned int);
-void kernelMemClear(void *, unsigned int);
-void kernelInstallGDT(void *, unsigned int);
-void kernelInstallIDT(void *, unsigned int);
-void kernelTaskJump(unsigned int);
-void kernelTaskCall(unsigned int);
+void kernelMemCopy(const void *, void *, unsigned);
+void kernelMemClear(void *, unsigned);
+void kernelInstallGDT(void *, unsigned);
+void kernelInstallIDT(void *, unsigned);
+void kernelTaskCall(unsigned);
 
 #define _KERNELMISCASMFUNCTIONS_H
 #endif

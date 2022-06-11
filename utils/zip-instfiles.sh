@@ -2,7 +2,7 @@
 
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2001 J. Andrew McLaughlin
+##  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ## 
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
@@ -59,22 +59,21 @@ set KERNEL      = visopsys
 
 cp $OSLOADERDIR/$LOADER $KERNELDIR/$KERNEL $DEST_DIR/
 
-#  Copy the Visopsys logo picture file
-cp dist/visopsys.bmp $DEST_DIR/
-# touch $DEST_DIR/nosplash
-
-# Copy everything from the programs directory, but remove object files
+# Copy everything from the programs directory
 mkdir -p $DEST_DIR/programs
 cp -R $PROGSDIR/* $DEST_DIR/programs/
-rm -Rf $DEST_DIR/programs/*.o
 
 # The system directory
-mkdir -p $DEST_DIR/system/source
-cp -R $SOURCEDIR/* $DEST_DIR/system/source/
-find $DEST_DIR/system/source -name $PLATFORM -exec rm -Rf {} \;
-find $DEST_DIR/system/source -name CVS -exec rm -Rf {} \;
-rm -f $DEST_DIR/system/source/ISSUES.TXT
-(cd $DEST_DIR/system/source; zip -m -r source.zip * )
+mkdir -p $DEST_DIR/system
+cp dist/system/*.bmp $DEST_DIR/system
+mv $DEST_DIR/system/backgrnd1.bmp $DEST_DIR/system/backgrnd.bmp
+cp dist/system/*.conf* $DEST_DIR/system/
+cp dist/system/*.txt $DEST_DIR/system/
+mkdir -p $DEST_DIR/system/headers/sys
+cp $SOURCEDIR/include/*.h $DEST_DIR/system/headers/
+cp $SOURCEDIR/include/sys/*.h $DEST_DIR/system/headers/sys/
+find $DEST_DIR/system/headers -name $PLATFORM -exec rm -Rf {} \;
+find $DEST_DIR/system/headers -name CVS -exec rm -Rf {} \;
 mkdir -p $DEST_DIR/system/libraries
 cp -R $LIBSDIR/*.a $DEST_DIR/system/libraries/
 

@@ -1,0 +1,43 @@
+
+ -- List of commands --
+
+cat (or type)     Dump a file's contents to the screen
+cd                Change directory
+chkdisk           Check a filesystem for errors
+cp (or copy)      Copy a file
+date              Show the date
+disks             Show the disk volumes in the system
+fdisk             Manage hard disks (must be user "root")
+install           Install Visopsys (must be user "root")
+kill              Kill a running process
+login             Start a new login process
+logout (or exit)  End the current session
+ls or (dir)       Show the files in a directory
+mem               Show system memory usage
+mkdir             Make a directory
+more              Read a file one screenfull at a time
+mount             Mount a filesystem
+mv (or move)      Move a file (ren or rename have the same effect)
+ps                Show list of current processes
+pwd               Show the current directory
+read              Read a file into memory
+reboot            Exits to real mode and reboots the computer
+renice            Change the priority of a running process
+rm (or del)       Delete a file
+rmdir             Remove a directory
+shutdown          Stops the computer
+sync              Synchronize all filesystems
+touch             Update a file or create a new (empty) file
+umount            Unmount a filesystem
+uname             Tells visopsys version
+uptime            Time since last boot
+vsh               Start a new command shell
+
+ -- Additional (graphics mode only) --
+
+display          Show an image file in a new window
+loadfont         Load a new default font
+screenshot       Take a screenshot
+wallpaper        Load a new background wallpaper image
+window           Open a new command window
+

@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -62,10 +62,10 @@ kernelPicDriverInitialize:
 	jecxz $+2		; Delay
 	jecxz $+2
 
-	mov AL, 00100111b	; Normal operation, normal priorities
-	out 20h, AL
-	jecxz $+2		; Delay
-	jecxz $+2
+	;; mov AL, 00100111b	; Normal operation, normal priorities
+	;; out 20h, AL
+	;; jecxz $+2		; Delay
+	;; jecxz $+2
 	mov AL, 00000000b	; Mask all ints on
 	out 21h, AL
 
@@ -90,10 +90,10 @@ kernelPicDriverInitialize:
 	jecxz $+2		; Delay
 	jecxz $+2
 
-	mov AL, 00100111b	; Normal operation, normal priorities
-	out 0A0h, AL
-	jecxz $+2		; Delay
-	jecxz $+2
+	;; mov AL, 00100111b	; Normal operation, normal priorities
+	;; out 0A0h, AL
+	;; jecxz $+2		; Delay
+	;; jecxz $+2
 	mov AL, 00000000b	; Mask all ints on
 	out 0A1h, AL
 

@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -92,9 +92,9 @@ Main:
 	mov AL, byte [DS:SI]
 	;; We will restrict it to a number between 0-9
 	cmp AL, '0'
-	jb .diskNumberError
+	jb near .diskNumberError
 	cmp AL, '9'
-	ja .diskNumberError
+	ja near .diskNumberError
 	;; Turn it into a number instead of a char
 	sub AL, '0'
 	mov byte [DISKNUMBER], AL
@@ -104,6 +104,16 @@ Main:
 	mov AH, 9
 	int 21h
 	mov DX, FILENAME
+	mov AH, 9
+	int 21h
+
+	;; Print the name of the disk we're going to use
+	mov DX, DISKIS
+	mov AH, 9
+	int 21h
+	xor DX, DX
+	mov DL, byte [DISKNUMBER]
+	add DL, '0'
 	mov AH, 9
 	int 21h
 	mov DX, NEWLINE
@@ -227,14 +237,15 @@ Main:
 	;; Data
 	
 TITLE	db 0Dh, 0Ah, 'WRITEBOOT - Visopsys boot sector utility for DOS' 
-	db 0Dh, 0Ah, 'Copyright (C) 1998-2001 Andrew McLaughlin'
+	db 0Dh, 0Ah, 'Copyright (C) 1998-2003 Andrew McLaughlin'
 	db 0Dh, 0Ah, '$'
 NAMEIS	db 'Writing boot sector file: $'
+DISKIS	db '  to disk $'
 NOOPEN	db 0Dh, 0Ah, 'Could not open the input file for reading'
 	db 0Dh, 0Ah, '  Tip: use only DOS 8.3 (short) filenames'
 	db 0Dh, 0Ah, '$'
 NOREAD	db 0Dh, 0Ah, 'Could not read the input file!', 0Dh, 0Ah, '$'
-NOWRITE	db 0Dh, 0Ah, 'Could not write first sector of disk A:'
+NOWRITE	db 0Dh, 0Ah, 'Could not write first sector of the disk'
 	db 0Dh, 0Ah, '$'
 DNUMERR db 'The specified disk number is invalid', 0Dh, 0Ah, '$'
 DONE	db 'done.', 0Dh, 0Ah, '$' 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,24 +25,23 @@
 #include "kernelEnvironment.h"
 #include "kernelText.h"
 #include <time.h>
-#include <sys/file.h>
 
 // Definitions
-#define MAX_PROCESSES ((GDT_SIZE -  RES_GLOBAL_DESCRIPTORS))
+#define MAX_PROCNAME_LENGTH 64
+#define MAX_PROCESSES ((GDT_SIZE - RES_GLOBAL_DESCRIPTORS))
 #define PRIORITY_LEVELS 8
-#define PRIORITY_RATIO 3
-#define PRIORITY_DEFAULT ((PRIORITY_LEVELS / 2) - 1)
+#define DEFAULT_STACK_SIZE 0x00030000
+#define DEFAULT_SUPER_STACK_SIZE 0x00010000
+#define HOOK_TIMER_INT_NUMBER 0x20
 #define TIME_SLICE_LENGTH 0x00002000
 #define CPU_PERCENT_TIMESLICES 300
-#define DEFAULT_STACK_SIZE 0x00040000
-#define DEFAULT_SUPER_STACK_SIZE (DEFAULT_STACK_SIZE / 4)
-#define MAX_PROCNAME_LENGTH 64
-#define HOOK_TIMER_INT_NUMBER 0x20
+#define PRIORITY_RATIO 3
+#define PRIORITY_DEFAULT ((PRIORITY_LEVELS / 2) - 1)
 
 // An enumeration listing possible process states
 typedef enum
 {
-  running, ready, waiting, sleeping, stopped, zombie
+  running, ready, waiting, sleeping, stopped, finished, zombie
 
 } kernelProcessState;
 
@@ -53,39 +52,37 @@ typedef enum
 
 } kernelProcessType;
 
-
 // A structure representing x86 TSSes (Task State Sements)
 typedef volatile struct
 {
-  unsigned int oldTSS;
-  unsigned int ESP0;
-  unsigned int SS0;
-  unsigned int ESP1;
-  unsigned int SS1;
-  unsigned int ESP2;
-  unsigned int SS2;
-  unsigned int CR3;
-  unsigned int EIP;
-  unsigned int EFLAGS;
-  unsigned int EAX;
-  unsigned int ECX;
-  unsigned int EDX;
-  unsigned int EBX;
-  unsigned int ESP;
-  unsigned int EBP;
-  unsigned int ESI;
-  unsigned int EDI;
-  unsigned int ES;
-  unsigned int CS;
-  unsigned int SS;
-  unsigned int DS;
-  unsigned int FS;
-  unsigned int GS;
-  unsigned int LDTSelector;
-  unsigned int IOMap;
+  unsigned oldTSS;
+  unsigned ESP0;
+  unsigned SS0;
+  unsigned ESP1;
+  unsigned SS1;
+  unsigned ESP2;
+  unsigned SS2;
+  unsigned CR3;
+  unsigned EIP;
+  unsigned EFLAGS;
+  unsigned EAX;
+  unsigned ECX;
+  unsigned EDX;
+  unsigned EBX;
+  unsigned ESP;
+  unsigned EBP;
+  unsigned ESI;
+  unsigned EDI;
+  unsigned ES;
+  unsigned CS;
+  unsigned SS;
+  unsigned DS;
+  unsigned FS;
+  unsigned GS;
+  unsigned LDTSelector;
+  unsigned IOMap;
 
 } kernelTSS;
-
 
 // A structure for processes
 typedef volatile struct
@@ -98,26 +95,26 @@ typedef volatile struct
   int privilege;
   int parentProcessId;
   int descendentThreads;
-  unsigned int startTime;
+  unsigned startTime;
   unsigned cpuTime;
   int cpuPercent;
-  unsigned int waitTime;
-  unsigned int waitUntil;
+  unsigned waitTime;
+  unsigned waitUntil;
   int waitForProcess;
   int waitThreadTerm;
   kernelProcessState state;
   void *codeDataPointer;
-  unsigned int codeDataSize;
+  unsigned codeDataSize;
   void *userStack;
-  unsigned int userStackSize;
+  unsigned userStackSize;
   void *superStack;
-  unsigned int superStackSize;
+  unsigned superStackSize;
   kernelSelector tssSelector;
   kernelTSS taskStateSegment;
   char currentDirectory[MAX_PATH_LENGTH];
   kernelEnvironment *environment;
-  kernelTextStream *textInputStream;
-  kernelTextStream *textOutputStream;
+  kernelTextInputStream *textInputStream;
+  kernelTextOutputStream *textOutputStream;
 
 } kernelProcess;
 
@@ -128,12 +125,15 @@ extern kernelProcess *currentProcess;
 // Functions exported by kernelMultitasker.c
 int kernelMultitaskerInitialize(void);
 int kernelMultitaskerShutdown(int);
+void kernelExceptionHandler(void);
 void kernelMultitaskerDumpProcessList(void);
 int kernelMultitaskerGetCurrentProcessId(void);
-int kernelMultitaskerCreateProcess(void *, unsigned int, const char *,
-				   int, void *);
+kernelProcess *kernelMultitaskerGetProcess(int);
+int kernelMultitaskerCreateProcess(void *, unsigned, const char *, int, int,
+				   void *);
 int kernelMultitaskerSpawn(void *, const char *, int, void *);
 int kernelMultitaskerSpawnKernelThread(void *, const char *, int, void *);
+//int kernelMultitaskerFork(void);
 int kernelMultitaskerPassArgs(int, int, void *);
 int kernelMultitaskerGetProcessOwner(int);
 const char *kernelMultitaskerGetProcessName(int);
@@ -142,19 +142,19 @@ int kernelMultitaskerSetProcessState(int, kernelProcessState);
 int kernelMultitaskerGetProcessPriority(int);
 int kernelMultitaskerSetProcessPriority(int, int);
 int kernelMultitaskerGetProcessPrivilege(int);
-int kernelMultitaskerSetProcessPrivilege(int, int);
 int kernelMultitaskerGetCurrentDirectory(char *, int);
 int kernelMultitaskerSetCurrentDirectory(char *);
-kernelTextStream *kernelMultitaskerGetTextInput(void);
-int kernelMultitaskerSetTextInput(int, kernelTextStream *);
-kernelTextStream *kernelMultitaskerGetTextOutput(void);
-int kernelMultitaskerSetTextOutput(int, kernelTextStream *);
+kernelTextInputStream *kernelMultitaskerGetTextInput(void);
+int kernelMultitaskerSetTextInput(int, kernelTextInputStream *);
+kernelTextOutputStream *kernelMultitaskerGetTextOutput(void);
+int kernelMultitaskerSetTextOutput(int, kernelTextOutputStream *);
+int kernelMultitaskerTransferStreams(int, int, int);
 int kernelMultitaskerGetProcessorTime(clock_t *);
 void kernelMultitaskerYield(void);
-void kernelMultitaskerWait(unsigned int);
+void kernelMultitaskerWait(unsigned);
 int kernelMultitaskerBlock(int);
-int kernelMultitaskerKillProcess(int);
-int multitaskerKillAllProcesses(void);
+int kernelMultitaskerKillProcess(int, int);
+int kernelMultitaskerKillAll(void);
 int kernelMultitaskerTerminate(int);
 
 #define _KERNELMULTITASKER_H

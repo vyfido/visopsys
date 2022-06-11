@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -41,9 +41,10 @@ loaderDiskError:
 
 	;; Print a message that we have an error
 
-	;; Use error colour
-	mov DL, ERRORCOLOUR
 	call loaderPrintNewline
+
+	;; Use error color
+	mov DL, ERRORCOLOR
 	mov SI, IOERR
 	call loaderPrint
 
@@ -263,7 +264,7 @@ DSM1		db 'Bad command passed to driver.', 0
 DSM2		db 'Address mark not found or bad sector.', 0
 DSM3		db 'Diskette write protect error.', 0
 DSM4		db 'Sector not found.', 0
-DSM5		db 'Fixed disk reset failed.', 0
+DSM5		db 'Disk reset failed.', 0
 DSM6		db 'Diskette changed or removed.', 0
 DSM7		db 'Bad fixed disk parameter table.', 0
 DSM8		db 'DMA overrun.', 0

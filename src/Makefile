@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2001 J. Andrew McLaughlin
+##  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ## 
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
@@ -26,12 +26,12 @@ all:
 	make -C osloader -f Makefile all
 	make -C lib -f Makefile all
 	make -C kernel -f Makefile all
-	make -C programs -f Makefile all
+	make -C programs -f Makefile.visopsys all
 
 clean:
 	make -C osloader -f Makefile clean
 	make -C lib -f Makefile clean
 	make -C include -f Makefile clean
 	make -C kernel -f Makefile clean
-	make -C programs -f Makefile clean
+	make -C programs -f Makefile.visopsys clean
 	rm -f *~ core

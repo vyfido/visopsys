@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -45,7 +45,7 @@ loaderLoadKernel:
 	;; the problem that was encountered (based on the error code from
 	;; the loaderLoadFile function).  Next, it performs functions
 	;; like that of any other 'loader': it examines the ELF header
-	;; of the file,does any needed memory spacing as specified therein
+	;; of the file, does any needed memory spacing as specified therein
 	;; (such as moving segments around and creating data segments)
 
 	;; Save a dword on the stack for our return value
@@ -95,7 +95,7 @@ loaderLoadKernel:
 	BITS 32
 	
 	;; Load GS with the global data segment selector
-	mov EAX, ALLDATASELECTOR
+	mov EAX, PRIV_DATASELECTOR
 	mov GS, AX
 
 	;; Return to real mode
@@ -157,95 +157,6 @@ loaderLoadKernel:
 	ret
 
 
-layoutKernel:
-	;; This function takes information about the kernel ELF file
-	;; sections and modifies the kernel image appropriately in memory.
-
-	;; Save a word for our return code
-	sub SP, 2
-
-	;; Save regs
-	pusha
-
-	;; We will do layout for two segments; the code and data segments
-	;; (the getElfHeaderInfo() function should have caught any deviation
-	;; from that state of affairs).
-
-	;; For the code segment, we simply place it at the entry point.  The
-	;; entry point, in physical memory, should be KERNELCODEDATALOCATION.
-	;; Thus, all we do is move all code backwards by CODE_OFFSET bytes.
-	;; This will have the side effect of deleting the ELF header and
-	;; program header from memory.
-
-	mov ECX, dword [CODE_SIZEINFILE]
-	mov ESI, KERNELCODEDATALOCATION
-	add ESI, dword [CODE_OFFSET]
-	mov EDI, KERNELCODEDATALOCATION
-
-	.codeLoop:
-	mov AL, byte [GS:ESI]
-	mov byte [GS:EDI], AL
-	inc ESI
-	inc EDI
-	;; Can't seem to get 'loop' instruction to play nicely with
-	;; 32-bit ECX register in 16-bit mode
-	dec ECX	
-	cmp ECX, 0
-	jne .codeLoop
-
-	;; We do the same operation for the data segment, except we have to
-	;; first make sure that the difference between the code and data's
-	;; virtual address is the same as the difference between the offsets
-	;; in the file.
-	mov EAX, dword [DATA_VIRTADDR]
-	sub EAX, dword [CODE_VIRTADDR]
-	cmp EAX, dword [DATA_OFFSET]
-	je .okDataOffset
-
-	;; The kernel image doesn't look the way we expected.  This program
-	;; isn't versatile enough to handle that yet.
-	mov DL, ERRORCOLOUR
-	mov SI, THEFILE
-	call loaderPrint
-	mov SI, SEGLAYOUT
-	call loaderPrint
-	call loaderPrintNewline
-	mov SI, REINSTALL
-	call loaderPrint
-	call loaderPrintNewline
-	mov word [SS:(BP + 16)], -1
-	jmp .done
-
-	.okDataOffset:
-	;; We need to zero out the memory that makes up the difference
-	;; between the data's file size and its size in memory.
-	mov ECX, dword [DATA_SIZEINMEM]
-	sub ECX, dword [DATA_SIZEINFILE]
-	mov EDI, KERNELCODEDATALOCATION
-	add EDI, dword [DATA_OFFSET]
-	add EDI, dword [DATA_SIZEINFILE]
-	
-	.zeroLoop:
-	mov byte [GS:EDI], 0
-	inc EDI
-	;; Can't seem to get 'loop' instruction to play nicely with
-	;; 32-bit ECX register in 16-bit mode
-	dec ECX	
-	cmp ECX, 0
-	jne .zeroLoop
-
-	.success:
-	;; Make 0 be our return code
-	mov word [SS:(BP + 16)], 0
-	
-	.done:
-	popa
-	;; Pop our return code
-	xor EAX, EAX
-	pop AX
-	ret
-	
-
 getElfHeaderInfo:
 	;; This function checks the ELF header of the kernel file and
 	;; saves the relevant information about the file.  Assumes that
@@ -267,7 +178,7 @@ getElfHeaderInfo:
 	je .isElf
 
 	;; The kernel was not an ELF binary
-	mov DL, ERRORCOLOUR
+	mov DL, ERRORCOLOR
 	mov SI, THEFILE
 	call loaderPrint
 	mov SI, NOTELF
@@ -289,7 +200,7 @@ getElfHeaderInfo:
 	je .isExec
 
 	;; The kernel was not executable
-	mov DL, ERRORCOLOUR
+	mov DL, ERRORCOLOR
 	mov SI, THEFILE
 	call loaderPrint
 	mov SI, NOTEXEC
@@ -324,7 +235,7 @@ getElfHeaderInfo:
 
 	;; The kernel image doesn't look the way we expected.  This program
 	;; isn't versatile enough to handle that yet.
-	mov DL, ERRORCOLOUR
+	mov DL, ERRORCOLOR
 	mov SI, THEFILE
 	call loaderPrint
 	mov SI, NUMSEGS
@@ -366,7 +277,7 @@ getElfHeaderInfo:
 
 	;; The kernel image doesn't look the way we expected.  This program
 	;; isn't versatile enough to handle that yet.
-	mov DL, ERRORCOLOUR
+	mov DL, ERRORCOLOR
 	mov SI, THEFILE
 	call loaderPrint
 	mov SI, SEGLAYOUT
@@ -389,7 +300,7 @@ getElfHeaderInfo:
 
 	;; The kernel image doesn't look the way we expected.  This program
 	;; isn't versatile enough to handle that yet.
-	mov DL, ERRORCOLOUR
+	mov DL, ERRORCOLOR
 	mov SI, THEFILE
 	call loaderPrint
 	mov SI, SEGALIGN
@@ -433,7 +344,7 @@ getElfHeaderInfo:
 
 	;; The kernel image doesn't look the way we expected.  This program
 	;; isn't versatile enough to handle that yet.
-	mov DL, ERRORCOLOUR
+	mov DL, ERRORCOLOR
 	mov SI, THEFILE
 	call loaderPrint
 	mov SI, SEGALIGN
@@ -457,11 +368,12 @@ getElfHeaderInfo:
 	ret
 
 
-evaluateLoadError:
-	;; This function takes an error code as its only parameter, and
-	;; prints the appropriate error message
+layoutKernel:
+	;; This function takes information about the kernel ELF file
+	;; sections and modifies the kernel image appropriately in memory.
 
-	pusha
+	;; Save a word for our return code
+	sub SP, 2
 
 	;; Save regs
 	pusha
@@ -469,8 +381,107 @@ evaluateLoadError:
 	;; Save the stack register
 	mov BP, SP
 
-	;; Use the error colour
-	mov DL, ERRORCOLOUR
+	;; We will do layout for two segments; the code and data segments
+	;; (the getElfHeaderInfo() function should have caught any deviation
+	;; from that state of affairs).
+
+	;; For the code segment, we simply place it at the entry point.  The
+	;; entry point, in physical memory, should be KERNELCODEDATALOCATION.
+	;; Thus, all we do is move all code forward by CODE_OFFSET bytes.
+	;; This will have the side effect of deleting the ELF header and
+	;; program header from memory.
+
+	mov ECX, dword [CODE_SIZEINFILE]
+	mov ESI, KERNELCODEDATALOCATION
+	add ESI, dword [CODE_OFFSET]
+	mov EDI, KERNELCODEDATALOCATION
+
+	.codeLoop:
+	mov AL, byte [GS:ESI]
+	mov byte [GS:EDI], AL
+	inc ESI
+	inc EDI
+	;; Can't seem to get 'loop' instruction to play nicely with
+	;; 32-bit ECX register in 16-bit mode
+	dec ECX	
+	cmp ECX, 0
+	jne .codeLoop
+
+	;; We do the same operation for the data segment, except we have to
+	;; first make sure that the difference between the code and data's
+	;; virtual address is the same as the difference between the offsets
+	;; in the file.
+	mov EAX, dword [DATA_VIRTADDR]
+	sub EAX, dword [CODE_VIRTADDR]
+	cmp EAX, dword [DATA_OFFSET]
+	je .okDataOffset
+
+	;; The kernel image doesn't look exactly the way we expected, but
+	;; that can happen depending on which linker is used.  We can adjust
+	;; it.  Move the initialized data forward from the original offset
+	;; so that it matches the difference between the code and data's
+	;; virtual addresses.
+	mov ECX, dword [DATA_SIZEINFILE]
+	mov ESI, KERNELCODEDATALOCATION
+	add ESI, dword [DATA_OFFSET]
+	mov EDI, dword [DATA_VIRTADDR]
+	sub EDI, dword [CODE_VIRTADDR]
+	mov dword [DATA_OFFSET], EDI    ;; This will be different now
+	add EDI, KERNELCODEDATALOCATION
+
+	.dataLoop:
+	mov AL, byte [GS:ESI]
+	mov byte [GS:EDI], AL
+	inc ESI
+	inc EDI
+	;; Can't seem to get 'loop' instruction to play nicely with
+	;; 32-bit ECX register in 16-bit mode
+	dec ECX	
+	cmp ECX, 0
+	jne .dataLoop
+
+	.okDataOffset:
+	;; We need to zero out the memory that makes up the difference
+	;; between the data's file size and its size in memory.
+	mov ECX, dword [DATA_SIZEINMEM]
+	sub ECX, dword [DATA_SIZEINFILE]
+	mov EDI, KERNELCODEDATALOCATION
+	add EDI, dword [DATA_OFFSET]
+	add EDI, dword [DATA_SIZEINFILE]
+	
+	.zeroLoop:
+	mov byte [GS:EDI], 0
+	inc EDI
+	;; Can't seem to get 'loop' instruction to play nicely with
+	;; 32-bit ECX register in 16-bit mode
+	dec ECX	
+	cmp ECX, 0
+	jne .zeroLoop
+
+	.success:
+	;; Make 0 be our return code
+	mov word [SS:(BP + 16)], 0
+	
+	.done:
+	popa
+	;; Pop our return code
+	xor EAX, EAX
+	pop AX
+	ret
+	
+
+evaluateLoadError:
+	;; This function takes an error code as its only parameter, and
+	;; prints the appropriate error message
+
+	;; Save regs
+	pusha
+
+	;; Save the stack register
+	mov BP, SP
+
+	;; Use the error color
+	mov DL, ERRORCOLOR
 	mov SI, LOADFAIL
 	call loaderPrint
 
@@ -501,6 +512,7 @@ evaluateLoadError:
 	;; The kernel file could not be found.
 	mov SI, THEFILE
 	call loaderPrint
+	call loaderPrintNewline
 	mov SI, NOFILE1
 	call loaderPrint
 	call loaderPrintNewline
@@ -530,6 +542,7 @@ evaluateLoadError:
 	;; There must have been an error loading the kernel file itself.
 	mov SI, THEFILE
 	call loaderPrint
+	call loaderPrintNewline
 	mov SI, BADFILE
 	call loaderPrint
 	call loaderPrintNewline
@@ -571,15 +584,15 @@ KERNELNAME	db 'VISOPSYS   ', 0
 LOADFAIL	db 'Loading the Visopsys kernel failed.  ', 0
 NODIRECTORY	db 'The root directory could not be read.', 0
 NOFAT		db 'The FAT table could not be read.', 0
-THEFILE		db 'The kernel file ', 27h, 'visopsys', 0
-NOFILE1		db 27h, ' could not be found.', 0
+THEFILE		db 'The kernel file ', 27h, 'visopsys', 27h, 0
+NOFILE1		db 'could not be found.', 0
 NOFILE2		db 'Please make sure that this file exists in the root directory.', 0
-BADFILE		db 27h, ' could not be read.', 0
+BADFILE		db 'could not be read.', 0
 CORRUPTFS1	db 'The filesystem on the boot device may be corrupt:  you should use a disk', 0
 CORRUPTFS2	db 'utility to check the integrity of the filesystem and the Visopsys files.', 0
-NOTELF		db 27h, ' is not an ELF binary.', 0
-NOTEXEC		db 27h, ' is not executable.', 0
-NUMSEGS		db 27h, ' does not contain exactly 2 ELF segments.', 0
-SEGALIGN	db 27h, ' has incorrectly aligned ELF segments.', 0
-SEGLAYOUT	db 27h, ' has an incorrect ELF segment layout.', 0
+NOTELF		db ' is not an ELF binary.', 0
+NOTEXEC		db ' is not executable.', 0
+NUMSEGS		db ' does not contain exactly 2 ELF segments.', 0
+SEGALIGN	db ' has incorrectly aligned ELF segments.', 0
+SEGLAYOUT	db ' has an incorrect ELF segment layout.', 0
 REINSTALL	db 'You will probably need to reinstall Visopsys on this boot media.', 0

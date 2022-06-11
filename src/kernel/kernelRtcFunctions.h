@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,14 +23,6 @@
 
 #include <time.h>
 
-// Definitions
-
-// Error Messages
-#define NULL_RTC_OBJECT "The Real-Time clock device object that was passed or referenced is NULL"
-#define NULL_RTC_DRIVER_OBJECT "The Real-Time clock device driver that was passed or referenced is NULL"
-#define NULL_RTC_DRIVER_ROUTINE "The corresponding Real-Time clock device driver routine is NULL"
-#define RTC_INIT_FAILED "The Real-Time clock driver initialization returned this error code"
-
 // Structures for the Real-Time Clock device
 
 typedef struct
@@ -52,7 +44,6 @@ typedef struct
 
 } kernelRtcObject;
 
-
 // Functions exported by kernelRtcFunctions.c
 int kernelRtcRegisterDevice(kernelRtcObject *);
 int kernelRtcInstallDriver(kernelRtcDeviceDriver *);
@@ -64,9 +55,9 @@ int kernelRtcReadDayOfWeek(void);
 int kernelRtcReadDayOfMonth(void);
 int kernelRtcReadMonth(void);
 int kernelRtcReadYear(void);
-unsigned int kernelRtcUptimeSeconds(void);
-unsigned int kernelRtcPackedDate(void);
-unsigned int kernelRtcPackedTime(void);
+unsigned kernelRtcUptimeSeconds(void);
+unsigned kernelRtcPackedDate(void);
+unsigned kernelRtcPackedTime(void);
 int kernelRtcDateTime(struct tm *);
 
 #define _KERNELRTCFUNCTIONS_H

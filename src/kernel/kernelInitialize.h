@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,7 +24,7 @@
 #include "loaderInfo.h"
 
 // Functions from kernelInitialize.c
-int kernelInitialize(int, unsigned int, loaderInfoStruct *);
+int kernelInitialize(unsigned, loaderInfoStruct *);
 
 #define _KERNELINITIALIZE_H
 #endif

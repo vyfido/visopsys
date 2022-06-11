@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,7 +24,17 @@
 
 #include "kernelInterruptsInit.h"
 #include "kernelDescriptor.h"
+#include "kernelMultitasker.h"
 #include <sys/errors.h>
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+// Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 
 int kernelInterruptVectorsInstall(void)
@@ -36,31 +46,8 @@ int kernelInterruptVectorsInstall(void)
   int status = 0;
   static int calledOnce = 0;
   int count;
-
-  void *vectorList1[] = 
-  {
-    kernelExceptionHandler0,
-    kernelExceptionHandler1,
-    kernelExceptionHandler2,
-    kernelExceptionHandler3,
-    kernelExceptionHandler4,
-    kernelExceptionHandler5,
-    kernelExceptionHandler6,
-    kernelExceptionHandler7,
-    kernelExceptionHandler8,
-    kernelExceptionHandler9,
-    kernelExceptionHandlerA,
-    kernelExceptionHandlerB,
-    kernelExceptionHandlerC,
-    kernelExceptionHandlerD,
-    kernelExceptionHandlerE,
-    kernelExceptionHandlerF,
-    kernelExceptionHandler10,
-    kernelExceptionHandler11,
-    kernelExceptionHandler12
-  };
     
-  void *vectorList2[] = 
+  void *vectorList[] = 
   {
     kernelInterruptHandler20,
     kernelInterruptHandler21,
@@ -94,11 +81,10 @@ int kernelInterruptVectorsInstall(void)
 
   // OK, we need to begin installing the "defined" or "implemented" 
   // interrupt vectors into the IDT.  We do this with two loops of calls
-  
   for (count = 0; count < 19; count ++)
     {
-      status = 
-	kernelDescriptorSetIDTInterruptGate(count, vectorList1[count]);
+      status =
+	kernelDescriptorSetIDTInterruptGate(count, &kernelExceptionHandler);
       if (status < 0) 
 	return (status);
     }
@@ -106,7 +92,7 @@ int kernelInterruptVectorsInstall(void)
   for (count = 0; count < 16; count ++)
     {
       status = kernelDescriptorSetIDTInterruptGate((0x20 + count), 
-						   vectorList2[count]);
+						   vectorList[count]);
       if (status < 0) 
 	return (status);
     }

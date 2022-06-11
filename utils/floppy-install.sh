@@ -2,7 +2,7 @@
 
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2001 J. Andrew McLaughlin
+##  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ## 
 ##  This program is free software; you can redistribute it and/or modify it
 ##  under the terms of the GNU General Public License as published by the Free
@@ -34,16 +34,10 @@ set kernel = ../src/kernel/${PLATFORM}/visopsys
 set progdir = ../src/programs/${PLATFORM}
 set input_image
 
-set mkdosfs = mkdosfs
-set awk = awk
-set grep = grep
-set mount = mount
-set umount = umount
-
 
 echo ""
 echo "FLOPPY-INSTALL - Visopsys floppy disk installation script for UNIX"
-echo "Copyright (C) 1998-2001 Andrew McLaughlin"
+echo "Copyright (C) 1998-2003 Andrew McLaughlin"
 echo " -= NOTE: suitable for use only with Visopsys SOURCE distribution =-"
 echo ""
 echo "Making Visopsys boot diskette in $floppydev"
@@ -86,7 +80,7 @@ if ("$1" == "-i") then
 	echo "          [-o <output disk image file>]"
 	echo Terminating.
 	echo ""
-	exit 2
+	exit 1
     endif
 endif
 
@@ -101,7 +95,7 @@ if ("$1" == "-o") then
 	echo "input image file (cannot do a regular format of an image file)"
 	echo Terminating.
 	echo ""
-	exit 3
+	exit 1
     endif
     # discard the -o
     shift
@@ -118,7 +112,7 @@ if ("$1" == "-o") then
 	echo "          [-o <output disk image file>]"
 	echo Terminating.
 	echo ""
-	exit 4
+	exit 1
     endif
 else
     #  We're not using an output image file.  We're actually writing to
@@ -128,9 +122,10 @@ else
 	echo ""
 	echo "You do not have permission to write directly to the floppy"
 	echo "disk device file ($floppydev) on this system"
+	echo "try 'chmod go+rw $floppydev'"
 	echo Terminating.
 	echo ""
-	exit 5
+	exit 1
     endif
 endif
 
@@ -142,30 +137,7 @@ if !(-e $targetfile) then
 	echo "$targetfile is missing.  Have you done a make yet?"
 	echo Terminating.
 	echo ""
-	exit 6
-    endif
-end
-
-
-#  Check for some commands this file needs.  Check in /bin and /sbin
-#  first.  If it's not there, search the PATH
-
-foreach COMMAND ($mkdosfs $awk $grep $mount $umount)
-
-    #  Check in /bin and /sbin
-    if (-e /bin/$COMMAND) then
-	set $COMMAND = /bin/$COMMAND
-    else if (-e /sbin/$COMMAND) then
-	set $COMMAND = /sbin/$COMMAND
-    else if (-e `which $COMMAND`) then
-	set $COMMAND = `which $COMMAND`
-    else
-	echo ""
-	echo $COMMAND command is missing.  It is needed to use $0
-	echo Make sure it is installed, and is in your '$PATH'
-	echo Terminating.
-	echo ""
-	exit 7
+	exit 1
     endif
 end
 
@@ -173,18 +145,19 @@ end
 #  Try to figure out where the floppy disk gets mounted by reading the
 #  fstab file.  If this is not working on your system, you should 
 #  override this manually (or fix the following command)
-set FLOPPYDIR = (`cat $FSTAB | $grep $floppydev | $awk '{print $2}'`)
+set FLOPPYDIR = (`cat $FSTAB | grep $floppydev | awk '{print $2}'`)
 
+#dd if=/dev/zero of=$floppydev count=2880 >& /dev/null
 
 if ("$input_image" == "") then
     #  Format the floppy using the format command.  
     #  Stop if the command fails.
-    if !( { $mkdosfs $floppydev } ) then
+    if !( { /sbin/mkdosfs -F12 $floppydev } ) then
 	echo ""
 	echo "Not able to format disk in $floppydev.  Terminating."
 	echo Terminating.
 	echo ""
-	exit 8
+	exit 1
     endif
 else
     #  Format the floppy by writing the fresh disk image to the
@@ -195,37 +168,34 @@ else
 	echo "Not able to format disk in $floppydev.  Terminating."
 	echo Terminating.
 	echo ""
-	exit 9
+	exit 1
     endif
     echo Done
 endif
 
 
+#  Install the boot sector
+./copy-boot.sh $bootsector $floppydev
+
 #  Mount the floppy
-if !( { $mount $floppydev } ) then
+if !( { mount $floppydev } ) then
     echo ""
     echo "Not able (or not permitted) to mount disk in $floppydev."
     echo "Terminating."
     echo ""
-    exit 10
+    exit 1
 endif
-
-
-#  Install the boot sector
-echo -n "Installing boot sector...  "
-cat $bootsector > $floppydev
-echo Done
 
 
 #  Copy the os loader
 echo -n "Copying os loader...  "
 cp $osloader $FLOPPYDIR/
+#touch $FLOPPYDIR/bootinfo
 sync
 echo Done
 
 
-#  Copy the kernel.  We don't need to error-check this is the previous
-#  write was successful.
+#  Copy the kernel.
 echo -n "Copying kernel...  "
 cp $kernel $FLOPPYDIR/
 sync
@@ -235,15 +205,18 @@ echo Done
 #  Copy the programs
 echo -n "Copying miscellany...  "
 mkdir $FLOPPYDIR/programs
-find $progdir -name \*.o -exec rm {} \;
 cp $progdir/* $FLOPPYDIR/programs/
+mkdir $FLOPPYDIR/system
+cp dist/system/*.bmp $FLOPPYDIR/system/
+cp dist/system/*.conf $FLOPPYDIR/system/
+cp dist/system/*.txt $FLOPPYDIR/system/
+mv $FLOPPYDIR/system/backgrnd1.bmp $FLOPPYDIR/system/backgrnd.bmp
+#touch $FLOPPYDIR/nograph
 
-#  Copy the Visopsys logo picture file
-#cp ../docs/working/pics/visopsys.bmp $FLOPPYDIR/
-# No splash screen
-touch $FLOPPYDIR/nosplash
 sync
 echo Done
 
 #  Unmount the floppy disk
-$umount $FLOPPYDIR
+umount $FLOPPYDIR
+
+# /sbin/losetup /dev/loop1 -d

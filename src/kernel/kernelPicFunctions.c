@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -43,7 +43,7 @@ static int checkObjectAndDriver(char *invokedBy)
   if (kernelPic == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_PIC_OBJECT);
+      kernelError(kernel_error, "The interrupt controller is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -51,7 +51,7 @@ static int checkObjectAndDriver(char *invokedBy)
   if (kernelPic->deviceDriver == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_PIC_DRIVER_OBJECT);
+      kernelError(kernel_error, "The device driver is NULL");
       return (status = ERR_NOSUCHDRIVER);
     }
 
@@ -80,7 +80,7 @@ int kernelPicRegisterDevice(kernelPicObject *thePic)
   if (thePic == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_PIC_OBJECT);
+      kernelError(kernel_error, "The interrupt controller is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -99,12 +99,11 @@ int kernelPicInstallDriver(kernelPicDeviceDriver *theDriver)
 
   int status = 0;
 
-
   // Make sure the Pic object isn't NULL
   if (kernelPic == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_PIC_OBJECT);
+      kernelError(kernel_error, "The interrupt controller is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -112,7 +111,7 @@ int kernelPicInstallDriver(kernelPicDeviceDriver *theDriver)
   if (theDriver == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_PIC_DRIVER_OBJECT);
+      kernelError(kernel_error, "The device driver is NULL");
       return (status = ERR_NOSUCHDRIVER);
     }
 
@@ -133,7 +132,6 @@ int kernelPicInitialize(void)
 
   int status = 0;
 
-
   // Check the PIC object and device driver before proceeding
   status = checkObjectAndDriver(__FUNCTION__);
   if (status < 0)
@@ -145,7 +143,7 @@ int kernelPicInitialize(void)
   if (kernelPic->deviceDriver->driverInitialize == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_PIC_DRIVER_ROUTINE);
+      kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
@@ -155,7 +153,8 @@ int kernelPicInitialize(void)
   if (status < 0)
     {
       // Make the error
-      kernelError(kernel_error, PIC_INIT_FAILED);
+      kernelError(kernel_error, "The interrupt controller driver "
+		  "initialization failed");
       return (status);
     }
 
@@ -175,7 +174,6 @@ int kernelPicEndOfInterrupt(int interruptNumber)
 
   int status = 0;
 
-
   // Check the PIC object and device driver before proceeding
   status = checkObjectAndDriver(__FUNCTION__);
   if (status < 0)
@@ -187,7 +185,7 @@ int kernelPicEndOfInterrupt(int interruptNumber)
   if (kernelPic->deviceDriver->driverEndOfInterrupt == NULL)
     {
       // Make the error
-      kernelError(kernel_error, NULL_PIC_DRIVER_ROUTINE);
+      kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 

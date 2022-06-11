@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -22,15 +22,14 @@
 	GLOBAL loaderMain
 
 	EXTERN loaderSetTextDisplay
-	EXTERN loaderDetectHardware
 	EXTERN loaderFindFile
+	EXTERN loaderDetectHardware
 	EXTERN loaderLoadKernel
-	EXTERN loaderDisplaySplash
-	EXTERN loaderRemoveSplash
 	EXTERN loaderSetGraphicDisplay
 	EXTERN loaderPrint
 	EXTERN loaderPrintNewline
 	EXTERN loaderPrintNumber
+	EXTERN PARTENTRY
 	EXTERN HARDWAREINFO
 	EXTERN KERNELGMODE
 
@@ -46,6 +45,7 @@
 	GLOBAL FATS
 	GLOBAL DRIVENUMBER
 	GLOBAL FATALERROR
+	GLOBAL PRINTINFO
 
 	SEGMENT .text
 	BITS 16
@@ -61,6 +61,8 @@ loaderMain:
 	;; loading the kernel, etc.  After everything else is done, it
 	;; switches the processor to protected mode and starts the kernel.
 
+	cli
+	
 	;; Make sure all of the data segment registers point to the same
 	;; segment as the code segment
 	mov AX, (LDRCODESEGMENTLOCATION / 16)
@@ -68,34 +70,56 @@ loaderMain:
 	mov ES, AX
 	mov FS, AX
 	mov GS, AX
-			
-	;; We have to grab our boot disk info from the boot sector's
-	;; stack.  The boot sector will have pushed this information before 
-	;; calling us.  We need this stuff before we can do any disk 
-	;; operations -- and therefore continue the boot process
 
-	pop AX
-	mov word [DRIVENUMBER], AX
-	pop AX
-	mov word [BYTESPERSECT], AX
-	pop AX
-	mov word [SECPERCLUST], AX
+	;; We have to grab our boot filesystem info from the boot sector's
+	;; stack.  The boot sector will have pushed this information before 
+	;; calling us.
 	pop AX
 	mov word [FSTYPE], AX
-	pop AX
-	mov word [ROOTDIRENTS], AX
-	pop AX
-	mov word [FATS], AX
-	pop AX
-	mov word [FATSECS], AX
-	pop AX
-	mov word [RESSECS], AX
-
+	
 	;; Now ensure the stack segment and stack pointer are set to 
 	;; something more appropriate for the loader
 	mov AX, (LDRSTCKSEGMENTLOCATION / 16)
 	mov SS, AX
 	mov SP, LDRSTCKBASE
+
+	sti
+	
+	;; The boot sector is loaded at location 7C00h and starts with
+	;; some info about the filesystem.  Grab the info we need and store
+	;; it in some more convenient locations
+	push FS
+	xor AX, AX
+	mov FS, AX
+	mov AL, byte [FS:7C0Dh]
+	mov word [SECPERCLUST], AX
+	mov AL, byte [FS:7C10h]
+	mov word [FATS], AX
+	mov AL, byte [FS:7C24h]
+	mov word [DRIVENUMBER], AX
+	mov AX, word [FS:7C0Bh]
+	mov word [BYTESPERSECT], AX
+	mov AX, word [FS:7C0Eh]
+	mov word [RESSECS], AX
+	mov AX, word [FS:7C11h]
+	mov word [ROOTDIRENTS], AX
+	mov AX, word [FS:7C16h]
+	mov word [FATSECS], AX
+	pop FS
+	
+	;; If we are not booting from a floppy, then the boot sector code
+	;; should have put a pointer to the MBR record for this partition
+	;; in SI.  Copy the entry.
+	cmp word [DRIVENUMBER], 80h
+	jb .floppy
+	push DS
+	push 0
+	pop DS
+	mov CX, 16
+	mov DI, PARTENTRY
+	rep movsb
+	pop DS
+	.floppy:
 
 	;; Initialize the 'fatal error' flag
 	mov byte [FATALERROR], 00h
@@ -107,7 +131,7 @@ loaderMain:
 	
 	;; Print the 'Visopsys loader' messages
 	mov SI, LOADMSG1
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	call loaderPrint
 	call loaderPrintNewline
 	mov SI, LOADMSG2
@@ -118,6 +142,20 @@ loaderMain:
 	;; Gather information about the boot device
 	call bootDevice
 	
+	;; Before we print any other info, determine whether the user wants
+	;; to see any hardware info messages.  If the BOOTINFO file exists,
+	;; then we print the messages
+        push word BOOTINFO
+        call loaderFindFile
+        add SP, 2
+	mov word [PRINTINFO], AX
+	
+	;; Print out the boot device information
+	cmp word [PRINTINFO], 1
+	jne .noPrint1
+	call printBootDevice
+	.noPrint1:	
+
 	;; Call the routine to do the hardware detection
 	call loaderDetectHardware
 	
@@ -134,33 +172,13 @@ loaderMain:
 
 	call loaderPrintNewline
 	mov SI, LOADING
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	call loaderPrint
 	call loaderPrintNewline
 
-	;; Should we dislplay a splash screen while loading?  Look for a
-	;; file called by the name in SPLASHFLAG.  If it's there, we will
-	;; skip the splash screen
-	push word SPLASHFLAG
-	call loaderFindFile
-	add SP, 2
-
-	;; Does the file exist?
-	cmp AX, 1
-	je .noSplash
-	
-	;; Attempt to display a splash screen while loading the kernel
-	call loaderDisplaySplash
-
-	.noSplash:
 	;; Load the kernel
 	call loaderLoadKernel
 
-	push AX			; Save
-	;; Remove the splash screen (if any) after loading the kernel
-	call loaderRemoveSplash
-	pop AX			; Restore
-	
 	;; Make sure the kernel load was successful
 	cmp AX, 0
 	jge .okLoad
@@ -171,14 +189,16 @@ loaderMain:
 	;; Check for fatal errors before attempting to start the kernel
 	call fatalErrorCheck
 
+	;; Did we find a good graphics mode?
 	cmp word [KERNELGMODE], 0
 	je .noGraphics
+	
 	;; Get the graphics mode for the kernel and switch to it
 	push word [KERNELGMODE]
-	;; call loaderSetGraphicDisplay
+	call loaderSetGraphicDisplay
 	add SP, 2
-	.noGraphics:
 
+	.noGraphics:
 	;; Disable the cursor
 	mov CX, 2000h
 	mov AH, 01h
@@ -197,9 +217,8 @@ loaderMain:
 	;; Set EIP to protected mode values by spoofing a far jump
 	db 0EAh
 	dw .returnLabel, LDRCODESELECTOR
-
 	.returnLabel:	
-
+	
 	;; Now enable very basic paging
 	call pagingSetup
 	
@@ -207,14 +226,14 @@ loaderMain:
 	;; values for the kernel in protected mode
 
 	;; First the data registers (all point to the whole memory as data)
-	mov EAX, ALLDATASELECTOR
+	mov EAX, PRIV_DATASELECTOR
 	mov DS, AX
 	mov ES, AX
 	mov FS, AX
 	mov GS, AX
 
 	;; Now the stack registers
-	mov EAX, ALLSTCKSELECTOR
+	mov EAX, PRIV_STCKSELECTOR
 	mov SS, AX
 	mov EAX, KERNELVIRTUALADDRESS
 	add EAX, dword [(LDRCODESEGMENTLOCATION + KERNELSIZE)]
@@ -249,7 +268,7 @@ loaderMain:
 
 	;; Start the kernel.  Set the CS and IP in the process.  Simulate
 	;; a "call" stack-wise so that the kernel can get its parameters.
-	jmp ALLCODESELECTOR:KERNELVIRTUALADDRESS
+	jmp PRIV_CODESELECTOR:KERNELVIRTUALADDRESS
 
 	BITS 16
 	;; Just in case
@@ -276,19 +295,19 @@ fatalErrorCheck:
 	call loaderPrintNumber
 
 	mov SI, FATALERROR1
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 
 	call loaderPrint
 	call loaderPrintNewline
 
 	mov SI, FATALERROR2
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 
 	call loaderPrint
 	call loaderPrintNewline
 
 	mov SI, FATALERROR3
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	call loaderPrint
 	call loaderPrintNewline
 	jmp end
@@ -299,7 +318,7 @@ fatalErrorCheck:
 end:
 	;; Print the message indicating system halt/reboot
 	mov SI, PRESSREBOOT
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	call loaderPrint
 
 	call int9_hook
@@ -323,6 +342,11 @@ bootDevice:
 
 	;; This interrupt call will destroy ES, so save it
 	push ES
+
+	;; Guards againt BIOS bugs, apparently
+	mov AX, 0
+	mov ES, AX
+	mov DI, 0
 	
 	mov AH, 08h
 	mov DX, word [DRIVENUMBER]
@@ -336,8 +360,8 @@ bootDevice:
 	;; Ooops, the BIOS isn't helping us...
 	;; Print out the fatal error message
 
-	;; Change to the error colour
-	mov DL, ERRORCOLOUR
+	;; Change to the error color
+	mov DL, ERRORCOLOR
 	
 	mov SI, SAD
 	call loaderPrint
@@ -358,7 +382,7 @@ bootDevice:
 	jmp .done
 
 	.gotDiskInfo:
-	;; DH is the number of heads
+	;; DH is the number of heads, 0 based
 	xor AX, AX
 	mov AL, DH
 	add AX, 1
@@ -367,30 +391,34 @@ bootDevice:
 	;; We need to make a copy of some of the info we get from
 	;; register CX
 	mov BL, CL
-	and BX, 003Fh ;; Mask out the top ten bits
+	and BX, 003Fh		; Mask out the top ten bits
 	mov word [SECPERTRACK], BX
-
+	
 	mov BH, CL
-	and BH, 0C0h  ;; Mask out the bottom 6 bits
-	shr BH, 6  ;; Shift right 6 bits
+	and BH, 0C0h		; Mask out the bottom 6 bits
+	shr BH, 6		; Shift right 6 bits
 	mov BL, CH
 	add BX, 1
 	mov word [CYLINDERS], BX
 
-	;; Print out the boot device information
+	.done:
+	popa
+	ret
 
-	;; Use green colour
-	mov DL, 02h
+
+printBootDevice:
+	;; Prints info about the boot device
+
+	pusha
 	
+	mov DL, 02h		; Use green color
 	mov SI, HAPPY
 	call loaderPrint
 	mov SI, BOOTDEV
 	call loaderPrint
 
-	;; Switch to foreground colour
-	mov DL, FOREGROUNDCOLOUR
-
-	mov SI, DEVDISK
+	mov DL, FOREGROUNDCOLOR	; Switch to foreground color
+	mov SI, DEVDISK		
 	call loaderPrint
 	xor EAX, EAX
 	mov AX, word [DRIVENUMBER]
@@ -425,7 +453,7 @@ bootDevice:
 
 	;; Fall through for UNKNOWN
 	mov SI, UNKNOWNFS
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	call loaderPrint
 	call loaderPrintNewline
 	jmp .done
@@ -433,7 +461,7 @@ bootDevice:
 	.fat16:
 	;; Print FAT16
 	mov SI, FAT16MES
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	call loaderPrint
 	call loaderPrintNewline
 	jmp .done
@@ -441,14 +469,14 @@ bootDevice:
 	.fat12:
 	;; Print FAT12
 	mov SI, FAT12MES
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 	call loaderPrint
 	call loaderPrintNewline
 
-	.done:
+	.done:	
 	popa
 	ret
-
+		
 
 int9_hook:
 	;; This routine hooks the interrupt 9 key pressed event.
@@ -489,7 +517,7 @@ int9_handler:
 	;; This routine handles the interrupt 9 key pressed event
 	;; All we want to do is restart the machine
 	mov SI, REBOOTING
-	mov DL, FOREGROUNDCOLOUR
+	mov DL, FOREGROUNDCOLOR
 
 	call loaderPrint
 
@@ -546,9 +574,28 @@ enableA20:
 	xor AX, AX
 	in AL, 60h
 
+	;; Check to see whether A20 is already enabled.  I think this can
+	;; happen when rebooting from Windows, for example.  We don't want
+	;; to toggle it off again by accident.
+	bt AX, 1
+	jnc .notAlready
+	
+	;; Already enabled.  Warn.  Not bad.
+	mov DL, 02h		; Green color
+	mov SI, HAPPY
+	call loaderPrint
+	mov SI, A20
+	call loaderPrint
+	mov DL, FOREGROUNDCOLOR	; Switch to foreground color
+	mov SI, A20ALREADY
+	call loaderPrint
+	call loaderPrintNewline
+	jmp .done
+	
+	.notAlready:
 	;; Save the current value of EAX
 	push AX
-	
+		
 	;; Wait for the controller to be ready for a command
 	.commandWait2:
 	in AL, 64h
@@ -618,11 +665,9 @@ enableA20:
 	cmp CX, 0
 	jne near .startAttempt
 
-	
 	;; Well, our initial attempt to set A20 has failed.  Now we will
 	;; try a backup method (which is supposedly not supported on many
 	;; chipsets).
-
 		
 	;; Keep a counter so that we can make multiple attempts to turn
 	;; on A20 if necessary
@@ -681,7 +726,6 @@ enableA20:
 	dec CX
 	cmp CX, 0
 	jne near .startAttempt2
-
 	
 	;; OK, we weren't able to set the A20 address line, so we'll
 	;; not be able to access much memory.  We can give a fairly
@@ -691,8 +735,8 @@ enableA20:
 
 	;; Print an error message, make a fatal error, and finish
 	
-	;; Switch to the error colour
-	mov DL, ERRORCOLOUR
+	;; Switch to the error color
+	mov DL, ERRORCOLOR
 	
 	mov SI, SAD
 	call loaderPrint
@@ -728,18 +772,12 @@ enableA20:
 	.warn:
 	;; Here we print a warning about the fact that we had to use the
 	;; alternate enabling method
-	
-	;; Use green colour
-	mov DL, 02h
-	
+	mov DL, 02h		; Use green color
 	mov SI, HAPPY
 	call loaderPrint
 	mov SI, A20
 	call loaderPrint
-
-	;; Switch to foreground colour
-	mov DL, FOREGROUNDCOLOUR
-
+	mov DL, FOREGROUNDCOLOR	; Switch to foreground color
 	mov SI, A20WARN
 	call loaderPrint
 	call loaderPrintNewline
@@ -759,7 +797,7 @@ gdtSetup:
 
 	;; Make the correct address values appear in the GDT selectors
 
-	;; The ALLCODESELECTOR, ALLDATASELECTOR and ALLSTCKSELECTORs are 
+	;; The PRIV_CODESELECTOR, PRIV_DATASELECTOR and PRIV_STCKSELECTORs are 
 	;; already correct.
 
 	;; The loader's code segment descriptor
@@ -799,9 +837,8 @@ pagingSetup:
 
 	;; Make sure ES has the selector that points to the whole memory
 	;; space
-	mov EAX, ALLDATASELECTOR
+	mov EAX, PRIV_DATASELECTOR
 	mov ES, AX
-
 		
 	;; Create a page table to identity-map the first 4 megabytes of
 	;; the system's memory.  This is so that the loader can operate
@@ -824,7 +861,6 @@ pagingSetup:
 	add EBX, 1000h		; Move to next 4Kb
 	loop .entryLoop1
 
-
 	;; Create a page table to represent the virtual address space that
 	;; the kernel's code will occupy.  Start this table at address
 	;; (PAGINGDATA + 2000h)
@@ -843,7 +879,6 @@ pagingSetup:
 	stosd			; Store the page table entry at ES:EDI
 	add EBX, 1000h		; Move to next 4Kb
 	loop .entryLoop2
-
 
 	;; We will create a master page directory with two entries
 	;; representing the page tables we created.  The master page
@@ -886,24 +921,42 @@ pagingSetup:
 	;; Add the offset of the table
 	add EDI, PAGINGDATA
 	stosd
-
 	
 	;; Move the base address of the master page directory into CR3
-	mov EAX, CR3
-	and EAX, 000007FFh	; Clear bits 11-31, just in case
+	xor EAX, EAX		; CR3 supposed to be zeroed
 	or AL, 00001000b	; Set the page write-through bit
 	;; The address of the directory
 	mov EBX, PAGINGDATA
 	and EBX, 0FFFFF800h	; Clear bits 0-10, just in case
 	or EAX, EBX		; Combine them into the new CR3
 	mov CR3, EAX
-	
-			
-	;; Here we go.  Turn on paging in the processor
+
+	;; Make sure caching is not globally disabled
 	mov EAX, CR0
+	and EAX, 9FFFFFFFh	; Clear CD (30) and NW (29)
+	mov CR0, EAX
+	
+	;; Clear out the page cache before we turn on paging, since if
+	;; we don't, rebooting from Windows or other OSes can cause us to
+	;; crash
+	wbinvd
+	invd
+		
+	;; Here we go.  Turn on paging in the processor.
 	or EAX, 80000000h
 	mov CR0, EAX
 
+	;; Supposed to do a near jump after all that
+	jmp near .pagingOn
+	nop
+
+	.pagingOn:
+	;; Enable 'global' pages for processors that support it
+	mov EAX, CR4
+	or EAX, 00000080h
+	mov CR4, EAX
+		
+	.done:	
 	;; Done
 	popa
 	ret
@@ -925,6 +978,7 @@ pagingSetup:
 KERNELSIZE	dd 0
 OLDINT9		dd 0	;; Address of the interrupt 9 handler
 ;; This records the number of fatal errors recorded
+PRINTINFO	dw 0	;; Show hardware information messages?
 FATALERROR	db 0 	;; Fatal error encountered?
 
 	
@@ -958,20 +1012,20 @@ dummy_desc	dd 0 			;; The empty first descriptor
 allcode_desc	dw 0FFFFh
 		dw 0			
 		db 0			
-		db ALLCODEINFO1
-		db ALLCODEINFO2
+		db PRIV_CODEINFO1
+		db PRIV_CODEINFO2
 		db 0			
 alldata_desc	dw 0FFFFh
 		dw 0			
 		db 0			
-		db ALLDATAINFO1
-		db ALLDATAINFO2
+		db PRIV_DATAINFO1
+		db PRIV_DATAINFO2
 		db 0			
 allstck_desc	dw 0FFFFh
 		dw 0			
 		db 0			
-		db ALLSTCKINFO1
-		db ALLSTCKINFO2
+		db PRIV_STCKINFO1
+		db PRIV_STCKINFO2
 		db 0			
 ldrcode_desc	dw LDRCODESEGMENTSIZE
 		dw 0			;; modified in the code
@@ -987,8 +1041,8 @@ GDTLENGTH	equ $-dummy_desc
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.1' , 0
-LOADMSG2	db 'Copyright (C) 1998-2001 J. Andrew McLaughlin', 0
+LOADMSG1	db 'Visopsys OS Loader v0.2' , 0
+LOADMSG2	db 'Copyright (C) 1998-2003 J. Andrew McLaughlin', 0
 BOOTDEV		db 'Boot device  ', 10h, ' ', 0
 DEVDISK		db 'Disk ', 0
 DEVDISK2	db ', ', 0
@@ -1003,8 +1057,7 @@ A20WARN		db 'Enabled using alternate method.', 0
 LOADING		db 'Loading Visopsys', 0
 PRESSREBOOT	db 'Press any key to reboot.', 0
 REBOOTING	db '  ...Rebooting', 0
-SPLASHFLAG	db 'NOSPLASH   '
-
+BOOTINFO	db 'BOOTINFO   ', 0
 
 ;;
 ;; The error messages
@@ -1013,6 +1066,7 @@ SPLASHFLAG	db 'NOSPLASH   '
 SAD		db 'x ', 0
 BIOSERR		db 'The computer', 27h, 's BIOS was unable to provide information about', 0
 BIOSERR2	db 'the boot device.  Please check the BIOS for errors.', 0
+A20ALREADY	db 'Already enabled.', 0
 A20BAD1		db 'Could not enable the A20 address line, which would cause', 0
 A20BAD2		db 'serious memory problems for the kernel.  As strange as it may', 0
 A20BAD3		db 'sound, this is generally associated with keyboard errors. ', 0
@@ -1023,4 +1077,4 @@ FATALERROR2	db 'Any applicable error information is noted above, in orange type.
 FATALERROR3	db 'Please attempt to rectify these problems before retrying.', 0
 
 COPYRIGHT	db ' - Binary and associated source code copyright (C) 1998-'
-		db '2001 J. Andrew McLaughlin - '
+		db '2003 J. Andrew McLaughlin - '

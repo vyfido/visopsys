@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,135 +34,228 @@
 #endif
 
 #include <time.h>
+#include <sys/disk.h>
 #include <sys/file.h>
+#include <sys/image.h>
 #include <sys/stream.h>
+#include <sys/window.h>
 
 // Included in the Visopsys standard library to prevent API calls from
 // within kernel code.
 extern int visopsys_in_kernel;
 
 // Text input/output functions.  All are in the 1000-1999 range.
-#define _fnum_textStreamGetColumns                1001
-#define _fnum_textStreamGetRows                   1002
-#define _fnum_textStreamGetForeground             1003
-#define _fnum_textStreamSetForeground             1004
-#define _fnum_textStreamGetBackground             1005
-#define _fnum_textStreamSetBackground             1006
-#define _fnum_textPutc                            1007
-#define _fnum_textPrint                           1008
-#define _fnum_textPrintLine                       1009
-#define _fnum_textNewline                         1010
-#define _fnum_textBackSpace                       1011
-#define _fnum_textTab                             1012
-#define _fnum_textCursorUp                        1013
-#define _fnum_textCursorDown                      1014
-#define _fnum_ternelTextCursorLeft                1015
-#define _fnum_textCursorRight                     1016
-#define _fnum_textGetNumColumns                   1017
-#define _fnum_textGetNumRows                      1018
-#define _fnum_textGetColumn                       1019
-#define _fnum_textSetColumn                       1020
-#define _fnum_textGetRow                          1021
-#define _fnum_textSetRow                          1022
-#define _fnum_textClearScreen                     1023
-#define _fnum_textInputCount                      1024
-#define _fnum_textInputGetc                       1025
-#define _fnum_textInputReadN                      1026
-#define _fnum_textInputReadAll                    1027
-#define _fnum_textInputAppend                     1028
-#define _fnum_textInputAppendN                    1029
-#define _fnum_textInputRemove                     1030
-#define _fnum_textInputRemoveN                    1031
-#define _fnum_textInputRemoveAll                  1032
+#define _fnum_textGetForeground                      1003
+#define _fnum_textSetForeground                      1004
+#define _fnum_textGetBackground                      1005
+#define _fnum_textSetBackground                      1006
+#define _fnum_textPutc                               1007
+#define _fnum_textPrint                              1008
+#define _fnum_textPrintLine                          1009
+#define _fnum_textNewline                            1010
+#define _fnum_textBackSpace                          1011
+#define _fnum_textTab                                1012
+#define _fnum_textCursorUp                           1013
+#define _fnum_textCursorDown                         1014
+#define _fnum_ternelTextCursorLeft                   1015
+#define _fnum_textCursorRight                        1016
+#define _fnum_textGetNumColumns                      1017
+#define _fnum_textGetNumRows                         1018
+#define _fnum_textGetColumn                          1019
+#define _fnum_textSetColumn                          1020
+#define _fnum_textGetRow                             1021
+#define _fnum_textSetRow                             1022
+#define _fnum_textClearScreen                        1023
+#define _fnum_textInputCount                         1024
+#define _fnum_textInputGetc                          1025
+#define _fnum_textInputReadN                         1026
+#define _fnum_textInputReadAll                       1027
+#define _fnum_textInputAppend                        1028
+#define _fnum_textInputAppendN                       1029
+#define _fnum_textInputRemove                        1030
+#define _fnum_textInputRemoveN                       1031
+#define _fnum_textInputRemoveAll                     1032
+#define _fnum_textInputSetEcho                       1033
+
+// Disk functions.  All are in the 2000-2999 range.
+#define _fnum_diskFunctionsGetBoot                   2001
+#define _fnum_diskFunctionsGetCount                  2002
+#define _fnum_diskFunctionsGetInfo                   2003
+#define _fnum_diskFunctionsMotorOn                   2004
+#define _fnum_diskFunctionsMotorOff                  2005
+#define _fnum_diskFunctionsDiskChanged               2006
+#define _fnum_diskFunctionsReadSectors               2007
+#define _fnum_diskFunctionsWriteSectors              2008
+#define _fnum_diskFunctionsReadAbsoluteSectors       2009
+#define _fnum_diskFunctionsWriteAbsoluteSectors      2010
 
 // Filesystem functions.  All are in the 8000-8999 range.
-#define _fnum_filesystemSync                      8001
-#define _fnum_filesystemMount                     8002
-#define _fnum_filesystemUnmount                   8003
-#define _fnum_filesystemNumberMounted             8004
-#define _fnum_filesystemFirstFilesystem           8005
-#define _fnum_filesystemNextFilesystem            8006
-#define _fnum_filesystemGetFree                   8007
-#define _fnum_filesystemGetBlockSize              8008
+#define _fnum_filesystemSync                         8001
+#define _fnum_filesystemCheck                        8002
+#define _fnum_filesystemDefragment                   8003
+#define _fnum_filesystemMount                        8004
+#define _fnum_filesystemUnmount                      8005
+#define _fnum_filesystemNumberMounted                8006
+#define _fnum_filesystemFirstFilesystem              8007
+#define _fnum_filesystemNextFilesystem               8008
+#define _fnum_filesystemGetFree                      8009
+#define _fnum_filesystemGetBlockSize                 8010
 
 // File functions.  All are in the 9000-9999 range.
-#define _fnum_fileFixupPath                       9001
-#define _fnum_fileFirst                           9002
-#define _fnum_fileNext                            9003
-#define _fnum_fileFind                            9004
-#define _fnum_fileOpen                            9005
-#define _fnum_fileClose                           9006
-#define _fnum_fileRead                            9007
-#define _fnum_fileWrite                           9008
-#define _fnum_fileDelete                          9009
-#define _fnum_fileDeleteSecure                    9010
-#define _fnum_fileMakeDir                         9011
-#define _fnum_fileRemoveDir                       9012
-#define _fnum_fileCopy                            9013
-#define _fnum_fileMove                            9014
-#define _fnum_fileTimestamp                       9015
-#define _fnum_fileStreamOpen                      9016
-#define _fnum_fileStreamSeek                      9017
-#define _fnum_fileStreamRead                      9018
-#define _fnum_fileStreamWrite                     9019
-#define _fnum_fileStreamFlush                     9020
-#define _fnum_fileStreamClose                     9021
+#define _fnum_fileFixupPath                          9001
+#define _fnum_fileFirst                              9002
+#define _fnum_fileNext                               9003
+#define _fnum_fileFind                               9004
+#define _fnum_fileOpen                               9005
+#define _fnum_fileClose                              9006
+#define _fnum_fileRead                               9007
+#define _fnum_fileWrite                              9008
+#define _fnum_fileDelete                             9009
+#define _fnum_fileDeleteSecure                       9010
+#define _fnum_fileMakeDir                            9011
+#define _fnum_fileRemoveDir                          9012
+#define _fnum_fileCopy                               9013
+#define _fnum_fileCopyRecursive                      9014
+#define _fnum_fileMove                               9015
+#define _fnum_fileTimestamp                          9016
+#define _fnum_fileStreamOpen                         9017
+#define _fnum_fileStreamSeek                         9018
+#define _fnum_fileStreamRead                         9019
+#define _fnum_fileStreamWrite                        9020
+#define _fnum_fileStreamFlush                        9021
+#define _fnum_fileStreamClose                        9022
 
 // Memory manager functions.  All are in the 10000-10999 range.
-#define _fnum_memoryPrintUsage                    10001
-#define _fnum_memoryRequestBlock                  10002
-#define _fnum_memoryRequestPhysicalBlock          10003
-#define _fnum_memoryReleaseByPointer              10004
-#define _fnum_memoryReleaseAllByProcId            10005
-#define _fnum_memoryChangeOwner                   10006
+#define _fnum_memoryPrintUsage                       10001
+#define _fnum_memoryRequestBlock                     10002
+#define _fnum_memoryRequestPhysicalBlock             10003
+#define _fnum_memoryReleaseBlock                     10004
+#define _fnum_memoryReleaseAllByProcId               10005
+#define _fnum_memoryChangeOwner                      10006
 
 // Multitasker functions.  All are in the 11000-11999 range.
-#define _fnum_multitaskerSpawn                    11001
-#define _fnum_multitaskerYield                    11002
-#define _fnum_multitaskerWait                     11003
-#define _fnum_multitaskerCreateProcess            11004
-#define _fnum_multitaskerKillProcess              11005
-#define _fnum_multitaskerTerminate                11006
-#define _fnum_multitaskerGetCurrentProcessId      11007
-#define _fnum_multitaskerGetProcessOwner          11008
-#define _fnum_multitaskerSetProcessPriority       11009
-#define _fnum_multitaskerGetProcessState          11010
-#define _fnum_multitaskerSetProcessState          11011
-#define _fnum_multitaskerGetCurrentDirectory      11012
-#define _fnum_multitaskerSetCurrentDirectory      11013
-#define _fnum_multitaskerDumpProcessList          11014
-#define _fnum_multitaskerGetProcessorTime         11015
+#define _fnum_multitaskerCreateProcess               11001
+#define _fnum_multitaskerSpawn                       11002
+#define _fnum_multitaskerGetCurrentProcessId         11003
+#define _fnum_multitaskerGetProcessOwner             11004
+#define _fnum_multitaskerGetProcessName              11005
+#define _fnum_multitaskerGetProcessState             11006
+#define _fnum_multitaskerSetProcessState             11007
+#define _fnum_multitaskerGetProcessPriority          11008
+#define _fnum_multitaskerSetProcessPriority          11009
+#define _fnum_multitaskerGetProcessPrivilege         11010
+#define _fnum_multitaskerGetCurrentDirectory         11011
+#define _fnum_multitaskerSetCurrentDirectory         11012
+#define _fnum_multitaskerGetTextInput                11013
+#define _fnum_multitaskerSetTextInput                11014
+#define _fnum_multitaskerGetTextOutput               11015
+#define _fnum_multitaskerSetTextOutput               11016
+#define _fnum_multitaskerGetProcessorTime            11017
+#define _fnum_multitaskerYield                       11018
+#define _fnum_multitaskerWait                        11019
+#define _fnum_multitaskerBlock                       11020
+#define _fnum_multitaskerKillProcess                 11021
+#define _fnum_multitaskerTerminate                   11022
+#define _fnum_multitaskerDumpProcessList             11023
 
 // Loader functions.  All are in the 12000-12999 range.
-#define _fnum_loaderLoadAndExec                   12001
+#define _fnum_loaderLoad                             12001
+#define _fnum_loaderLoadProgram                      12002
+#define _fnum_loaderExecProgram                      12003
+#define _fnum_loaderLoadAndExec                      12004
 
 // Real-time clock functions.  All are in the 13000-13999 range.
-#define _fnum_rtcReadSeconds                      13001
-#define _fnum_rtcReadMinutes                      13002
-#define _fnum_rtcReadHours                        13003
-#define _fnum_rtcReadDayOfWeek                    13004
-#define _fnum_rtcReadDayOfMonth                   13005
-#define _fnum_rtcReadMonth                        13006
-#define _fnum_rtcReadYear                         13007
-#define _fnum_rtcUptimeSeconds                    13008
-#define _fnum_rtcDateTime                         13009
+#define _fnum_rtcReadSeconds                         13001
+#define _fnum_rtcReadMinutes                         13002
+#define _fnum_rtcReadHours                           13003
+#define _fnum_rtcReadDayOfWeek                       13004
+#define _fnum_rtcReadDayOfMonth                      13005
+#define _fnum_rtcReadMonth                           13006
+#define _fnum_rtcReadYear                            13007
+#define _fnum_rtcUptimeSeconds                       13008
+#define _fnum_rtcDateTime                            13009
 
 // Random number functions.  All are in the 14000-14999 range.
-#define _fnum_randomUnformatted                   14001
-#define _fnum_randomFormatted                     14002
-#define _fnum_randomSeededUnformatted             14003
-#define _fnum_randomSeededFormatted               14004
+#define _fnum_randomUnformatted                      14001
+#define _fnum_randomFormatted                        14002
+#define _fnum_randomSeededUnformatted                14003
+#define _fnum_randomSeededFormatted                  14004
 
 // Environment functions.  All are in the 15000-15999 range.
-#define _fnum_environmentGet                      15001
-#define _fnum_environmentSet                      15002
-#define _fnum_environmentUnset                    15003
-#define _fnum_environmentDump                     15004
+#define _fnum_environmentGet                         15001
+#define _fnum_environmentSet                         15002
+#define _fnum_environmentUnset                       15003
+#define _fnum_environmentDump                        15004
 
-// Miscellaneous functions
-#define _fnum_shutdown                            99001
-#define _fnum_version                             99002
+// Raw graphics drawing functions.  All are in the 16000-16999 range
+#define _fnum_graphicsAreEnabled                     16001
+#define _fnum_graphicGetScreenWidth                  16002
+#define _fnum_graphicGetScreenHeight                 16003
+#define _fnum_graphicCalculateAreaBytes              16004
+#define _fnum_graphicClearScreen                     16005
+#define _fnum_graphicDrawPixel                       16006
+#define _fnum_graphicDrawLine                        16007
+#define _fnum_graphicDrawRect                        16008
+#define _fnum_graphicDrawOval                        16009
+#define _fnum_graphicDrawImage                       16010
+#define _fnum_graphicGetImage                        16011
+#define _fnum_graphicDrawText                        16012
+#define _fnum_graphicCopyArea                        16013
+#define _fnum_graphicClearArea                       16014
+#define _fnum_graphicRenderBuffer                    16015
 
+// Window manager functions.  All are in the 17000-17999 range
+#define _fnum_windowManagerStart                     17001
+#define _fnum_windowManagerLogin                     17002
+#define _fnum_windowManagerLogout                    17003
+#define _fnum_windowManagerNewWindow                 17004
+#define _fnum_windowManagerDestroyWindow             17005
+#define _fnum_windowManagerUpdateBuffer              17006
+#define _fnum_windowSetTitle                         17007
+#define _fnum_windowGetSize                          17008
+#define _fnum_windowSetSize                          17009
+#define _fnum_windowAutoSize                         17010
+#define _fnum_windowGetLocation                      17011
+#define _fnum_windowSetLocation                      17012
+#define _fnum_windowSetHasBorder                     17013
+#define _fnum_windowSetHasTitleBar                   17014
+#define _fnum_windowSetMovable                       17015
+#define _fnum_windowSetHasCloseButton                17016
+#define _fnum_windowLayout                           17017
+#define _fnum_windowSetVisible                       17018
+#define _fnum_windowAddComponent                     17019
+#define _fnum_windowAddClientComponent               17020
+#define _fnum_windowComponentGetWidth                17021
+#define _fnum_windowComponentGetHeight               17022
+#define _fnum_windowManagerRedrawArea                17023
+#define _fnum_windowManagerProcessMouseEvent         17024
+#define _fnum_windowManagerTileBackground            17025
+#define _fnum_windowManagerCenterBackground          17026
+#define _fnum_windowManagerScreenShot                17027
+#define _fnum_windowManagerSaveScreenShot            17028
+#define _fnum_windowManagerSetTextOutput             17029
+#define _fnum_windowNewButtonComponent               17030
+#define _fnum_windowNewIconComponent                 17031
+#define _fnum_windowNewImageComponent                17032
+#define _fnum_windowNewTextAreaComponent             17033
+#define _fnum_windowNewTextFieldComponent            17034
+#define _fnum_windowNewTextLabelComponent            17035
+#define _fnum_windowNewTitleBarComponent             17036
+
+// Miscellaneous functions.  All are in the 99000-99999 range
+#define _fnum_fontGetDefault                         99001
+#define _fnum_fontSetDefault                         99002
+#define _fnum_fontLoad                               99003
+#define _fnum_fontGetPrintedWidth                    99004
+#define _fnum_fontGetHeight                          99005
+#define _fnum_imageLoadBmp                           99006
+#define _fnum_imageSaveBmp                           99007
+#define _fnum_shutdown                               99008
+#define _fnum_version                                99009
+
+// An "object key".  Really a pointer to an object in kernel memory, but
+// of course not usable by applications other than as a reference
+typedef void * objectKey;
 
 // Utility macros for stack manipulation
 #define stackPush(value) \
@@ -276,6 +369,90 @@ static inline int sysCall_5(int fnum, void *arg1, void *arg2, void *arg3,
 }
 
 
+static inline int sysCall_6(int fnum, void *arg1, void *arg2, void *arg3,
+			    void *arg4, void *arg5, void *arg6)
+{
+  // Do a syscall with 6 parameters
+  int status = 0;
+  stackPush(arg6);
+  stackPush(arg5);
+  stackPush(arg4);
+  stackPush(arg3);
+  stackPush(arg2);
+  stackPush(arg1);
+  stackPush(fnum);
+  stackPush(7);
+  sysCall(status);
+  stackAdj(32);
+  return (status);
+}
+
+
+static inline int sysCall_7(int fnum, void *arg1, void *arg2, void *arg3,
+			    void *arg4, void *arg5, void *arg6, void *arg7)
+{
+  // Do a syscall with 7 parameters
+  int status = 0;
+  stackPush(arg7);
+  stackPush(arg6);
+  stackPush(arg5);
+  stackPush(arg4);
+  stackPush(arg3);
+  stackPush(arg2);
+  stackPush(arg1);
+  stackPush(fnum);
+  stackPush(8);
+  sysCall(status);
+  stackAdj(36);
+  return (status);
+}
+
+
+static inline int sysCall_8(int fnum, void *arg1, void *arg2, void *arg3,
+			    void *arg4, void *arg5, void *arg6, void *arg7,
+			    void *arg8)
+{
+  // Do a syscall with 8 parameters
+  int status = 0;
+  stackPush(arg8);
+  stackPush(arg7);
+  stackPush(arg6);
+  stackPush(arg5);
+  stackPush(arg4);
+  stackPush(arg3);
+  stackPush(arg2);
+  stackPush(arg1);
+  stackPush(fnum);
+  stackPush(9);
+  sysCall(status);
+  stackAdj(40);
+  return (status);
+}
+
+
+static inline int sysCall_9(int fnum, void *arg1, void *arg2, void *arg3,
+			    void *arg4, void *arg5, void *arg6, void *arg7,
+			    void *arg8, void *arg9)
+{
+  // Do a syscall with 9 parameters
+  int status = 0;
+  stackPush(arg9);
+  stackPush(arg8);
+  stackPush(arg7);
+  stackPush(arg6);
+  stackPush(arg5);
+  stackPush(arg4);
+  stackPush(arg3);
+  stackPush(arg2);
+  stackPush(arg1);
+  stackPush(fnum);
+  stackPush(10);
+  sysCall(status);
+  stackAdj(44);
+  return (status);
+}
+
+
 // These inline functions are used to call specific kernel functions.  
 // There will be one of these for every API function.
 
@@ -284,40 +461,28 @@ static inline int sysCall_5(int fnum, void *arg1, void *arg2, void *arg3,
 // Text input/output functions
 //
 
-static inline int textStreamGetColumns(void)
+static inline int textGetForeground(void)
 {
-  // Proto: int kernelTextStreamGetColumns(void);
-  return (sysCall_0(_fnum_textStreamGetColumns));
+  // Proto: int kernelTextGetForeground(void);
+  return (sysCall_0(_fnum_textGetForeground));
 }
 
-static inline int textStreamGetRows(void)
+static inline int textSetForeground(int foreground)
 {
-  // Proto: int kernelTextStreamGetRows(void);
-  return (sysCall_0(_fnum_textStreamGetRows));
+  // Proto: int kernelTextSetForeground(int);
+  return (sysCall_1(_fnum_textSetForeground, (void *) foreground));
 }
 
-static inline int textStreamGetForeground(void)
+static inline int textGetBackground(void)
 {
-  // Proto: int kernelTextStreamGetForeground(void);
-  return (sysCall_0(_fnum_textStreamGetForeground));
+  // Proto: int kernelTextGetBackground(void);
+  return (sysCall_0(_fnum_textGetBackground));
 }
 
-static inline int textStreamSetForeground(int colour)
+static inline int textSetBackground(int background)
 {
-  // Proto: int kernelTextStreamSetForeground(int);
-  return (sysCall_1(_fnum_textStreamSetForeground, (void *) colour));
-}
-
-static inline int textStreamGetBackground(void)
-{
-  // Proto: int kernelTextStreamGetBackground(void);
-  return (sysCall_0(_fnum_textStreamGetBackground));
-}
-
-static inline int textStreamSetBackground(int colour)
-{
-  // Proto: int kernelTextStreamSetBackground(int);
-  return (sysCall_1(_fnum_textStreamSetBackground, (void *) colour));
+  // Proto: int kernelTextSetBackground(int);
+  return (sysCall_1(_fnum_textSetBackground, (void *) background));
 }
 
 static inline int textPutc(int ascii)
@@ -449,13 +614,13 @@ static inline int textInputReadAll(char *buff)
 static inline int textInputAppend(int ascii)
 {
   // Proto: int kernelTextInputAppend(int);
-  return (sysCall_1(_fnum_textInputAppend, (void *)ascii));
+  return (sysCall_1(_fnum_textInputAppend, (void *) ascii));
 }
 
 static inline int textInputAppendN(int num, char *str)
 {
   // Proto: int kernelTextInputAppendN(int, char *);
-  return (sysCall_2(_fnum_textInputAppendN, (void*)num, str));
+  return (sysCall_2(_fnum_textInputAppendN, (void *) num, str));
 }
 
 static inline int textInputRemove(void)
@@ -467,7 +632,7 @@ static inline int textInputRemove(void)
 static inline int textInputRemoveN(int num)
 {
   // Proto: int kernelTextInputRemoveN(int);
-  return (sysCall_1(_fnum_textInputRemoveN, (void*)num));
+  return (sysCall_1(_fnum_textInputRemoveN, (void *) num));
 }
 
 static inline int textInputRemoveAll(void)
@@ -476,15 +641,111 @@ static inline int textInputRemoveAll(void)
   return (sysCall_0(_fnum_textInputRemoveAll));
 }
 
+static inline void textInputSetEcho(int onOff)
+{
+  // Proto: void kernelTextInputSetEcho(int);
+  sysCall_1(_fnum_textInputSetEcho, (void *) onOff);
+}
+
+
+// 
+// Disk functions
+//
+
+static inline int diskFunctionsGetBoot(void)
+{
+  // Proto: kernelDiskFunctionsGetBoot(void)
+  return (sysCall_0(_fnum_diskFunctionsGetBoot));
+}
+
+static inline int diskFunctionsGetCount(void)
+{
+  // Proto: int kernelDiskFunctionsGetCount(void);
+  return (sysCall_0(_fnum_diskFunctionsGetCount));
+}
+
+static inline int diskFunctionsGetInfo(int num, disk *d)
+{
+  // Proto: int kernelDiskFunctionsGetInfo(int, disk *)
+  return (sysCall_2(_fnum_diskFunctionsGetInfo, (void *) num, d));
+}
+
+static inline int diskFunctionsMotorOn(int num)
+{
+  // Proto: int kernelDiskFunctionsMotorOn(int);
+  return (sysCall_1(_fnum_diskFunctionsMotorOn, (void *) num));
+}
+
+static inline int diskFunctionsMotorOff(int num)
+{
+  // Proto: int kernelDiskFunctionsMotorOff(int);
+  return (sysCall_1(_fnum_diskFunctionsMotorOff, (void *) num));
+}
+
+static inline int diskFunctionsDiskChanged(int num)
+{
+  // Proto: int kernelDiskFunctionsDiskChanged(int)
+  return (sysCall_1(_fnum_diskFunctionsDiskChanged, (void *) num));
+}
+
+static inline int diskFunctionsReadSectors(int num, unsigned sect,
+					   unsigned count, void *buf)
+{
+  // Proto: int kernelDiskFunctionsReadSectors(int, unsigned, unsigned,
+  //                                           void *);
+  return (sysCall_4(_fnum_diskFunctionsReadSectors, (void *) num,
+		    (void *) sect, (void *) count, buf));
+}
+
+static inline int diskFunctionsWriteSectors(int num, unsigned sect,
+					    unsigned count, void *buf)
+{
+  // Proto: int kernelDiskFunctionsWriteSectors(int, unsigned, unsigned,
+  //                                            void *)
+  return (sysCall_4(_fnum_diskFunctionsWriteSectors, (void *) num,
+		    (void *) sect, (void *) count, buf));
+}
+
+static inline int diskFunctionsReadAbsoluteSectors(int num, unsigned sect,
+						   unsigned count, void *buf)
+{
+  // Proto: int kernelDiskFunctionsReadAbsoluteSectors(int, unsigned, unsigned,
+  //                                           void *);
+  return (sysCall_4(_fnum_diskFunctionsReadAbsoluteSectors, (void *) num,
+		    (void *) sect, (void *) count, buf));
+}
+
+static inline int diskFunctionsWriteAbsoluteSectors(int num, unsigned sect,
+						    unsigned count, void *buf)
+{
+  // Proto: int kernelDiskFunctionsWriteAbsoluteSectors(int, unsigned,
+  //                                                    unsigned, void *)
+  return (sysCall_4(_fnum_diskFunctionsWriteAbsoluteSectors, (void *) num,
+		    (void *) sect, (void *) count, buf));
+}
+
 
 //
 // Filesystem functions
 //
 
+static inline int filesystemCheck(int disknum, int force, int repair)
+{
+  // Proto: int kernelFilesystemCheck(int, int, int);
+  return (sysCall_3(_fnum_filesystemCheck, (void *) disknum, (void *) force,
+		    (void *) repair));
+}
+
+static inline int filesystemDefragment(int disknum)
+{
+  // Proto: int kernelFilesystemDefragment(int);
+  return (sysCall_1(_fnum_filesystemCheck, (void *) disknum));
+}
+
 static inline int filesystemMount(int disknum, const char *mp)
 {
   // Proto: int kernelFilesystemMount(int, const char *);
-  return (sysCall_2(_fnum_filesystemMount, (void *)disknum, (void *)mp));
+  return (sysCall_2(_fnum_filesystemMount, (void *) disknum, (void *) mp));
 }
 
 static inline int filesystemSync(const char *fs)
@@ -619,6 +880,12 @@ static inline int fileCopy(const char *src, const char *dest)
   return (sysCall_2(_fnum_fileCopy, (void *) src, (void *) dest));
 }
 
+static inline int fileCopyRecursive(const char *src, const char *dest)
+{
+  // Proto: int kernelFileCopyRecursive(const char *, const char *);
+  return (sysCall_2(_fnum_fileCopyRecursive, (void *) src, (void *) dest));
+}
+
 static inline int fileMove(const char *src, const char *dest)
 {
   // Proto: int kernelFileMove(const char *, const char *);
@@ -697,10 +964,10 @@ static inline void *memoryRequestPhysicalBlock(unsigned int size,
 		    (void *) align, (void *) desc));
 }
 
-static inline int memoryReleaseByPointer(void *p)
+static inline int memoryReleaseBlock(void *p)
 {
-  // Proto: int kernelMemoryReleaseByPointer(void *);
-  return (sysCall_1(_fnum_memoryReleaseByPointer, p));
+  // Proto: int kernelMemoryReleaseBlock(void *);
+  return (sysCall_1(_fnum_memoryReleaseBlock, p));
 }
 
 static inline int memoryReleaseAllByProcId(int pid)
@@ -722,28 +989,9 @@ static inline int memoryChangeOwner(int opid, int npid, void *addr,
 // Multitasker functions
 //
 
-static inline int multitaskerSpawn(void *addr, const char *name, 
-				   int numargs, void *args)
-{
-  // Proto: int kernelMultitaskerSpawn(void *, const char *, int, void *);
-  return (sysCall_4(_fnum_multitaskerSpawn, addr, (void *) name, 
-		    (void *) numargs, args));
-}
-
-static inline void multitaskerYield(void)
-{
-  // Proto: void kernelMultitaskerYield(void);
-  sysCall_0(_fnum_multitaskerYield);
-}
-
-static inline void multitaskerWait(unsigned int ticks)
-{
-  // Proto: void kernelMultitaskerWait(unsigned int);
-  sysCall_1(_fnum_multitaskerWait, (void *)ticks);
-}
-
 static inline int multitaskerCreateProcess(void *addr, unsigned int size, 
-				    const char *name, int numargs, void *args)
+					   const char *name, int numargs,
+					   void *args)
 {
   // Proto: int kernelMultitaskerCreateProcess(void *, unsigned int, 
   //              const char *, int, void *);
@@ -751,16 +999,12 @@ static inline int multitaskerCreateProcess(void *addr, unsigned int size,
 		   (void *) name, (void *) numargs, args));
 }
 
-static inline int multitaskerKillProcess(int pid)
+static inline int multitaskerSpawn(void *addr, const char *name, 
+				   int numargs, void *args)
 {
-  // Proto: int kernelMultitaskerKillProcess(int);
-  return (sysCall_1(_fnum_multitaskerKillProcess, (void *)pid));
-}
-
-static inline int multitaskerTerminate(int code)
-{
-  // Proto: int kernelMultitaskerTerminate(int);
-  return (sysCall_1(_fnum_multitaskerTerminate, (void *) code));
+  // Proto: int kernelMultitaskerSpawn(void *, const char *, int, void *);
+  return (sysCall_4(_fnum_multitaskerSpawn, addr, (void *) name, 
+		    (void *) numargs, args));
 }
 
 static inline int multitaskerGetCurrentProcessId(void)
@@ -772,34 +1016,53 @@ static inline int multitaskerGetCurrentProcessId(void)
 static inline int multitaskerGetProcessOwner(int pid)
 {
   // Proto: int kernelMultitaskerGetProcessOwner(int);
-  return (sysCall_1(_fnum_multitaskerGetProcessOwner, (void *)pid));
+  return (sysCall_1(_fnum_multitaskerGetProcessOwner, (void *) pid));
 }
 
-static inline int multitaskerSetProcessPriority(int pid, int priority)
+static inline const char *multitaskerGetProcessName(int pid)
 {
-  // Proto: int kernelMultitaskerSetProcessPriority(int, int);
-  return (sysCall_2(_fnum_multitaskerSetProcessPriority, (void *)pid, 
-		   (void *)priority));
+  // Proto: const char *kernelMultitaskerGetProcessName(int);
+  return ((const char *) sysCall_1(_fnum_multitaskerGetProcessName,
+				   (void *) pid));
 }
 
 static inline int multitaskerGetProcessState(int pid, int *statep)
 {
   // Proto: int kernelMultitaskerGetProcessState(int, kernelProcessState *);
-  return (sysCall_2(_fnum_multitaskerGetProcessState, (void *)pid, statep));
+  return (sysCall_2(_fnum_multitaskerGetProcessState, (void *) pid, statep));
 }
 
 static inline int multitaskerSetProcessState(int pid, int state)
 {
   // Proto: int kernelMultitaskerSetProcessState(int, kernelProcessState);
-  return (sysCall_2(_fnum_multitaskerSetProcessState, (void *)pid, 
-		   (void *)state));
+  return (sysCall_2(_fnum_multitaskerSetProcessState, (void *) pid, 
+		   (void *) state));
+}
+
+static inline int multitaskerGetProcessPriority(int pid)
+{
+  // Proto: int kernelMultitaskerGetProcessPriority(int);
+  return (sysCall_1(_fnum_multitaskerGetProcessPriority, (void *) pid));
+}
+
+static inline int multitaskerSetProcessPriority(int pid, int priority)
+{
+  // Proto: int kernelMultitaskerSetProcessPriority(int, int);
+  return (sysCall_2(_fnum_multitaskerSetProcessPriority, (void *) pid, 
+		   (void *)priority));
+}
+
+static inline int multitaskerGetProcessPrivilege(int pid)
+{
+  // Proto: kernelMultitaskerGetProcessPrivilege(int);
+  return (sysCall_1(_fnum_multitaskerGetProcessPrivilege, (void *) pid));
 }
 
 static inline int multitaskerGetCurrentDirectory(char *buff, int buffsz)
 {
   // Proto: int kernelMultitaskerGetCurrentDirectory(char *, int);
   return (sysCall_2(_fnum_multitaskerGetCurrentDirectory, buff, 
-		   (void *)buffsz));
+		   (void *) buffsz));
 }
 
 static inline int multitaskerSetCurrentDirectory(char *buff)
@@ -808,10 +1071,28 @@ static inline int multitaskerSetCurrentDirectory(char *buff)
   return (sysCall_1(_fnum_multitaskerSetCurrentDirectory, buff));
 }
 
-static inline void multitaskerDumpProcessList(void)
+static inline objectKey multitaskerGetTextInput(void)
 {
-  // Proto: void kernelMultitaskerDumpProcessList(void);
-  sysCall_0(_fnum_multitaskerDumpProcessList);
+  // Proto: kernelTextInputStream *kernelMultitaskerGetTextInput(void);
+  return((objectKey) sysCall_0(_fnum_multitaskerGetTextInput));
+}
+
+static inline int multitaskerSetTextInput(int processId, objectKey key)
+{
+  // Proto: int kernelMultitaskerSetTextInput(int, kernelTextInputStream *);
+  return (sysCall_2(_fnum_multitaskerSetTextInput, (void *) processId, key));
+}
+
+static inline objectKey multitaskerGetTextOutput(void)
+{
+  // Proto: kernelTextOutputStream *kernelMultitaskerGetTextOutput(void);
+  return((objectKey) sysCall_0(_fnum_multitaskerGetTextOutput));
+}
+
+static inline int multitaskerSetTextOutput(int processId, objectKey key)
+{
+  // Proto: int kernelMultitaskerSetTextOutput(int, kernelTextOutputStream *);
+  return (sysCall_2(_fnum_multitaskerSetTextOutput, (void *) processId, key));
 }
 
 static inline int multitaskerGetProcessorTime(clock_t *clk)
@@ -820,17 +1101,75 @@ static inline int multitaskerGetProcessorTime(clock_t *clk)
   return (sysCall_1(_fnum_multitaskerGetProcessorTime, clk));
 }
 
+static inline void multitaskerYield(void)
+{
+  // Proto: void kernelMultitaskerYield(void);
+  sysCall_0(_fnum_multitaskerYield);
+}
+
+static inline void multitaskerWait(unsigned int ticks)
+{
+  // Proto: void kernelMultitaskerWait(unsigned int);
+  sysCall_1(_fnum_multitaskerWait, (void *) ticks);
+}
+
+static inline int multitaskerBlock(int pid)
+{
+  // Proto: int kernelMultitaskerBlock(int);
+  return (sysCall_1(_fnum_multitaskerBlock, (void *) pid));
+}
+
+static inline int multitaskerKillProcess(int pid, int force)
+{
+  // Proto: int kernelMultitaskerKillProcess(int);
+  return (sysCall_2(_fnum_multitaskerKillProcess, (void *) pid,
+		    (void *) force));
+}
+
+static inline int multitaskerTerminate(int code)
+{
+  // Proto: int kernelMultitaskerTerminate(int);
+  return (sysCall_1(_fnum_multitaskerTerminate, (void *) code));
+}
+
+static inline void multitaskerDumpProcessList(void)
+{
+  // Proto: void kernelMultitaskerDumpProcessList(void);
+  sysCall_0(_fnum_multitaskerDumpProcessList);
+}
+
 
 //
 // Loader functions
 //
 
-static inline int loaderLoadAndExec(const char *name, int argc, char *argv[],
-				    int block)
+static inline void loaderLoad(const char *filename, file *theFile)
+{
+  // Proto: void *kernelLoaderLoad(const char *, file *);
+  sysCall_2(_fnum_loaderLoad, (void *) filename, (void *) theFile);
+}
+
+static inline int loaderLoadProgram(const char *userProgram, int privilege,
+				     int argc, char *argv[])
+{
+  // Proto: int kernelLoaderLoadProgram(const char *, int, int, char *[]);
+  return (sysCall_4(_fnum_loaderLoadProgram, (void *) userProgram,
+		    (void *) privilege, (void *) argc, argv));
+}
+
+static inline int loaderExecProgram(int processId, int block)
+{
+  // Proto: int kernelLoaderExecProgram(int, int);
+  return (sysCall_2(_fnum_loaderExecProgram, (void *) processId,
+		    (void *) block));
+}
+
+static inline int loaderLoadAndExec(const char *name, int privilege,
+				    int argc, char *argv[], int block)
 {
   // Proto: kernelLoaderLoadAndExec(const char *, int, char *[], int);
-  return (sysCall_4(_fnum_loaderLoadAndExec, (void *) name, (void *) argc,
-		    argv, (void *) block));
+  return (sysCall_5(_fnum_loaderLoadAndExec, (void *) name,
+		    (void *) privilege, (void *) argc, argv, (void *) block));
 }
 
 
@@ -958,8 +1297,482 @@ static inline void environmentDump(void)
 
 
 //
+// Raw graphics functions
+//
+
+static inline int graphicsAreEnabled(void)
+{
+  // Proto: int kernelGraphicsAreEnabled(void);
+  return (sysCall_0(_fnum_graphicsAreEnabled));
+}
+
+static inline unsigned graphicGetScreenWidth(void)
+{
+  // Proto: unsigned kernelGraphicGetScreenWidth(void);
+  return (sysCall_0(_fnum_graphicGetScreenWidth));
+}
+
+static inline unsigned graphicGetScreenHeight(void)
+{
+  // Proto: unsigned kernelGraphicGetScreenHeight(void);
+  return (sysCall_0(_fnum_graphicGetScreenHeight));
+}
+
+static inline unsigned graphicCalculateAreaBytes(unsigned width,
+						 unsigned height)
+{
+  // Proto: unsigned kernelGraphicCalculateAreaBytes(unsigned, unsigned);
+  return (sysCall_2(_fnum_graphicCalculateAreaBytes, (void *) width,
+		    (void *) height));
+}
+
+static inline int graphicClearScreen(color *background)
+{
+  // Proto: int kernelGraphicClearScreen(color *);
+  return (sysCall_1(_fnum_graphicClearScreen, background));
+}
+
+static inline int graphicDrawPixel(objectKey buffer, color *foreground,
+				   drawMode mode, int xCoord, int yCoord)
+{
+  // Proto: int kernelGraphicDrawPixel(kernelGraphicBuffer *, color *,
+  //                                   drawMode, int, int);
+  return (sysCall_5(_fnum_graphicDrawPixel, buffer, foreground, (void *) mode,
+		    (void *) xCoord, (void *) yCoord));
+}
+
+static inline int graphicDrawLine(objectKey buffer, color *foreground,
+				  drawMode mode, int startX, int startY,
+				  int endX, int endY)
+{
+  // Proto: int kernelGraphicDrawLine(kernelGraphicBuffer *, color *,
+  //                                  drawMode, int, int, int, int);
+  return (sysCall_7(_fnum_graphicDrawLine, buffer, foreground, (void *) mode,
+		    (void *) startX, (void *) startY, (void *) endX,
+		    (void *) endY));
+}
+
+static inline int graphicDrawRect(objectKey buffer, color *foreground,
+	  drawMode mode, int xCoord, int yCoord, unsigned width,
+	  unsigned height, unsigned thickness, int fill)
+{
+  // Proto: int kernelGraphicDrawRect(kernelGraphicBuffer *, color *,
+  //                                  drawMode, int, int, unsigned,
+  //                                  unsigned, unsigned, int);
+  return (sysCall_9(_fnum_graphicDrawRect, buffer, foreground, (void *) mode,
+		    (void *) xCoord, (void *) yCoord, (void *) width,
+		    (void *) height, (void *) thickness, (void *) fill));
+}
+
+static inline int graphicDrawOval(objectKey buffer, color *foreground,
+	  drawMode mode, int xCoord, int yCoord, unsigned width,
+	  unsigned height, unsigned thickness, int fill)
+{
+  // Proto: int kernelGraphicDrawOval(kernelGraphicBuffer *, color *,
+  //                              drawMode, int, int, unsigned, unsigned,
+  //                              unsigned, int);
+  return (sysCall_9(_fnum_graphicDrawOval, buffer, foreground, (void *) mode,
+		    (void *) xCoord, (void *) yCoord, (void *) width,
+		    (void *) height, (void *) thickness, (void *) fill));
+}
+
+static inline int graphicDrawImage(objectKey buffer, image *drawImage,
+				   int xCoord, int yCoord)
+{
+  // Proto: int kernelGraphicDrawImage(kernelGraphicBuffer *, image *,
+  //                                   int, int);
+  return (sysCall_4(_fnum_graphicDrawImage, buffer, drawImage, (void *) xCoord,
+		    (void *) yCoord));
+}
+
+static inline int graphicGetImage(objectKey buffer, image *getImage,
+				  int xCoord, int yCoord, unsigned width,
+				  unsigned height)
+{
+  // Proto: int kernelGraphicGetImage(kernelGraphicBuffer *, image *,
+  //                                  int, int, unsigned, unsigned);
+  return (sysCall_6(_fnum_graphicGetImage, buffer, getImage, (void *) xCoord,
+		    (void *) yCoord, (void *) width, (void *) height));
+}
+
+static inline int graphicDrawText(objectKey buffer, color *foreground,
+				  objectKey font, const char *text,
+				  drawMode mode, int xCoord, int yCoord)
+{
+  // Proto: int kernelGraphicDrawText(kernelGraphicBuffer *, color *,
+  //                           kernelAsciiFont *, const char *, drawMode,
+  //                           int, int);
+  return (sysCall_7(_fnum_graphicDrawText, buffer, foreground, font,
+		    (void *) text, (void *) mode, (void *) xCoord,
+		    (void *) yCoord));
+}
+
+static inline int graphicCopyArea(objectKey buffer, int xCoord1, int yCoord1,
+				  unsigned width, unsigned height,
+				  int xCoord2, int yCoord2)
+{
+  // Proto: int kernelGraphicCopyArea(kernelGraphicBuffer *, int, int,
+  //                                  unsigned, unsigned, int, int);
+  return (sysCall_7(_fnum_graphicCopyArea, buffer, (void *) xCoord1,
+		    (void *) yCoord1, (void *) width, (void *) height,
+		    (void *) xCoord2, (void *) yCoord2));
+}
+
+static inline int graphicClearArea(objectKey buffer, color *background,
+				   int xCoord, int yCoord,
+				   unsigned width, unsigned height)
+{
+  // Proto: int kernelGraphicClearArea(kernelGraphicBuffer *, color *,
+  //                                   int, int, unsigned, unsigned);
+  return (sysCall_6(_fnum_graphicClearArea, buffer, background,
+		    (void *) xCoord, (void *) yCoord, (void *) width,
+		    (void *) height));
+}
+
+static inline int graphicRenderBuffer(objectKey buffer, int drawX,
+				      int drawY, int clipX, int clipY,
+				      unsigned clipWidth, unsigned clipHeight)
+{
+  // Proto: int kernelGraphicRenderBuffer(kernelGraphicBuffer *, int, int, int,
+  //                                      int, unsigned, unsigned); 
+  return (sysCall_7(_fnum_graphicRenderBuffer, buffer, (void *) drawX,
+		    (void *) drawY, (void *) clipX, (void *) clipY,
+		    (void *) clipWidth, (void *) clipHeight));
+}
+
+
+//
+// Window manager functions
+//
+
+static inline int windowManagerStart(void)
+{
+  // Proto: int kernelWindowManagerStart(void);
+  return (sysCall_0(_fnum_windowManagerStart));
+}
+
+static inline int windowManagerLogin(int userId)
+{
+  // Proto: kernelWindowManagerLogin(int userId);
+  return (sysCall_1(_fnum_windowManagerLogin, (void *) userId));
+}
+
+static inline int windowManagerLogout(void)
+{
+  // Proto: kernelWindowManagerLogout(void);
+  return (sysCall_0(_fnum_windowManagerLogout));
+}
+
+static inline objectKey windowManagerNewWindow(int processId, char *title,
+					       int xCoord, int yCoord,
+					       int width, int height)
+{
+  // Proto: kernelWindow *kernelWindowManagerNewWindow(int, const char *, int,
+  //                                                  int, unsigned, unsigned);
+  return ((objectKey ) sysCall_6(_fnum_windowManagerNewWindow,
+				 (void *) processId, (void *) title,
+				 (void *) xCoord, (void *) yCoord,
+				 (void *) width, (void *) height));
+}
+
+static inline int windowManagerDestroyWindow(objectKey window)
+{
+  // Proto: int kernelWindowManagerDestroyWindow(kernelWindow *);
+  return (sysCall_1(_fnum_windowManagerDestroyWindow, window));
+}
+
+static inline int windowManagerUpdateBuffer(void *buffer, int xCoord,
+					    int yCoord, unsigned width,
+					    unsigned height)
+{
+  // Proto: kernelWindowManagerUpdateBuffer(kernelGraphicBuffer *, int, int,
+  //				    unsigned, unsigned);
+  return (sysCall_5(_fnum_windowManagerUpdateBuffer, buffer, (void *) xCoord,
+					    (void *) xCoord, (void *) width,
+					    (void *) height));
+}
+
+static inline int windowSetTitle(objectKey window, const char *title)
+{
+  // Proto: int kernelWindowSetTitle(kernelWindow *, const char *);
+  return (sysCall_2(_fnum_windowSetTitle, window, (void *) title));
+}
+
+
+static inline int windowGetSize(objectKey window, unsigned *width,
+				unsigned *height)
+{
+  // Proto: int kernelWindowGetSize(kernelWindow *, unsigned *, unsigned *);
+  return (sysCall_3(_fnum_windowGetSize, window, width, height));
+}
+
+static inline int windowSetSize(objectKey window, unsigned width,
+				unsigned height)
+{
+  // Proto: int kernelWindowSetSize(kernelWindow *, unsigned, unsigned);
+  return (sysCall_3(_fnum_windowSetSize, window, (void *) width,
+		    (void *) height));
+}
+
+static inline int windowAutoSize(objectKey window)
+{
+  // Proto: int kernelWindowAutoSize(kernelWindow *);
+  return (sysCall_1(_fnum_windowAutoSize, window));
+}
+
+static inline int windowGetLocation(objectKey window, int *xCoord, int *yCoord)
+{
+  // Proto: int kernelWindowGetLocation(kernelWindow *, int *, int *);
+  return (sysCall_3(_fnum_windowGetLocation, window, xCoord, yCoord));
+}
+
+static inline int windowSetLocation(objectKey window, int xCoord, int yCoord)
+{
+  // Proto: int kernelWindowSetLocation(kernelWindow *, int, int);
+  return (sysCall_3(_fnum_windowSetLocation, window, (void *) xCoord,
+		    (void *) yCoord));
+}
+
+static inline int windowSetHasBorder(objectKey window, int trueFalse)
+{
+  // Proto: int kernelWindowSetHasBorder(kernelWindow *, int);
+  return (sysCall_2(_fnum_windowSetHasBorder, window, (void *) trueFalse));
+}
+
+static inline int windowSetHasTitleBar(objectKey window, int trueFalse)
+{
+  // Proto: int kernelWindowSetHasTitleBar(kernelWindow *, int);
+  return (sysCall_2(_fnum_windowSetHasTitleBar, window, (void *) trueFalse));
+}
+
+static inline int windowSetMovable(objectKey window, int trueFalse)
+{
+  // Proto: int kernelWindowSetMovable(kernelWindow *, int);
+  return (sysCall_2(_fnum_windowSetMovable, window, (void *) trueFalse));
+}
+
+static inline int windowSetHasCloseButton(objectKey window, int trueFalse)
+{
+  // Proto: int kernelWindowSetHasCloseButton(kernelWindow *, int);
+  return (sysCall_2(_fnum_windowSetHasCloseButton, window,
+		    (void *) trueFalse));
+}
+
+static inline int windowLayout(objectKey window)
+{
+  // Proto: int kernelWindowLayout(kernelWindow *);
+  return (sysCall_1(_fnum_windowLayout, window));
+}
+
+static inline int windowSetVisible(objectKey window, int visible)
+{
+  // Proto: int kernelWindowSetVisible(kernelWindow *, int);
+  return (sysCall_2(_fnum_windowSetVisible, window, (void *) visible));
+}
+
+static inline int windowAddComponent(objectKey window, objectKey component,
+				     componentParameters *params)
+{
+  // Proto: int kernelWindowAddComponent(kernelWindow *,
+  //                                     kernelWindowComponent *,
+  //                                     componentParameters *);
+  return (sysCall_3(_fnum_windowAddComponent, window, component, params));
+}
+
+static inline int windowAddClientComponent(objectKey window,
+					   objectKey component,
+					   componentParameters *params)
+{
+  // Proto: int kernelWindowAddClientComponent(kernelWindow *,
+  //                                     kernelWindowComponent *,
+  //                                     componentParameters *);
+  return (sysCall_3(_fnum_windowAddClientComponent, window, component,
+		    params));
+}
+
+static inline unsigned windowComponentGetWidth(objectKey component)
+{
+  // Proto: unsigned kernelWindowComponentGetWidth(kernelWindowComponent *);
+  return (sysCall_1(_fnum_windowComponentGetWidth, component));
+}
+
+static inline unsigned windowComponentGetHeight(objectKey component)
+{
+  // Proto: unsigned kernelWindowComponentGetHeight(kernelWindowComponent *);
+  return (sysCall_1(_fnum_windowComponentGetHeight, component));
+}
+
+static inline void windowManagerRedrawArea(int xCoord, int yCoord,
+					   unsigned width, unsigned height)
+{
+  // Proto: void kernelWindowManagerRedrawArea(int, int, unsigned, unsigned);
+  sysCall_4(_fnum_windowManagerRedrawArea, (void *) xCoord, (void *) yCoord,
+	    (void *) width, (void *) height);
+}
+
+static inline void windowManagerProcessMouseEvent(objectKey mouseStatus)
+{
+  // Proto: void kernelWindowManagerProcessMouseEvent(kernelMouseStatus *);
+  sysCall_1(_fnum_windowManagerProcessMouseEvent, mouseStatus);
+}
+
+static inline int windowManagerTileBackground(const char *file)
+{
+  // Proto: int kernelWindowManagerTileBackground(const char *);
+  return (sysCall_1(_fnum_windowManagerTileBackground, (void *) file));
+}
+
+static inline int windowManagerCenterBackground(const char *file)
+{
+  // Proto: int kernelWindowManagerCenterBackground(const char *file);
+  return (sysCall_1(_fnum_windowManagerCenterBackground, (void *) file));
+}
+
+static inline int windowManagerScreenShot(image *saveImage)
+{
+  // Proto: int kernelWindowManagerScreenShot(image *);
+  return (sysCall_1(_fnum_windowManagerScreenShot, saveImage));
+}
+
+static inline int windowManagerSaveScreenShot(const char *filename)
+{
+  // Proto: int kernelWindowManagerSaveScreenShot(void);
+  return (sysCall_1(_fnum_windowManagerSaveScreenShot, (void *) filename));
+}
+
+static inline int windowManagerSetTextOutput(objectKey key)
+{
+  // Proto: int kernelWindowManagerSetTextOutput(kernelWindowComponent *);
+  return (sysCall_1(_fnum_windowManagerSetTextOutput, key));
+}
+
+static inline objectKey windowNewButtonComponent(objectKey window,
+				 unsigned width, unsigned height,
+				 const char *label, image *buttonImage)
+{
+  // Proto: kernelWindowComponent *
+  //          kernelWindowNewButtonComponent(kernelWindow *, unsigned,
+  //                                         unsigned, const char *,
+  //                                         image *, int (*) (void *));
+
+  // For the moment, there is no mechanism for a callback function to a user
+  // space program, so we pass NULL.  That means that a button component is
+  // not currently very useful to user programs since it won't be able to
+  // trigger any action.
+
+  return ((objectKey) sysCall_6(_fnum_windowNewButtonComponent, window,
+				(void *) width, (void *) height,
+				(void *) label, buttonImage, NULL));
+}
+
+static inline objectKey windowNewIconComponent(objectKey window,
+	       image *iconImage, const char *label, const char *command)
+{
+  // Proto: kernelWindowComponent *
+  //          kernelWindowNewIconComponent(kernelWindow *, image *,
+  //                                       const char *, const char *);
+  return ((objectKey) sysCall_4(_fnum_windowNewIconComponent, window,
+				iconImage, (void *) label, (void *) command));
+}
+
+static inline objectKey windowNewImageComponent(objectKey window,
+						image *baseImage)
+{
+  // Proto: kernelWindowComponent *
+  //          kernelWindowNewImageComponent(kernelWindow *, image *);
+  return ((objectKey) sysCall_2(_fnum_windowNewImageComponent, window,
+				baseImage));
+}
+
+static inline objectKey windowNewTextAreaComponent(objectKey window,
+				   int columns, int rows, objectKey font)
+{
+  // Proto: kernelWindowComponent *
+  //          kernelWindowNewTextAreaComponent(kernelWindow *, int, int,
+  //                                           kernelAsciiFont *);
+  return ((objectKey) sysCall_4(_fnum_windowNewTextAreaComponent, window,
+				(void *) columns, (void *) rows, font));
+}
+
+static inline objectKey windowNewTextFieldComponent(objectKey window,
+					    int columns, objectKey font)
+{
+  // Proto: kernelWindowComponent *
+  //          kernelWindowNewTextFieldComponent(kernelWindow *, int,
+  //                                            kernelAsciiFont *);
+  return ((objectKey) sysCall_3(_fnum_windowNewTextFieldComponent, window,
+				(void *) columns, font));
+}
+
+static inline objectKey windowNewTextLabelComponent(objectKey window,
+					    objectKey font, const char *text)
+{
+  // Proto: kernelWindowComponent *
+  //          kernelWindowNewTextLabelComponent(kernelWindow *,
+  //                                          kernelAsciiFont *, const char *);
+  return ((objectKey) sysCall_3(_fnum_windowNewTextLabelComponent, window,
+				font, (void *) text));
+}
+
+static inline objectKey windowNewTitleBarComponent(objectKey window,
+					   unsigned width, unsigned height)
+{
+  // Proto: kernelWindowComponent *
+  //          kernelWindowNewTitleBarComponent(kernelWindow *, unsigned,
+  //                                           unsigned);
+  return ((objectKey) sysCall_3(_fnum_windowNewTitleBarComponent, window,
+				(void *) width,	(void *) height));
+}
+
+
+//
 // Miscellaneous functions
 //
+
+static inline int fontGetDefault(objectKey *pointer)
+{
+  // Proto: int kernelFontGetDefault(kernelAsciiFont **);
+  return (sysCall_1(_fnum_fontGetDefault, pointer));
+}
+
+static inline int fontSetDefault(const char *name)
+{
+  // Proto: int kernelFontSetDefault(const char *);
+  return (sysCall_1(_fnum_fontSetDefault, (void *) name));
+}
+
+static inline int fontLoad(const char* filename, const char *fontname,
+			   objectKey *pointer)
+{
+  // Proto: int kernelFontLoad(const char*, const char*, kernelAsciiFont **);
+  return (sysCall_3(_fnum_fontLoad, (void *) filename, (void *) fontname,
+		    pointer));
+}
+
+static inline unsigned fontGetPrintedWidth(objectKey font, const char *string)
+{
+  // Proto: unsigned kernelFontGetPrintedWidth(kernelAsciiFont *,
+  //                                           const char *);
+  return (sysCall_2(_fnum_fontGetPrintedWidth, font, (void *) string));
+}
+
+static inline unsigned fontGetHeight(objectKey font)
+{
+  // Proto: unsigned kernelFontGetHeight(kernelAsciiFont *);
+  return (sysCall_1(_fnum_fontGetHeight, font));
+}
+
+static inline int imageLoadBmp(const char *filename, image *loadImage)
+{
+  // Proto: int imageLoadBmp(const char *, image *);
+  return (sysCall_2(_fnum_imageLoadBmp, (void *) filename, loadImage));
+}
+
+static inline int imageSaveBmp(const char *filename, image *saveImage)
+{
+  // Proto: int imageSaveBmp(const char *, image *);
+  return (sysCall_2(_fnum_imageSaveBmp, (void *) filename, saveImage));
+}
 
 static inline int shutdown(int type, int nice)
 {

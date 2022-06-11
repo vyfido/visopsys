@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,8 +23,13 @@
 
 #if !defined(_KERNELLOADER_H)
 
+#include <sys/file.h>
+
 // Functions exported by kernelLoader.c
-int kernelLoaderLoadAndExec(const char *, int, char *[], int);
+void *kernelLoaderLoad(const char *, file *);
+int kernelLoaderLoadProgram(const char *, int, int, char *[]);
+int kernelLoaderExecProgram(int, int);
+int kernelLoaderLoadAndExec(const char *, int, int, char *[], int);
 
 #define _KERNELLOADER_H
 #endif

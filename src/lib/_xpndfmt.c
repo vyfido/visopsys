@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,7 +29,7 @@
 #include <errno.h>
 
 
-int _expand_format_string(char *output, const char *format, va_list list)
+int _expandFormatString(char *output, const char *format, va_list list)
 {
   int inCount = 0;
   int outCount = 0;
@@ -116,9 +116,15 @@ int _expand_format_string(char *output, const char *format, va_list list)
 	  else
 	    {
 	      // Eek.
-	      strncpy((output + outCount), "(NULL)", 6);
+	      strncpy((output + outCount), "(NULL)", 7);
 	      outCount += 6;
 	    }
+	  break;
+
+	case 'x':
+	case 'X':
+	  itox((int) argument, (output + outCount));
+	  outCount = strlen(output);
 	  break;
 
 	default:
@@ -138,4 +144,3 @@ int _expand_format_string(char *output, const char *format, va_list list)
   errno = 0;
   return (outCount);
 }
-

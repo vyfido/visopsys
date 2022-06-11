@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -22,52 +22,33 @@
 ;; Constants
 
 %define SCREENSTART 0x000B8000
-%define SCREENEND ((SCREENSTART + (ROWS * COLUMNS)) - 1)
 
 %define VIDEOPAGE	 0
 %define ROWS		 50
 %define COLUMNS		 80
-%define FOREGROUNDCOLOUR 0x07
-%define BACKGROUNDCOLOUR 0x01
-%define ERRORCOLOUR      0x06
+%define FOREGROUNDCOLOR  0x07
+%define BACKGROUNDCOLOR  0x01
+%define ERRORCOLOR       0x06
 
-%define KERNELPROCID 0
-
-;; Selectors for in the GDT
-
-%define ALLCODESELECTOR	0x0008
-%define ALLDATASELECTOR	0x0010
-%define ALLSTCKSELECTOR 0x0018
-%define LDRCODESELECTOR 0x0020
-
+;; Selectors in the GDT
+%define PRIV_CODESELECTOR 0x0008
+%define PRIV_DATASELECTOR 0x0010
+%define PRIV_STCKSELECTOR 0x0018
+%define LDRCODESELECTOR   0x0020
 
 ;; Routines needed by the asm modules
-
-EXTERN screenAddress
-EXTERN textColumns
-EXTERN textRows
-EXTERN kernelTextPrint
-EXTERN kernelTextPrintLine
-EXTERN kernelTextPrintInteger
-EXTERN kernelTextPrintUnsigned
-EXTERN kernelTextNewline
-EXTERN kernelTextClearScreen
-EXTERN kernelTextInputAppend
-EXTERN kernelErrorMakeAndDispatch
-EXTERN kernelExceptionHandler
-EXTERN kernelSysTimerTick
-EXTERN kernelSysTimerRead
-EXTERN kernelKeyboardReadData
-EXTERN kernelMultitaskerDumpProcessList
-EXTERN kernelMultitaskerYield
-EXTERN kernelMultitaskerWait
-EXTERN kernelMultitaskerTerminate
+EXTERN kernelConsoleLogin
 EXTERN kernelDmaFunctionsEnableChannel
 EXTERN kernelDmaFunctionsCloseChannel
 EXTERN kernelDmaFunctionsSetupChannel
 EXTERN kernelDmaFunctionsReadData
 EXTERN kernelDmaFunctionsWriteData
+EXTERN kernelKeyboardReadData
+EXTERN kernelMouseReadData
+EXTERN kernelMultitaskerDumpProcessList
+EXTERN kernelMultitaskerYield
 EXTERN kernelResourceManagerLock
 EXTERN kernelResourceManagerUnlock
-EXTERN kernelConsoleLogin
 EXTERN kernelShutdown
+EXTERN kernelSysTimerTick
+EXTERN kernelSysTimerRead

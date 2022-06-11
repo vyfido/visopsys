@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,6 +21,11 @@
 
 // This is the standard "strncpy" function, as found in standard C libraries
 
+// Here is the description from the GNU man pages:
+// The strncpy() function is similar [to strcpy], except that not more
+// than n bytes of src are copied. Thus, if there is no null byte among the
+// first n bytes of src, the result wil not be null-terminated.
+
 #include <string.h>
 #include <errno.h>
 
@@ -30,24 +35,22 @@ char *strncpy(char *destString, const char *sourceString, size_t maxLength)
   int count;
 
   // Make sure neither of the pointers are NULL
-  if ((destString == (char *) NULL) ||
-      (sourceString == (char *) NULL))
+  if ((destString == (char *) NULL) || (sourceString == (char *) NULL))
     {
       errno = ERR_NULLPARAMETER;
       return (destString = NULL);
     }
 
+  if (maxLength > MAXSTRINGLENGTH)
+    maxLength = MAXSTRINGLENGTH;
+
   for (count = 0; count < maxLength; count ++)
     {
       destString[count] = sourceString[count];
       
-      if ((sourceString[count] == (char) NULL) ||
-	  (count >= MAXSTRINGLENGTH))
+      if (sourceString[count] == '\0')
 	break;
     }
-
-  // Make sure there's a NULL at the end
-  destString[count] = NULL;
 
   // If this is true, then we probably have an unterminated string
   // constant.  Checking for a string that exceeds MAXSTRINGLENGTH will

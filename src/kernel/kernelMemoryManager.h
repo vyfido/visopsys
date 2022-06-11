@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,46 +24,28 @@
 #include "loaderInfo.h"
 
 // Definitions
-
 #define MAXMEMORYBLOCKS 2048
 #define MEMBLOCKSIZE MEMORY_PAGE_SIZE
-#define MAX_DESC_LENGTH 20
-
-// Messages
-#define FAIL_INTEGRITY_CHECK "The memory manger's internal integrity check failed."
-#define USEDBLOCKS_TOOBIG "The number of used blocks exceeds the legal limit"
-#define TOTAL_INCONSISTENT "The amounts of free and used memory are inconsistent with the available total"
-#define INVALID_USED_MEMORY_BLOCK "One member of the memory manager's used block list was invalid"
-#define NULL_MEMORY_POINTER "The memory pointer passed or referenced is NULL"
-#define OUT_OF_MEMORY_BLOCKS "The number of available memory allocation blocks has been exhausted"
-#define OUT_OF_MEMORY "The computer is out of physical memory"
-#define UNMAPPING_ERROR "The memory manager was unable to unmap memory from the virtual address space"
-#define UNKNOWN_PROCESS "The memory manager was unable to determine the current process"
-
+#define MAX_DESC_LENGTH 24
 
 typedef volatile struct
 {
-
   int processId;
   char description[MAX_DESC_LENGTH];
-  unsigned int startLocation;
-  unsigned int endLocation;
+  unsigned startLocation;
+  unsigned endLocation;
 
 } kernelMemoryBlock;
 
-
 // Functions from kernelMemoryManager.c
-
-int kernelMemoryInitialize(unsigned int, loaderInfoStruct *);
+int kernelMemoryInitialize(unsigned, loaderInfoStruct *);
 void kernelMemoryPrintUsage(void);
-int kernelMemoryReserveBlock(unsigned int, unsigned int, const char *);
-void *kernelMemoryRequestBlock(unsigned int, unsigned int, const char *);
-void *kernelMemoryRequestSystemBlock(unsigned int, unsigned int,
-				     const char *);
-void *kernelMemoryRequestPhysicalBlock(unsigned int, unsigned int,
-				       const char *);
-int kernelMemoryReleaseByPointer(void *);
-int kernelMemoryReleaseByPhysicalPointer(void *);
+void *kernelMemoryRequestBlock(unsigned, unsigned, const char *);
+void *kernelMemoryRequestSystemBlock(unsigned, unsigned, const char *);
+void *kernelMemoryRequestPhysicalBlock(unsigned, unsigned, const char *);
+int kernelMemoryReleaseBlock(void *);
+int kernelMemoryReleaseSystemBlock(void *);
+int kernelMemoryReleasePhysicalBlock(void *);
 int kernelMemoryReleaseAllByProcId(int);
 int kernelMemoryChangeOwner(int, int, int, void *, void **);
 int kernelMemoryShare(int, int, void *, void **);

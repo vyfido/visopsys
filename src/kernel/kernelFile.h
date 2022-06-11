@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,10 +30,8 @@
 #define MAX_BUFFERED_FILES 1024
 // MicrosoftTM's filesystems can't handle too many directory entries
 #define MAX_DIRECTORY_ENTRIES 0xFFFE
-
 // The 'flags' values for the field in kernelFileEntry
 #define FLAG_SECUREDELETE 0x01
-#define FLAG_IMMUTABLE    0x02
 
 // Functions exported by kernelFile.c
 int kernelFileInitialize(void);
@@ -52,15 +50,16 @@ int kernelFileFind(const char *, file *);
 int kernelFileCreate(const char *);
 int kernelFileOpen(const char *, int, file *);
 int kernelFileClose(file *);
-int kernelFileRead(file *, unsigned int, unsigned int, unsigned char *);
-int kernelFileWrite(file *, unsigned int, unsigned int, unsigned char *);
+int kernelFileRead(file *, unsigned, unsigned, unsigned char *);
+int kernelFileWrite(file *, unsigned, unsigned, unsigned char *);
 int kernelFileDelete(const char *);
 int kernelFileDeleteSecure(const char *);
 int kernelFileMakeDir(const char *);
 int kernelFileRemoveDir(const char *);
 int kernelFileCopy(const char *, const char *);
+int kernelFileCopyRecursive(const char *, const char *);
 int kernelFileMove(const char *, const char *);
-int kernelFileSetSize(file *, unsigned int);
+int kernelFileSetSize(file *, unsigned);
 int kernelFileTimestamp(const char *);
 int kernelFileWriteDirtyDirs(const char *);
 int kernelFileUnbufferRecursive(kernelFileEntry *);

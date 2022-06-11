@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,25 +21,20 @@
 
 #if !defined(_KERNELENVIRONMENT_H)
 
+#include "kernelVariableList.h"
+
 // Definitions.
 
 // These sizes keep the environment memory to just about exactly
 // 1 memory page.
 #define MAX_ENVIRONMENT_VARIABLES  127
-#define ENVIRONMENT_BYTES          3072
+#define ENVIRONMENT_BYTES          3044
 
-typedef struct
-{
-  int numVariables;
-  char *variables[MAX_ENVIRONMENT_VARIABLES];
-  char *values[MAX_ENVIRONMENT_VARIABLES];
-  char envSpace[ENVIRONMENT_BYTES];
+typedef kernelVariableList kernelEnvironment;
 
-} kernelEnvironment;
-
-// Functions exported by kernelMultitasker.c
+// Functions exported by kernelEnvironment.c
 kernelEnvironment *kernelEnvironmentCreate(int, kernelEnvironment *);
-int kernelEnvironmentGet(const char *, char *, unsigned int);
+int kernelEnvironmentGet(const char *, char *, unsigned);
 int kernelEnvironmentSet(const char *, const char *);
 int kernelEnvironmentUnset(const char *);
 void kernelEnvironmentDump(void);

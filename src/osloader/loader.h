@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2001 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2003 J. Andrew McLaughlin
 ;; 
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -40,6 +40,8 @@
 %define KERNELCODEDATALOCATION	00100000h    ;; 1 Mb mark
 %define KERNELSTACKSIZE	        00010000h    ;; 64 Kb
 
+;; The length of the progress indicator during kernel load
+%define PROGRESSLENGTH 20
 
 ;; Some checks, to make sure the data above is correct
 
@@ -55,12 +57,12 @@
 
 ;; Segment descriptor information for the temporary GDT
 
-%define ALLCODEINFO1	10011010b
-%define ALLCODEINFO2	11001111b
-%define ALLDATAINFO1	10010010b
-%define ALLDATAINFO2	11001111b
-%define ALLSTCKINFO1	10010010b
-%define ALLSTCKINFO2	11001111b
+%define PRIV_CODEINFO1	10011010b
+%define PRIV_CODEINFO2	11001111b
+%define PRIV_DATAINFO1	10010010b
+%define PRIV_DATAINFO2	11001111b
+%define PRIV_STCKINFO1	10010010b
+%define PRIV_STCKINFO2	11001111b
 
 %define LDRCODEINFO1    10011010b
 %define LDRCODEINFO2	01000000b
@@ -73,14 +75,11 @@
 
 
 ;; CPU types
-%define i486 0
-%define pentium 1
+%define i486       0
+%define pentium    1
 %define pentiumPro 2
-%define pentiumII 3
+%define pentiumII  3
 %define pentiumIII 4
 
 ;; Number of elements in our memory map
 %define MEMORYMAPSIZE 50
-
-;; The amount of space reserved for info about 1 hard disk
-%define HDDBLOCKSIZE 20	; bytes

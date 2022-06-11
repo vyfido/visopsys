@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2001 J. Andrew McLaughlin
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,16 +23,11 @@
 
 #include <sys/stream.h>
 
-// Error messages
-#define NULL_KBRD_MESS "The keyboard object passed or referenced was NULL"
-#define NULL_KBRD_DRIVER_MESS "The keyboard driver passed or referenced was NULL"
-#define NULL_KBRD_FUNC_MESS "The keyboard driver function requested was NULL"
-
-
 // A structure for holding pointers to the keyboard driver functions
 typedef struct
 {
-  int (*driverInitialize) (stream *, int (*)(stream *, ...));
+  int (*driverInitialize) (void);
+  int (*driverSetStream) (stream *, int (*)(stream *, ...));
   void (*driverReadData) (void);
 
 } kernelKeyboardDriver;
@@ -44,11 +39,11 @@ typedef struct
 
 } kernelKeyboardObject;
 
-
 // Functions exported by kernelKeyboardFunctions.c
 int kernelKeyboardRegisterDevice(kernelKeyboardObject *);
 int kernelKeyboardInstallDriver(kernelKeyboardDriver *);
 int kernelKeyboardInitialize(void);
+int kernelKeyboardSetStream(stream *);
 int kernelKeyboardReadData(void);
 
 #define _KERNELKEYBOARDFUNCTIONS_H
