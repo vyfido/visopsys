@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,13 +30,12 @@
 #include "kernelInterrupt.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelParameters.h"
 #include "kernelPic.h"
-#include "kernelProcessorX86.h"
 #include "kernelSystemDriver.h"
 #include <string.h>
 #include <values.h>
+#include <sys/processor.h>
 
 
 static pciSubClass subclass_old[] = {
@@ -218,6 +217,7 @@ static pciSubClass subclass_sigproc[] = {
 };
 
 static pciSubClass subclass_prop[] = {
+	{ 0x00, "unknown", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
 	{ 0x80, "other", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
 	{ PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
@@ -272,8 +272,8 @@ static void readConfig8(int bus, int dev, int function, int reg,
 {
 	// Reads configuration byte
 	unsigned address = headerAddress(bus, dev, function, (reg / 4));
-	kernelProcessorOutPort32(PCI_CONFIG_PORT, address);
-	kernelProcessorInPort8((PCI_DATA_PORT + (reg % 4)), *data);
+	processorOutPort32(PCI_CONFIG_PORT, address);
+	processorInPort8((PCI_DATA_PORT + (reg % 4)), *data);
 	return;
 }
 
@@ -283,8 +283,8 @@ static void writeConfig8(int bus, int dev, int function, int reg,
 {
 	// Writes configuration byte
 	unsigned address = headerAddress(bus, dev, function, (reg / 4));
-	kernelProcessorOutPort32(PCI_CONFIG_PORT, address);
-	kernelProcessorOutPort8((PCI_DATA_PORT + (reg % 4)), data);
+	processorOutPort32(PCI_CONFIG_PORT, address);
+	processorOutPort8((PCI_DATA_PORT + (reg % 4)), data);
 	return;
 }
 
@@ -294,8 +294,8 @@ static void readConfig16(int bus, int dev, int function, int reg,
 {
 	// Reads configuration word
 	unsigned address = headerAddress(bus, dev, function, (reg / 2));
-	kernelProcessorOutPort32(PCI_CONFIG_PORT, address);
-	kernelProcessorInPort16((PCI_DATA_PORT + (reg % 2)), *data);
+	processorOutPort32(PCI_CONFIG_PORT, address);
+	processorInPort16((PCI_DATA_PORT + (reg % 2)), *data);
 	return;
 }
 
@@ -305,8 +305,8 @@ static void writeConfig16(int bus, int dev, int function, int reg,
 {
 	// Writes configuration word
 	unsigned address = headerAddress(bus, dev, function, (reg / 2));
-	kernelProcessorOutPort32(PCI_CONFIG_PORT, address);
-	kernelProcessorOutPort16((PCI_DATA_PORT + (reg % 2)), data);
+	processorOutPort32(PCI_CONFIG_PORT, address);
+	processorOutPort16((PCI_DATA_PORT + (reg % 2)), data);
 	return;
 }
 
@@ -316,8 +316,8 @@ static void readConfig32(int bus, int dev, int function, int reg,
 {
 	// Reads configuration dword
 	unsigned address = headerAddress(bus, dev, function, reg);
-	kernelProcessorOutPort32(PCI_CONFIG_PORT, address);
-	kernelProcessorInPort32(PCI_DATA_PORT, *data);
+	processorOutPort32(PCI_CONFIG_PORT, address);
+	processorInPort32(PCI_DATA_PORT, *data);
 	return;
 }
 
@@ -327,8 +327,8 @@ static void writeConfig32(int bus, int dev, int function, int reg,
 {
 	// Writes configuration dword
 	unsigned address = headerAddress(bus, dev, function, reg);
-	kernelProcessorOutPort32(PCI_CONFIG_PORT, address);
-	kernelProcessorOutPort32(PCI_DATA_PORT, data);
+	processorOutPort32(PCI_CONFIG_PORT, address);
+	processorOutPort32(PCI_DATA_PORT, data);
 	return;
 }
 
@@ -344,8 +344,8 @@ static void readConfigHeader(int bus, int dev, int function,
 	for (reg = 0; reg < (PCI_CONFIGHEADER_SIZE / 4); reg ++)
 	{
 		address = headerAddress(bus, dev, function, reg);
-		kernelProcessorOutPort32(PCI_CONFIG_PORT, address);
-		kernelProcessorInPort32(PCI_DATA_PORT, devInfo->header[reg]);
+		processorOutPort32(PCI_CONFIG_PORT, address);
+		processorInPort32(PCI_DATA_PORT, devInfo->header[reg]);
 	}
 }
 
@@ -499,7 +499,7 @@ static int driverGetTargets(kernelBus *bus, kernelBusTarget **pointer)
 	{
 		if (targets[count].bus == bus)
 		{
-			kernelMemCopy(&targets[count], &(*pointer)[targetCount],
+			memcpy(&(*pointer)[targetCount], &targets[count],
 				sizeof(kernelBusTarget));
 			targetCount += 1;
 		}
@@ -629,8 +629,10 @@ static int driverDeviceEnable(kernelBusTarget *target, int enable)
 			commandReg |= PCI_COMMAND_MEMORYENABLE;
 	}
 	else
+	{
 		// Turn off I/O access and memory access
 		commandReg &= ~(PCI_COMMAND_IOENABLE | PCI_COMMAND_MEMORYENABLE);
+	}
 
 	// Write back command register
 	writeConfig16(bus, dev, function, PCI_CONFREG_COMMAND_16, commandReg);
@@ -693,8 +695,8 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	kernelBus *bus = NULL;
 
 	// Check for a configuration mechanism #1 able PCI controller.
-	kernelProcessorOutPort32(PCI_CONFIG_PORT, 0x80000000L);
-	kernelProcessorInPort32(PCI_CONFIG_PORT, reply);
+	processorOutPort32(PCI_CONFIG_PORT, 0x80000000L);
+	processorInPort32(PCI_CONFIG_PORT, reply);
 
 	if (reply != 0x80000000L)
 		// No device that uses configuration mechanism #1.  Fine enough: No PCI
@@ -877,7 +879,6 @@ static kernelBusOps pciOps = {
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 void kernelPciDriverRegister(kernelDriver *driver)
 {
 	// Device driver registration.
@@ -987,8 +988,10 @@ pciCapHeader *kernelPciGetCapability(pciDeviceInfo *devInfo,
 						capHeader = NULL;
 				}
 				else
-					capHeader =
-						((void *) devInfo + devInfo->device.nonBridge.capPtr);
+				{
+					capHeader = ((void *) devInfo +
+						devInfo->device.nonBridge.capPtr);
+				}
 				break;
 
 			default:
@@ -999,8 +1002,10 @@ pciCapHeader *kernelPciGetCapability(pciDeviceInfo *devInfo,
 		}
 	}
 	else
+	{
 		// No capabilities
 		capHeader = NULL;
+	}
 
 	return (capHeader);
 }
@@ -1058,7 +1063,9 @@ void kernelPciPrintCapabilities(pciDeviceInfo *devInfo)
 		kernelDebug(debug_pci, "PCI --- end device capabilities ---");
 	}
 	else
+	{
 		kernelDebug(debug_pci, "PCI no capabilities reported");
+	}
 
 #endif // DEBUG
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -44,6 +44,7 @@ them at boot time.
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 
 #define _(string) gettext(string)
@@ -143,7 +144,7 @@ static void getDiskList(void)
 
 	diskInfo = malloc(numberDisks * sizeof(disk));
 	diskListParams = malloc(numberDisks * sizeof(listItemParameters));
-	if ((diskInfo == NULL) || (diskListParams == NULL))
+	if (!diskInfo || !diskListParams)
 		quit(status, "%s", _("Memory allocation error."));
 
 	status = diskGetAll(diskInfo, (DISK_MAXDEVICES * sizeof(disk)));
@@ -151,7 +152,7 @@ static void getDiskList(void)
 		// Eek.  Problem getting disk info
 		quit(status, "%s", _("Unable to get disk information."));
 
-	bzero(diskListParams, (numberDisks * sizeof(listItemParameters)));
+	memset(diskListParams, 0, (numberDisks * sizeof(listItemParameters)));
 	for (count = 0; count < numberDisks; count ++)
 		snprintf(diskListParams[count].text, WINDOW_MAX_LABEL_LENGTH,
 			"%s  [ %s ]", diskInfo[count].name, diskInfo[count].partType);
@@ -265,7 +266,8 @@ static void select(int diskNumber)
 	char mountPoint[MAX_PATH_LENGTH];
 
 	getMountPoint(diskNumber, mountPoint);
-	windowComponentSetData(mountPointField, mountPoint, MAX_PATH_LENGTH);
+	windowComponentSetData(mountPointField, mountPoint, MAX_PATH_LENGTH,
+		1 /* redraw */);
 	windowComponentSetSelected(autoMountCheckbox, getAutoMount(diskNumber));
 }
 
@@ -276,21 +278,22 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("filesys");
 
 	// Refresh the 'mount point' label
-	windowComponentSetData(mountPointLabel, MOUNT_POINT, strlen(MOUNT_POINT));
+	windowComponentSetData(mountPointLabel, MOUNT_POINT, strlen(MOUNT_POINT),
+		1 /* redraw */);
 
 	// Refresh the 'mount automatically' checkbox
 	windowComponentSetData(autoMountCheckbox, MOUNT_AUTOMATICALLY,
-		strlen(MOUNT_AUTOMATICALLY));
+		strlen(MOUNT_AUTOMATICALLY), 1 /* redraw */);
 
 	// Refresh the 'save' button
-	windowComponentSetData(saveButton, SAVE, strlen(SAVE));
+	windowComponentSetData(saveButton, SAVE, strlen(SAVE), 1 /* redraw */);
 
 	// Refresh the 'quit' button
-	windowComponentSetData(quitButton, QUIT, strlen(QUIT));
+	windowComponentSetData(quitButton, QUIT, strlen(QUIT), 1 /* redraw */);
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
@@ -381,7 +384,7 @@ static void constructWindow(void)
 	int numRows = 0;
 	componentParameters params;
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 2;
 	params.gridHeight = 1;
 	params.padTop = 10;
@@ -454,7 +457,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 	int status = 0;
 	disk sysDisk;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("filesys");
 
 	// Only work in graphics mode
@@ -466,7 +469,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 	}
 
 	// Find out whether we are currently running on a read-only filesystem
-	bzero(&sysDisk, sizeof(disk));
+	memset(&sysDisk, 0, sizeof(disk));
 	if (!fileGetDisk(PATH_SYSTEM, &sysDisk))
 		readOnly = sysDisk.readOnly;
 

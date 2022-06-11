@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,7 +26,6 @@
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include <string.h>
 
 
@@ -51,10 +50,10 @@ static void calculateGrid(kernelWindowComponent *containerComponent,
 		return;
 
 	// Clear our arrays
-	kernelMemClear(columnWidth, (container->maxComponents * sizeof(int)));
-	kernelMemClear(columnStartX, (container->maxComponents * sizeof(int)));
-	kernelMemClear(rowHeight, (container->maxComponents * sizeof(int)));
-	kernelMemClear(rowStartY, (container->maxComponents * sizeof(int)));
+	memset(columnWidth, 0, (container->maxComponents * sizeof(int)));
+	memset(columnStartX, 0, (container->maxComponents * sizeof(int)));
+	memset(rowHeight, 0, (container->maxComponents * sizeof(int)));
+	memset(rowStartY, 0, (container->maxComponents * sizeof(int)));
 
 	container->numColumns = 0;
 	container->numRows = 0;
@@ -173,8 +172,7 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 	columnStartX = kernelMalloc(container->maxComponents * sizeof(int));
 	rowHeight = kernelMalloc(container->maxComponents * sizeof(int));
 	rowStartY = kernelMalloc(container->maxComponents * sizeof(int));
-	if ((columnWidth == NULL) || (columnStartX == NULL) ||
-		(rowHeight == NULL) || (rowStartY == NULL))
+	if (!columnWidth || !columnStartX || !rowHeight || !rowStartY)
 	{
 		status = ERR_MEMORY;
 		goto out;
@@ -203,11 +201,14 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 		{
 			for (count2 = 0; count2 < component->params.gridWidth; count2 ++)
 				tmpWidth += columnWidth[component->params.gridX + count2];
-			tmpWidth -=
-				(component->params.padLeft + component->params.padRight);
+
+			tmpWidth -= (component->params.padLeft +
+				component->params.padRight);
 		}
 		else
+		{
 			tmpWidth = component->width;
+		}
 
 		if (tmpWidth < component->minWidth)
 			tmpWidth = component->minWidth;
@@ -218,11 +219,14 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 		{
 			for (count2 = 0; count2 < component->params.gridHeight; count2 ++)
 				tmpHeight += rowHeight[component->params.gridY + count2];
-			tmpHeight -=
-				(component->params.padTop + component->params.padBottom);
+
+			tmpHeight -= (component->params.padTop +
+				component->params.padBottom);
 		}
 		else
+		{
 			tmpHeight = component->height;
+		}
 
 		if (tmpHeight < component->minHeight)
 			tmpHeight = component->minHeight;
@@ -240,8 +244,10 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 
 		tmpX = columnStartX[component->params.gridX];
 		tmpWidth = 0;
+
 		for (count2 = 0; count2 < component->params.gridWidth; count2 ++)
 			tmpWidth += columnWidth[component->params.gridX + count2];
+
 		switch (component->params.orientationX)
 		{
 			case orient_left:
@@ -258,8 +264,10 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 
 		tmpY = rowStartY[component->params.gridY];
 		tmpHeight = 0;
+
 		for (count2 = 0; count2 < component->params.gridHeight; count2 ++)
 			tmpHeight += rowHeight[component->params.gridY + count2];
+
 		switch (component->params.orientationY)
 		{
 			case orient_top:
@@ -284,17 +292,23 @@ static int layoutSize(kernelWindowComponent *containerComponent, int width,
 		}
 
 		// Determine whether this component expands the bounds of our container
-		tmpWidth =
-			(component->xCoord + component->width + component->params.padRight);
-		if (tmpWidth > (containerComponent->xCoord + containerComponent->width))
-			containerComponent->width = (tmpWidth - containerComponent->xCoord);
-		tmpHeight =
-			(component->yCoord + component->height + component->params.padBottom);
-		if (tmpHeight >
-			(containerComponent->yCoord + containerComponent->height))
+
+		tmpWidth = (component->xCoord + component->width +
+			component->params.padRight);
+		if (tmpWidth > (containerComponent->xCoord +
+			containerComponent->width))
 		{
-			containerComponent->height =
-				(tmpHeight - containerComponent->yCoord);
+			containerComponent->width = (tmpWidth -
+				containerComponent->xCoord);
+		}
+
+		tmpHeight = (component->yCoord + component->height +
+			component->params.padBottom);
+		if (tmpHeight > (containerComponent->yCoord +
+			containerComponent->height))
+		{
+			containerComponent->height = (tmpHeight -
+				containerComponent->yCoord);
 		}
 	}
 
@@ -343,9 +357,9 @@ static int add(kernelWindowComponent *containerComponent,
 	{
 		// Try to make more room
 		maxComponents = (container->maxComponents * 2);
-		components =
-			kernelMalloc(maxComponents * sizeof(kernelWindowComponent *));
-		if (components == NULL)
+		components = kernelMalloc(maxComponents *
+			sizeof(kernelWindowComponent *));
+		if (!components)
 		{
 			kernelError(kernel_error, "Component container is full");
 			return (status = ERR_MEMORY);
@@ -379,7 +393,7 @@ static int remove(kernelWindowComponent *containerComponent,
 	int count = 0;
 
 	// Check params
-	if ((containerComponent == NULL) || (component == NULL))
+	if (!containerComponent || !component)
 	{
 		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
@@ -596,7 +610,7 @@ static kernelWindowComponent *eventComp(kernelWindowComponent *component,
 
 
 static int setBuffer(kernelWindowComponent *containerComponent,
-	kernelGraphicBuffer *buffer)
+	graphicBuffer *buffer)
 {
 	// Set the graphics buffer for the container and all its subcomponents.
 
@@ -633,7 +647,8 @@ static int setBuffer(kernelWindowComponent *containerComponent,
 
 static int draw(kernelWindowComponent *component)
 {
-	// Draw the component, which is really just a collection of other components.
+	// Draw the component, which is really just a collection of other
+	// components.
 
 	int status = 0;
 
@@ -669,10 +684,9 @@ static int move(kernelWindowComponent *component, int xCoord, int yCoord)
 
 			if (itemComponent->move)
 			{
-				status =
-					itemComponent->move(itemComponent,
-						(itemComponent->xCoord + differenceX),
-						(itemComponent->yCoord + differenceY));
+				status = itemComponent->move(itemComponent,
+					(itemComponent->xCoord + differenceX),
+					(itemComponent->yCoord + differenceY));
 				if (status < 0)
 					return (status);
 			}
@@ -728,7 +742,7 @@ static void drawGrid(kernelWindowComponent *containerComponent)
 	int count1, count2, count3;
 
 	// Check params
-	if (containerComponent == NULL)
+	if (!containerComponent)
 		return;
 
 	if (containerComponent->type != containerComponentType)
@@ -741,11 +755,8 @@ static void drawGrid(kernelWindowComponent *containerComponent)
 	columnStartX = kernelMalloc(container->maxComponents * sizeof(int));
 	rowHeight = kernelMalloc(container->maxComponents * sizeof(int));
 	rowStartY = kernelMalloc(container->maxComponents * sizeof(int));
-	if ((columnWidth == NULL) || (columnStartX == NULL) ||
-		(rowHeight == NULL) || (rowStartY == NULL))
-	{
+	if (!columnWidth || !columnStartX || !rowHeight || !rowStartY)
 		goto out;
-	}
 
 	for (count1 = 0; count1 < container->numComponents; count1 ++)
 		if (container->components[count1]->type == containerComponentType)
@@ -797,7 +808,6 @@ out:
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewContainer(objectKey parent,
 	const char *name, componentParameters *params)
 {
@@ -815,7 +825,7 @@ kernelWindowComponent *kernelWindowNewContainer(objectKey parent,
 
 	// Get the basic component structure
 	component = kernelWindowComponentNew(parent, params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	component->type = containerComponentType;
@@ -836,7 +846,7 @@ kernelWindowComponent *kernelWindowNewContainer(objectKey parent,
 
 	// Get memory for this container component
 	container = kernelMalloc(sizeof(kernelWindowContainer));
-	if (container == NULL)
+	if (!container)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
@@ -853,7 +863,7 @@ kernelWindowComponent *kernelWindowNewContainer(objectKey parent,
 
 	container->components = kernelMalloc(container->maxComponents *
 		sizeof(kernelWindowComponent *));
-	if (container->components == NULL)
+	if (!container->components)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
@@ -863,3 +873,4 @@ kernelWindowComponent *kernelWindowNewContainer(objectKey parent,
 
 	return (component);
 }
+

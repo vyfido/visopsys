@@ -41,6 +41,7 @@ Usage:
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 #include <sys/window.h>
 
@@ -152,7 +153,7 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("mines");
 
 	// Refresh the window title
@@ -249,7 +250,7 @@ static void initialize(void)
 		x += 1;
 	}
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.orientationX = orient_center;
@@ -308,8 +309,8 @@ static void initialize(void)
 			}
 
 			// Finally, we can assign a value to the current position
-			if (mineCount != 0)
-			mineField[x][y] = mineCount;
+			if (mineCount)
+				mineField[x][y] = mineCount;
 			}
 		}
 	}
@@ -334,7 +335,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 {
 	int status = 0;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("mines");
 
 	// Only work in graphics mode

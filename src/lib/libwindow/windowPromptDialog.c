@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -73,7 +73,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 	if (!dialogWindow)
 		return (status = ERR_NOCREATE);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 5;
@@ -196,8 +196,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 		{
 			break;
 		}
-		else if ((event.type == EVENT_KEY_DOWN) &&
-			(event.key == (unsigned char) ASCII_ENTER))
+		else if ((event.type == EVENT_KEY_DOWN) && (event.key == keyEnter))
 		{
 			status = windowComponentGetData(field, buffer, (rows * columns));
 			if (status < 0)

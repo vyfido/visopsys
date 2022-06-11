@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,83 +17,88 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: edit.c:57
+#: edit.c:58
 msgid "Edit"
 msgstr ""
 
-#: edit.c:58
+#: edit.c:59
 msgid "File"
 msgstr ""
 
-#: edit.c:59
+#: edit.c:60
 msgid "Untitled"
 msgstr ""
 
-#: edit.c:60
+#: edit.c:61
 msgid "File has been modified.  Discard changes?"
 msgstr ""
 
-#: edit.c:61
+#: edit.c:62
 msgid "Please enter the name of the file to edit:"
 msgstr ""
 
-#: edit.c:109
+#: edit.c:110
 msgid "Open"
 msgstr ""
 
-#: edit.c:110
+#: edit.c:111
 msgid "Save"
 msgstr ""
 
-#: edit.c:111
+#: edit.c:112
 msgid "Quit"
 msgstr ""
 
-#: edit.c:129
+#: edit.c:131
 msgid "Error"
 msgstr ""
 
-#: edit.c:150 edit.c:153
+#: edit.c:153 edit.c:156
 msgid " (modified)"
 msgstr ""
 
-#: edit.c:400
+#: edit.c:411
 msgid "Enter filename"
 msgstr ""
 
-#: edit.c:952
+#: edit.c:966
 msgid "Discard changes?"
 msgstr ""
 
-#: edit.c:953
+#: edit.c:967
 msgid "Discard"
 msgstr ""
 
-#: edit.c:953
+#: edit.c:967
 msgid "Cancel"
 msgstr ""
 
-#: edit.c:987 edit.c:1303
+#: edit.c:1002 edit.c:1333
 msgid "Couldn't create file in a read-only filesystem"
 msgstr ""
 
-#: edit.c:989 edit.c:1305
+#: edit.c:1004 edit.c:1335
 #, c-format
 msgid "Error %d loading file"
 msgstr ""
 
-#: edit.c:1110
+#: edit.c:1128
 msgid "Unable to launch file dialog"
 msgstr ""
 
-#: edit.c:1121
+#: edit.c:1140
 #, c-format
 msgid "Error %d saving file"
 msgstr ""
 
-#: edit.c:1259
+#: edit.c:1280
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
+msgstr ""
+
+#: edit.c:1296
+#, c-format
+msgid "Unknown option '%c'"
 msgstr ""

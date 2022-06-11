@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,27 +17,32 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: reboot.c:64
+#: reboot.c:65
 msgid ""
 "\n"
 "Ejecting, please wait... "
 msgstr ""
 
-#: reboot.c:67
+#: reboot.c:68
 msgid ""
 "\n"
 "\n"
 "Unable to unlock the media door\n"
 msgstr ""
 
-#: reboot.c:77
+#: reboot.c:78
 msgid ""
 "\n"
 "\n"
 "Can't seem to eject.  Try pushing the 'eject' button now.\n"
 msgstr ""
 
-#: reboot.c:120
+#: reboot.c:115
+#, c-format
+msgid "Unknown option '%c'\n"
+msgstr ""
+
+#: reboot.c:131
 #, c-format
 msgid "Use \"%s -f\" to force.\n"
 msgstr ""

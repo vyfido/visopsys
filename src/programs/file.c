@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -51,6 +51,7 @@ Will produce the output:
 #include <string.h>
 #include <stdlib.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/vsh.h>
 
 #define _(string) gettext(string)
@@ -68,7 +69,7 @@ int main(int argc, char *argv[])
 	loaderFileClass class;
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("file");
 
 	// Need at least one argument
@@ -83,10 +84,10 @@ int main(int argc, char *argv[])
 	for (count = 1; count < argc; count ++)
 	{
 		// Initialize the file class structure
-		bzero(&class, sizeof(loaderFileClass));
+		memset(&class, 0, sizeof(loaderFileClass));
 
 		// Get the file class information
-		if (loaderClassifyFile(argv[count], &class) == NULL)
+		if (!loaderClassifyFile(argv[count], &class))
 			strcpy(class.className, _("unknown file class"));
 
 		// Print this item

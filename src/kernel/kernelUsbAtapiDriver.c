@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,17 +23,18 @@
 
 #include "kernelUsbAtapiDriver.h"
 #include "kernelAtaDriver.h"
+#include "kernelCpu.h"
 #include "kernelDebug.h"
 #include "kernelDisk.h"
 #include "kernelError.h"
 #include "kernelFilesystem.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
-#include "kernelProcessorX86.h"
+#include "kernelMultitasker.h"
 #include "kernelScsiDriver.h"
-#include "kernelSysTimer.h"
 #include "kernelVariableList.h"
 #include <stdio.h>
+#include <string.h>
+#include <sys/processor.h>
 
 static kernelPhysicalDisk *disks[USBATAPI_MAX_DISKS];
 static int numDisks = 0;
@@ -132,9 +133,9 @@ static int usbCommand(kernelUsbAtapiDisk *dsk, scsiCmd12 *cmd12, void *data,
 	kernelDebug(debug_usb, "USB ATAPI command 0x%02x dataLength=%d",
 		cmd12->byte[0],	dataLength);
 
-	kernelMemClear(&cmdWrapper, sizeof(usbCmdBlockWrapper));
-	kernelMemClear(&statusWrapper, sizeof(usbCmdStatusWrapper));
-	kernelMemClear((void *) trans, (3 * sizeof(usbTransaction)));
+	memset(&cmdWrapper, 0, sizeof(usbCmdBlockWrapper));
+	memset(&statusWrapper, 0, sizeof(usbCmdStatusWrapper));
+	memset((void *) trans, 0, (3 * sizeof(usbTransaction)));
 
 	// Set up the command wrapper
 	cmdWrapper.signature = USB_CMDBLOCKWRAPPER_SIG;
@@ -144,7 +145,7 @@ static int usbCommand(kernelUsbAtapiDisk *dsk, scsiCmd12 *cmd12, void *data,
 	cmdWrapper.cmdLength = sizeof(scsiCmd12);
 
 	// Copy the command data into the wrapper
-	kernelMemCopy(cmd12, cmdWrapper.cmd, sizeof(scsiCmd12));
+	memcpy(cmdWrapper.cmd, cmd12, sizeof(scsiCmd12));
 
 	// Set up the USB transaction to send the command
 	cmdTrans = &trans[transCount++];
@@ -256,7 +257,7 @@ static int atapiRequestSense(kernelUsbAtapiDisk *dsk, atapiSenseData *senseData,
 
 	kernelDebug(debug_usb, "USB ATAPI request sense");
 
-	kernelMemClear(&cmd12, sizeof(scsiCmd12));
+	memset(&cmd12, 0, sizeof(scsiCmd12));
 	cmd12.byte[0] = SCSI_CMD_REQUESTSENSE;
 	cmd12.byte[4] = sizeof(atapiSenseData);
 
@@ -274,9 +275,8 @@ static int atapiRequestSense(kernelUsbAtapiDisk *dsk, atapiSenseData *senseData,
 	}
 
 	// Swap bytes around
-	senseData->info = kernelProcessorSwap32(senseData->info);
-	senseData->commandSpecInfo =
-		kernelProcessorSwap32(senseData->commandSpecInfo);
+	senseData->info = processorSwap32(senseData->info);
+	senseData->commandSpecInfo = processorSwap32(senseData->commandSpecInfo);
 
 	kernelDebug(debug_usb, "USB ATAPI request sense successful");
 
@@ -298,7 +298,7 @@ static int atapiInquiry(kernelUsbAtapiDisk *dsk, scsiInquiryData *inquiryData,
 
 	kernelDebug(debug_usb, "USB ATAPI inquiry");
 
-	kernelMemClear(&cmd12, sizeof(scsiCmd12));
+	memset(&cmd12, 0, sizeof(scsiCmd12));
 	cmd12.byte[0] = SCSI_CMD_INQUIRY;
 	cmd12.byte[4] = sizeof(scsiInquiryData);
 
@@ -332,7 +332,7 @@ static int atapiStartStopUnit(kernelUsbAtapiDisk *dsk, unsigned char start,
 
 	kernelDebug(debug_usb, "USB ATAPI %s unit", (start? "start" : "stop"));
 
-	kernelMemClear(&cmd12, sizeof(scsiCmd12));
+	memset(&cmd12, 0, sizeof(scsiCmd12));
 	cmd12.byte[0] = SCSI_CMD_STARTSTOPUNIT;
 	cmd12.byte[4] = (((loadEject & 0x01) << 1) | (start & 0x01));
 
@@ -366,7 +366,7 @@ static int atapiTestUnitReady(kernelUsbAtapiDisk *dsk, int silent)
 
 	kernelDebug(debug_usb, "USB ATAPI test unit ready");
 
-	kernelMemClear(&cmd12, sizeof(scsiCmd12));
+	memset(&cmd12, 0, sizeof(scsiCmd12));
 	cmd12.byte[0] = SCSI_CMD_TESTUNITREADY;
 
 	// Set up the USB transaction, with the SCSI 'test unit ready' command.
@@ -402,13 +402,13 @@ static int atapiReadWrite(kernelUsbAtapiDisk *dsk, unsigned logicalSector,
 	kernelDebug(debug_usb, "USB ATAPI %s %u bytes",	(read? "read" : "write"),
 		dataLength);
 
-	kernelMemClear(&cmd12, sizeof(scsiCmd12));
+	memset(&cmd12, 0, sizeof(scsiCmd12));
 	if (read)
 		cmd12.byte[0] = SCSI_CMD_READ10;
 	else
 		cmd12.byte[0] = SCSI_CMD_WRITE10;
-	*((unsigned *) &cmd12.byte[2]) = kernelProcessorSwap32(logicalSector);
-	*((unsigned short *) &cmd12.byte[7]) = kernelProcessorSwap16(numSectors);
+	*((unsigned *) &cmd12.byte[2]) = processorSwap32(logicalSector);
+	*((unsigned short *) &cmd12.byte[7]) = processorSwap16(numSectors);
 
 	// Set up the USB transaction, with the SCSI 'read' or 'write' command.
 	status = usbCommand(dsk, &cmd12, buffer, dataLength, &bytes, read, silent);
@@ -440,7 +440,7 @@ static int atapiPreventRemoval(kernelUsbAtapiDisk *dsk, int prevent, int silent)
 	kernelDebug(debug_usb, "USB ATAPI %s removal",
 		(prevent? "prevent" : "allow"));
 
-	kernelMemClear(&cmd12, sizeof(scsiCmd12));
+	memset(&cmd12, 0, sizeof(scsiCmd12));
 	cmd12.byte[0] = ATAPI_PERMITREMOVAL;
 	cmd12.byte[4] = (prevent & 0x01);
 
@@ -477,7 +477,7 @@ static int atapiReadCapacity(kernelUsbAtapiDisk *dsk,
 
 	kernelDebug(debug_usb, "USB ATAPI read capacity");
 
-	kernelMemClear(&cmd12, sizeof(scsiCmd12));
+	memset(&cmd12, 0, sizeof(scsiCmd12));
 	cmd12.byte[0] = SCSI_CMD_READCAPACITY;
 
 	// Set up the USB transaction, with the SCSI 'read capacity' command.
@@ -494,8 +494,8 @@ static int atapiReadCapacity(kernelUsbAtapiDisk *dsk,
 	}
 
 	// Swap bytes around
-	capacityData->blockNumber = kernelProcessorSwap32(capacityData->blockNumber);
-	capacityData->blockLength = kernelProcessorSwap32(capacityData->blockLength);
+	capacityData->blockNumber = processorSwap32(capacityData->blockNumber);
+	capacityData->blockLength = processorSwap32(capacityData->blockLength);
 
 	kernelDebug(debug_usb, "USB ATAPI read capacity successful");
 
@@ -514,7 +514,7 @@ static int atapiReadToc(kernelUsbAtapiDisk *dsk, atapiTocData *tocData,
 
 	kernelDebug(debug_usb, "USB ATAPI read TOC");
 
-	kernelMemClear(&cmd12, sizeof(scsiCmd12));
+	memset(&cmd12, 0, sizeof(scsiCmd12));
 	cmd12.byte[0] = ATAPI_READTOC;
 	cmd12.byte[2] = 0x01;
 	cmd12.byte[8] = sizeof(atapiTocData);
@@ -535,8 +535,8 @@ static int atapiReadToc(kernelUsbAtapiDisk *dsk, atapiTocData *tocData,
 	}
 
 	// Swap bytes around
-	tocData->length = kernelProcessorSwap16(tocData->length);
-	tocData->lastSessionLba = kernelProcessorSwap32(tocData->lastSessionLba);
+	tocData->length = processorSwap16(tocData->length);
+	tocData->lastSessionLba = processorSwap32(tocData->lastSessionLba);
 
 	kernelDebug(debug_usb, "USB ATAPI read TOC successful");
 
@@ -569,7 +569,7 @@ static int atapiStartup(kernelPhysicalDisk *physical)
 	atapiSenseData senseData;
 	scsiCapacityData capacityData;
 	atapiTocData tocData;
-	unsigned timeout = (kernelSysTimerRead() + 200);
+	uquad_t timeout = (kernelCpuGetMs() + 10000);	// Timout after 10 seconds
 
 	dsk = (kernelUsbAtapiDisk *) physical->driverData;
 
@@ -589,7 +589,7 @@ static int atapiStartup(kernelPhysicalDisk *physical)
 			if (senseData.senseKey == SCSI_SENSE_NOSENSE)
 			{
 				// No error reported, try again
-				kernelMultitaskerWait(1);
+				kernelMultitaskerWait(5);
 				continue;
 			}
 			else if (senseData.senseKey == SCSI_SENSE_RECOVEREDERROR)
@@ -597,31 +597,35 @@ static int atapiStartup(kernelPhysicalDisk *physical)
 				// Recovered error.  Hmm, some error happened, but the
 				// device thinks it handled it.  We shouldn't get this,
 				// in other words.
-				kernelMultitaskerWait(1);
+				kernelMultitaskerWait(5);
 				continue;
 			}
 			else if ((senseData.senseKey == SCSI_SENSE_NOTREADY) &&
 				(senseData.addlSenseCode == 0x04))
 			{
 				// The drive may be in the process of becoming ready
-				kernelMultitaskerWait(1);
+				kernelMultitaskerWait(5);
 				continue;
 			}
 			else if ((senseData.senseKey == SCSI_SENSE_UNITATTENTION) &&
 				(senseData.addlSenseCode == 0x29))
 			{
 				// This happens after a reset
-				kernelMultitaskerWait(1);
+				kernelMultitaskerWait(5);
 				continue;
 			}
 			else
+			{
 				// Assume we shouldn't retry
 				break;
+			}
 		}
 		else
+		{
 			break;
+		}
 
-	} while (kernelSysTimerRead() < timeout);
+	} while (kernelCpuGetMs() < timeout);
 
 	// Start successful?
 	if (status < 0)
@@ -863,6 +867,7 @@ static kernelPhysicalDisk *detectTarget(void *parent, int targetId,
 	int status = 0;
 	kernelUsbAtapiDisk *dsk = NULL;
 	kernelPhysicalDisk *physical = NULL;
+	usbInterface *interface = NULL;
 	scsiInquiryData inquiryData;
 	int count;
 
@@ -881,52 +886,51 @@ static kernelPhysicalDisk *detectTarget(void *parent, int targetId,
 	if (dsk->usbDev == NULL)
 		goto err_out;
 
-	// Set the device configuration
-	if (kernelUsbSetDeviceConfig(dsk->usbDev) < 0)
-		goto err_out;
-
 	physical = kernelMalloc(sizeof(kernelPhysicalDisk));
 	if (physical == NULL)
 		goto err_out;
 
+	interface = (usbInterface *) &dsk->usbDev->interface[0];
+
 	// Record the bulk-in and bulk-out endpoints, and any interrupt endpoint
 	kernelDebug(debug_usb, "USB ATAPI search for bulk endpoints");
-	for (count = 1; count < dsk->usbDev->numEndpoints; count ++)
+	for (count = 0; count < interface->numEndpoints; count ++)
 	{
-		switch (dsk->usbDev->endpointDesc[count]->attributes &
-			USB_ENDP_ATTR_MASK)
+		switch (interface->endpoint[count].attributes & USB_ENDP_ATTR_MASK)
 		{
 			case USB_ENDP_ATTR_BULK:
 			{
-				if (!dsk->bulkInDesc &&
-					(dsk->usbDev->endpointDesc[count]->endpntAddress & 0x80))
+				if (interface->endpoint[count].number & 0x80)
 				{
-					dsk->bulkInDesc = dsk->usbDev->endpointDesc[count];
-					dsk->bulkInEndpoint = dsk->bulkInDesc->endpntAddress;
-					kernelDebug(debug_usb, "USB ATAPI bulk in endpoint %d",
-						dsk->bulkInEndpoint);
+					dsk->bulkInEndpoint = interface->endpoint[count].number;
+					kernelDebug(debug_usb, "USB ATAPI bulk in endpoint "
+						"0x%02x", dsk->bulkInEndpoint);
 				}
-				if (!dsk->bulkOutDesc &&
-					!(dsk->usbDev->endpointDesc[count]->endpntAddress &	0x80))
+
+				if (!(interface->endpoint[count].number & 0x80))
 				{
-					dsk->bulkOutDesc = dsk->usbDev->endpointDesc[count];
-					dsk->bulkOutEndpoint = dsk->bulkOutDesc->endpntAddress;
-					kernelDebug(debug_usb, "USB ATAPI bulk out endpoint %d",
-						dsk->bulkOutEndpoint);
+					dsk->bulkOutEndpoint = interface->endpoint[count].number;
+					kernelDebug(debug_usb, "USB ATAPI bulk out endpoint "
+						"0x%02x", dsk->bulkOutEndpoint);
 				}
+
 				break;
 			}
 
 			case USB_ENDP_ATTR_INTERRUPT:
 			{
-				kernelDebug(debug_usb, "USB ATAPI interrupt endpoint %d",
-					dsk->usbDev->endpointDesc[count]->endpntAddress);
+				kernelDebug(debug_usb, "USB ATAPI interrupt endpoint 0x%02x",
+					interface->endpoint[count].number);
 				break;
 			}
 		}
 	}
 
 	kernelDebug(debug_usb, "USB ATAPI mass storage device detected");
+
+	// Set the device configuration
+	if (kernelUsbSetDeviceConfig(dsk->usbDev) < 0)
+		goto err_out;
 
 	physical->deviceNumber = getNewDiskNumber();
 	physical->description = "USB CD/DVD";
@@ -982,26 +986,25 @@ static kernelPhysicalDisk *detectTarget(void *parent, int targetId,
 	disks[numDisks++] = physical;
 
 	// Set up the kernelDevice
-	dsk->usbDev->dev.device.class =	kernelDeviceGetClass(DEVICECLASS_DISK);
-	dsk->usbDev->dev.device.subClass =
-		kernelDeviceGetClass(DEVICESUBCLASS_DISK_CDDVD);
-	kernelVariableListSet((variableList *) &dsk->usbDev->dev.device.attrs,
+	dsk->dev.device.class = kernelDeviceGetClass(DEVICECLASS_DISK);
+	dsk->dev.device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_DISK_CDDVD);
+	kernelVariableListSet((variableList *) &dsk->dev.device.attrs,
 		DEVICEATTRNAME_VENDOR, dsk->vendorId);
-	kernelVariableListSet((variableList *) &dsk->usbDev->dev.device.attrs,
+	kernelVariableListSet((variableList *) &dsk->dev.device.attrs,
 		DEVICEATTRNAME_MODEL, dsk->productId);
-	dsk->usbDev->dev.driver = driver;
-	dsk->usbDev->dev.data = (void *) physical;
+	dsk->dev.driver = driver;
+	dsk->dev.data = (void *) physical;
 
 	// Tell USB that we're claiming this device.
 	kernelBusDeviceClaim(dsk->busTarget, driver);
 
 	// Register the disk
-	status = kernelDiskRegisterDevice((kernelDevice *) &dsk->usbDev->dev);
+	status = kernelDiskRegisterDevice(&dsk->dev);
 	if (status < 0)
 		goto err_out;
 
 	// Add the kernel device
-	status = kernelDeviceAdd(parent, (kernelDevice *) &dsk->usbDev->dev);
+	status = kernelDeviceAdd(parent, &dsk->dev);
 	if (status < 0)
 		goto err_out;
 
@@ -1018,6 +1021,7 @@ err_out:
 	{
 		if (dsk->busTarget)
 			kernelFree(dsk->busTarget);
+
 		kernelFree(dsk);
 	}
 
@@ -1183,10 +1187,13 @@ static int driverHotplug(void *parent, int busType __attribute__((unused)),
 		if (dsk)
 		{
 			// Remove it from the system's disks
-			kernelDiskRemoveDevice((kernelDevice *) &(dsk->usbDev->dev));
+			kernelDiskRemoveDevice(&dsk->dev);
 
 			// Remove it from the device tree
-			kernelDeviceRemove((kernelDevice *) &(dsk->usbDev->dev));
+			kernelDeviceRemove(&dsk->dev);
+
+			// Free the device's attributes list
+			kernelVariableListDestroy(&dsk->dev.device.attrs);
 
 			// Delete.
 			removeDisk(physical);
@@ -1223,7 +1230,6 @@ static kernelDiskOps usbAtapiOps = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 void kernelUsbAtapiDriverRegister(kernelDriver *driver)
 {

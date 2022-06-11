@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -50,6 +50,7 @@ filebrowse will attempt to execute it -- etc.
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/lock.h>
 #include <sys/paths.h>
 #include <sys/vsh.h>
@@ -97,8 +98,7 @@ static windowFileList *fileList = NULL;
 static dirRecord *dirStack = NULL;
 static int dirStackCurr = 0;
 static lock dirStackLock;
-static unsigned cwdModifiedDate = 0;
-static unsigned cwdModifiedTime = 0;
+static time_t cwdModified = 0;
 static int stop = 0;
 
 
@@ -156,13 +156,10 @@ static void changeDir(file *theFile, char *fullName)
 		// Look up the directory and save the modified date and time, so we
 		// can rescan it if it gets modified
 		if (fileFind(dirStack[dirStackCurr].name, &cwdFile) >= 0)
-		{
-			cwdModifiedDate = cwdFile.modifiedDate;
-			cwdModifiedTime = cwdFile.modifiedTime;
-		}
+			cwdModified = mktime(&cwdFile.modified);
 
 		windowComponentSetData(locationField, dirStack[dirStackCurr].name,
-			strlen(fullName));
+			strlen(fullName), 1 /* redraw */);
 	}
 
 	lockRelease(&dirStackLock);
@@ -268,7 +265,8 @@ static void refreshMenuContents(windowMenuContents *contents)
 
 	for (count = 0; count < contents->numItems; count ++)
 		windowComponentSetData(contents->items[count].key,
-			contents->items[count].text, strlen(contents->items[count].text));
+			contents->items[count].text, strlen(contents->items[count].text),
+			(count == (contents->numItems - 1)));
 }
 
 
@@ -278,7 +276,7 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("filebrowse");
 
 	// Refresh the 'file' menu
@@ -354,7 +352,7 @@ static int constructWindow(const char *directory)
 	if (!window)
 		return (status = ERR_NOTINITIALIZED);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 
 	// Create the top menu bar
 	objectKey menuBar = windowNewMenuBar(window, &params);
@@ -381,7 +379,8 @@ static int constructWindow(const char *directory)
 
 	// Create the location text field
 	locationField = windowNewTextField(window, 40, &params);
-	windowComponentSetData(locationField, (char *) directory, strlen(directory));
+	windowComponentSetData(locationField, (char *) directory,
+		strlen(directory), 1 /* redraw */);
 	windowRegisterEventHandler(locationField, &eventHandler);
 	windowComponentSetEnabled(locationField, 0); // For now
 
@@ -411,7 +410,7 @@ int main(int argc, char *argv[])
 	int guiThreadPid = 0;
 	file cwdFile;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("filebrowse");
 
 	// Only work in graphics mode
@@ -467,10 +466,7 @@ int main(int argc, char *argv[])
 	guiThreadPid = windowGuiThread();
 
 	if (fileFind(dirStack[dirStackCurr].name, &cwdFile) >= 0)
-	{
-		cwdModifiedDate = cwdFile.modifiedDate;
-		cwdModifiedTime = cwdFile.modifiedTime;
-	}
+		cwdModified = mktime(&cwdFile.modified);
 
 	// Loop, looking for changes in the current directory
 	while (!stop && multitaskerProcessIsAlive(guiThreadPid))
@@ -480,15 +476,13 @@ int main(int argc, char *argv[])
 
 		if (fileFind(dirStack[dirStackCurr].name, &cwdFile) >= 0)
 		{
-			if ((cwdFile.modifiedDate != cwdModifiedDate) ||
-				(cwdFile.modifiedTime != cwdModifiedTime))
+			if (mktime(&cwdFile.modified) != cwdModified)
 			{
 				fileList->update(fileList);
 				windowComponentSetSelected(fileList->key,
 					dirStack[dirStackCurr].selected);
 
-				cwdModifiedDate = cwdFile.modifiedDate;
-				cwdModifiedTime = cwdFile.modifiedTime;
+				cwdModified = mktime(&cwdFile.modified);
 			}
 
 			lockRelease(&dirStackLock);

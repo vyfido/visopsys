@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -45,6 +45,7 @@ Usage:
 #include <time.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/font.h>
 #include <sys/paths.h>
 #include <sys/window.h>
@@ -84,10 +85,10 @@ static void makeTime(void)
 {
 	struct tm theTime;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("clock");
 
-	bzero(&theTime, sizeof(struct tm));
+	memset(&theTime, 0, sizeof(struct tm));
 
 	// Get the current date and time structure
 	if (rtcDateTime(&theTime) < 0)
@@ -110,7 +111,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 	componentParameters params;
 	int width, height;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("clock");
 
 	// Only work in graphics mode
@@ -124,13 +125,13 @@ int main(int argc __attribute__((unused)), char *argv[])
 
 	// Create a new window, with small, arbitrary size and location
 	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
-	if (window == NULL)
+	if (!window)
 		return (status = ERR_NOTINITIALIZED);
 
 	// No title bar
 	windowSetHasTitleBar(window, 0);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 2;
@@ -140,7 +141,8 @@ int main(int argc __attribute__((unused)), char *argv[])
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 	if (fileFind(PATH_SYSTEM_FONTS "/arial-bold-10.vbf", NULL) >= 0)
-		fontLoad("arial-bold-10.vbf", "arial-bold-10", &(params.font), 0);
+		fontLoadSystem("arial-bold-10.vbf", "arial-bold-10",
+			&(params.font), 0);
 
 	makeTime();
 	label = windowNewTextLabel(window, timeString, &params);
@@ -156,7 +158,8 @@ int main(int argc __attribute__((unused)), char *argv[])
 	while (1)
 	{
 		makeTime();
-		windowComponentSetData(label, timeString, (strlen(timeString) + 1));
+		windowComponentSetData(label, timeString, (strlen(timeString) + 1),
+			1 /* redraw */);
 		sleep(1);
 	}
 }

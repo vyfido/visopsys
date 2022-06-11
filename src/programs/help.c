@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -96,7 +96,6 @@ edit              Simple text editor
 filebrowse        Navigate the file system
 filesys           Set mount points and other filesystem properties
 iconwin           A program for displaying custom icon windows
-loadfont          Load a new default font
 mines             A mine sweeper game
 progman           View and manage programs and processes
 screenshot        Take a screenshot
@@ -113,6 +112,7 @@ wallpaper         Load a new background wallpaper image
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 
 #define _(string) gettext(string)
@@ -124,20 +124,22 @@ int main(int argc, char *argv[])
 	char command[MAX_PATH_NAME_LENGTH];
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("help");
 
 	if (argc < 2)
+	{
 		// If there are no arguments, print the general help file
 		status = system(PATH_PROGRAMS "/more " PATH_PROGRAMS_HELPFILES
 			"/help.txt");
-
+	}
 	else
 	{
 		for (count = 1; count < argc; count ++)
 		{
 			// See if there is a help file for the argument
-			sprintf(command, "%s/%s.txt", PATH_PROGRAMS_HELPFILES, argv[count]);
+			sprintf(command, "%s/%s.txt", PATH_PROGRAMS_HELPFILES,
+				argv[count]);
 			status = fileFind(command, NULL);
 			if (status < 0)
 			{

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,119 +17,119 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: telnet.c:44
+#: telnet.c:45
 #, c-format
 msgid ""
 "usage:\n"
 "%s <address | hostname>\n"
 msgstr ""
 
-#: telnet.c:65
+#: telnet.c:66
 msgid "SE\n"
 msgstr ""
 
-#: telnet.c:69
+#: telnet.c:70
 msgid "NOP\n"
 msgstr ""
 
-#: telnet.c:73
+#: telnet.c:74
 msgid "Data Mark\n"
 msgstr ""
 
-#: telnet.c:77
+#: telnet.c:78
 msgid "Break\n"
 msgstr ""
 
-#: telnet.c:81
+#: telnet.c:82
 msgid "Interrupt Process\n"
 msgstr ""
 
-#: telnet.c:85
+#: telnet.c:86
 msgid "Abort output\n"
 msgstr ""
 
-#: telnet.c:89
+#: telnet.c:90
 msgid "Are You There\n"
 msgstr ""
 
-#: telnet.c:93
+#: telnet.c:94
 msgid "Erase character\n"
 msgstr ""
 
-#: telnet.c:97
+#: telnet.c:98
 msgid "Erase Line\n"
 msgstr ""
 
-#: telnet.c:101
+#: telnet.c:102
 msgid "Go ahead\n"
 msgstr ""
 
-#: telnet.c:105
+#: telnet.c:106
 msgid "SB\n"
 msgstr ""
 
-#: telnet.c:109
+#: telnet.c:110
 msgid "WILL "
 msgstr ""
 
-#: telnet.c:113
+#: telnet.c:114
 msgid "WON'T "
 msgstr ""
 
-#: telnet.c:117
+#: telnet.c:118
 msgid "DO "
 msgstr ""
 
-#: telnet.c:121
+#: telnet.c:122
 msgid "DON'T "
 msgstr ""
 
-#: telnet.c:125
+#: telnet.c:126
 #, c-format
 msgid "unknown code %d\n"
 msgstr ""
 
-#: telnet.c:136
+#: telnet.c:137
 msgid "echo\n"
 msgstr ""
 
-#: telnet.c:140
+#: telnet.c:141
 msgid "suppress go ahead\n"
 msgstr ""
 
-#: telnet.c:144
+#: telnet.c:145
 msgid "status\n"
 msgstr ""
 
-#: telnet.c:148
+#: telnet.c:149
 msgid "timing mark\n"
 msgstr ""
 
-#: telnet.c:152
+#: telnet.c:153
 msgid "terminal type\n"
 msgstr ""
 
-#: telnet.c:156
+#: telnet.c:157
 msgid "window size\n"
 msgstr ""
 
-#: telnet.c:160
+#: telnet.c:161
 msgid "terminal speed\n"
 msgstr ""
 
-#: telnet.c:164
+#: telnet.c:165
 msgid "remote flow control\n"
 msgstr ""
 
-#: telnet.c:168
+#: telnet.c:169
 msgid "linemode\n"
 msgstr ""
 
-#: telnet.c:172 telnet.c:176
+#: telnet.c:173 telnet.c:177
 msgid "environment variables\n"
 msgstr ""
 
-#: telnet.c:180
+#: telnet.c:181
 #, c-format
 msgid "unknown option %d\n"
 msgstr ""

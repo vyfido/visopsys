@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -252,8 +252,8 @@ loaderDiskError:
 
 
 ;; General message for disk errors
-IOERR           db 'Disk IO error:  ', 0
-IOERR2          db 'The boot device or media may require service.', 0
+IOERR		db 'Disk IO error:  ', 0
+IOERR2		db 'The boot device or media may require service.', 0
 
 ;;
 ;; Disk error status messages:
@@ -285,3 +285,4 @@ DSM23		db 'Fixed disk write fault on selected drive.', 0
 DSM24		db 'Fixed disk status error/Error reg = 0.', 0
 DSM25		db 'Sense operation failed.', 0
 DSMHUH		db 'Unknown disk I/O error.', 0
+

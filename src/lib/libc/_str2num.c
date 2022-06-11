@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -35,7 +35,7 @@ unsigned long long _str2num(const char *string, unsigned base, int sign)
 	int negative = 0;
 	int count = 0;
 
-	if (string == NULL)
+	if (!string)
 	{
 		errno = ERR_NULLPARAMETER;
 		return (0);
@@ -86,10 +86,10 @@ unsigned long long _str2num(const char *string, unsigned base, int sign)
 		}
 	}
 
-	 out:
-
+out:
 	if (negative)
 		result = ((long long) result * -1);
 
 	return (result);
 }
+

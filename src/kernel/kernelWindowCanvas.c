@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,14 +24,9 @@
 
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelDebug.h"
-#include "kernelError.h"
+#include "kernelGraphic.h"
 #include "kernelImage.h"
 #include "kernelMalloc.h"
-#include "kernelMemory.h"
-#include "kernelMisc.h"
-#include <string.h>
-
-static int (*saveDraw) (kernelWindowComponent *) = NULL;
 
 
 static void drawFocus(kernelWindowComponent *component, int focus)
@@ -57,15 +52,12 @@ static int draw(kernelWindowComponent *component)
 	// draw another border
 
 	int status = 0;
+	kernelWindowCanvas *canvas = component->data;
 
 	kernelDebug(debug_gui, "WindowCanvas draw");
 
-	if (saveDraw)
-	{
-		status = saveDraw(component);
-		if (status < 0)
-			return (status);
-	}
+	kernelGraphicCopyBuffer(&canvas->buffer, component->buffer,
+		component->xCoord, component->yCoord);
 
 	if (component->flags & WINFLAG_HASFOCUS)
 		drawFocus(component, 1);
@@ -83,20 +75,34 @@ static int resize(kernelWindowComponent *component, int width, int height)
 	kernelDebug(debug_gui, "WindowCanvas resize from %d,%d to %d,%d",
 		component->width, component->height, width, height);
 
-	kernelMemCopy((image *) &canvas->image, &tmpImage, sizeof(image));
+	// Get an image from the canvas buffer
+	status = kernelGraphicGetImage(&canvas->buffer, &tmpImage, 0, 0,
+		component->width, component->height);
+	if (status < 0)
+		return (status);
+
+	// Re-allocate the canvas buffer
+	canvas->buffer.width = width;
+	canvas->buffer.height = height;
+	canvas->buffer.data = kernelRealloc(canvas->buffer.data,
+		kernelGraphicCalculateAreaBytes(width, height));
+	if (!canvas->buffer.data)
+	{
+		status = ERR_MEMORY;
+		goto out;
+	}
 
 	// Resize the canvas image
 	status = kernelImageResize(&tmpImage, width, height);
 	if (status < 0)
-		return (status);
+		goto out;
 
-	// Copy it to kernel memory
-	status = kernelImageCopyToKernel(&tmpImage, (image *) &canvas->image);
-	if (status < 0)
-		return (status);
+	// Draw the resized image in our new buffer
+	status = kernelGraphicDrawImage(&canvas->buffer, &tmpImage, draw_normal,
+		0, 0, 0, 0, width, height);
 
+out:
 	kernelImageFree(&tmpImage);
-
 	return (status = 0);
 }
 
@@ -106,9 +112,11 @@ static int focus(kernelWindowComponent *component, int yesNo)
 	kernelDebug(debug_gui, "WindowCanvas focus");
 
 	drawFocus(component, yesNo);
+
 	component->window->update(component->window, (component->xCoord - 1),
 		(component->yCoord - 1), (component->width + 2),
 		(component->height + 2));
+
 	return (0);
 }
 
@@ -122,69 +130,83 @@ static int setData(kernelWindowComponent *component, void *data, int size
 	int status = 0;
 	kernelWindowCanvas *canvas = component->data;
 	windowDrawParameters *params = data;
-	image tmpImage;
 
 	kernelDebug(debug_gui, "WindowCanvas set data");
-
-	int xCoord1 = component->xCoord + params->xCoord1;
-	int xCoord2 = component->xCoord + params->xCoord2;
-	int yCoord1 = component->yCoord + params->yCoord1;
-	int yCoord2 = component->yCoord + params->yCoord2;
 
 	switch (params->operation)
 	{
 		case draw_pixel:
-			status = kernelGraphicDrawPixel(component->buffer,
-				&params->foreground, params->mode, xCoord1, yCoord1);
+			status = kernelGraphicDrawPixel(&canvas->buffer,
+				&params->foreground, params->mode, params->xCoord1,
+				params->yCoord1);
 			break;
+
 		case draw_line:
-			status = kernelGraphicDrawLine(component->buffer,
-				&params->foreground, params->mode, xCoord1, yCoord1, xCoord2,
-				yCoord2);
+			status = kernelGraphicDrawLine(&canvas->buffer,
+				&params->foreground, params->mode, params->xCoord1,
+				params->yCoord1, params->xCoord2, params->yCoord2);
 			break;
+
 		case draw_rect:
-			status = kernelGraphicDrawRect(component->buffer,
-				&params->foreground, params->mode, xCoord1, yCoord1,
-				params->width, params->height, params->thickness, params->fill);
+			status = kernelGraphicDrawRect(&canvas->buffer,
+				&params->foreground, params->mode, params->xCoord1,
+				params->yCoord1, params->width, params->height,
+				params->thickness, params->fill);
 			break;
+
 		case draw_oval:
-			status = kernelGraphicDrawOval(component->buffer,
-				&params->foreground, params->mode, xCoord1, yCoord1,
-				params->width, params->height, params->thickness, params->fill);
+			status = kernelGraphicDrawOval(&canvas->buffer,
+				&params->foreground, params->mode, params->xCoord1,
+				params->yCoord1, params->width, params->height,
+				params->thickness, params->fill);
 			break;
+
 		case draw_image:
-			status = kernelGraphicDrawImage(component->buffer,
-				(image *) params->data, params->mode, xCoord1, yCoord1,
-				(params->xCoord2? xCoord2 : 0), (params->yCoord2? yCoord2 : 0),
+			status = kernelGraphicDrawImage(&canvas->buffer,
+				(image *) params->data, params->mode, params->xCoord1,
+				params->yCoord1, params->xCoord2, params->yCoord2,
 				params->width, params->height);
 			break;
+
 		case draw_text:
 			if (params->font)
-				status = kernelGraphicDrawText(component->buffer,
+			{
+				status = kernelGraphicDrawText(&canvas->buffer,
 					&params->foreground, &params->background,
 					(asciiFont *) params->font, (char *) params->data,
-					params->mode, xCoord1, yCoord1);
+					params->mode, params->xCoord1, params->yCoord1);
+			}
 			break;
+
 		default:
 			break;
-		}
+	}
 
-	// Get the component's new image
-	status = kernelGraphicGetImage(component->buffer, &tmpImage,
-		component->xCoord, component->yCoord, canvas->image.width,
-		canvas->image.height);
-	if (status < 0)
-		return (status);
-
-	kernelImageFree((image *) &canvas->image);
-	kernelImageCopyToKernel(&tmpImage, (image *) &canvas->image);
-	kernelImageFree(&tmpImage);
-
-	component->window
-		->update(component->window, component->xCoord, component->yCoord,
-			component->width, component->height);
+	if (!params->buffer)
+		component->window->update(component->window, component->xCoord,
+			component->yCoord, component->width, component->height);
 
 	return (status);
+}
+
+
+static int destroy(kernelWindowComponent *component)
+{
+	kernelWindowCanvas *canvas = component->data;
+
+	kernelDebug(debug_gui, "WindowCanvas detroy");
+
+	// Release all our memory
+	if (canvas)
+	{
+		if (canvas->buffer.data)
+			kernelFree(canvas->buffer.data);
+
+		kernelFree(component->data);
+		component->data = NULL;
+	}
+
+	return (0);
 }
 
 
@@ -196,7 +218,6 @@ static int setData(kernelWindowComponent *component, void *data, int size
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewCanvas(objectKey parent, int width,
 	int height, componentParameters *params)
 {
@@ -204,38 +225,58 @@ kernelWindowComponent *kernelWindowNewCanvas(objectKey parent, int width,
 	// kernelWindowCanvas is a type of kernelWindowImage, but we allow
 	// drawing operations on it.
 
-	int status = 0;
 	kernelWindowComponent *component = NULL;
-	image tmpImage;
+	kernelWindowCanvas *canvas = NULL;
 
 	// Check params
-	if ((parent == NULL) || (params == NULL))
+	if (!parent || !width || !height || !params)
 		return (component = NULL);
 
-	// Get a temporary image of the correct size
-	status = kernelImageNew(&tmpImage, width, height);
-	if (status < 0)
-		return (component = NULL);
-
-	// Get the kernelWindowImage that underlies this canvas
-	component = kernelWindowNewImage(parent, &tmpImage, draw_normal, params);
-
-	// Free our temporary image data
-	kernelImageFree(&tmpImage);
-
-	if (component == NULL)
+	// Get the basic component structure
+	component = kernelWindowComponentNew(parent, params);
+	if (!component)
 		return (component);
 
-	// Now override some bits
-	component->subType = canvasComponentType;
+	// Now populate it
+	component->type = canvasComponentType;
+	component->width = width;
+	component->height = height;
+	component->minWidth = component->width;
+	component->minHeight = component->height;
 	component->flags |= WINFLAG_RESIZABLE;
 
-	// The functions
-	saveDraw = component->draw;
+	// Set the functions
 	component->draw = &draw;
 	component->resize = &resize;
 	component->focus = &focus;
 	component->setData = &setData;
+	component->destroy = &destroy;
+
+	// Get the kernelWindowCanvas memory
+	canvas = kernelMalloc(sizeof(kernelWindowCanvas));
+	if (!canvas)
+	{
+		kernelWindowComponentDestroy(component);
+		return (component = NULL);
+	}
+
+	// Get a graphic buffer
+	canvas->buffer.width = width;
+	canvas->buffer.height = height;
+	canvas->buffer.data = kernelMalloc(kernelGraphicCalculateAreaBytes(width,
+		height));
+	if (!canvas->buffer.data)
+	{
+		kernelWindowComponentDestroy(component);
+		return (component = NULL);
+	}
+
+	component->data = (void *) canvas;
+
+	// If a custom background was specified, fill it with that color
+	if (params->flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
+		kernelGraphicDrawRect(&canvas->buffer, &params->background,
+			draw_normal, 0, 0, width, height, 1 /* thickness */, 1 /* fill */);
 
 	return (component);
 }

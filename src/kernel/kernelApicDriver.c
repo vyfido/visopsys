@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,10 +31,10 @@
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelPic.h"
-#include "kernelProcessorX86.h"
 #include "kernelSystemDriver.h"
 #include <string.h>
 #include <sys/multiproc.h>
+#include <sys/processor.h>
 
 #include "kernelText.h"
 
@@ -469,14 +469,14 @@ static int enableLocalApic(kernelDevice *mpDevice)
 	int count;
 
 	// Get the first batch of CPUID regs
-	kernelProcessorId(0, rega, regb, regc, regd);
+	processorId(0, rega, regb, regc, regd);
 
 	// Second batch supported?
 	if ((rega & 0x7FFFFFFF) < 1)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Get the second batch of CPUID regs
-	kernelProcessorId(1, rega, regb, regc, regd);
+	processorId(1, rega, regb, regc, regd);
 
 	// Is there a local APIC?
 	hasLocal = ((regd >> 9) & 1);
@@ -497,7 +497,7 @@ static int enableLocalApic(kernelDevice *mpDevice)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Read the local APIC base MSR
-	kernelProcessorReadMsr(X86_MSR_APICBASE, rega, regd);
+	processorReadMsr(X86_MSR_APICBASE, rega, regd);
 
 	apicBase = (rega & (X86_MSR_APICBASE_BASEADDR | X86_MSR_APICBASE_BSP));
 
@@ -505,7 +505,7 @@ static int enableLocalApic(kernelDevice *mpDevice)
 	apicBase |= X86_MSR_APICBASE_APICENABLE;
 
 	// Write it back
-	kernelProcessorWriteMsr(X86_MSR_APICBASE, apicBase, regd);
+	processorWriteMsr(X86_MSR_APICBASE, apicBase, regd);
 
 	apicBase &= X86_MSR_APICBASE_BASEADDR;
 

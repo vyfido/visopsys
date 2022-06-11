@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -55,6 +55,7 @@ hd0.  Logical partitions are specified with letters, in partition table order
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/env.h>
 
 #define _(string) gettext(string)
 
@@ -66,14 +67,14 @@ int main(int argc __attribute__((unused)), char *argv[])
 	disk *diskInfo = NULL;
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("disks");
 
 	// Call the kernel to give us the number of available disks
 	availableDisks = diskGetCount();
 
 	diskInfo = malloc(DISK_MAXDEVICES * sizeof(disk));
-	if (diskInfo == NULL)
+	if (!diskInfo)
 	{
 		perror(argv[0]);
 		return (status = ERR_MEMORY);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -396,7 +396,7 @@ static int writeTable(const disk *theDisk, rawSlice *slices, int numSlices)
 		return (status = ERR_INVALID);
 
 	// Clear the partition entries
-	bzero(entries, (header->numPartEntries * header->partEntryBytes));
+	memset(entries, 0, (header->numPartEntries * header->partEntryBytes));
 
 	// Fill in the partition entries
 	for (count = 0; ((count < DISK_MAX_PARTITIONS) && (count < numSlices));

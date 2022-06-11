@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2013-11-09 23:51-0400\n"
-"Last-Translator: Jens León Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens León Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -17,114 +17,114 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.7\n"
 
-#: users.c:58
+#: users.c:59
 msgid "User Manager"
 msgstr "User Manager"
 
-#: users.c:59 users.c:648
+#: users.c:60 users.c:656
 msgid "Add User"
 msgstr "Neuer Benutzer"
 
-#: users.c:60
+#: users.c:61
 msgid "Delete User"
 msgstr "Benutzer löschen"
 
-#: users.c:61
+#: users.c:62
 msgid "Set Password"
 msgstr "Konfiguriere Passwort"
 
-#: users.c:62
+#: users.c:63
 msgid "Set Language"
 msgstr ""
 
-#: users.c:90
+#: users.c:91
 msgid "Error"
 msgstr "Fehler"
 
-#: users.c:108
+#: users.c:109
 msgid "Error getting user names"
 msgstr "Fehler beim Lesen der Benutzernamen"
 
-#: users.c:183
+#: users.c:185
 #, c-format
 msgid "User name: %s"
 msgstr "Benutzername: %s"
 
-#: users.c:196
+#: users.c:198
 msgid "Old password:"
 msgstr "Altes Passwort:"
 
-#: users.c:210
+#: users.c:212
 msgid "New password:"
 msgstr "Neues Passwort:"
 
-#: users.c:227
+#: users.c:229
 msgid "Confirm password:"
 msgstr "Passwortbestätigung:"
 
-#: users.c:240 users.c:410
+#: users.c:243 users.c:414
 msgid "Passwords do not match"
 msgstr "Passwörter unterschiedlich"
 
-#: users.c:245
+#: users.c:247
 msgid "Password should be longer"
 msgstr ""
 
-#: users.c:257
+#: users.c:259
 msgid "OK"
 msgstr "OK"
 
-#: users.c:262
+#: users.c:264
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: users.c:404 users.c:508
+#: users.c:408 users.c:513
 msgid "Permission denied"
 msgstr "Keine Erlaubnis"
 
-#: users.c:406
+#: users.c:410
 msgid "Error setting password"
 msgstr "Fehler beim konfigurieren des Passwortes"
 
-#: users.c:459
+#: users.c:463
 #, c-format
 msgid "User \"%s\" already exists."
 msgstr "Der Benutzer \"%s\" existiert bereits."
 
-#: users.c:467
+#: users.c:471
 msgid "Error adding user"
 msgstr "Fehler beim Hinzufügen des Benutzers"
 
-#: users.c:477
+#: users.c:481
 msgid "Warning: couldn't create user directory"
 msgstr ""
 
-#: users.c:510
+#: users.c:515
 msgid "Error deleting user"
 msgstr "Fehler beim Löschen des Benutzers"
 
-#: users.c:649
+#: users.c:657
 msgid "Enter the user name:"
 msgstr "Gebe den Benutzernamen ein:"
 
-#: users.c:667
+#: users.c:675
 #, c-format
 msgid "Delete user %s?"
 msgstr "Benutzer %s löschen?"
 
-#: users.c:669
+#: users.c:677
 msgid "Delete?"
 msgstr "Löschen?"
 
-#: users.c:673
+#: users.c:681
 msgid "Can't delete the last user"
 msgstr "Der letzte Benutzer kann nicht gelöscht werden"
 
-#: users.c:697
+#: users.c:705
 msgid "Couldn't save the language choice"
 msgstr ""
 
-#: users.c:792
+#: users.c:804
 #, c-format
 msgid ""
 "\n"
@@ -133,15 +133,20 @@ msgstr ""
 "\n"
 "Das Kommando \"%s\" funktioniert nur im Grafikmodus\n"
 
-#: users.c:839
+#: users.c:821
+#, c-format
+msgid "Unknown option '%c'\n"
+msgstr ""
+
+#: users.c:861
 #, c-format
 msgid "No such user \"%s\""
 msgstr "Kein Benutzer Namens \"%s\""
 
-#: users.c:843
+#: users.c:865
 msgid "Done"
 msgstr "Fertig"
 
-#: users.c:843
+#: users.c:865
 msgid "Password set"
 msgstr "Passwort konfiguriert"

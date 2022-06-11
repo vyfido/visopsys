@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,7 +28,6 @@
 #include "kernelGraphic.h"
 #include "kernelImage.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelWindowEventStream.h"
 #include <stdlib.h>
 #include <string.h>
@@ -63,32 +62,31 @@ static void createImages(int width, int height)
 {
 	// Create some standard, shared images for close buttons, etc.
 
-	kernelGraphicBuffer graphicBuffer;
+	graphicBuffer buffer;
 	image tmpImage;
 	color greenColor;
 	int crossSize, crossStartX, crossStartY, crossEndX, crossEndY;
 
-	kernelMemClear((void *) &graphicBuffer, sizeof(kernelGraphicBuffer));
+	memset((void *) &buffer, 0, sizeof(graphicBuffer));
 
-	kernelMemClear(&greenColor, sizeof(color));
+	memset(&greenColor, 0, sizeof(color));
 	greenColor.green = 0xFF;
 
 	// Get a buffer to draw our close button graphic
-	graphicBuffer.width = width;
-	graphicBuffer.height = height;
-	graphicBuffer.data =
-		kernelMalloc(kernelGraphicCalculateAreaBytes(graphicBuffer.width,
-			graphicBuffer.height));
-	if (graphicBuffer.data == NULL)
+	buffer.width = width;
+	buffer.height = height;
+	buffer.data = kernelMalloc(kernelGraphicCalculateAreaBytes(buffer.width,
+		buffer.height));
+	if (!buffer.data)
 		return;
 
 	// Do the minimize button
-	kernelGraphicClearArea(&graphicBuffer, &greenColor, 0, 0,
-		graphicBuffer.width, graphicBuffer.height);
-	kernelGraphicDrawRect(&graphicBuffer, &COLOR_BLACK, draw_normal,
+	kernelGraphicClearArea(&buffer, &greenColor, 0, 0, buffer.width,
+		buffer.height);
+	kernelGraphicDrawRect(&buffer, &COLOR_BLACK, draw_normal,
 		((width - 4) / 2), ((height - 4) / 2), 4, 4, 1, 0);
-	kernelGraphicGetImage(&graphicBuffer, &tmpImage, 0, 0, graphicBuffer.width,
-		graphicBuffer.height);
+	kernelGraphicGetImage(&buffer, &tmpImage, 0, 0, buffer.width,
+		buffer.height);
 	kernelImageCopyToKernel(&tmpImage, &minimizeImage);
 	kernelImageFree(&tmpImage);
 
@@ -98,30 +96,30 @@ static void createImages(int width, int height)
 	crossStartY = ((height - crossSize) / 2);
 	crossEndX = (crossStartX + crossSize - 1);
 	crossEndY = (crossStartY + crossSize - 1);
-	kernelGraphicClearArea(&graphicBuffer, &greenColor, 0, 0,
-		graphicBuffer.width, graphicBuffer.height);
+	kernelGraphicClearArea(&buffer, &greenColor, 0, 0, buffer.width,
+		buffer.height);
 
-	kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
-		crossStartX, crossStartY, crossEndX, crossEndY);
-	kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
+	kernelGraphicDrawLine(&buffer, &COLOR_BLACK, draw_normal, crossStartX,
+		crossStartY, crossEndX, crossEndY);
+	kernelGraphicDrawLine(&buffer, &COLOR_BLACK, draw_normal,
 		(crossStartX + 1), crossStartY, crossEndX, (crossEndY - 1));
-	kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
-		crossStartX, (crossStartY + 1), (crossEndX - 1), crossEndY);
+	kernelGraphicDrawLine(&buffer, &COLOR_BLACK, draw_normal, crossStartX,
+		(crossStartY + 1), (crossEndX - 1), crossEndY);
 
-	kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
-		crossStartX, crossEndY, crossEndX, crossStartY);
-	kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
-		crossStartX, (crossEndY - 1), (crossEndX - 1), crossStartY);
-	kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
+	kernelGraphicDrawLine(&buffer, &COLOR_BLACK, draw_normal, crossStartX,
+		crossEndY, crossEndX, crossStartY);
+	kernelGraphicDrawLine(&buffer, &COLOR_BLACK, draw_normal, crossStartX,
+		(crossEndY - 1), (crossEndX - 1), crossStartY);
+	kernelGraphicDrawLine(&buffer, &COLOR_BLACK, draw_normal,
 		(crossStartX + 1), crossEndY, crossEndX, (crossStartY + 1));
 
-	kernelGraphicGetImage(&graphicBuffer, &tmpImage, 0, 0,
-		graphicBuffer.width, graphicBuffer.height);
+	kernelGraphicGetImage(&buffer, &tmpImage, 0, 0, buffer.width,
+		buffer.height);
 	kernelImageCopyToKernel(&tmpImage, &closeImage);
 	kernelImageFree(&tmpImage);
 
-	kernelFree(graphicBuffer.data);
-	graphicBuffer.data = NULL;
+	kernelFree(buffer.data);
+	buffer.data = NULL;
 
 	imagesCreated = 1;
 }
@@ -174,8 +172,8 @@ static int draw(kernelWindowComponent *component)
 		if (component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND)
 		{
 			// Use user-supplied colors
-			kernelMemCopy((color *) &component->params.background,
-				&backgroundColor, sizeof(color));
+			memcpy(&backgroundColor, (color *) &component->params.background,
+				sizeof(color));
 		}
 		else
 		{
@@ -201,7 +199,7 @@ static int draw(kernelWindowComponent *component)
 	if (component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND)
 	{
 		// Use user-supplied colors
-		kernelMemCopy((color *) &component->params.foreground, &foregroundColor,
+		memcpy(&foregroundColor, (color *) &component->params.foreground,
 			sizeof(color));
 	}
 	else
@@ -226,8 +224,8 @@ static int draw(kernelWindowComponent *component)
 
 		kernelGraphicDrawText(component->buffer, &foregroundColor,
 			&backgroundColor, font, title, draw_translucent,
-			(component->xCoord + 5),
-			(component->yCoord + ((component->height - font->charHeight) / 2)));
+			(component->xCoord + 5), (component->yCoord + ((component->height -
+				font->glyphHeight) / 2)));
 	}
 
 	if (titleBar->minimizeButton && titleBar->minimizeButton->draw)
@@ -371,7 +369,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 				component->window->buffer.height, 1, 0);
 
 			// Save a copy of the dragging event
-			kernelMemCopy(event, &dragEvent, sizeof(windowEvent));
+			memcpy(&dragEvent, event, sizeof(windowEvent));
 		}
 
 		else
@@ -453,7 +451,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 				component->window->buffer.height, 1, 0);
 
 			// Save a copy of the dragging event
-			kernelMemCopy(event, &dragEvent, sizeof(windowEvent));
+			memcpy(&dragEvent, event, sizeof(windowEvent));
 			dragging = 1;
 		}
 
@@ -502,7 +500,6 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 	componentParameters *params)
 {
@@ -531,7 +528,7 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 
 	// Get the basic component structure
 	component = kernelWindowComponentNew(window->sysContainer, params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	component->type = titleBarComponentType;
@@ -545,7 +542,7 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 	component->destroy = &destroy;
 
 	// If font is NULL, use the default
-	if (component->params.font == NULL)
+	if (!component->params.font)
 		component->params.font = windowVariables->font.varWidth.medium.font;
 
 	component->width = windowVariables->titleBar.minWidth;
@@ -555,7 +552,7 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 
 	// Get memory for the title bar structure
 	titleBar = kernelMalloc(sizeof(kernelWindowTitleBar));
-	if (titleBar == NULL)
+	if (!titleBar)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
@@ -566,12 +563,10 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 	// Put any minimize/maximize/close buttons on the title bar.
 
 	// Standard parameters for the buttons
-	kernelMemClear(&buttonParams, sizeof(componentParameters));
+	memset(&buttonParams, 0, sizeof(componentParameters));
 
-	titleBar->minimizeButton =
-		kernelWindowNewButton(window->sysContainer, NULL,
-			((minimizeImage.data == NULL)?
-				NULL : &minimizeImage), &buttonParams);
+	titleBar->minimizeButton = kernelWindowNewButton(window->sysContainer,
+		NULL, (minimizeImage.data? &minimizeImage : NULL), &buttonParams);
 
 	if (titleBar->minimizeButton)
 	{
@@ -587,9 +582,8 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 		removeFromContainer(titleBar->minimizeButton);
 	}
 
-	titleBar->closeButton =
-		kernelWindowNewButton(window->sysContainer, NULL,
-			((closeImage.data == NULL)? NULL : &closeImage), &buttonParams);
+	titleBar->closeButton = kernelWindowNewButton(window->sysContainer, NULL,
+		(closeImage.data? &closeImage : NULL), &buttonParams);
 
 	if (titleBar->closeButton)
 	{
@@ -607,3 +601,4 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *window,
 
 	return (component);
 }
+

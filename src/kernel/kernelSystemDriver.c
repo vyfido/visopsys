@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,10 +31,8 @@
 #include "kernelLog.h"
 #include "kernelMain.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelPage.h"
 #include "kernelParameters.h"
-#include "kernelProcessorX86.h"
 #include "kernelVariableList.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -160,7 +158,7 @@ static int driverDetectBios32(void *parent, kernelDriver *driver)
 	}
 
 	// Copy the data we found into the driver's data structure
-	kernelMemCopy(dataStruct, dev->data, sizeof(kernelBios32Header));
+	memcpy(dev->data, dataStruct, sizeof(kernelBios32Header));
 
 	status = 0;
 
@@ -252,7 +250,7 @@ static int driverDetectBiosPnP(void *parent, kernelDriver *driver)
 	}
 
 	// Copy the data we found into the driver's data structure
-	kernelMemCopy(dataStruct, dev->data, sizeof(kernelBiosPnpHeader));
+	memcpy(dev->data, dataStruct, sizeof(kernelBiosPnpHeader));
 
 	status = 0;
 
@@ -492,8 +490,7 @@ static int driverDetectMultiProc(void *parent, kernelDriver *driver)
 		}
 
 		// Copy the data we found into the driver's data structure
-		kernelMemCopy(config, dev->data,
-			min(config->length, MEMORY_PAGE_SIZE));
+		memcpy(dev->data, config, min(config->length, MEMORY_PAGE_SIZE));
 
 		// Find processors
 		for (count = 0; ; count ++)
@@ -711,7 +708,6 @@ static kernelMultiProcOps multiProcOps = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 void kernelMemoryDriverRegister(kernelDriver *driver)
 {

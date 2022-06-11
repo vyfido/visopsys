@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,7 +23,6 @@
 #include "kernelImage.h"
 #include "kernelInterrupt.h"
 #include "kernelLog.h"
-#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelPic.h"
 #include "kernelWindow.h"
@@ -46,10 +45,10 @@ static int errorDialogDetails(kernelWindow *parent, const char *details)
 	componentParameters params;
 	windowEvent event;
 
-	kernelMemClear(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 
 	dialog = kernelWindowNewDialog(parent, "Error details");
-	if (dialog == NULL)
+	if (!dialog)
 	{
 		status = ERR_NOCREATE;
 		goto out;
@@ -66,14 +65,14 @@ static int errorDialogDetails(kernelWindow *parent, const char *details)
 
 	// Create the details area
 	detailsArea = kernelWindowNewTextArea(dialog, 60, 25, 200, &params);
-	if (detailsArea == NULL)
+	if (!detailsArea)
 	{
 		status = ERR_NOCREATE;
 		goto out;
 	}
 
 	kernelWindowComponentSetData(detailsArea, (void *) details,
-		strlen(details));
+		strlen(details), 1 /* redraw */);
 	kernelTextStreamSetCursor(((kernelWindowTextArea *) detailsArea->data)
 		->area->outputStream, 0);
 
@@ -81,7 +80,7 @@ static int errorDialogDetails(kernelWindow *parent, const char *details)
 	params.gridY += 1;
 	params.padBottom = 5;
 	okButton = kernelWindowNewButton(dialog, "OK", NULL, &params);
-	if (okButton == NULL)
+	if (!okButton)
 	{
 		status = ERR_NOCREATE;
 		goto out;
@@ -137,8 +136,8 @@ static void errorDialogThread(int argc, void *argv[])
 		goto exit;
 	}
 
-	kernelMemClear(&errorImage, sizeof(image));
-	kernelMemClear(&params, sizeof(componentParameters));
+	memset(&errorImage, 0, sizeof(image));
+	memset(&params, 0, sizeof(componentParameters));
 
 	title = argv[1];
 	message = argv[2];
@@ -146,7 +145,7 @@ static void errorDialogThread(int argc, void *argv[])
 
 	// Create the dialog.
 	window = kernelWindowNew(kernelCurrentProcess->processId, title);
-	if (window == NULL)
+	if (!window)
 	{
 		status = ERR_NOCREATE;
 		goto exit;
@@ -161,9 +160,9 @@ static void errorDialogThread(int argc, void *argv[])
 	params.flags = (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
-	messageContainer =
-		kernelWindowNewContainer(window, "messageContainer", &params);
-	if (messageContainer == NULL)
+	messageContainer = kernelWindowNewContainer(window, "messageContainer",
+		&params);
+	if (!messageContainer)
 	{
 		status = ERR_NOCREATE;
 		goto exit;
@@ -193,7 +192,7 @@ static void errorDialogThread(int argc, void *argv[])
 	params.orientationX = orient_center;
 	buttonContainer =
 		kernelWindowNewContainer(window, "buttonContainer", &params);
-	if (messageContainer == NULL)
+	if (!messageContainer)
 	{
 		status = ERR_NOCREATE;
 		goto exit;
@@ -203,7 +202,7 @@ static void errorDialogThread(int argc, void *argv[])
 	params.padBottom = 0;
 	params.orientationX = orient_right;
 	okButton = kernelWindowNewButton(buttonContainer, "OK", NULL, &params);
-	if (okButton == NULL)
+	if (!okButton)
 	{
 		status = ERR_NOCREATE;
 		goto exit;
@@ -214,7 +213,7 @@ static void errorDialogThread(int argc, void *argv[])
 	params.orientationX = orient_left;
 	detailsButton =
 		kernelWindowNewButton(buttonContainer, "Details", NULL, &params);
-	if (detailsButton == NULL)
+	if (!detailsButton)
 	{
 		status = ERR_NOCREATE;
 		goto exit;
@@ -269,7 +268,6 @@ exit:
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 void kernelErrorOutput(const char *fileName, const char *function, int line,
 	kernelErrorKind kind, const char *message, ...)
@@ -349,7 +347,7 @@ void kernelErrorDialog(const char *title, const char *message,
 	};
 
 	// Check params.  Details can be NULL.
-	if ((title == NULL) || (message == NULL))
+	if (!title || !message)
 		return;
 
 	kernelMultitaskerSpawnKernelThread(&errorDialogThread,

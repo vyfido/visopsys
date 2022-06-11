@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,16 +17,16 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: renice.c:57
+#: renice.c:58
 msgid "usage:\n"
 msgstr ""
 
-#: renice.c:58
+#: renice.c:59
 #, c-format
 msgid "%s <priority> <process1> [process2] [...]\n"
 msgstr ""
 
-#: renice.c:114
+#: renice.c:115
 #, c-format
 msgid "%d changed\n"
 msgstr ""

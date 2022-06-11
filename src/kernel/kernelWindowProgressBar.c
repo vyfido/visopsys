@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -75,7 +75,8 @@ static int draw(kernelWindowComponent *component)
 			(color *) &(component->params.background), font, prog,
 			draw_translucent, (component->xCoord + ((component->width -
 				 kernelFontGetPrintedWidth(font, prog)) / 2)),
-			(component->yCoord + ((component->height - font->charHeight) / 2)));
+			(component->yCoord +
+				((component->height - font->glyphHeight) / 2)));
 	}
 
 	return (0);
@@ -136,7 +137,6 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewProgressBar(objectKey parent,
 	componentParameters *params)
 {
@@ -154,11 +154,11 @@ kernelWindowComponent *kernelWindowNewProgressBar(objectKey parent,
 
 	// Get the basic component structure
 	component = kernelWindowComponentNew(parent, params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	// If font is NULL, use the default
-	if (component->params.font == NULL)
+	if (!component->params.font)
 		component->params.font = windowVariables->font.varWidth.small.font;
 
 	component->type = progressBarComponentType;
@@ -174,7 +174,7 @@ kernelWindowComponent *kernelWindowNewProgressBar(objectKey parent,
 	component->minHeight = component->height;
 
 	progressBar = kernelMalloc(sizeof(kernelWindowProgressBar));
-	if (progressBar == NULL)
+	if (!progressBar)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
@@ -186,3 +186,4 @@ kernelWindowComponent *kernelWindowNewProgressBar(objectKey parent,
 
 	return (component);
 }
+

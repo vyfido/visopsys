@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -51,6 +51,7 @@ Options:
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 #include <sys/user.h>
 #include <sys/vsh.h>
@@ -59,7 +60,7 @@ Options:
 #define gettext_noop(string) (string)
 
 #define WINDOW_TITLE		_("Install")
-#define TITLE_STRING		_("Visopsys Installer\nCopyright (C) 1998-2014 " \
+#define TITLE_STRING		_("Visopsys Installer\nCopyright (C) 1998-2015 " \
 	"J. Andrew McLaughlin")
 #define INSTALL_DISK		_("[ Installing on disk %s ]")
 #define BASIC_INSTALL		_("Basic install")
@@ -148,7 +149,7 @@ static void quit(int status, const char *message, ...)
 	va_list list;
 	char output[MAXSTRINGLENGTH];
 
-	if (message != NULL)
+	if (message)
 	{
 		va_start(list, message);
 		vsnprintf(output, MAXSTRINGLENGTH, message, list);
@@ -160,10 +161,12 @@ static void quit(int status, const char *message, ...)
 	else
 		textScreenRestore(&screen);
 
-	if (message != NULL)
+	if (message)
 	{
 		if (status < 0)
+		{
 			error(_("%s  Quitting."), output);
+		}
 		else
 		{
 			if (graphics)
@@ -195,10 +198,10 @@ static void makeDiskList(void)
 	int count;
 
 	numberDisks = 0;
-	bzero(diskInfo, (DISK_MAXDEVICES * sizeof(disk)));
+	memset(diskInfo, 0, (DISK_MAXDEVICES * sizeof(disk)));
 
 	tmpDiskInfo = malloc(DISK_MAXDEVICES * sizeof(disk));
-	if (tmpDiskInfo == NULL)
+	if (!tmpDiskInfo)
 		quit(status, "%s", _("Memory allocation error."));
 
 	status = diskGetAll(tmpDiskInfo, (DISK_MAXDEVICES * sizeof(disk)));
@@ -210,8 +213,8 @@ static void makeDiskList(void)
 	// we might be able to install) into the main array
 	for (count = 0; count < tmpNumberDisks; count ++)
 	{
-		// Make sure it's not the root disk; that would be pointless and possibly
-		// dangerous
+		// Make sure it's not the root disk; that would be pointless and
+		// possibly dangerous
 		if (!strcmp(rootDisk, tmpDiskInfo[count].name))
 			continue;
 
@@ -220,7 +223,8 @@ static void makeDiskList(void)
 			continue;
 
 		// Otherwise, we will put this in the list
-		memcpy(&(diskInfo[numberDisks++]), &(tmpDiskInfo[count]), sizeof(disk));
+		memcpy(&(diskInfo[numberDisks++]), &(tmpDiskInfo[count]),
+			sizeof(disk));
 	}
 
 	free(tmpDiskInfo);
@@ -235,33 +239,35 @@ static void refreshWindow(void)
 	char tmp[40];
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("install");
 
 	// Refresh the 'title' label
-	windowComponentSetData(titleLabel, TITLE_STRING, strlen(TITLE_STRING));
+	windowComponentSetData(titleLabel, TITLE_STRING, strlen(TITLE_STRING),
+		1 /* redraw */);
 
 	// Refresh the 'install disk' label
 	sprintf(tmp, INSTALL_DISK, diskName);
-	windowComponentSetData(installDiskLabel, tmp, strlen(tmp));
+	windowComponentSetData(installDiskLabel, tmp, strlen(tmp), 1 /* redraw */);
 
 	// Refresh the 'install type' radio
 	windowComponentSetData(installTypeRadio,
-		(char *[])	{ BASIC_INSTALL, FULL_INSTALL }, 2);
+		(char *[])	{ BASIC_INSTALL, FULL_INSTALL }, 2, 1 /* redraw */);
 
 	// Refresh the 'format disk' checkbox
 	sprintf(tmp, FORMAT_DISK, diskName);
-	windowComponentSetData(formatCheckbox, tmp, strlen(tmp));
+	windowComponentSetData(formatCheckbox, tmp, strlen(tmp), 1 /* redraw */);
 
 	// Refresh the 'choose filesystem' checkbox
 	windowComponentSetData(fsTypeCheckbox, CHOOSE_FILESYSTEM,
-		strlen(CHOOSE_FILESYSTEM));
+		strlen(CHOOSE_FILESYSTEM), 1 /* redraw */);
 
 	// Refresh the 'install' button
-	windowComponentSetData(installButton, INSTALL, strlen(INSTALL));
+	windowComponentSetData(installButton, INSTALL, strlen(INSTALL),
+		1 /* redraw */);
 
 	// Refresh the 'quit' button
-	windowComponentSetData(quitButton, QUIT, strlen(QUIT));
+	windowComponentSetData(quitButton, QUIT, strlen(QUIT), 1 /* redraw */);
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
@@ -299,7 +305,8 @@ static void chooseLanguage(void)
 			imageFree(&flagImage);
 
 		if (loadFlagImage(installLanguage, &flagImage) >= 0)
-			windowComponentSetData(langImage, &flagImage, sizeof(image));
+			windowComponentSetData(langImage, &flagImage, sizeof(image),
+				1 /* redraw */);
 	}
 }
 
@@ -357,10 +364,10 @@ static void constructWindow(void)
 
 	// Create a new window
 	window = windowNew(processId, WINDOW_TITLE);
-	if (window == NULL)
+	if (!window)
 		quit(ERR_NOCREATE, "%s", _("Can't create window!"));
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 2;
 	params.gridHeight = 1;
 	params.padTop = params.padLeft = params.padRight = 5;
@@ -506,7 +513,7 @@ static int chooseDisk(void)
 	// We jump back to this position if the user repartitions the disks
 start:
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridX = 0;
 	params.gridY = 0;
 	params.gridWidth = 3;
@@ -517,7 +524,7 @@ start:
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
-	bzero(diskListParams, (numberDisks * sizeof(listItemParameters)));
+	memset(diskListParams, 0, (numberDisks * sizeof(listItemParameters)));
 	for (count = 0; count < numberDisks; count ++)
 		snprintf(diskListParams[count].text, WINDOW_MAX_LABEL_LENGTH,
 			"%s  [ %s ]", diskInfo[count].name, diskInfo[count].partType);
@@ -550,7 +557,8 @@ start:
 		params.gridX = 2;
 		params.padLeft = 0;
 		params.orientationX = orient_left;
-		cancelButton = windowNewButton(chooseWindow, _("Cancel"), NULL, &params);
+		cancelButton = windowNewButton(chooseWindow, _("Cancel"), NULL,
+			&params);
 
 		// Make the window visible
 		windowRemoveMinimizeButton(chooseWindow);
@@ -610,7 +618,7 @@ start:
 			diskStrings[count] = diskListParams[count].text;
 		diskStrings[numberDisks] = _(partitionString);
 		diskNumber = vshCursorMenu(_(chooseVolumeString), diskStrings,
-			(numberDisks + 1), 0);
+			(numberDisks + 1), 0 /* selected */);
 		if (diskNumber == numberDisks)
 		{
 			// The user wants to repartition the disks.  Run the disk
@@ -646,9 +654,9 @@ static unsigned getInstallSize(const char *installFileName)
 	unsigned bytes = 0;
 
 	// Clear stack data
-	bzero(&installFile, sizeof(fileStream));
-	bzero(&theFile, sizeof(file));
-	bzero(buffer, BUFFSIZE);
+	memset(&installFile, 0, sizeof(fileStream));
+	memset(&theFile, 0, sizeof(file));
+	memset(buffer, 0, BUFFSIZE);
 
 	// See if the install file exists
 	status = fileFind(installFileName, NULL);
@@ -705,11 +713,15 @@ static int askFsType(void)
 	char *fsTypes[] = { _("Default"), _("FAT12"), _("FAT16"), _("FAT32") };
 
 	if (graphics)
-		selectedType = windowNewRadioDialog(window, _("Choose Filesystem Type"),
-			_("Supported types:"), fsTypes, 4, 0);
+	{
+		selectedType = windowNewRadioDialog(window,
+			_("Choose Filesystem Type"), _("Supported types:"), fsTypes, 4, 0);
+	}
 	else
+	{
 		selectedType = vshCursorMenu(_("Choose the filesystem type:"),
-			fsTypes, 4, 0);
+			fsTypes, 4, 0 /* selected */);
+	}
 
 	if (selectedType < 0)
 		return (status = selectedType);
@@ -751,7 +763,7 @@ static void updateStatus(const char *message)
 
 		if (graphics)
 			windowComponentSetData(statusLabel, (char *) prog.statusMessage,
-				statusLength);
+				statusLength, 1 /* redraw */);
 
 		lockRelease(&prog.progLock);
 	}
@@ -824,7 +836,8 @@ static int copyBootSector(disk *theDisk)
 	status = fileFind(bootSectFilename, NULL);
 	if (status < 0)
 	{
-		error(_("Unable to find the boot sector file \"%s\""), bootSectFilename);
+		error(_("Unable to find the boot sector file \"%s\""),
+			bootSectFilename);
 		return (status);
 	}
 
@@ -862,10 +875,10 @@ static int copyFiles(const char *installFileName)
 	char tmpFileName[128];
 
 	// Clear stack data
-	bzero(&installFile, sizeof(fileStream));
-	bzero(&theFile, sizeof(file));
-	bzero(buffer, BUFFSIZE);
-	bzero(tmpFileName, 128);
+	memset(&installFile, 0, sizeof(fileStream));
+	memset(&theFile, 0, sizeof(file));
+	memset(buffer, 0, BUFFSIZE);
+	memset(tmpFileName, 0, 128);
 
 	// Open the install file
 	status = fileStreamOpen(installFileName, OPENMODE_READ, &installFile);
@@ -936,7 +949,8 @@ static int copyFiles(const char *installFileName)
 
 		if (graphics)
 		{
-			windowComponentSetData(progressBar, (void *) percent, 1);
+			windowComponentSetData(progressBar, (void *) percent, 1,
+				1 /* redraw */);
 		}
 		else if (lockGet(&prog.progLock) >= 0)
 		{
@@ -977,9 +991,10 @@ static void setAdminPassword(void)
 	if (graphics)
 	{
 		// Create the dialog
-		dialogWindow = windowNewDialog(window, _("Set Administrator Password"));
+		dialogWindow = windowNewDialog(window,
+			_("Set Administrator Password"));
 
-		bzero(&params, sizeof(componentParameters));
+		memset(&params, 0, sizeof(componentParameters));
 		params.gridWidth = 2;
 		params.gridHeight = 1;
 		params.padLeft = 5;
@@ -1035,7 +1050,8 @@ static void setAdminPassword(void)
 		params.gridX = 1;
 		params.padRight = 5;
 		params.orientationX = orient_left;
-		cancelButton = windowNewButton(dialogWindow, _("Cancel"), NULL, &params);
+		cancelButton = windowNewButton(dialogWindow, _("Cancel"), NULL,
+			&params);
 
 		windowCenterDialog(window, dialogWindow);
 		windowSetVisible(dialogWindow, 1);
@@ -1073,7 +1089,7 @@ static void setAdminPassword(void)
 				((windowComponentEventGet(passwordField2, &event) > 0) &&
 					(event.type == EVENT_KEY_DOWN)))
 			{
-				if (event.key == (unsigned char) ASCII_ENTER)
+				if (event.key == keyEnter)
 					break;
 
 				else
@@ -1123,8 +1139,8 @@ static void setAdminPassword(void)
 		error("%s", _("Passwords do not match"));
 		if (graphics)
 		{
-			windowComponentSetData(passwordField1, "", 0);
-			windowComponentSetData(passwordField2, "", 0);
+			windowComponentSetData(passwordField1, "", 0, 1 /* redraw */);
+			windowComponentSetData(passwordField2, "", 0, 1 /* redraw */);
 			goto graphicsRestart;
 		}
 		else
@@ -1146,8 +1162,8 @@ static void setAdminPassword(void)
 		return;
 	}
 
-	status = userFileSetPassword(MOUNTPOINT PATH_SYSTEM "/password", "admin", "",
-		newPassword);
+	status = userFileSetPassword(MOUNTPOINT PATH_SYSTEM "/password", "admin",
+		"", newPassword);
 	if (status < 0)
 	{
 		error("%s", _("Unable to set the \"admin\" password"));
@@ -1161,6 +1177,7 @@ static void setAdminPassword(void)
 int main(int argc, char *argv[])
 {
 	int status = 0;
+	char opt;
 	int diskNumber = -1;
 	char tmpChar[80];
 	unsigned diskSize = 0;
@@ -1171,25 +1188,36 @@ int main(int argc, char *argv[])
 	int selected = 0;
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("install");
 
-	bzero((void *) &prog, sizeof(progress));
+	memset((void *) &prog, 0, sizeof(progress));
 
 	// Set English as the default install language, unless some language is
 	// currently set
 	strcpy(installLanguage, "en");
-	if (getenv("LANG"))
-		strcpy(installLanguage, getenv("LANG"));
+	if (getenv(ENV_LANG))
+		strcpy(installLanguage, getenv(ENV_LANG));
 
 	processId = multitaskerGetCurrentProcessId();
 
 	// Are graphics enabled?
 	graphics = graphicsAreEnabled();
 
-	if (getopt(argc, argv, "T") == 'T')
-		// Force text mode
-		graphics = 0;
+	// Check options
+	while (strchr("T?", (opt = getopt(argc, argv, "T"))))
+	{
+		switch (opt)
+		{
+			case 'T':
+				// Force text mode
+				graphics = 0;
+				break;
+
+			default:
+				quit(ERR_INVALID, _("Unknown option '%c'"), optopt);
+		}
+	}
 
 	// Check privilege level
 	if (multitaskerGetProcessPrivilege(processId))
@@ -1302,7 +1330,8 @@ int main(int argc, char *argv[])
 		((basicInstallSize + fullInstallSize) < diskSize))
 	{
 		status = vshCursorMenu(_("Please choose the install type:"),
-			(char *[]) { _("Basic"), _("Full") }, 2, 1);
+			(char *[]) { _("Basic"), _("Full") }, 2,
+			1 /* selected */);
 		if (status < 0)
 		{
 			textScreenRestore(&screen);
@@ -1367,7 +1396,7 @@ int main(int argc, char *argv[])
 			quit(status, "%s", _("Error rescanning disk after format."));
 
 		updateStatus(_("Done\n"));
-		bzero((void *) &prog, sizeof(progress));
+		memset((void *) &prog, 0, sizeof(progress));
 	}
 
 	// Copy the boot sector to the destination disk
@@ -1395,10 +1424,11 @@ int main(int argc, char *argv[])
 			// We formatted, so we're pretty sure we won't succeed here.
 			if (filesystemUnmount(MOUNTPOINT) < 0)
 				error("%s", _("Unable to unmount the target disk."));
-			quit((status = ERR_NOFREE), _("The filesystem on disk %s is too small "
+			quit((status = ERR_NOFREE),
+				_("The filesystem on disk %s is too small "
 				"(%lluK) for\nthe selected Visopsys installation (%uK "
-				"required)."), diskName, (diskInfo[diskNumber].freeBytes / 1024),
-			 (bytesToCopy / 1024));
+				"required)."), diskName,
+				(diskInfo[diskNumber].freeBytes / 1024), (bytesToCopy / 1024));
 		}
 		else
 		{
@@ -1417,7 +1447,7 @@ int main(int argc, char *argv[])
 
 	if (!graphics)
 	{
-		bzero((void *) &prog, sizeof(progress));
+		memset((void *) &prog, 0, sizeof(progress));
 		printf("%s", _("\nInstalling...\n"));
 		vshProgressBar(&prog);
 	}
@@ -1435,11 +1465,11 @@ int main(int argc, char *argv[])
 	{
 		// Set the start program of the target installation to be the login
 		// program
-		configSet(MOUNTPOINT PATH_SYSTEM_CONFIG "/kernel.conf", "start.program",
-			PATH_PROGRAMS "/login");
+		configSet(MOUNTPOINT PATH_SYSTEM_CONFIG "/kernel.conf",
+			"start.program", PATH_PROGRAMS "/login");
 
 		// Set the system language variable
-		configSet(MOUNTPOINT PATH_SYSTEM_CONFIG "/environment.conf", "LANG",
+		configSet(MOUNTPOINT PATH_SYSTEM_CONFIG "/environment.conf", ENV_LANG,
 			installLanguage);
 
 		// Prompt the user to set the admin password

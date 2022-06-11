@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2013-11-02 12:42-0400\n"
-"Last-Translator: Jens León Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens León Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -17,82 +17,87 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.7\n"
 
-#: cal.c:54
+#: cal.c:55
 msgid "Calendar"
 msgstr "Kalender"
 
-#: cal.c:57
+#: cal.c:58
 msgid "Mo"
 msgstr "Mo"
 
-#: cal.c:58
+#: cal.c:59
 msgid "Tu"
 msgstr "Di"
 
-#: cal.c:59
+#: cal.c:60
 msgid "We"
 msgstr "Mi"
 
-#: cal.c:60
+#: cal.c:61
 msgid "Th"
 msgstr "Do"
 
-#: cal.c:61
+#: cal.c:62
 msgid "Fr"
 msgstr "Fr"
 
-#: cal.c:62
+#: cal.c:63
 msgid "Sa"
 msgstr "Sa"
 
-#: cal.c:63
+#: cal.c:64
 msgid "Su"
 msgstr "So"
 
-#: cal.c:67
+#: cal.c:68
 msgid "January"
 msgstr "Januar"
 
-#: cal.c:68
+#: cal.c:69
 msgid "February"
 msgstr "Februar"
 
-#: cal.c:69
+#: cal.c:70
 msgid "March"
 msgstr "März"
 
-#: cal.c:70
+#: cal.c:71
 msgid "April"
 msgstr "April"
 
-#: cal.c:71
+#: cal.c:72
 msgid "May"
 msgstr "Mai"
 
-#: cal.c:72
+#: cal.c:73
 msgid "June"
 msgstr "Juni"
 
-#: cal.c:73
+#: cal.c:74
 msgid "July"
 msgstr "Juli"
 
-#: cal.c:74
+#: cal.c:75
 msgid "August"
 msgstr "August"
 
-#: cal.c:75
+#: cal.c:76
 msgid "September"
 msgstr "September"
 
-#: cal.c:76
+#: cal.c:77
 msgid "October"
 msgstr "Oktober"
 
-#: cal.c:77
+#: cal.c:78
 msgid "November"
 msgstr "November"
 
-#: cal.c:78
+#: cal.c:79
 msgid "December"
 msgstr "Dezember"
+
+#: cal.c:356
+#, c-format
+msgid "Unknown option '%c'\n"
+msgstr ""

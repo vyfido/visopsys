@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -24,6 +24,8 @@
 
 #if !defined(_FILE_H)
 
+#include <time.h>
+
 // File open modes
 #define OPENMODE_READ			0x01
 #define OPENMODE_WRITE			0x02
@@ -35,6 +37,11 @@
 #define MAX_NAME_LENGTH			512
 #define MAX_PATH_LENGTH			512
 #define MAX_PATH_NAME_LENGTH	(MAX_PATH_LENGTH + MAX_NAME_LENGTH)
+
+#define OPENMODE_ISREADONLY(mode) \
+	(((mode) & OPENMODE_READ) && !((mode) & OPENMODE_WRITE))
+#define OPENMODE_ISWRITEONLY(mode) \
+	(((mode) & OPENMODE_WRITE) && !((mode) & OPENMODE_READ))
 
 // Typedef a file handle
 typedef void* fileHandle;
@@ -50,12 +57,9 @@ typedef struct {
 	char name[MAX_NAME_LENGTH];
 	fileType type;
 	char filesystem[MAX_PATH_LENGTH];
-	unsigned creationDate;
-	unsigned creationTime;
-	unsigned accessedTime;
-	unsigned accessedDate;
-	unsigned modifiedDate;
-	unsigned modifiedTime;
+	struct tm created;
+	struct tm accessed;
+	struct tm modified;
 	unsigned size;
 	unsigned blocks;
 	unsigned blockSize;

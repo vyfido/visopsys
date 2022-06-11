@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,8 +37,8 @@
 #include "kernelUser.h"
 #include "kernelWindowEventStream.h"
 #include <locale.h>
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 typedef struct {
 	kernelWindowComponent *itemComponent;
@@ -148,26 +148,48 @@ static void iconEvent(kernelWindowComponent *component, windowEvent *event)
 }
 
 
+static int readFileConfig(const char *fileName, variableList *settings)
+{
+	// Return a (possibly empty) variable list, filled with any desktop
+	// settings we read from various config files.
+
+	int status = 0;
+
+	kernelDebug(debug_gui, "WindowShell read configuration %s", fileName);
+
+	status = kernelFileFind(fileName, NULL);
+	if (status < 0)
+		return (status);
+
+	status = kernelConfigRead(fileName, settings);
+
+	return (status);
+}
+
+
 static int readConfig(variableList *settings)
 {
 	// Return a (possibly empty) variable list, filled with any desktop
 	// settings we read from various config files.
 
 	int status = 0;
-	char language[LOCALE_MAX_NAMELEN + 1];
-	file f;
-	char langFileName[MAX_PATH_NAME_LENGTH];
-	variableList langConfig;
+	char fileName[MAX_PATH_NAME_LENGTH];
 	const char *variable = NULL;
 	const char *value = NULL;
+	char language[LOCALE_MAX_NAMELEN + 1];
+	variableList langConfig;
 	int count;
 
 	kernelDebug(debug_gui, "WindowShell read configuration");
 
-	status = kernelConfigRead(WINDOW_DEFAULT_DESKTOP_CONFIG, settings);
+	memset(&langConfig, 0, sizeof(variableList));
+
+	// First try to read the system desktop config.
+	status = readFileConfig(PATH_SYSTEM_CONFIG "/" WINDOW_DESKTOP_CONFIG,
+		settings);
 	if (status < 0)
 	{
-		// Argh.  No file?  Create a reasonable, empty list for us to use
+		// Argh.  No file?  Create an empty list for us to use
 		status = kernelVariableListCreate(settings);
 		if (status < 0)
 			return (status);
@@ -175,19 +197,18 @@ static int readConfig(variableList *settings)
 
 	// If the 'LANG' environment variable is set, see whether there's another
 	// language-specific desktop config file that matches it.
-	status = kernelEnvironmentGet("LANG", language, LOCALE_MAX_NAMELEN);
+	status = kernelEnvironmentGet(ENV_LANG, language, LOCALE_MAX_NAMELEN);
 	if (status >= 0)
 	{
-		sprintf(langFileName, "%s/%s/desktop.conf", PATH_SYSTEM_CONFIG,
-			language);
+		sprintf(fileName, "%s/%s/desktop.conf", PATH_SYSTEM_CONFIG, language);
 
-		status = kernelFileFind(langFileName, &f);
+		status = kernelFileFind(fileName, NULL);
 		if (status >= 0)
 		{
-			status = kernelConfigRead(langFileName, &langConfig);
+			status = kernelConfigRead(fileName, &langConfig);
 			if (status >= 0)
 			{
-				// We got one.  Override values in the original.
+				// We got one.  Override values.
 				for (count = 0; count < langConfig.numVariables; count ++)
 				{
 					variable = kernelVariableListGetVariable(&langConfig,
@@ -226,7 +247,7 @@ static int makeMenuBar(variableList *settings)
 
 	kernelDebug(debug_gui, "WindowShell make menu bar");
 
-	kernelMemClear(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.foreground.red = 255;
 	params.foreground.green = 255;
 	params.foreground.blue = 255;
@@ -295,8 +316,8 @@ static int makeMenuBar(variableList *settings)
 
 					shellData.menuItems[shellData.numMenuItems].itemComponent =
 						item;
-					strncpy(shellData.menuItems[shellData.numMenuItems].command,
-						value, MAX_PATH_NAME_LENGTH);
+					strncpy(shellData.menuItems[shellData.numMenuItems].
+						command, value, MAX_PATH_NAME_LENGTH);
 
 					shellData.numMenuItems += 1;
 
@@ -339,7 +360,7 @@ static int makeIcons(variableList *settings)
 	kernelDebug(debug_gui, "WindowShell make icons");
 
 	// These parameters are the same for all icons
-	kernelMemClear(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 5;
@@ -348,9 +369,8 @@ static int makeIcons(variableList *settings)
 	params.padBottom = 0;
 	params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
 		WINDOW_COMPFLAG_CUSTOMBACKGROUND | WINDOW_COMPFLAG_CANFOCUS);
-	kernelMemCopy(&COLOR_WHITE, &params.foreground, sizeof(color));
-	kernelMemCopy(&windowVariables->color.desktop, &params.background,
-		sizeof(color));
+	memcpy(&params.foreground, &COLOR_WHITE, sizeof(color));
+	memcpy(&params.background, &windowVariables->color.desktop, sizeof(color));
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
@@ -382,8 +402,8 @@ static int makeIcons(variableList *settings)
 			}
 
 			params.gridY++;
-			iconComponent = kernelWindowNewIcon(shellData.rootWindow, &tmpImage,
-				iconLabel, &params);
+			iconComponent = kernelWindowNewIcon(shellData.rootWindow,
+				&tmpImage, iconLabel, &params);
 
 			// Release the image memory
 			kernelImageFree(&tmpImage);
@@ -392,8 +412,8 @@ static int makeIcons(variableList *settings)
 				continue;
 
 			// Set the command
-			strncpy((char *)((kernelWindowIcon *) iconComponent->data)->command,
-				command, MAX_PATH_NAME_LENGTH);
+			strncpy((char *)((kernelWindowIcon *) iconComponent->data)->
+				command, command, MAX_PATH_NAME_LENGTH);
 
 			// Add this icon to our list
 			shellData.icons = kernelRealloc((void *) shellData.icons,
@@ -424,7 +444,6 @@ static int makeRootWindow(void)
 	int status = 0;
 	variableList settings;
 	const char *imageFile = NULL;
-	disk configDisk;
 	image tmpImage;
 
 	kernelDebug(debug_gui, "WindowShell make root window");
@@ -432,7 +451,7 @@ static int makeRootWindow(void)
 	// Get a new window
 	shellData.rootWindow = kernelWindowNew(KERNELPROCID, WINNAME_ROOTWINDOW);
 	if (!shellData.rootWindow)
-		(status = ERR_NOCREATE);
+		return (status = ERR_NOCREATE);
 
 	// The window will have no border, title bar or close button, is not
 	// movable or resizable, and we mark it as a root window
@@ -475,21 +494,25 @@ static int makeRootWindow(void)
 		kernelDebug(debug_gui, "WindowShell loading background image \"%s\"",
 			imageFile);
 
-		status = kernelImageLoad(imageFile, 0, 0, &tmpImage);
-		if (status == 0)
+		if (strcmp(imageFile, "none"))
 		{
-			// Put the background image into our window.
-			kernelWindowSetBackgroundImage(shellData.rootWindow, &tmpImage);
-			kernelLog("Background image loaded");
-		}
-		else
-		{
-			kernelError(kernel_error, "Error loading background image %s",
-				imageFile);
-		}
+			if ((kernelFileFind(imageFile, NULL) >= 0) &&
+				(kernelImageLoad(imageFile, 0, 0, &tmpImage) >= 0))
+			{
+				// Put the background image into our window.
+				kernelWindowSetBackgroundImage(shellData.rootWindow,
+					&tmpImage);
+				kernelLog("Background image loaded");
+			}
+			else
+			{
+				kernelError(kernel_error, "Error loading background image %s",
+					imageFile);
+			}
 
-		// Release the image memory
-		kernelImageFree(&tmpImage);
+			// Release the image memory
+			kernelImageFree(&tmpImage);
+		}
 	}
 
 	// Make the top menu bar
@@ -506,15 +529,6 @@ static int makeRootWindow(void)
 	{
 		kernelVariableListDestroy(&settings);
 		return (status);
-	}
-
-	status = kernelFileGetDisk(WINDOW_DEFAULT_DESKTOP_CONFIG, &configDisk);
-	if ((status >= 0) && !configDisk.readOnly)
-	{
-		// Re-write the config file
-		status = kernelConfigWrite(WINDOW_DEFAULT_DESKTOP_CONFIG, &settings);
-		if (status >= 0)
-			kernelLog("Updated desktop configuration");
 	}
 
 	kernelVariableListDestroy(&settings);
@@ -712,7 +726,7 @@ static void refresh(void)
 	// Send a 'window refresh' event to every window
 	if (shellData.windowList)
 	{
-		kernelMemClear(&event, sizeof(windowEvent));
+		memset(&event, 0, sizeof(windowEvent));
 		event.type = EVENT_WINDOW_REFRESH;
 
 		for (count = 0; count < shellData.numberWindows; count ++)
@@ -812,7 +826,6 @@ static void windowMenuEvent(kernelWindowComponent *component,
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelWindowShell(const char *user)
 {
 	// Launch the window shell thread
@@ -823,9 +836,9 @@ int kernelWindowShell(const char *user)
 	if (!user)
 		return (shellData.processId = ERR_NULLPARAMETER);
 
-	kernelMemClear((void *) &shellData, sizeof(shellData));
+	memset((void *) &shellData, 0, sizeof(shellData));
 
-	kernelMemCopy(user, (char *) shellData.userName, USER_MAX_NAMELENGTH);
+	memcpy((char *) shellData.userName, user, USER_MAX_NAMELENGTH);
 	shellData.privilege = kernelUserGetPrivilege((char *) shellData.userName);
 
 	// Spawn the window shell thread
@@ -871,7 +884,7 @@ void kernelWindowShellUpdateList(kernelWindow *list[], int number)
 		shellData.winMenuItems = NULL;
 
 		// Copy the parameters from the menu to use
-		kernelMemCopy((void *) &(shellData.menuBar->params), &params,
+		memcpy(&params, (void *) &(shellData.menuBar->params),
 			sizeof(componentParameters));
 
 		for (count = 0; count < shellData.numberWindows; count ++)
@@ -912,11 +925,12 @@ void kernelWindowShellUpdateList(kernelWindow *list[], int number)
 	for (count = 0; count < shellData.numberWindows; count ++)
 	{
 		if ((shellData.windowList[count] != shellData.rootWindow) &&
-			(kernelMultitaskerGetProcess(shellData.windowList[count]->processId,
-				&windowProcess) >= 0))
+			(kernelMultitaskerGetProcess(shellData.windowList[count]->
+				processId, &windowProcess) >= 0))
 		{
 			if ((windowProcess.type != proc_thread) &&
-				!kernelMultitaskerProcessIsAlive(windowProcess.parentProcessId))
+				!kernelMultitaskerProcessIsAlive(windowProcess.
+					parentProcessId))
 			{
 				kernelMultitaskerSetProcessParent(
 					shellData.windowList[count]->processId,
@@ -947,7 +961,6 @@ int kernelWindowShellTileBackground(const char *fileName)
 
 	int status = 0;
 	image backgroundImage;
-	disk configDisk;
 
 	// Make sure we have a root window
 	if (!shellData.rootWindow)
@@ -975,22 +988,13 @@ int kernelWindowShellTileBackground(const char *fileName)
 		kernelImageFree(&backgroundImage);
 	}
 	else
+	{
 		kernelWindowSetBackgroundImage(shellData.rootWindow, NULL);
+	}
 
 	// Redraw the root window
 	if (shellData.rootWindow->draw)
 		shellData.rootWindow->draw(shellData.rootWindow);
-
-	// Save the settings variable
-	status = kernelFileGetDisk(WINDOW_DEFAULT_DESKTOP_CONFIG, &configDisk);
-	if ((status >= 0) && !configDisk.readOnly)
-	{
-		if (fileName)
-			kernelConfigSet(WINDOW_DEFAULT_DESKTOP_CONFIG, "background.image",
-				fileName);
-		else
-			kernelConfigUnset(WINDOW_DEFAULT_DESKTOP_CONFIG, "background.image");
-	}
 
 	return (status = 0);
 }
@@ -1024,7 +1028,8 @@ int kernelWindowShellRaiseWindowMenu(void)
 
 	kernelDebug(debug_gui, "WindowShell toggle root window menu bar");
 
-	if (shellData.rootWindow && (shellData.rootWindow->flags & WINFLAG_VISIBLE))
+	if (shellData.rootWindow &&
+		(shellData.rootWindow->flags & WINFLAG_VISIBLE))
 	{
 		kernelWindowFocus(shellData.rootWindow);
 

@@ -1,14 +1,14 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2014 J. Andrew McLaughlin
+#  Copyright (C) 1998-2015 J. Andrew McLaughlin
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2014-01-22 17:56-0400\n"
-"Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -16,67 +16,67 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: filesys.c:51
+#: filesys.c:52
 msgid "File systems"
 msgstr "Sistemas de archivos"
 
-#: filesys.c:52
+#: filesys.c:53
 msgid "Mount point:"
 msgstr "Punto de montaje:"
 
-#: filesys.c:53
+#: filesys.c:54
 msgid "Mount automatically at boot"
 msgstr "Montar automáticamente al iniciar"
 
-#: filesys.c:54
+#: filesys.c:55
 msgid "Unsaved changes"
 msgstr "Cambios no guardados"
 
-#: filesys.c:55
+#: filesys.c:56
 msgid "Quit without writing changes?"
 msgstr "Salir sin guardar los cambios?"
 
-#: filesys.c:56
+#: filesys.c:57
 msgid "Quit"
 msgstr "Salir"
 
-#: filesys.c:57
+#: filesys.c:58
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: filesys.c:58
+#: filesys.c:59
 msgid "Save"
 msgstr "Guardar"
 
-#: filesys.c:101 filesys.c:119
+#: filesys.c:102 filesys.c:120
 msgid "Error"
 msgstr "Error"
 
-#: filesys.c:116
+#: filesys.c:117
 msgid "  Quitting."
 msgstr "  Cerrando."
 
-#: filesys.c:142
+#: filesys.c:143
 msgid "No disks to work with."
 msgstr "Sin discos con los que trabajar."
 
-#: filesys.c:147
+#: filesys.c:148
 msgid "Memory allocation error."
 msgstr "Error de memoria."
 
-#: filesys.c:152
+#: filesys.c:153
 msgid "Unable to get disk information."
 msgstr "Información del disco no disponible."
 
-#: filesys.c:173
+#: filesys.c:174
 msgid "Can't read/create the mount configuration"
 msgstr "no se puede leer/guardar la configuaración de montaje"
 
-#: filesys.c:185
+#: filesys.c:186
 msgid "Can't write the mount configuration"
 msgstr "No se puede guardar la configuración de montaje"
 
-#: filesys.c:463
+#: filesys.c:466
 #, c-format
 msgid ""
 "\n"

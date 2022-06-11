@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -103,10 +103,10 @@ sighandler_t signal(int sig, sighandler_t handler)
 	}
 
 	// If we yet have no memory for signal handlers, allocate it now
-	if (signalHandlers == NULL)
+	if (!signalHandlers)
 	{
 		signalHandlers = malloc(SIGNALS_MAX * sizeof(sighandler_t));
-		if (signalHandlers == NULL)
+		if (!signalHandlers)
 		{
 			errno = ERR_MEMORY;
 			return (SIG_ERR);
@@ -141,3 +141,4 @@ sighandler_t signal(int sig, sighandler_t handler)
 
 	return (oldHandler);
 }
+

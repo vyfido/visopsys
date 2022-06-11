@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -41,7 +41,7 @@ int scanf(const char *format, ...)
 
 	// Read a line of input
 	input = readline(NULL);
-	if (input == NULL)
+	if (!input)
 		// We matched zero items
 		return (matchItems = 0);
 
@@ -59,3 +59,4 @@ int scanf(const char *format, ...)
 
 	return (matchItems);
 }
+

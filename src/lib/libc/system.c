@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,7 +34,7 @@ int system(const char *command)
 	int privilege = 0;
 
 	// Check params
-	if (command == NULL)
+	if (!command)
 		return (status = ERR_NULLPARAMETER);
 
 	if (visopsys_in_kernel)
@@ -50,3 +50,4 @@ int system(const char *command)
 
 	return (status);
 }
+

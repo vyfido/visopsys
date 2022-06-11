@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -69,15 +69,17 @@ int main(int argc, char *argv[])
 			return (status);
 		}
 	}
-
 	else
-	for (count = 1; count < argc; count ++)
 	{
-		status = vshFileList(argv[count]);
-		if (status < 0)
-			perror(argv[0]);
+		for (count = 1; count < argc; count ++)
+		{
+			status = vshFileList(argv[count]);
+			if (status < 0)
+				perror(argv[0]);
+		}
 	}
 
 	// Return success
 	return (status = 0);
 }
+

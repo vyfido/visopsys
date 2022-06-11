@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -111,7 +111,7 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 		goto out;
 	}
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 5;
@@ -143,7 +143,7 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 	params.flags = WINDOW_COMPFLAG_FIXEDHEIGHT;
 	field = windowNewTextField(container, columns, &params);
 	sprintf(buffer, "%d", defaultVal);
-	windowComponentSetData(field, buffer, columns);
+	windowComponentSetData(field, buffer, columns, 1 /* redraw */);
 	windowComponentFocus(field);
 
 	// Add a slider to adjust the value mouse-ly
@@ -153,7 +153,8 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 	sliderState.displayPercent = 20; // Size of slider 20%
 	sliderState.positionPercent = ((maxVal - minVal)?
 		(((defaultVal - minVal) * 100) / (maxVal - minVal)) : 50);
-	windowComponentSetData(slider, &sliderState, sizeof(scrollBarState));
+	windowComponentSetData(slider, &sliderState, sizeof(scrollBarState),
+		1 /* redraw */);
 
 	// Create the OK button
 	params.gridY++;
@@ -183,7 +184,7 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 			if ((windowComponentEventGet(field, &event) > 0) &&
 				(event.type == EVENT_KEY_DOWN))
 			{
-				if (event.key == (unsigned char) ASCII_ENTER)
+				if (event.key == keyEnter)
 				{
 					status = 0;
 					break;
@@ -198,18 +199,23 @@ _X_ int windowNewNumberDialog(objectKey parentWindow, const char *title, const c
 					sliderState.positionPercent =
 						(((*value - minVal) * 100) / (maxVal - minVal));
 					windowComponentSetData(slider, &sliderState,
-						sizeof(scrollBarState));
+						sizeof(scrollBarState), 1 /* redraw */);
 				}
 			}
 
 			// Check for slider changes
 			if (windowComponentEventGet(slider, &event) > 0)
 			{
-				windowComponentGetData(slider, &sliderState,
-					sizeof(scrollBarState));
-				sprintf(buffer, "%d", (((sliderState.positionPercent *
-					(maxVal - minVal)) / 100) + minVal));
-				windowComponentSetData(field, buffer, columns);
+				if (event.type & (EVENT_MOUSE_LEFTDOWN | EVENT_MOUSE_DRAG |
+					EVENT_KEY_DOWN))
+				{
+					windowComponentGetData(slider, &sliderState,
+						sizeof(scrollBarState));
+					sprintf(buffer, "%d", (((sliderState.positionPercent *
+						(maxVal - minVal)) / 100) + minVal));
+					windowComponentSetData(field, buffer, columns,
+						1 /* redraw */);
+				}
 			}
 
 			// Check for the OK button

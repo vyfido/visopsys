@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,7 +30,6 @@
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
-#include "kernelMisc.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -135,9 +134,9 @@ static int readWriteSectors(int diskNum, uquad_t logicalSector,
 	// read/write
 
 	if (read)
-		kernelMemCopy((ramDisk->data + start), buffer, length);
+		memcpy(buffer, (ramDisk->data + start), length);
 	else
-		kernelMemCopy(buffer, (ramDisk->data + start), length);
+		memcpy((ramDisk->data + start), buffer, length);
 
 	// We are finished.  The data should be transferred.
 
@@ -199,7 +198,6 @@ static kernelDiskOps ramDiskOps = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 void kernelRamDiskDriverRegister(kernelDriver *driver)
 {
@@ -362,3 +360,4 @@ int kernelDiskRamDiskDestroy(const char *name)
 
 	return (status = 0);
 }
+

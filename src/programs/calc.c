@@ -40,6 +40,7 @@ Usage:
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
@@ -110,9 +111,11 @@ static void update_calculator_display(double number)
 		}
 	}
 	else
+	{
 		_lnum2str(number, number_text, current_display_base, 1);
+	}
 
-	windowComponentSetData(result_label, number_text, 32);
+	windowComponentSetData(result_label, number_text, 32, 1 /* redraw */);
 }
 
 
@@ -156,7 +159,7 @@ static void switch_number_base(int new_base)
 			sprintf(number_text, "B%02d", current_display_base);
 	}
 
-	windowComponentSetData(modeButton, number_text, 3);
+	windowComponentSetData(modeButton, number_text, 3, 1 /* redraw */);
 }
 
 
@@ -166,7 +169,7 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("calc");
 
 	// Refresh the window title
@@ -285,14 +288,14 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 		number_field = 0;
 		calc_entered = 0;
-		windowComponentSetData(result_label, "0", 1);
+		windowComponentSetData(result_label, "0", 1, 1 /* redraw */);
 	}
 
 	else if (key == plminButton && event->type == EVENT_MOUSE_LEFTUP)
 	{
 		double *number = calc_entered ? &number_field : &calc_result;
 
-		if (*number != 0)
+		if (*number)
 		{
 			*number *= -1;
 			update_calculator_display(*number);
@@ -385,7 +388,7 @@ static void create_window(void)
 
 	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
 
-	bzero(&cparam, sizeof(componentParameters));
+	memset(&cparam, 0, sizeof(componentParameters));
 
 	cparam.gridWidth = 4;
 	cparam.gridHeight = 1;
@@ -394,7 +397,7 @@ static void create_window(void)
 
 	result_label = windowNewTextLabel(window, "0", &cparam);
 
-	bzero(&cparam, sizeof(componentParameters));
+	memset(&cparam, 0, sizeof(componentParameters));
 
 	for (y = 0, x = 7; y < 3; y++)
 	{
@@ -517,7 +520,7 @@ static void create_window(void)
 
 int main(int argc __attribute__((unused)), char *argv[])
 {
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("calc");
 
 	// Only work in graphics mode

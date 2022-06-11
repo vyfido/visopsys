@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -37,7 +37,7 @@ _X_ int vshCursorMenu(const char *prompt, char *items[], int numItems,
 
 	int itemWidth = 0;
 	char *buffer = NULL;
-	int selectedOption = defaultSelection;
+	int selected = defaultSelection;
 	textAttrs attrs;
 	char c = '\0';
 	int count1, count2;
@@ -46,7 +46,7 @@ _X_ int vshCursorMenu(const char *prompt, char *items[], int numItems,
 	if ((prompt == NULL) || (items == NULL))
 		return (errno = ERR_NULLPARAMETER);
 
-	bzero(&attrs, sizeof(textAttrs));
+	memset(&attrs, 0, sizeof(textAttrs));
 
 	// Get the width of the widest item and set our item width
 	for (count1 = 0; count1 < numItems; count1 ++)
@@ -88,7 +88,7 @@ _X_ int vshCursorMenu(const char *prompt, char *items[], int numItems,
 				strcat(buffer, " ");
 			}
 
-			if (selectedOption == count1)
+			if (selected == count1)
 				attrs.flags = TEXT_ATTRS_REVERSE;
 			else
 				attrs.flags = 0;
@@ -106,21 +106,21 @@ _X_ int vshCursorMenu(const char *prompt, char *items[], int numItems,
 		{
 			case (char) ASCII_CRSRUP:
 				// Cursor up.
-				if (selectedOption > 0)
-					selectedOption -= 1;
+				if (selected > 0)
+					selected -= 1;
 				break;
 
 			case (char) ASCII_CRSRDOWN:
 				// Cursor down.
-				if (selectedOption < (numItems - 1))
-					selectedOption += 1;
+				if (selected < (numItems - 1))
+					selected += 1;
 				break;
 
 			case (char) ASCII_ENTER:
 				// Enter
 				textSetCursor(1);
 				free(buffer);
-				return (selectedOption);
+				return (selected);
 
 			case 'Q':
 			case 'q':

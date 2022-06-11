@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,7 +26,6 @@
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include <string.h>
 #include <sys/ntfs.h>
 
@@ -148,7 +147,7 @@ static int detect(kernelDisk *theDisk)
 	kernelDebug(debug_fs, "NTFS try to detect on disk %s",
 		theDisk->physical->name);
 
-	kernelMemClear(&bootFile, sizeof(ntfsBootFile));
+	memset(&bootFile, 0, sizeof(ntfsBootFile));
 	status = readBootFile(theDisk, &bootFile);
 	if (status < 0)
 		// Not NTFS
@@ -193,12 +192,12 @@ static int clobber(kernelDisk *theDisk)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	kernelMemClear(&bootFile, sizeof(ntfsBootFile));
+	memset(&bootFile, 0, sizeof(ntfsBootFile));
 	status = readBootFile(theDisk, &bootFile);
 	if (status < 0)
 		return (status);
 
-	kernelMemClear(bootFile.oemName, 8);
+	memset(bootFile.oemName, 0, 8);
 
 	status = writeBootFile(theDisk, &bootFile);
 	return (status);
@@ -386,7 +385,6 @@ static kernelFilesystemDriver defaultNtfsDriver = {
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelFilesystemNtfsInitialize(void)
 {
 	// Initialize the driver
@@ -400,3 +398,4 @@ int kernelFilesystemNtfsInitialize(void)
 
 	return (status);
 }
+

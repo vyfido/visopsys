@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,20 +17,20 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: disks.c:92
+#: disks.c:93
 msgid ""
 "\n"
 "Disk name"
 msgstr ""
 
-#: disks.c:94
+#: disks.c:95
 msgid "Partition"
 msgstr ""
 
-#: disks.c:96
+#: disks.c:97
 msgid "Filesystem"
 msgstr ""
 
-#: disks.c:98
+#: disks.c:99
 msgid "Mount\n"
 msgstr ""

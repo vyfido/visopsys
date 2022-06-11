@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,6 +53,7 @@ kernel.conf, and the window manager configuration, window.conf.
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/env.h>
 #include <sys/font.h>
 #include <sys/paths.h>
 #include <sys/vsh.h>
@@ -155,7 +156,8 @@ static void fillList(void)
 
 	if (list.numVariables)
 	{
-		listItemParams = malloc(list.numVariables * sizeof(listItemParameters));
+		listItemParams = malloc(list.numVariables *
+			sizeof(listItemParameters));
 
 		for (count = 0; count < list.numVariables; count ++)
 		{
@@ -208,11 +210,14 @@ static void setVariableDialog(char *variable)
 		variable = variableBuff;
 	}
 	else
+	{
 		dialogWindow = windowNewDialog(window, _("Add Variable"));
-	if (dialogWindow == NULL)
+	}
+
+	if (!dialogWindow)
 		return;
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 5;
@@ -253,7 +258,8 @@ static void setVariableDialog(char *variable)
 	valueField = windowNewTextField(dialogWindow, fieldWidth, &params);
 	if (variable)
 	{
-		windowComponentSetData(valueField, (void *) readValue, 128);
+		windowComponentSetData(valueField, (void *) readValue, 128,
+			1 /* redraw */);
 		windowComponentFocus(valueField);
 	}
 
@@ -285,7 +291,7 @@ static void setVariableDialog(char *variable)
 		// Check for pressing enter in either of the text fields
 		status = windowComponentEventGet(valueField, &event);
 		if ((status > 0) && (event.type == EVENT_KEY_DOWN) &&
-			(event.key == (unsigned char) ASCII_ENTER))
+			(event.key == keyEnter))
 		{
 			okay = 1;
 		}
@@ -294,7 +300,7 @@ static void setVariableDialog(char *variable)
 		{
 			status = windowComponentEventGet(variableField, &event);
 			if ((status > 0) && (event.type == EVENT_KEY_DOWN) &&
-				(event.key == (unsigned char) ASCII_ENTER))
+				(event.key == keyEnter))
 			{
 				okay = 1;
 			}
@@ -317,7 +323,7 @@ static void setVariableDialog(char *variable)
 
 				fillList();
 				windowComponentSetData(listList, listItemParams,
-					list.numVariables);
+					list.numVariables, 1 /* redraw */);
 
 				// Select the one we just added/changed
 				for (count = 0; count < list.numVariables; count ++)
@@ -393,7 +399,8 @@ static void refreshMenuContents(void)
 	for (count = 0; count < fileMenuContents.numItems; count ++)
 		windowComponentSetData(fileMenuContents.items[count].key,
 			fileMenuContents.items[count].text,
-			strlen(fileMenuContents.items[count].text));
+			strlen(fileMenuContents.items[count].text),
+			(count == (fileMenuContents.numItems - 1)));
 }
 
 
@@ -403,7 +410,7 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("confedit");
 
 	// Refresh all the menu contents
@@ -414,15 +421,15 @@ static void refreshWindow(void)
 
 	// Refresh the 'add' button
 	windowComponentSetData(addVariableButton, ADD_VARIABLE,
-		strlen(ADD_VARIABLE));
+		strlen(ADD_VARIABLE), 1 /* redraw */);
 
 	// Refresh the 'change' button
 	windowComponentSetData(changeVariableButton, CHANGE_VARIABLE,
-		strlen(CHANGE_VARIABLE));
+		strlen(CHANGE_VARIABLE), 1 /* redraw */);
 
 	// Refresh the 'delete' button
 	windowComponentSetData(deleteVariableButton, DELETE_VARIABLE,
-		strlen(DELETE_VARIABLE));
+		strlen(DELETE_VARIABLE), 1 /* redraw */);
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
@@ -470,7 +477,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 		if (event->type == EVENT_MOUSE_LEFTUP)
 		{
 			windowComponentGetSelected(listList, &selected);
-			setVariableDialog((char *) variableListGetVariable(&list, selected));
+			setVariableDialog((char *) variableListGetVariable(&list,
+				selected));
 		}
 	}
 
@@ -482,7 +490,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 			variableListUnset(&list, variableListGetVariable(&list, selected));
 			changesPending += 1;
 			fillList();
-			windowComponentSetData(listList, listItemParams, list.numVariables);
+			windowComponentSetData(listList, listItemParams, list.numVariables,
+				1 /* redraw */);
 		}
 	}
 }
@@ -507,10 +516,10 @@ static void constructWindow(void)
 
 	// Create a new window
 	window = windowNew(processId, WINDOW_TITLE);
-	if (window == NULL)
+	if (!window)
 		return;
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 
 	// Create the top menu bar
 	objectKey menuBar = windowNewMenuBar(window, &params);
@@ -522,22 +531,23 @@ static void constructWindow(void)
 		&params);
 	handleMenuEvents(&fileMenuContents);
 	if (privilege || readOnly)
-		windowComponentSetEnabled(fileMenuContents.items[FILEMENU_SAVE].key, 0);
+		windowComponentSetEnabled(fileMenuContents.items[FILEMENU_SAVE].key,
+			0);
 
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 5;
 	params.padTop = 5;
 	params.padBottom = 5;
-	params.orientationX = orient_left;
+	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
-	params.orientationX = orient_center;
 	if (fileFind(PATH_SYSTEM_FONTS "/arial-bold-10.vbf", NULL) >= 0)
-		fontLoad("arial-bold-10.vbf", "arial-bold-10", &(params.font), 0);
-	listList =
-		windowNewList(window, windowlist_textonly, min(10, list.numVariables),
-			1, 0, listItemParams, list.numVariables, &params);
+		fontLoadSystem("arial-bold-10.vbf", "arial-bold-10",
+		&(params.font), 0);
+	listList = windowNewList(window, windowlist_textonly,
+		min(10, list.numVariables), 1, 0, listItemParams, list.numVariables,
+		&params);
 	windowComponentFocus(listList);
 
 	// Make a container component for the buttons
@@ -556,7 +566,8 @@ static void constructWindow(void)
 	params.padRight = 0;
 	params.padTop = 0;
 	params.padBottom = 0;
-	params.flags &= ~(WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags &= ~(WINDOW_COMPFLAG_FIXEDWIDTH |
+		WINDOW_COMPFLAG_FIXEDHEIGHT);
 	addVariableButton =
 		windowNewButton(buttonContainer, ADD_VARIABLE, NULL, &params);
 	windowRegisterEventHandler(addVariableButton, &eventHandler);
@@ -591,13 +602,14 @@ int main(int argc, char *argv[])
 	disk theDisk;
 	file tmpFile;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("confedit");
 
 	// Only work in graphics mode
 	if (!graphicsAreEnabled())
 	{
-		printf(_("\nThe \"%s\" command only works in graphics mode\n"), argv[0]);
+		printf(_("\nThe \"%s\" command only works in graphics mode\n"),
+			argv[0]);
 		return (status = ERR_NOTINITIALIZED);
 	}
 
@@ -613,14 +625,16 @@ int main(int argc, char *argv[])
 			PATH_SYSTEM_CONFIG, fileName, MAX_PATH_NAME_LENGTH, 0);
 		if (status != 1)
 		{
-			if (status != 0)
+			if (status)
 				perror(argv[0]);
 
 			return (status);
 		}
 	}
 	else
+	{
 		strncpy(fileName, argv[argc - 1], MAX_PATH_NAME_LENGTH);
+	}
 
 	// See whether the file exists
 	status = fileFind(fileName, &tmpFile);

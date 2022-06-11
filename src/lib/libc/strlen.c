@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -29,7 +29,7 @@ size_t strlen(const char *string)
 {
 	int count = 0;
 
-	if (string == NULL)
+	if (!string)
 	{
 		errno = ERR_NULLPARAMETER;
 		return (count = 0);
@@ -49,3 +49,4 @@ size_t strlen(const char *string)
 
 	return (count);
 }
+

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -75,19 +75,20 @@ Options:
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/env.h>
 #include <sys/font.h>
 #include <sys/keyboard.h>
 #include <sys/paths.h>
 
 #define _(string) gettext(string)
 
-#define WINDOW_TITLE	_("Keyboard Map")
-#define CURRENT			_("Current:")
-#define NAME			_("Name:")
-#define SAVE			_("Save")
-#define SET_DEFAULT		_("Set as default")
-#define CLOSE			_("Close")
-#define KERNEL_CONF		PATH_SYSTEM_CONFIG "/kernel.conf"
+#define WINDOW_TITLE		_("Keyboard Map")
+#define CURRENT				_("Current:")
+#define NAME				_("Name:")
+#define SAVE				_("Save")
+#define SET_DEFAULT			_("Set as default")
+#define CLOSE				_("Close")
+#define KERNEL_CONF			PATH_SYSTEM_CONFIG "/kernel.conf"
 
 typedef struct {
 	int scanCode;
@@ -291,7 +292,7 @@ static int readMap(const char *fileName, keyMap *map)
 	int status = 0;
 	fileStream theStream;
 
-	bzero(&theStream, sizeof(fileStream));
+	memset(&theStream, 0, sizeof(fileStream));
 
 	status = fileStreamOpen(fileName, OPENMODE_READ, &theStream);
 	if (status < 0)
@@ -332,7 +333,7 @@ static int findMapFile(const char *mapName, char *fileName)
 	if (!map)
 		return (status = ERR_MEMORY);
 
-	bzero(&theFile, sizeof(file));
+	memset(&theFile, 0, sizeof(file));
 
 	// Loop through the files in the keymap directory
 	for (count = 0; ; count ++)
@@ -412,7 +413,7 @@ static int setMap(const char *mapName)
 	strncpy(currentName, selectedMap->name, KEYMAP_NAMELEN);
 
 	// Find out whether the kernel config file is on a read-only filesystem
-	bzero(&confDisk, sizeof(disk));
+	memset(&confDisk, 0, sizeof(disk));
 	if (!fileGetDisk(KERNEL_CONF, &confDisk) && !confDisk.readOnly)
 	{
 		status = configSet(KERNEL_CONF, "keyboard.map", fileName);
@@ -430,13 +431,10 @@ static int loadMap(const char *mapName)
 {
 	int status = 0;
 	char *fileName = NULL;
-	fileStream theStream;
 
 	fileName = malloc(MAX_PATH_NAME_LENGTH);
 	if (!fileName)
 		return (status = ERR_MEMORY);
-
-	bzero(&theStream, sizeof(fileStream));
 
 	// Find the map by name
 	status = findMapFile(mapName, fileName);
@@ -479,8 +477,8 @@ static int saveMap(const char *fileName)
 	fileStream theStream;
 	int count;
 
-	bzero(&mapDisk, sizeof(disk));
-	bzero(&theStream, sizeof(fileStream));
+	memset(&mapDisk, 0, sizeof(disk));
+	memset(&theStream, 0, sizeof(fileStream));
 
 	// Find out whether the file is on a read-only filesystem
 	if (!fileGetDisk(fileName, &mapDisk) && mapDisk.readOnly)
@@ -532,7 +530,7 @@ static int getMapNames(char *nameBuffer)
 	int count;
 
 	fileName = malloc(MAX_PATH_NAME_LENGTH);
-	map = malloc(sizeof(file));
+	map = malloc(sizeof(keyMap));
 	if (!fileName || !map)
 		return (status = ERR_MEMORY);
 
@@ -554,9 +552,14 @@ static int getMapNames(char *nameBuffer)
 			continue;
 
 		if (strcmp(cwd, "/"))
-			snprintf(fileName, MAX_PATH_NAME_LENGTH, "%s/%s", cwd, theFile.name);
+		{
+			snprintf(fileName, MAX_PATH_NAME_LENGTH, "%s/%s", cwd,
+				theFile.name);
+		}
 		else
+		{
 			snprintf(fileName, MAX_PATH_NAME_LENGTH, "/%s", theFile.name);
+		}
 
 		status = readMap(fileName, map);
 		if (status < 0)
@@ -672,7 +675,8 @@ static void updateKeyDiag(keyMap *map)
 	char string[32];
 	int count;
 
-	windowComponentSetData(nameField, map->name, sizeof(map->name));
+	windowComponentSetData(nameField, map->name, sizeof(map->name),
+		1 /* redraw */);
 
 	for (count = 0; count < 53; count ++)
 	{
@@ -680,7 +684,7 @@ static void updateKeyDiag(keyMap *map)
 		{
 			makeButtonString(&keyArray[count], string);
 			windowComponentSetData(keyArray[count].button, string,
-				sizeof(string));
+				sizeof(string), 1 /* redraw */);
 		}
 	}
 }
@@ -692,26 +696,28 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("keymap");
 
 	// Refresh the keyboard diagram
 	updateKeyDiag(selectedMap);
 
 	// Refresh the 'current' label
-	windowComponentSetData(currentLabel, CURRENT, strlen(CURRENT));
+	windowComponentSetData(currentLabel, CURRENT, strlen(CURRENT),
+		1 /* redraw */);
 
 	// Refresh the 'name' field
-	windowComponentSetData(nameLabel, NAME, strlen(NAME));
+	windowComponentSetData(nameLabel, NAME, strlen(NAME), 1 /* redraw */);
 
 	// Refresh the 'save' button
-	windowComponentSetData(saveButton, SAVE, strlen(SAVE));
+	windowComponentSetData(saveButton, SAVE, strlen(SAVE), 1 /* redraw */);
 
 	// Refresh the 'set as default' button
-	windowComponentSetData(defaultButton, SET_DEFAULT, strlen(SET_DEFAULT));
+	windowComponentSetData(defaultButton, SET_DEFAULT, strlen(SET_DEFAULT),
+		1 /* redraw */);
 
 	// Refresh the 'close' button
-	windowComponentSetData(closeButton, CLOSE, strlen(CLOSE));
+	windowComponentSetData(closeButton, CLOSE, strlen(CLOSE), 1 /* redraw */);
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
@@ -753,7 +759,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 			windowGuiStop();
 	}
 
-	else if ((key == mapList) && (event->type & EVENT_SELECTION))
+	else if ((key == mapList) && (event->type & EVENT_SELECTION) &&
+		(event->type & EVENT_MOUSE_DOWN))
 	{
 		if (windowComponentGetSelected(mapList, &selected) < 0)
 			return;
@@ -800,7 +807,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 		if (getMapNameParams() < 0)
 			return;
 
-		windowComponentSetData(mapList, mapListParams, numMapNames);
+		windowComponentSetData(mapList, mapListParams, numMapNames,
+			1 /* redraw */);
 
 		selectMap(selectedMap->name);
 
@@ -814,7 +822,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		if (setMap(mapListParams[selected].text) < 0)
 			return;
 		windowComponentSetData(currentNameLabel, mapListParams[selected].text,
-			strlen(mapListParams[selected].text));
+			strlen(mapListParams[selected].text), 1 /* redraw */);
 	}
 
 	// Check for the window being closed by a GUI event.
@@ -842,7 +850,7 @@ static int changeKeyDialog(scanKey *scan)
 	if (!dialogWindow)
 		return (status = ERR_NOCREATE);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 2;
 	params.gridHeight = 1;
 	params.padTop = 5;
@@ -865,7 +873,7 @@ static int changeKeyDialog(scanKey *scan)
 	params.gridX += 1;
 	regField = windowNewTextField(dialogWindow, 10, &params);
 	snprintf(string, 10, "%d", scan->regMap);
-	windowComponentSetData(regField, string, 10);
+	windowComponentSetData(regField, string, 10, 1 /* redraw */);
 
 	params.gridX = 0;
 	params.gridY += 1;
@@ -874,7 +882,7 @@ static int changeKeyDialog(scanKey *scan)
 	params.gridX += 1;
 	shiftField = windowNewTextField(dialogWindow, 10, &params);
 	snprintf(string, 10, "%d", scan->shiftMap);
-	windowComponentSetData(shiftField, string, 10);
+	windowComponentSetData(shiftField, string, 10, 1 /* redraw */);
 
 	params.gridX = 0;
 	params.gridY += 1;
@@ -883,7 +891,7 @@ static int changeKeyDialog(scanKey *scan)
 	params.gridX += 1;
 	altGrField = windowNewTextField(dialogWindow, 10, &params);
 	snprintf(string, 10, "%d", scan->altGrMap);
-	windowComponentSetData(altGrField, string, 10);
+	windowComponentSetData(altGrField, string, 10, 1 /* redraw */);
 
 	params.gridX = 0;
 	params.gridY += 1;
@@ -892,7 +900,7 @@ static int changeKeyDialog(scanKey *scan)
 	params.gridX += 1;
 	ctrlField = windowNewTextField(dialogWindow, 10, &params);
 	snprintf(string, 10, "%d", scan->controlMap);
-	windowComponentSetData(ctrlField, string, 10);
+	windowComponentSetData(ctrlField, string, 10, 1 /* redraw */);
 
 	params.gridX = 0;
 	params.gridY += 1;
@@ -924,13 +932,13 @@ static int changeKeyDialog(scanKey *scan)
 		if (((windowComponentEventGet(_okButton, &event) > 0) &&
 			(event.type == EVENT_MOUSE_LEFTUP)) ||
 			((windowComponentEventGet(regField, &event) > 0) &&
-				(event.type == EVENT_KEY_DOWN) && (event.key == 10)) ||
+				(event.type == EVENT_KEY_DOWN) && (event.key == keyEnter)) ||
 			((windowComponentEventGet(shiftField, &event) > 0) &&
-				(event.type == EVENT_KEY_DOWN) && (event.key == 10)) ||
+				(event.type == EVENT_KEY_DOWN) && (event.key == keyEnter)) ||
 			((windowComponentEventGet(altGrField, &event) > 0) &&
-				(event.type == EVENT_KEY_DOWN) && (event.key == 10)) ||
+				(event.type == EVENT_KEY_DOWN) && (event.key == keyEnter)) ||
 			((windowComponentEventGet(ctrlField, &event) > 0) &&
-				(event.type == EVENT_KEY_DOWN) && (event.key == 10)))
+				(event.type == EVENT_KEY_DOWN) && (event.key == keyEnter)))
 			{
 				windowComponentGetData(regField, string, 10);
 				scan->regMap = atoi(string);
@@ -976,7 +984,7 @@ static void editKeyHandler(objectKey key, windowEvent *event)
 				changeKeyDialog(&keyArray[count]);
 				makeButtonString(&keyArray[count], string);
 				windowComponentSetData(keyArray[count].button, string,
-					sizeof(string));
+					sizeof(string), 1 /* redraw */);
 				break;
 			}
 		}
@@ -998,7 +1006,7 @@ static objectKey constructKeyDiag(objectKey parent, keyMap *map,
 	if (!mainContainer)
 		return (mainContainer);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padTop = 5;
@@ -1009,7 +1017,8 @@ static objectKey constructKeyDiag(objectKey parent, keyMap *map,
 	params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
 
 	if (fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL) >= 0)
-		fontLoad("xterm-normal-10.vbf", "xterm-normal-10", &(params.font), 1);
+		fontLoadSystem("xterm-normal-10.vbf", "xterm-normal-10",
+			&(params.font), 1);
 
 	// Make a container for the name field
 	nameContainer = windowNewContainer(mainContainer, "nameContainer", &params);
@@ -1019,7 +1028,8 @@ static objectKey constructKeyDiag(objectKey parent, keyMap *map,
 	nameLabel = windowNewTextLabel(nameContainer, NAME, &params);
 	params.gridX += 1;
 	nameField = windowNewTextField(nameContainer, 30, &params);
-	windowComponentSetData(nameField, map->name, MAX_PATH_LENGTH);
+	windowComponentSetData(nameField, map->name, MAX_PATH_LENGTH,
+		1 /* redraw */);
 
 	// Make containers for the rows
 	params.gridX = 0;
@@ -1100,11 +1110,11 @@ static objectKey constructKeyDiag(objectKey parent, keyMap *map,
 			windowRegisterEventHandler(keyArray[count].button,
 				&editKeyHandler);
 
-			if (fontGetPrintedWidth(&params.font, string) <
-				fontGetPrintedWidth(&params.font, "@@@"))
+			if (fontGetPrintedWidth(params.font, string) <
+				fontGetPrintedWidth(params.font, "@@@"))
 			{
 				windowComponentSetWidth(keyArray[count].button,
-					fontGetPrintedWidth(&params.font, "@@@"));
+					fontGetPrintedWidth(params.font, "@@@"));
 			}
 
 			if (keyArray[count].grey)
@@ -1121,7 +1131,7 @@ static void constructWindow(void)
 	// If we are in graphics mode, make a window rather than operating on the
 	// command line.
 
-	objectKey leftContainer = NULL;
+	objectKey rightContainer = NULL;
 	objectKey bottomContainer = NULL;
 	componentParameters params;
 
@@ -1130,7 +1140,7 @@ static void constructWindow(void)
 	if (!window)
 		return;
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padTop = 5;
@@ -1139,25 +1149,27 @@ static void constructWindow(void)
 	params.orientationY = orient_top;
 
 	// Create a list component for the keymap names
-	mapList = windowNewList(window, windowlist_textonly, 5, 1, 0, mapListParams,
-		numMapNames, &params);
+	mapList = windowNewList(window, windowlist_textonly, 5, 1, 0,
+		mapListParams, numMapNames, &params);
 	windowRegisterEventHandler(mapList, &eventHandler);
 	windowComponentFocus(mapList);
 
 	// Select the map
 	selectMap(selectedMap->name);
 
+	// Make a container for the current keymap labels
 	params.gridX += 1;
 	params.padRight = 5;
-	leftContainer = windowNewContainer(window, "leftContainer", &params);
+	rightContainer = windowNewContainer(window, "rightContainer", &params);
 
 	// Create labels for the current keymap
 	params.gridX = 0;
 	params.gridY = 0;
 	params.flags |= (WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
-	currentLabel = windowNewTextLabel(leftContainer, CURRENT, &params);
+	currentLabel = windowNewTextLabel(rightContainer, CURRENT, &params);
 	params.gridY += 1;
-	currentNameLabel = windowNewTextLabel(leftContainer, currentName, &params);
+	currentNameLabel = windowNewTextLabel(rightContainer, currentName,
+		&params);
 
 	// Create the diagram of the selected map
 	params.gridX = 0;
@@ -1222,7 +1234,7 @@ static void printRow(int start, int end, unsigned char *map)
 		if (isgraph(map[count]))
 			printf("'%c' ", map[count]);
 		else
-			printf("%02x ", map[count]);
+			printf("%x ", map[count]);
 
 		// Only print 8 on a line
 		if (printed && !(printed % 8))
@@ -1282,14 +1294,14 @@ int main(int argc, char *argv[])
 	char opt;
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("keymap");
 
 	// Graphics enabled?
 	graphics = graphicsAreEnabled();
 
-	// Check for options
-	while (strchr("ps:T?", (opt = getopt(argc, argv, "ps:T"))))
+	// Check options
+	while (strchr("psT:?", (opt = getopt(argc, argv, "ps:T"))))
 	{
 		switch (opt)
 		{
@@ -1321,7 +1333,7 @@ int main(int argc, char *argv[])
 				usage(argv[0]);
 				return (status = ERR_NULLPARAMETER);
 
-			case '?':
+			default:
 				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
 				usage(argv[0]);
 				return (status = ERR_INVALID);
@@ -1367,8 +1379,10 @@ int main(int argc, char *argv[])
 			}
 		}
 		else
+		{
 			// Assume we've been given a map name.
 			mapName = argv[optind];
+		}
 
 		if (!graphics && !saveName && !print)
 		{

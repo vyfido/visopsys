@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -59,7 +59,7 @@ static void recurseDirectory(const char *dirPath)
 	char *newDirPath = NULL;
 
 	// Initialize the file structure
-	bzero(&theFile, sizeof(file));
+	memset(&theFile, 0, sizeof(file));
 
 	// Get the first item in the directory
 	status = fileFirst(dirPath, &theFile);
@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
 	int lastChar = 0;
 
 	// Initialize the file structure
-	bzero(&theFile, sizeof(file));
+	memset(&theFile, 0, sizeof(file));
 
 	fileName = malloc(MAX_PATH_NAME_LENGTH);
 	if (!fileName)

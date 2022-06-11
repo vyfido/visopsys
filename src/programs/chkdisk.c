@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,6 +47,7 @@ function.
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 
 #define _(string) gettext(string)
@@ -68,7 +69,7 @@ int main(int argc, char *argv[])
 	int repair = 0;
 	char yesNo = '\0';
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("chkdisk");
 
 	// Our argument is the disk number
@@ -87,7 +88,7 @@ int main(int argc, char *argv[])
 	diskName = argv[1];
 
 	// Print a message
-	printf("%s", _("\nVisopsys CHKDISK Utility\nCopyright (C) 1998-2014 J. "
+	printf("%s", _("\nVisopsys CHKDISK Utility\nCopyright (C) 1998-2015 J. "
 		"Andrew McLaughlin\n\n"));
 
 	status = filesystemCheck(diskName, force, repair, NULL);

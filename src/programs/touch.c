@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -44,6 +44,7 @@ or directories.
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/vsh.h>
 
 #define _(string) gettext(string)
@@ -68,7 +69,7 @@ int main(int argc, char *argv[])
 	file theFile;
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("touch");
 
 	if (argc < 2)
@@ -81,11 +82,11 @@ int main(int argc, char *argv[])
 	for (count = 1; count < argc; count ++)
 	{
 		// Make sure the name isn't NULL
-			if (argv[count] == NULL)
-		return (status = ERR_NULLPARAMETER);
+		if (!argv[count])
+			return (status = ERR_NULLPARAMETER);
 
 		// Initialize the file structure
-		bzero(&theFile, sizeof(file));
+		memset(&theFile, 0, sizeof(file));
 
 		// Call the "find file" routine to see if the file exists
 		status = fileFind(argv[count], &theFile);
@@ -107,10 +108,10 @@ int main(int argc, char *argv[])
 			// Now close the file
 			fileClose(&theFile);
 		}
-
 		else
 		{
-			// The file exists.  We need to update the date and time of the file
+			// The file exists.  We need to update the date and time of the
+			// file
 			status = fileTimestamp(argv[count]);
 			if (status < 0)
 			{

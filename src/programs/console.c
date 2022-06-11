@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,6 +48,7 @@ in other windows.
 #include <errno.h>
 #include <sys/window.h>
 #include <sys/api.h>
+#include <sys/env.h>
 
 #define _(string) gettext(string)
 
@@ -62,7 +63,7 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("console");
 
 	// Refresh the window title
@@ -90,7 +91,7 @@ int main(int argc, char *argv[])
 {
 	int status = 0;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("console");
 
 	// Only work in graphics mode
@@ -110,13 +111,16 @@ int main(int argc, char *argv[])
 	if (status < 0)
 	{
 		if (status == ERR_ALREADY)
+		{
 			// There's already a console window open somewhere
-			windowNewErrorDialog(NULL, _("Error"), _("Cannot open more than one "
-				"console window!"));
-
+			windowNewErrorDialog(NULL, _("Error"), _("Cannot open more than "
+				"one console window!"));
+		}
 		else
-			windowNewErrorDialog(NULL, _("Error"), _("Error opening the console "
-				"window!"));
+		{
+			windowNewErrorDialog(NULL, _("Error"), _("Error opening the "
+				"console window!"));
+		}
 
 		windowDestroy(window);
 		return (status);

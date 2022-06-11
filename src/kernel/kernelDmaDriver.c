@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,9 +24,9 @@
 #include "kernelDriver.h" // Contains my prototypes
 #include "kernelDma.h"
 #include "kernelMalloc.h"
-#include "kernelProcessorX86.h"
 #include "kernelError.h"
 #include <string.h>
+#include <sys/processor.h>
 
 static struct {
 	int statusReg;
@@ -68,8 +68,8 @@ static inline void enableController(int controller)
 	// setting other registers.
 
 	// Bit 2 is cleared
-	kernelProcessorOutPort8(controllerPorts[controller].commandReg, 0x00);
-	kernelProcessorDelay();
+	processorOutPort8(controllerPorts[controller].commandReg, 0x00);
+	processorDelay();
 	return;
 }
 
@@ -80,8 +80,8 @@ static inline void disableController(int controller)
 	// setting other registers.
 
 	// Bit 2 is set
-	kernelProcessorOutPort8(controllerPorts[controller].commandReg, 0x04);
-	kernelProcessorDelay();
+	processorOutPort8(controllerPorts[controller].commandReg, 0x04);
+	processorDelay();
 	return;
 }
 
@@ -94,13 +94,13 @@ static void writeWordPort(int port, int value)
 
 	// Set the controller register.  Start with the low byte.
 	data = (unsigned char) (value & 0xFF);
-	kernelProcessorOutPort8(port, data);
-	kernelProcessorDelay();
+	processorOutPort8(port, data);
+	processorDelay();
 
 	// Now the high byte
 	data = (unsigned char) ((value >> 8) & 0xFF);
-	kernelProcessorOutPort8(port, data);
-	kernelProcessorDelay();
+	processorOutPort8(port, data);
+	processorDelay();
 }
 
 
@@ -132,25 +132,25 @@ static int driverOpenChannel(int channel, void *address, int count, int mode)
 	disableController(controller);
 
 	// Clear interrupts while setting DMA controller registers
-	kernelProcessorSuspendInts(interrupts);
+	processorSuspendInts(interrupts);
 
 	// 1. Disable the channel.  Mask out all but the bottom two bits of the
 	// channel number, then turn on the disable 'mask' bit
 	data = (unsigned char) ((channel & 0x03) | 0x04);
-	kernelProcessorOutPort8(controllerPorts[controller].maskReg, data);
-	kernelProcessorDelay();
+	processorOutPort8(controllerPorts[controller].maskReg, data);
+	processorDelay();
 
 	// 2. Set the channel and mode.  "or" the channel with the mode
 	data = (unsigned char) ((mode | channel) & 0xFF);
-	kernelProcessorOutPort8(controllerPorts[controller].modeReg, data);
-	kernelProcessorDelay();
+	processorOutPort8(controllerPorts[controller].modeReg, data);
+	processorDelay();
 
 	// 3. Do channel setup.
 
 	// Reset the byte flip-flop before the following actions, as they each
 	// require two consecutive port writes.  Value is unimportant.
-	kernelProcessorOutPort8(controllerPorts[controller].clearReg, 0x01);
-	kernelProcessorDelay();
+	processorOutPort8(controllerPorts[controller].clearReg, 0x01);
+	processorDelay();
 
 	// Set the base and current address register
 	writeWordPort(channelPorts[channel].baseCurrentAddrReg, offset);
@@ -161,16 +161,16 @@ static int driverOpenChannel(int channel, void *address, int count, int mode)
 
 	// Set the page register
 	data = (unsigned char) (segment & 0xFF);
-	kernelProcessorOutPort8(channelPorts[channel].pageReg, data);
-	kernelProcessorDelay();
+	processorOutPort8(channelPorts[channel].pageReg, data);
+	processorDelay();
 
 	// 4. Enable the channel.  Mask out all but the bottom two bits of the
 	// channel number.
 	data = (unsigned char) (channel & 0x03);
-	kernelProcessorOutPort8(controllerPorts[controller].maskReg, data);
-	kernelProcessorDelay();
+	processorOutPort8(controllerPorts[controller].maskReg, data);
+	processorDelay();
 
-	kernelProcessorRestoreInts(interrupts);
+	processorRestoreInts(interrupts);
 
 	// Re-enable the appropriate controller
 	enableController(controller);
@@ -196,15 +196,15 @@ static int driverCloseChannel(int channel)
 	disableController(controller);
 
 	// Clear interrupts while setting DMA controller registers
-	kernelProcessorSuspendInts(interrupts);
+	processorSuspendInts(interrupts);
 
 	// Mask out all but the bottom two bits of the channel number, as above,
 	// then turn on the 'mask' bit
 	data = (unsigned char) ((channel & 0x03) | 0x04);
-	kernelProcessorOutPort8(controllerPorts[controller].maskReg, data);
-	kernelProcessorDelay();
+	processorOutPort8(controllerPorts[controller].maskReg, data);
+	processorDelay();
 
-	kernelProcessorRestoreInts(interrupts);
+	processorRestoreInts(interrupts);
 
 	// Re-enable the appropriate controller
 	enableController(controller);
@@ -257,7 +257,6 @@ static kernelDmaOps dmaOps = {
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 void kernelDmaDriverRegister(kernelDriver *driver)
 {
 	 // Device driver registration.
@@ -267,3 +266,4 @@ void kernelDmaDriverRegister(kernelDriver *driver)
 
 	return;
 }
+

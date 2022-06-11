@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -39,17 +39,14 @@ static inline int checkSignature(unsigned char *sectorData)
 {
 	// Returns 1 if the buffer contains an MS-DOS signature.
 
-	if ((sectorData[510] != (unsigned char) 0x55) ||
-		(sectorData[511] != (unsigned char) 0xAA))
-	{
-		// No signature.  Return 0.
-		return (0);
-	}
-	else
-	{
+	msdosMbr *mbr = (msdosMbr *) sectorData;
+
+	if (mbr->bootSig == MSDOS_BOOT_SIGNATURE)
 		// We'll say this has an MS-DOS signature.
 		return (1);
-	}
+	else
+		// No signature.  Return 0.
+		return (0);
 }
 
 
@@ -107,7 +104,7 @@ static int doReadTable(const disk *theDisk, unsigned sector,
 		{
 			if (!sector)
 			{
-				bzero(&slices[*numSlices], sizeof(rawSlice));
+				memset(&slices[*numSlices], 0, sizeof(rawSlice));
 				*numSlices += 1;
 				continue;
 			}
@@ -210,6 +207,7 @@ static int doReadTable(const disk *theDisk, unsigned sector,
 					table->entries[count].startLogical,
 					table->entries[count].startLogical, slices, numSlices);
 			}
+
 			break;
 		}
 	}
@@ -263,8 +261,8 @@ static void formatTableEntry(rawSlice *origRaw, msdosEntry *entry)
 	entry->startCyl = (unsigned char)(raw.geom.startCylinder & 0x0FF);
 	entry->tag = raw.tag;
 	entry->endHead = (unsigned char) raw.geom.endHead;
-	entry->endCylSect = (unsigned char)
-		(((raw.geom.endCylinder & 0x300) >> 2) | (raw.geom.endSector & 0x3F));
+	entry->endCylSect = (unsigned char)(((raw.geom.endCylinder & 0x300) >> 2) |
+		(raw.geom.endSector & 0x3F));
 	entry->endCyl = (unsigned char)(raw.geom.endCylinder & 0x0FF);
 	entry->startLogical = raw.startLogical;
 	entry->sizeLogical = raw.sizeLogical;
@@ -279,8 +277,8 @@ static int doWriteTable(const disk *theDisk, unsigned sector,
 
 	int status = 0;
 	unsigned char *sectorData = NULL;
+	msdosMbr *mbr = NULL;
 	int maxEntries = DISK_MAX_PRIMARY_PARTITIONS;
-	msdosTable *table = NULL;
 	int numEntries = 0;
 	rawSlice tmpSlice;
 	int count;
@@ -297,11 +295,10 @@ static int doWriteTable(const disk *theDisk, unsigned sector,
 		goto out;
 	}
 
-	// Set the pointer to the start of partition records in the table
-	table = (msdosTable *)(sectorData + MSDOS_TABLE_OFFSET);
+	mbr = (msdosMbr *) sectorData;
 
-	// Clear it.
-	bzero(table, sizeof(msdosTable));
+	// Clear the partition records in the table
+	memset(&mbr->partTable, 0, sizeof(msdosTable));
 
 	// If this is not the first partition table, the maximum number of entries
 	// is 2.
@@ -323,7 +320,9 @@ static int doWriteTable(const disk *theDisk, unsigned sector,
 				continue;
 			}
 			else
+			{
 				break;
+			}
 		}
 
 		// Make a copy of the slice in case we need to change values
@@ -348,8 +347,8 @@ static int doWriteTable(const disk *theDisk, unsigned sector,
 				goto out;
 			}
 
-			tmpSlice.startLogical -=
-				(tmpSlice.geom.startHead * theDisk->sectorsPerCylinder);
+			tmpSlice.startLogical -= (tmpSlice.geom.startHead *
+				theDisk->sectorsPerCylinder);
 			tmpSlice.geom.startHead = 0;
 
 			// Adjust the size to accommodate the logical slice and all
@@ -363,19 +362,20 @@ static int doWriteTable(const disk *theDisk, unsigned sector,
 				tmpSlice.startLogical -= extendedStart;
 
 			// Fill out the table entry
-			formatTableEntry(&tmpSlice, &table->entries[numEntries]);
+			formatTableEntry(&tmpSlice, &mbr->partTable.entries[numEntries]);
 
 			if (sector)
 			{
 				status = doWriteTable(theDisk,
-					(table->entries[numEntries].startLogical + extendedStart),
-					extendedStart, &slices[count]);
+					(mbr->partTable.entries[numEntries].startLogical +
+						extendedStart), extendedStart, &slices[count]);
 			}
 			else
 			{
 				status = doWriteTable(theDisk,
-					table->entries[numEntries].startLogical,
-					table->entries[numEntries].startLogical, &slices[count]);
+					mbr->partTable.entries[numEntries].startLogical,
+					mbr->partTable.entries[numEntries].startLogical,
+					&slices[count]);
 			}
 
 			// If we are in the main table, skip to the end of all the logical
@@ -389,7 +389,9 @@ static int doWriteTable(const disk *theDisk, unsigned sector,
 				}
 			}
 			else
+			{
 				break;
+			}
 		}
 		else
 		{
@@ -400,15 +402,14 @@ static int doWriteTable(const disk *theDisk, unsigned sector,
 				tmpSlice.startLogical -= sector;
 
 			// Fill out the table entry
-			formatTableEntry(&tmpSlice, &table->entries[numEntries]);
+			formatTableEntry(&tmpSlice, &mbr->partTable.entries[numEntries]);
 		}
 
 		numEntries += 1;
 	}
 
 	// Make sure it has a valid signature
-	sectorData[510] = (unsigned char) 0x55;
-	sectorData[511] = (unsigned char) 0xAA;
+	mbr->bootSig = MSDOS_BOOT_SIGNATURE;
 
 	// Write back the sector.
 	status = diskWriteSectors(theDisk->name, sector, 1, sectorData);
@@ -428,7 +429,6 @@ out:
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 static int detect(const disk *theDisk)
 {
@@ -455,10 +455,10 @@ static int detect(const disk *theDisk)
 	free(sectorData);
 
 	if (status == 1)
-		// Call this an MSDOS label.
+		// Call this an MS-DOS label.
 		return (status);
 	else
-		// Not an MSDOS label
+		// Not an MS-DOS label
 		return (status = 0);
 }
 

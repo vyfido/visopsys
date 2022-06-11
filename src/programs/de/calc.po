@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2014-01-22 18:39-0400\n"
-"Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -17,31 +17,31 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: calc.c:47
+#: calc.c:48
 msgid "Calculator"
 msgstr "Taschenrechner"
 
-#: calc.c:223 calc.c:246
+#: calc.c:226 calc.c:249
 msgid "Division by zero"
 msgstr "Teilung durch Null"
 
-#: calc.c:224 calc.c:247
+#: calc.c:227 calc.c:250
 msgid "Error: division by zero!"
 msgstr "Fehler: Teilung durch Null!"
 
-#: calc.c:334 calc.c:342
+#: calc.c:337 calc.c:345
 msgid "Invalid number"
 msgstr "Ungültige Zahl"
 
-#: calc.c:335
+#: calc.c:338
 msgid "Negative number!"
 msgstr "Negative Zahl!"
 
-#: calc.c:343
+#: calc.c:346
 msgid "Number is not integer!"
 msgstr "Zahl ist kein Integer!"
 
-#: calc.c:526
+#: calc.c:529
 #, c-format
 msgid ""
 "\n"

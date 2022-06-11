@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:18+0000\n"
+"POT-Creation-Date: 2015-06-16 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,81 +17,22 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: kernelFilesystemFat.c:3906
+#: kernelFilesystemFat.c:3888
 #, c-format
 msgid "Defragmenting %llu/%llu: %s"
 msgstr ""
 
-#: kernelFilesystemFat.c:4040 kernelFilesystemFatPlus.c:304
+#: kernelFilesystemFat.c:4022
 msgid "Reading filesystem info"
 msgstr ""
 
-#: kernelFilesystemFat.c:4079
+#: kernelFilesystemFat.c:4061
 msgid "Analyzing"
 msgstr ""
 
-#: kernelFilesystemFat.c:4093
+#: kernelFilesystemFat.c:4075
 #, c-format
 msgid "%llu files need defragmentation"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:275
-msgid "Checking constraints"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:285
-msgid "Error getting resizing constraints"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:292
-#, c-format
-msgid "Filesystem cannot resize to %llu blocks (minimum is %llu)"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:295
-#, c-format
-msgid "Filesystem cannot resize to %llu blocks (maximum is %llu)"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:312 kernelFilesystemFatPlus.c:336
-msgid "Error reading filesystem info"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:328
-msgid "Error defragmenting filesystem"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:347
-#, c-format
-msgid "Data exists outside the new size (%u >= %llu)"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:393
-msgid "Error moving data"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:404
-msgid "Clearing new FAT sectors"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:411
-msgid "Error getting memory"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:431
-msgid "Error clearing new FAT sectors"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:445
-msgid "Error synching FAT copies"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:456
-msgid "Updating filesystem info"
-msgstr ""
-
-#: kernelFilesystemFatPlus.c:471 kernelFilesystemFatPlus.c:480
-msgid "Error updating filesystem info"
 msgstr ""
 
 #: kernelShutdown.c:43
@@ -110,11 +51,11 @@ msgstr ""
 msgid "OK to power off now."
 msgstr ""
 
-#: kernelShutdown.c:155
+#: kernelShutdown.c:154
 msgid "Shutting down"
 msgstr ""
 
-#: kernelShutdown.c:323
+#: kernelShutdown.c:322
 #, c-format
 msgid "SYSTEM HALTED: Panic at %s:%s(%d)"
 msgstr ""

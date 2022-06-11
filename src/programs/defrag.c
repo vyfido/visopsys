@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -55,6 +55,7 @@ Options:
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/vsh.h>
 
 #define _(string) gettext(string)
@@ -122,7 +123,9 @@ static void error(const char *format, ...)
 	va_end(list);
 
 	if (graphics)
+	{
 		windowNewErrorDialog(NULL, _("Error"), output);
+	}
 	else
 	{
 		printf("\n\n%s\n", output);
@@ -149,7 +152,7 @@ static int chooseDisk(void)
 
 	#define CHOOSEDISK_STRING _("Please choose the disk to defragment:")
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridX = 0;
 	params.gridY = 0;
 	params.gridWidth = 2;
@@ -160,10 +163,10 @@ static int chooseDisk(void)
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
-	bzero(diskListParams, (numberDisks * sizeof(listItemParameters)));
+	memset(diskListParams, 0, (numberDisks * sizeof(listItemParameters)));
 	for (count = 0; count < numberDisks; count ++)
-		snprintf(diskListParams[count].text, WINDOW_MAX_LABEL_LENGTH, "%s  [ %s ]",
-			diskInfo[count].name, diskInfo[count].partType);
+		snprintf(diskListParams[count].text, WINDOW_MAX_LABEL_LENGTH,
+			"%s  [ %s ]", diskInfo[count].name, diskInfo[count].partType);
 
 	if (graphics)
 	{
@@ -226,8 +229,8 @@ static int chooseDisk(void)
 	{
 		for (count = 0; count < numberDisks; count ++)
 			diskStrings[count] = diskListParams[count].text;
-		diskNumber = vshCursorMenu(CHOOSEDISK_STRING, diskStrings,
-			numberDisks, 0);
+		diskNumber = vshCursorMenu(CHOOSEDISK_STRING, diskStrings, numberDisks,
+			0 /* selected */);
 	}
 
 	return (diskNumber);
@@ -253,9 +256,8 @@ static int mountedCheck(disk *theDisk)
 		theDisk->mountPoint);
 
 	if (graphics)
-		choice =
-			windowNewChoiceDialog(NULL, _("Disk is mounted"), tmpChar,
-				(char *[]) { _("Ignore"), _("Unmount"), _("Cancel") }, 3, 1);
+		choice = windowNewChoiceDialog(NULL, _("Disk is mounted"), tmpChar,
+			(char *[]) { _("Ignore"), _("Unmount"), _("Cancel") }, 3, 1);
 	else
 	{
 		printf(_("\n%s (I)gnore/(U)nmount/(C)ancel?: "), tmpChar);
@@ -317,22 +319,31 @@ int main(int argc, char *argv[])
 	char tmpChar[240];
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("defrag");
 
 	// Are graphics enabled?
 	graphics = graphicsAreEnabled();
 
-	// Check for options
-	while (strchr("st:T", (opt = getopt(argc, argv, "st:T"))))
+	// Check options
+	while (strchr("sT?", (opt = getopt(argc, argv, "sT"))))
 	{
-		// Operate in silent/script mode?
-		if (opt == 's')
-			silentMode = 1;
+		switch (opt)
+		{
+			case 's':
+				// Operate in silent/script mode
+				silentMode = 1;
+				break;
 
-		// Force text mode?
-		if (opt == 'T')
-			graphics = 0;
+			case 'T':
+				// Force text mode
+				graphics = 0;
+				break;
+
+			default:
+				error(_("Unknown option '%c'"), optopt);
+				return (status = ERR_INVALID);
+		}
 	}
 
 	// Call the kernel to give us the number of available disks
@@ -348,7 +359,7 @@ int main(int argc, char *argv[])
 
 	if (!graphics && !silentMode)
 		// Print a message
-		printf("%s", _("\nVisopsys DEFRAG Utility\nCopyright (C) 1998-2014 J. "
+		printf("%s", _("\nVisopsys DEFRAG Utility\nCopyright (C) 1998-2015 J. "
 			"Andrew McLaughlin\n"));
 
 	if (argc > 1)
@@ -437,7 +448,7 @@ int main(int argc, char *argv[])
 	if (status < 0)
 		return (errno = status);
 
-	bzero((void *) &prog, sizeof(progress));
+	memset((void *) &prog, 0, sizeof(progress));
 	if (graphics)
 		progressDialog = windowNewProgressDialog(NULL, _("Defragmenting..."),
 			&prog);

@@ -71,7 +71,6 @@ edit              Simple text editor
 filebrowse        Navigate the file system
 filesys           Set mount points and other filesystem properties
 iconwin           A program for displaying custom icon windows
-loadfont          Load a new default font
 mines             A mine sweeper game
 progman           View and manage programs and processes
 screenshot        Take a screenshot

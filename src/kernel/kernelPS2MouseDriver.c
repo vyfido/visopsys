@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,12 +28,11 @@
 #include "kernelGraphic.h"
 #include "kernelInterrupt.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelMouse.h"
 #include "kernelPic.h"
-#include "kernelProcessorX86.h"
 #include <errno.h>
 #include <string.h>
+#include <sys/processor.h>
 
 #define MOUSE_SHORT_TIMEOUT		50 // ms
 #define MOUSE_LONG_TIMEOUT		250 // ms
@@ -47,7 +46,6 @@ typedef enum {
 static int enabled = 0;
 static volatile int gotInterrupt = 0;
 static int bytesPerPacket = 3;
-static int packetByte = 0;
 static unsigned char packet[4];
 static unsigned char button1 = 0, button2 = 0, button3 = 0;
 
@@ -58,7 +56,7 @@ static inline int isData(inputType type)
 
 	unsigned char status = 0;
 
-	kernelProcessorInPort8(0x64, status);
+	processorInPort8(0x64, status);
 
 	if ((status & 0x21) == type)
 		return (1);
@@ -74,23 +72,21 @@ static int inPort60(unsigned char *data, inputType type, unsigned timeout)
 	// (port 0x60).
 
 	unsigned char status = 0;
-	uquad_t currTime = kernelCpuGetMs();
-	uquad_t endTime = (currTime + timeout);
+	uquad_t endTime = (kernelCpuGetMs() + timeout);
 
 	// Wait until the controller says it's got data of the requested type
-	while (currTime <= endTime)
+	while (kernelCpuGetMs() <= endTime)
 	{
 		if (isData(type))
 		{
-			kernelProcessorInPort8(0x60, *data);
+			processorInPort8(0x60, *data);
 			return (0);
 		}
 
-		kernelProcessorDelay();
-		currTime = kernelCpuGetMs();
+		processorDelay();
 	}
 
-	kernelProcessorInPort8(0x64, status);
+	processorInPort8(0x64, status);
 	kernelError(kernel_error, "Timeout reading port 60, port 64=%02x", status);
 	return (ERR_TIMEOUT);
 }
@@ -106,7 +102,7 @@ static int waitControllerReady(unsigned timeout)
 
 	while (currTime <= endTime)
 	{
-		kernelProcessorInPort8(0x64, status);
+		processorInPort8(0x64, status);
 
 		if (!(status & 0x02))
 			return (0);
@@ -128,7 +124,7 @@ static int waitCommandReceived(unsigned timeout)
 
 	while (currTime <= endTime)
 	{
-		kernelProcessorInPort8(0x64, status);
+		processorInPort8(0x64, status);
 
 		if (status & 0x08)
 			return (0);
@@ -153,7 +149,7 @@ static int outPort60(unsigned char data)
 	if (status < 0)
 		return (status);
 
-	kernelProcessorOutPort8(0x60, data);
+	processorOutPort8(0x60, data);
 
 	return (status = 0);
 }
@@ -170,7 +166,7 @@ static int outPort64(unsigned char data, unsigned timeout)
 	if (status < 0)
 		return (status);
 
-	kernelProcessorOutPort8(0x64, data);
+	processorOutPort8(0x64, data);
 
 	// Wait until the controller believes it has received it.
 	status = waitCommandReceived(timeout);
@@ -189,101 +185,104 @@ static void ackInterrupt(void)
 }
 
 
-static int readData(void)
+static void readData(void)
 {
-	// Read a standard 3-byte PS/2 mouse packet.
+	// Read a standard 3- or 4-byte PS/2 mouse packet.
 
-	int status = 0;
+	uquad_t endTime = (kernelCpuGetMs() + MOUSE_SHORT_TIMEOUT);
 	int xChange = 0, yChange = 0, zChange = 0;
+	int count;
 
 	// Disable keyboard output here, because our data reads are not atomic
-	status = outPort64(0xAD, MOUSE_SHORT_TIMEOUT);
-	if (status < 0)
-		goto out;
-
-	while (isData(mouse_input))
+	if (outPort64(0xAD, MOUSE_SHORT_TIMEOUT) < 0)
 	{
-		status = inPort60(&packet[packetByte], mouse_input,
-			MOUSE_SHORT_TIMEOUT);
-		if (status < 0)
-			goto out;
+		ackInterrupt();
+		goto out;
+	}
 
-		kernelDebug(debug_io, "Ps2Mouse read byte %02x", packet[packetByte]);
+	// If there's no data yet, just bail
+	if (!isData(mouse_input))
+	{
+		ackInterrupt();
+		goto out;
+	}
 
-		// Byte 1, bit 3 is always supposed to be on.  Wait until that's true.
-		if ((packetByte == 0) && (!(packet[0] & 0x08) || (packet[0] >= 0x40)))
+resync:
+	// Try to read an entire packet of data
+	for (count = 0; count < bytesPerPacket; count ++)
+	{
+		// Wait until a byte is ready
+		while (!isData(mouse_input))
 		{
-			kernelDebug(debug_io, "Ps2Mouse out-of-sync byte %02x",
-				packet[0]);
-			continue;
+			if (kernelCpuGetMs() > endTime)
+			{
+				kernelDebug(debug_io, "Ps2Mouse no data timeout");
+				ackInterrupt();
+				goto out;
+			}
 		}
 
-		packetByte += 1;
+		processorInPort8(0x60, packet[count]);
+		kernelDebug(debug_io, "Ps2Mouse read byte %02x", packet[count]);
 
-		if (packetByte >= bytesPerPacket)
+		// Byte 0, bit 3 is always supposed to be on.  Wait until that's true.
+		if (!count && (!(packet[0] & 0x08) || (packet[0] >= 0x40)))
 		{
-			kernelDebug(debug_io, "Ps2Mouse got packet %02x/%02x/%02x/%02x: ",
-				packet[0], packet[1], packet[2], packet[3]);
-
-			if ((packet[0] & 0x01) != button1)
-			{
-				button1 = (packet[0] & 0x01);
-				kernelDebug(debug_io, "Ps2Mouse button1");
-				kernelMouseButtonChange(1, button1);
-			}
-
-			if ((packet[0] & 0x04) != button2)
-			{
-				button2 = (packet[0] & 0x04);
-				kernelDebug(debug_io, "Ps2Mouse button2");
-				kernelMouseButtonChange(2, button2);
-			}
-
-			if ((packet[0] & 0x02) != button3)
-			{
-				button3 = (packet[0] & 0x02);
-				kernelDebug(debug_io, "Ps2Mouse button3");
-				kernelMouseButtonChange(3, button3);
-			}
-
-			if (packet[1] || packet[2])
-			{
-				// Sign them
-				if (packet[0] & 0x10)
-					xChange = (int) ((256 - packet[1]) * -1);
-				else
-					xChange = (int) packet[1];
-
-				if (packet[0] & 0x20)
-					yChange = (int) (256 - packet[2]);
-				else
-					yChange = (int) (packet[2] * -1);
-
-				kernelDebug(debug_io, "Ps2Mouse move (%d,%d)", xChange,
-					yChange);
-				kernelMouseMove(xChange, yChange);
-			}
-
-			if (packet[3])
-			{
-				zChange = (char) packet[3];
-				kernelDebug(debug_io, "Ps2Mouse scroll (%d)", zChange);
-				kernelMouseScroll(zChange);
-			}
-
-			packetByte = 0;
+			kernelDebug(debug_io, "Ps2Mouse out-of-sync byte %02x", packet[0]);
+			goto resync;
 		}
 	}
 
-	status = 0;
-
-out:
 	ackInterrupt();
 
+	if (packet[1] || packet[2])
+	{
+		// Sign them
+		if (packet[0] & 0x10)
+			xChange = (int)((256 - packet[1]) * -1);
+		else
+			xChange = (int) packet[1];
+
+		if (packet[0] & 0x20)
+			yChange = (int)(256 - packet[2]);
+		else
+			yChange = (int)(packet[2] * -1);
+
+		kernelDebug(debug_io, "Ps2Mouse move (%d,%d)", xChange, yChange);
+		kernelMouseMove(xChange, yChange);
+	}
+
+	if ((packet[0] & 0x01) != button1)
+	{
+		button1 = (packet[0] & 0x01);
+		kernelDebug(debug_io, "Ps2Mouse button1");
+		kernelMouseButtonChange(1, button1);
+	}
+
+	if ((packet[0] & 0x04) != button2)
+	{
+		button2 = (packet[0] & 0x04);
+		kernelDebug(debug_io, "Ps2Mouse button2");
+		kernelMouseButtonChange(2, button2);
+	}
+
+	if ((packet[0] & 0x02) != button3)
+	{
+		button3 = (packet[0] & 0x02);
+		kernelDebug(debug_io, "Ps2Mouse button3");
+		kernelMouseButtonChange(3, button3);
+	}
+
+	if ((bytesPerPacket > 3) && packet[3])
+	{
+		zChange = (char) packet[3];
+		kernelDebug(debug_io, "Ps2Mouse scroll (%d)", zChange);
+		kernelMouseScroll(zChange);
+	}
+
+out:
 	// Re-enable keyboard output
 	outPort64(0xAE, MOUSE_SHORT_TIMEOUT);
-
-	return (status);
 }
 
 
@@ -294,7 +293,7 @@ static void mouseInterrupt(void)
 
 	void *address = NULL;
 
-	kernelProcessorIsrEnter(address);
+	processorIsrEnter(address);
 	kernelInterruptSetCurrent(INTERRUPT_NUM_MOUSE);
 
 	gotInterrupt += 1;
@@ -305,7 +304,7 @@ static void mouseInterrupt(void)
 		readData();
 
 	kernelInterruptClearCurrent();
-	kernelProcessorIsrExit(address);
+	processorIsrExit(address);
 }
 
 
@@ -500,7 +499,7 @@ static int initialize(void)
 
 	kernelDebug(debug_io, "Ps2Mouse mouse intialize");
 
-	kernelMemClear(packet, sizeof(packet));
+	memset(packet, 0, sizeof(packet));
 
 	do {
 		// Set defaults.  Sample rate 100, Scaling 1:1, resolution 4 counts/mm,
@@ -580,7 +579,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	if (status < 0)
 		goto exit;
 
-	kernelProcessorSuspendInts(interrupts);
+	processorSuspendInts(interrupts);
 
 	// Make sure the controller is set to issue mouse interrupts and make sure
 	// the 'disable mouse' bit is clear
@@ -599,7 +598,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	// Clear any pending interrupts
 	kernelPicEndOfInterrupt(INTERRUPT_NUM_MOUSE);
 
-	kernelProcessorRestoreInts(interrupts);
+	processorRestoreInts(interrupts);
 
 	// Don't save any old handler for the dedicated mouse interrupt, but if
 	// there is one, we want to know about it.

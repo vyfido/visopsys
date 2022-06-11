@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -49,12 +49,10 @@
 #define DEVICECLASS_NETWORK					0x1100
 #define DEVICECLASS_HUB						0x1200
 #define DEVICECLASS_STORAGE					0x1300
-#define DEVICECLASS_UNKNOWN					0xFFFF
+#define DEVICECLASS_UNKNOWN					0xFF00
 
 // Device sub-classes
-
 #define DEVICESUBCLASS_NONE					0
-#define DEVICESUBCLASS_UNKNOWN				(DEVICECLASS_UNKNOWN | 0x01)
 
 // Sub-classes of CPUs
 #define DEVICESUBCLASS_CPU_X86				(DEVICECLASS_CPU | 0x01)
@@ -118,6 +116,9 @@
 // Sub-classes of storage
 #define DEVICESUBCLASS_STORAGE_FLASH		(DEVICECLASS_STORAGE | 0x01)
 #define DEVICESUBCLASS_STORAGE_TAPE			(DEVICECLASS_STORAGE | 0x02)
+
+// Sub-classes of unknown things
+#define DEVICESUBCLASS_UNKNOWN_USB			(DEVICECLASS_UNKNOWN | 0x01)
 
 // For masking off class/subclass
 #define DEVICECLASS_MASK					0xFF00

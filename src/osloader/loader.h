@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -21,26 +21,26 @@
 
 ;; Constants
 
-%define BYTE			1
-%define WORD			2
-%define DWORD			4
+%define BYTE					1
+%define WORD					2
+%define DWORD					4
 
 ;; Memory locations for loading the kernel
 
-%define LDRCODESEGMENTLOCATION 	00008000h
-%define LDRCODESEGMENTSIZE	00005000h
-%define LDRSTCKSEGMENTLOCATION 	(LDRCODESEGMENTLOCATION + LDRCODESEGMENTSIZE)
-%define LDRSTCKSEGMENTSIZE	00001000h   ; Only needs a small stack
-%define LDRSTCKBASE             (LDRSTCKSEGMENTSIZE - 2)
-%define LDRPAGINGDATA           (LDRSTCKSEGMENTLOCATION + LDRSTCKSEGMENTSIZE)
-%define LDRPAGINGDATASIZE       00003000h
-%define LDRDATABUFFER           (LDRPAGINGDATA + LDRPAGINGDATASIZE)
+%define LDRCODESEGMENTLOCATION	00008000h
+%define LDRCODESEGMENTSIZE		00005000h
+%define LDRSTCKSEGMENTLOCATION	(LDRCODESEGMENTLOCATION + LDRCODESEGMENTSIZE)
+%define LDRSTCKSEGMENTSIZE		00001000h   ; Only needs a small stack
+%define LDRSTCKBASE				(LDRSTCKSEGMENTSIZE - 2)
+%define LDRPAGINGDATA			(LDRSTCKSEGMENTLOCATION + LDRSTCKSEGMENTSIZE)
+%define LDRPAGINGDATASIZE		00003000h
+%define LDRDATABUFFER			(LDRPAGINGDATA + LDRPAGINGDATASIZE)
 ;; Use all the rest up to the start of video memory for the data buffer
-%define DATABUFFERSIZE          (000A0000h - LDRDATABUFFER)
+%define DATABUFFERSIZE			(000A0000h - LDRDATABUFFER)
 
-%define KERNELVIRTUALADDRESS    0C0000000h   ;; 3 GB mark
-%define KERNELLOADADDRESS	00100000h    ;; 1 MB mark
-%define KERNELSTACKSIZE	        00010000h    ;; 64 KB
+%define KERNELVIRTUALADDRESS	0C0000000h	;; 3 GB mark
+%define KERNELLOADADDRESS		00100000h	;; 1 MB mark
+%define KERNELSTACKSIZE			00010000h	;; 64 KB
 
 ;; The length of the progress indicator during kernel load
 %define PROGRESSLENGTH 20
@@ -59,100 +59,101 @@
 
 ;; Segment descriptor information for the temporary GDT
 
-%define PRIV_CODEINFO1	        10011010b
-%define PRIV_CODEINFO2	        11001111b
-%define PRIV_DATAINFO1	        10010010b
-%define PRIV_DATAINFO2	        11001111b
-%define PRIV_STCKINFO1	        10010010b
-%define PRIV_STCKINFO2	        11001111b
+%define PRIV_CODEINFO1			10011010b
+%define PRIV_CODEINFO2			11001111b
+%define PRIV_DATAINFO1			10010010b
+%define PRIV_DATAINFO2			11001111b
+%define PRIV_STCKINFO1			10010010b
+%define PRIV_STCKINFO2			11001111b
 
-%define LDRCODEINFO1            10011010b
-%define LDRCODEINFO2	        01000000b
+%define LDRCODEINFO1			10011010b
+%define LDRCODEINFO2			01000000b
 
-%define SCREENSTART             0x000B8000
+%define SCREENSTART				0x000B8000
 
-%define VIDEOPAGE	        0
-%define ROWS		        50
-%define COLUMNS		        80
-%define FOREGROUNDCOLOR         7
-%define BACKGROUNDCOLOR         1
-%define ERRORCOLOR              6
+%define VIDEOPAGE				0
+%define ROWS					50
+%define COLUMNS					80
+%define FOREGROUNDCOLOR			7
+%define BACKGROUNDCOLOR			1
+%define ERRORCOLOR				6
 
 ;; Selectors in the GDT
-%define PRIV_CODESELECTOR       0x0008
-%define PRIV_DATASELECTOR       0x0010
-%define PRIV_STCKSELECTOR       0x0018
-%define LDRCODESELECTOR         0x0020
+%define PRIV_CODESELECTOR		0x0008
+%define PRIV_DATASELECTOR		0x0010
+%define PRIV_STCKSELECTOR		0x0018
+%define LDRCODESELECTOR			0x0020
 
 ;; Filesystem types
-%define FS_UNKNOWN              0
-%define FS_FAT12                1
-%define FS_FAT16                2
-%define FS_FAT32                3
+%define FS_UNKNOWN				0
+%define FS_FAT12				1
+%define FS_FAT16				2
+%define FS_FAT32				3
 
 ;; Filesystem values
-%define FAT_BYTESPERDIRENTRY    32
-%define FAT12_NYBBLESPERCLUST   3
-%define FAT16_NYBBLESPERCLUST   4
-%define FAT32_NYBBLESPERCLUST   8
+%define FAT_BYTESPERDIRENTRY	32
+%define FAT12_NYBBLESPERCLUST	3
+%define FAT16_NYBBLESPERCLUST	4
+%define FAT32_NYBBLESPERCLUST	8
 
 ;; CPU types
-%define i486                    0
-%define PENTIUM                 1
-%define PENTIUMPRO              2
-%define PENTIUM2                3
-%define PENTIUM3                4
-%define PENTIUM4                5
+%define i486					0
+%define PENTIUM					1
+%define PENTIUMPRO				2
+%define PENTIUM2				3
+%define PENTIUM3				4
+%define PENTIUM4				5
 
 ;; Number of elements in our memory map
-%define MEMORYMAPSIZE           50
+%define MEMORYMAPSIZE			50
 
 ;; Maximum number of graphics modes we check
-%define MAXVIDEOMODES           20
+%define MAXVIDEOMODES			20
 
 ;; Our data structures that we pass to the kernel, mostly having to do with
 ;; hardware
 STRUC graphicsInfoBlock
- .videoMemory:    resd 1 ;; Video memory in Kbytes
- .framebuffer:    resd 1 ;; Address of the framebuffer
- .mode:           resd 1 ;; Current video mode
- .xRes:           resd 1 ;; Current X resolution
- .yRes:           resd 1 ;; Current Y resolution
- .bitsPerPixel:   resd 1 ;; Bits per pixel
- .numberModes:    resd 1 ;; Number of graphics modes in the following list
- .supportedModes: resd (MAXVIDEOMODES * 4)
+	.videoMemory	resd 1 ;; Video memory in Kbytes
+	.framebuffer	resd 1 ;; Address of the framebuffer
+	.mode			resd 1 ;; Current video mode
+	.xRes			resd 1 ;; Current X resolution
+	.yRes			resd 1 ;; Current Y resolution
+	.bitsPerPixel	resd 1 ;; Bits per pixel
+	.numberModes	resd 1 ;; Number of graphics modes in the following list
+	.supportedModes	resd (MAXVIDEOMODES * 4)
 ENDSTRUC
 
 STRUC memoryInfoBlock
- .start resq 1
- .size  resq 1
- .type  resd 1
+	.start	resq 1
+	.size	resq 1
+	.type	resd 1
 ENDSTRUC
 
 ;; The data structure created by the loader to describe the particulars
 ;; about a floppy disk drive to the kernel
 STRUC fddInfoBlock
- .type    resd 1
- .heads   resd 1
- .tracks  resd 1
- .sectors resd 1
+	.type		resd 1
+	.heads		resd 1
+	.tracks		resd 1
+	.sectors	resd 1
 ENDSTRUC
 
 ;; The data structure created by the loader to describe the particulars
 ;; about a hard disk drive
 STRUC hddInfoBlock
- .heads          resd 1
- .cylinders      resd 1
- .sectors        resd 1
- .bytesPerSector resd 1
- .totalSectors   resd 1
+	.heads			resd 1
+	.cylinders		resd 1
+	.sectors		resd 1
+	.bytesPerSector	resd 1
+	.totalSectors	resd 1
 ENDSTRUC
 
 ;; The data structure created by the loader to hold info about the serial
 ;; ports
 STRUC serialInfoBlock
- .port1 resd 1
- .port2 resd 1
- .port3 resd 1
- .port4 resd 1
+	.port1	resd 1
+	.port2	resd 1
+	.port3	resd 1
+	.port4	resd 1
 ENDSTRUC
+

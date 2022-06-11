@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -317,8 +317,8 @@ checkLinearFramebuffer:
 	;; Returns 1 if any linear framebuffer modes are supported.  0
 	;; otherwise
 
-        ;; Save space on the stack our return code
-        sub SP, 2
+	;; Save space on the stack our return code
+	sub SP, 2
 
 	pusha
 
@@ -487,18 +487,18 @@ loaderSetTextDisplay:
 	;; Restore ES
 	pop ES
 
-        ;; Should we blank the screen?
+	;; Should we blank the screen?
 	cmp word [SS:(BP + 18)], 0
 	jne .done
-        mov AX, 0700h
-        mov BH, BACKGROUNDCOLOR
-        and BH, 00000111b
-        shl BH, 4
-        or BH, FOREGROUNDCOLOR
-        mov CX, 0000h
-        mov DH, ROWS
-        mov DL, COLUMNS
-        int 10h
+	mov AX, 0700h
+	mov BH, BACKGROUNDCOLOR
+	and BH, 00000111b
+	shl BH, 4
+	or BH, FOREGROUNDCOLOR
+	mov CX, 0000h
+	mov DH, ROWS
+	mov DL, COLUMNS
+	int 10h
 
 	.done:
 	;; We are now in text mode
@@ -647,12 +647,12 @@ loaderDetectVideo:
 
 	;; Find out whether the user prefers a particular video mode
 	push word GRAPHICSMODE
-        call loaderFindFile
-        add SP, 2
+	call loaderFindFile
+	add SP, 2
 
 	;; Does the file exist?
-        cmp AX, 1
-        jne near .selectMode
+	cmp AX, 1
+	jne near .selectMode
 
 	;; Try to load our 'graphics mode' file
 	push word 0		; No progress indicator
@@ -672,7 +672,7 @@ loaderDetectVideo:
 	xor ESI, ESI
 	mov EDX, dword [ES:(ESI + 8)]	; BPP
 	mov ECX, dword [ES:(ESI + 4)]	; Y resolution
-	mov EBX, dword [ES:ESI]		; X resolution
+	mov EBX, dword [ES:ESI]			; X resolution
 	pop ES
 
 	;; Check whether the mode is supported
@@ -804,8 +804,8 @@ loaderSetGraphicDisplay:
 	;; frame buffer (line 0, pixel 0).  Careful; kills AX, BX, CX, DX
 	mov AX, 4F07h
 	xor BX, BX
-	mov CX, 0
-	mov DX, 0
+	xor CX, CX
+	xor DX, DX
 	int 10h
 
 	.done:
@@ -821,12 +821,12 @@ loaderSetGraphicDisplay:
 	ALIGN 4
 
 CURRENTGMODE	dw 0
-KERNELGMODE	dw 0
-VIDEODATA_P	dw 0
-VESAINFO  	db 'VBE2'		;; Space for info ret by vid BIOS
-		times 508  db 0
-MODEINFO	times 256 db 0
-SVGAAVAIL	db 0
+KERNELGMODE		dw 0
+VIDEODATA_P		dw 0
+VESAINFO		db 'VBE2'		;; Space for info ret by vid BIOS
+				times 508 db 0
+MODEINFO		times 256 db 0
+SVGAAVAIL		db 0
 GRAPHICSMODE	db 'GRPHMODE   ', 0
 
 ;;
@@ -867,7 +867,7 @@ HAPPY		db 01h, ' ', 0
 VESA20		db 'VESA 2.0 or greater, ', 0
 VIDEORAM	db 'K video RAM', 0
 VIDMODE		db 'Video mode   ', 10h, ' ', 0
-MODESTATS1      db 'Selected mode: ', 0
+MODESTATS1	db 'Selected mode: ', 0
 MODESTATS2	db 'x', 0
 MODESTATS3	db ' bits/pixel', 0
 SPACE		db ' ',0
@@ -877,12 +877,13 @@ SPACE		db ' ',0
 ;; The error messages
 ;;
 
-SAD		db 'x ', 0
+SAD			db 'x ', 0
 NOSVGA		db 'SVGA video not detected.', 0
 TEXTMODE	db 'This session will be restricted to text mode operation.', 0
 SVGAVER		db 'VESA version 2.0 or greater not available.', 0
-NOFRAMEBUFF	db 'Linear framebuffer video not available.', 0
+NOFRAMEBUFF db 'Linear framebuffer video not available.', 0
 NOSWITCH1	db 'Could not switch to graphics mode.  You may wish to', 0
 NOSWITCH2	db 'investigate possible problems with your video card.', 0
 NOMODE		db 'Could not find a supported graphics mode to use.', 0
 DUBIOUS		db 'Note: The VESA compatibility of your video card is dubious.', 0
+

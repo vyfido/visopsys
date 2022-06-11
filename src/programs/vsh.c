@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,6 +53,7 @@ double-quotes (").
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/env.h>
 #include <sys/file.h>
 #include <sys/vsh.h>
 
@@ -104,11 +105,11 @@ static void interpretCommand(char *commandLine)
 	int count;
 
 	// Initialize stack memory
-	bzero(args, (MAX_ARGS * sizeof(char *)));
+	memset(args, 0, (MAX_ARGS * sizeof(char *)));
 
 	commandName = malloc(MAX_PATH_NAME_LENGTH);
 	fullCommand = malloc(MAXSTRINGLENGTH);
-	if ((commandName == NULL) || (fullCommand == NULL))
+	if (!commandName || !fullCommand)
 	{
 		errno = ERR_MEMORY;
 		perror("vsh");
@@ -131,7 +132,9 @@ static void interpretCommand(char *commandLine)
 	// Try to match the command with the list of built-in commands
 
 	if (!strcmp(args[0], "pwd"))
+	{
 		printf("%s\n", cwd);
+	}
 
 	else if (!strcmp(args[0], "cd"))
 	{
@@ -139,7 +142,7 @@ static void interpretCommand(char *commandLine)
 			strcpy(cwd, args[1]);
 		else
 			// No arg means the user's home directory
-			environmentGet("HOME", cwd, MAX_PATH_LENGTH);
+			environmentGet(ENV_HOME, cwd, MAX_PATH_LENGTH);
 
 		// Make it official
 		temp = multitaskerSetCurrentDirectory(cwd);
@@ -163,7 +166,6 @@ static void interpretCommand(char *commandLine)
 			if (status < 0)
 				perror(args[0]);
 		}
-
 		else
 		{
 			for (count = 1; count < numArgs; count ++)
@@ -252,16 +254,19 @@ static void interpretCommand(char *commandLine)
 		if (numArgs == 2)
 		{
 			getEnvBuff = malloc(MAX_ENVVAR_LENGTH);
-			if (getEnvBuff != NULL)
+			if (getEnvBuff)
 			{
-				status = environmentGet(args[1], getEnvBuff, MAX_ENVVAR_LENGTH);
+				status = environmentGet(args[1], getEnvBuff,
+					MAX_ENVVAR_LENGTH);
 				if (status < 0)
 				{
 					errno = status;
 					perror(args[0]);
 				}
 				else
+				{
 					printf("%s\n", getEnvBuff);
+				}
 
 				free(getEnvBuff);
 			}
@@ -321,11 +326,13 @@ static void interpretCommand(char *commandLine)
 	}
 
 	else if (!strcmp(args[0], "printenv"))
+	{
 		environmentDump();
+	}
 
 	else if (commandName[0] != '\0')
 	{
-		// The user has typed the name of a program (s)he wants to execute
+		// The user has typed the name of a program to execute
 
 		// Should we block on the command?
 		if (args[numArgs - 1][0] == '&')
@@ -342,19 +349,23 @@ static void interpretCommand(char *commandLine)
 		// Reconstitute the full command line
 		sprintf(fullCommand, "\"%s\" ", commandName);
 		for (count = 1; count < numArgs; count ++)
-			sprintf((fullCommand + strlen(fullCommand)), "\"%s\" ", args[count]);
+			sprintf((fullCommand + strlen(fullCommand)), "\"%s\" ",
+				args[count]);
 
 		loaderLoadAndExec(fullCommand, myPrivilege, block);
 	}
 
 	else
+	{
 		printf(_("Unknown command \"%s\".\n"), args[0]);
+	}
 
 out:
 	if (commandName)
 		free(commandName);
 	if (fullCommand)
 		free(fullCommand);
+
 	return;
 }
 
@@ -373,7 +384,7 @@ static void simpleShell(void)
 
 	commandBuffer = malloc(MAXSTRINGLENGTH);
 	char *tmp = malloc(COMMANDHISTORY * MAXSTRINGLENGTH);
-	if ((commandBuffer == NULL) || (tmp == NULL))
+	if (!commandBuffer || !tmp)
 	{
 		errno = ERR_MEMORY;
 		perror("vsh");
@@ -410,7 +421,7 @@ static void simpleShell(void)
 				selectedCommand -= 1;
 			}
 
-			else if ((selectedCommand == 0) &&
+			else if (!selectedCommand &&
 				(currentCommand != (COMMANDHISTORY - 1)) &&
 				(commandHistory[COMMANDHISTORY - 1][0] != '\0'))
 			{
@@ -418,7 +429,9 @@ static void simpleShell(void)
 			}
 
 			else
+			{
 				continue;
+			}
 
 			// Delete the previous command from the command line
 			for (count = currentCharacter; count > 0; count --)
@@ -427,25 +440,29 @@ static void simpleShell(void)
 			// Copy the contents of the selected command into the current
 			// command
 			strcpy(commandBuffer, commandHistory[selectedCommand]);
+
 			// Print result to the screen
 			printf("%s", commandBuffer);
-			// Correct currentCharacter length so that
-			// it's as if we've typed it ourselves.
+
+			// Correct currentCharacter length so that it's as if we've typed
+			// it ourselves.
 			currentCharacter = strlen(commandBuffer);
 		}
 
 		else if (bufferCharacter == (unsigned char) ASCII_CRSRDOWN)
 		{
-			// This is the DOWN cursor key, which allows users to cycle forwards
-			// through their command history
+			// This is the DOWN cursor key, which allows users to cycle
+			// forwards through their command history
 
 			if (selectedCommand == currentCommand)
+			{
 				continue;
+			}
 
 			else if (((selectedCommand < (COMMANDHISTORY - 1)) &&
 				((selectedCommand + 1) == currentCommand)) ||
 					((selectedCommand == (COMMANDHISTORY - 1)) &&
-				(currentCommand == 0)))
+				!currentCommand))
 			{
 				selectedCommand = currentCommand;
 				commandBuffer[0] = '\0';
@@ -464,14 +481,15 @@ static void simpleShell(void)
 			}
 
 			else if ((selectedCommand == (COMMANDHISTORY - 1)) &&
-				(currentCommand != 0) &&
-				(commandHistory[0][0] != '\0'))
+				currentCommand && (commandHistory[0][0] != '\0'))
 			{
 				selectedCommand = 0;
 			}
 
 			else
+			{
 				continue;
+			}
 
 			// Delete the previous command from the command line
 			for (count = currentCharacter; count > 0; count --)
@@ -480,8 +498,10 @@ static void simpleShell(void)
 			// Copy the contents of the selected command into the current
 			// command
 			strcpy(commandBuffer, commandHistory[selectedCommand]);
+
 			// Print result to the screen
 			printf("%s", commandBuffer);
+
 			// Correct currentCharacter length so that it's as if we've typed
 			// it ourselves.
 			currentCharacter = strlen(commandBuffer);
@@ -521,8 +541,10 @@ static void simpleShell(void)
 					textBackSpace();
 			}
 			else
+			{
 				// Don't allow backspace from the start position
 				putchar(' ');
+			}
 		}
 
 		else if (bufferCharacter == (unsigned char) ASCII_TAB)
@@ -533,10 +555,12 @@ static void simpleShell(void)
 			textSetColumn(currentCharacter);
 
 			for (count = (strlen(commandBuffer)); count >= 0; count --)
-			if (commandBuffer[count] == '\"')
 			{
-				count++;
-				break;
+				if (commandBuffer[count] == '\"')
+				{
+					count++;
+					break;
+				}
 			}
 
 			if (count < 0)
@@ -554,10 +578,16 @@ static void simpleShell(void)
 			if (count < 0)
 				count = 0;
 
+			// Try to complete the file name
 			vshCompleteFilename(commandBuffer + count);
+
+			// Print result to the screen
 			textSetColumn(0);
 			showPrompt();
 			printf("%s", commandBuffer);
+
+			// Correct currentCharacter length so that it's as if we've typed
+			// it ourselves.
 			currentCharacter = strlen(commandBuffer);
 		}
 
@@ -585,7 +615,7 @@ static void simpleShell(void)
 				if (((currentCommand > 0) &&
 					strcmp(commandBuffer,
 						commandHistory[currentCommand - 1])) ||
-					((currentCommand == 0) &&
+					(!currentCommand &&
 					strcmp(commandBuffer,
 						commandHistory[COMMANDHISTORY - 1])))
 				{
@@ -614,13 +644,15 @@ static void simpleShell(void)
 					}
 				}
 				else
+				{
 					interpretCommand(commandBuffer);
+				}
 			}
 
 			// Set the current character to 0
 			currentCharacter = 0;
 			selectedCommand = currentCommand;
-			bzero(commandBuffer, MAXSTRINGLENGTH);
+			memset(commandBuffer, 0, MAXSTRINGLENGTH);
 
 			// Show a new prompt
 			showPrompt();
@@ -638,7 +670,7 @@ static void simpleShell(void)
 			// Do nothing.  Don't print.
 		}
 
-		else
+		else if (bufferCharacter)
 		{
 			// Something with no special meaning.
 
@@ -648,6 +680,21 @@ static void simpleShell(void)
 				if (promptCatchup)
 					textBackSpace();
 				continue;
+			}
+
+			if (currentCharacter)
+			{
+				// Make sure there's whitespace around special symbols
+				if (bufferCharacter == '&')
+				{
+					if (commandBuffer[currentCharacter - 1] != ' ')
+						commandBuffer[currentCharacter++] = ' ';
+				}
+				else if (commandBuffer[currentCharacter - 1] == '&')
+				{
+					if (bufferCharacter != ' ')
+						commandBuffer[currentCharacter++] = ' ';
+				}
 			}
 
 			// Add the current character to the command buffer and
@@ -661,9 +708,11 @@ static void simpleShell(void)
 	}
 
 	// This program never returns unless the user does 'logout'
+
 logout:
 	free(commandBuffer);
 	free(commandHistory[0]);
+
 	return;
 }
 
@@ -677,7 +726,7 @@ int main(int argc, char *argv[])
 	char *fullCommand = NULL;
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("vsh");
 
 	// What is my process id?
@@ -713,7 +762,7 @@ int main(int argc, char *argv[])
 		}
 
 		fullCommand = malloc(MAXSTRINGLENGTH);
-		if (fullCommand == NULL)
+		if (!fullCommand)
 		{
 			errno = ERR_MEMORY;
 			perror("vsh");
@@ -743,7 +792,7 @@ int main(int argc, char *argv[])
 	// Get the starting current directory
 
 	cwd = malloc(MAX_PATH_LENGTH);
-	if (cwd == NULL)
+	if (!cwd)
 	{
 		errno = ERR_MEMORY;
 		perror(argv[0]);

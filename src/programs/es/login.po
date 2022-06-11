@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2014-01-22 05:10-0400\n"
-"Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -17,75 +17,85 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: login.c:67
+#: login.c:68
 msgid "Authentication failed"
 msgstr ""
 
-#: login.c:68
+#: login.c:69
 msgid "Please enter your login name:"
 msgstr ""
 
-#: login.c:69
+#: login.c:70
 msgid "Please enter your password:"
 msgstr ""
 
-#: login.c:70
+#: login.c:71
 msgid ""
 "You are running the system from a read-only device.\n"
 "You will not be able to alter settings, or generally\n"
 "change anything."
 msgstr ""
 
-#: login.c:99
+#: login.c:98
 msgid "login: "
 msgstr "Login:"
 
-#: login.c:108
+#: login.c:107
 msgid "That login name is too long."
 msgstr "Nombre del Login demasiado largo."
 
-#: login.c:109
+#: login.c:108
 msgid "That password is too long."
 msgstr "Contraseña demasiado larga."
 
-#: login.c:125 login.c:407
+#: login.c:125 login.c:432
 msgid "Error"
 msgstr "Error"
 
-#: login.c:212
+#: login.c:219
 msgid "Login Window"
 msgstr "Ventana de Login"
 
-#: login.c:256
+#: login.c:263
 msgid "Reboot"
 msgstr "Reiniciar"
 
-#: login.c:262
+#: login.c:269
 msgid "Shut down"
 msgstr "Apagar"
 
-#: login.c:324
+#: login.c:334
 msgid "password: "
 msgstr "Contraseña:"
 
-#: login.c:428
+#: login.c:389
+#, c-format
+msgid "Missing parameter for %s option\n"
+msgstr ""
+
+#: login.c:394
+#, c-format
+msgid "Unknown option '%c'\n"
+msgstr ""
+
+#: login.c:455
 msgid "Login Failed"
 msgstr "Login fallado"
 
-#: login.c:429
+#: login.c:456
 msgid "Unable to log in to the Window Manager!"
 msgstr "Imposible ingresar al gestor de ventanas!"
 
-#: login.c:437
+#: login.c:464
 msgid "Read Only"
 msgstr "Sólo lectura"
 
-#: login.c:452
+#: login.c:479
 #, c-format
 msgid "Couldn't load login shell %s!"
 msgstr "No se puede cargar el Shell de Login %s!"
 
-#: login.c:459
+#: login.c:486
 #, c-format
 msgid ""
 "\n"

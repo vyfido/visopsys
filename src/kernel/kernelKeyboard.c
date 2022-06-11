@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,7 +31,6 @@
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
-#include "kernelProcessorX86.h"
 #include "kernelShutdown.h"
 #include "kernelWindow.h"
 #include <ctype.h>
@@ -152,6 +151,7 @@ static keyMap defMap = {
 static kernelKeyboard *keyboards[MAX_KEYBOARDS];
 static int numKeyboards = 0;
 static keyMap *kernelKeyMap = &defMap;
+static kernelKeyboard *virtual = NULL;
 
 // A buffer for input data waiting to be processed
 static struct {
@@ -505,26 +505,24 @@ static void keyboardThread(void)
 				}
 			}
 
-			if (ascii)
+			if (graphics)
 			{
-				if (graphics)
-				{
-					// Fill out our event
-					event.type = buffer[count].eventType;
-					event.xPosition = 0;
-					event.yPosition = 0;
-					event.key = ascii;
+				// Fill out our event
+				event.type = buffer[count].eventType;
+				event.xPosition = 0;
+				event.yPosition = 0;
+				event.key = buffer[count].scanCode;
+				event.ascii = ascii;
 
-					// Notify the window manager of the event
-					kernelWindowProcessEvent(&event);
-				}
-				else
+				// Notify the window manager of the event
+				kernelWindowProcessEvent(&event);
+			}
+			else if (ascii)
+			{
+				if (consoleStream &&
+					(buffer[count].eventType == EVENT_KEY_DOWN))
 				{
-					if (consoleStream &&
-						(buffer[count].eventType == EVENT_KEY_DOWN))
-					{
-						consoleStream->append(consoleStream, ascii);
-					}
+					consoleStream->append(consoleStream, ascii);
 				}
 			}
 		}
@@ -553,7 +551,6 @@ static void keyboardThread(void)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelKeyboardInitialize(void)
 {
 	// This function initializes the keyboard code, and sets the default
@@ -570,10 +567,18 @@ int kernelKeyboardInitialize(void)
 	if (!kernelKeyMap)
 		return (status = ERR_MEMORY);
 
+	// Create a virtual keyboard
+	virtual = kernelMalloc(sizeof(kernelKeyboard));
+	if (virtual)
+	{
+		virtual->type = keyboard_virtual;
+		keyboards[numKeyboards++] = virtual;
+	}
+
 	// We use US English as default, because, well, Americans would be so
 	// confused if it wasn't.  Everyone else understands the concept of
 	// setting it.
-	kernelMemCopy(&defMap, kernelKeyMap, sizeof(keyMap));
+	memcpy(kernelKeyMap, &defMap, sizeof(keyMap));
 
 	// Set the default keyboard data stream to be the console input
 	consoleStream = &(kernelTextGetConsoleInput()->s);
@@ -624,7 +629,7 @@ int kernelKeyboardGetMap(keyMap *map)
 	if (!map)
 		return (status = ERR_NULLPARAMETER);
 
-	kernelMemCopy(kernelKeyMap, map, sizeof(keyMap));
+	memcpy(map, kernelKeyMap, sizeof(keyMap));
 
 	return (status = 0);
 }
@@ -645,11 +650,11 @@ int kernelKeyboardSetMap(const char *fileName)
 	// Check params
 	if (!fileName)
 	{
-		kernelMemCopy(&defMap, kernelKeyMap, sizeof(keyMap));
+		memcpy(kernelKeyMap, &defMap, sizeof(keyMap));
 		return (status = 0);
 	}
 
-	kernelMemClear(&theFile, sizeof(fileStream));
+	memset(&theFile, 0, sizeof(fileStream));
 
 	// Try to load the file
 	status = kernelFileStreamOpen(fileName, OPENMODE_READ, &theFile);
@@ -700,6 +705,29 @@ int kernelKeyboardInput(kernelKeyboard *keyboard, int eventType,
 		buffer[bufferSize].eventType = eventType;
 		buffer[bufferSize].scanCode = scanCode;
 		bufferSize += 1;
+	}
+
+	return (0);
+}
+
+
+int kernelKeyboardVirtualInput(int eventType, keyScan scanCode)
+{
+	// Anyone can call this to supply virtual keyboard input.  Is this a
+	// security problem?
+
+	if (!initialized)
+		return (ERR_NOTINITIALIZED);
+
+	if (virtual)
+	{
+		if (bufferSize < KEYBOARD_MAX_BUFFERSIZE)
+		{
+			buffer[bufferSize].keyboard = virtual;
+			buffer[bufferSize].eventType = eventType;
+			buffer[bufferSize].scanCode = scanCode;
+			bufferSize += 1;
+		}
 	}
 
 	return (0);

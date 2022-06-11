@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -25,7 +25,9 @@
 #if !defined(_WINDOW_H)
 
 #include <sys/file.h>
+#include <sys/graphic.h>
 #include <sys/image.h>
+#include <sys/keyboard.h>
 #include <sys/loader.h>
 #include <sys/paths.h>
 #include <sys/progress.h>
@@ -87,6 +89,7 @@
 #define WINDOW_MAX_EVENTHANDLERS			256
 #define WINDOW_MAX_TITLE_LENGTH				80
 #define WINDOW_MAX_LABEL_LENGTH				80
+#define WINDOW_MAX_LABEL_LINES				4
 
 // Flags for window components
 #define WINDOW_COMPFLAG_NOSCROLLBARS		0x0100
@@ -153,7 +156,8 @@ typedef struct {
 	unsigned type;
 	int xPosition;
 	int yPosition;
-	unsigned key;
+	keyScan key;
+	unsigned ascii;
 
 } __attribute__((packed)) windowEvent;
 
@@ -180,6 +184,7 @@ typedef struct {
 	unsigned height;
 	int thickness;
 	int fill;
+	int buffer;
 	objectKey font;
 	void *data;
 
@@ -188,11 +193,13 @@ typedef struct {
 // Types of scroll bars
 typedef enum {
 	scrollbar_vertical, scrollbar_horizontal
+
 } scrollBarType;
 
 // Types of dividers
 typedef enum {
 	divider_vertical, divider_horizontal
+
 } dividerType;
 
 // A structure for specifying display percentage and display position
@@ -224,9 +231,9 @@ typedef struct _windowFileList {
 	void (*selectionCallback)(file *, char *, loaderFileClass *);
 
 	// Externally-callable service routines
-	int (*eventHandler) (struct _windowFileList *, windowEvent *);
-	int (*update) (struct _windowFileList *);
-	int (*destroy) (struct _windowFileList *);
+	int (*eventHandler)(struct _windowFileList *, windowEvent *);
+	int (*update)(struct _windowFileList *);
+	int (*destroy)(struct _windowFileList *);
 
 } windowFileList;
 
@@ -270,11 +277,12 @@ int windowNewPromptDialog(objectKey, const char *, const char *, int, int,
 int windowNewQueryDialog(objectKey, const char *, const char *);
 int windowNewRadioDialog(objectKey, const char *, const char *, char *[],
 	int, int);
-objectKey windowNewThumbImage(objectKey, const char *, unsigned, unsigned,
+objectKey windowNewThumbImage(objectKey, const char *, unsigned, unsigned, int,
 	componentParameters *);
 int windowProgressDialogDestroy(objectKey);
 int windowRegisterEventHandler(objectKey, void (*)(objectKey, windowEvent *));
-int windowThumbImageUpdate(objectKey, const char *, unsigned, unsigned);
+int windowThumbImageUpdate(objectKey, const char *, unsigned, unsigned, int,
+	color *);
 
 #define _WINDOW_H
 #endif

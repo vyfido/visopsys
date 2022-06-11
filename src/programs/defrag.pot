@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,130 +17,135 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: defrag.c:74
+#: defrag.c:75
 msgid "Confirmation"
 msgstr ""
 
-#: defrag.c:103
+#: defrag.c:104
 msgid ""
 "\n"
 "Press any key to continue. "
 msgstr ""
 
-#: defrag.c:125
+#: defrag.c:127
 msgid "Error"
 msgstr ""
 
-#: defrag.c:150
+#: defrag.c:153
 msgid "Please choose the disk to defragment:"
 msgstr ""
 
-#: defrag.c:170
+#: defrag.c:173
 msgid "Choose Disk"
 msgstr ""
 
-#: defrag.c:185
+#: defrag.c:188
 msgid "OK"
 msgstr ""
 
-#: defrag.c:189 defrag.c:258
+#: defrag.c:192 defrag.c:260
 msgid "Cancel"
 msgstr ""
 
-#: defrag.c:251
+#: defrag.c:254
 #, c-format
 msgid ""
 "The disk is mounted as %s.  It is STRONGLY recommended\n"
 "that you unmount before continuing"
 msgstr ""
 
-#: defrag.c:257
+#: defrag.c:259
 msgid "Disk is mounted"
 msgstr ""
 
-#: defrag.c:258
+#: defrag.c:260
 msgid "Ignore"
 msgstr ""
 
-#: defrag.c:258
+#: defrag.c:260
 msgid "Unmount"
 msgstr ""
 
-#: defrag.c:261
+#: defrag.c:263
 #, c-format
 msgid ""
 "\n"
 "%s (I)gnore/(U)nmount/(C)ancel?: "
 msgstr ""
 
-#: defrag.c:270
+#: defrag.c:272
 msgid "Ignore\n"
 msgstr ""
 
-#: defrag.c:276
+#: defrag.c:278
 msgid "Unmount\n"
 msgstr ""
 
-#: defrag.c:282
+#: defrag.c:284
 msgid "Cancel\n"
 msgstr ""
 
-#: defrag.c:301
+#: defrag.c:303
 #, c-format
 msgid "Unable to unmount %s"
 msgstr ""
 
-#: defrag.c:345
+#: defrag.c:344
+#, c-format
+msgid "Unknown option '%c'"
+msgstr ""
+
+#: defrag.c:356
 msgid "Error getting disks info"
 msgstr ""
 
-#: defrag.c:351
+#: defrag.c:362
 msgid ""
 "\n"
 "Visopsys DEFRAG Utility\n"
-"Copyright (C) 1998-2014 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2015 J. Andrew McLaughlin\n"
 msgstr ""
 
-#: defrag.c:373
+#: defrag.c:384
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
 msgstr ""
 
-#: defrag.c:400
+#: defrag.c:411
 #, c-format
 msgid "Unknown filesystem type on disk \"%s\""
 msgstr ""
 
-#: defrag.c:410
+#: defrag.c:421
 #, c-format
 msgid "Error getting info for disk \"%s\""
 msgstr ""
 
-#: defrag.c:419
+#: defrag.c:430
 #, c-format
 msgid "Defragmenting the filesystem type \"%s\" is not supported"
 msgstr ""
 
-#: defrag.c:426
+#: defrag.c:437
 #, c-format
 msgid "Defragmenting disk %s.  Are you sure?"
 msgstr ""
 
-#: defrag.c:430
+#: defrag.c:441
 msgid ""
 "\n"
 "Quitting.\n"
 msgstr ""
 
-#: defrag.c:442
+#: defrag.c:453
 msgid "Defragmenting..."
 msgstr ""
 
-#: defrag.c:454
+#: defrag.c:465
 msgid "Defragmentation complete"
 msgstr ""
 
-#: defrag.c:456
+#: defrag.c:467
 msgid "Success"
 msgstr ""

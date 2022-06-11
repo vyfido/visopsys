@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -90,7 +90,7 @@ static int driversInitialize(void *initArray[])
 		if (driverInit == (void *) -1)
 			break;
 
-		if (driverInit == NULL)
+		if (!driverInit)
 			continue;
 
 		// Call the initialization.  The driver should then call
@@ -114,7 +114,6 @@ static int driversInitialize(void *initArray[])
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelConsoleDriversInitialize(void)
 {

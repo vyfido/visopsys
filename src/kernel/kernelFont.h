@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,16 +23,17 @@
 
 #include <sys/font.h>
 
-#define MAX_FONTS 16
+#define FONTS_MAX			32
 
 // Functions exported from kernelFont.c
 int kernelFontInitialize(void);
 int kernelFontGetDefault(asciiFont **);
-int kernelFontSetDefault(const char *);
-int kernelFontLoad(const char *, const char *, asciiFont **, int);
+int kernelFontLoadSystem(const char *, const char *, asciiFont **, int);
+int kernelFontLoadUser(const char *, asciiFont **, int);
 int kernelFontGetPrintedWidth(asciiFont *, const char *);
 int kernelFontGetWidth(asciiFont *);
 int kernelFontGetHeight(asciiFont *);
 
 #define _KERNELFONT_H
 #endif
+

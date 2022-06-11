@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -63,8 +63,10 @@ static int textDetect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 	}
 	else
+	{
 		// No
 		return (0);
+	}
 }
 
 
@@ -81,7 +83,9 @@ static int binaryDetect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -105,7 +109,9 @@ static int gifDetect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -133,7 +139,9 @@ static int pngDetect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -160,7 +168,9 @@ static int bootDetect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -182,7 +192,9 @@ static int keymapDetect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -206,7 +218,9 @@ static int pdfDetect(const char *fileName __attribute__((unused)),
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -232,7 +246,9 @@ static int zipDetect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -245,11 +261,15 @@ static int gzipDetect(const char *fileName, void *dataPtr, unsigned size,
 
 	unsigned short *sig = dataPtr;
 
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
+
 	// Make sure there's enough data here for our detection
 	if (size < sizeof(GZIP_MAGIC))
 		return (0);
 
-	if (binaryDetect(fileName, dataPtr, size, class) && (*sig == GZIP_MAGIC))
+	if (*sig == GZIP_MAGIC)
 	{
 		sprintf(class->className, "%s %s", FILECLASS_NAME_GZIP,
 			FILECLASS_NAME_ARCHIVE);
@@ -258,7 +278,9 @@ static int gzipDetect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -286,7 +308,9 @@ static int arDetect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -317,7 +341,9 @@ static int pcfDetect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -347,7 +373,9 @@ static int messageDetect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -419,7 +447,9 @@ static int configDetect(const char *fileName, void *data, unsigned size,
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -449,7 +479,9 @@ static int htmlDetect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -560,7 +592,6 @@ kernelFileClass binaryFileClass = {
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelFileClass *kernelFileClassGif(void)
 {
 	// The loader will call this function so that we can return a structure
@@ -669,3 +700,4 @@ kernelFileClass *kernelFileClassBinary(void)
 	// for managing binary files
 	return (&binaryFileClass);
 }
+

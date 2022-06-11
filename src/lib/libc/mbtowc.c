@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -54,7 +54,7 @@ int mbtowc(wchar_t *wc, const char *bytes, size_t n)
 
 	int numBytes = 0;
 
-	if (bytes == NULL)
+	if (!bytes)
 		// Stateless.
 		return (0);
 
@@ -62,7 +62,9 @@ int mbtowc(wchar_t *wc, const char *bytes, size_t n)
 		return (-1);
 
 	if ((unsigned char) bytes[0] <= 0x7F)
+	{
 		numBytes = 1;
+	}
 	else if ((bytes[0] & 0xE0) == 0xC0)
 	{
 		numBytes = 2;
@@ -82,7 +84,9 @@ int mbtowc(wchar_t *wc, const char *bytes, size_t n)
 			return (-1);
 	}
 	else
+	{
 		return (-1);
+	}
 
 	if (wc)
 	{
@@ -104,3 +108,4 @@ int mbtowc(wchar_t *wc, const char *bytes, size_t n)
 
 	return (numBytes);
 }
+

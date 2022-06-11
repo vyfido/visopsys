@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,6 +28,7 @@
 
 typedef struct {
 	kernelBusTarget *busTarget;
+	kernelDevice dev;
 	char vendorId[9];
 	char productId[17];
 	char vendorProductId[26];
@@ -35,9 +36,7 @@ typedef struct {
 	unsigned sectorSize;
 	struct {
 		usbDevice *usbDev;
-		usbEndpointDesc *bulkInDesc;
 		unsigned char bulkInEndpoint;
-		usbEndpointDesc *bulkOutDesc;
 		unsigned char bulkOutEndpoint;
 		unsigned tag;
 	} usb;

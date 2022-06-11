@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -51,6 +51,7 @@ Example:
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/msdos.h>
 #include <sys/stat.h>
 #include <sys/vsh.h>
@@ -131,7 +132,7 @@ int main(int argc, char *argv[])
 	msdosMbr newMbr;
 	time_t t = 0;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("copy-mbr");
 
 	if (argc != 3)

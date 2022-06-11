@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -33,9 +33,10 @@
 #include "kernelParameters.h"
 #include "kernelShutdown.h"
 #include "kernelVariableList.h"
-#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 
 static variableList systemUserList;
@@ -44,7 +45,8 @@ static int systemDirWritable = 0;
 static int initialized = 0;
 
 
-static inline int readPasswordFile(const char *fileName, variableList *userList)
+static inline int readPasswordFile(const char *fileName,
+	variableList *userList)
 {
 	return (kernelConfigRead(fileName, userList));
 }
@@ -104,7 +106,8 @@ static int addUser(variableList *userList, const char *userName,
 	if ((userList == &systemUserList) &&
 		(kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR))
 	{
-		kernelError(kernel_error, "Adding a user requires supervisor priviege");
+		kernelError(kernel_error, "Adding a user requires supervisor "
+			"priviege");
 		return (status = ERR_PERMISSION);
 	}
 
@@ -231,7 +234,6 @@ static int isSystemPasswordFile(const char *fileName)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelUserInitialize(void)
 {
 	// Takes care of stuff we need to do before we can start processing things
@@ -240,8 +242,8 @@ int kernelUserInitialize(void)
 	int status = 0;
 	kernelFileEntry *systemDir = NULL;
 
-	kernelMemClear(&systemUserList, sizeof(variableList));
-	kernelMemClear(&currentUser, sizeof(kernelUser));
+	memset(&systemUserList, 0, sizeof(variableList));
+	memset(&currentUser, 0, sizeof(kernelUser));
 
 	// Try to read the password file.
 
@@ -366,10 +368,10 @@ int kernelUserLogin(const char *userName, const char *password)
 	kernelMultitaskerSetCurrentDirectory(homeDir);
 
 	// Set the login name as an environment variable
-	kernelEnvironmentSet("USER", userName);
+	kernelEnvironmentSet(ENV_USER, userName);
 
 	// Set the user home directory as an environment variable
-	kernelEnvironmentSet("HOME", homeDir);
+	kernelEnvironmentSet(ENV_HOME, homeDir);
 
 	// Load the rest of the environment variables
 	kernelEnvironmentLoad(userName);
@@ -406,7 +408,7 @@ int kernelUserLogout(const char *userName)
 	kernelMultitaskerSetCurrentDirectory("/");
 
 	// Clear the user structure
-	kernelMemClear(&currentUser, sizeof(kernelUser));
+	memset(&currentUser, 0, sizeof(kernelUser));
 
 	return (status);
 }

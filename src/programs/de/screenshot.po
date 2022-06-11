@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2014 J. Andrew McLaughlin
+#  Copyright (C) 1998-2015 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-15\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: screenshot.c:69
+#: screenshot.c:70
 #, c-format
 msgid ""
 "\n"
@@ -26,19 +26,19 @@ msgstr ""
 "\n"
 "Der Befehl \"%s\" funktioniert nur im Grafik-Modus\n"
 
-#: screenshot.c:81
+#: screenshot.c:83
 msgid "Enter file name"
 msgstr "Dateiname eingeben"
 
-#: screenshot.c:82
+#: screenshot.c:84
 msgid "Please enter the file name to use:"
 msgstr "Bitte geben Sie den Dateinamen an der verwendet werden soll:"
 
-#: screenshot.c:97
+#: screenshot.c:99
 msgid "Error"
 msgstr "Fehler"
 
-#: screenshot.c:98
+#: screenshot.c:100
 msgid ""
 "Couldn't save the screenshot.\n"
 "I'm sure it would have been nice."

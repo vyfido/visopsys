@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2013-11-09 23:06-0400\n"
-"Last-Translator: Jens León Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens León Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -17,25 +17,30 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.7\n"
 
-#: mem.c:101
+#: mem.c:85
+#, c-format
+msgid "Unknown option '%c'\n"
+msgstr ""
+
+#: mem.c:117
 #, c-format
 msgid " --- %s usage information by block ---\n"
 msgstr " --- %s Benutzungsinformation nach Block ---\n"
 
-#: mem.c:102
+#: mem.c:118
 msgid "Kernel heap"
 msgstr ""
 
-#: mem.c:102
+#: mem.c:118
 msgid "Memory"
 msgstr ""
 
-#: mem.c:107
+#: mem.c:123
 #, c-format
 msgid "%u->%u (size %u)"
 msgstr ""
 
-#: mem.c:132
+#: mem.c:148
 #, c-format
 msgid ""
 " --- Usage totals ---\n"

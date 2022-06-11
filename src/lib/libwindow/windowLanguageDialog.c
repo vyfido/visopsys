@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/errors.h>
 #include <sys/file.h>
 #include <sys/paths.h>
@@ -79,7 +80,7 @@ static int getLanguages(void)
 	if (!langs)
 		return (status = ERR_MEMORY);
 
-	bzero(langs, (numLangs * sizeof(listItemParameters)));
+	memset(langs, 0, (numLangs * sizeof(listItemParameters)));
 
 	for (count = 0; count < numLangs; count ++)
 	{
@@ -144,7 +145,7 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 		goto out;
 	}
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padTop = 7;
@@ -166,7 +167,7 @@ _X_ int windowNewLanguageDialog(objectKey parentWindow, char *pickedLanguage)
 	// Try to select the current language
 	for (count = 0; count < numLangs; count ++)
 	{
-		if (!strcmp(langs[count].text, getenv("LANG")))
+		if (!strcmp(langs[count].text, getenv(ENV_LANG)))
 		{
 			selected = count;
 			break;

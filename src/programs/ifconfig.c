@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,6 +46,7 @@ Options:
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 
 #define _(string) gettext(string)
@@ -199,9 +200,9 @@ static void updateEnabled(void)
 
 	snprintf(tmp, 128, _("Networking is %s"),
 		(networkEnabled? _("enabled") : _("disabled")));
-	windowComponentSetData(enabledLabel, tmp, strlen(tmp));
+	windowComponentSetData(enabledLabel, tmp, strlen(tmp), 1 /* redraw */);
 	windowComponentSetData(enableButton,
-		(networkEnabled? _("Disable") : _("Enable")), 8);
+		(networkEnabled? _("Disable") : _("Enable")), 8, 1 /* redraw */);
 
 	// Update the device strings as well.
 	buffer = malloc(MAXSTRINGLENGTH);
@@ -217,7 +218,7 @@ static void updateEnabled(void)
 					continue;
 
 				windowComponentSetData(deviceLabel[count], buffer,
-					MAXSTRINGLENGTH);
+					MAXSTRINGLENGTH, 1 /* redraw */);
 			}
 		}
 
@@ -237,11 +238,14 @@ static void updateHostName(void)
 	{
 		if (networkGetHostName(hostName, NETWORK_MAX_HOSTNAMELENGTH) >= 0)
 			windowComponentSetData(hostField, hostName,
-				NETWORK_MAX_HOSTNAMELENGTH);
+				NETWORK_MAX_HOSTNAMELENGTH, 1 /* redraw */);
 
-		if (networkGetDomainName(domainName, NETWORK_MAX_DOMAINNAMELENGTH) >= 0)
+		if (networkGetDomainName(domainName,
+			NETWORK_MAX_DOMAINNAMELENGTH) >= 0)
+		{
 			windowComponentSetData(domainField, domainName,
-				NETWORK_MAX_DOMAINNAMELENGTH);
+				NETWORK_MAX_DOMAINNAMELENGTH, 1 /* redraw */);
+		}
 	}
 	else
 	{
@@ -250,12 +254,12 @@ static void updateHostName(void)
 			value = variableListGet(&kernelConf, "network.hostname");
 			if (value)
 				windowComponentSetData(hostField, (void *) value,
-					NETWORK_MAX_HOSTNAMELENGTH);
+					NETWORK_MAX_HOSTNAMELENGTH, 1 /* redraw */);
 
 			value = variableListGet(&kernelConf, "network.domainname");
 			if (value)
 				windowComponentSetData(domainField, (void *) value,
-					NETWORK_MAX_DOMAINNAMELENGTH);
+					NETWORK_MAX_DOMAINNAMELENGTH, 1 /* redraw */);
 
 			variableListDestroy(&kernelConf);
 		}
@@ -271,7 +275,7 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("ifconfig");
 
 	// Refresh the 'networking enabled' label, button, and device strings
@@ -279,19 +283,22 @@ static void refreshWindow(void)
 
 	// Refresh the 'enabled at startup' checkbox
 	windowComponentSetData(enableCheckbox, ENABLED_STARTUP,
-		strlen(ENABLED_STARTUP));
+		strlen(ENABLED_STARTUP), 1 /* redraw */);
 
 	// Refresh the 'host name' label
-	windowComponentSetData(hostLabel, HOST_NAME, strlen(HOST_NAME));
+	windowComponentSetData(hostLabel, HOST_NAME, strlen(HOST_NAME),
+		1 /* redraw */);
 
 	// Refresh the 'domain name' label
-	windowComponentSetData(domainLabel, DOMAIN_NAME, strlen(DOMAIN_NAME));
+	windowComponentSetData(domainLabel, DOMAIN_NAME, strlen(DOMAIN_NAME),
+		1 /* redraw */);
 
 	// Refresh the 'ok' button
-	windowComponentSetData(okButton, OK, strlen(OK));
+	windowComponentSetData(okButton, OK, strlen(OK), 1 /* redraw */);
 
 	// Refresh the 'cancel' button
-	windowComponentSetData(cancelButton, CANCEL, strlen(CANCEL));
+	windowComponentSetData(cancelButton, CANCEL, strlen(CANCEL),
+		1 /* redraw */);
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
@@ -324,8 +331,9 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Check for the user clicking the enable/disable networking button
 	else if ((key == enableButton) && (event->type == EVENT_MOUSE_LEFTUP))
 	{
-		// The user wants to enable or disable networking button.  Make a little
-		// dialog while we're doing this because enabling can take a few seconds
+		// The user wants to enable or disable networking button.  Make a
+		// little dialog while we're doing this because enabling can take a few
+		// seconds
 		enableDialog = windowNewBannerDialog(window,
 			(networkEnabled? _("Shutting down networking") :
 				_("Initializing networking")), _("One moment please..."));
@@ -346,7 +354,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	else if ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP))
 	{
 		windowComponentGetSelected(enableCheckbox, &selected);
-		windowComponentGetData(hostField, hostName, NETWORK_MAX_HOSTNAMELENGTH);
+		windowComponentGetData(hostField, hostName,
+			NETWORK_MAX_HOSTNAMELENGTH);
 		windowComponentGetData(domainField, domainName,
 			NETWORK_MAX_DOMAINNAMELENGTH);
 
@@ -391,10 +400,10 @@ static int constructWindow(char *arg)
 
 	// Create a new window
 	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
-	if (window == NULL)
+	if (!window)
 		return (status = ERR_NOTINITIALIZED);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 5;
@@ -475,7 +484,7 @@ static int constructWindow(char *arg)
 	params.flags &= ~WINDOW_COMPFLAG_FIXEDWIDTH;
 
 	buffer = malloc(MAXSTRINGLENGTH);
-	if (buffer == NULL)
+	if (!buffer)
 		return (status = ERR_MEMORY);
 
 	// Did the user specify a device name?
@@ -550,21 +559,30 @@ static int constructWindow(char *arg)
 int main(int argc, char *argv[])
 {
 	int status = 0;
-	char *arg = NULL;
 	char opt;
+	char *arg = NULL;
 	disk sysDisk;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("ifconfig");
 
 	// Are graphics enabled?
 	graphics = graphicsAreEnabled();
 
-	while (strchr("T", (opt = getopt(argc, argv, "T"))))
+	// Check options
+	while (strchr("T?", (opt = getopt(argc, argv, "T"))))
 	{
-		// Force text mode?
-		if (opt == 'T')
-			graphics = 0;
+		switch (opt)
+		{
+			case 'T':
+				// Force text mode
+				graphics = 0;
+				break;
+
+			default:
+				error(_("Unknown option '%c'"), optopt);
+				return (status = ERR_INVALID);
+		}
 	}
 
 	numDevices = networkDeviceGetCount();
@@ -579,7 +597,7 @@ int main(int argc, char *argv[])
 		arg = argv[argc - 1];
 
 	// Find out whether we are currently running on a read-only filesystem
-	bzero(&sysDisk, sizeof(disk));
+	memset(&sysDisk, 0, sizeof(disk));
 	if (!fileGetDisk(KERNELCONF, &sysDisk))
 		readOnly = sysDisk.readOnly;
 
@@ -592,7 +610,9 @@ int main(int argc, char *argv[])
 			windowGuiRun();
 	}
 	else
+	{
 		status = printDevices(arg);
+	}
 
 	return (status);
 }

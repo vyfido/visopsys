@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -20,6 +20,7 @@
 //
 
 #include "kernelAcpiDriver.h"
+#include "kernelCpu.h"
 #include "kernelDebug.h"
 #include "kernelDevice.h"
 #include "kernelDriver.h" // Contains my prototypes
@@ -30,10 +31,9 @@
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelPower.h"
-#include "kernelProcessorX86.h"
 #include "kernelSystemDriver.h"
-#include "kernelSysTimer.h"
 #include <string.h>
+#include <sys/processor.h>
 
 static int acpiEnabled = 0;
 
@@ -42,8 +42,7 @@ static int acpiEnabled = 0;
 static int acpiEnable(kernelAcpi *acpi)
 {
 	int status = 0;
-	unsigned startTime = kernelSysTimerRead();
-	unsigned timeOut = (startTime + (3 * 18));	// Timout after ~3 seconds
+	uquad_t timeout = (kernelCpuGetMs() + 3000); // Timout after 3 seconds
 	unsigned short dataWord = 0;
 
 	acpiEnabled = 0;
@@ -57,7 +56,7 @@ static int acpiEnable(kernelAcpi *acpi)
 	}
 
 	// See whether ACPI is already enabled
-	kernelProcessorInPort16(acpi->fadt->pm1aCtrlBlock, dataWord);
+	processorInPort16(acpi->fadt->pm1aCtrlBlock, dataWord);
 	if ((dataWord & ACPI_PMCTRL_SCI_EN) == 1)
 	{
 		// Already enabled
@@ -75,7 +74,7 @@ static int acpiEnable(kernelAcpi *acpi)
 	}
 
 	// Try to enable ACPI
-	kernelProcessorOutPort8(acpi->fadt->sciCmdPort, acpi->fadt->acpiEnable);
+	processorOutPort8(acpi->fadt->sciCmdPort, acpi->fadt->acpiEnable);
 	kernelDebug(debug_power, "ACPI enable port=%02x enable=%02x disable=%02x",
 		acpi->fadt->sciCmdPort, acpi->fadt->acpiEnable,
 		acpi->fadt->acpiDisable);
@@ -83,26 +82,28 @@ static int acpiEnable(kernelAcpi *acpi)
 	acpiEnabled = 0;
 	do
 	{
-		kernelProcessorInPort16(acpi->fadt->pm1aCtrlBlock, dataWord);
+		processorInPort16(acpi->fadt->pm1aCtrlBlock, dataWord);
 		if ((dataWord & ACPI_PMCTRL_SCI_EN) == 1)
 		{
 			acpiEnabled = 1;
 			break;
 		}
-	} while (kernelSysTimerRead() < timeOut);
+
+	} while (kernelCpuGetMs() < timeout);
 
 	if (acpi->fadt->pm1bCtrlBlock)
 	{
 		acpiEnabled = 0;
 		do
 		{
-			kernelProcessorInPort16(acpi->fadt->pm1bCtrlBlock, dataWord);
+			processorInPort16(acpi->fadt->pm1bCtrlBlock, dataWord);
 			if ((dataWord & ACPI_PMCTRL_SCI_EN) == 1)
 			{
 				acpiEnabled = 1;
 				break;
 			}
-		} while (kernelSysTimerRead() < timeOut);
+
+		} while (kernelCpuGetMs() < timeout);
 	}
 
 	status = 0;
@@ -253,11 +254,11 @@ static int driverPowerOff(kernelDevice *dev)
 	if (found)
 	{
 		// We got the value to write to the port(s)
-		kernelProcessorOutPort16(acpi->fadt->pm1aCtrlBlock,
+		processorOutPort16(acpi->fadt->pm1aCtrlBlock,
 			(ACPI_PMCTRL_SLP_EN | slpTypA));
 
 		if (acpi->fadt->pm1bCtrlBlock)
-			kernelProcessorOutPort16(acpi->fadt->pm1bCtrlBlock,
+			processorOutPort16(acpi->fadt->pm1bCtrlBlock,
 				(ACPI_PMCTRL_SLP_EN | slpTypB));
 	}
 
@@ -511,7 +512,6 @@ static kernelPowerOps powerOps = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 void kernelAcpiDriverRegister(kernelDriver *driver)
 {

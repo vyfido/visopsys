@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,6 +49,7 @@ browser window for that filesystem.
 #include <stdlib.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 #include <sys/window.h>
 
@@ -526,7 +527,8 @@ static void refreshMenuContents(void)
 	for (count = 0; count < diskMenuContents.numItems; count ++)
 		windowComponentSetData(diskMenuContents.items[count].key,
 			diskMenuContents.items[count].text,
-			strlen(diskMenuContents.items[count].text));
+			strlen(diskMenuContents.items[count].text),
+			(count == (diskMenuContents.numItems - 1)));
 }
 
 
@@ -536,7 +538,7 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("computer");
 
 	// Refresh the menu contents
@@ -623,7 +625,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 			// We consider the icon 'clicked' if it is a mouse left-up,
 			// or an ENTER key press
 			if ((event->type & EVENT_MOUSE_LEFTUP) ||
-				((event->type & EVENT_KEY_DOWN) && (event->key == ASCII_ENTER)))
+				((event->type & EVENT_KEY_DOWN) && (event->key == keyEnter)))
 			{
 				// Launch the browse thread
 				if (multitaskerSpawn(&browseThread, "browse thread", 0,
@@ -750,7 +752,8 @@ static int scanComputer(void)
 
 		if (iconList)
 		{
-			windowComponentSetData(iconList, iconParams, numDisks);
+			windowComponentSetData(iconList, iconParams, numDisks,
+				1 /* redraw */);
 			setContextMenus();
 		}
 
@@ -785,7 +788,7 @@ static int constructWindow(void)
 	if (!window)
 		return (status = ERR_NOTINITIALIZED);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 
 	// Create a context menu for disks
 	initMenuContents(&diskMenuContents);
@@ -825,7 +828,7 @@ int main(int argc, char *argv[])
 	int seconds = 0;
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("computer");
 
 	// Only work in graphics mode

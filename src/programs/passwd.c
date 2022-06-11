@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -50,6 +50,7 @@ to enter the old password (if one exists).
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/user.h>
 #include <sys/vsh.h>
 
@@ -72,17 +73,17 @@ int main(int argc, char *argv[])
 	char newPassword[USER_MAX_PASSWDLENGTH + 1];
 	char verifyPassword[USER_MAX_PASSWDLENGTH + 1];
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("passwd");
 
-	bzero(userName, sizeof(userName));
-	bzero(oldPassword, sizeof(oldPassword));
-	bzero(newPassword, sizeof(newPassword));
-	bzero(verifyPassword, sizeof(verifyPassword));
+	memset(userName, 0, sizeof(userName));
+	memset(oldPassword, 0, sizeof(oldPassword));
+	memset(newPassword, 0, sizeof(newPassword));
+	memset(verifyPassword, 0, sizeof(verifyPassword));
 
 	if (argc == 1)
 	{
-		strncpy(userName, getenv("USER"), sizeof(userName));
+		strncpy(userName, getenv(ENV_USER), sizeof(userName));
 	}
 	else if (argc == 2)
 	{

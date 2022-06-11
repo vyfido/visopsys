@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -20,18 +20,20 @@
 //
 
 #include "kernelMain.h"
+#include "kernelCpu.h"
 #include "kernelEnvironment.h"
 #include "kernelError.h"
+#include "kernelGraphic.h"
 #include "kernelInitialize.h"
 #include "kernelLoader.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
-#include "kernelProcessorX86.h"
-#include "kernelSysTimer.h"
 #include "kernelText.h"
+#include "kernelVariableList.h"
 #include <string.h>
+#include <sys/processor.h>
 
 // This is the global 'errno' error status variable for the kernel
 int errno = 0;
@@ -63,7 +65,7 @@ void kernelMain(unsigned kernelMemory, void *kernelStack,
 	const char *value = NULL;
 
 	// Copy the OS loader info structure into kernel memory
-	kernelMemCopy(info, kernelOsLoaderInfo, sizeof(loaderInfoStruct));
+	memcpy(kernelOsLoaderInfo, info, sizeof(loaderInfoStruct));
 
 	// Call the kernel initialization routine
 	status = kernelInitialize(kernelMemory, kernelStack, kernelStackSize);
@@ -82,8 +84,8 @@ void kernelMain(unsigned kernelMemory, void *kernelStack,
 			kernelMultitaskerYield();
 
 		kernelTextPrint("Rebooting...");
-		kernelSysTimerWaitTicks(20); // Wait 2 seconds
-		kernelProcessorReboot();
+		kernelCpuSpinMs(1000); // Wait 1 second
+		processorReboot();
 	}
 
 	if (kernelVariables)

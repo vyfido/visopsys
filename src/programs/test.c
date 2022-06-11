@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -308,7 +308,7 @@ static int text_output(void)
 	// Allocate a buffer
 	bufferSize = (columns * rows * screenFulls);
 	buffer = malloc(bufferSize);
-	if (buffer == NULL)
+	if (!buffer)
 	{
 		FAILMESS("Error getting memory");
 		status = ERR_MEMORY;
@@ -445,7 +445,7 @@ static int text_colors(void)
 		goto out;
 
 	buffer = malloc(columns);
-	if (buffer == NULL)
+	if (!buffer)
 	{
 		FAILMESS("Error getting memory");
 		status = ERR_MEMORY;
@@ -488,7 +488,7 @@ static int text_colors(void)
 	{
 		for (count2 = 0; count2 < 16; count2 ++)
 		{
-			bzero(&attrs, sizeof(textAttrs));
+			memset(&attrs, 0, sizeof(textAttrs));
 			attrs.flags = (TEXT_ATTRS_FOREGROUND | TEXT_ATTRS_BACKGROUND);
 			memcpy(&attrs.foreground, &allColors[count1], sizeof(color));
 			memcpy(&attrs.background, &allColors[count2], sizeof(color));
@@ -535,14 +535,14 @@ static int xtra_chars(void)
 		// Create a new window
 		window = windowNew(multitaskerGetCurrentProcessId(),
 			"Xtra chars test window");
-		if (window == NULL)
+		if (!window)
 		{
 			FAILMESS("Error getting window");
 			status = ERR_NOTINITIALIZED;
 			goto out;
 		}
 
-		bzero(&params, sizeof(componentParameters));
+		memset(&params, 0, sizeof(componentParameters));
 		params.gridWidth = 1;
 		params.gridHeight = 1;
 		params.padLeft = 5;
@@ -552,7 +552,7 @@ static int xtra_chars(void)
 		params.orientationX = orient_center;
 		params.orientationY = orient_middle;
 
-		status = fontLoad("xterm-normal-10.vbf", "xterm-normal-10",
+		status = fontLoadSystem("xterm-normal-10.vbf", "xterm-normal-10",
 			&(params.font), 0);
 		if (status < 0)
 		{
@@ -675,7 +675,7 @@ static int disk_reads(disk *theDisk)
 		startSector = randomFormatted(0, (theDisk->numSectors - numSectors - 1));
 
 		buffer = malloc(numSectors * theDisk->sectorSize);
-		if (buffer == NULL)
+		if (!buffer)
 		{
 			FAILMESS("Error getting %u bytes disk %s buffer memory",
 				(numSectors * theDisk->sectorSize), theDisk->name);
@@ -766,7 +766,7 @@ static int file_recurse(const char *dirPath, unsigned startTime)
 	int count;
 
 	// Initialize the file structure
-	bzero(&theFile, sizeof(file));
+	memset(&theFile, 0, sizeof(file));
 
 	// Loop through the contents of the directory
 	while (rtcUptimeSeconds() < (startTime + 10))
@@ -785,7 +785,7 @@ static int file_recurse(const char *dirPath, unsigned startTime)
 		fileNum = randomFormatted(2, (numFiles - 1));
 		for (count = 0; count <= fileNum; count ++)
 		{
-			if (count == 0)
+			if (!count)
 			{
 				// Get the first item in the directory
 				status = fileFirst(dirPath, &theFile);
@@ -913,7 +913,7 @@ static int file_recurse(const char *dirPath, unsigned startTime)
 					}
 					unsigned char *buffer =
 						malloc(theFile.blocks * theFile.blockSize);
-					if (buffer == NULL)
+					if (!buffer)
 					{
 						FAILMESS("Couldn't get %u bytes memory for file %s",
 							(theFile.blocks * theFile.blockSize), relPath);
@@ -1031,7 +1031,7 @@ static int file_ops(void)
 	#define DIRNAME "./test_tmp"
 
 	// Initialize the file structure
-	bzero(&theFile, sizeof(file));
+	memset(&theFile, 0, sizeof(file));
 
 	// Save the current text screen
 	status = textScreenSave(&screen);
@@ -1447,8 +1447,8 @@ static int floats(void)
 	float temp[64];
 	int count;
 
-	bzero(coefficients, (64 * sizeof(int)));
-	bzero(temp, (64 * sizeof(float)));
+	memset(coefficients, 0, (64 * sizeof(int)));
+	memset(temp, 0, (64 * sizeof(float)));
 
 	for (count = 0; count < 64; count ++)
 		coefficients[count] = rand();
@@ -1510,7 +1510,7 @@ static int libdl(void)
 
 	libName = "libc.so";
 	libHandle = dlopen(libName, RTLD_NOW);
-	if (libHandle == NULL)
+	if (!libHandle)
 	{
 		FAILMESS("Error getting library %s", libName);
 		status = ERR_NODATA;
@@ -1519,7 +1519,7 @@ static int libdl(void)
 
 	symbolName = "printf";
 	fn = dlsym(libHandle, symbolName);
-	if (fn == NULL)
+	if (!fn)
 	{
 		FAILMESS("Error getting library symbol %s", symbolName);
 		status = ERR_NODATA;
@@ -1614,18 +1614,18 @@ static int gui(void)
 
 	// Create a new window
 	window = windowNew(multitaskerGetCurrentProcessId(), "GUI test window");
-	if (window == NULL)
+	if (!window)
 	{
 		FAILMESS("Error getting window");
 		status = ERR_NOTINITIALIZED;
 		goto out;
 	}
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 
 	// Create the top 'file' menu
 	objectKey menuBar = windowNewMenuBar(window, &params);
-	if (menuBar == NULL)
+	if (!menuBar)
 	{
 		FAILMESS("Error getting menu bar");
 		status = ERR_NOTINITIALIZED;
@@ -1634,7 +1634,7 @@ static int gui(void)
 
 	fileMenu = windowNewMenu(window, menuBar, "File", &fileMenuContents,
 		&params);
-	if (fileMenu == NULL)
+	if (!fileMenu)
 	{
 		FAILMESS("Error getting menu");
 		status = ERR_NOTINITIALIZED;
@@ -1649,7 +1649,8 @@ static int gui(void)
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
-	status = fontLoad("arial-bold-10.vbf", "arial-bold-10", &(params.font), 0);
+	status = fontLoadSystem("arial-bold-10.vbf", "arial-bold-10",
+		&(params.font), 0);
 	if (status < 0)
 	{
 		FAILMESS("Error %d getting font", status);
@@ -1657,7 +1658,7 @@ static int gui(void)
 	}
 
 	listItemParams = malloc(numListItems * sizeof(listItemParameters));
-	if (listItemParams == NULL)
+	if (!listItemParams)
 	{
 		FAILMESS("Error getting list parameters memory");
 		status = ERR_MEMORY;
@@ -1673,7 +1674,7 @@ static int gui(void)
 
 	listList = windowNewList(window, windowlist_textonly, min(10, numListItems),
 		1, 0, listItemParams, numListItems, &params);
-	if (listList == NULL)
+	if (!listList)
 	{
 		FAILMESS("Error getting list component");
 		status = ERR_NOTINITIALIZED;
@@ -1688,7 +1689,7 @@ static int gui(void)
 	params.flags |= WINDOW_COMPFLAG_FIXEDHEIGHT;
 	params.font = NULL;
 	buttonContainer = windowNewContainer(window, "buttonContainer", &params);
-	if (buttonContainer == NULL)
+	if (!buttonContainer)
 	{
 		FAILMESS("Error getting button container");
 		status = ERR_NOTINITIALIZED;
@@ -1703,7 +1704,7 @@ static int gui(void)
 	params.padBottom = 0;
 	params.flags &= ~WINDOW_COMPFLAG_FIXEDHEIGHT;
 	abcdButton = windowNewButton(buttonContainer, "ABCD", NULL, &params);
-	if (abcdButton == NULL)
+	if (!abcdButton)
 	{
 		FAILMESS("Error getting button");
 		status = ERR_NOTINITIALIZED;
@@ -1713,7 +1714,7 @@ static int gui(void)
 	params.gridY += 1;
 	params.padTop = 5;
 	efghButton = windowNewButton(buttonContainer, "EFGH", NULL, &params);
-	if (efghButton == NULL)
+	if (!efghButton)
 	{
 		FAILMESS("Error getting button");
 		status = ERR_NOTINITIALIZED;
@@ -1722,7 +1723,7 @@ static int gui(void)
 
 	params.gridY += 1;
 	ijklButton = windowNewButton(buttonContainer, "IJKL", NULL, &params);
-	if (ijklButton == NULL)
+	if (!ijklButton)
 	{
 		FAILMESS("Error getting button");
 		status = ERR_NOTINITIALIZED;
@@ -1758,7 +1759,8 @@ static int gui(void)
 		}
 
 		// Set the list data
-		status = windowComponentSetData(listList, listItemParams, numListItems);
+		status = windowComponentSetData(listList, listItemParams, numListItems,
+			1 /* redraw */);
 		if (status < 0)
 		{
 			FAILMESS("Error %d setting list component data", status);
@@ -1826,9 +1828,9 @@ static int icons(void)
 	componentParameters params;
 	int count;
 
-	bzero(&iconFile, sizeof(file));
-	bzero(&iconImage, sizeof(image));
-	bzero(&params, sizeof(componentParameters));
+	memset(&iconFile, 0, sizeof(file));
+	memset(&iconImage, 0, sizeof(image));
+	memset(&params, 0, sizeof(componentParameters));
 
 	// Save the current text screen
 	status = textScreenSave(&screen);
@@ -1839,7 +1841,7 @@ static int icons(void)
 	}
 
 	fileName = malloc(MAX_PATH_NAME_LENGTH);
-	if (fileName == NULL)
+	if (!fileName)
 	{
 		FAILMESS("Error getting file name memory");
 		status = ERR_MEMORY;
@@ -1857,7 +1859,7 @@ static int icons(void)
 
 	// Create a new window
 	window = windowNew(multitaskerGetCurrentProcessId(), "Icon test window");
-	if (window == NULL)
+	if (!window)
 	{
 		FAILMESS("Error getting window");
 		status = ERR_NOTINITIALIZED;
@@ -1909,7 +1911,7 @@ static int icons(void)
 			goto out;
 		}
 
-		if (windowNewIcon(window, &iconImage, iconFile.name, &params) == NULL)
+		if (!windowNewIcon(window, &iconImage, iconFile.name, &params))
 		{
 			FAILMESS("Error creating icon component for %s", iconFile.name);
 			status = ERR_NOCREATE;
@@ -2059,29 +2061,35 @@ int main(int argc, char *argv[])
 		return (-1);
 	}
 
-	while (strchr("al", (opt = getopt(argc, argv, "al"))))
+	// Check options
+	while (strchr("al?", (opt = getopt(argc, argv, "al"))))
 	{
-		// Run all tests?
-		if (opt == 'a')
+		switch (opt)
 		{
-			for (count1 = 0; functions[count1].function ; count1 ++)
-			{
-				if (graphics || !functions[count1].graphics)
+			case 'a':
+				// Run all tests
+				for (count1 = 0; functions[count1].function ; count1 ++)
 				{
-					functions[count1].run = 1;
-					testCount += 1;
+					if (graphics || !functions[count1].graphics)
+					{
+						functions[count1].run = 1;
+						testCount += 1;
+					}
 				}
-			}
-		}
+				break;
 
-		// List all tests?
-		if (opt == 'l')
-		{
-			printf("\nTests:\n");
-			for (count1 = 0; functions[count1].function ; count1 ++)
-				printf("  \"%s\"%s\n", functions[count1].name,
-					(functions[count1].graphics? " (graphics)" : ""));
-			return (0);
+			case 'l':
+				// List all tests
+				printf("\nTests:\n");
+				for (count1 = 0; functions[count1].function ; count1 ++)
+					printf("  \"%s\"%s\n", functions[count1].name,
+						(functions[count1].graphics? " (graphics)" : ""));
+				return (0);
+
+			default:
+				fprintf(stderr, "Unknown option '%c'\n", optopt);
+				usage(argv[0]);
+				return (-1);
 		}
 	}
 
@@ -2093,8 +2101,10 @@ int main(int argc, char *argv[])
 			if (!strcasecmp(argv[count1], functions[count2].name))
 			{
 				if (!graphics && functions[count2].graphics)
-					printf("Can't run %s without graphics\n",
+				{
+					fprintf(stderr, "Can't run %s without graphics\n",
 						functions[count2].name);
+				}
 				else
 				{
 					functions[count2].run = 1;
@@ -2107,7 +2117,7 @@ int main(int argc, char *argv[])
 
 	if (!testCount)
 	{
-		printf("\nNo (valid) tests specified.  ");
+		fprintf(stderr, "No (valid) tests specified.\n");
 		usage(argv[0]);
 		return (-1);
 	}
@@ -2126,3 +2136,4 @@ int main(int argc, char *argv[])
 		return (0);
 	}
 }
+

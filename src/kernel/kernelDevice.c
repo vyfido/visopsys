@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,8 +24,8 @@
 #include "kernelError.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelText.h"
+#include "kernelVariableList.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -83,7 +83,7 @@ static kernelDeviceClass allSubClasses[] = {
 	{ DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER, "framebuffer"			},
 	{ DEVICESUBCLASS_NETWORK_ETHERNET,	"ethernet"				},
 	{ DEVICESUBCLASS_HUB_USB,			"USB"					},
-	{ DEVICESUBCLASS_UNKNOWN,			"unknown"				},
+	{ DEVICESUBCLASS_UNKNOWN_USB,		"USB"					},
 	{ 0, NULL													}
 };
 
@@ -161,6 +161,9 @@ static kernelDriver deviceDrivers[] = {
 	// Network and other non-critical (for basic operation) devices follow
 	{ DEVICECLASS_NETWORK, DEVICESUBCLASS_NETWORK_ETHERNET,
 		kernelLanceDriverRegister, NULL, NULL, NULL						},
+	// For creating kernel devices for unsupported things
+	{ DEVICECLASS_UNKNOWN, DEVICESUBCLASS_UNKNOWN_USB,
+		kernelUsbGenericDriverRegister, NULL, NULL, NULL				},
 	{ 0, 0, NULL, NULL, NULL, NULL										}
 };
 
@@ -211,8 +214,10 @@ static int findDeviceType(kernelDevice *dev, kernelDeviceClass *class,
 		}
 
 		if (dev->device.firstChild)
+		{
 			numDevices += findDeviceType(dev->device.firstChild, class,
 				subClass, devPointers, maxDevices, numDevices);
+		}
 
 		dev = dev->device.next;
 	}
@@ -236,7 +241,7 @@ static void device2user(kernelDevice *kernel, device *user)
 	}
 
 	kernelVariableListDestroy(&user->attrs);
-	kernelMemClear(user, sizeof(device));
+	memset(user, 0, sizeof(device));
 
 	if (kernel->device.class)
 	{
@@ -295,16 +300,14 @@ int kernelDeviceInitialize(void)
 	// Loop through our static structures of built-in device drivers and
 	// initialize them.
 
-	for (driverCount = 0; (displayDrivers[driverCount].class != 0);
-		driverCount ++)
+	for (driverCount = 0; displayDrivers[driverCount].class; driverCount ++)
 	{
 		if (displayDrivers[driverCount].driverRegister)
 			displayDrivers[driverCount]
 				.driverRegister(&displayDrivers[driverCount]);
 	}
 
-	for (driverCount = 0; (deviceDrivers[driverCount].class != 0);
-		driverCount ++)
+	for (driverCount = 0; deviceDrivers[driverCount].class; driverCount ++)
 	{
 		if (deviceDrivers[driverCount].driverRegister)
 			deviceDrivers[driverCount]
@@ -327,16 +330,16 @@ int kernelDeviceDetectDisplay(void)
 	int driverCount = 0;
 
 	// Loop for each hardware driver, and see if it has any devices for us
-	for (driverCount = 0; (displayDrivers[driverCount].class != 0);
-		driverCount ++)
+	for (driverCount = 0; displayDrivers[driverCount].class; driverCount ++)
 	{
-		class = NULL;
 		class = kernelDeviceGetClass(displayDrivers[driverCount].class);
 
 		subClass = NULL;
 		if (displayDrivers[driverCount].subClass)
+		{
 			subClass =
 				kernelDeviceGetClass(displayDrivers[driverCount].subClass);
+		}
 
 		driverString[0] = '\0';
 		if (subClass)
@@ -351,11 +354,13 @@ int kernelDeviceDetectDisplay(void)
 			continue;
 		}
 
-		status = displayDrivers[driverCount]
-			.driverDetect(deviceTree, &displayDrivers[driverCount]);
+		status = displayDrivers[driverCount].driverDetect(deviceTree,
+			&displayDrivers[driverCount]);
 		if (status < 0)
+		{
 			kernelError(kernel_error, "Error %d detecting \"%s\" devices",
 				status, driverString);
+		}
 	}
 
 	return (status = 0);
@@ -379,15 +384,16 @@ int kernelDeviceDetect(void)
 	textNumColumns = kernelTextGetNumColumns();
 
 	// Loop for each hardware driver, and see if it has any devices for us
-	for (driverCount = 0; (deviceDrivers[driverCount].class != 0);
-		driverCount ++)
+	for (driverCount = 0; deviceDrivers[driverCount].class; driverCount ++)
 	{
 		class = kernelDeviceGetClass(deviceDrivers[driverCount].class);
 
 		subClass = NULL;
 		if (deviceDrivers[driverCount].subClass)
+		{
 			subClass =
 				kernelDeviceGetClass(deviceDrivers[driverCount].subClass);
+		}
 
 		driverString[0] = '\0';
 		if (subClass)
@@ -399,8 +405,9 @@ int kernelDeviceDetect(void)
 		kernelTextSetColumn(0);
 		for (count = 0; count < (textNumColumns - 1); count ++)
 			kernelTextPutc(' ');
-		kernelTextSetColumn(0);
+
 		// Print a message
+		kernelTextSetColumn(0);
 		kernelTextPrint("Detecting hardware: %s ", driverString);
 
 		if (!deviceDrivers[driverCount].driverDetect)
@@ -410,17 +417,21 @@ int kernelDeviceDetect(void)
 			continue;
 		}
 
-		status = deviceDrivers[driverCount]
-			.driverDetect(deviceTree, &deviceDrivers[driverCount]);
+		status = deviceDrivers[driverCount].driverDetect(deviceTree,
+			&deviceDrivers[driverCount]);
 		if (status < 0)
+		{
 			kernelError(kernel_error, "Error %d detecting \"%s\" devices",
 				status, driverString);
+		}
 	}
 
+	// Clear our text
 	kernelTextSetColumn(0);
 	for (count = 0; count < (textNumColumns - 1); count ++)
 		kernelTextPutc(' ');
 	kernelTextSetColumn(0);
+
 	return (status = 0);
 }
 
@@ -434,13 +445,15 @@ kernelDeviceClass *kernelDeviceGetClass(int classNum)
 	int count;
 
 	// Looking for a subclass?
-	if ((classNum & DEVICESUBCLASS_MASK) != 0)
+	if (classNum & DEVICESUBCLASS_MASK)
 		classList = allSubClasses;
 
 	// Loop through the list
-	for (count = 0; (classList[count].class != 0) ; count ++)
+	for (count = 0; classList[count].class; count ++)
+	{
 		if (classList[count].class == classNum)
 			return (&classList[count]);
+	}
 
 	// Not found
 	return (NULL);
@@ -479,7 +492,7 @@ int kernelDeviceHotplug(kernelDevice *parent, int classNum, int busType,
 	kernelDebug(debug_device, "Device hotplug %sconnection",
 		(connected? "" : "dis"));
 
-	for (count = 0; (deviceDrivers[count].class != 0); count ++)
+	for (count = 0; deviceDrivers[count].class; count ++)
 	{
 		if ((classNum & DEVICECLASS_MASK) == deviceDrivers[count].class)
 		{
@@ -487,9 +500,10 @@ int kernelDeviceHotplug(kernelDevice *parent, int classNum, int busType,
 				(classNum == deviceDrivers[count].subClass))
 			{
 				if (deviceDrivers[count].driverHotplug)
-					status = deviceDrivers[count]
-						.driverHotplug(parent, busType, target, connected,
-							&deviceDrivers[count]);
+				{
+					status = deviceDrivers[count].driverHotplug(parent,
+						busType, target, connected, &deviceDrivers[count]);
+				}
 			}
 		}
 	}
@@ -545,8 +559,11 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 	}
 
 	if (new->device.subClass)
+	{
 		sprintf((driverString + strlen(driverString)), "%s ",
 			new->device.subClass->name);
+	}
+
 	if (new->device.class)
 		strcat(driverString, new->device.class->name);
 

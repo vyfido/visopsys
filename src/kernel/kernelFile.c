@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,14 +30,13 @@
 #include "kernelLock.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
-#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelRandom.h"
 #include "kernelRtc.h"
 #include "kernelSysTimer.h"
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/paths.h>
 
 #define ISSEPARATOR(foo) ((foo == '/') || (foo == '\\'))
@@ -101,7 +100,9 @@ static int isLeafDir(kernelFileEntry *dir)
 			break;
 		}
 		else
+		{
 			listItemPointer = listItemPointer->nextEntry;
+		}
 	}
 
 	if (!listItemPointer)
@@ -162,12 +163,13 @@ static void fileEntry2File(kernelFileEntry *fileEntry, file *theFile)
 			MAX_PATH_LENGTH);
 	theFile->filesystem[MAX_PATH_LENGTH - 1] = '\0';
 
-	theFile->creationTime = fileEntry->creationTime;
-	theFile->creationDate = fileEntry->creationDate;
-	theFile->accessedTime = fileEntry->accessedTime;
-	theFile->accessedDate = fileEntry->accessedDate;
-	theFile->modifiedTime = fileEntry->modifiedTime;
-	theFile->modifiedDate = fileEntry->modifiedDate;
+	kernelRtcDateTime2Tm(fileEntry->creationDate, fileEntry->creationTime,
+		&theFile->created);
+	kernelRtcDateTime2Tm(fileEntry->accessedDate, fileEntry->accessedTime,
+		&theFile->accessed);
+	kernelRtcDateTime2Tm(fileEntry->modifiedDate, fileEntry->modifiedTime,
+		&theFile->modified);
+
 	theFile->size = fileEntry->size;
 	theFile->blocks = fileEntry->blocks;
 	theFile->blockSize = ((kernelDisk *) fileEntry->disk)->filesystem.blockSize;
@@ -204,7 +206,9 @@ static int dirIsEmpty(kernelFileEntry *theDir)
 			listItemPointer = listItemPointer->nextEntry;
 		}
 		else
+		{
 			return (isEmpty = 0);
+		}
 	}
 
 	return (isEmpty = 1);
@@ -358,8 +362,8 @@ static char *fixupPath(const char *originalPath)
 		}
 
 		if (!newLength || (newPath[newLength - 1] != '/'))
-			// Append a '/', which if multitasking is not enabled will just make
-			// the CWD '/'
+			// Append a '/', which if multitasking is not enabled will just
+			// make the CWD '/'
 			newPath[newLength++] = '/';
 	}
 
@@ -371,7 +375,9 @@ static char *fixupPath(const char *originalPath)
 		if (ISSEPARATOR(originalPath[count]))
 		{
 			if (newLength && ISSEPARATOR(newPath[newLength - 1]))
+			{
 				continue;
+			}
 			else
 			{
 				newPath[newLength++] = '/';
@@ -483,7 +489,7 @@ static kernelFileEntry *fileLookup(const char *fixedPath)
 		if (listItem->contents)
 			listItem = listItem->contents;
 		else
-		// Nothing in the directory
+			// Nothing in the directory
 			return (listItem = NULL);
 
 		caseInsensitive =
@@ -568,8 +574,10 @@ static kernelFileEntry *fileLookup(const char *fixedPath)
 			}
 		}
 		else
+		{
 			// Not found
 			return (listItem = NULL);
+		}
 
 		// Do the next item in the path
 		itemName += (itemLength + 1);
@@ -1123,7 +1131,9 @@ static int fileDeleteRecursive(kernelFileEntry *delEntry)
 		status = fileRemoveDir(delEntry);
 	}
 	else
+	{
 		status = fileDelete(delEntry);
+	}
 
 	return (status);
 }
@@ -1320,6 +1330,7 @@ static int fileMove(kernelFileEntry *sourceItem, kernelFileEntry *destDir)
 		status = theDriver->driverWriteDir(destDir);
 		if (status < 0)
 			return (status);
+
 		status = theDriver->driverWriteDir(sourceDir);
 		if (status < 0)
 			return (status);
@@ -1337,7 +1348,6 @@ static int fileMove(kernelFileEntry *sourceItem, kernelFileEntry *destDir)
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelFileInitialize(void)
 {
@@ -1387,7 +1397,7 @@ kernelFileEntry *kernelFileNewEntry(kernelDisk *theDisk)
 	}
 
 	// Make sure there is a free file entry available
-	if (numFreeEntries == 0)
+	if (!numFreeEntries)
 	{
 		status = allocateFileEntries();
 		if (status < 0)
@@ -1400,7 +1410,7 @@ kernelFileEntry *kernelFileNewEntry(kernelDisk *theDisk)
 	numFreeEntries -= 1;
 
 	// Clear it
-	kernelMemClear((void *) theEntry, sizeof(kernelFileEntry));
+	memset((void *) theEntry, 0, sizeof(kernelFileEntry));
 
 	// Set some default time/date values
 	updateAllTimes(theEntry);
@@ -1459,7 +1469,7 @@ void kernelFileReleaseEntry(kernelFileEntry *theEntry)
 	}
 
 	// Clear it out
-	kernelMemClear((void *) theEntry, sizeof(kernelFileEntry));
+	memset((void *) theEntry, 0, sizeof(kernelFileEntry));
 
 	// Put the entry back into the pool of free entries.
 	theEntry->nextEntry = freeFileEntries;
@@ -1575,8 +1585,10 @@ int kernelFileInsertEntry(kernelFileEntry *theFile, kernelFileEntry *directory)
 	if (!listItemPointer)
 	{
 		if (!directory->contents)
+		{
 			// It's the first file
 			directory->contents = theFile;
+		}
 		else
 		{
 			// It's the last file
@@ -1889,7 +1901,9 @@ int kernelFileUnbufferRecursive(kernelFileEntry *dir)
 					return (status);
 			}
 			else
+			{
 				listItemPointer = listItemPointer->nextEntry;
+			}
 		}
 	}
 
@@ -1900,7 +1914,6 @@ int kernelFileUnbufferRecursive(kernelFileEntry *dir)
 	{
 		if (kernelLockVerify(&(listItemPointer->lock)))
 			break;
-
 		else
 			listItemPointer = listItemPointer->nextEntry;
 	}
@@ -1948,8 +1961,8 @@ int kernelFileEntrySetSize(kernelFileEntry *entry, unsigned newSize)
 	{
 		if (theDisk->filesystem.driver->driverSetBlocks)
 		{
-			status =
-				theDisk->filesystem.driver->driverSetBlocks(entry, newBlocks);
+			status = theDisk->filesystem.driver->driverSetBlocks(entry,
+				newBlocks);
 			if (status < 0)
 				return (status);
 		}
@@ -2105,7 +2118,6 @@ int kernelFileSeparateLast(const char *origPath, char *pathName,
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelFileGetDisk(const char *path, disk *userDisk)
 {
 	// Given a filename, return the the disk it resides on.
@@ -2243,7 +2255,9 @@ int kernelFileNext(const char *path, file *fileStructure)
 	// Find the previously accessed file in the current directory.  Start
 	// with the first entry.
 	if (directory->contents)
+	{
 		listItem = directory->contents;
+	}
 	else
 	{
 		kernelError(kernel_error, "No file entries in directory");
@@ -2266,8 +2280,10 @@ int kernelFileNext(const char *path, file *fileStructure)
 		fileStructure->handle = NULL;  // INVALID
 	}
 	else
+	{
 		// There are no more files
 		return (status = ERR_NOSUCHFILE);
+	}
 
 	// Make sure the directory and files have their "last accessed"
 	// fields updated
@@ -2576,9 +2592,8 @@ int kernelFileWrite(file *fileStructure, unsigned blockNum,
 	// Update the directory
 	if (theDriver->driverWriteDir)
 	{
-		status = theDriver
-			->driverWriteDir(((kernelFileEntry *) fileStructure->handle)
-				 ->parentDirectory);
+		status = theDriver->driverWriteDir(((kernelFileEntry *)
+			fileStructure->handle)->parentDirectory);
 		if (status < 0)
 			return (status);
 	}
@@ -2719,11 +2734,13 @@ int kernelFileDeleteSecure(const char *fileName, int passes)
 				buffer[count2] = kernelRandomFormatted(0, 255);
 
 			for (count2 = 1; count2 < theFile->blocks; count2 ++)
-				kernelMemCopy(buffer, (buffer + (count2 * blockSize)), blockSize);
+				memcpy((buffer + (count2 * blockSize)), buffer, blockSize);
 		}
 		else
+		{
 			// Clear the buffer with NULLs
-			kernelMemClear(buffer, bufferSize);
+			memset(buffer, 0, bufferSize);
+		}
 
 		// Write the file
 		status = theDriver->driverWriteFile(theFile, 0, theFile->blocks, buffer);
@@ -2967,7 +2984,7 @@ int kernelFileCopyRecursive(const char *srcPath, const char *destPath)
 		// recurse.
 
 		dest = kernelFileLookup(destPath);
-		if (dest != NULL)
+		if (dest)
 		{
 			// If the destination directory exists, but has a different filename
 			// than the source directory, that means we might need to create the
@@ -3027,7 +3044,7 @@ int kernelFileCopyRecursive(const char *srcPath, const char *destPath)
 		while (src)
 		{
 			if (strcmp((char *) src->name, ".") &&
-			strcmp((char *) src->name, ".."))
+				strcmp((char *) src->name, ".."))
 			{
 				// Add the file's name to the directory's name
 				tmpSrcName = fixupPath(srcPath);
@@ -3250,7 +3267,9 @@ int kernelFileTimestamp(const char *path)
 		}
 	}
 	else
+	{
 		return (status = ERR_NOSUCHENTRY);
+	}
 
 	// Now we change the internal data fields of the file's data structure
 	// to match the current date and time (Don't touch the creation date/time)
@@ -3329,8 +3348,8 @@ int kernelFileSetSize(file *fileStructure, unsigned newSize)
 		return (status = ERR_INVALID);
 	}
 
-	status =
-		kernelFileEntrySetSize((kernelFileEntry *) fileStructure->handle, newSize);
+	status = kernelFileEntrySetSize((kernelFileEntry *) fileStructure->handle,
+		newSize);
 	if (status < 0)
 		return (status);
 
@@ -3413,3 +3432,4 @@ int kernelFileGetFullPath(file *theFile, char *buffer, int buffLen)
 
 	return (status);
 }
+

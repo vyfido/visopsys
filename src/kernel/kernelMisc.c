@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,12 +31,12 @@
 #include "kernelMalloc.h"
 #include "kernelNetwork.h"
 #include "kernelParameters.h"
-#include "kernelProcessorX86.h"
 #include "kernelRandom.h"
 #include "kernelRtc.h"
 #include "kernelText.h"
 #include <ctype.h>
 #include <stdio.h>
+#include <sys/processor.h>
 
 static unsigned long  crcTable[256] = {
 	0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA, 0x076DC419, 0x706AF48F,
@@ -149,7 +149,6 @@ static inline void eraseLine(void)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 void kernelGetVersion(char *buffer, int bufferSize)
 {
 	// This function creates and returns a pointer to the kernel's version
@@ -187,66 +186,6 @@ int kernelSystemInfo(struct utsname *uname)
 	kernelNetworkGetDomainName(uname->domainname, NETWORK_MAX_DOMAINNAMELENGTH);
 
 	return (status = 0);
-}
-
-
-void kernelMemCopy(const void *src, void *dest, unsigned bytes)
-{
-	unsigned dwords = (bytes >> 2);
-	int interrupts = 0;
-
-	kernelProcessorSuspendInts(interrupts);
-
-	if (((unsigned) src % 4) || ((unsigned) dest % 4) || (bytes % 4))
-		kernelProcessorCopyBytes(src, dest, bytes);
-	else
-		kernelProcessorCopyDwords(src, dest, dwords);
-
-	kernelProcessorRestoreInts(interrupts);
-}
-
-
-void kernelMemSet(void *dest, unsigned char value, unsigned bytes)
-{
-	unsigned dwords = (bytes >> 2);
-	unsigned tmpDword = 0;
-	int interrupts = 0;
-
-	if (dwords)
-		tmpDword = ((value << 24) | (value << 16) |	(value << 8) | value);
-
-	kernelProcessorSuspendInts(interrupts);
-
-	if (((unsigned) dest % 4) || (bytes % 4))
-		kernelProcessorWriteBytes(value, dest, bytes);
-	else
-		kernelProcessorWriteDwords(tmpDword, dest, dwords);
-
-	kernelProcessorRestoreInts(interrupts);
-}
-
-
-int kernelMemCmp(const void *src, const void *dest, unsigned bytes)
-{
-	// Return 1 if the memory area is different, 0 otherwise.
-
-	unsigned dwords = (bytes >> 2);
-	unsigned count;
-
-	if (((unsigned) dest % 4) || (bytes % 4))
-	{
-		for (count = 0; count < bytes; count++)
-			if (((char *) src)[count] != ((char *) dest)[count])
-				return (1);
-	}
-	else
-	{
-		for (count = 0; count < dwords; count++)
-			if (((int *) src)[count] != ((int *) dest)[count])
-				return (1);
-	}
-
-	return (0);
 }
 
 
@@ -335,8 +274,8 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 	{
 		// Live-tracing the current process
 		traceProcess = kernelCurrentProcess;
-		kernelProcessorGetInstructionPointer(instPointer);
-		kernelProcessorGetFramePointer(framePointer);
+		processorGetInstructionPointer(instPointer);
+		processorGetFramePointer(framePointer);
 	}
 	else
 	{
@@ -696,9 +635,9 @@ int kernelConfigWrite(const char *fileName, variableList *list)
 int kernelConfigGet(const char *fileName, const char *variable, char *buffer,
 	unsigned buffSize)
 {
-	// This is a convenience function giving the ability to quickly get a single
-	// variable value from a config file.  Uses the kernelConfigRead function,
-	// above.
+	// This is a convenience function giving the ability to quickly get a
+	// single variable value from a config file.  Uses the kernelConfigRead
+	// function, above.
 
 	int status = 0;
 	variableList list;
@@ -842,71 +781,14 @@ time_t kernelUnixTime(void)
 {
 	// Unix time is seconds since 00:00:00 January 1, 1970
 
-	int status = 0;
 	time_t returnTime = 0;
 	struct tm timeStruct;
-	int count;
-
-	static int month_days[] = {
-		31, /* Jan */ 28, /* Feb */ 31, /* Mar */ 30, /* Apr */
-		31, /* May */ 30, /* Jun */ 31, /* Jul */ 31, /* Aug */
-		30, /* Sep */ 31, /* Aug */ 30  /* Nov */
-	};
 
 	// Get the date and time according to the kernel
-	status = kernelRtcDateTime(&timeStruct);
-	if (status < 0)
+	if (kernelRtcDateTime(&timeStruct) < 0)
 		return (returnTime = -1);
 
-	if (timeStruct.tm_year < 1970)
-		return (returnTime = -1);
-
-	// Calculate seconds for all complete years
-	returnTime = ((timeStruct.tm_year - 1970) * SECPERYR);
-
-	// Add 1 days's worth of seconds for every complete leap year.  There
-	// is a leap year in every year divisible by 4 except for years which
-	// are both divisible by 100 not by 400.  Got it?
-	for (count = timeStruct.tm_year; count >= 1972; count--)
-	{
-		if (((count % 4) == 0) && (((count % 100) != 0) ||
-			((count % 400) == 0)))
-		{
-			returnTime += SECPERDAY;
-		}
-	}
-
-	// Add seconds for all complete months this year
-	for (count = (timeStruct.tm_mon - 1); count >= 0; count --)
-		returnTime += (month_days[count] * SECPERDAY);
-
-	// Add seconds for all complete days in this month
-	returnTime += ((timeStruct.tm_mday - 1) * SECPERDAY);
-
-	// Add one day's worth of seconds if THIS is a leap year, and if the
-	// current month and day are greater than Feb 28
-	if (((timeStruct.tm_year % 4) == 0) &&
-		(((timeStruct.tm_year % 100) != 0) ||
-		((timeStruct.tm_year % 400) == 0)))
-	{
-		if ((timeStruct.tm_mon > 1) ||
-			((timeStruct.tm_mon == 1) &&
-			(timeStruct.tm_mday > 28)))
-		{
-			returnTime += SECPERDAY;
-		}
-	}
-
-	// Add seconds for all complete hours in this day
-	returnTime += (timeStruct.tm_hour * SECPERHR);
-
-	// Add seconds for all complete minutes in this hour
-	returnTime += (timeStruct.tm_min * SECPERMIN);
-
-	// Add the current seconds
-	returnTime += timeStruct.tm_sec;
-
-	return (returnTime);
+	return (mktime(&timeStruct));
 }
 
 
@@ -931,7 +813,7 @@ int kernelGuidGenerate(guid *g)
 	if (!initialized)
 	{
 		clockSeq = kernelRandomUnformatted();
-		kernelMemClear((void *) &globalLock, sizeof(lock));
+		memset((void *) &globalLock, 0, sizeof(lock));
 		initialized = 1;
 	}
 
@@ -999,7 +881,7 @@ void kernelPause(int seconds)
 	int currentSeconds = 0;
 	textAttrs attrs;
 
-	bzero(&attrs, sizeof(textAttrs));
+	memset(&attrs, 0, sizeof(textAttrs));
 	attrs.flags = TEXT_ATTRS_REVERSE;
 
 	kernelTextInputSetEcho(0);

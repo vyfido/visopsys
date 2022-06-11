@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -20,15 +20,17 @@
 //
 
 #include "kernelCpu.h"
+#include "kernelDebug.h"
 #include "kernelDevice.h"
+#include "kernelDriver.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
-#include "kernelProcessorX86.h"
-#include "kernelRtc.h"
+#include "kernelSysTimer.h"
 #include "kernelVariableList.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/processor.h>
 
 static struct {
 	char *string;
@@ -64,7 +66,7 @@ static kernelDevice *regDevice(void *parent, void *driver,
 
 	// Allocate memory for the device
 	dev = kernelMalloc(sizeof(kernelDevice));
-	if (dev == NULL)
+	if (!dev)
 		return (dev);
 
 	dev->device.class = class;
@@ -97,7 +99,7 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 
 	dev = regDevice(parent, driver, kernelDeviceGetClass(DEVICECLASS_CPU),
 		kernelDeviceGetClass(DEVICESUBCLASS_CPU_X86));
-	if (dev == NULL)
+	if (!dev)
 		return (status = ERR_NOCREATE);
 
 	// Initialize the variable list for attributes of the CPU
@@ -110,7 +112,7 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 	// The initial call gives us the vendor string and tells us how many other
 	// functions are supported
 
-	kernelProcessorId(0, rega, regb, regc, regd);
+	processorId(0, rega, regb, regc, regd);
 
 	cpuIdLimit = (rega & 0x7FFFFFFF);
 	((unsigned *) vendorString)[0] = regb;
@@ -138,7 +140,7 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 	// us about the capabilities of the chip
 	if (cpuIdLimit >= 1)
 	{
-		kernelProcessorId(1, rega, regb, regc, regd);
+		processorId(1, rega, regb, regc, regd);
 
 		// CPU type
 		sprintf(variable, "%s.%s", "cpu", "type");
@@ -167,7 +169,7 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 	}
 
 	// See if there's extended CPUID info
-	kernelProcessorId(0x80000000, cpuIdLimit, regb, regc, regd);
+	processorId(0x80000000, cpuIdLimit, regb, regc, regd);
 
 	if (cpuIdLimit >= 0x80000004)
 	{
@@ -175,7 +177,7 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 		value[0] = '\0';
 		for (count1 = 0x80000002; count1 <= 0x80000004; count1 ++)
 		{
-			kernelProcessorId(count1, rega, regb, regc, regd);
+			processorId(count1, rega, regb, regc, regd);
 			strncat(value, (char *) &rega, 4);
 			strncat(value, (char *) &regb, 4);
 			strncat(value, (char *) &regc, 4);
@@ -227,8 +229,7 @@ uquad_t kernelCpuTimestampFreq(void)
 	// Try to determine the rate at which the processor's timestamp counter
 	// changes
 
-	unsigned seconds1 = 0;
-	unsigned seconds2 = 0;
+	int interrupts = 0;
 	unsigned hi1, lo1, hi2, lo2;
 	uquad_t timestamp1 = 0;
 	uquad_t timestamp2 = 0;
@@ -239,24 +240,39 @@ uquad_t kernelCpuTimestampFreq(void)
 
 	kernelLog("Measuring CPU timestamp frequency");
 
-	// Wait for the RTC's seconds counter to change
-	seconds1 = kernelRtcReadSeconds();
-	while ((seconds2 = kernelRtcReadSeconds()) == seconds1);
+	// Disable interrupts
+	processorSuspendInts(interrupts);
 
-	// Get the timestamp
-	kernelProcessorTimestamp(hi1, lo1);
+	// Set up the PIT to do a single countdown
+	kernelSysTimerSetupTimer(0 /* timer */, 0 /* mode */, 0 /* startCount */);
+
+	// Now get the processor's timestamp
+	processorTimestamp(hi1, lo1);
 	timestamp1 = (((uquad_t) hi1 << 32) | lo1);
 
-	// Wait for the RTC's seconds counter to change again
-	while ((seconds1 = kernelRtcReadSeconds()) == seconds2);
+	kernelDebug(debug_device, "CPU starting timestamp is %llx", timestamp1);
 
-	// Get the timestamp again
-	kernelProcessorTimestamp(hi2, lo2);
+	// Wait until the PIT counter outputs high
+	while (!kernelSysTimerGetOutput(0));
+
+	// Get the new timestamp
+	processorTimestamp(hi2, lo2);
 	timestamp2 = (((uquad_t) hi2 << 32) | lo2);
 
-	timestampFreq = (timestamp2 - timestamp1);
+	// Restore the PIT to default mode
+	kernelSysTimerSetupTimer(0 /* timer */, 3 /* mode */, 0 /* startCount */);
 
-	kernelLog("CPU timestamp frequency is %llu MHz", (timestampFreq / 1000000));
+	// Restore interrupts
+	processorRestoreInts(interrupts);
+
+	kernelDebug(debug_device, "CPU ending timestamp is %llx", timestamp2);
+
+	// Multiply by 18.206
+	timestampFreq = ((timestamp2 - timestamp1) * 18);
+	timestampFreq += (((timestamp2 - timestamp1) * 206) / 1000);
+
+	kernelLog("CPU timestamp frequency is %llu MHz",
+		(timestampFreq / 1000000));
 
 	return (timestampFreq);
 }
@@ -269,7 +285,7 @@ uquad_t kernelCpuTimestamp(void)
 	unsigned hi, lo;
 	uquad_t timestamp = 0;
 
-	kernelProcessorTimestamp(hi, lo);
+	processorTimestamp(hi, lo);
 	timestamp = (((uquad_t) hi << 32) | lo);
 
 	return (timestamp);

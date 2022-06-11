@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,7 +25,7 @@
 #include "kernelError.h"
 #include "kernelRtc.h"
 #include "kernelMalloc.h"
-#include "kernelProcessorX86.h"
+#include <sys/processor.h>
 
 // Register numbers
 #define SECSREG 0  // Seconds register
@@ -51,9 +51,9 @@ static inline int waitReady(void)
 
 	for (count = 0; count < 10000; count ++)
 	{
-		kernelProcessorOutPort8(0x70, 0x0A);
-		kernelProcessorDelay();
-		kernelProcessorInPort8(0x71, data);
+		processorOutPort8(0x70, 0x0A);
+		processorDelay();
+		processorInPort8(0x71, data);
 
 		if (!(data & 0x80))
 			break;
@@ -78,28 +78,28 @@ static int readRegister(int regNum)
 	unsigned char data = 0;
 
 	// Suspend interrupts
-	kernelProcessorSuspendInts(interrupts);
+	processorSuspendInts(interrupts);
 
 	// Wait until the clock is stable
 	if (waitReady())
 	{
-		kernelProcessorRestoreInts(interrupts);
+		processorRestoreInts(interrupts);
 		return (0);
 	}
 
 	// Now we have 244 us to read the data we want.  We'd better stop
 	// talking and do it.  Disable NMI at the same time.
 	data = (unsigned char) (regNum | 0x80);
-	kernelProcessorOutPort8(0x70, data);
+	processorOutPort8(0x70, data);
 
 	// Now read the data
-	kernelProcessorInPort8(0x71, data);
+	processorInPort8(0x71, data);
 
 	// Reenable NMI
-	kernelProcessorOutPort8(0x70, 0x00);
+	processorOutPort8(0x70, 0x00);
 
 	// Restore interrupts
-	kernelProcessorRestoreInts(interrupts);
+	processorRestoreInts(interrupts);
 
 	// The data is in BCD format.  Convert it to decimal.
 	return ((int)((((data & 0xF0) >> 4) * 10) + (data & 0x0F)));
@@ -195,7 +195,6 @@ static kernelRtcOps rtcOps = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 void kernelRtcDriverRegister(kernelDriver *driver)
 {

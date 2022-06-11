@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2014 J. Andrew McLaughlin
+#  Copyright (C) 1998-2015 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,15 +17,15 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-15\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ping.c:59
+#: ping.c:60
 msgid "Ping"
 msgstr "Ping"
 
-#: ping.c:87
+#: ping.c:88
 msgid "Error"
 msgstr "Fehler"
 
-#: ping.c:95
+#: ping.c:96
 #, c-format
 msgid ""
 "usage:\n"
@@ -34,54 +34,59 @@ msgstr ""
 "Benutzung:\n"
 "%s [-T] <address | hostname>\n"
 
-#: ping.c:163
+#: ping.c:164
 #, c-format
 msgid "%d bytes from %d.%d.%d.%d: icmp_seq=%d ttl=%d time=X ms\n"
 msgstr "%d Byte von %d.%d.%d.%d: icmp_seq=%d ttl=%d Zeit=X ms\n"
 
-#: ping.c:250
+#: ping.c:252
 msgid "Stop"
 msgstr "Stopp"
 
-#: ping.c:292
+#: ping.c:295
+#, c-format
+msgid "Unknown option '%c'"
+msgstr ""
+
+#: ping.c:304
 msgid "Networking is not currently enabled"
 msgstr "Das Arbeiten im Netzwerk ist derzeit nicht aktiviert"
 
-#: ping.c:308
+#: ping.c:320
 msgid "Enter Address"
 msgstr "Addresse angeben"
 
-#: ping.c:309
+#: ping.c:321
 msgid "Enter the network address to ping:"
 msgstr ""
 "Geben Sie die Netzwerkadresse ein an die ein Ping geschickt werden soll:"
 
-#: ping.c:344
+#: ping.c:356
 msgid "Memory allocation error"
 msgstr "Fehler bei der Speicherverteilung"
 
-#: ping.c:363
+#: ping.c:375
 msgid "Error opening network connection"
 msgstr "Fehler beim öffnen der Netzwerkverbindung"
 
-#: ping.c:367
+#: ping.c:379
 #, c-format
 msgid "Ping %d.%d.%d.%d %d bytes of data\n"
 msgstr "Ping %d.%d.%d.%d %d Byte an Daten\n"
 
-#: ping.c:381
+#: ping.c:393
 msgid "Error setting signal handler"
 msgstr "Fehler beim setzen des Signal-Handlers"
 
-#: ping.c:394
+#: ping.c:406
 msgid "Error starting response thread"
 msgstr "Fehler beim starten des Antwort-Eintrages"
 
-#: ping.c:403
+#: ping.c:416
 msgid "Error pinging host"
 msgstr "Fehler beim anpingen des Hosts"
 
-#: ping.c:421
+#: ping.c:434
 #, c-format
 msgid ""
 "\n"
@@ -90,7 +95,7 @@ msgstr ""
 "\n"
 "--- %d.%d.%d.%d Ping-Statistiken ---\n"
 
-#: ping.c:423
+#: ping.c:436
 #, c-format
 msgid "%d packets transmitted, %d received, %d%% packet loss, time Xms\n"
 msgstr "%d Pakete übertragen, %d empfangen, %d%% verloren, Zeit Xms\n"

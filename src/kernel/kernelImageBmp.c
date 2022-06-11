@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,7 +31,6 @@
 #include "kernelLoader.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
-#include "kernelMisc.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -157,9 +156,8 @@ static int load(unsigned char *imageFileData, int dataLength,
 			fileOffset = (dataStart + (count1 * fileLineWidth));
 
 			// Copy a line of data from the file to our image
-			kernelMemCopy((imageFileData + fileOffset),
-				(((void *) imageData) + ((height - count1 - 1) * (width * 3))),
-				(width * 3));
+			memcpy((((void *) imageData) + ((height - count1 - 1) *
+				(width * 3))), (imageFileData + fileOffset), (width * 3));
 		}
 	}
 
@@ -448,9 +446,9 @@ static int save(const char *fileName, image *saveImage)
 
 	for (count = (saveImage->height - 1); count >= 0 ; count --)
 	{
-		kernelMemCopy((saveImage->data + (count * (saveImage->width * 3))),
-			imageData, (saveImage->width * 3));
-		kernelMemClear((imageData + (saveImage->width * 3)), padBytes);
+		memcpy(imageData, (saveImage->data + (count * (saveImage->width * 3))),
+			(saveImage->width * 3));
+		memset((imageData + (saveImage->width * 3)), 0, padBytes);
 
 		// Move to the next line
 		imageData += ((saveImage->width * 3) + padBytes);
@@ -463,7 +461,7 @@ static int save(const char *fileName, image *saveImage)
 	fileData[0] = 'B'; fileData[1] = 'M';
 
 	// Copy the header data into the file area
-	kernelMemCopy(&header, (fileData + 2), sizeof(bmpHeader));
+	memcpy((fileData + 2), &header, sizeof(bmpHeader));
 
 	// Now create/open the file stream for writing
 	status = kernelFileOpen(fileName, (OPENMODE_WRITE | OPENMODE_TRUNCATE |
@@ -511,7 +509,6 @@ kernelFileClass bmpFileClass = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 kernelFileClass *kernelFileClassBmp(void)
 {

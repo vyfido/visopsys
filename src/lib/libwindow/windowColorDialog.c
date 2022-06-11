@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -47,7 +47,7 @@ static void drawColor(objectKey canvas, objectKey redLabel,
 	char colorString[4];
 
 	// Clear our drawing parameters
-	bzero(&params, sizeof(windowDrawParameters));
+	memset(&params, 0, sizeof(windowDrawParameters));
 	params.operation = draw_rect;
 	params.mode = draw_normal;
 	params.foreground.red = draw->red;
@@ -59,14 +59,15 @@ static void drawColor(objectKey canvas, objectKey redLabel,
 	params.height = windowComponentGetHeight(canvas);
 	params.thickness = 1;
 	params.fill = 1;
-	windowComponentSetData(canvas, &params, sizeof(windowDrawParameters));
+	windowComponentSetData(canvas, &params, sizeof(windowDrawParameters),
+		1 /* redraw */);
 
 	sprintf(colorString, "%03d", draw->red);
-	windowComponentSetData(redLabel, colorString, 4);
+	windowComponentSetData(redLabel, colorString, 4, 1 /* redraw */);
 	sprintf(colorString, "%03d", draw->green);
-	windowComponentSetData(greenLabel, colorString, 4);
+	windowComponentSetData(greenLabel, colorString, 4, 1 /* redraw */);
 	sprintf(colorString, "%03d", draw->blue);
-	windowComponentSetData(blueLabel, colorString, 4);
+	windowComponentSetData(blueLabel, colorString, 4, 1 /* redraw */);
 }
 
 
@@ -119,7 +120,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 	// Copy the current color into the temporary color
 	memcpy(&tmpColor, pickedColor, sizeof(color));
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 5;
@@ -162,7 +163,8 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 
 	scrollState.displayPercent = 20;
 	scrollState.positionPercent = ((tmpColor.red * 100) / 255);
-	windowComponentSetData(redSlider, &scrollState, sizeof(scrollBarState));
+	windowComponentSetData(redSlider, &scrollState, sizeof(scrollBarState),
+		1 /* redraw */);
 
 	params.gridX++;
 	params.orientationY = orient_middle;
@@ -192,7 +194,8 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 	}
 
 	scrollState.positionPercent = ((tmpColor.green * 100) / 255);
-	windowComponentSetData(greenSlider, &scrollState, sizeof(scrollBarState));
+	windowComponentSetData(greenSlider, &scrollState, sizeof(scrollBarState),
+		1 /* redraw */);
 
 	params.gridX++;
 	params.orientationY = orient_middle;
@@ -223,7 +226,8 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 	}
 
 	scrollState.positionPercent = ((tmpColor.blue * 100) / 255);
-	windowComponentSetData(blueSlider, &scrollState, sizeof(scrollBarState));
+	windowComponentSetData(blueSlider, &scrollState, sizeof(scrollBarState),
+		1 /* redraw */);
 
 	params.gridX++;
 	params.orientationY = orient_middle;
@@ -295,28 +299,40 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 		status = windowComponentEventGet(redSlider, &event);
 		if (status > 0)
 		{
-			windowComponentGetData(redSlider, &scrollState,
-				sizeof(scrollBarState));
-			tmpColor.red = ((scrollState.positionPercent * 255) / 100);
-			drawColor(canvas, redLabel, greenLabel, blueLabel, &tmpColor);
+			if (event.type & (EVENT_MOUSE_LEFTDOWN | EVENT_MOUSE_DRAG |
+				EVENT_KEY_DOWN))
+			{
+				windowComponentGetData(redSlider, &scrollState,
+					sizeof(scrollBarState));
+				tmpColor.red = ((scrollState.positionPercent * 255) / 100);
+				drawColor(canvas, redLabel, greenLabel, blueLabel, &tmpColor);
+			}
 		}
 
 		status = windowComponentEventGet(greenSlider, &event);
 		if (status > 0)
 		{
-			windowComponentGetData(greenSlider, &scrollState,
-				sizeof(scrollBarState));
-			tmpColor.green = ((scrollState.positionPercent * 255) / 100);
-			drawColor(canvas, redLabel, greenLabel, blueLabel, &tmpColor);
+			if (event.type & (EVENT_MOUSE_LEFTDOWN | EVENT_MOUSE_DRAG |
+				EVENT_KEY_DOWN))
+			{
+				windowComponentGetData(greenSlider, &scrollState,
+					sizeof(scrollBarState));
+				tmpColor.green = ((scrollState.positionPercent * 255) / 100);
+				drawColor(canvas, redLabel, greenLabel, blueLabel, &tmpColor);
+			}
 		}
 
 		status = windowComponentEventGet(blueSlider, &event);
 		if (status > 0)
 		{
-			windowComponentGetData(blueSlider, &scrollState,
-				sizeof(scrollBarState));
-			tmpColor.blue = ((scrollState.positionPercent * 255) / 100);
-			drawColor(canvas, redLabel, greenLabel, blueLabel, &tmpColor);
+			if (event.type & (EVENT_MOUSE_LEFTDOWN | EVENT_MOUSE_DRAG |
+				EVENT_KEY_DOWN))
+			{
+				windowComponentGetData(blueSlider, &scrollState,
+					sizeof(scrollBarState));
+				tmpColor.blue = ((scrollState.positionPercent * 255) / 100);
+				drawColor(canvas, redLabel, greenLabel, blueLabel, &tmpColor);
+			}
 		}
 
 		// Check for our OK button

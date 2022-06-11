@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,16 +27,15 @@
 
 #include "kernelNetworkDevice.h"
 #include "kernelNetworkStream.h"
-#include "kernelProcessorX86.h"
 #include "kernelInterrupt.h"
 #include "kernelPic.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
-#include "kernelMisc.h"
 #include "kernelError.h"
 #include "kernelLog.h"
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
+#include <sys/processor.h>
 
 // An array of pointers to all network devices.
 static kernelDevice *devices[NETWORK_MAX_ADAPTERS];
@@ -71,11 +70,11 @@ static void debugArp(kernelArpPacket *arpPacket)
 {
 	kernelTextPrintLine("ARP: hardAddrSpc=%x protAddrSpc=%x "
 		"hardAddrLen=%d, protAddrLen=%d opCode=%d",
-		kernelProcessorSwap16(arpPacket->hardwareAddressSpace),
-		kernelProcessorSwap16(arpPacket->protocolAddressSpace),
+		processorSwap16(arpPacket->hardwareAddressSpace),
+		processorSwap16(arpPacket->protocolAddressSpace),
 		arpPacket->hardwareAddrLen,
 		arpPacket->protocolAddrLen,
-		kernelProcessorSwap16(arpPacket->opCode));
+		processorSwap16(arpPacket->opCode));
 	kernelTextPrint("ARP: srcHardAddr=");
 	printAddress((networkAddress *) &(arpPacket->srcHardwareAddress),
 		NETWORK_ADDRLENGTH_ETHERNET, 1);
@@ -135,45 +134,47 @@ static int sendArp(kernelNetworkDevice *adapter,
 
 	if ((opCode == NETWORK_ARPOP_REPLY) && destPhysicalAddress)
 		// Destination is the supplied physical address
-		kernelMemCopy(destPhysicalAddress, &(arpPacket->header.dest),
+		memcpy(&(arpPacket->header.dest), destPhysicalAddress,
 			NETWORK_ADDRLENGTH_ETHERNET);
 	else
 		// Destination is the ethernet broadcast address FF:FF:FF:FF:FF:FF
-		kernelMemCopy(&ethernetBroadcastAddress, &(arpPacket->header.dest),
+		memcpy(&(arpPacket->header.dest), &ethernetBroadcastAddress,
 			NETWORK_ADDRLENGTH_ETHERNET);
 
 	// Source is the adapter hardware address
-	kernelMemCopy((void *) &(adapter->device.hardwareAddress),
-		&(arpPacket->header.source), NETWORK_ADDRLENGTH_ETHERNET);
+	memcpy(&(arpPacket->header.source),
+		(void *) &(adapter->device.hardwareAddress),
+		NETWORK_ADDRLENGTH_ETHERNET);
 
 	// Ethernet type is ARP
-	arpPacket->header.type = kernelProcessorSwap16(NETWORK_ETHERTYPE_ARP);
+	arpPacket->header.type = processorSwap16(NETWORK_ETHERTYPE_ARP);
 	// Hardware address space is ethernet=1
 	arpPacket->hardwareAddressSpace =
-		kernelProcessorSwap16(NETWORK_ARPHARDWARE_ETHERNET);
+		processorSwap16(NETWORK_ARPHARDWARE_ETHERNET);
 	// Protocol address space is IP=0x0800
 	arpPacket->protocolAddressSpace =
-		kernelProcessorSwap16(NETWORK_ETHERTYPE_IP);
+		processorSwap16(NETWORK_ETHERTYPE_IP);
 	// Hardware address length is 6
 	arpPacket->hardwareAddrLen = NETWORK_ADDRLENGTH_ETHERNET;
 	// Protocol address length is 4 for IP
 	arpPacket->protocolAddrLen = NETWORK_ADDRLENGTH_IP;
 	// Operation code.  Request or reply.
-	arpPacket->opCode = kernelProcessorSwap16(opCode);
+	arpPacket->opCode = processorSwap16(opCode);
 
 	// Our source hardware address
-	kernelMemCopy((void *) &(adapter->device.hardwareAddress),
-		&(arpPacket->srcHardwareAddress), NETWORK_ADDRLENGTH_ETHERNET);
+	memcpy(&(arpPacket->srcHardwareAddress),
+		(void *) &(adapter->device.hardwareAddress),
+		NETWORK_ADDRLENGTH_ETHERNET);
 	// Our source logical address
-	kernelMemCopy((void *) &(adapter->device.hostAddress),
-		&(arpPacket->srcLogicalAddress), NETWORK_ADDRLENGTH_IP);
+	memcpy(&(arpPacket->srcLogicalAddress),
+		(void *) &(adapter->device.hostAddress), NETWORK_ADDRLENGTH_IP);
 	// Our desired logical address
-	kernelMemCopy(destLogicalAddress, &(arpPacket->destLogicalAddress),
+	memcpy(&(arpPacket->destLogicalAddress), destLogicalAddress,
 		NETWORK_ADDRLENGTH_IP);
 
 	if ((opCode == NETWORK_ARPOP_REPLY) && destPhysicalAddress)
 		// The target's hardware address
-		kernelMemCopy(destPhysicalAddress, &(arpPacket->destHardwareAddress),
+		memcpy(&(arpPacket->destHardwareAddress), destPhysicalAddress,
 			NETWORK_ADDRLENGTH_ETHERNET);
 
 	//debugArp(arpPacket);
@@ -191,11 +192,11 @@ static int sendArp(kernelNetworkDevice *adapter,
 	{
 		// Set up the simplified packet structure for it.  The network thread
 		// only uses the packet memory and length
-		kernelMemClear(&packet, sizeof(kernelNetworkPacket));
+		memset(&packet, 0, sizeof(kernelNetworkPacket));
 		packet.memory = arpPacket;
 		packet.length = sizeof(kernelArpPacket);
-		status =
-			kernelNetworkPacketStreamWrite(&(adapter->outputStream), &packet);
+		status = kernelNetworkPacketStreamWrite(&(adapter->outputStream),
+			&packet);
 
 		// ARP packet memory will be released by the network thread
 
@@ -215,8 +216,7 @@ static void addArpCache(kernelNetworkDevice *adapter,
 	// list grows to its maximum size, the oldest entries fall off the bottom.
 
 	// Shift all down
-	kernelMemCopy((void *) &(adapter->arpCache[0]),
-		(void *) &(adapter->arpCache[1]),
+	memcpy((void *) &(adapter->arpCache[1]), (void *) &(adapter->arpCache[0]),
 		((NETWORK_ARPCACHE_SIZE - 1) * sizeof(kernelArpCacheItem)));
 
 	adapter->arpCache[0].logicalAddress.quad = logicalAddress->quad;
@@ -243,7 +243,7 @@ static void receiveArp(kernelNetworkDevice *adapter,
 	int arpPosition = 0;
 
 	// Make sure it's ethernet ARP
-	if (kernelProcessorSwap16(arpPacket->hardwareAddressSpace) !=
+	if (processorSwap16(arpPacket->hardwareAddressSpace) !=
 		NETWORK_ARPHARDWARE_ETHERNET)
 	{
 		return;
@@ -255,9 +255,8 @@ static void receiveArp(kernelNetworkDevice *adapter,
 	if (arpPosition >= 0)
 	{
 		// Update him in our cache
-		kernelMemCopy(&(arpPacket->srcHardwareAddress),
-			(void *) &(adapter->arpCache[arpPosition].physicalAddress),
-			NETWORK_ADDRLENGTH_ETHERNET);
+		memcpy((void *) &(adapter->arpCache[arpPosition].physicalAddress),
+			&(arpPacket->srcHardwareAddress), NETWORK_ADDRLENGTH_ETHERNET);
 	}
 	else
 	{
@@ -278,7 +277,7 @@ static void receiveArp(kernelNetworkDevice *adapter,
 		return;
 	}
 
-	if (kernelProcessorSwap16(arpPacket->opCode) == NETWORK_ARPOP_REQUEST)
+	if (processorSwap16(arpPacket->opCode) == NETWORK_ARPOP_REQUEST)
 	{
 		// Someone is asking for us.  Send a reply, but it should be queued
 		// instead of immediate.
@@ -312,8 +311,8 @@ static int readData(kernelDevice *dev)
 	// the packet is not IP or ARP, we are finished
 	if (!bufferLength ||
 		!(adapter->device.flags & NETWORK_ADAPTERFLAG_INITIALIZED) ||
-		((kernelProcessorSwap16(header->type) != NETWORK_ETHERTYPE_IP) &&
-		(kernelProcessorSwap16(header->type) != NETWORK_ETHERTYPE_ARP)))
+		((processorSwap16(header->type) != NETWORK_ETHERTYPE_IP) &&
+		(processorSwap16(header->type) != NETWORK_ETHERTYPE_ARP)))
 	{
 		return (status = 0);
 	}
@@ -322,7 +321,7 @@ static int readData(kernelDevice *dev)
 	kernelTextPrint("Receive %d: type=%x %02x:%02x:%02x:%02x:%02x:%02x "
 		"-> %02x:%02x:%02x:%02x:%02x:%02x ",
 		adapter->recvPackets,
-		kernelProcessorSwap16(header->type),
+		processorSwap16(header->type),
 		header->source[0], header->source[1],
 		header->source[2], header->source[3],
 		header->source[4], header->source[5],
@@ -331,7 +330,7 @@ static int readData(kernelDevice *dev)
 	kernelTextPrintLine("Messagesize %d: ", bufferLength);
 	*/
 
-	if (kernelProcessorSwap16(header->type) == NETWORK_ETHERTYPE_ARP)
+	if (processorSwap16(header->type) == NETWORK_ETHERTYPE_ARP)
 	{
 		receiveArp(adapter, (kernelArpPacket *) adapter->buffer);
 	}
@@ -341,7 +340,7 @@ static int readData(kernelDevice *dev)
 		// Put the packet into the adapter's packet input stream
 
 		// Clear the packet structure
-		kernelMemClear(&packet, sizeof(kernelNetworkPacket));
+		memset(&packet, 0, sizeof(kernelNetworkPacket));
 
 		// Set the packet headers and the data pointer into the the buffer,
 		// plus the data length
@@ -395,7 +394,7 @@ static void networkInterrupt(void)
 	int serviced = 0;
 	int count;
 
-	kernelProcessorIsrEnter(address);
+	processorIsrEnter(address);
 
 	// Which interrupt number is active?
 	interruptNum = kernelPicGetActive();
@@ -443,10 +442,10 @@ static void networkInterrupt(void)
 	if (!serviced && oldIntHandlers[interruptNum])
 		// We didn't service this interrupt, and we're sharing this PCI
 		// interrupt with another device whose handler we saved.  Call it.
-		kernelProcessorIsrCall(oldIntHandlers[interruptNum]);
+		processorIsrCall(oldIntHandlers[interruptNum]);
 
 out:
-	kernelProcessorIsrExit(address);
+	processorIsrExit(address);
 }
 
 
@@ -476,7 +475,6 @@ static kernelDevice *findDeviceByName(const char *adapterName)
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelNetworkDeviceRegister(kernelDevice *dev)
 {
@@ -661,8 +659,8 @@ int kernelNetworkDeviceGetAddress(const char *adapterName,
 		if (!count)
 			kernelMultitaskerYield();
 		else
-			// Delay briefly.  About 1/2 second
-			kernelMultitaskerWait(10);
+			// Delay for 1/2 second
+			kernelMultitaskerWait(500);
 	}
 
 	// If we fall through, we didn't find it.
@@ -769,8 +767,7 @@ int kernelNetworkDeviceGet(const char *name, networkDevice *dev)
 
 	adapter = kernelDev->data;
 
-	kernelMemCopy((networkDevice *) &(adapter->device), dev,
-		sizeof(networkDevice));
+	memcpy(dev, (networkDevice *) &(adapter->device), sizeof(networkDevice));
 
 	return (0);
 }

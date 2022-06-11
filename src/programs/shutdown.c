@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -61,6 +61,7 @@ Options:
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 #include <sys/window.h>
 
@@ -91,9 +92,14 @@ static void doEject(void)
 	objectKey bannerDialog = NULL;
 
 	if (graphics)
-		bannerDialog = windowNewBannerDialog(window, _("Ejecting"), EJECT_MESS);
+	{
+		bannerDialog = windowNewBannerDialog(window, _("Ejecting"),
+			EJECT_MESS);
+	}
 	else
+	{
 		printf("\n%s ", EJECT_MESS);
+	}
 
 	if (diskSetLockState(sysDisk.name, 0) < 0)
 	{
@@ -105,7 +111,9 @@ static void doEject(void)
 			windowNewErrorDialog(window, _("Error"), NOUNLOCK_MESS);
 		}
 		else
+		{
 			printf("\n\n%s\n", NOUNLOCK_MESS);
+		}
 	}
 	else
 	{
@@ -125,7 +133,9 @@ static void doEject(void)
 					windowNewInfoDialog(window, "Hmm", NOEJECT_MESS);
 				}
 				else
+				{
 					printf("\n\n%s\n", NOEJECT_MESS);
+				}
 			}
 		}
 		else
@@ -136,7 +146,9 @@ static void doEject(void)
 					windowDestroy(bannerDialog);
 			}
 			else
+			{
 				printf("\n");
+			}
 		}
 	}
 }
@@ -148,18 +160,20 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("shutdown");
 
 	// Refresh the 'reboot' icon
-	windowComponentSetData(rebootIcon, REBOOT, strlen(REBOOT));
+	windowComponentSetData(rebootIcon, REBOOT, strlen(REBOOT), 1 /* redraw */);
 
 	// Refresh the 'shutdown' icon
-	windowComponentSetData(shutdownIcon, SHUTDOWN, strlen(SHUTDOWN));
+	windowComponentSetData(shutdownIcon, SHUTDOWN, strlen(SHUTDOWN),
+		1 /* redraw */);
 
 	if (ejectCheckbox)
 		// Refresh the 'eject' checkbox
-		windowComponentSetData(ejectCheckbox, EJECT, strlen(EJECT));
+		windowComponentSetData(ejectCheckbox, EJECT, strlen(EJECT),
+			1 /* redraw */);
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
@@ -220,7 +234,7 @@ static void constructWindow(void)
 	if (!window)
 		return;
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padTop = 20;
@@ -239,7 +253,7 @@ static void constructWindow(void)
 	params.background.blue = 230;
 
 	// Create a reboot icon
-	bzero(&iconImage, sizeof(image));
+	memset(&iconImage, 0, sizeof(image));
 	if (imageLoad(PATH_SYSTEM_ICONS "/rebticon.bmp", 0, 0, &iconImage) >= 0)
 	{
 		rebootIcon = windowNewIcon(window, &iconImage, REBOOT, &params);
@@ -248,7 +262,7 @@ static void constructWindow(void)
 	}
 
 	// Create a shut down icon
-	bzero(&iconImage, sizeof(image));
+	memset(&iconImage, 0, sizeof(image));
 	if (imageLoad(PATH_SYSTEM_ICONS "/shuticon.bmp", 0, 0, &iconImage) >= 0)
 	{
 		params.gridX = 1;
@@ -285,36 +299,46 @@ int main(int argc, char *argv[])
 	char opt;
 	int force = 0;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("shutdown");
 
 	// Are graphics enabled?
 	graphics = graphicsAreEnabled();
 
-	while (strchr("Tefr", (opt = getopt(argc, argv, "Tefr"))))
+	// Check options
+	while (strchr("efrT?", (opt = getopt(argc, argv, "efrT"))))
 	{
-		// Force text mode?
-		if (opt == 'T')
-			graphics = 0;
-
-		// Eject boot media?
-		if (opt == 'e')
-			eject = 1;
-
-		// Shut down forcefully?
-		if (opt == 'f')
-			force = 1;
-
-		// Reboot?
-		if (opt == 'r')
+		switch (opt)
 		{
-			graphics = 0;
-			reboot = 1;
+			case 'e':
+				// Eject boot media
+				eject = 1;
+				break;
+
+			case 'f':
+				// Shut down forcefully
+				force = 1;
+				break;
+
+			case 'r':
+				// Reboot
+				graphics = 0;
+				reboot = 1;
+				break;
+
+			case 'T':
+				// Force text mode
+				graphics = 0;
+				break;
+
+			default:
+				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
+				return (status = ERR_INVALID);
 		}
 	}
 
 	// Get the system disk
-	bzero(&sysDisk, sizeof(disk));
+	memset(&sysDisk, 0, sizeof(disk));
 	fileGetDisk("/", &sysDisk);
 
 	// If graphics are enabled, show a query dialog asking whether to shut

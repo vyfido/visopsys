@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -59,7 +59,7 @@ static inline int menuTitleHeight(kernelWindowComponent *component)
 	int height = (windowVariables->border.thickness * 2);
 
 	if (font)
-		height += font->charHeight;
+		height += font->glyphHeight;
 
 	return (height);
 }
@@ -149,7 +149,7 @@ static int menuKeyEvent(kernelWindow *menu,
 
 	// If the user has pressed the left or right cursor keys, that means they
 	// want to switch menus
-	if ((event->key == ASCII_CRSRLEFT) || (event->key == ASCII_CRSRRIGHT))
+	if ((event->key == keyLeftArrow) || (event->key == keyRightArrow))
 	{
 		// Find out where the menu is in our list
 		for (count = 0; count < menuBar->numMenus; count ++)
@@ -161,7 +161,7 @@ static int menuKeyEvent(kernelWindow *menu,
 			}
 		}
 
-		if (event->key == ASCII_CRSRLEFT)
+		if (event->key == keyLeftArrow)
 		{
 			// Cursor left
 			if (menuNumber > 0)
@@ -435,7 +435,6 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *window,
 	componentParameters *params)
 {
@@ -459,7 +458,7 @@ kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *window,
 
 	// Get the basic component structure
 	component = kernelWindowComponentNew(window->sysContainer, params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	component->type = menuBarComponentType;
@@ -476,12 +475,12 @@ kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *window,
 	component->destroy = &destroy;
 
 	// If font is NULL, use the default
-	if (component->params.font == NULL)
+	if (!component->params.font)
 		component->params.font = windowVariables->font.varWidth.small.font;
 
 	// Get memory for this menu bar component
 	menuBar = kernelMalloc(sizeof(kernelWindowMenuBar));
-	if (menuBar == NULL)
+	if (!menuBar)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
@@ -492,7 +491,8 @@ kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *window,
 	component->width = window->buffer.width;
 	component->height = (windowVariables->border.thickness * 2);
 	if (component->params.font)
-		component->height += ((asciiFont *) component->params.font)->charHeight;
+		component->height += ((asciiFont *)
+			component->params.font)->glyphHeight;
 	component->minWidth = component->width;
 	component->minHeight = component->height;
 

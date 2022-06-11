@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,6 +47,7 @@ Example:
 
 #ifdef VISOPSYS
 	#include <sys/api.h>
+	#include <sys/env.h>
 	#define _(string)	gettext(string)
 	#define OSLOADER	"/vloader"
 #else
@@ -299,11 +300,13 @@ static int merge(unsigned char *oldBootsect, unsigned char *newBootsect)
 	if (!strncmp(fatHeader->common2.fsSignature, FAT12_SIG, 8) ||
 		!strncmp(fatHeader->common2.fsSignature, FAT16_SIG, 8))
 	{
-		memcpy((newBootsect + 3), (oldBootsect + 3), (sizeof(fatBSHeader) - 3));
+		memcpy((newBootsect + 3), (oldBootsect + 3),
+			(sizeof(fatBSHeader) - 3));
 	}
 	else if (!strncmp(fat32Header->common2.fsSignature, FAT32_SIG, 8))
 	{
-		memcpy((newBootsect + 3), (oldBootsect + 3), (sizeof(fat32BSHeader) - 3));
+		memcpy((newBootsect + 3), (oldBootsect + 3),
+			(sizeof(fat32BSHeader) - 3));
 	}
 	else
 	{
@@ -332,7 +335,7 @@ static unsigned findUnusedCluster(const char *outputName, char *signature,
 	DEBUGMSG("%s", _("Find first unused cluster\n"));
 
 	buffer = malloc(bsHeader->bytesPerSector);
-	if (buffer == NULL)
+	if (!buffer)
 	{
 		DEBUGMSG(_("Can't alloc %u bytes to find an unused cluster\n"),
 			bsHeader->bytesPerSector);
@@ -362,7 +365,7 @@ static unsigned findUnusedCluster(const char *outputName, char *signature,
 			else
 				entry = (entry & 0x0FFF);
 
-			if (entry == 0)
+			if (!entry)
 			{
 				firstUnused = count;
 				break;
@@ -375,7 +378,7 @@ static unsigned findUnusedCluster(const char *outputName, char *signature,
 		for (count = 2; count < (bsHeader->bytesPerSector /
 			sizeof(unsigned short)); count ++)
 		{
-			if (fat[count] == 0)
+			if (!fat[count])
 			{
 				firstUnused = count;
 				break;
@@ -389,7 +392,7 @@ static unsigned findUnusedCluster(const char *outputName, char *signature,
 			count ++)
 		{
 			// Really only the bottom 28 bits of this value are relevant
-			if ((fat[count] & 0x0FFFFFFF) == 0)
+			if (!(fat[count] & 0x0FFFFFFF))
 			{
 				firstUnused = count;
 				break;
@@ -498,15 +501,14 @@ static int setOsLoaderParams(const char *outputName,
 
 	DEBUGMSG(_("First user sector for OS loader is %u\n"), *firstUserSector);
 
-	bzero(&statBuff, sizeof(struct stat));
+	memset(&statBuff, 0, sizeof(struct stat));
 	status = stat(osLoader, &statBuff);
 	if (status < 0)
 		return (status);
 
-	*osLoaderSectors =
-		((unsigned) statBuff.st_size / fatHeader->common1.bytesPerSector);
-	*osLoaderSectors +=
-		(((unsigned) statBuff.st_size % fatHeader->common1.bytesPerSector) != 0);
+	*osLoaderSectors = (((unsigned) statBuff.st_size +
+		(fatHeader->common1.bytesPerSector - 1)) /
+		fatHeader->common1.bytesPerSector);
 
 	DEBUGMSG(_("OS loader sectors are %u\n"), *osLoaderSectors);
 
@@ -537,7 +539,7 @@ int main(int argc, char *argv[])
 	unsigned char newBootsect[512];
 
 #ifdef VISOPSYS
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("copy-boot");
 #endif
 

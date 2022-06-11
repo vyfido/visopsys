@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,7 +25,6 @@
 
 #include "kernelEncrypt.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include <string.h>
 
 
@@ -72,6 +71,7 @@ static unsigned T[64] = {
 #define H(X, Y, Z) ((X) ^ (Y) ^ (Z))
 #define I(X, Y, Z) ((Y) ^ ((X) | (~Z)))
 
+
 static inline unsigned rol(unsigned x, unsigned n)
 {
 	return ((x << n) | (x >> (32 - n)));
@@ -85,7 +85,6 @@ static inline unsigned rol(unsigned x, unsigned n)
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelEncryptMD5(const char *input, char *output)
 {
@@ -124,7 +123,7 @@ int kernelEncryptMD5(const char *input, char *output)
 
 	// Copy the input, and add the padding bits
 	strcpy(cBuff, input);
-	kernelMemClear((cBuff + strlen(input)), (bytes - strlen(input)));
+	memset((cBuff + strlen(input)), 0, (bytes - strlen(input)));
 	cBuff[strlen(input)] = 0x80;
 
 	// Append 64-bit length value.  Really only 32-bits in a 64-bit field.
@@ -194,10 +193,11 @@ int kernelEncryptMD5(const char *input, char *output)
 		uBuff[2] = C = (C + CC);
 		uBuff[3] = D = (D + DD);
 
-		kernelMemCopy(cBuff, (output + (blockCount * 16)), 16);
+		memcpy((output + (blockCount * 16)), cBuff, 16);
 		output[(blockCount * 16) + 17] = '\0';
 	}
 
 	kernelFree(buff);
 	return (blocks * 16);
 }
+

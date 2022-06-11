@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,6 +46,7 @@ Options:
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/font.h>
 #include <sys/paths.h>
 #include <sys/text.h>
@@ -126,7 +127,9 @@ static void error(const char *format, ...)
 	va_end(list);
 
 	if (graphics)
+	{
 		windowNewErrorDialog(window, _("Error"), output);
+	}
 	else
 	{
 	}
@@ -142,7 +145,7 @@ static void updateStatus(void)
 	char statusMessage[MAXSTRINGLENGTH];
 	textAttrs attrs;
 
-	bzero(&attrs, sizeof(textAttrs));
+	memset(&attrs, 0, sizeof(textAttrs));
 	attrs.flags = TEXT_ATTRS_REVERSE;
 
 	if (!strncmp(editFileName, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH))
@@ -153,7 +156,8 @@ static void updateStatus(void)
 			(modified? _(" (modified)") : ""), line, numLines);
 
 	if (graphics)
-	windowComponentSetData(statusLabel, statusMessage, strlen(statusMessage));
+		windowComponentSetData(statusLabel, statusMessage,
+			strlen(statusMessage), 1 /* redraw */);
 
 	else
 	{
@@ -258,7 +262,7 @@ static void showScreen(void)
 	// Show the screen at the current file position
 
 	textScreenClear();
-	bzero(screenLines, (screenRows * sizeof(screenLineInfo)));
+	memset(screenLines, 0, (screenRows * sizeof(screenLineInfo)));
 
 	screenLines[0].filePos = firstLineFilePos;
 
@@ -301,9 +305,14 @@ static void setCursorColumn(int column)
 	for (count = 0; count < column; count ++)
 	{
 		if (buffer[screenLines[screenLine].filePos + count] == '\t')
-			screenColumn += (TEXT_DEFAULT_TAB - (screenColumn % TEXT_DEFAULT_TAB));
+		{
+			screenColumn += (TEXT_DEFAULT_TAB - (screenColumn %
+				TEXT_DEFAULT_TAB));
+		}
 		else
+		{
 			screenColumn += 1;
+		}
 	}
 
 	textSetRow(screenLines[screenLine].screenStartRow +
@@ -322,8 +331,8 @@ static int doLoadFile(const char *fileName)
 	int openFlags = OPENMODE_READWRITE;
 
 	// Initialize the file structure
-	bzero(&tmpFile, sizeof(file));
-	bzero(&editFileStream, sizeof(fileStream));
+	memset(&tmpFile, 0, sizeof(file));
+	memset(&editFileStream, 0, sizeof(fileStream));
 
 	if (buffer)
 		free(buffer);
@@ -341,11 +350,12 @@ static int doLoadFile(const char *fileName)
 			openFlags = OPENMODE_READ;
 	}
 
-	if ((status < 0) || (tmpFile.size == 0))
+	if ((status < 0) || !tmpFile.size)
 	{
 		// The file either doesn't exist or is zero-length.
 
-		// If the file doesn't exist, and the filesystem is read-only, quit here
+		// If the file doesn't exist, and the filesystem is read-only, quit
+		// here
 		if ((status < 0) && readOnly)
 			return (status = ERR_NOWRITE);
 
@@ -360,7 +370,7 @@ static int doLoadFile(const char *fileName)
 		// Use a default initial buffer size of one file block
 		bufferSize = editFileStream.f.blockSize;
 		buffer = malloc(bufferSize);
-		if (buffer == NULL)
+		if (!buffer)
 			return (status = ERR_MEMORY);
 	}
 	else
@@ -374,10 +384,11 @@ static int doLoadFile(const char *fileName)
 		// Allocate a buffer to store the file contents in
 		bufferSize = (editFileStream.f.blocks * editFileStream.f.blockSize);
 		buffer = malloc(bufferSize);
-		if (buffer == NULL)
+		if (!buffer)
 			return (status = ERR_MEMORY);
 
-		status = fileStreamRead(&editFileStream, editFileStream.f.size, buffer);
+		status = fileStreamRead(&editFileStream, editFileStream.f.size,
+			buffer);
 		if (status < 0)
 			return (status);
 	}
@@ -430,7 +441,7 @@ static int loadFile(const char *fileName)
 			// Use a default initial buffer size of one file block.
 			bufferSize = editFileStream.f.blockSize;
 			buffer = malloc(bufferSize);
-			if (buffer == NULL)
+			if (!buffer)
 				return (status = ERR_MEMORY);
 
 			strncpy(editFileName, UNTITLED_FILENAME, MAX_PATH_NAME_LENGTH);
@@ -439,7 +450,7 @@ static int loadFile(const char *fileName)
 			// later if it doesn't get saved.
 
 			tempFileName = malloc(MAX_PATH_NAME_LENGTH);
-			if (tempFileName == NULL)
+			if (!tempFileName)
 				return (status = ERR_MEMORY);
 
 			if (fileGetFullPath(&editFileStream.f, tempFileName,
@@ -489,8 +500,8 @@ static int loadFile(const char *fileName)
 	if (graphics)
 	{
 		if (readOnly)
-			windowComponentSetEnabled(fileMenuContents.items[FILEMENU_SAVE].key,
-				0);
+			windowComponentSetEnabled(
+				fileMenuContents.items[FILEMENU_SAVE].key, 0);
 		windowComponentFocus(textArea);
 	}
 
@@ -563,7 +574,7 @@ static unsigned previousLineStart(unsigned filePos)
 {
 	unsigned lineStart = 0;
 
-	if (filePos == 0)
+	if (!filePos)
 		return (lineStart = 0);
 
 	lineStart = (filePos - 1);
@@ -706,7 +717,7 @@ static int expandBuffer(unsigned length)
 			editFileStream.f.blockSize));
 
 	tmpBuffer = realloc(buffer, tmpBufferSize);
-	if (tmpBuffer == NULL)
+	if (!tmpBuffer)
 		return (status = ERR_MEMORY);
 
 	buffer = tmpBuffer;
@@ -804,11 +815,14 @@ static void deleteChars(unsigned length)
 	int count;
 
 	if ((screenLines[screenLine].filePos + cursorColumn) < (fileSize - 1))
+	{
 		// Shift data that occurs later in the buffer.
-		shiftBuffer((screenLines[screenLine].filePos + cursorColumn + 1), -length);
+		shiftBuffer((screenLines[screenLine].filePos + cursorColumn + 1),
+			-length);
+	}
 
 	// Clear data
-	bzero((buffer + (fileSize - length)), length);
+	memset((buffer + (fileSize - length)), 0, length);
 
 	// We need to adjust the recorded file positions of all lines that follow
 	// on the screen
@@ -951,7 +965,8 @@ static int askDiscardChanges(void)
 	{
 		response = windowNewChoiceDialog(window, _("Discard changes?"),
 			DISCARDQUESTION, (char *[]) { _("Discard"), _("Cancel") }, 2, 1);
-		if (response == 0)
+
+		if (!response)
 			return (1);
 		else
 			return (0);
@@ -969,7 +984,7 @@ static void openFileThread(void)
 	char *fileName = NULL;
 
 	fileName = malloc(MAX_PATH_NAME_LENGTH);
-	if (fileName == NULL)
+	if (!fileName)
 		goto out;
 
 	status = askFileName(fileName);
@@ -1046,7 +1061,8 @@ static void refreshMenuContents(void)
 	for (count = 0; count < fileMenuContents.numItems; count ++)
 		windowComponentSetData(fileMenuContents.items[count].key,
 			fileMenuContents.items[count].text,
-			strlen(fileMenuContents.items[count].text));
+			strlen(fileMenuContents.items[count].text),
+			(count == (fileMenuContents.numItems - 1)));
 }
 
 
@@ -1056,7 +1072,7 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("edit");
 
 	// Refresh all the menu contents
@@ -1106,8 +1122,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 		{
 			if (!modified || askDiscardChanges())
 			{
-				if (multitaskerSpawn(&openFileThread, "open file", 0, NULL) < 0)
+				if (multitaskerSpawn(&openFileThread, "open file", 0,
+					NULL) < 0)
+				{
 					error("%s", _("Unable to launch file dialog"));
+				}
 			}
 		}
 	}
@@ -1134,8 +1153,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 	 	if (event->type & EVENT_CURSOR_MOVE)
 		{
-			// The user clicked to move the cursor, which is a pain.  We need to
-			// try to figure out the new screen line.
+			// The user clicked to move the cursor, which is a pain.  We need
+			// to try to figure out the new screen line.
 
 			oldScreenLine = screenLine;
 			newRow = textGetRow();
@@ -1178,7 +1197,7 @@ static void constructWindow(void)
 	// Create a new window
 	window = windowNew(processId, WINDOW_TITLE);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 
 	// Create the top menu bar
 	objectKey menuBar = windowNewMenuBar(window, &params);
@@ -1201,7 +1220,8 @@ static void constructWindow(void)
 	fontGetDefault(&font);
 	status = fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL);
 	if (status >= 0)
-		status = fontLoad("xterm-normal-10.vbf", "xterm-normal-10", &font, 1);
+		status = fontLoadSystem("xterm-normal-10.vbf", "xterm-normal-10",
+			&font, 1);
 	if (status < 0)
 		// We'll be using the system font we guess.  The system font can
 		// comfortably show more rows
@@ -1223,7 +1243,8 @@ static void constructWindow(void)
 	params.gridY += 1;
 	params.padBottom = 1;
 	if (fileFind(PATH_SYSTEM_FONTS "/arial-bold-10.vbf", NULL) >= 0)
-		fontLoad("arial-bold-10.vbf", "arial-bold-10", &(params.font), 1);
+		fontLoadSystem("arial-bold-10.vbf", "arial-bold-10",
+			&(params.font), 1);
 	statusLabel = windowNewTextLabel(window, "", &params);
 	windowComponentSetWidth(statusLabel, windowComponentGetWidth(textArea));
 
@@ -1245,7 +1266,7 @@ int main(int argc, char *argv[])
 	char *fileName = NULL;
 	textScreen screen;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("edit");
 
 	processId = multitaskerGetCurrentProcessId();
@@ -1261,11 +1282,20 @@ int main(int argc, char *argv[])
 		return (status = ERR_NOTINITIALIZED);
 	}
 
-	while (strchr("T", (opt = getopt(argc, argv, "T"))))
+	// Check options
+	while (strchr("T?", (opt = getopt(argc, argv, "T"))))
 	{
-		// Force text mode?
-		if (opt == 'T')
-			graphics = 0;
+		switch (opt)
+		{
+			case 'T':
+				// Force text mode
+				graphics = 0;
+				break;
+
+			default:
+				error(_("Unknown option '%c'"), optopt);
+				return (status = ERR_INVALID);
+		}
 	}
 
 	if (optind < argc)
@@ -1290,7 +1320,7 @@ int main(int argc, char *argv[])
 
 	screenLines = malloc(screenRows * sizeof(screenLineInfo));
 	editFileName = malloc(MAX_PATH_NAME_LENGTH);
-	if ((screenLines == NULL) || (editFileName == NULL))
+	if (!screenLines || !editFileName)
 	{
 		status = ERR_MEMORY;
 		goto out;

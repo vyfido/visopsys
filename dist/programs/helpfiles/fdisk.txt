@@ -19,7 +19,3 @@ Options:
 -T              : Force text mode operation
 -o <disk_name>  : Clear the partition table of the specified disk
 
-Development of this program is ongoing and will be a major focus of
-improvements in future releases,  aiming towards providing much of the same
-functionality of PartitionMagic and similar utilities.
-

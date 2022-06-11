@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,10 +24,11 @@
 #include "kernelDevice.h"
 
 typedef struct {
-  void (*driverTick) (void);
-  int (*driverRead) (void);
-  int (*driverReadValue) (int);
-  int (*driverSetupTimer) (int, int, int);
+	void (*driverTick)(void);
+	int (*driverRead)(void);
+	int (*driverReadValue)(int);
+	int (*driverSetupTimer)(int, int, int);
+	int (*driverGetOutput)(int);
 
 } kernelSysTimerOps;
 
@@ -37,6 +38,7 @@ void kernelSysTimerTick(void);
 unsigned kernelSysTimerRead(void);
 int kernelSysTimerReadValue(int);
 int kernelSysTimerSetupTimer(int, int, int);
+int kernelSysTimerGetOutput(int);
 void kernelSysTimerWaitTicks(int);
 
 #define _KERNELSYSTIMER_H

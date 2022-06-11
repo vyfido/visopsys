@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -39,7 +39,7 @@ Usage:
 #include <sys/api.h>
 
 
-int main(int argc __attribute__((unused)), char *argv[])
+int main(int argc, char *argv[])
 {
 	int status = 0;
 	struct tm theTime;
@@ -48,7 +48,8 @@ int main(int argc __attribute__((unused)), char *argv[])
 	status = rtcDateTime(&theTime);
 	if (status < 0)
 	{
-		perror(argv[0]);
+		if (argc)
+			perror(argv[0]);
 		return (status);
 	}
 
@@ -58,3 +59,4 @@ int main(int argc __attribute__((unused)), char *argv[])
 	// Done
 	return (0);
 }
+

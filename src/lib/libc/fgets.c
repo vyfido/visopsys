@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -46,8 +46,7 @@ char *fgets(char *string, int size, FILE *theStream)
 	if (theStream == stdin)
 	{
 		tmpString = readline(NULL);
-
-		if (tmpString == NULL)
+		if (!tmpString)
 		{
 			errno = ERR_IO;
 			return (string = NULL);
@@ -70,3 +69,4 @@ char *fgets(char *string, int size, FILE *theStream)
 
 	return (string);
 }
+

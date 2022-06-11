@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2014 J. Andrew McLaughlin
+##  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ##
 ##  makepot.sh
 ##

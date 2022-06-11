@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,6 +57,7 @@ Options:
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/env.h>
 #include <sys/errors.h>
 #include <sys/paths.h>
 #include <sys/window.h>
@@ -68,8 +69,7 @@ Options:
 #define LOGINNAME	_("Please enter your login name:")
 #define LOGINPASS	_("Please enter your password:")
 #define READONLY	_("You are running the system from a read-only device.\n" \
-					"You will not be able to alter settings, or generally\n" \
-					"change anything.")
+	"You will not be able to alter settings, or generally\nchange anything.")
 #define MAX_LOGIN_LENGTH	64
 
 // The following are only used if we are running a graphics mode login window.
@@ -86,8 +86,7 @@ static objectKey shutdownButton = NULL;
 static char login[MAX_LOGIN_LENGTH];
 static char password[MAX_LOGIN_LENGTH];
 
-typedef enum
-{
+typedef enum {
 	halt, reboot
 
 } shutdownType;
@@ -122,12 +121,15 @@ static void processChar(char *buffer, unsigned char bufferChar, int echo)
 		printf("\n");
 
 		if (graphics)
+		{
 			windowNewErrorDialog(window, _("Error"), tooLong);
+		}
 		else
 		{
 			printf("%s\n", tooLong);
 			printPrompt();
 		}
+
 		return;
 	}
 
@@ -141,7 +143,9 @@ static void processChar(char *buffer, unsigned char bufferChar, int echo)
 	}
 
 	else if (bufferChar == (unsigned char) 10)
+	{
 		printf("\n");
+	}
 
 	else
 	{
@@ -167,20 +171,22 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 		if (key == rebootButton)
 			shutdown(reboot, 0);
+
 		else if (key == shutdownButton)
 			shutdown(halt, 0);
 	}
 
-	else if ((event->type == EVENT_KEY_DOWN) && (event->key == ASCII_ENTER))
+	else if ((event->type == EVENT_KEY_DOWN) && (event->key == keyEnter))
 	{
 		// Get the data from our field
-		if (stage == 0)
+		if (!stage)
 		{
 			windowComponentGetData(loginField, login, MAX_LOGIN_LENGTH);
-			windowComponentSetData(loginField, "", 0);
+			windowComponentSetData(loginField, "", 0, 1 /* redraw */);
 			if (!strcmp(login, ""))
 				return;
-			windowComponentSetData(textLabel, LOGINPASS, strlen(LOGINPASS));
+			windowComponentSetData(textLabel, LOGINPASS, strlen(LOGINPASS),
+				1 /* redraw */);
 			windowComponentSetVisible(loginField, 0);
 			windowComponentSetVisible(passwordField, 1);
 			windowComponentFocus(passwordField);
@@ -190,6 +196,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		{
 			windowComponentGetData(passwordField, password, MAX_LOGIN_LENGTH);
 			stage = 0;
+
 			// Now we interpret the login
 			windowGuiStop();
 		}
@@ -210,10 +217,10 @@ static void constructWindow(int myProcessId)
 
 	// Create a new window, with small, arbitrary size and location
 	window = windowNew(myProcessId, _("Login Window"));
-	if (window == NULL)
+	if (!window)
 		return;
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 2;
 	params.gridHeight = 1;
 	params.padLeft = 5;
@@ -222,11 +229,11 @@ static void constructWindow(int myProcessId)
 	params.orientationX = orient_center;
 	params.orientationY = orient_top;
 
-	if (splashImage.data == NULL)
+	if (!splashImage.data)
 		// Try to load a splash image to go at the top of the window
 		imageLoad(PATH_SYSTEM "/visopsys.jpg", 0, 0, &splashImage);
 
-	if (splashImage.data != NULL)
+	if (splashImage.data)
 	{
 		// Create an image component from it, and add it to the window
 		params.gridY = 0;
@@ -283,9 +290,10 @@ static void getLogin(void)
 	if (graphics)
 	{
 		windowComponentSetVisible(passwordField, 0);
-		windowComponentSetData(passwordField, "", 0);
-		windowComponentSetData(textLabel, LOGINNAME, strlen(LOGINNAME));
-		windowComponentSetData(loginField, "", 0);
+		windowComponentSetData(passwordField, "", 0, 1 /* redraw */);
+		windowComponentSetData(textLabel, LOGINNAME, strlen(LOGINNAME),
+			1 /* redraw */);
+		windowComponentSetData(loginField, "", 0, 1 /* redraw */);
 		windowComponentSetVisible(loginField, 1);
 		windowComponentFocus(loginField);
 		windowGuiRun();
@@ -307,15 +315,17 @@ static void getLogin(void)
 			if (bufferCharacter == (unsigned char) 10)
 			{
 				if (strcmp(login, ""))
+				{
 					// Now we interpret the login
 					break;
-
+				}
 				else
 				{
 					// The user hit 'enter' without typing anything.
 					// Make a new prompt
 					if (!graphics)
 						printPrompt();
+
 					continue;
 				}
 			}
@@ -349,7 +359,7 @@ int main(int argc, char *argv[])
 	int shellPid = 0;
 	disk sysDisk;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("login");
 
 	// A lot of what we do is different depending on whether we're in graphics
@@ -357,23 +367,36 @@ int main(int argc, char *argv[])
 	graphics = graphicsAreEnabled();
 
 	if (graphics)
-		bzero(&splashImage, sizeof(image));
+		memset(&splashImage, 0, sizeof(image));
 
-	// Check for options
-	while (strchr("Tf:", (opt = getopt(argc, argv, "Tf:"))))
+	// Check options
+	while (strchr("fT:?", (opt = getopt(argc, argv, "f:T"))))
 	{
-		switch(opt)
+		switch (opt)
 		{
 			case 'f':
 				// Login using the supplied user name and no password
 				strncpy(login, optarg, MAX_LOGIN_LENGTH);
 				skipLogin = 1;
 				break;
+
 			case 'T':
 				// Force text mode
 				graphics = 0;
+				break;
+
+			case ':':
+				fprintf(stderr, _("Missing parameter for %s option\n"),
+					argv[optind - 1]);
+				goto skipOpts;
+
+			default:
+				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
+				goto skipOpts;
 		}
 	}
+
+skipOpts:
 
 	// Find out whether we are currently running on a read-only filesystem
 	if (!fileGetDisk("/", &sysDisk))
@@ -387,6 +410,7 @@ int main(int argc, char *argv[])
 		if (graphics)
 		{
 			constructWindow(myPid);
+
 			if (!skipLogin)
 				windowSetVisible(window, 1);
 		}
@@ -396,6 +420,7 @@ int main(int argc, char *argv[])
 		{
 			if (!skipLogin)
 				getLogin();
+
 			skipLogin = 0;
 
 			// We have a login name to process.  Authenticate the user and
@@ -407,8 +432,10 @@ int main(int argc, char *argv[])
 					windowNewErrorDialog(window, _("Error"), AUTHFAILED);
 				else
 					printf("\n*** %s ***\n\n", AUTHFAILED);
+
 				if (graphics)
 					windowSetVisible(window, 1);
+
 				continue;
 			}
 

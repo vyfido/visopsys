@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -57,9 +57,10 @@ static void progressThread(void)
 	{
 		// Set initial display values.  After this we only watch for changes to
 		// these.
-		windowComponentSetData(progressBar, (void *) prog->percentFinished, 1);
+		windowComponentSetData(progressBar, (void *) prog->percentFinished, 1,
+			1 /* redraw */);
 		windowComponentSetData(statusLabel, (char *) prog->statusMessage,
-			strlen((char *) prog->statusMessage));
+			strlen((char *) prog->statusMessage), 1 /* redraw */);
 		lockRelease(&prog->progLock);
 	}
 
@@ -79,7 +80,7 @@ static void progressThread(void)
 				// Look for progress percentage changes
 				if (prog->percentFinished != lastProg.percentFinished)
 					windowComponentSetData(progressBar,
-						(void *) prog->percentFinished, 1);
+						(void *) prog->percentFinished, 1, 1 /* redraw */);
 
 				// Look for status message changes
 				if (strncmp((char *) prog->statusMessage,
@@ -87,7 +88,7 @@ static void progressThread(void)
 				{
 					windowComponentSetData(statusLabel,
 						(char *) prog->statusMessage,
-						strlen((char *) prog->statusMessage));
+						strlen((char *) prog->statusMessage), 1 /* redraw */);
 				}
 
 				// Look for 'can cancel' flag changes
@@ -184,7 +185,7 @@ _X_ objectKey windowNewProgressDialog(objectKey parentWindow, const char *title,
 	if (!dialogWindow)
 		return (dialogWindow);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 5;
@@ -308,9 +309,9 @@ _X_ int windowProgressDialogDestroy(objectKey window)
 		if (status < 0)
 			return (status);
 
-		windowComponentSetData(progressBar, (void *) 100, 1);
+		windowComponentSetData(progressBar, (void *) 100, 1, 1 /* redraw */);
 		windowComponentSetData(statusLabel, (char *) prog->statusMessage,
-			strlen((char *) prog->statusMessage));
+			strlen((char *) prog->statusMessage), 1 /* redraw */);
 	}
 
 	if (threadPid && multitaskerProcessIsAlive(threadPid))

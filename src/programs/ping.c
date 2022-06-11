@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -51,6 +51,7 @@ Options:
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/network.h>
 #include <sys/paths.h>
 
@@ -137,7 +138,7 @@ static void responseThread(void)
 	networkPingPacket *pingPacket = NULL;
 
 	buffer = malloc(NETWORK_PACKET_MAX_LENGTH);
-	if (buffer == NULL)
+	if (!buffer)
 	{
 		errno = ERR_MEMORY;
 		multitaskerTerminate(errno);
@@ -160,11 +161,11 @@ static void responseThread(void)
 				swab(&(pingPacket->sequenceNum), &(pingPacket->sequenceNum),
 					sizeof(unsigned short));
 
-				printf(_("%d bytes from %d.%d.%d.%d: icmp_seq=%d ttl=%d time=X "
-					"ms\n"), ipHeader->totalLength,  srcAddress->bytes[0],
-					srcAddress->bytes[1], srcAddress->bytes[2],
-					srcAddress->bytes[3], pingPacket->sequenceNum,
-					ipHeader->timeToLive);
+				printf(_("%d bytes from %d.%d.%d.%d: icmp_seq=%d ttl=%d "
+					"time=X ms\n"), ipHeader->totalLength,
+					srcAddress->bytes[0], srcAddress->bytes[1],
+					srcAddress->bytes[2], srcAddress->bytes[3],
+					pingPacket->sequenceNum, ipHeader->timeToLive);
 
 				packetsReceived += 1;
 			}
@@ -183,7 +184,7 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("ping");
 
 	// Refresh the window title
@@ -216,10 +217,10 @@ static void constructWindow(void)
 
 	// Create a new window
 	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
-	if (window == NULL)
+	if (!window)
 		return;
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 
 	// A text label to show whom we're pinging
 	params.gridWidth = 1;
@@ -232,7 +233,8 @@ static void constructWindow(void)
 	windowNewTextLabel(window, pingWhom, &params);
 
 	if (fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL) >= 0)
-		fontLoad("xterm-normal-10.vbf", "xterm-normal-10", &(params.font), 1);
+		fontLoadSystem("xterm-normal-10.vbf", "xterm-normal-10",
+			&(params.font), 1);
 
 	// Create a text area to show our ping activity
 	params.gridY = 1;
@@ -273,17 +275,27 @@ int main(int argc, char *argv[])
 	unsigned tmpTime = 0;
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("ping");
 
 	// Are graphics enabled?
 	graphics = graphicsAreEnabled();
 
-	while (strchr("T", (opt = getopt(argc, argv, "T"))))
+	// Check options
+	while (strchr("T?", (opt = getopt(argc, argv, "T"))))
 	{
-		// Force text mode?
-		if (opt == 'T')
-			graphics = 0;
+		switch (opt)
+		{
+			case 'T':
+				// Force text mode
+				graphics = 0;
+				break;
+
+			default:
+				error(_("Unknown option '%c'"), optopt);
+				usage(argv[0]);
+				return (status = ERR_INVALID);
+		}
 	}
 
 	// Make sure networking is enabled
@@ -339,7 +351,7 @@ int main(int argc, char *argv[])
 
 	// Get memory for our ping data buffer
 	pingData = malloc(NETWORK_PING_DATASIZE);
-	if (pingData == NULL)
+	if (!pingData)
 	{
 		error("%s", _("Memory allocation error"));
 		quit(errno = ERR_MEMORY);
@@ -350,7 +362,7 @@ int main(int argc, char *argv[])
 		pingData[count] = (char) (count + 65);
 
 	// Clear out our filter and ask for the network the headers we want
-	bzero(&filter, sizeof(networkFilter));
+	memset(&filter, 0, sizeof(networkFilter));
 	filter.headers = NETWORK_HEADERS_NET;
 	filter.transProtocol = NETWORK_TRANSPROTOCOL_ICMP;
 	filter.subProtocol = NETWORK_ICMP_ECHOREPLY;
@@ -358,14 +370,14 @@ int main(int argc, char *argv[])
 	// Open a raw network-level connection on the adapter in order to receive
 	// the ping replies
 	connection = networkOpen(NETWORK_MODE_READWRITE, &address, &filter);
-	if (connection == NULL)
+	if (!connection)
 	{
 		error("%s", _("Error opening network connection"));
 		quit(errno = ERR_IO);
 	}
 
-	sprintf(pingWhom, _("Ping %d.%d.%d.%d %d bytes of data\n"), address.bytes[0],
-		address.bytes[1], address.bytes[2], address.bytes[3],
+	sprintf(pingWhom, _("Ping %d.%d.%d.%d %d bytes of data\n"),
+		address.bytes[0], address.bytes[1], address.bytes[2], address.bytes[3],
 		NETWORK_PING_DATASIZE);
 
 	if (graphics)
@@ -397,7 +409,8 @@ int main(int argc, char *argv[])
 
 	for (count = 0; !stop ; count ++)
 	{
-		status = networkPing(connection, count, pingData, NETWORK_PING_DATASIZE);
+		status = networkPing(connection, count, pingData,
+			NETWORK_PING_DATASIZE);
 		if (status < 0)
 		{
 			error("%s", _("Error pinging host"));

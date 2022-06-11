@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,33 +27,34 @@
 // Prototype:
 //   void abspath(const char *orig, char *new)
 {
-  int status = 0;
+	int status = 0;
 
-  // Check params
-  if ((orig == NULL) || (new == NULL))
-    {
-      errno = ERR_NULLPARAMETER;
-      return;
-    }
-
-  if ((orig[0] != '/') && (orig[0] != '\\'))
-    {
-      // Get the current directory
-      status = multitaskerGetCurrentDirectory(new, MAX_PATH_LENGTH);
-      if (status < 0)
+	// Check params
+	if (!orig || !new)
 	{
-	  errno = status;
-	  return;
+		errno = ERR_NULLPARAMETER;
+		return;
 	}
 
-      if ((new[strlen(new) - 1] != '/') && (new[strlen(new) - 1] != '\\'))
-        strcat(new, "/");
+	if ((orig[0] != '/') && (orig[0] != '\\'))
+	{
+		// Get the current directory
+		status = multitaskerGetCurrentDirectory(new, MAX_PATH_LENGTH);
+		if (status < 0)
+		{
+			errno = status;
+			return;
+		}
 
-      strcat(new, orig);
-    }
+		if ((new[strlen(new) - 1] != '/') && (new[strlen(new) - 1] != '\\'))
+			strcat(new, "/");
 
-  else
-    strcpy(new, orig);
+		strcat(new, orig);
+	}
 
-  return;
+	else
+		strcpy(new, orig);
+
+	return;
 }
+

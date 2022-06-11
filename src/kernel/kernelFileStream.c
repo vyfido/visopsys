@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,7 +28,6 @@
 #include "kernelError.h"
 #include "kernelFile.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -52,7 +51,7 @@ static int readBlock(fileStream *theStream)
 	}
 
 	// Read the block of the file, and put it into the stream.
-	status = kernelFileRead(&(theStream->f), theStream->block, 1,
+	status = kernelFileRead(&theStream->f, theStream->block, 1,
 		theStream->buffer);
 	if (status < 0)
 		return (status);
@@ -76,7 +75,7 @@ static int writeBlock(fileStream *theStream)
 		theStream->block);
 
 	// Write the requested block of the file from the stream.
-	status = kernelFileWrite(&(theStream->f), theStream->block, 1,
+	status = kernelFileWrite(&theStream->f, theStream->block, 1,
 		theStream->buffer);
 	if (status < 0)
 		return (status);
@@ -90,7 +89,7 @@ static int writeBlock(fileStream *theStream)
 	{
 		kernelDebug(debug_io, "FileStream %s size %u", theStream->f.name,
 			theStream->size);
-		kernelFileEntrySetSize(theStream->f.handle, theStream->size);
+		kernelFileSetSize(&theStream->f, theStream->size);
 	}
 
 	kernelDebug(debug_io, "FileStream wrote block");
@@ -100,7 +99,7 @@ static int writeBlock(fileStream *theStream)
 }
 
 
-static int attachToFile(fileStream *newStream)
+static int attachToFile(fileStream *newStream, int openMode)
 {
 	// Given a fileStream structure with a valid file inside it, start up the
 	// stream.
@@ -115,15 +114,23 @@ static int attachToFile(fileStream *newStream)
 	if (!newStream->buffer)
 		return (status = ERR_MEMORY);
 
-	// If there's existing data in the file, read the first block into the buffer
+	newStream->size = newStream->f.size;
+
+	// If the file is opened write-only, we are in 'append' mode.
+	if (OPENMODE_ISWRITEONLY(openMode))
+	{
+		newStream->offset = newStream->size;
+		newStream->block = (newStream->offset / newStream->f.blockSize);
+	}
+
+	// If there's existing data in the file, read the current (first or last)
+	// block into the buffer
 	if (newStream->f.blocks)
 	{
 		status = readBlock(newStream);
 		if (status < 0)
 			return (status);
 	}
-
-	newStream->size = newStream->f.size;
 
 	return (status = 0);
 }
@@ -136,7 +143,6 @@ static int attachToFile(fileStream *newStream)
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelFileStreamOpen(const char *name, int openMode, fileStream *newStream)
 {
@@ -156,18 +162,18 @@ int kernelFileStreamOpen(const char *name, int openMode, fileStream *newStream)
 	kernelDebug(debug_io, "FileStream open %s mode %x", name, openMode);
 
 	// Clear out the fileStream structure
-	kernelMemClear(newStream, sizeof(fileStream));
+	memset(newStream, 0, sizeof(fileStream));
 
 	// Attempt to open the file with the requested name.  Supply a pointer
 	// to the file structure in the new stream structure
-	status = kernelFileOpen(name, openMode, &(newStream->f));
+	status = kernelFileOpen(name, openMode, &newStream->f);
 	if (status < 0)
 		return (status);
 
-	status = attachToFile(newStream);
+	status = attachToFile(newStream, openMode);
 	if (status < 0)
 	{
-		kernelFileClose(&(newStream->f));
+		kernelFileClose(&newStream->f);
 		return (status);
 	}
 
@@ -216,7 +222,7 @@ int kernelFileStreamSeek(fileStream *theStream, unsigned offset)
 	kernelDebug(debug_io, "FileStream seek %s to %u", theStream->f.name,
 		offset);
 
-	// Does the new block differ from the new one?
+	// Does the new block differ from the current one?
 	if ((offset / theStream->f.blockSize) != theStream->block)
 	{
 		// If we're dirty, flush any existing stuff
@@ -238,11 +244,15 @@ int kernelFileStreamSeek(fileStream *theStream, unsigned offset)
 				return (status);
 		}
 		else if (theStream->f.openMode & OPENMODE_WRITE)
+		{
 			// Simply clear the buffer
-			kernelMemClear(theStream->buffer, theStream->f.blockSize);
+			memset(theStream->buffer, 0, theStream->f.blockSize);
+		}
 	}
 	else
+	{
 		theStream->offset = offset;
+	}
 
 	// Return success
 	return (status = 0);
@@ -256,10 +266,13 @@ int kernelFileStreamRead(fileStream *theStream, unsigned readBytes,
 	// stream into the supplied buffer
 
 	int status = 0;
+	unsigned doneBytes = 0;
 	unsigned blockOffset = 0;
 	unsigned remainder = 0;
 	unsigned bytes = 0;
-	unsigned doneBytes = 0;
+	unsigned bufferAlign = 0;
+	unsigned wholeBlocks = 0;
+	unsigned wholeBlockBytes = 0;
 
 	// Check params
 	if (!theStream || !buffer)
@@ -284,7 +297,7 @@ int kernelFileStreamRead(fileStream *theStream, unsigned readBytes,
 
 	while ((doneBytes < readBytes) && (theStream->offset < theStream->size))
 	{
-		// How many bytes remain in the buffer currently?  We will grab either
+		// How many bytes remain in the block currently?  We will grab either
 		// readBytes bytes, or all the bytes depending on which is greater
 		blockOffset = (theStream->offset % theStream->f.blockSize);
 		remainder = (theStream->f.blockSize - blockOffset);
@@ -295,9 +308,45 @@ int kernelFileStreamRead(fileStream *theStream, unsigned readBytes,
 		if ((theStream->size - theStream->offset) < bytes)
 			bytes = (theStream->size - theStream->offset);
 
-		// Copy 'bytes' bytes from the stream buffer to the output buffer
-		kernelMemCopy((theStream->buffer + blockOffset), (buffer + doneBytes),
-			bytes);
+		// See whether we can save time by doing multiple blocks.
+		wholeBlocks = 0;
+		if (bytes >= theStream->f.blockSize)
+		{
+			// Calculate any caller buffer misalignment.  Whole-block reads
+			// must be dword-aligned.
+			bufferAlign = (4 - ((unsigned)(buffer + doneBytes) % 4));
+
+			wholeBlocks = ((readBytes - (doneBytes + bufferAlign)) /
+				theStream->f.blockSize);
+		}
+
+		if (wholeBlocks > 1)
+		{
+			// We can read multiple whole blocks straight into the caller's
+			// buffer
+
+			wholeBlockBytes = (wholeBlocks * theStream->f.blockSize);
+
+			status = kernelFileRead(&theStream->f, theStream->block,
+				wholeBlocks, (buffer + doneBytes + bufferAlign));
+			if (status < 0)
+				return (status);
+
+			if (bufferAlign)
+			{
+				// We aligned the pointer.  Move the data back again.
+				memcpy((buffer + doneBytes), (buffer + doneBytes +
+					bufferAlign), wholeBlockBytes);
+			}
+
+			bytes = wholeBlockBytes;
+		}
+		else
+		{
+			// Copy 'bytes' bytes from the stream buffer to the output buffer
+			memcpy((buffer + doneBytes), (theStream->buffer + blockOffset),
+				bytes);
+		}
 
 		doneBytes += bytes;
 		theStream->offset += bytes;
@@ -314,8 +363,10 @@ int kernelFileStreamRead(fileStream *theStream, unsigned readBytes,
 					return (status);
 			}
 			else if (theStream->f.openMode & OPENMODE_WRITE)
+			{
 				// Simply clear the buffer
-				kernelMemClear(theStream->buffer, theStream->f.blockSize);
+				memset(theStream->buffer, 0, theStream->f.blockSize);
+			}
 		}
 	}
 
@@ -348,7 +399,7 @@ int kernelFileStreamReadLine(fileStream *theStream, unsigned maxBytes,
 	// Make sure this file is open in a read mode
 	if (!(theStream->f.openMode & OPENMODE_READ))
 	{
-		kernelError(kernel_error, "file not open in read mode");
+		kernelError(kernel_error, "File not open in read mode");
 		return (status = ERR_INVALID);
 	}
 
@@ -379,8 +430,10 @@ int kernelFileStreamReadLine(fileStream *theStream, unsigned maxBytes,
 					return (status);
 			}
 			else if (theStream->f.openMode & OPENMODE_WRITE)
+			{
 				// Simply clear the buffer
-				kernelMemClear(theStream->buffer, theStream->f.blockSize);
+				memset(theStream->buffer, 0, theStream->f.blockSize);
+			}
 		}
 
 		if (buffer[doneBytes - 1] == '\n')
@@ -406,10 +459,15 @@ int kernelFileStreamWrite(fileStream *theStream, unsigned writeBytes,
 	// supplied buffer to the file stream at the current offset.
 
 	int status = 0;
+	unsigned doneBytes = 0;
 	unsigned blockOffset = 0;
 	unsigned remainder = 0;
 	unsigned bytes = 0;
-	unsigned doneBytes = 0;
+	unsigned bufferAlign = 0;
+	unsigned wholeBlocks = 0;
+	unsigned wholeBlockBytes = 0;
+	unsigned char tmp[4];
+	unsigned count;
 
 	// Check params
 	if (!theStream || !buffer)
@@ -424,13 +482,13 @@ int kernelFileStreamWrite(fileStream *theStream, unsigned writeBytes,
 	// Make sure this file is open in a write mode
 	if (!(theStream->f.openMode & OPENMODE_WRITE))
 	{
-		kernelError(kernel_error, "file not open in write mode");
+		kernelError(kernel_error, "File not open in write mode");
 		return (status = ERR_INVALID);
 	}
 
 	while (doneBytes < writeBytes)
 	{
-		// How many bytes remain in the buffer currently?  We will insert
+		// How many bytes remain in the block currently?  We will insert
 		// either writeBytes bytes, or all the bytes depending on which is
 		// greater
 		blockOffset = (theStream->offset % theStream->f.blockSize);
@@ -438,13 +496,59 @@ int kernelFileStreamWrite(fileStream *theStream, unsigned writeBytes,
 
 		bytes = min(remainder, (writeBytes - doneBytes));
 
-		//kernelDebug(debug_io, "FileStream loop bytes=%d at %d", bytes,
-		//	theStream->offset);
+		// See whether we can save time by doing multiple blocks.
+		wholeBlocks = 0;
+		if (bytes >= theStream->f.blockSize)
+		{
+			// Calculate any caller buffer misalignment.  Whole-block reads
+			// must be dword-aligned.
+			bufferAlign = (4 - ((unsigned)(buffer + doneBytes) % 4));
 
-		// Copy 'bytes' bytes from the output buffer to the stream buffer
-		theStream->dirty = 1;
-		kernelMemCopy((buffer + doneBytes), (theStream->buffer + blockOffset),
-			bytes);
+			wholeBlocks = ((writeBytes - (doneBytes + bufferAlign)) /
+				theStream->f.blockSize);
+		}
+
+		if (wholeBlocks > 1)
+		{
+			// We can write multiple whole blocks straight from the caller's
+			// buffer
+
+			wholeBlockBytes = (wholeBlocks * theStream->f.blockSize);
+
+			if (bufferAlign)
+			{
+				// We need to align the data.  Move the data forward.
+				for (count = 0; count < bufferAlign; count ++)
+					tmp[count] = buffer[doneBytes + wholeBlockBytes + count];
+				memmove((void *)(buffer + doneBytes + bufferAlign),
+					(buffer + doneBytes), wholeBlockBytes);
+			}
+
+			status = kernelFileWrite(&theStream->f, theStream->block,
+				wholeBlocks, (void *)(buffer + doneBytes + bufferAlign));
+			if (status < 0)
+				return (status);
+
+			if (bufferAlign)
+			{
+				// We aligned the pointer.  Move the data back again.
+				memcpy((void *)(buffer + doneBytes), (buffer + doneBytes +
+					bufferAlign), wholeBlockBytes);
+				for (count = 0; count < bufferAlign; count ++)
+					((unsigned char *) buffer)[doneBytes + wholeBlockBytes +
+						count] = tmp[count];
+			}
+
+			bytes = wholeBlockBytes;
+		}
+		else
+		{
+			theStream->dirty = 1;
+
+			// Copy 'bytes' bytes from the output buffer to the stream buffer
+			memcpy((theStream->buffer + blockOffset), (buffer + doneBytes),
+				bytes);
+		}
 
 		doneBytes += bytes;
 
@@ -457,10 +561,13 @@ int kernelFileStreamWrite(fileStream *theStream, unsigned writeBytes,
 			// The buffer is now full.  We will need to flush it and possibly
 			// read in the next block of the file
 
-			// Write the current block of the stream to the file.
-			status = writeBlock(theStream);
-			if (status < 0)
-				return (status);
+			if (theStream->dirty)
+			{
+				// Write the current block of the stream to the file.
+				status = writeBlock(theStream);
+				if (status < 0)
+					return (status);
+			}
 
 			theStream->block = (theStream->offset / theStream->f.blockSize);
 
@@ -475,8 +582,10 @@ int kernelFileStreamWrite(fileStream *theStream, unsigned writeBytes,
 					return (status);
 			}
 			else
+			{
 				// Simply clear the buffer
-				kernelMemClear(theStream->buffer, theStream->f.blockSize);
+				memset(theStream->buffer, 0, theStream->f.blockSize);
+			}
 		}
 	}
 
@@ -500,25 +609,27 @@ int kernelFileStreamWriteLine(fileStream *theStream, const char *buffer)
 	// is just like the kernelFileStreamWriteStr function above except that
 	// it adds a newline to the stream after the line has been added.
 
-	int status = 0;
+	int status1 = 0, status2 = 0;
 
 	// Check params
 	if (!theStream || !buffer)
 	{
 		kernelError(kernel_error, "NULL parameter");
-		return (status = ERR_NULLPARAMETER);
+		return (status1 = ERR_NULLPARAMETER);
 	}
 
 	kernelDebug(debug_io, "FileStream writeLine to %s", theStream->f.name);
 
-	status = kernelFileStreamWrite(theStream, strlen(buffer), buffer);
-	if (status < 0)
-		return (status);
+	status1 = kernelFileStreamWrite(theStream, strlen(buffer), buffer);
+	if (status1 < 0)
+		return (status1);
 
 	// Add a newline to the end of the stream
-	status = kernelFileStreamWrite(theStream, 1, "\n");
+	status2 = kernelFileStreamWrite(theStream, 1, "\n");
+	if (status1 < 0)
+		return (status2);
 
-	return (status);
+	return (status1 + status2);
 }
 
 
@@ -576,13 +687,13 @@ int kernelFileStreamClose(fileStream *theStream)
 		return (status);
 
 	// Close the file
-	status = kernelFileClose(&(theStream->f));
+	status = kernelFileClose(&theStream->f);
 	if (status < 0)
 		return (status);
 
 	// Free the buffer and clear the structure.
 	kernelFree(theStream->buffer);
-	kernelMemClear(theStream, sizeof(fileStream));
+	memset(theStream, 0, sizeof(fileStream));
 
 	return (status = 0);
 }
@@ -591,8 +702,7 @@ int kernelFileStreamClose(fileStream *theStream)
 int kernelFileStreamGetTemp(fileStream *newStream)
 {
 	// This function initializes the new filestream structure, opens a
-	// temporary file, and attaches it to the stream.  Returns 0 on success,
-	// negative otherwise.
+	// temporary file in read-write mode, and attaches it to the stream.
 
 	int status = 0;
 
@@ -604,22 +714,22 @@ int kernelFileStreamGetTemp(fileStream *newStream)
 	}
 
 	// Clear out the fileStream structure
-	kernelMemClear((void *) newStream, sizeof(fileStream));
+	memset((void *) newStream, 0, sizeof(fileStream));
 
 	// Attempt to open a temporary file.  Supply a pointer to the file
 	// structure in the new stream structure.
-	status = kernelFileGetTemp(&(newStream->f));
+	status = kernelFileGetTemp(&newStream->f);
 	if (status < 0)
 		return (status);
 
-	status = attachToFile(newStream);
+	status = attachToFile(newStream, OPENMODE_READWRITE);
 	if (status < 0)
 	{
-		kernelFileClose(&(newStream->f));
+		kernelFileClose(&newStream->f);
 		return (status);
 	}
 
-	// Yahoo, all set.
+	// Return success
 	return (status = 0);
 }
 

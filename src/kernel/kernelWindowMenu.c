@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,8 +25,8 @@
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelDebug.h"
 #include "kernelError.h"
-#include "kernelMisc.h"
 #include "kernelWindowEventStream.h"
+#include <string.h>
 
 static void (*saveFocus)(kernelWindow *, int) = NULL;
 
@@ -118,7 +118,7 @@ static int mouseEvent(kernelWindow *menu, kernelWindowComponent *component,
 
 		if (event->type & EVENT_MOUSE_LEFTUP)
 		{
-			kernelMemCopy(event, &tmpEvent, sizeof(windowEvent));
+			memcpy(&tmpEvent, event, sizeof(windowEvent));
 
 			// Make this also a 'selection' event
 			tmpEvent.type |= EVENT_SELECTION;
@@ -162,12 +162,12 @@ static int keyEvent(kernelWindow *menu, kernelWindowComponent *itemComponent,
 		// Not interested
 		return (0);
 
-	if ((event->key == ASCII_CRSRUP) || (event->key == ASCII_CRSRDOWN))
+	if ((event->key == keyUpArrow) || (event->key == keyDownArrow))
 	{
 		// Find the next thing to select.
 		for (count = 0; count < container->numComponents; count ++)
 		{
-			if (event->key == ASCII_CRSRUP)
+			if (event->key == keyUpArrow)
 			{
 				// Cursor up
 				if (tmpSelected == 0)
@@ -225,14 +225,14 @@ static int keyEvent(kernelWindow *menu, kernelWindowComponent *itemComponent,
 		}
 	}
 
-	else if (event->key == ASCII_ENTER)
+	else if (event->key == keyEnter)
 	{
 		// ENTER.  Is any item currently selected?
 		if (oldSelected >= 0)
 		{
 			itemComponent = container->components[oldSelected];
 
-			kernelMemCopy(event, &tmpEvent, sizeof(windowEvent));
+			memcpy(&tmpEvent, event, sizeof(windowEvent));
 
 			// Make this also a 'selection' event
 			tmpEvent.type |= EVENT_SELECTION;
@@ -252,7 +252,7 @@ static int keyEvent(kernelWindow *menu, kernelWindowComponent *itemComponent,
 		kernelWindowSetVisible(menu, 0);
 	}
 
-	else if (event->key == ASCII_ESC)
+	else if (event->key == keyEsc)
 		// No longer visible
 		kernelWindowSetVisible(menu, 0);
 
@@ -267,7 +267,6 @@ static int keyEvent(kernelWindow *menu, kernelWindowComponent *itemComponent,
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 kernelWindow *kernelWindowNewMenu(kernelWindow *parentWindow,
 	kernelWindowComponent *menuBarComponent, const char *name,
@@ -288,7 +287,7 @@ kernelWindow *kernelWindowNewMenu(kernelWindow *parentWindow,
 
 	// Get the basic child window
 	menu = kernelWindowNewChild(parentWindow, name);
-	if (menu == NULL)
+	if (!menu)
 		return (menu);
 
 	// Remove title bar
@@ -309,7 +308,7 @@ kernelWindow *kernelWindowNewMenu(kernelWindow *parentWindow,
 			contents->items[count].key = (objectKey)
 				kernelWindowNewMenuItem(menu, contents->items[count].text,
 					params);
-			if (contents->items[count].key == NULL)
+			if (!contents->items[count].key)
 			{
 				kernelWindowDestroy(menu);
 				return (menu = NULL);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,9 +27,9 @@
 #include "kernelImage.h"
 #include "kernelImageBmp.h"
 #include "kernelLoader.h"
-#include "kernelMisc.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 static int detect(const char *fileName, void *dataPtr, unsigned dataSize,
@@ -198,9 +198,9 @@ static int load(unsigned char *imageFileData, int dataSize, int reqWidth,
 			fileOffset = (dataStart + (count * fileLineWidth));
 
 			// Copy a line of data from the file to our image
-			kernelMemCopy(((void *) imageFileData + fileOffset),
-				(((void *) imageData) +
-					((height - count - 1) * (width * 3))), (width * 3));
+			memcpy((((void *) imageData) + ((height - count - 1) *
+				(width * 3))), ((void *) imageFileData + fileOffset),
+				(width * 3));
 		}
 	}
 
@@ -291,7 +291,6 @@ kernelFileClass icoFileClass = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 kernelFileClass *kernelFileClassIco(void)
 {

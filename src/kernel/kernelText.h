@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,8 +21,8 @@
 
 #if !defined(_KERNELTEXT_H)
 
-#include "kernelStream.h"
 #include "kernelGraphic.h"
+#include "kernelStream.h"
 #include <sys/font.h>
 #include <sys/text.h>
 

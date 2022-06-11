@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -51,6 +51,7 @@ Options:
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 
 #define _(string) gettext(string)
 
@@ -74,8 +75,8 @@ static void doEject(void)
 			status = diskSetDoorState(sysDisk.name, 1);
 
 			if (status < 0)
-				printf("%s", _("\n\nCan't seem to eject.  Try pushing the 'eject' "
-					"button now.\n"));
+				printf("%s", _("\n\nCan't seem to eject.  Try pushing the "
+					"'eject' button now.\n"));
 		}
 		else
 			printf("\n");
@@ -92,22 +93,32 @@ int main(int argc, char *argv[])
 	int eject = 0;
 	int force = 0;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("reboot");
 
-	while (strchr("ef", (opt = getopt(argc, argv, "ef"))))
+	// Check options
+	while (strchr("ef?", (opt = getopt(argc, argv, "ef"))))
 	{
-		// Eject boot media?
-		if (opt == 'e')
-			eject = 1;
+		switch (opt)
+		{
+			case 'e':
+				// Eject boot media
+				eject = 1;
+				break;
 
-		// Shut down forcefully?
-		if (opt == 'f')
-			force = 1;
+			case 'f':
+				// Shut down forcefully
+				force = 1;
+				break;
+
+			default:
+				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
+				return (status = ERR_INVALID);
+		}
 	}
 
 	// Get the system disk
-	bzero(&sysDisk, sizeof(disk));
+	memset(&sysDisk, 0, sizeof(disk));
 	fileGetDisk("/", &sysDisk);
 
 	if (eject && (sysDisk.type & DISKTYPE_CDROM))

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -775,7 +775,7 @@ _X_ int fileClose(file *f)
 
 _X_ int fileRead(file *f, unsigned blocknum _U_, unsigned blocks _U_, void *buff _U_)
 {
-	// Proto: int kernelFileRead(file *, unsigned int, unsigned int, void *);
+	// Proto: int kernelFileRead(file *, unsigned, unsigned, void *);
 	// Desc : Read data from the previously opened file 'f'.  'f' should have been opened in a read or read/write mode.  Read 'blocks' blocks (see the filesystem functions for information about getting the block size of a given filesystem) and put them in buffer 'buff'.
 	return (_syscall(_fnum_fileRead, &f));
 }
@@ -1126,11 +1126,11 @@ _X_ void multitaskerYield(void)
 	_syscall(_fnum_multitaskerYield, NULL);
 }
 
-_X_ void multitaskerWait(unsigned ticks)
+_X_ void multitaskerWait(unsigned milliseconds)
 {
-	// Proto: void kernelMultitaskerWait(unsigned int);
-	// Desc : Yield the remainder of the current processor timeslice back to the multitasker's scheduler, and wait at least 'ticks' timer ticks before running the calling process again.  On the PC, one second is approximately 20 system timer ticks.
-	_syscall(_fnum_multitaskerWait, &ticks);
+	// Proto: void kernelMultitaskerWait(unsigned);
+	// Desc : Yield the remainder of the current processor timeslice back to the multitasker's scheduler, and wait at least 'milliseconds' before running the calling process again.
+	_syscall(_fnum_multitaskerWait, &milliseconds);
 }
 
 _X_ int multitaskerBlock(int pid)
@@ -1382,21 +1382,21 @@ _X_ unsigned randomUnformatted(void)
 
 _X_ unsigned randomFormatted(unsigned start, unsigned end _U_)
 {
-	// Proto: unsigned kernelRandomFormatted(unsigned int, unsigned int);
+	// Proto: unsigned kernelRandomFormatted(unsigned, unsigned);
 	// Desc : Get a random unsigned number between the start value 'start' and the end value 'end', inclusive.
 	return (_syscall(_fnum_randomFormatted, &start));
 }
 
 _X_ unsigned randomSeededUnformatted(unsigned seed)
 {
-	// Proto: unsigned kernelRandomSeededUnformatted(unsigned int);
+	// Proto: unsigned kernelRandomSeededUnformatted(unsigned);
 	// Desc : Get an unformatted random unsigned number, using the random seed 'seed' instead of the kernel's default random seed.
 	return (_syscall(_fnum_randomSeededUnformatted, &seed));
 }
 
 _X_ unsigned randomSeededFormatted(unsigned seed, unsigned start _U_, unsigned end _U_)
 {
-	// Proto: unsigned kernelRandomSeededFormatted(unsigned int, unsigned int, unsigned int);
+	// Proto: unsigned kernelRandomSeededFormatted(unsigned, unsigned, unsigned);
 	// Desc : Get a random unsigned number between the start value 'start' and the end value 'end', inclusive, using the random seed 'seed' instead of the kernel's default random seed.
 	return (_syscall(_fnum_randomSeededFormatted, &seed));
 }
@@ -1410,12 +1410,59 @@ _X_ void randomBytes(unsigned char *buffer, unsigned size _U_)
 
 
 //
+// Variable list functions
+//
+
+_X_ int variableListCreate(variableList *list)
+{
+	// Proto: int kernelVariableListCreate(variableList *);
+	// Desc : Set up a new variable list structure.
+	return (_syscall(_fnum_variableListCreate, &list));
+}
+
+_X_ int variableListDestroy(variableList *list)
+{
+	// Proto: int kernelVariableListDestroy(variableList *);
+	// Desc : Deallocate a variable list structure previously allocated by a call to variableListCreate() or configurationReader()
+	return (_syscall(_fnum_variableListDestroy, &list));
+}
+
+_X_ const char *variableListGetVariable(variableList *list, int num _U_)
+{
+	// Proto: const char *kernelVariableListGetVariable(variableList *, int);
+	// Desc : Return a pointer to the name of the 'num'th variable from the variable list 'list'.
+	return ((const char *)(long) _syscall(_fnum_variableListGetVariable, &list));
+}
+
+_X_ const char *variableListGet(variableList *list, const char *var _U_)
+{
+	// Proto: const char *kernelVariableListGet(variableList *, const char *);
+	// Desc : Return a pointer to the value of the variable 'var' from the variable list 'list'.
+	return ((const char *)(long) _syscall(_fnum_variableListGet, &list));
+}
+
+_X_ int variableListSet(variableList *list, const char *var _U_, const char *value _U_)
+{
+	// Proto: int kernelVariableListSet(variableList *, const char *, const char *);
+	// Desc : Set the value of the variable 'var' to the value 'value'.
+	return (_syscall(_fnum_variableListSet, &list));
+}
+
+_X_ int variableListUnset(variableList *list, const char *var _U_)
+{
+	// Proto: int kernelVariableListUnset(variableList *, const char *);
+	// Desc : Remove the variable 'var' from the variable list 'list'.
+	return (_syscall(_fnum_variableListUnset, &list));
+}
+
+
+//
 // Environment functions
 //
 
 _X_ int environmentGet(const char *var, char *buf _U_, unsigned bufsz _U_)
 {
-	// Proto: int kernelEnvironmentGet(const char *, char *, unsigned int);
+	// Proto: int kernelEnvironmentGet(const char *, char *, unsigned);
 	// Desc : Get the value of the environment variable named 'var', and put it into the buffer 'buf' of size 'bufsz' if successful.
 	return (_syscall(_fnum_environmentGet, &var));
 }
@@ -1502,74 +1549,182 @@ _X_ int graphicClearScreen(color *background)
 	return (_syscall(_fnum_graphicClearScreen, &background));
 }
 
-_X_ int graphicDrawPixel(objectKey buffer, color *foreground _U_, drawMode mode _U_, int xCoord _U_, int yCoord _U_)
+_X_ int graphicDrawPixel(graphicBuffer *buffer, color *foreground _U_, drawMode mode _U_, int xCoord _U_, int yCoord _U_)
 {
-	// Proto: int kernelGraphicDrawPixel(kernelGraphicBuffer *, color *, drawMode, int, int);
+	// Proto: int kernelGraphicDrawPixel(graphicBuffer *, color *, drawMode, int, int);
 	// Desc : Draw a single pixel into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the X coordinate 'xCoord' and the Y coordinate 'yCoord'.  If 'buffer' is NULL, draw directly onto the screen.
 	return (_syscall(_fnum_graphicDrawPixel, &buffer));
 }
 
-_X_ int graphicDrawLine(objectKey buffer, color *foreground _U_, drawMode mode _U_, int startX _U_, int startY _U_, int endX _U_, int endY _U_)
+_X_ int graphicDrawLine(graphicBuffer *buffer, color *foreground _U_, drawMode mode _U_, int startX _U_, int startY _U_, int endX _U_, int endY _U_)
 {
-	// Proto: int kernelGraphicDrawLine(kernelGraphicBuffer *, color *, drawMode, int, int, int, int);
+	// Proto: int kernelGraphicDrawLine(graphicBuffer *, color *, drawMode, int, int, int, int);
 	// Desc : Draw a line into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'startX', the starting Y coordinate 'startY', the ending X coordinate 'endX' and the ending Y coordinate 'endY'.  At the time of writing, only horizontal and vertical lines are supported by the linear framebuffer graphic driver.  If 'buffer' is NULL, draw directly onto the screen.
 	return (_syscall(_fnum_graphicDrawLine, &buffer));
 }
 
-_X_ int graphicDrawRect(objectKey buffer, color *foreground _U_, drawMode mode _U_, int xCoord _U_, int yCoord _U_, int width _U_, int height _U_, int thickness _U_, int fill _U_)
+_X_ int graphicDrawRect(graphicBuffer *buffer, color *foreground _U_, drawMode mode _U_, int xCoord _U_, int yCoord _U_, int width _U_, int height _U_, int thickness _U_, int fill _U_)
 {
-	// Proto: int kernelGraphicDrawRect(kernelGraphicBuffer *, color *, drawMode, int, int, int, int, int, int);
+	// Proto: int kernelGraphicDrawRect(graphicBuffer *, color *, drawMode, int, int, int, int, int, int);
 	// Desc : Draw a rectangle into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width', the height 'height', the line thickness 'thickness' and the fill value 'fill'.  Non-zero fill value means fill the rectangle.   If 'buffer' is NULL, draw directly onto the screen.
 	return (_syscall(_fnum_graphicDrawRect, &buffer));
 }
 
-_X_ int graphicDrawOval(objectKey buffer, color *foreground _U_, drawMode mode _U_, int xCoord _U_, int yCoord _U_, int width _U_, int height _U_, int thickness _U_, int fill _U_)
+_X_ int graphicDrawOval(graphicBuffer *buffer, color *foreground _U_, drawMode mode _U_, int xCoord _U_, int yCoord _U_, int width _U_, int height _U_, int thickness _U_, int fill _U_)
 {
-	// Proto: int kernelGraphicDrawOval(kernelGraphicBuffer *, color *, drawMode, int, int, int, int, int, int);
+	// Proto: int kernelGraphicDrawOval(graphicBuffer *, color *, drawMode, int, int, int, int, int, int);
 	// Desc : Draw an oval (circle, whatever) into the graphic buffer 'buffer', using the color 'foreground', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width', the height 'height', the line thickness 'thickness' and the fill value 'fill'.  Non-zero fill value means fill the oval.   If 'buffer' is NULL, draw directly onto the screen.  Currently not supported by the linear framebuffer graphic driver.
 	return (_syscall(_fnum_graphicDrawOval, &buffer));
 }
 
-_X_ int graphicGetImage(objectKey buffer, image *getImage _U_, int xCoord _U_, int yCoord _U_, int width _U_, int height _U_)
+_X_ int graphicGetImage(graphicBuffer *buffer, image *getImage _U_, int xCoord _U_, int yCoord _U_, int width _U_, int height _U_)
 {
-	// Proto: int kernelGraphicGetImage(kernelGraphicBuffer *, image *, int, int, int, int);
+	// Proto: int kernelGraphicGetImage(graphicBuffer *, image *, int, int, int, int);
 	// Desc : Grab a new image 'getImage' from the graphic buffer 'buffer', using the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width' and the height 'height'.   If 'buffer' is NULL, grab the image directly from the screen.
 	return (_syscall(_fnum_graphicGetImage, &buffer));
 }
 
-_X_ int graphicDrawImage(objectKey buffer, image *drawImage _U_, drawMode mode _U_, int xCoord _U_, int yCoord _U_, int xOffset _U_, int yOffset _U_, int width _U_, int height _U_)
+_X_ int graphicDrawImage(graphicBuffer *buffer, image *drawImage _U_, drawMode mode _U_, int xCoord _U_, int yCoord _U_, int xOffset _U_, int yOffset _U_, int width _U_, int height _U_)
 {
-	// Proto: int kernelGraphicDrawImage(kernelGraphicBuffer *, image *, drawMode, int, int, int, int, int, int);
+	// Proto: int kernelGraphicDrawImage(graphicBuffer *, image *, drawMode, int, int, int, int, int, int);
 	// Desc : Draw the image 'drawImage' into the graphic buffer 'buffer', using the drawing mode 'mode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord' and the starting Y coordinate 'yCoord'.   The 'xOffset' and 'yOffset' parameters specify an offset into the image to start the drawing (0, 0 to draw the whole image).  Similarly the 'width' and 'height' parameters allow you to specify a portion of the image (0, 0 to draw the whole image -- minus any X or Y offsets from the previous parameters).  So, for example, to draw only the middle pixel of a 3x3 image, you would specify xOffset=1, yOffset=1, width=1, height=1.  If 'buffer' is NULL, draw directly onto the screen.
 	return (_syscall(_fnum_graphicDrawImage, &buffer));
 }
 
-_X_ int graphicDrawText(objectKey buffer, color *foreground _U_, color *background _U_, objectKey font _U_, const char *text _U_, drawMode mode _U_, int xCoord _U_, int yCoord _U_)
+_X_ int graphicDrawText(graphicBuffer *buffer, color *foreground _U_, color *background _U_, objectKey font _U_, const char *text _U_, drawMode mode _U_, int xCoord _U_, int yCoord _U_)
 {
-	// Proto: int kernelGraphicDrawText(kernelGraphicBuffer *, color *, color *, kernelAsciiFont *, const char *, drawMode, int, int);
+	// Proto: int kernelGraphicDrawText(graphicBuffer *, color *, color *, kernelAsciiFont *, const char *, drawMode, int, int);
 	// Desc : Draw the text string 'text' into the graphic buffer 'buffer', using the colors 'foreground' and 'background', the font 'font', the drawing mode 'drawMode' (for example, 'draw_normal' or 'draw_xor'), the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord'.   If 'buffer' is NULL, draw directly onto the screen.  If 'font' is NULL, use the default font.
 	return (_syscall(_fnum_graphicDrawText, &buffer));
 }
 
-_X_ int graphicCopyArea(objectKey buffer, int xCoord1 _U_, int yCoord1 _U_, int width _U_, int height _U_, int xCoord2 _U_, int yCoord2 _U_)
+_X_ int graphicCopyArea(graphicBuffer *buffer, int xCoord1 _U_, int yCoord1 _U_, int width _U_, int height _U_, int xCoord2 _U_, int yCoord2 _U_)
 {
-	// Proto: int kernelGraphicCopyArea(kernelGraphicBuffer *, int, int, int, int, int, int);
+	// Proto: int kernelGraphicCopyArea(graphicBuffer *, int, int, int, int, int, int);
 	// Desc : Within the graphic buffer 'buffer', copy the area bounded by ('xCoord1', 'yCoord1'), width 'width' and height 'height' to the starting X coordinate 'xCoord2' and the starting Y coordinate 'yCoord2'.  If 'buffer' is NULL, copy directly to and from the screen.
 	return (_syscall(_fnum_graphicCopyArea, &buffer));
 }
 
-_X_ int graphicClearArea(objectKey buffer, color *background _U_, int xCoord _U_, int yCoord _U_, int width _U_, int height _U_)
+_X_ int graphicClearArea(graphicBuffer *buffer, color *background _U_, int xCoord _U_, int yCoord _U_, int width _U_, int height _U_)
 {
-	// Proto: int kernelGraphicClearArea(kernelGraphicBuffer *, color *, int, int, int, int);
+	// Proto: int kernelGraphicClearArea(graphicBuffer *, color *, int, int, int, int);
 	// Desc : Clear the area of the graphic buffer 'buffer' using the background color 'background', using the starting X coordinate 'xCoord', the starting Y coordinate 'yCoord', the width 'width' and the height 'height'.  If 'buffer' is NULL, clear the area directly on the screen.
 	return (_syscall(_fnum_graphicClearArea, &buffer));
 }
 
-_X_ int graphicRenderBuffer(objectKey buffer, int drawX _U_, int drawY _U_, int clipX _U_, int clipY _U_, int clipWidth _U_, int clipHeight _U_)
+_X_ int graphicRenderBuffer(graphicBuffer *buffer, int drawX _U_, int drawY _U_, int clipX _U_, int clipY _U_, int clipWidth _U_, int clipHeight _U_)
 {
-	// Proto: int kernelGraphicRenderBuffer(kernelGraphicBuffer *, int, int, int, int, int, int);
+	// Proto: int kernelGraphicRenderBuffer(graphicBuffer *, int, int, int, int, int, int);
 	// Desc : Draw the clip of the buffer 'buffer' onto the screen.  Draw it on the screen at starting X coordinate 'drawX' and starting Y coordinate 'drawY'.  The buffer clip is bounded by the starting X coordinate 'clipX', the starting Y coordinate 'clipY', the width 'clipWidth' and the height 'clipHeight'.  It is not legal for 'buffer' to be NULL in this case.
 	return (_syscall(_fnum_graphicRenderBuffer, &buffer));
+}
+
+
+//
+// Image functions
+//
+
+_X_ int imageNew(image *blankImage, unsigned width _U_, unsigned height _U_)
+{
+	// Proto: int kernelImageNew(image *, unsigned, unsigned);
+	// Desc : Using the (possibly uninitialized) image data structure 'blankImage', allocate memory for a new image with the specified 'width' and 'height'.
+	return (_syscall(_fnum_imageNew, &blankImage));
+}
+
+_X_ int imageFree(image *freeImage)
+{
+	// Proto: int kernelImageFree(image *);
+	// Desc : Frees memory allocated for image data (but does not deallocate the image structure itself).
+	return (_syscall(_fnum_imageFree, &freeImage));
+}
+
+_X_ int imageLoad(const char *filename, unsigned width _U_, unsigned height _U_, image *loadImage _U_)
+{
+	// Proto: int imageLoad(const char *, unsigned, unsigned, image *);
+	// Desc : Try to load the image file 'filename' (with the specified 'width' and 'height' if possible -- zeros indicate no preference), and if successful, save the data in the image data structure 'loadImage'.
+		return (_syscall(_fnum_imageLoad, &filename));
+}
+
+_X_ int imageSave(const char *filename, int format _U_, image *saveImage _U_)
+{
+	// Proto: int imageSave(const char *, int, image *);
+	// Desc : Save the image data structure 'saveImage' using the image format 'format' to the file 'fileName'.  Image format codes are found in the file <sys/image.h>
+	return (_syscall(_fnum_imageSave, &filename));
+}
+
+_X_ int imageResize(image *resizeImage, unsigned width _U_, unsigned height _U_)
+{
+	// Proto: int imageResize(image *, unsigned, unsigned);
+	// Desc : Resize the image represented in the image data structure 'resizeImage' to the new 'width' and 'height' values.
+	return (_syscall(_fnum_imageResize, &resizeImage));
+}
+
+_X_ int imageCopy(image *srcImage, image *destImage _U_)
+{
+	// Proto: int kernelImageCopy(image *, image *);
+	// Desc : Make a copy of the image 'srcImage' to 'destImage', including all of its data, alpha channel information (if applicable), etc.
+	return (_syscall(_fnum_imageCopy, &srcImage));
+}
+
+_X_ int imageFill(image *fillImage, color *fillColor _U_)
+{
+	// Proto: int kernelImageFill(image *, color *);
+	// Desc : Fill the image 'fillImage' with the color 'fillColor'
+	return (_syscall(_fnum_imageFill, &fillImage));
+}
+
+_X_ int imagePaste(image *srcImage, image *destImage _U_, int xCoord _U_, int yCoord _U_)
+{
+	// Proto: int kernelImagePaste(image *, image *, int, int);
+	// Desc : Paste the image 'srcImage' into the image 'destImage' at the requested coordinates.
+	return (_syscall(_fnum_imagePaste, &srcImage));
+}
+
+
+//
+// Font functions
+//
+
+_X_ int fontGetDefault(objectKey *pointer)
+{
+	// Proto: int kernelFontGetDefault(kernelAsciiFont **);
+	// Desc : Get an object key in 'pointer' to refer to the current default font.
+	return (_syscall(_fnum_fontGetDefault, &pointer));
+}
+
+_X_ int fontLoadSystem(const char *filename, const char *fontname _U_, objectKey *pointer _U_, int fixedWidth _U_)
+{
+	// Proto: int kernelFontLoadSystem(const char*, const char*, kernelAsciiFont **, int);
+	// Desc : Load the font from the font file 'filename' for systemwide use.  Give it the font name 'fontname' for future reference, and return an object key for the font in 'pointer' if successful.  The integer 'fixedWidth' argument should be non-zero if you want each character of the font to have uniform width (i.e. an 'i' character will be padded with empty space so that it takes up the same width as, for example, a 'W' character).
+	return (_syscall(_fnum_fontLoadSystem, &filename));
+}
+
+_X_ int fontLoadUser(const char *filename, asciiFont **font _U_, int fixedWidth _U_)
+{
+	// Proto: int kernelFontLoadUser(const char*, kernelAsciiFont **, int);
+	// Desc : Load the font from the font file 'filename', and return the font structure in process memory, pointed to by 'font' if successful.  The integer 'fixedWidth' argument should be non-zero if you want each character of the font to have uniform width (i.e. an 'i' character will be padded with empty space so that it takes up the same width as, for example, a 'W' character).
+	return (_syscall(_fnum_fontLoadUser, &filename));
+}
+
+_X_ int fontGetPrintedWidth(objectKey font, const char *string _U_)
+{
+	// Proto: int kernelFontGetPrintedWidth(kernelAsciiFont *, const char *);
+	// Desc : Given the supplied string, return the screen width that the text will consume given the font 'font'.  Useful for placing text when using a variable-width font, but not very useful otherwise.
+	return (_syscall(_fnum_fontGetPrintedWidth, &font));
+}
+
+_X_ int fontGetWidth(objectKey font)
+{
+	// Proto: int kernelFontGetWidth(kernelAsciiFont *font)
+	// Desc : Returns the character width of the supplied font.  Only useful when the font is fixed-width.
+	return (_syscall(_fnum_fontGetWidth, &font));
+}
+
+_X_ int fontGetHeight(objectKey font)
+{
+	// Proto: int kernelFontGetHeight(kernelAsciiFont *font)
+	// Desc : Returns the character height of the supplied font.
+	return (_syscall(_fnum_fontGetHeight, &font));
 }
 
 
@@ -1614,7 +1769,7 @@ _X_ int windowDestroy(objectKey window)
 
 _X_ int windowUpdateBuffer(void *buffer, int xCoord _U_, int yCoord _U_, int width _U_, int height _U_)
 {
-	// Proto: kernelWindowUpdateBuffer(kernelGraphicBuffer *, int, int, int, int);
+	// Proto: kernelWindowUpdateBuffer(graphicBuffer *, int, int, int, int);
 	// Desc : Tells the windowing system to redraw the visible portions of the graphic buffer 'buffer', using the given clip coordinates/size.
 	return (_syscall(_fnum_windowUpdateBuffer, &buffer));
 }
@@ -1625,7 +1780,6 @@ _X_ int windowSetTitle(objectKey window, const char *title _U_)
 	// Desc : Set the new title of window 'window' to be 'title'.
 	return (_syscall(_fnum_windowSetTitle, &window));
 }
-
 
 _X_ int windowGetSize(objectKey window, int *width _U_, int *height _U_)
 {
@@ -1695,6 +1849,13 @@ _X_ int windowSetResizable(objectKey window, int trueFalse _U_)
 	// Proto: int kernelWindowSetResizable(kernelWindow *, int);
 	// Desc : Tells the windowing system whether to allow 'window' to be resized by the user.  'trueFalse' being non-zero means the window is resizable.  Windows are resizable by default.
 	return (_syscall(_fnum_windowSetResizable, &window));
+}
+
+_X_ int windowSetFocusable(objectKey window, int trueFalse _U_)
+{
+	// Proto: int kernelWindowSetFocusable(kernelWindow *, int);
+	// Desc : Tells the windowing system whether to allow 'window' to be focused.  'trueFalse' being non-zero means the window can focus.  Windows can focus by default.
+	return (_syscall(_fnum_windowSetFocusable, &window));
 }
 
 _X_ int windowRemoveMinimizeButton(objectKey window)
@@ -1942,10 +2103,10 @@ _X_ int windowComponentGetData(objectKey component, void *buffer _U_, int size _
 	return (_syscall(_fnum_windowComponentGetData, &component));
 }
 
-_X_ int windowComponentSetData(objectKey component, void *buffer _U_, int size _U_)
+_X_ int windowComponentSetData(objectKey component, void *buffer _U_, int size _U_, int render _U_)
 {
-	// Proto: int kernelWindowComponentSetData(kernelWindowComponent *, void *, int);
-	// Desc : This is a generic call to set data in the window component 'component', up to 'size' bytes, in the buffer 'buffer'.  The size and type of data that a given component will use or accept is totally dependent upon the type and implementation of the component.
+	// Proto: int kernelWindowComponentSetData(kernelWindowComponent *, void *, int, int);
+	// Desc : This is a generic call to set data in the window component 'component', up to 'size' bytes, in the buffer 'buffer'.  Non-zero 'render' flag causes the component to be redrawn on the screen.  The size and type of data that a given component will use or accept is totally dependent upon the type and implementation of the component.
 	return (_syscall(_fnum_windowComponentSetData, &component));
 }
 
@@ -2099,7 +2260,7 @@ _X_ objectKey windowNewTextField(objectKey parent, int columns _U_, componentPar
 _X_ objectKey windowNewTextLabel(objectKey parent, const char *text _U_, componentParameters *params _U_)
 {
 	// Proto: kernelWindowComponent *kernelWindowNewTextLabel(objectKey, const char *, componentParameters *);
-	// Desc : Get a new text labelComponent to be placed inside the parent object 'parent', with the given component parameters 'params', and using the text string 'text'.  If the params 'font' is NULL, the default font will be used.
+	// Desc : Get a new text label component to be placed inside the parent object 'parent', with the given component parameters 'params', and using the text string 'text'.  If the params 'font' is NULL, the default font will be used.
 	return ((objectKey)(long) _syscall(_fnum_windowNewTextLabel, &parent));
 }
 
@@ -2328,90 +2489,6 @@ _X_ int networkSetDomainName(const char *buffer, int bufferSize _U_)
 // Miscellaneous functions
 //
 
-_X_ int fontGetDefault(objectKey *pointer)
-{
-	// Proto: int kernelFontGetDefault(kernelAsciiFont **);
-	// Desc : Get an object key in 'pointer' to refer to the current default font.
-	return (_syscall(_fnum_fontGetDefault, &pointer));
-}
-
-_X_ int fontSetDefault(const char *name)
-{
-	// Proto: int kernelFontSetDefault(const char *);
-	// Desc : Set the default font for the system to the font with the name 'name'.  The font must previously have been loaded by the system, for example using the fontLoad()  function.
-	return (_syscall(_fnum_fontSetDefault, &name));
-}
-
-_X_ int fontLoad(const char *filename, const char *fontname _U_, objectKey *pointer _U_, int fixedWidth _U_)
-{
-	// Proto: int kernelFontLoad(const char*, const char*, kernelAsciiFont **, int);
-	// Desc : Load the font from the font file 'filename', give it the font name 'fontname' for future reference, and return an object key for the font in 'pointer' if successful.  The integer 'fixedWidth' argument should be non-zero if you want each character of the font to have uniform width (i.e. an 'i' character will be padded with empty space so that it takes up the same width as, for example, a 'W' character).
-	return (_syscall(_fnum_fontLoad, &filename));
-}
-
-_X_ int fontGetPrintedWidth(objectKey font, const char *string _U_)
-{
-	// Proto: int kernelFontGetPrintedWidth(kernelAsciiFont *, const char *);
-	// Desc : Given the supplied string, return the screen width that the text will consume given the font 'font'.  Useful for placing text when using a variable-width font, but not very useful otherwise.
-	return (_syscall(_fnum_fontGetPrintedWidth, &font));
-}
-
-_X_ int fontGetWidth(objectKey font)
-{
-	// Proto: int kernelFontGetWidth(kernelAsciiFont *font)
-	// Desc : Returns the character width of the supplied font.  Only useful when the font is fixed-width.
-	return (_syscall(_fnum_fontGetWidth, &font));
-}
-
-_X_ int fontGetHeight(objectKey font)
-{
-	// Proto: int kernelFontGetHeight(kernelAsciiFont *font)
-	// Desc : Returns the character height of the supplied font.
-	return (_syscall(_fnum_fontGetHeight, &font));
-}
-
-_X_ int imageNew(image *blankImage, unsigned width _U_, unsigned height _U_)
-{
-	// Proto: int kernelImageNew(image *, unsigned, unsigned);
-	// Desc : Using the (possibly uninitialized) image data structure 'blankImage', allocate memory for a new image with the specified 'width' and 'height'.
-	return (_syscall(_fnum_imageNew, &blankImage));
-}
-
-_X_ int imageFree(image *freeImage)
-{
-	// Proto: int kernelImageFree(image *);
-	// Desc : Frees memory allocated for image data (but does not deallocate the image structure itself).
-	return (_syscall(_fnum_imageFree, &freeImage));
-}
-
-_X_ int imageLoad(const char *filename, unsigned width _U_, unsigned height _U_, image *loadImage _U_)
-{
-	// Proto: int imageLoad(const char *, unsigned, unsigned, image *);
-	// Desc : Try to load the image file 'filename' (with the specified 'width' and 'height' if possible -- zeros indicate no preference), and if successful, save the data in the image data structure 'loadImage'.
-		return (_syscall(_fnum_imageLoad, &filename));
-}
-
-_X_ int imageSave(const char *filename, int format _U_, image *saveImage _U_)
-{
-	// Proto: int imageSave(const char *, int, image *);
-	// Desc : Save the image data structure 'saveImage' using the image format 'format' to the file 'fileName'.  Image format codes are found in the file <sys/image.h>
-	return (_syscall(_fnum_imageSave, &filename));
-}
-
-_X_ int imageResize(image *resizeImage, unsigned width _U_, unsigned height _U_)
-{
-	// Proto: int imageResize(image *, unsigned, unsigned);
-	// Desc : Resize the image represented in the image data structure 'resizeImage' to the new 'width' and 'height' values.
-	return (_syscall(_fnum_imageResize, &resizeImage));
-}
-
-_X_ int imageCopy(image *srcImage, image *destImage _U_)
-{
-	// Proto: int kernelImageCopy(image *, image *);
-	// Desc : Make a copy of the image 'srcImage' to 'destImage', including all of its data, alpha channel information (if applicable), etc.
-	return (_syscall(_fnum_imageCopy, &srcImage));
-}
-
 _X_ int shutdown(int reboot, int nice _U_)
 {
 	// Proto: int kernelShutdown(int, int);
@@ -2459,48 +2536,6 @@ _X_ int lockVerify(lock *verLock)
 	// Proto: int kernelLockVerify(lock *);
 	// Desc : Verify that a lock on the lock structure 'verLock' is still valid.  This can be useful for retrying a lock attempt if a previous one failed; if the process that was previously holding the lock has failed, this will release the lock.
 	return (_syscall(_fnum_lockVerify, &verLock));
-}
-
-_X_ int variableListCreate(variableList *list)
-{
-	// Proto: int kernelVariableListCreate(variableList *);
-	// Desc : Set up a new variable list structure.
-	return (_syscall(_fnum_variableListCreate, &list));
-}
-
-_X_ int variableListDestroy(variableList *list)
-{
-	// Proto: int kernelVariableListDestroy(variableList *);
-	// Desc : Deallocate a variable list structure previously allocated by a call to variableListCreate() or configurationReader()
-	return (_syscall(_fnum_variableListDestroy, &list));
-}
-
-_X_ const char *variableListGetVariable(variableList *list, int num _U_)
-{
-	// Proto: const char *kernelVariableListGetVariable(variableList *, int);
-	// Desc : Return a pointer to the name of the 'num'th variable from the variable list 'list'.
-	return ((const char *)(long) _syscall(_fnum_variableListGetVariable, &list));
-}
-
-_X_ const char *variableListGet(variableList *list, const char *var _U_)
-{
-	// Proto: const char *kernelVariableListGet(variableList *, const char *);
-	// Desc : Return a pointer to the value of the variable 'var' from the variable list 'list'.
-	return ((const char *)(long) _syscall(_fnum_variableListGet, &list));
-}
-
-_X_ int variableListSet(variableList *list, const char *var _U_, const char *value _U_)
-{
-	// Proto: int kernelVariableListSet(variableList *, const char *, const char *);
-	// Desc : Set the value of the variable 'var' to the value 'value'.
-	return (_syscall(_fnum_variableListSet, &list));
-}
-
-_X_ int variableListUnset(variableList *list, const char *var _U_)
-{
-	// Proto: int kernelVariableListUnset(variableList *, const char *);
-	// Desc : Remove the variable 'var' from the variable list 'list'.
-	return (_syscall(_fnum_variableListUnset, &list));
 }
 
 _X_ int configRead(const char *fileName, variableList *list _U_)
@@ -2566,6 +2601,13 @@ _X_ int keyboardSetMap(const char *name)
 	return (_syscall(_fnum_keyboardSetMap, &name));
 }
 
+_X_ int keyboardVirtualInput(int eventType, keyScan scanCode _U_)
+{
+	// Proto: int kernelKeyboardVirtualInput(int, keyScan);
+	// Desc : Supply input to the kernel's virtual keyboard.  'eventType' should be either EVENT_KEY_DOWN or EVENT_KEY_UP, and 'scanCode' specifies which 'physical' key was pressed or unpressed (the actual character this might produce depends on the active keyboard map).
+	return (_syscall(_fnum_keyboardVirtualInput, &eventType));
+}
+
 _X_ int deviceTreeGetRoot(device *rootDev)
 {
 	// Proto: int kernelDeviceTreeGetRoot(device *);
@@ -2601,8 +2643,3 @@ _X_ void *pageGetPhysical(int processId, void *pointer _U_)
 	return ((void *)(long) _syscall(_fnum_pageGetPhysical, &processId));
 }
 
-void setLicensed(int yesNo)
-{
-	// Proto: void setLicensed(int);
-	_syscall(_fnum_setLicensed, &yesNo);
-}

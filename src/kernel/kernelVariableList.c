@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,7 +26,6 @@
 #include "kernelVariableList.h"
 #include "kernelDebug.h"
 #include "kernelMemory.h"
-#include "kernelMisc.h"
 #include "kernelLock.h"
 #include "kernelError.h"
 #include <string.h>
@@ -59,7 +58,7 @@ static int expandList(variableList *list)
 	if (!memory)
 		return (status = ERR_MEMORY);
 
-	kernelMemClear(memory, list->memorySize);
+	memset(memory, 0, list->memorySize);
 
 	// Figure out where the new data will go
 	newVariables = (unsigned *) memory;
@@ -67,11 +66,10 @@ static int expandList(variableList *list)
 	newData = (memory + (list->maxVariables * 2 * sizeof(unsigned)));
 
 	// Copy the data
-	kernelMemCopy(oldVariables, newVariables,
-		(list->numVariables * sizeof(unsigned)));
-	kernelMemCopy(oldValues, newValues,
-		(list->numVariables * sizeof(unsigned)));
-	kernelMemCopy(oldData, newData, list->usedData);
+	memcpy(newVariables, oldVariables, (list->numVariables *
+		sizeof(unsigned)));
+	memcpy(newValues, oldValues, (list->numVariables * sizeof(unsigned)));
+	memcpy(newData, oldData, list->usedData);
 
 	kernelMemoryRelease(list->memory);
 	list->memory = memory;
@@ -146,8 +144,8 @@ static int unsetVariable(variableList *list, const char *variable)
 	{
 		// Starting from where the variable name starts, shift the whole
 		// contents of the data forward by 'subtract' bytes
-		kernelMemCopy((void *)((data + variables[slot]) + subtract),
-			(void *)(data + variables[slot]),
+		memcpy((void *)(data + variables[slot]),
+			(void *)((data + variables[slot]) + subtract),
 			((list->usedData - variables[slot]) - subtract));
 
 		// Now remove the 'variable' and 'value' offsets, and shift all
@@ -243,7 +241,6 @@ static int setVariable(variableList *list, const char *variable,
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelVariableListCreate(variableList *list)
 {
 	// This function will create a new variableList structure
@@ -260,7 +257,7 @@ int kernelVariableListCreate(variableList *list)
 	}
 
 	// Initialize the number of variables and max variables and max data
-	kernelMemClear(list, sizeof(variableList));
+	memset(list, 0, sizeof(variableList));
 	list->maxVariables = VARIABLE_INITIAL_NUMBER;
 	list->maxData = VARIABLE_INITIAL_DATASIZE;
 	list->memorySize = VARIABLE_INITIAL_MEMORY;
@@ -294,7 +291,7 @@ int kernelVariableListDestroy(variableList *list)
 	if (list->memory)
 		status = kernelMemoryRelease(list->memory);
 
-	kernelMemClear(list, sizeof(variableList));
+	memset(list, 0, sizeof(variableList));
 
 	return (status);
 }

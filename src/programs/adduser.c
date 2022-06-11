@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -44,6 +44,7 @@ to set the password).
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 
 #define _(string) gettext(string)
@@ -63,7 +64,7 @@ int main(int argc, char *argv[])
 	char userDir[MAX_PATH_NAME_LENGTH];
 	file f;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("adduser");
 
 	if (argc != 2)
@@ -95,7 +96,9 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Warning: couldn't create user directory.\n");
 	}
 	else
+	{
 		fprintf(stderr, "User directory already exists.\n");
+	}
 
 	printf("%s", _("User added.\n"));
 

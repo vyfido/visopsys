@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -50,6 +50,7 @@ Currently only the uncompressed, 24-bit bitmap format is supported.
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
@@ -60,13 +61,14 @@ int main(int argc, char *argv[])
 	int status = 0;
 	char fileName[MAX_PATH_NAME_LENGTH];
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("screenshot");
 
 	// Only work in graphics mode
 	if (!graphicsAreEnabled())
 	{
-		printf(_("\nThe \"%s\" command only works in graphics mode\n"), argv[0]);
+		printf(_("\nThe \"%s\" command only works in graphics mode\n"),
+			argv[0]);
 		errno = ERR_NOTINITIALIZED;
 		return (status = errno);
 	}

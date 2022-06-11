@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2014 J. Andrew McLaughlin
+#  Copyright (C) 1998-2015 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,23 +17,23 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-15\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: filebrowse.c:61
+#: filebrowse.c:62
 msgid "File Browser"
 msgstr "Datei-Browser"
 
-#: filebrowse.c:62
+#: filebrowse.c:63
 msgid "File"
 msgstr "Datei"
 
-#: filebrowse.c:63
+#: filebrowse.c:64
 msgid "View"
 msgstr "Ansicht"
 
-#: filebrowse.c:72
+#: filebrowse.c:73
 msgid "Quit"
 msgstr "Beenden"
 
-#: filebrowse.c:80
+#: filebrowse.c:81
 msgid "Refresh"
 msgstr "Aktualisieren"
 
@@ -41,12 +41,12 @@ msgstr "Aktualisieren"
 msgid "Error"
 msgstr "Fehler"
 
-#: filebrowse.c:226
+#: filebrowse.c:223
 #, c-format
 msgid "Couldn't execute command \"%s\""
 msgstr ""
 
-#: filebrowse.c:420
+#: filebrowse.c:419
 #, c-format
 msgid ""
 "\n"
@@ -55,15 +55,15 @@ msgstr ""
 "\n"
 "Der Befehl \"%s\" funktioniert nur im Grafik-Modus\n"
 
-#: filebrowse.c:434
+#: filebrowse.c:433
 msgid "Memory allocation error"
 msgstr "Fehler bei der Speicherverteilung"
 
-#: filebrowse.c:449
+#: filebrowse.c:448
 #, c-format
 msgid "Can't change to directory \"%s\""
 msgstr "Es konnte nicht ins Verzeichnis \"%s\" gewechselt werden"
 
-#: filebrowse.c:456
+#: filebrowse.c:455
 msgid "Can't determine current directory"
 msgstr "Das aktuelle Verzeichnis kann nicht bestimmt werden"

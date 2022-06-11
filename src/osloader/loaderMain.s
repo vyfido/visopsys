@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -329,16 +329,16 @@ bootDevice:
 	;; Heads
 	xor EAX, EAX
 	mov AL, DH
-	inc AX			; Number is 0-based
+	inc AX							; Number is 0-based
 	mov dword [HEADS], EAX
 
 	;; cylinders
 	xor EAX, EAX
-	mov AL, CL		; Two bits of cylinder number in bits 6&7
-	and AL, 11000000b	; Mask it
-	shl AX, 2		; Move them to bits 8&9
-	mov AL, CH		; Rest of the cylinder bits
-	inc AX			; Number is 0-based
+	mov AL, CL						; Two bits of cylinder number in bits 6&7
+	and AL, 11000000b				; Mask it
+	shl AX, 2						; Move them to bits 8&9
+	mov AL, CH						; Rest of the cylinder bits
+	inc AX							; Number is 0-based
 	mov dword [CYLINDERS], EAX
 
 	;; sectors
@@ -350,7 +350,7 @@ bootDevice:
 	;; Determine whether we can use an extended BIOS function to give
 	;; us the number of sectors
 
-	mov word [HDDINFO], 42h  ; Size of the info buffer we provide
+	mov word [HDDINFO], 42h  		; Size of the info buffer we provide
 	mov AH, 48h
 	mov DX, word [DRIVENUMBER]
 	mov SI, HDDINFO
@@ -364,13 +364,13 @@ bootDevice:
 	mov dword [TOTALSECS], EAX
 
 	;; Recalculate the number of cylinders
-	mov EAX, dword [HEADS]		; heads
-	mul dword [SECPERTRACK]		; sectors per cyl
-	mov ECX, EAX			; total secs per cyl
+	mov EAX, dword [HEADS]			; heads
+	mul dword [SECPERTRACK]			; sectors per cyl
+	mov ECX, EAX					; total secs per cyl
 	xor EDX, EDX
 	mov EAX, dword [TOTALSECS]
 	div ECX
-	mov dword [CYLINDERS], EAX	; new cyls value
+	mov dword [CYLINDERS], EAX		; new cyls value
 
 	.done:
 	popa
@@ -404,18 +404,18 @@ fatInfo:
 	;; Determine the type of FAT filesystem just based on the FSType
 	;; field.  Not reliable, but it's what we do anyway.
 	mov EAX, dword [FS:7C37h]
-	cmp EAX, 0x32315441		; ('AT12')
+	cmp EAX, 0x32315441				; ('AT12')
 	jne .checkFat16
 	mov word [FSTYPE], FS_FAT12
 	jmp .done
 	.checkFat16:
-	cmp EAX, 0x36315441		; ('AT16')
+	cmp EAX, 0x36315441				; ('AT16')
 	jne .checkFat32
 	mov word [FSTYPE], FS_FAT16
 	jmp .done
 	.checkFat32:
 	mov EAX, dword [FS:7C53h]
-	cmp EAX, 0x32335441		; ('AT32')
+	cmp EAX, 0x32335441				; ('AT32')
 	jne .unknown
 	mov word [FSTYPE], FS_FAT32
 	;; With FAT32, some of the values are in different places
@@ -438,12 +438,12 @@ printBootDevice:
 
 	pusha
 
-	mov DL, 02h		; Use green color
+	mov DL, 02h						; Use green color
 	mov SI, HAPPY
 	call loaderPrint
 	mov SI, BOOTDEV1
 	call loaderPrint
-	mov DL, FOREGROUNDCOLOR	; Switch to foreground color
+	mov DL, FOREGROUNDCOLOR			; Switch to foreground color
 
 	xor EAX, EAX
 	mov AX, word [DRIVENUMBER]
@@ -603,19 +603,19 @@ pagingSetup:
 	;; each one representing 4Kb of real memory.  We will start the table
 	;; at the address (LDRPAGINGDATA + 1000h)
 
-	mov EBX, 0		; Location we're mapping
-	mov ECX, 1024		; 1024 entries
+	mov EBX, 0						; Location we're mapping
+	mov ECX, 1024					; 1024 entries
 	mov EDI, (LDRPAGINGDATA + 1000h)
 
 	.entryLoop1:
 	;; Make one page table entry.
 	mov EAX, EBX
-	and AX, 0F000h		; Clear bits 0-11, just in case
+	and AX, 0F000h					; Clear bits 0-11, just in case
 	;; Set the entry's page present bit, the writable bit, and the
 	;; write-through bit.
 	or AL, 00001011b
-	stosd			; Store the page table entry at ES:EDI
-	add EBX, 1000h		; Move to next 4Kb
+	stosd							; Store the page table entry at ES:EDI
+	add EBX, 1000h					; Move to next 4Kb
 	loop .entryLoop1
 
 	;; Create a page table to represent the virtual address space that
@@ -623,18 +623,18 @@ pagingSetup:
 	;; (PAGINGDATA + 2000h)
 
 	mov EBX, KERNELLOADADDRESS		; Location we're mapping
-	mov ECX, 1024				; 1024 entries
-	mov EDI, (LDRPAGINGDATA + 2000h)	; location in LDRPAGINGDATA
+	mov ECX, 1024					; 1024 entries
+	mov EDI, (LDRPAGINGDATA + 2000h) ; location in LDRPAGINGDATA
 
 	.entryLoop2:
 	;; Make one page table entry.
 	mov EAX, EBX
-	and AX, 0F000h		; Clear bits 0-11, just in case
+	and AX, 0F000h					; Clear bits 0-11, just in case
 	;; Set the entry's page present bit, the writable bit, and the
 	;; write-through bit.
 	or AL, 00001011b
-	stosd			; Store the page table entry at ES:EDI
-	add EBX, 1000h		; Move to next 4Kb
+	stosd							; Store the page table entry at ES:EDI
+	add EBX, 1000h					; Move to next 4Kb
 	loop .entryLoop2
 
 	;; We will create a master page directory with two entries
@@ -654,7 +654,7 @@ pagingSetup:
 	;; new table.
 	;; The address of the first table
 	mov EAX, (LDRPAGINGDATA + 1000h)
-	and AX, 0F000h			; Clear bits 0-11, just in case
+	and AX, 0F000h					; Clear bits 0-11, just in case
 	;; Set the entry's page present bit, the writable bit, and the
 	;; write-through bit.
 	or AL, 00001011b
@@ -666,7 +666,7 @@ pagingSetup:
 	;; kernel.
 	;; The address of the second table
 	mov EAX, (LDRPAGINGDATA + 2000h)
-	and AX, 0F000h			; Clear bits 0-11, just in case
+	and AX, 0F000h					; Clear bits 0-11, just in case
 	;; Set the entry's page present bit, the writable bit, and the
 	;; write-through bit.
 	or AL, 00001011b
@@ -680,17 +680,17 @@ pagingSetup:
 	stosd
 
 	;; Move the base address of the master page directory into CR3
-	xor EAX, EAX		; CR3 supposed to be zeroed
-	or AL, 00001000b	; Set the page write-through bit
+	xor EAX, EAX					; CR3 supposed to be zeroed
+	or AL, 00001000b				; Set the page write-through bit
 	;; The address of the directory
 	mov EBX, LDRPAGINGDATA
-	and EBX, 0FFFFF800h	; Clear bits 0-10, just in case
-	or EAX, EBX		; Combine them into the new CR3
+	and EBX, 0FFFFF800h				; Clear bits 0-10, just in case
+	or EAX, EBX						; Combine them into the new CR3
 	mov CR3, EAX
 
 	;; Make sure caching is not globally disabled
 	mov EAX, CR0
-	and EAX, 9FFFFFFFh	; Clear CD (30) and NW (29)
+	and EAX, 9FFFFFFFh				; Clear CD (30) and NW (29)
 	mov CR0, EAX
 
 	;; Clear out the page cache before we turn on paging, since if
@@ -745,7 +745,7 @@ loaderMemCopy:
 	;; Using this method we can only transfer 64K at a time.
 	.copyLoop:
 
-	mov ECX, dword [SS:(BP + 28)]		; Size in bytes
+	mov ECX, dword [SS:(BP + 28)]	; Size in bytes
 	cmp ECX, 10000h
 	jb .noReduce
 	mov ECX, 10000h
@@ -754,24 +754,24 @@ loaderMemCopy:
 	;; Set up the temporary GDT
 
 	;; Source descriptor
-	mov EBX, dword [SS:(BP + 20)]		; Source address
-	mov word [TMPGDT.srclow], BX		; Source address low word
+	mov EBX, dword [SS:(BP + 20)]	; Source address
+	mov word [TMPGDT.srclow], BX	; Source address low word
 	shr EBX, 16
-	mov byte [TMPGDT.srcmid], BL		; Source address 3rd byte
+	mov byte [TMPGDT.srcmid], BL	; Source address 3rd byte
 	mov byte [TMPGDT.srchi], BH		; Source address 4th byte
 
 	;; Destination descriptor
-	mov EBX, dword [SS:(BP + 24)]		; Dest address
-	mov word [TMPGDT.dstlow], BX		; Dest address low word
+	mov EBX, dword [SS:(BP + 24)]	; Dest address
+	mov word [TMPGDT.dstlow], BX	; Dest address low word
 	shr EBX, 16
-	mov byte [TMPGDT.dstmid], BL		; Dest address 3rd byte
+	mov byte [TMPGDT.dstmid], BL	; Dest address 3rd byte
 	mov byte [TMPGDT.dsthi], BH		; Dest address 4th byte
 
 	push ECX
 	mov AX, 8700h
-	shr ECX, 1				; Size is in words
+	shr ECX, 1						; Size is in words
 	jnc .noAdd
-	add ECX, 1				; Don't round down though...
+	add ECX, 1						; Don't round down though...
 	.noAdd:
 	mov SI, TMPGDT
 	int 15h
@@ -823,16 +823,16 @@ loaderMemSet:
 	.noReduce2:
 	sub EBX, (LDRDATABUFFER % 16)
 
-	cli				; Disable ints
-	push ES				; Preserve ES
+	cli								; Disable ints
+	push ES							; Preserve ES
 	mov EAX, (LDRDATABUFFER / 16)	; Segment
-	mov ES, EAX			;
+	mov ES, EAX						;
 	mov DI, (LDRDATABUFFER % 16)	; Offset
-	mov CX, BX			; Count
-	mov AX, word [SS:(BP + 18)]	; Value in AL
-	rep stosb			; Fill the buffer
-	pop ES				; Restore ES
-	sti				; Re-enable ints
+	mov CX, BX						; Count
+	mov AX, word [SS:(BP + 18)]		; Value in AL
+	rep stosb						; Fill the buffer
+	pop ES							; Restore ES
+	sti								; Re-enable ints
 
 	;; Use the loaderMemCopy function as many times as necessary to
 	;; set the value
@@ -845,8 +845,8 @@ loaderMemSet:
 	mov ECX, EBX
 	.noReduce3:
 	push dword ECX
-	push dword [SS:(BP + 20)]	; Dest address
-	push dword LDRDATABUFFER	; Src address
+	push dword [SS:(BP + 20)]		; Dest address
+	push dword LDRDATABUFFER		; Src address
 	call loaderMemCopy
 	add SP, 12
 
@@ -879,18 +879,18 @@ FATALERROR	db 0 	;; Fatal error encountered?
 	ALIGN 4
 
 BYTESPERSECT	dw 512
-ROOTDIRENTS	dw 0
+ROOTDIRENTS		dw 0
 ROOTDIRCLUST	dd 0
-FSTYPE		dw 0
-RESSECS		dw 0
-FATSECS		dd 0
-TOTALSECS	dd 0
-CYLINDERS	dd 0
-HEADS		dd 0
-SECPERTRACK	dd 0
-SECPERCLUST	dw 0
-FATS		dw 0
-DRIVENUMBER	dw 0
+FSTYPE			dw 0
+RESSECS			dw 0
+FATSECS			dd 0
+TOTALSECS		dd 0
+CYLINDERS		dd 0
+HEADS			dd 0
+SECPERTRACK		dd 0
+SECPERCLUST		dw 0
+FATS			dw 0
+DRIVENUMBER		dw 0
 
 ;;
 ;; Tables, desciptors, etc., used for protected mode
@@ -935,13 +935,13 @@ TMPGDT:
 	TMPGDT.srclenlo dw 0FFFFh	; source segment length in bytes
 	TMPGDT.srclow	dw 0		; low word of linear source address
 	TMPGDT.srcmid	db 0		; middle byte of linear source address
-			db 93h		; source segment access rights
+					db 93h		; source segment access rights
 	TMPGDT.srclenhi	db 0Fh		; source extended access rights
 	TMPGDT.srchi	db 0		; high byte of source address
 	TMPGDT.dstlenlo dw 0FFFFh	; dest segment length in bytes
 	TMPGDT.dstlow	dw 0		; low word of linear dest address
 	TMPGDT.dstmid	db 0		; middle byte of linear dest address
-			db 93h		; dest segment access rights
+					db 93h		; dest segment access rights
 	TMPGDT.dstlenhi	db 0Fh		; dest extended access rights
 	TMPGDT.dsthi	db 0		; high byte of dest address
 	TMPGDT.empty2	times 16 db 0	; empty (used by BIOS)
@@ -953,8 +953,8 @@ TMPGDT:
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.76' , 0
-LOADMSG2	db 'Copyright (C) 1998-2014 J. Andrew McLaughlin', 0
+LOADMSG1	db 'Visopsys OS Loader v0.77' , 0
+LOADMSG2	db 'Copyright (C) 1998-2015 J. Andrew McLaughlin', 0
 BOOTDEV1	db 'Boot device  ', 10h, ' ', 0
 BOOTFLOPPY	db 'fd', 0
 BOOTHDD		db 'hd', 0
@@ -975,9 +975,13 @@ BOOTINFO	db 'BOOTINFO   ', 0
 ;; The error messages
 ;;
 
-SAD		db 'x ', 0
-BIOSERR		db 'The computer', 27h, 's BIOS was unable to provide information about', 0
+SAD			db 'x ', 0
+BIOSERR		db 'The computer', 27h, 's BIOS was unable to provide information '
+			db 'about', 0
 BIOSERR2	db 'the boot device.  Please check the BIOS for errors.', 0
-FATALERROR1	db ' unrecoverable error(s) were recorded, and the boot process cannot continue.', 0
-FATALERROR2	db 'Any applicable error information is noted above.  Please attempt to rectify', 0
+FATALERROR1	db ' unrecoverable error(s) were recorded, and the boot process '
+			db 'cannot continue.', 0
+FATALERROR2	db 'Any applicable error information is noted above.  Please '
+			db 'attempt to rectify', 0
 FATALERROR3	db 'these problems before retrying.', 0
+

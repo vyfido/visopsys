@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +22,9 @@
 // This contains standard startup code which should be linked to all
 // programs made for Visopsys using the C language
 
-#include <stdlib.h>
 #include <locale.h>
+#include <stdlib.h>
+#include <sys/processor.h>
 
 void _start(void) __attribute__((noreturn));
 extern int main(void);
@@ -64,8 +65,7 @@ void _start(void)
 	setlocale(LC_ALL, "C");
 
 	// Clear the stack frame
-	__asm__ __volatile__ ("movl %%ebp, %%esp \n\t" \
-				"popl %%ebp" : : : "%esp");
+	processorPopFrame();
 
 	// Call the regular program.
 	_exit_status = main();
@@ -73,3 +73,4 @@ void _start(void)
 	// Do an exit call to properly terminate the program after main returns
 	exit(_exit_status);
 }
+

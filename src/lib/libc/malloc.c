@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -262,7 +262,7 @@ static mallocBlock *getBlock(void)
 	vacantBlockList = block->next;
 
 	// Clear it
-	bzero(block, sizeof(mallocBlock));
+	memset(block, 0, sizeof(mallocBlock));
 
 	vacantBlocks -= 1;
 
@@ -302,7 +302,7 @@ static void putBlock(mallocBlock **list, mallocBlock *block)
 	removeBlock(list, block);
 
 	// Clear it
-	bzero(block, sizeof(mallocBlock));
+	memset(block, 0, sizeof(mallocBlock));
 
 	// Put it at the head of the unused block list
 	block->next = vacantBlockList;
@@ -545,7 +545,7 @@ static int deallocateBlock(void *start, const char *function)
 			removeBlock(USEDLIST_REF, block);
 
 			// Clear out the memory
-			bzero(start, block->size);
+			memset(start, 0, block->size);
 
 			block->process = 0;
 			block->function = NULL;

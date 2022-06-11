@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,7 +48,7 @@ static void setSize(kernelWindowComponent *component)
 	component->height = windowVariables->checkbox.size;
 	if (component->params.font)
 		component->height = max(((asciiFont *) component->params.font)
-			->charHeight, windowVariables->checkbox.size);
+			->glyphHeight, windowVariables->checkbox.size);
 
 	component->minWidth = component->width;
 	component->minHeight = component->height;
@@ -96,12 +96,14 @@ static int draw(kernelWindowComponent *component)
 	}
 
 	if (component->params.font)
+	{
 		// Now draw the text next to the box
 		kernelGraphicDrawText(component->buffer,
 			(color *) &(component->params.foreground),
 			(color *) &(component->params.background),
 			(asciiFont *) component->params.font, checkbox->text, draw_normal,
 			(component->xCoord + checkboxSize + 3), (component->yCoord));
+	}
 
 	if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
 		component->drawBorder(component, 1);
@@ -207,7 +209,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 	int status = 0;
 
 	// Translate this into a mouse event.
-	if ((event->type & EVENT_MASK_KEY) && (event->key == ASCII_SPACE))
+	if ((event->type & EVENT_MASK_KEY) && (event->key == keySpaceBar))
 	{
 		if (event->type == EVENT_KEY_DOWN)
 			event->type = EVENT_MOUSE_LEFTDOWN;
@@ -249,7 +251,6 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewCheckbox(objectKey parent,
 	const char *text, componentParameters *params)
 {
@@ -267,7 +268,7 @@ kernelWindowComponent *kernelWindowNewCheckbox(objectKey parent,
 
 	// Get the basic component structure
 	component = kernelWindowComponentNew(parent, params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	component->type = checkboxComponentType;
@@ -284,12 +285,12 @@ kernelWindowComponent *kernelWindowNewCheckbox(objectKey parent,
 	component->destroy = &destroy;
 
 	// If font is NULL, use the default
-	if (component->params.font == NULL)
+	if (!component->params.font)
 		component->params.font = windowVariables->font.varWidth.small.font;
 
 	// Get the checkbox
 	checkbox = kernelMalloc(sizeof(kernelWindowCheckbox));
-	if (checkbox == NULL)
+	if (!checkbox)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
@@ -299,7 +300,7 @@ kernelWindowComponent *kernelWindowNewCheckbox(objectKey parent,
 
 	// Try to get memory for the text
 	checkbox->text = kernelMalloc(strlen(text) + 1);
-	if (checkbox->text == NULL)
+	if (!checkbox->text)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
@@ -312,3 +313,4 @@ kernelWindowComponent *kernelWindowNewCheckbox(objectKey parent,
 
 	return (component);
 }
+

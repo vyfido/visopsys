@@ -1,14 +1,14 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2014 J. Andrew McLaughlin
+#  Copyright (C) 1998-2015 J. Andrew McLaughlin
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2014-01-22 18:04-0400\n"
-"Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -16,81 +16,81 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: edit.c:57
+#: edit.c:58
 msgid "Edit"
 msgstr "Editar"
 
-#: edit.c:58
+#: edit.c:59
 msgid "File"
 msgstr "Archivo"
 
-#: edit.c:59
+#: edit.c:60
 msgid "Untitled"
 msgstr "Sin título"
 
-#: edit.c:60
+#: edit.c:61
 msgid "File has been modified.  Discard changes?"
 msgstr "Archivo modificado. Descartar cambios?"
 
-#: edit.c:61
+#: edit.c:62
 msgid "Please enter the name of the file to edit:"
 msgstr "Ingrese el nombre del archivo a editar:"
 
-#: edit.c:109
+#: edit.c:110
 msgid "Open"
 msgstr "Abrir"
 
-#: edit.c:110
+#: edit.c:111
 msgid "Save"
 msgstr "Guardar"
 
-#: edit.c:111
+#: edit.c:112
 msgid "Quit"
 msgstr "Cerrar"
 
-#: edit.c:129
+#: edit.c:131
 msgid "Error"
 msgstr "Error"
 
-#: edit.c:150 edit.c:153
+#: edit.c:153 edit.c:156
 msgid " (modified)"
 msgstr " (modificado)"
 
-#: edit.c:400
+#: edit.c:411
 msgid "Enter filename"
 msgstr "Ingresar nombre de archivo"
 
-#: edit.c:952
+#: edit.c:966
 msgid "Discard changes?"
 msgstr "Descartar cambios?"
 
-#: edit.c:953
+#: edit.c:967
 msgid "Discard"
 msgstr "Descartar"
 
-#: edit.c:953
+#: edit.c:967
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: edit.c:987 edit.c:1303
+#: edit.c:1002 edit.c:1333
 msgid "Couldn't create file in a read-only filesystem"
 msgstr "No se puede crear un archivo en un sistema de archivos de sólo lectura"
 
-#: edit.c:989 edit.c:1305
+#: edit.c:1004 edit.c:1335
 #, c-format
 msgid "Error %d loading file"
 msgstr "Error %d al cargar archivo"
 
-#: edit.c:1110
+#: edit.c:1128
 msgid "Unable to launch file dialog"
 msgstr "No se pudo abrir el diálogo de archivos"
 
-#: edit.c:1121
+#: edit.c:1140
 #, c-format
 msgid "Error %d saving file"
 msgstr "Error %d al guardar archivo"
 
-#: edit.c:1259
+#: edit.c:1280
 #, c-format
 msgid ""
 "\n"
@@ -98,3 +98,8 @@ msgid ""
 msgstr ""
 "\n"
 "Der Befehl \"%s\" funktioniert nur im Grafik-Modus \n"
+
+#: edit.c:1296
+#, c-format
+msgid "Unknown option '%c'"
+msgstr ""

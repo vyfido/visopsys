@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -50,6 +50,7 @@ this command will prompt the user to set the password for the named user.
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 #include <sys/user.h>
 
@@ -100,7 +101,7 @@ static int getUserNames(void)
 	char *bufferPointer = NULL;
 	int count;
 
-	bzero(userBuffer, 1024);
+	memset(userBuffer, 0, 1024);
 
 	numUserNames = userGetNames(userBuffer, 1024);
 	if (numUserNames < 0)
@@ -110,7 +111,7 @@ static int getUserNames(void)
 	}
 
 	userListParams = malloc(numUserNames * sizeof(listItemParameters));
-	if (userListParams == NULL)
+	if (!userListParams)
 		return (status = ERR_MEMORY);
 
 	bufferPointer = userBuffer;
@@ -161,14 +162,15 @@ static int setPasswordDialog(int userNumber)
 	char oldPassword[USER_MAX_PASSWDLENGTH + 1];
 	char newPassword[USER_MAX_PASSWDLENGTH + 1];
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 
 	// Create the dialog
 	if (window)
 		dialogWindow = windowNewDialog(window, SET_PASSWORD);
 	else
 		dialogWindow = windowNew(processId, SET_PASSWORD);
-	if (dialogWindow == NULL)
+
+	if (!dialogWindow)
 		return (status = ERR_NOCREATE);
 
 	params.gridWidth = 1;
@@ -237,8 +239,8 @@ static int setPasswordDialog(int userNumber)
 	params.gridY = 4;
 	params.gridWidth = 2;
 	params.orientationX = orient_center;
-	noMatchLabel = windowNewTextLabel(dialogWindow, _("Passwords do not match"),
-		&params);
+	noMatchLabel = windowNewTextLabel(dialogWindow,
+		_("Passwords do not match"), &params);
 	windowComponentSetVisible(noMatchLabel, 0);
 
 	// Create password too short label and hide it
@@ -275,7 +277,8 @@ static int setPasswordDialog(int userNumber)
 
 		// Check for the Cancel button
 		status = windowComponentEventGet(cancelButton, &event);
-		if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
+		if ((status < 0) || ((status > 0) &&
+			(event.type == EVENT_MOUSE_LEFTUP)))
 		{
 			windowDestroy(dialogWindow);
 			return (status = ERR_NODATA);
@@ -283,7 +286,8 @@ static int setPasswordDialog(int userNumber)
 
 		// Check for window close events
 		status = windowComponentEventGet(dialogWindow, &event);
-		if ((status < 0) || ((status > 0) && (event.type == EVENT_WINDOW_CLOSE)))
+		if ((status < 0) || ((status > 0) &&
+			(event.type == EVENT_WINDOW_CLOSE)))
 		{
 			windowDestroy(dialogWindow);
 			return (status = ERR_NODATA);
@@ -294,7 +298,7 @@ static int setPasswordDialog(int userNumber)
 		{
 			status = windowComponentEventGet(oldPasswordField, &event);
 			if ((status > 0) && (event.type == EVENT_KEY_DOWN) &&
-				(event.key == (unsigned char) ASCII_ENTER))
+				(event.key == keyEnter))
 			{
 				break;
 			}
@@ -304,7 +308,7 @@ static int setPasswordDialog(int userNumber)
 		status = windowComponentEventGet(passwordField1, &event);
 		if ((status > 0) && (event.type == EVENT_KEY_DOWN))
 		{
-			if (event.key == (unsigned char) ASCII_ENTER)
+			if (event.key == keyEnter)
 				break;
 
 			// Clear all existing labels
@@ -343,7 +347,7 @@ static int setPasswordDialog(int userNumber)
 		status = windowComponentEventGet(passwordField2, &event);
 		if ((status > 0) && (event.type == EVENT_KEY_DOWN))
 		{
-			if (event.key == (unsigned char) ASCII_ENTER)
+			if (event.key == keyEnter)
 				break;
 
 			// Clear all existing labels
@@ -483,7 +487,8 @@ static int addUser(const char *userName, const char *password)
 		return (status);
 
 	// Re-populate our list component
-	status = windowComponentSetData(userList, userListParams, numUserNames);
+	status = windowComponentSetData(userList, userListParams, numUserNames,
+		1 /* redraw */);
 	if (status < 0)
 		return (status);
 
@@ -517,7 +522,8 @@ static int deleteUser(const char *userName)
 		return (status);
 
 	// Re-populate our list component
-	status = windowComponentSetData(userList, userListParams, numUserNames);
+	status = windowComponentSetData(userList, userListParams, numUserNames,
+		1 /* redraw */);
 	if (status < 0)
 		return (status);
 
@@ -573,7 +579,7 @@ static int setLanguage(const char *userName, const char *language)
 		}
 
 		// Set the language variable.
-		status = variableListSet(&envList, "LANG", language);
+		status = variableListSet(&envList, ENV_LANG, language);
 		if (status < 0)
 			return (status);
 
@@ -596,25 +602,27 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("users");
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
 
 	// Refresh the 'add user' button
-	windowComponentSetData(addUserButton, ADD_USER, strlen(ADD_USER));
+	windowComponentSetData(addUserButton, ADD_USER, strlen(ADD_USER),
+		1 /* redraw */);
 
 	// Refresh the 'delete user' button
-	windowComponentSetData(deleteUserButton, DELETE_USER, strlen(DELETE_USER));
+	windowComponentSetData(deleteUserButton, DELETE_USER, strlen(DELETE_USER),
+		1 /* redraw */);
 
 	// Refresh the 'set password' button
 	windowComponentSetData(setPasswordButton, SET_PASSWORD,
-		strlen(SET_PASSWORD));
+		strlen(SET_PASSWORD), 1 /* redraw */);
 
 	// Refresh the 'set language' button
 	windowComponentSetData(setLanguageButton, SET_LANGUAGE,
-		strlen(SET_LANGUAGE));
+		strlen(SET_LANGUAGE), 1 /* redraw */);
 }
 
 
@@ -710,16 +718,16 @@ static void constructWindow(void)
 
 	// Create a new window
 	window = windowNew(processId, WINDOW_TITLE);
-	if (window == NULL)
+	if (!window)
 		return;
 
 	// Make sure the user list is wide enough to accommodate the longest
 	// possible name
-	bzero(&itemParams, sizeof(listItemParameters));
+	memset(&itemParams, 0, sizeof(listItemParameters));
 	memset(itemParams.text, '@', USER_MAX_NAMELENGTH);
 
 	// The list of user names
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 5;
@@ -730,7 +738,8 @@ static void constructWindow(void)
 	userList = windowNewList(window, windowlist_textonly, 5, 1, 0,
 		&itemParams, 1, &params);
 	windowRegisterEventHandler(userList, &eventHandler);
-	windowComponentSetData(userList, userListParams, numUserNames);
+	windowComponentSetData(userList, userListParams, numUserNames,
+		1 /* redraw */);
 	windowComponentFocus(userList);
 
 	// A container for the buttons
@@ -754,13 +763,15 @@ static void constructWindow(void)
 
 	// Create a 'set password' button
 	params.gridY += 1;
-	setPasswordButton = windowNewButton(container, SET_PASSWORD, NULL, &params);
+	setPasswordButton = windowNewButton(container, SET_PASSWORD, NULL,
+		&params);
 	windowRegisterEventHandler(setPasswordButton, &eventHandler);
 
 	// Create a 'set language' button
 	params.gridY += 1;
 	params.padBottom = 0;
-	setLanguageButton = windowNewButton(container, SET_LANGUAGE, NULL, &params);
+	setLanguageButton = windowNewButton(container, SET_LANGUAGE, NULL,
+		&params);
 	windowRegisterEventHandler(setLanguageButton, &eventHandler);
 
 	// Enable/disable buttons
@@ -778,12 +789,13 @@ static void constructWindow(void)
 int main(int argc, char *argv[])
 {
 	int status = 0;
+	char opt;
 	char userName[USER_MAX_NAMELENGTH + 1];
 	int setPass = 0;
 	disk sysDisk;
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("users");
 
 	// Only work in graphics mode
@@ -796,14 +808,24 @@ int main(int argc, char *argv[])
 	}
 
 	// Check options
-	if (getopt(argc, argv, "p:") == 'p')
+	while (strchr("p?", (opt = getopt(argc, argv, "p"))))
 	{
-		strncpy(userName, optarg, USER_MAX_NAMELENGTH);
-		setPass = 1;
+		switch (opt)
+		{
+			case 'p':
+				strncpy(userName, optarg, USER_MAX_NAMELENGTH);
+				setPass = 1;
+				break;
+
+			default:
+				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
+				errno = status = ERR_INVALID;
+				return (status);
+		}
 	}
 
 	// Find out whether we are currently running on a read-only filesystem
-	bzero(&sysDisk, sizeof(disk));
+	memset(&sysDisk, 0, sizeof(disk));
 	if (!fileGetDisk(PATH_SYSTEM, &sysDisk))
 		readOnly = sysDisk.readOnly;
 

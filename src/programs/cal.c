@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,6 +47,7 @@ Options:
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 
 #define _(string) gettext(string)
 #define gettext_noop(string) (string)
@@ -136,6 +137,7 @@ static void textCalendar(void)
 
 	for (count = 0; count < spaceSkip; count++)
 		printf(" ");
+
 	printf("%s %i", _(monthName[month - 1]), year);
 
 	printf("\n");
@@ -154,6 +156,7 @@ static void textCalendar(void)
 		if (dayOfWeek == 6)
 			printf("\n");
 	}
+
 	if (dayOfWeek != 6)
 		printf("\n");
 
@@ -185,9 +188,10 @@ static void getUpdate(void)
 	initCalListParams();
 
 	itoa(year, yearString);
-	windowComponentSetData(calList, calListParams, 49);
-	windowComponentSetData(monthLabel, _(monthName[month - 1]), 10);
-	windowComponentSetData(yearLabel, yearString, 4);
+	windowComponentSetData(calList, calListParams, 49, 1 /* redraw */);
+	windowComponentSetData(monthLabel, _(monthName[month - 1]), 10,
+		1 /* redraw */);
+	windowComponentSetData(yearLabel, yearString, 4, 1 /* redraw */);
 }
 
 
@@ -197,7 +201,7 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("cal");
 
 	// Refresh the window title
@@ -253,10 +257,10 @@ static void constructWindow(void)
 	struct tm theTime;
 
 	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
-	if (window == NULL)
+	if (!window)
 		exit(ERR_NOTINITIALIZED);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padRight = 1;
@@ -297,7 +301,7 @@ static void constructWindow(void)
 		calListParams, 49, &params);
 	getUpdate();
 
-	bzero(&theTime, sizeof(struct tm));
+	memset(&theTime, 0, sizeof(struct tm));
 	rtcDateTime(&theTime);
 	windowComponentSetSelected(calList, rtcDayOfWeek(1, month, year) + 6 +
 		theTime.tm_mday);
@@ -315,7 +319,7 @@ static void constructWindow(void)
 static void graphCalendar(void)
 {
 	calListParams = malloc(49 * sizeof(listItemParameters));
-	if (calListParams == NULL)
+	if (!calListParams)
 		exit(ERR_MEMORY);
 
 	constructWindow();
@@ -332,17 +336,26 @@ int main(int argc, char *argv[])
 	int status = 0;
 	char opt;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("cal");
 
 	// Are graphics enabled?
 	graphics = graphicsAreEnabled();
 
-	while (strchr("T", (opt = getopt(argc, argv, "T"))))
+	// Check options
+	while (strchr("T?", (opt = getopt(argc, argv, "T"))))
 	{
-		// Force text mode?
-		if (opt == 'T')
-			graphics = 0;
+		switch (opt)
+		{
+			case 'T':
+				// Force text mode
+				graphics = 0;
+				break;
+
+			default:
+				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
+				return (status = ERR_INVALID);
+		}
 	}
 
 	date  = rtcReadDayOfMonth();

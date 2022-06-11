@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -105,7 +105,6 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewImage(objectKey parent, image *imageCopy,
 	drawMode mode, componentParameters *params)
 {
@@ -123,7 +122,7 @@ kernelWindowComponent *kernelWindowNewImage(objectKey parent, image *imageCopy,
 
 	// Get the basic component structure
 	component = kernelWindowComponentNew(parent, params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	// Set the functions
@@ -133,7 +132,7 @@ kernelWindowComponent *kernelWindowNewImage(objectKey parent, image *imageCopy,
 
 	// Get the kernelWindowImage component memory
 	windowImage = kernelMalloc(sizeof(kernelWindowImage));
-	if (windowImage == NULL)
+	if (!windowImage)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);

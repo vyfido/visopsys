@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -54,7 +54,7 @@ static void setText(kernelWindowComponent *component, const char *label,
 
 	tmp = ((borderThickness * 2) + 6);
 	if (labelFont)
-		tmp += labelFont->charHeight;
+		tmp += labelFont->glyphHeight;
 
 	if (tmp > component->height)
 		component->height = tmp;
@@ -140,7 +140,7 @@ static int draw(kernelWindowComponent *component)
 				kernelFontGetPrintedWidth(labelFont,
 					(const char *) button->label)) / 2)),
 			(component->yCoord + ((component->height -
-				labelFont->charHeight) / 2)));
+				labelFont->glyphHeight) / 2)));
 	}
 
 	// If there is an image on the button, draw it centered on the button
@@ -237,7 +237,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 
 	// We're only looking for 'enter' key releases, which we turn into mouse
 	// button presses.
-	if ((event->type & EVENT_MASK_KEY) && (event->key == ASCII_ENTER))
+	if ((event->type & EVENT_MASK_KEY) && (event->key == keyEnter))
 	{
 		// If the button is not pushed, ignore this
 		if ((event->type == EVENT_KEY_UP) && !(button->state))
@@ -286,7 +286,6 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewButton(objectKey parent,
 	const char *label, image *buttonImage, componentParameters *params)
 {
@@ -304,7 +303,7 @@ kernelWindowComponent *kernelWindowNewButton(objectKey parent,
 
 	// Get the basic component structure
 	component = kernelWindowComponentNew(parent, params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	component->type = buttonComponentType;
@@ -319,11 +318,11 @@ kernelWindowComponent *kernelWindowNewButton(objectKey parent,
 	component->destroy = &destroy;
 
 	// If font is NULL, use the default
-	if (component->params.font == NULL)
+	if (!component->params.font)
 		component->params.font = windowVariables->font.varWidth.medium.font;
 
 	button = kernelMalloc(sizeof(kernelWindowButton));
-	if (button == NULL)
+	if (!button)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);

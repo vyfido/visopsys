@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -63,24 +63,24 @@
 #define EHCI_LEGSUPCAP_CAPID		0x000000FF	/* RO */
 #define EHCI_LEGSUPCAP_RO			(EHCI_LEGSUPCAP_NEXTEXTCAP | \
 									EHCI_LEGSUPCAP_CAPID)
-#define EHCI_LETSUBCONT_SMIBAR		0x80000000	/* RWC */
-#define EHCI_LETSUBCONT_SMICMD		0x40000000	/* RWC */
-#define EHCI_LETSUBCONT_SMIOSOWN	0x20000000	/* RWC */
-#define EHCI_LETSUBCONT_SMIASYNC	0x00200000	/* RO */
-#define EHCI_LETSUBCONT_SMIHOST		0x00100000	/* RO */
-#define EHCI_LETSUBCONT_SMIFRAME	0x00080000	/* RO */
-#define EHCI_LETSUBCONT_SMIPORT		0x00040000	/* RO */
-#define EHCI_LETSUBCONT_SMIERR		0x00020000	/* RO */
-#define EHCI_LETSUBCONT_SMIINT		0x00010000	/* RO */
-#define EHCI_LETSUBCONT_SMIRWC		(EHCI_LETSUBCONT_SMIBAR | \
-									EHCI_LETSUBCONT_SMICMD | \
-									EHCI_LETSUBCONT_SMIOSOWN)
-#define EHCI_LETSUBCONT_SMIRO		(EHCI_LETSUBCONT_SMIASYNC | \
-									EHCI_LETSUBCONT_SMIHOST | \
-									EHCI_LETSUBCONT_SMIFRAME | \
-									EHCI_LETSUBCONT_SMIPORT | \
-									EHCI_LETSUBCONT_SMIERR | \
-									EHCI_LETSUBCONT_SMIINT)
+#define EHCI_LEGSUPCONT_SMIBAR		0x80000000	/* RWC */
+#define EHCI_LEGSUPCONT_SMICMD		0x40000000	/* RWC */
+#define EHCI_LEGSUPCONT_SMIOSOWN	0x20000000	/* RWC */
+#define EHCI_LEGSUPCONT_SMIASYNC	0x00200000	/* RO */
+#define EHCI_LEGSUPCONT_SMIHOST		0x00100000	/* RO */
+#define EHCI_LEGSUPCONT_SMIFRAME	0x00080000	/* RO */
+#define EHCI_LEGSUPCONT_SMIPORT		0x00040000	/* RO */
+#define EHCI_LEGSUPCONT_SMIERR		0x00020000	/* RO */
+#define EHCI_LEGSUPCONT_SMIINT		0x00010000	/* RO */
+#define EHCI_LEGSUPCONT_SMIRWC		(EHCI_LEGSUPCONT_SMIBAR | \
+									EHCI_LEGSUPCONT_SMICMD | \
+									EHCI_LEGSUPCONT_SMIOSOWN)
+#define EHCI_LEGSUPCONT_SMIRO		(EHCI_LEGSUPCONT_SMIASYNC | \
+									EHCI_LEGSUPCONT_SMIHOST | \
+									EHCI_LEGSUPCONT_SMIFRAME | \
+									EHCI_LEGSUPCONT_SMIPORT | \
+									EHCI_LEGSUPCONT_SMIERR | \
+									EHCI_LEGSUPCONT_SMIINT)
 
 // Bitfields for the EHCI command register
 #define EHCI_CMD_INTTHRESCTL		0x00FF0000
@@ -304,12 +304,13 @@ typedef volatile struct {
 
 typedef struct {
 	usbDevice *usbDev;
+	int interface;
 	unsigned char endpoint;
 	unsigned maxLen;
 	int interval;
 	ehciTransQueue transQueue;
 	unsigned bufferPhysical;
-	void (*callback)(usbDevice *, void *, unsigned);
+	void (*callback)(usbDevice *, int, void *, unsigned);
 
 } ehciIntrReg;
 

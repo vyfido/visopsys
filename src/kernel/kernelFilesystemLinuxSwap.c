@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,7 +24,6 @@
 
 #include "kernelFilesystem.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelError.h"
 #include <string.h>
 #include <sys/linuxswap.h>
@@ -41,7 +40,7 @@ static int readSwapHeader(const kernelDisk *theDisk, linuxSwapHeader *header)
 	kernelPhysicalDisk *physicalDisk = NULL;
 
 	// Initialize the buffer we were given
-	kernelMemClear(header, sizeof(linuxSwapHeader));
+	memset(header, 0, sizeof(linuxSwapHeader));
 
 	physicalDisk = theDisk->physical;
 
@@ -246,7 +245,7 @@ static int clobber(kernelDisk *theDisk)
 	if (status < 0)
 		return (status);
 
-	kernelMemClear(header->magic.magic, 10);
+	memset(header->magic.magic, 0, 10);
 
 	return (status = writeSwapHeader(theDisk, header));
 }
@@ -459,7 +458,6 @@ static kernelFilesystemDriver defaultLinuxSwapDriver = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelFilesystemLinuxSwapInitialize(void)
 {

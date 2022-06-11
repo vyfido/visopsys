@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -33,12 +33,12 @@
 #include "kernelLoader.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
-#include "kernelMisc.h"
-#include "kernelProcessorX86.h"
 #include "kernelText.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/processor.h>
 
 #define H_Y_BLOCKSPERMCU	jpg->hvBlocksPerMcu[0]
 #define V_Y_BLOCKSPERMCU	jpg->hvBlocksPerMcu[1]
@@ -144,8 +144,8 @@ static int detect(const char *fileName, void *dataPtr, unsigned dataLength,
 
 	// See whether this file claims to be a JPEG file
 
-	if (kernelMemCmp(dataPtr, JFIF_START, sizeof(JFIF_START)) &&
-		kernelMemCmp(dataPtr, EXIF_START, sizeof(EXIF_START)))
+	if (memcmp(dataPtr, JFIF_START, sizeof(JFIF_START)) &&
+		memcmp(dataPtr, EXIF_START, sizeof(EXIF_START)))
 	{
 		//kernelDebug(debug_misc, "JFIF_START or EXIF_START missing");
 		return (0);
@@ -277,9 +277,9 @@ static int genQuantTable(int precision, int ident, unsigned char *values,
 	table->ident = ident;
 
 	if (table->precision == 8)
-		kernelMemCopy(values, table->values.val8, (64 * sizeof(unsigned char)));
+		memcpy(table->values.val8, values, (64 * sizeof(unsigned char)));
 	else if (table->precision == 16)
-		kernelMemCopy(values, table->values.val16, (64 * sizeof(unsigned short)));
+		memcpy(table->values.val16, values, (64 * sizeof(unsigned short)));
 	else
 	{
 		kernelError(kernel_error, "Quantization tables of precision %d are not "
@@ -806,7 +806,7 @@ static void arrangeMcu(int hBlocks, int vBlocks, short *coeff)
 		}
 	}
 
-	kernelMemCopy(tmpCoeff, coeff, (hBlocks * vBlocks * 64 * sizeof(short)));
+	memcpy(coeff, tmpCoeff, (hBlocks * vBlocks * 64 * sizeof(short)));
 	kernelFree(tmpCoeff);
 }
 
@@ -988,9 +988,9 @@ static int decode(jpgData *jpg, pixel *imageData)
 			//	(yCoord / (V_Y_BLOCKSPERMCU * 8)));
 			//kernelDebugBinary((jpg->dataPointer + (jpg->bitPosition / 8)), 16);
 
-			kernelMemClear(yCoeff, ((Y_BLOCKSPERMCU * 64) * sizeof(short)));
-			kernelMemClear(cbCoeff, ((Y_BLOCKSPERMCU * 64) * sizeof(short)));
-			kernelMemClear(crCoeff, ((Y_BLOCKSPERMCU * 64) * sizeof(short)));
+			memset(yCoeff, 0, ((Y_BLOCKSPERMCU * 64) * sizeof(short)));
+			memset(cbCoeff, 0, ((Y_BLOCKSPERMCU * 64) * sizeof(short)));
+			memset(crCoeff, 0, ((Y_BLOCKSPERMCU * 64) * sizeof(short)));
 
 			// Read the Y (luminance) blocks
 			for (count = 0; count < Y_BLOCKSPERMCU; count ++)
@@ -1141,7 +1141,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 				case JPG_DHT:
 					// At least one huffman table is here
 					huffHeader = (jpgHuffHeader *)(imageFileData + count1 + 1);
-					huffHeader->length = kernelProcessorSwap16(huffHeader->length);
+					huffHeader->length = processorSwap16(huffHeader->length);
 					kernelDebug(debug_misc, "Hufftable(s) %d bytes at %d",
 						huffHeader->length, count1);
 
@@ -1188,7 +1188,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 					// A start-of-scan marker is here
 					jpg->scanHeader = (jpgScanHeader *)(imageFileData + count1 + 1);
 					jpg->scanHeader->length =
-						kernelProcessorSwap16(jpg->scanHeader->length);
+						processorSwap16(jpg->scanHeader->length);
 					jpg->dataPointer =
 						(imageFileData + count1 + 1 + jpg->scanHeader->length);
 					kernelDebug(debug_misc, "Start-of-scan at %d length %u", count1,
@@ -1199,7 +1199,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 				case JPG_DQT:
 					// At least one quantization table is here
 					quantHeader = (jpgQuantHeader *)(imageFileData + count1 + 1);
-					quantHeader->length = kernelProcessorSwap16(quantHeader->length);
+					quantHeader->length = processorSwap16(quantHeader->length);
 					kernelDebug(debug_misc, "Quanttable %d bytes at %d",
 						quantHeader->length, count1);
 
@@ -1230,9 +1230,9 @@ static int load(unsigned char *imageFileData, int dataLength,
 					jpg->restartHeader =
 						(jpgRestartHeader *) (imageFileData + count1 + 1);
 					jpg->restartHeader->length =
-						kernelProcessorSwap16(jpg->restartHeader->length);
+						 processorSwap16(jpg->restartHeader->length);
 					jpg->restartHeader->interval =
-						kernelProcessorSwap16(jpg->restartHeader->interval);
+						processorSwap16(jpg->restartHeader->interval);
 					kernelDebug(debug_misc, "Restart interval %d at %d",
 						jpg->restartHeader->interval, count1);
 					count1 += jpg->restartHeader->length;
@@ -1243,7 +1243,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 					jpg->frameHeader =
 						(jpgFrameHeader *)(imageFileData + count1 + 1);
 					jpg->frameHeader->length =
-						kernelProcessorSwap16(jpg->frameHeader->length);
+						processorSwap16(jpg->frameHeader->length);
 					if (jpg->frameHeader->precision != 8)
 					{
 						kernelError(kernel_error, "Only 8bpp JPEGs are supported "
@@ -1251,9 +1251,9 @@ static int load(unsigned char *imageFileData, int dataLength,
 						return (status = ERR_NOTIMPLEMENTED);
 					}
 					jpg->frameHeader->height =
-						kernelProcessorSwap16(jpg->frameHeader->height);
+						processorSwap16(jpg->frameHeader->height);
 					jpg->frameHeader->width =
-						kernelProcessorSwap16(jpg->frameHeader->width);
+						processorSwap16(jpg->frameHeader->width);
 					if (jpg->frameHeader->numComps != 3)
 					{
 						kernelError(kernel_error, "Only 3-component JPEGs are "
@@ -1289,7 +1289,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 				case JPG_APP0:
 					// A JFIF header is here
 					jfifHeader = (jpgJfifHeader *)(imageFileData + count1 + 1);
-					jfifHeader->length = kernelProcessorSwap16(jfifHeader->length);
+					jfifHeader->length = processorSwap16(jfifHeader->length);
 					kernelDebug(debug_misc, "JPEG APP0 at %d length %d", count1,
 						jfifHeader->length);
 					// Check the version.
@@ -1306,7 +1306,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 				case JPG_APP1:
 					// An EXIF header is here
 					exifHeader = (jpgExifHeader *)(imageFileData + count1 + 1);
-					exifHeader->length = kernelProcessorSwap16(exifHeader->length);
+					exifHeader->length = processorSwap16(exifHeader->length);
 					kernelDebug(debug_misc, "EXIF APP1 header at %d length %d",
 						count1, exifHeader->length);
 					// For the moment we ignore the EXIF data.
@@ -1329,7 +1329,7 @@ static int load(unsigned char *imageFileData, int dataLength,
 				case JPG_APP15:
 					// Some other application-specific marker we'll ignore.
 					jfifHeader = (jpgJfifHeader *)(imageFileData + count1 + 1);
-					jfifHeader->length = kernelProcessorSwap16(jfifHeader->length);
+					jfifHeader->length = processorSwap16(jfifHeader->length);
 					kernelDebug(debug_misc, "APP%d marker at %d length %d",
 						(imageFileData[count1] & 0xF), count1,
 						jfifHeader->length);
@@ -1463,7 +1463,6 @@ kernelFileClass jpgFileClass = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 kernelFileClass *kernelFileClassJpg(void)
 {

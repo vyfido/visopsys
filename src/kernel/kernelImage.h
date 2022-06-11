@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -33,7 +33,10 @@ int kernelImageSave(const char *, int, image *);
 int kernelImageResize(image *, unsigned, unsigned);
 int kernelImageCopy(image *, image *);
 int kernelImageCopyToKernel(image *, image *);
+int kernelImageFill(image *, color *);
+int kernelImagePaste(image *, image *, int, int);
 int kernelImageGetAlpha(image *);
 
 #define _KERNELIMAGE_H
 #endif
+

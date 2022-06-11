@@ -1,6 +1,6 @@
 //
 //	Visopsys
-//	Copyright (C) 1998-2014 J. Andrew McLaughlin
+//	Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //	This program is free software; you can redistribute it and/or modify it
 //	under the terms of the GNU General Public License as published by the Free
@@ -26,7 +26,6 @@
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
 #include "kernelWindowEventStream.h"
@@ -175,7 +174,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 				newWindowHeight, 1, 0);
 
 			// Write a resize event to the component event stream
-			kernelMemClear(&resizeEvent, sizeof(windowEvent));
+			memset(&resizeEvent, 0, sizeof(windowEvent));
 			resizeEvent.type = EVENT_WINDOW_RESIZE;
 			kernelWindowEventStreamWrite(&component->events, &resizeEvent);
 
@@ -242,7 +241,6 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewBorder(objectKey parent, borderType type,
 	componentParameters *params)
 {
@@ -261,7 +259,7 @@ kernelWindowComponent *kernelWindowNewBorder(objectKey parent, borderType type,
 
 	// Get the basic component structure
 	component = kernelWindowComponentNew(parent, params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	component->type = borderComponentType;
@@ -273,7 +271,7 @@ kernelWindowComponent *kernelWindowNewBorder(objectKey parent, borderType type,
 
 	// Get the border component
 	borderComponent = kernelMalloc(sizeof(kernelWindowBorder));
-	if (borderComponent == NULL)
+	if (!borderComponent)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
@@ -305,3 +303,4 @@ kernelWindowComponent *kernelWindowNewBorder(objectKey parent, borderType type,
 
 	return (component);
 }
+

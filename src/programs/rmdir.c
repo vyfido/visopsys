@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -43,6 +43,7 @@ regular files.  To remove a file, use the 'rm' command.
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/vsh.h>
 
 #define _(string) gettext(string)
@@ -61,7 +62,7 @@ int main(int argc, char *argv[])
 	int status = 0;
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("rmdir");
 
 	if (argc < 2)
@@ -74,7 +75,7 @@ int main(int argc, char *argv[])
 	for (count = 1; count < argc; count ++)
 	{
 		// Make sure the name isn't NULL
-		if (argv[count] == NULL)
+		if (!argv[count])
 			return (status = ERR_NULLPARAMETER);
 
 		// Attempt to remove the directory

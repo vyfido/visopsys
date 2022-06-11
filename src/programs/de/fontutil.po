@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2013-11-02 13:22-0400\n"
-"Last-Translator: Jens León Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens León Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -17,229 +17,238 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.7\n"
 
-#: fontutil.c:113 fontutil.c:145
-#, c-format
-msgid "Can't seek %s\n"
-msgstr ""
-
-#: fontutil.c:121
-#, c-format
-msgid "Can't read %s\n"
-msgstr ""
-
-#: fontutil.c:127
-#, c-format
-msgid "%s is not a VBF font file\n"
-msgstr ""
-
-#: fontutil.c:153
-#, c-format
-msgid "Can't write %s\n"
-msgstr ""
-
-#: fontutil.c:167
-#, c-format
-msgid "Update VBF header of %s\n"
-msgstr ""
-
-#: fontutil.c:175
-#, c-format
-msgid "Can't open %s for reading/writing\n"
-msgstr ""
-
-#: fontutil.c:188
-#, c-format
-msgid "Font name: now %s (was %s)\n"
-msgstr ""
-
-#: fontutil.c:195
-#, c-format
-msgid "Points: now %d (was %d)\n"
-msgstr ""
-
-#: fontutil.c:201
-#, c-format
-msgid "Codepage: now %s (was %s)\n"
-msgstr ""
-
-#: fontutil.c:234 fontutil.c:648
-msgid "Error getting memory for character codes or data\n"
-msgstr ""
-
-#: fontutil.c:244
-#, c-format
-msgid "Error reading character codes of %s\n"
-msgstr ""
-
-#: fontutil.c:255
-#, c-format
-msgid "Error reading character data of %s\n"
-msgstr ""
-
-#: fontutil.c:300
-#, c-format
-msgid "Error writing character codes for %s\n"
-msgstr ""
-
-#: fontutil.c:310
-#, c-format
-msgid "Error writing character data for %s\n"
-msgstr ""
-
-#: fontutil.c:352
-#, c-format
-msgid "Glyph %d does not exist in font file\n"
-msgstr ""
-
-#: fontutil.c:390
-#, c-format
-msgid "Can't open %s for reading\n"
-msgstr ""
-
-#: fontutil.c:469
-#, c-format
-msgid "Import font from %s to VBF file %s\n"
-msgstr ""
-
-#: fontutil.c:481
-#, c-format
-msgid "Error loading font image file %s\n"
-msgstr ""
-
-#: fontutil.c:487
-#, c-format
-msgid "Image width (%d) of %s is not a multiple of %d\n"
-msgstr ""
-
-#: fontutil.c:495
-#, c-format
-msgid "Image height (%d) of %s is not a multiple of %d\n"
-msgstr ""
-
-#: fontutil.c:506
-#, c-format
-msgid "Can't open font file %s for writing\n"
-msgstr ""
-
-#: fontutil.c:527
-#, c-format
-msgid "%d glyphs size %dx%d\n"
-msgstr ""
-
-#: fontutil.c:538 fontutil.c:878
-msgid "Error allocating memory\n"
-msgstr ""
-
-#: fontutil.c:598
-#, c-format
-msgid "Add glyph %d from %s to VBF file %s\n"
-msgstr ""
-
-#: fontutil.c:610
-#, c-format
-msgid "Error loading glyph image file %s\n"
-msgstr ""
-
-#: fontutil.c:619 fontutil.c:731 fontutil.c:823
-#, c-format
-msgid "Can't open destination file %s for writing\n"
-msgstr ""
-
-#: fontutil.c:722
-#, c-format
-msgid "Remove glyph %d from VBF file %s\n"
-msgstr ""
-
-#: fontutil.c:745
-#, c-format
-msgid "Glyph %d does not exist in font file %s\n"
-msgstr ""
-
-#: fontutil.c:805
-#, c-format
-msgid "Convert %s to VBF file %s\n"
-msgstr ""
-
-#: fontutil.c:813
-#, c-format
-msgid "Error loading source font file %s\n"
-msgstr ""
-
-#: fontutil.c:843
-#, c-format
-msgid "Glyph size %dx%d\n"
-msgstr ""
-
-#: fontutil.c:863 fontutil.c:934
-#, c-format
-msgid "Error writing destination file %s\n"
-msgstr ""
-
-#: fontutil.c:924
-#, c-format
-msgid "Writing %d bytes of bitmap data\n"
-msgstr ""
-
-#: fontutil.c:944
+#: fontutil.c:88
 msgid "usage:\n"
 msgstr "Benutzung:\n"
 
-#: fontutil.c:945
+#: fontutil.c:89
 #, c-format
 msgid "  %s [options] <VBF_file>\n"
 msgstr "  %s [optionen] <VBF_datei>\n"
 
-#: fontutil.c:946
+#: fontutil.c:90
 #, c-format
 msgid "  (type 'help %s' for options help\n"
 msgstr "  (type 'help %s' for options help\n"
 
-#: fontutil.c:985
-msgid "Missing code argument for '-a' option\n"
-msgstr ""
-
-#: fontutil.c:998
-msgid "Missing codepage argument for '-c' option\n"
-msgstr ""
-
-#: fontutil.c:1019
-msgid "Missing filename argument for '-f' option\n"
-msgstr ""
-
-#: fontutil.c:1031
-msgid "Missing image filename argument for '-i' option\n"
-msgstr ""
-
-#: fontutil.c:1045
-msgid "Missing font name argument for '-n' option\n"
-msgstr ""
-
-#: fontutil.c:1059
-msgid "Missing points argument for '-p' option\n"
-msgstr ""
-
-#: fontutil.c:1073
-msgid "Missing code argument for '-r' option\n"
-msgstr ""
-
-#: fontutil.c:1090
-msgid "Missing filename argument for '-x' option\n"
-msgstr ""
-
-#: fontutil.c:1099
+#: fontutil.c:107
 #, c-format
-msgid "Missing parameter for %s option\n"
+msgid ""
+"\n"
+"\n"
+"ERROR: %s\n"
+"\n"
 msgstr ""
 
-#: fontutil.c:1105
+#: fontutil.c:140 fontutil.c:172
 #, c-format
-msgid "Unknown option '%c'\n"
+msgid "Can't seek %s"
 msgstr ""
 
-#: fontutil.c:1133
-msgid "Missing image file (-f) argument to add (-a) operation\n"
+#: fontutil.c:148
+#, c-format
+msgid "Can't read %s"
 msgstr ""
 
-#: fontutil.c:1147
-msgid "No operation specified\n"
+#: fontutil.c:154
+#, c-format
+msgid "%s is not a VBF font file"
+msgstr ""
+
+#: fontutil.c:180
+#, c-format
+msgid "Can't write %s"
+msgstr ""
+
+#: fontutil.c:194
+#, c-format
+msgid "Update VBF header of %s\n"
+msgstr ""
+
+#: fontutil.c:202
+#, c-format
+msgid "Can't open %s for reading/writing"
+msgstr ""
+
+#: fontutil.c:215
+#, c-format
+msgid "Font name: now %s (was %s)\n"
+msgstr ""
+
+#: fontutil.c:222
+#, c-format
+msgid "Points: now %d (was %d)\n"
+msgstr ""
+
+#: fontutil.c:228
+#, c-format
+msgid "Codepage: now %s (was %s)\n"
+msgstr ""
+
+#: fontutil.c:261 fontutil.c:680
+msgid "Couldn't get memory for character codes or data"
+msgstr ""
+
+#: fontutil.c:271
+#, c-format
+msgid "Couldn't read character codes of %s"
+msgstr ""
+
+#: fontutil.c:281
+#, c-format
+msgid "Couldn't read character data of %s"
+msgstr ""
+
+#: fontutil.c:327
+#, c-format
+msgid "Couldn't write character codes for %s"
+msgstr ""
+
+#: fontutil.c:336
+#, c-format
+msgid "Couldn't write glyph data for %s"
+msgstr ""
+
+#: fontutil.c:380
+#, c-format
+msgid "Glyph %d does not exist in font file"
+msgstr ""
+
+#: fontutil.c:418
+#, c-format
+msgid "Can't open %s for reading"
+msgstr ""
+
+#: fontutil.c:501
+#, c-format
+msgid "Import font from %s to VBF file %s\n"
+msgstr ""
+
+#: fontutil.c:513
+#, c-format
+msgid "Couldn't load font image file %s"
+msgstr ""
+
+#: fontutil.c:519
+#, c-format
+msgid "Image width (%d) of %s is not a multiple of %d"
+msgstr ""
+
+#: fontutil.c:527
+#, c-format
+msgid "Image height (%d) of %s is not a multiple of %d"
+msgstr ""
+
+#: fontutil.c:538
+#, c-format
+msgid "Can't open font file %s for writing"
+msgstr ""
+
+#: fontutil.c:558
+#, c-format
+msgid "%d glyphs size %dx%d\n"
+msgstr ""
+
+#: fontutil.c:569 fontutil.c:906
+msgid "Couldn't allocate memory"
+msgstr ""
+
+#: fontutil.c:631
+#, c-format
+msgid "Add glyph %d from %s to VBF file %s\n"
+msgstr ""
+
+#: fontutil.c:643
+#, c-format
+msgid "Couldn't load glyph image file %s"
+msgstr ""
+
+#: fontutil.c:652 fontutil.c:764 fontutil.c:852
+#, c-format
+msgid "Can't open destination file %s for writing"
+msgstr ""
+
+#: fontutil.c:755
+#, c-format
+msgid "Remove glyph %d from VBF file %s\n"
+msgstr ""
+
+#: fontutil.c:777
+#, c-format
+msgid "Glyph %d does not exist in font file %s"
+msgstr ""
+
+#: fontutil.c:835
+#, c-format
+msgid "Convert %s to VBF file %s\n"
+msgstr ""
+
+#: fontutil.c:843
+#, c-format
+msgid "Couldn't load source font file %s"
+msgstr ""
+
+#: fontutil.c:871
+#, c-format
+msgid "Glyph size %dx%d\n"
+msgstr ""
+
+#: fontutil.c:891 fontutil.c:962
+#, c-format
+msgid "Couldn't write destination file %s"
+msgstr ""
+
+#: fontutil.c:952
+#, c-format
+msgid "Writing %d bytes of bitmap data\n"
+msgstr ""
+
+#: fontutil.c:1003
+msgid "Missing code argument for '-a' option"
+msgstr ""
+
+#: fontutil.c:1015
+msgid "Missing codepage argument for '-c' option"
+msgstr ""
+
+#: fontutil.c:1036
+msgid "Missing filename argument for '-f' option"
+msgstr ""
+
+#: fontutil.c:1048
+msgid "Missing image filename argument for '-i' option"
+msgstr ""
+
+#: fontutil.c:1061
+msgid "Missing font name argument for '-n' option"
+msgstr ""
+
+#: fontutil.c:1075
+msgid "Missing points argument for '-p' option"
+msgstr ""
+
+#: fontutil.c:1088
+msgid "Missing code argument for '-r' option"
+msgstr ""
+
+#: fontutil.c:1104
+msgid "Missing filename argument for '-x' option"
+msgstr ""
+
+#: fontutil.c:1114
+#, c-format
+msgid "Missing parameter for %s option"
+msgstr ""
+
+#: fontutil.c:1119
+#, c-format
+msgid "Unknown option '%c'"
+msgstr ""
+
+#: fontutil.c:1146
+msgid "Missing image file (-f) argument to add (-a) operation"
+msgstr ""
+
+#: fontutil.c:1160
+msgid "No operation specified"
 msgstr ""

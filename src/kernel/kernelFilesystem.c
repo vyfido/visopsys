@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,9 +25,7 @@
 #include "kernelFile.h"
 #include "kernelMultitasker.h"
 #include "kernelLock.h"
-#include "kernelSysTimer.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelLog.h"
 #include "kernelError.h"
 #include <string.h>
@@ -190,7 +188,7 @@ static void checkRemovable(kernelDisk *theDisk)
 	return;
 
 changed:
-	kernelMemClear((void *) &theDisk->filesystem, sizeof(theDisk->filesystem));
+	memset((void *) &theDisk->filesystem, 0, sizeof(theDisk->filesystem));
 	strcpy((char *) theDisk->fsType, "unknown");
 	return;
 }
@@ -282,7 +280,7 @@ static int unmount(const char *path, int removed)
 	// If it's a removable device, clear everything
 	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
 	{
-		kernelMemClear((void *) &theDisk->filesystem,
+		memset((void *) &theDisk->filesystem, 0,
 			sizeof(theDisk->filesystem));
 		strcpy((char *) theDisk->fsType, "unknown");
 	}
@@ -327,7 +325,6 @@ static int unmount(const char *path, int removed)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelFilesystemScan(const char *diskName)
 {
 	// Scan a logical disk and see if we can determine the filesystem type
@@ -350,7 +347,7 @@ int kernelFilesystemScan(const char *diskName)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	kernelMemClear((void *) &theDisk->filesystem, sizeof(theDisk->filesystem));
+	memset((void *) &theDisk->filesystem, 0, sizeof(theDisk->filesystem));
 
 	strcpy((char *) theDisk->fsType, "unknown");
 

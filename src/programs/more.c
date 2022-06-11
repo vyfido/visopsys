@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,6 +47,7 @@ line, press any other key.
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/vsh.h>
 
 #define _(string) gettext(string)
@@ -77,8 +78,8 @@ static int viewFile(const char *fileName)
 	int count2;
 
 	// Initialize stack data
-	bzero(&theFile, sizeof(file));
-	bzero(&attrs, sizeof(textAttrs));
+	memset(&theFile, 0, sizeof(file));
+	memset(&attrs, 0, sizeof(textAttrs));
 	attrs.flags = TEXT_ATTRS_REVERSE;
 
 	// Call the "find file" routine to see if we can get the file
@@ -98,7 +99,7 @@ static int viewFile(const char *fileName)
 
 	// Allocate a buffer to store the file contents in
 	fileBuffer = malloc((theFile.blocks * theFile.blockSize) + 1);
-	if (fileBuffer == NULL)
+	if (!fileBuffer)
 		return (status = ERR_MEMORY);
 
 	status = fileOpen(fileName, OPENMODE_READ, &theFile);
@@ -199,7 +200,7 @@ int main(int argc, char *argv[])
 	int status = 0;
 	int argNumber = 0;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("more");
 
 	if (argc < 2)
@@ -216,7 +217,7 @@ int main(int argc, char *argv[])
 	for (argNumber = 1; argNumber < argc; argNumber ++)
 	{
 		// Make sure the name isn't NULL
-		if (argv[argNumber] == NULL)
+		if (!argv[argNumber])
 			return (status = ERR_NULLPARAMETER);
 
 		status = viewFile(argv[argNumber]);

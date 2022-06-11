@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -43,7 +43,7 @@ _X_ int vshFileList(const char *itemName)
 		return (errno = ERR_NULLPARAMETER);
 
 	// Initialize the file structure
-	bzero(&theFile, sizeof(file));
+	memset(&theFile, 0, sizeof(file));
 
 	// Call the "find file" routine to see if the file exists
 	status = fileFind(itemName, &theFile);
@@ -60,7 +60,7 @@ _X_ int vshFileList(const char *itemName)
 	{
 		// This means the itemName is a single file.  We just output
 		// the appropriate information for that file
-		bzero(lineBuffer, 256);
+		memset(lineBuffer, 0, 256);
 		strcpy(lineBuffer, theFile.name);
 
 		if (strlen(theFile.name) < 24)
@@ -70,9 +70,9 @@ _X_ int vshFileList(const char *itemName)
 			strcat(lineBuffer, "  ");
 
 		// The date and time
-		vshPrintDate((lineBuffer + strlen(lineBuffer)), theFile.modifiedDate);
+		vshPrintDate((lineBuffer + strlen(lineBuffer)), &theFile.modified);
 		strcat(lineBuffer, " ");
-		vshPrintTime((lineBuffer + strlen(lineBuffer)), theFile.modifiedTime);
+		vshPrintTime((lineBuffer + strlen(lineBuffer)), &theFile.modified);
 		strcat(lineBuffer, "    ");
 
 		// The file size
@@ -90,7 +90,7 @@ _X_ int vshFileList(const char *itemName)
 
 		else if (status >= 0) while (1)
 		{
-			bzero(lineBuffer, 256);
+			memset(lineBuffer, 0, 256);
 			strcpy(lineBuffer, theFile.name);
 
 			if (theFile.type == dirT)
@@ -105,11 +105,9 @@ _X_ int vshFileList(const char *itemName)
 				strcat(lineBuffer, "  ");
 
 			// The date and time
-			vshPrintDate((lineBuffer + strlen(lineBuffer)),
-				theFile.modifiedDate);
+			vshPrintDate((lineBuffer + strlen(lineBuffer)), &theFile.modified);
 			strcat(lineBuffer, " ");
-			vshPrintTime((lineBuffer + strlen(lineBuffer)),
-				theFile.modifiedTime);
+			vshPrintTime((lineBuffer + strlen(lineBuffer)), &theFile.modified);
 			strcat(lineBuffer, "    ");
 
 			// The file size

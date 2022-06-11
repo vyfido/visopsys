@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -206,7 +206,7 @@ static int readSuperblock(const kernelDisk *theDisk, extSuperblock *superblock)
 	}
 
 	// Initialize the buffer we were given
-	kernelMemClear(superblock, sizeof(extSuperblock));
+	memset(superblock, 0, sizeof(extSuperblock));
 
 	// Read the superblock
 	status = kernelDiskReadSectors((char *) theDisk->name,
@@ -415,8 +415,8 @@ static int readInode(extInternalData *extData, unsigned number,
 	}
 
 	// Copy the inode structure.
-	kernelMemCopy((buffer + (((number % extData->superblock.inodes_per_group) *
-		extData->superblock.inode_size) % extData->blockSize)), inode,
+	memcpy(inode, (buffer + (((number % extData->superblock.inodes_per_group) *
+		extData->superblock.inode_size) % extData->blockSize)),
 		sizeof(extInode));
 
 	kernelFree(buffer);
@@ -444,7 +444,7 @@ static int readExtent(extInternalData *extData, extInode *inode,
 		kernelDebug(debug_fs, "EXT extent leaf node");
 		debugExtentNode(&inode->u.extent);
 
-		for (count = 0; ((numBlocks > 0) &&
+		for (count = 0; (numBlocks &&
 			(count < inode->u.extent.header.entries)); count ++)
 		{
 			extentLeaf = &inode->u.extent.node[count].leaf;
@@ -483,7 +483,8 @@ static int readExtent(extInternalData *extData, extInode *inode,
 
 
 static int readIndirectBlocks(extInternalData *extData, unsigned indirectBlock,
-	unsigned *numBlocks, void **buffer, int indirectionLevel)
+	unsigned *skipBlocks, unsigned *numBlocks, void **buffer,
+	int indirectionLevel)
 {
 	// This function will read indirect blocks, starting with startBlock.
 	// the indirectionLevel parameter being greater than 1 causes a recursion.
@@ -503,7 +504,7 @@ static int readIndirectBlocks(extInternalData *extData, unsigned indirectBlock,
 	// Read the indirect block number we've been passed
 	status = kernelDiskReadSectors((char *) extData->disk->name,
 		getSectorNumber(extData, indirectBlock), extData->sectorsPerBlock,
-			indexBuffer);
+		indexBuffer);
 	if (status < 0)
 		goto out;
 
@@ -512,7 +513,7 @@ static int readIndirectBlocks(extInternalData *extData, unsigned indirectBlock,
 	if (indirectionLevel > 1)
 	{
 		// Do a recursion for every index in this block
-		for (count = 0; ((*numBlocks > 0) &&
+		for (count = 0; (*numBlocks &&
 			(count < (extData->blockSize / sizeof(unsigned)))); count++)
 		{
 			if (indexBuffer[count] < 2)
@@ -521,8 +522,8 @@ static int readIndirectBlocks(extInternalData *extData, unsigned indirectBlock,
 				goto out;
 			}
 
-			status = readIndirectBlocks(extData, indexBuffer[count], numBlocks,
-				buffer, (indirectionLevel - 1));
+			status = readIndirectBlocks(extData, indexBuffer[count],
+				skipBlocks, numBlocks, buffer, (indirectionLevel - 1));
 			if (status < 0)
 				goto out;
 		}
@@ -530,7 +531,7 @@ static int readIndirectBlocks(extInternalData *extData, unsigned indirectBlock,
 	else
 	{
 		// Read the blocks in our index block into the buffer
-		for (count = 0; ((*numBlocks > 0) &&
+		for (count = 0; (*numBlocks &&
 			(count < (extData->blockSize / sizeof(unsigned)))); count++)
 		{
 			if (indexBuffer[count] < 2)
@@ -539,9 +540,15 @@ static int readIndirectBlocks(extInternalData *extData, unsigned indirectBlock,
 				goto out;
 			}
 
+			if (*skipBlocks)
+			{
+				*skipBlocks -= 1;
+				continue;
+			}
+
 			status = kernelDiskReadSectors((char *) extData->disk->name,
 				getSectorNumber(extData, indexBuffer[count]),
-					extData->sectorsPerBlock, *buffer);
+				extData->sectorsPerBlock, *buffer);
 			if (status < 0)
 				goto out;
 
@@ -562,21 +569,26 @@ static int readBlockList(extInternalData *extData, extInode *inode,
 	unsigned startBlock, unsigned numBlocks, void *buffer)
 {
 	int status = 0;
-	void *dataPointer = NULL;
+	unsigned skipBlocks = startBlock;
+	void *dataPointer = buffer;
 	int count;
 
-	dataPointer = buffer;
-
 	// Read (up to) the first 12 direct blocks
-	for (count = startBlock; ((numBlocks > 0) && (count < 12) &&
+	for (count = 0; (numBlocks && (count < 12) &&
 		(dataPointer < (buffer + inode->size))); count ++)
 	{
 		if (inode->u.block[count] < 2)
 			return (status = 0);
 
+		if (skipBlocks)
+		{
+			skipBlocks -= 1;
+			continue;
+		}
+
 		status = kernelDiskReadSectors((char *) extData->disk->name,
 			getSectorNumber(extData, inode->u.block[count]),
-				extData->sectorsPerBlock, dataPointer);
+			extData->sectorsPerBlock, dataPointer);
 		if (status < 0)
 			return (status);
 
@@ -587,8 +599,8 @@ static int readBlockList(extInternalData *extData, extInode *inode,
 	// Now if there are any indirect blocks...
 	if (numBlocks && inode->u.block[12])
 	{
-		status = readIndirectBlocks(extData, inode->u.block[12], &numBlocks,
-			&dataPointer, 1);
+		status = readIndirectBlocks(extData, inode->u.block[12], &skipBlocks,
+			&numBlocks, &dataPointer, 1);
 		if (status < 0)
 			return (status);
 	}
@@ -596,8 +608,8 @@ static int readBlockList(extInternalData *extData, extInode *inode,
 	// Double-indirect blocks...
 	if (numBlocks && inode->u.block[13])
 	{
-		status = readIndirectBlocks(extData, inode->u.block[13], &numBlocks,
-			&dataPointer, 2);
+		status = readIndirectBlocks(extData, inode->u.block[13], &skipBlocks,
+			&numBlocks, &dataPointer, 2);
 		if (status < 0)
 			return (status);
 	}
@@ -605,8 +617,8 @@ static int readBlockList(extInternalData *extData, extInode *inode,
 	// Triple-indirect blocks
 	if (numBlocks && inode->u.block[14])
 	{
-		status = readIndirectBlocks(extData, inode->u.block[14], &numBlocks,
-			&dataPointer, 3);
+		status = readIndirectBlocks(extData, inode->u.block[14], &skipBlocks,
+			&numBlocks, &dataPointer, 3);
 		if (status < 0)
 			return (status);
 	}
@@ -777,7 +789,7 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 		}
 
 		// Copy the rest of the structure
-		kernelMemCopy(entry, &realEntry, sizeof(extDirEntry));
+		memcpy(&realEntry, entry, sizeof(extDirEntry));
 
 		// Make sure the name is NULL-terminated
 		if (extData->superblock.feature_incompat & EXT_INCOMPAT_FILETYPE)
@@ -820,9 +832,11 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 			case EXT_S_IFDIR:
 				fileEntry->type = dirT;
 				break;
+
 			case EXT_S_IFLNK:
 				fileEntry->type = linkT;
 				break;
+
 			case EXT_S_IFREG:
 			default:
 				fileEntry->type = fileT;
@@ -1056,7 +1070,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	}
 
 	// Clear memory
-	kernelMemClear(&superblock, sizeof(extSuperblock));
+	memset(&superblock, 0, sizeof(extSuperblock));
 
 	// "Heuristically" determine the block size.  Everything else flows from
 	// this, but it is rubbish.  Not based on anything sensible really: If it's
@@ -1221,7 +1235,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 			currentBlock += groupDescBlocks;
 
 			// Set up the block and inode bitmaps
-			kernelMemClear(bitmaps, (2 * blockSize));
+			memset(bitmaps, 0, (2 * blockSize));
 			for (count2 = 0; count2 < (unsigned)
 				(1 + groupDescBlocks + 2 + inodeTableBlocks); count2 ++)
 			{
@@ -1231,7 +1245,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		else
 		{
 			// Set up the block and inode bitmaps
-			kernelMemClear(bitmaps, (2 * blockSize));
+			memset(bitmaps, 0, (2 * blockSize));
 			for (count2 = 0; count2 < (unsigned)(2 + inodeTableBlocks);
 				count2 ++)
 			{
@@ -1356,7 +1370,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
 	// Create the lost+found directory
 
-	kernelMemClear(dirBuffer, inodeTable[EXT_ROOT_INO - 1].size);
+	memset(dirBuffer, 0, inodeTable[EXT_ROOT_INO - 1].size);
 
 	dirEntry = dirBuffer;
 	dirEntry->inode = superblock.first_ino;
@@ -1672,7 +1686,7 @@ static int inactiveEntry(kernelFileEntry *entry)
 	}
 
 	// Erase all of the data in this entry
-	kernelMemClear(entry->driverData, sizeof(extInode));
+	memset(entry->driverData, 0, sizeof(extInode));
 
 	// Release the inode data structure attached to this file entry.
 	kernelFree(entry->driverData);

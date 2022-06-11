@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,12 +23,11 @@
 // manager.
 
 #include "kernelDescriptor.h"
-#include "kernelParameters.h"
 #include "kernelApi.h"
-#include "kernelMisc.h"
-#include "kernelProcessorX86.h"
 #include "kernelError.h"
+#include "kernelParameters.h"
 #include <string.h>
+#include <sys/processor.h>
 
 // Space for the global descriptor table
 static volatile kernelDescriptor globalDescriptorTable[GDT_SIZE];
@@ -65,11 +64,11 @@ int kernelDescriptorInitialize(void)
 	// descriptors list
 
 	// Initialize the Global Descriptor Table
-	kernelMemClear((kernelDescriptor *) globalDescriptorTable,
+	memset((kernelDescriptor *) globalDescriptorTable, 0,
 		(sizeof(kernelDescriptor) * GDT_SIZE));
 
 	// Initialize the Interrupt Descriptor Table
-	kernelMemClear((kernelDescriptor *) interruptDescriptorTable,
+	memset((kernelDescriptor *) interruptDescriptorTable, 0,
 		(sizeof(kernelDescriptor) * IDT_SIZE));
 
 	// That's all we need to do for the IDT, however we need to do more
@@ -203,10 +202,10 @@ int kernelDescriptorInitialize(void)
 		freeDescriptors[count] = ((count + RES_GLOBAL_DESCRIPTORS) * 8);
 
 	// Now we can install our new GDT
-	kernelProcessorSetGDT((void *) globalDescriptorTable, (GDT_SIZE * 8));
+	processorSetGDT((void *) globalDescriptorTable, (GDT_SIZE * 8));
 
 	// And our new IDT
-	kernelProcessorSetIDT((void *) interruptDescriptorTable, (IDT_SIZE * 8));
+	processorSetIDT((void *) interruptDescriptorTable, (IDT_SIZE * 8));
 
 	return (status = 0);
 }
@@ -310,7 +309,7 @@ int kernelDescriptorSetUnformatted(volatile kernelSelector selector,
 	entryNumber = (selector >> 3);
 
 	// Initialize the descriptor we're changing
-	kernelMemClear((kernelDescriptor *) &globalDescriptorTable[entryNumber],
+	memset((kernelDescriptor *) &globalDescriptorTable[entryNumber], 0,
 		sizeof(kernelDescriptor));
 
 	// Now, simply copy the data we were passed into the requested entry
@@ -397,7 +396,7 @@ int kernelDescriptorSet(volatile kernelSelector selector, volatile void *base,
 	}
 
 	// Initialize the descriptor we're changing
-	kernelMemClear((kernelDescriptor *) &globalDescriptorTable[entryNumber],
+	memset((kernelDescriptor *) &globalDescriptorTable[entryNumber], 0,
 		sizeof(kernelDescriptor));
 
 	// Now we can begin constructing the descriptor.  Start working through
@@ -499,8 +498,8 @@ int kernelDescriptorSetIDTInterruptGate(int number, void *address)
 	}
 
 	// Initialize the descriptor we're changing
-	kernelMemClear((kernelDescriptor *)
-		&interruptDescriptorTable[number], sizeof(kernelDescriptor));
+	memset((kernelDescriptor *) &interruptDescriptorTable[number], 0,
+		sizeof(kernelDescriptor));
 
 	// Now we can begin constructing the descriptor.  Start working through
 	// each of the descriptor's bytes.
@@ -547,8 +546,8 @@ int kernelDescriptorSetIDTTaskGate(int number, kernelSelector selector)
 	}
 
 	// Initialize the descriptor we're changing
-	kernelMemClear((kernelDescriptor *)
-		&interruptDescriptorTable[number], sizeof(kernelDescriptor));
+	memset((kernelDescriptor *) &interruptDescriptorTable[number], 0,
+		sizeof(kernelDescriptor));
 
 	// Now we can begin constructing the descriptor.  Start working through
 	// each of the descriptor's bytes.

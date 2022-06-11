@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -87,7 +87,7 @@ int open(const char *fileName, int flags)
 
 	// Get memory for the file stream
 	theStream = malloc(sizeof(fileStream));
-	if (theStream == NULL)
+	if (!theStream)
 	{
 		errno = ERR_MEMORY;
 		return (-1);
@@ -126,3 +126,4 @@ int open(const char *fileName, int flags)
 
 	return ((int) theStream);
 }
+

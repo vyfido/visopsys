@@ -1,14 +1,14 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2014 J. Andrew McLaughlin
+#  Copyright (C) 1998-2015 J. Andrew McLaughlin
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2014-01-22 18:37-0400\n"
-"Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -16,155 +16,155 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: computer.c:58
+#: computer.c:59
 msgid "Computer"
 msgstr "Computadora"
 
-#: computer.c:79
+#: computer.c:80
 msgid "Browse"
 msgstr "Navegar"
 
-#: computer.c:80
+#: computer.c:81
 msgid "Mount as..."
 msgstr "Montado como..."
 
-#: computer.c:81
+#: computer.c:82
 msgid "Unmount"
 msgstr "Desmontar"
 
-#: computer.c:82 computer.c:499
+#: computer.c:83 computer.c:500
 msgid "Properties"
 msgstr "Propiedades"
 
-#: computer.c:121
+#: computer.c:122
 msgid "Error"
 msgstr "Error"
 
-#: computer.c:154
+#: computer.c:155
 msgid "Error re-reading disk info"
 msgstr "Error al re-leer información de disco"
 
-#: computer.c:237
+#: computer.c:238
 #, c-format
 msgid "Filesystem on %s is not supported for browsing"
 msgstr "El sistema de archivos en %s no es soportado para navegar"
 
-#: computer.c:240
+#: computer.c:241
 #, c-format
 msgid "Can't mount %s on %s"
 msgstr "No se puede montar %s en %s"
 
-#: computer.c:283 computer.c:363
+#: computer.c:284 computer.c:364
 #, c-format
 msgid "No media in disk %s"
 msgstr "Sin medios en el disco %s"
 
-#: computer.c:314 computer.c:404
+#: computer.c:315 computer.c:405
 msgid "Error launching file browser"
 msgstr "Error al iniciar navegador de archivos"
 
-#: computer.c:353
+#: computer.c:354
 #, c-format
 msgid "Disk is already mounted as %s"
 msgstr "Disco ya montado como %s"
 
-#: computer.c:375
+#: computer.c:376
 msgid "Mount point"
 msgstr "Punto de montaje"
 
-#: computer.c:376
+#: computer.c:377
 msgid "Please enter the mount point"
 msgstr "Por favor, ingrese el punto de montaje"
 
-#: computer.c:432
+#: computer.c:433
 #, c-format
 msgid "Disk %s is not mounted"
 msgstr "Disco %s no montado"
 
-#: computer.c:441
+#: computer.c:442
 #, c-format
 msgid "Error unmounting %s"
 msgstr "Error al desmontar %s"
 
-#: computer.c:467
+#: computer.c:468
 msgid "Fixed "
 msgstr "Fijado "
 
-#: computer.c:469
+#: computer.c:470
 msgid "Removable "
 msgstr "Removible "
 
-#: computer.c:472
+#: computer.c:473
 msgid "floppy\n"
 msgstr "Floppy\n"
 
-#: computer.c:474
+#: computer.c:475
 msgid "CD-ROM\n"
 msgstr "CD-ROM\n"
 
-#: computer.c:476
+#: computer.c:477
 #, fuzzy
 msgid "flash disk\n"
 msgstr "Disco duro\n"
 
-#: computer.c:478
+#: computer.c:479
 msgid "hard disk\n"
 msgstr "Disco duro\n"
 
-#: computer.c:480
+#: computer.c:481
 #, c-format
 msgid "%u cylinders, %u heads, %u sectors\n"
 msgstr "%u cilindros, %u cabezas, %u sectores\n"
 
-#: computer.c:484
+#: computer.c:485
 #, c-format
 msgid "Size: %llu MB\n"
 msgstr "Tamaño: %llu MB\n"
 
-#: computer.c:488
+#: computer.c:489
 #, c-format
 msgid "Partition type: %s\n"
 msgstr "Tipo de partición: %s\n"
 
-#: computer.c:491
+#: computer.c:492
 #, c-format
 msgid "Filesystem type: %s\n"
 msgstr "Tipo del sistema de archivos: %s\n"
 
-#: computer.c:495
+#: computer.c:496
 #, c-format
 msgid "Mounted as %s%s\n"
 msgstr "Montado como %s%s\n"
 
-#: computer.c:497
+#: computer.c:498
 msgid " (read only)"
 msgstr " (sólo lectura)"
 
-#: computer.c:575 computer.c:632
+#: computer.c:577 computer.c:634
 msgid "Error spawning browser thread"
 msgstr ""
 
-#: computer.c:588
+#: computer.c:590
 msgid "Error spawning mount as thread"
 msgstr ""
 
-#: computer.c:600
+#: computer.c:602
 msgid "Error spawning unmount thread"
 msgstr ""
 
-#: computer.c:613
+#: computer.c:615
 msgid "Error spawning properties thread"
 msgstr ""
 
-#: computer.c:699
+#: computer.c:701
 msgid "Memory allocation error"
 msgstr "Error de memoria"
 
-#: computer.c:792
+#: computer.c:795
 msgid "Disk"
 msgstr "Disco"
 
-#: computer.c:834
+#: computer.c:837
 #, c-format
 msgid ""
 "\n"
@@ -173,7 +173,7 @@ msgstr ""
 "\n"
 "El comando \"%s\" funciona solamente en modo gráfico\n"
 
-#: computer.c:858
+#: computer.c:861
 #, c-format
 msgid "Can't load icon image %s"
 msgstr "No se puede cargar el ícono %s"

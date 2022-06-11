@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -45,6 +45,7 @@ intended for developers who want to look at binary files in detail.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/env.h>
 
 #define _(string) gettext(string)
 
@@ -67,7 +68,7 @@ int main(int argc, char *argv[])
 	char lineBuff[160];
 	unsigned count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("hexdump");
 
 	if (argc < 2)
@@ -91,9 +92,14 @@ int main(int argc, char *argv[])
 		for (count = 0; count < 16; count ++)
 		{
 			if (count < read)
-				sprintf((lineBuff + strlen(lineBuff)), "%02x ", fileBuff[count]);
+			{
+				sprintf((lineBuff + strlen(lineBuff)), "%02x ",
+					fileBuff[count]);
+			}
 			else
+			{
 				strcat(lineBuff, "   ");
+			}
 
 			if ((count == 7) || (count == 15))
 				strcat(lineBuff, " ");

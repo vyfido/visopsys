@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,7 +37,6 @@ static int startSeconds, startMinutes, startHours, startDayOfMonth,
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelRtcInitialize(kernelDevice *dev)
 {
 	// This function initializes the RTC.
@@ -53,7 +52,7 @@ int kernelRtcInitialize(kernelDevice *dev)
 
 	systemRtc = dev;
 
-	if ((systemRtc->driver == NULL) || (systemRtc->driver->ops == NULL))
+	if (!systemRtc->driver || !systemRtc->driver->ops)
 	{
 		kernelError(kernel_error, "The RTC driver or ops are NULL");
 		return (status = ERR_NULLPARAMETER);
@@ -85,11 +84,11 @@ int kernelRtcReadSeconds(void)
 
 	int status = 0;
 
-	if (systemRtc == NULL)
+	if (!systemRtc)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Make sure the device driver 'read seconds' function has been installed
-	if (ops->driverReadSeconds == NULL)
+	if (!ops->driverReadSeconds)
 	{
 		kernelError(kernel_error, "The device driver routine is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
@@ -109,11 +108,11 @@ int kernelRtcReadMinutes(void)
 
 	int status = 0;
 
-	if (systemRtc == NULL)
+	if (!systemRtc)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Make sure the device driver 'read minutes' function has been installed
-	if (ops->driverReadMinutes == NULL)
+	if (!ops->driverReadMinutes)
 	{
 		kernelError(kernel_error, "The device driver routine is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
@@ -133,11 +132,11 @@ int kernelRtcReadHours(void)
 
 	int status = 0;
 
-	if (systemRtc == NULL)
+	if (!systemRtc)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Make sure the device driver 'read hours' function has been installed
-	if (ops->driverReadHours == NULL)
+	if (!ops->driverReadHours)
 	{
 		kernelError(kernel_error, "The device driver routine is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
@@ -157,12 +156,12 @@ int kernelRtcReadDayOfMonth(void)
 
 	int status = 0;
 
-	if (systemRtc == NULL)
+	if (!systemRtc)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Make sure the device driver 'read day-of-month' function has been
 	// installed
-	if (ops->driverReadDayOfMonth == NULL)
+	if (!ops->driverReadDayOfMonth)
 	{
 		kernelError(kernel_error, "The device driver routine is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
@@ -182,11 +181,11 @@ int kernelRtcReadMonth(void)
 
 	int status = 0;
 
-	if (systemRtc == NULL)
+	if (!systemRtc)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Make sure the device driver 'read month' function has been installed
-	if (ops->driverReadMonth == NULL)
+	if (!ops->driverReadMonth)
 	{
 		kernelError(kernel_error, "The device driver routine is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
@@ -206,11 +205,11 @@ int kernelRtcReadYear(void)
 
 	int status = 0;
 
-	if (systemRtc == NULL)
+	if (!systemRtc)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Make sure the device driver 'read year' function has been installed
-	if (ops->driverReadYear == NULL)
+	if (!ops->driverReadYear)
 	{
 		kernelError(kernel_error, "The device driver routine is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
@@ -259,7 +258,7 @@ unsigned kernelRtcUptimeSeconds(void)
 
 	unsigned upSeconds = 0;
 
-	if (systemRtc == NULL)
+	if (!systemRtc)
 		return (upSeconds = 0);
 
 	upSeconds += (kernelRtcReadSeconds() - startSeconds);
@@ -285,7 +284,7 @@ unsigned kernelRtcPackedDate(void)
 	unsigned temp = 0;
 	unsigned returnedDate = 0;
 
-	if (systemRtc == NULL)
+	if (!systemRtc)
 		return (returnedDate = 0);
 
 	// The RTC function for reading the day of the month will return a value
@@ -325,7 +324,7 @@ unsigned kernelRtcPackedTime(void)
 	unsigned temp = 0;
 	unsigned returnedTime = 0;
 
-	if (systemRtc == NULL)
+	if (!systemRtc)
 		return (returnedTime = 0);
 
 	// The RTC function for reading seconds will pass us a value between
@@ -357,8 +356,8 @@ unsigned kernelRtcPackedTime(void)
 
 int kernelRtcDayOfWeek(unsigned day, unsigned month, unsigned year)
 {
-	// This function, given a date value, returns the day of the week
-	// as 0-6, with 0 being Monday
+	// This function, given a date value, returns the day of the week as 0-6,
+	// with 0 being Monday
 
 	if (month < 3)
 	{
@@ -366,9 +365,10 @@ int kernelRtcDayOfWeek(unsigned day, unsigned month, unsigned year)
 		year -= 1;
 	}
 
-	return (((((13 * month) + 3) / 5) + day + year + (year / 4) - (year / 100) +
-		(year / 400)) % 7);
+	return (((((13 * month) + 3) / 5) + day + year + (year / 4) -
+		(year / 100) + (year / 400)) % 7);
 }
+
 
 int kernelRtcDateTime(struct tm *timeStruct)
 {
@@ -378,22 +378,49 @@ int kernelRtcDateTime(struct tm *timeStruct)
 
 	int status = 0;
 
-	if (systemRtc == NULL)
+	if (!systemRtc)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Make sure our time struct isn't NULL
-	if (timeStruct == NULL)
+	if (!timeStruct)
 		return (status = ERR_NULLPARAMETER);
 
 	timeStruct->tm_sec = kernelRtcReadSeconds();
 	timeStruct->tm_min = kernelRtcReadMinutes();
 	timeStruct->tm_hour = kernelRtcReadHours();
-	timeStruct->tm_mday = kernelRtcReadDayOfMonth();
+	timeStruct->tm_mday = (kernelRtcReadDayOfMonth() - 1);
 	timeStruct->tm_mon = (kernelRtcReadMonth() - 1);
-	timeStruct->tm_year = kernelRtcReadYear();
-	timeStruct->tm_wday =
-		kernelRtcDayOfWeek(timeStruct->tm_mday, (timeStruct->tm_mon + 1),
-			 timeStruct->tm_year);
+	timeStruct->tm_year = (kernelRtcReadYear() - 1900);
+	timeStruct->tm_wday = ((kernelRtcDayOfWeek((timeStruct->tm_mday + 1),
+		(timeStruct->tm_mon + 1), (timeStruct->tm_year + 1900)) + 1) % 7);
+	timeStruct->tm_yday = 0;  // unimplemented
+	timeStruct->tm_isdst = 0; // We don't know anything about DST yet
+
+	// Return success
+	return (status = 0);
+}
+
+
+int kernelRtcDateTime2Tm(unsigned rtcPackedDate, unsigned rtcPackedTime,
+	struct tm *timeStruct)
+{
+	// This function will fill out a 'struct tm' structure using our arbitrary
+	// RTC 'packed date' and 'packed time' formats
+
+	int status = 0;
+
+	// Make sure our time struct isn't NULL
+	if (!timeStruct)
+		return (status = ERR_NULLPARAMETER);
+
+	timeStruct->tm_sec = (rtcPackedTime & 0x0000003F);
+	timeStruct->tm_min = ((rtcPackedTime & 0x00000FC0) >> 6);
+	timeStruct->tm_hour = ((rtcPackedTime & 0x0003F000) >> 12);
+	timeStruct->tm_mday = ((rtcPackedDate & 0x0000001F) - 1);
+	timeStruct->tm_mon = (((rtcPackedDate & 0x000001E0) >> 5) - 1);
+	timeStruct->tm_year = (((rtcPackedDate & 0xFFFFFE00) >> 9) - 1900);
+	timeStruct->tm_wday = ((kernelRtcDayOfWeek((timeStruct->tm_mday + 1),
+		(timeStruct->tm_mon + 1), (timeStruct->tm_year + 1900)) + 1) % 7);
 	timeStruct->tm_yday = 0;  // unimplemented
 	timeStruct->tm_isdst = 0; // We don't know anything about DST yet
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,19 +23,23 @@
 
 #include <sys/font.h>
 
-#define VBF_MAGIC		"VBF"
-#define VBF_VERSION		0x00010000
+#define VBF_MAGIC			"VBF"
+#define VBF_MAGIC_LEN		4
+#define VBF_VERSION			0x00010000
 
 typedef struct {
-	char magic[4];		// VBF_MAGIC
-	int version;		// VBF_VERSION (bcd)
-	char name[32];		// Font name
-	int points;
-	char codePage[16];
-	int numGlyphs;
-	int glyphWidth;
-	int glyphHeight;
-	int codes[];
+	char magic[4];					// VBF_MAGIC
+	int version;					// VBF_VERSION (bcd VBF_VERSION)
+	char name[32];					// Font name
+	int points;						// Size in points (e.g. 10, 12, 20)
+	char codePage[16];				// e.g. ISO-8859-15
+	int numGlyphs;					// Number of glyphs in file
+	int glyphWidth;					// Fixed width of all glyphs
+	int glyphHeight;				// Fixed height of all glyphs
+	int codes[];					// List of codepage values
+	// unsigned char data[];		// Bitmap follows codes.  Each glyph is
+	// padded to a byte boundary, so the size of the bitmap is:
+	// numGlyphs * (((glyphWidth * glyphHeight) + 7) / 8)
 
 } __attribute__((packed)) vbfFileHeader;
 

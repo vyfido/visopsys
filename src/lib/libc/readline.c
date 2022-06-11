@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -55,11 +55,11 @@ char *readline(const char *prompt)
 
 	// Allocate an array to hold the data
 	returnString = malloc(MAXSTRINGLENGTH);
-	if (returnString == NULL)
+	if (!returnString)
 		return (returnString);
 
 	// Output the prompt, if there is any
-	if (prompt != NULL)
+	if (prompt)
 		textPrint(prompt);
 
 	while (1)
@@ -82,3 +82,4 @@ char *readline(const char *prompt)
 
 	return (returnString);
 }
+

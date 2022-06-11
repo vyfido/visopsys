@@ -1,15 +1,15 @@
 
 	Visopsys
-	Copyright (C) 1998-2014 J. Andrew McLaughlin
+	Copyright (C) 1998-2015 J. Andrew McLaughlin
 
 Unless otherwise stated, all aspects of Visopsys are created/authored by
 Andy McLaughlin.  Other contributions are as follows (please notify me
 <andy@visopsys.org> if you believe I've missed anything):
 
 - Spanish translation by ap0r <marianopbernacki@gmail.com> and Jens Leon
-Wagner <jenswagner20@ovi.com>.  See the directory contrib/ap0r-jens-spanish.
+Wagner <nikski280@gmail.com>.  See the directory contrib/ap0r-jens-spanish.
 
-- German translation by Jens Leon Wagner <jenswagner20@ovi.com> and
+- German translation by Jens Leon Wagner <nikski280@gmail.com> and
 Proxma AG - www.proxma.com.  See the directory contrib/jens-german.
 
 - ap0r <marianopbernacki@gmail.com> from the Visopsys forums added password
@@ -45,6 +45,9 @@ calendar program.  See the directory contrib/vlad-calendar.
 icons are based on his contributions.  See the directory
 contrib/leency-icons.
 
+- Jens Leon Wagner <nikski280@gmail.com> helped out with ideas for improving
+slider and scrollbar dragging.  See the directory contrib/jens-scrollbar.
+
 - Grzesiek (Greg) <reqst@o2.pl> contributed an FPU exception handler fix
 to the multitasker.  See the directory contrib/greg-fpu.
 
@@ -74,10 +77,6 @@ at http://www.dontletgo.com/planets/math.html by Asaph Engel
 - JPEG inverse discrete cosine transform (IDCT) algorithm is Copyright (C)
 1996, MPEG Software Simulation Group.  See the function inverseDctBlock()
 in the file src/kernel/kernelImageJpg.c
-
-- kernelPciCodes.h is a fixed version of the one created automatically from
-the web using the following URL: http://pcidatabase.com/  Software to create
-and maintain the PCICODE List written by: Jim Boemler <jboemler@halcyon.com>
 
 - Thanks to Hugh Anderson <hugh@comp.nus.edu.sg> for debugging installation
 issues on Fedora FC5.

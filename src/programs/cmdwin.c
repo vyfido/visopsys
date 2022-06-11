@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,6 +46,7 @@ This command will open a new text window running a new instance of the
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/font.h>
 #include <sys/paths.h>
 #include <sys/window.h>
@@ -64,7 +65,7 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("cmdwin");
 
 	// Refresh the window title
@@ -100,7 +101,7 @@ int main(int argc, char *argv[])
 	int rows = 25;
 	objectKey textArea = NULL;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("cmdwin");
 
 	// Only work in graphics mode
@@ -128,7 +129,7 @@ int main(int argc, char *argv[])
 	window = windowNew(myProcessId, WINDOW_TITLE);
 
 	// Put a text area in the window
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 1;
@@ -141,7 +142,7 @@ int main(int argc, char *argv[])
 
 	status = fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL);
 	if (status >= 0)
-		status = fontLoad("xterm-normal-10.vbf", "xterm-normal-10",
+		status = fontLoadSystem("xterm-normal-10.vbf", "xterm-normal-10",
 			&(params.font), 1);
 	if (status < 0)
 	{

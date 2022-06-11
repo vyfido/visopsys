@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,7 +30,7 @@
 #include "kernelImage.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
+#include "kernelMultitasker.h"
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelText.h"
@@ -142,7 +142,6 @@ out:
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelGraphicInitialize(kernelDevice *dev)
 {
 	// This function initializes the graphic routines.
@@ -153,7 +152,7 @@ int kernelGraphicInitialize(kernelDevice *dev)
 	kernelTextArea *tmpConsole = NULL;
 	kernelTextInputStream *inputStream = NULL;
 	kernelWindowComponent *component = NULL;
-	kernelGraphicBuffer *buffer = NULL;
+	graphicBuffer *buffer = NULL;
 
 	if (!dev)
 	{
@@ -174,7 +173,7 @@ int kernelGraphicInitialize(kernelDevice *dev)
 	ops = systemAdapter->driver->ops;
 
 	// Are we in a graphics mode?
-	if (adapterDevice->mode == 0)
+	if (!adapterDevice->mode)
 		return (status = ERR_INVALID);
 
 	// Get a temporary text area for console output, and use the graphic screen
@@ -188,7 +187,7 @@ int kernelGraphicInitialize(kernelDevice *dev)
 	tmpConsole->foreground.blue = 255;
 	tmpConsole->foreground.green = 255;
 	tmpConsole->foreground.red = 255;
-	kernelMemCopy(&kernelDefaultDesktop, (color *) &(tmpConsole->background),
+	memcpy((color *) &(tmpConsole->background), &kernelDefaultDesktop,
 		sizeof(color));
 
 	// Change the input and output streams to the console
@@ -204,6 +203,7 @@ int kernelGraphicInitialize(kernelDevice *dev)
 		kernelFree((void *) tmpConsole->inputStream);
 		tmpConsole->inputStream = kernelTextGetConsoleInput();
 	}
+
 	if (tmpConsole->outputStream)
 	{
 		kernelFree((void *) tmpConsole->outputStream);
@@ -218,7 +218,7 @@ int kernelGraphicInitialize(kernelDevice *dev)
 	tmpConsole->windowComponent = component;
 
 	// Get a graphic buffer and attach it to the component
-	buffer = kernelMalloc(sizeof(kernelGraphicBuffer));
+	buffer = kernelMalloc(sizeof(graphicBuffer));
 	if (!buffer)
 	{
 		// Better not try to print any error messages...
@@ -241,7 +241,7 @@ int kernelGraphicInitialize(kernelDevice *dev)
 	}
 
 	// Assign the default system font to our console text area
-	kernelFontGetDefault((asciiFont **) &(tmpConsole->font));
+	kernelFontGetDefault((asciiFont **) &tmpConsole->font);
 
 	// Switch the console
 	kernelTextSwitchToGraphics(tmpConsole);
@@ -272,7 +272,7 @@ int kernelGraphicGetModes(videoMode *modeBuffer, unsigned size)
 	// Return the list of graphics modes supported by the adapter
 
 	size = max(size, (sizeof(videoMode) * MAXVIDEOMODES));
-	kernelMemCopy(&(adapterDevice->supportedModes), modeBuffer, size);
+	memcpy(modeBuffer, &(adapterDevice->supportedModes), size);
 	return (adapterDevice->numberModes);
 }
 
@@ -297,8 +297,8 @@ int kernelGraphicSetMode(videoMode *mode)
 	file modeFile;
 	int buffer[4];
 
-	kernelFileOpen("/grphmode",
-		(OPENMODE_WRITE | OPENMODE_CREATE | OPENMODE_TRUNCATE), &modeFile);
+	kernelFileOpen("/grphmode", (OPENMODE_WRITE | OPENMODE_CREATE |
+		OPENMODE_TRUNCATE), &modeFile);
 
 	buffer[0] = mode->xRes;
 	buffer[1] = mode->yRes;
@@ -307,7 +307,7 @@ int kernelGraphicSetMode(videoMode *mode)
 
 	status = kernelFileWrite(&modeFile, 0, 1, (unsigned char *) buffer);
 
-	kernelFileSetSize(modeFile.handle, 16);
+	kernelFileSetSize(&modeFile, 16);
 	kernelFileClose(&modeFile);
 
 	return (status);
@@ -340,8 +340,8 @@ int kernelGraphicGetScreenHeight(void)
 
 int kernelGraphicCalculateAreaBytes(int width, int height)
 {
-	// Return the number of bytes needed to store a kernelGraphicBuffer's data
-	// that can be drawn on the current display (this varies depending on the
+	// Return the number of bytes needed to store a graphicBuffer's data that
+	// can be drawn on the current display (this varies depending on the
 	// bites-per-pixel, etc, that higher-level code shouldn't have to know
 	// about)
 	return (width * height * adapterDevice->bytesPerPixel);
@@ -358,6 +358,7 @@ int kernelGraphicClearScreen(color *background)
 	if (!systemAdapter)
 		return (status = ERR_NOTINITIALIZED);
 
+	// Check params.
 	if (!background)
 		return (status = ERR_NULLPARAMETER);
 
@@ -370,11 +371,12 @@ int kernelGraphicClearScreen(color *background)
 
 	// Ok, now we can call the routine.
 	status = ops->driverClearScreen(background);
+
 	return (status);
 }
 
 
-int kernelGraphicDrawPixel(kernelGraphicBuffer *buffer, color *foreground,
+int kernelGraphicDrawPixel(graphicBuffer *buffer, color *foreground,
 	drawMode mode, int xCoord, int yCoord)
 {
 	// This is a generic routine for drawing a single pixel
@@ -403,7 +405,7 @@ int kernelGraphicDrawPixel(kernelGraphicBuffer *buffer, color *foreground,
 }
 
 
-int kernelGraphicDrawLine(kernelGraphicBuffer *buffer, color *foreground,
+int kernelGraphicDrawLine(graphicBuffer *buffer, color *foreground,
 	drawMode mode, int xCoord1, int yCoord1, int xCoord2, int yCoord2)
 {
 	// This is a generic routine for drawing a simple line
@@ -418,6 +420,13 @@ int kernelGraphicDrawLine(kernelGraphicBuffer *buffer, color *foreground,
 	if (!foreground)
 		return (status = ERR_NULLPARAMETER);
 
+	// NULL size?
+	if ((xCoord1 == xCoord2) && (yCoord1 == yCoord2))
+	{
+		return (kernelGraphicDrawPixel(buffer, foreground, mode, xCoord1,
+			yCoord1));
+	}
+
 	// Now make sure the device driver drawLine routine has been installed
 	if (!ops->driverDrawLine)
 	{
@@ -428,11 +437,12 @@ int kernelGraphicDrawLine(kernelGraphicBuffer *buffer, color *foreground,
 	// Ok, now we can call the routine.
 	status = ops->driverDrawLine(buffer, foreground, mode, xCoord1, yCoord1,
 		xCoord2, yCoord2);
+
 	return (status);
 }
 
 
-int kernelGraphicDrawRect(kernelGraphicBuffer *buffer, color *foreground,
+int kernelGraphicDrawRect(graphicBuffer *buffer, color *foreground,
 	drawMode mode, int xCoord, int yCoord, int width, int height,
 	int thickness, int fill)
 {
@@ -444,13 +454,23 @@ int kernelGraphicDrawRect(kernelGraphicBuffer *buffer, color *foreground,
 	if (!systemAdapter)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Color not NULL.  'buffer' is allowed to be NULL.
+	// Check parameters.  'buffer' is allowed to be NULL.
 	if (!foreground)
 		return (status = ERR_NULLPARAMETER);
 
-	// Zero size?
+	// NULL size?
 	if (!width || !height)
-		return (status = 0);
+	{
+		return (kernelGraphicDrawPixel(buffer, foreground, mode, xCoord,
+			yCoord));
+	}
+
+	// If the thickness would effectively fill the rectangle, just fill instead
+	if (thickness >= (min(width, height) / 2))
+	{
+		thickness = 1;
+		fill = 1;
+	}
 
 	// Now make sure the device driver drawRect routine has been installed
 	if (!ops->driverDrawRect)
@@ -462,11 +482,12 @@ int kernelGraphicDrawRect(kernelGraphicBuffer *buffer, color *foreground,
 	// Ok, now we can call the routine.
 	status = ops->driverDrawRect(buffer, foreground, mode, xCoord, yCoord,
 		width, height, thickness, fill);
+
 	return (status);
 }
 
 
-int kernelGraphicDrawOval(kernelGraphicBuffer *buffer, color *foreground,
+int kernelGraphicDrawOval(graphicBuffer *buffer, color *foreground,
 	drawMode mode, int xCoord, int yCoord, int width, int height,
 	int thickness, int fill)
 {
@@ -478,9 +499,23 @@ int kernelGraphicDrawOval(kernelGraphicBuffer *buffer, color *foreground,
 	if (!systemAdapter)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Color not NULL.  'buffer' is allowed to be NULL.
+	// Check parameters.  'buffer' is allowed to be NULL.
 	if (!foreground)
 		return (status = ERR_NULLPARAMETER);
+
+	// NULL size?
+	if (!width || !height)
+	{
+		return (kernelGraphicDrawPixel(buffer, foreground, mode, xCoord,
+			yCoord));
+	}
+
+	// If the thickness would effectively fill the oval, just fill instead
+	if (thickness >= (min(width, height) / 2))
+	{
+		thickness = 1;
+		fill = 1;
+	}
 
 	// Now make sure the device driver drawOval routine has been installed
 	if (!ops->driverDrawOval)
@@ -492,12 +527,13 @@ int kernelGraphicDrawOval(kernelGraphicBuffer *buffer, color *foreground,
 	// Ok, now we can call the routine.
 	status = ops->driverDrawOval(buffer, foreground, mode, xCoord, yCoord,
 		width, height, thickness, fill);
+
 	return (status);
 }
 
 
-int kernelGraphicGetImage(kernelGraphicBuffer *buffer, image *getImage,
-	int xCoord, int yCoord, int width, int height)
+int kernelGraphicGetImage(graphicBuffer *buffer, image *getImage, int xCoord,
+	int yCoord, int width, int height)
 {
 	// This is a generic routine for getting an image from a buffer.  The
 	// image memory returned is in the application space of the current
@@ -528,7 +564,7 @@ int kernelGraphicGetImage(kernelGraphicBuffer *buffer, image *getImage,
 }
 
 
-int kernelGraphicDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
+int kernelGraphicDrawImage(graphicBuffer *buffer, image *drawImage,
 	drawMode mode, int xCoord, int yCoord, int xOffset, int yOffset, int width,
 	int height)
 {
@@ -567,7 +603,7 @@ int kernelGraphicDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
 }
 
 
-int kernelGraphicDrawText(kernelGraphicBuffer *buffer, color *foreground,
+int kernelGraphicDrawText(graphicBuffer *buffer, color *foreground,
 	color *background, asciiFont *font, const char *text, drawMode mode,
 	int xCoord, int yCoord)
 {
@@ -602,20 +638,22 @@ int kernelGraphicDrawText(kernelGraphicBuffer *buffer, color *foreground,
 	{
 		idx = (unsigned char) text[count];
 
-		if (font->chars[idx].data)
+		if (font->glyphs[idx].data)
+		{
 			// Call the driver routine to draw the character
-			status = ops->driverDrawMonoImage(buffer, &(font->chars[idx]),
+			status = ops->driverDrawMonoImage(buffer, &font->glyphs[idx],
 				mode, foreground, background, xCoord, yCoord);
+		}
 
-		xCoord += font->chars[idx].width;
+		xCoord += font->glyphs[idx].width;
 	}
 
 	return (status = 0);
 }
 
 
-int kernelGraphicCopyArea(kernelGraphicBuffer *buffer, int xCoord1,
-	int yCoord1, int width, int height, int xCoord2, int yCoord2)
+int kernelGraphicCopyArea(graphicBuffer *buffer, int xCoord1, int yCoord1,
+	int width, int height, int xCoord2, int yCoord2)
 {
 	// Copies the requested area of the screen to the new location.
 
@@ -640,7 +678,7 @@ int kernelGraphicCopyArea(kernelGraphicBuffer *buffer, int xCoord1,
 }
 
 
-int kernelGraphicClearArea(kernelGraphicBuffer *buffer, color *background,
+int kernelGraphicClearArea(graphicBuffer *buffer, color *background,
 	int xCoord, int yCoord, int width, int height)
 {
 	// Clears the requested area of the screen.  This is just a convenience
@@ -665,10 +703,46 @@ int kernelGraphicClearArea(kernelGraphicBuffer *buffer, color *background,
 }
 
 
-int kernelGraphicRenderBuffer(kernelGraphicBuffer *buffer, int drawX,
-	int drawY, int clipX, int clipY, int clipWidth,	int clipHeight)
+int kernelGraphicCopyBuffer(graphicBuffer *srcBuffer,
+	graphicBuffer *destBuffer, int xCoord, int yCoord)
 {
-	// Take a kernelGraphicBuffer and render it on the screen
+	// Copy the source graphicBuffer into the destination graphicBuffer at the
+	// specified destination coordinates.
+
+	int status = 0;
+	int srcWidth = 0;
+	int destWidth = 0;
+	void *srcPointer = NULL;
+	void *destPointer = NULL;
+	int rowCount;
+
+	// Make sure we've been initialized
+	if (!systemAdapter)
+		return (status = ERR_NOTINITIALIZED);
+
+	srcWidth = (srcBuffer->width * adapterDevice->bytesPerPixel);
+	destWidth = (destBuffer->width * adapterDevice->bytesPerPixel);
+
+	srcPointer = srcBuffer->data;
+	destPointer = (destBuffer->data + (yCoord * destWidth) +
+		(xCoord * adapterDevice->bytesPerPixel));
+
+	for (rowCount = 0; rowCount < srcBuffer->height; rowCount ++)
+	{
+		memcpy(destPointer, srcPointer, srcWidth);
+		srcPointer += srcWidth;
+		destPointer += destWidth;
+	}
+
+	return (status = 0);
+}
+
+
+int kernelGraphicRenderBuffer(graphicBuffer *buffer, int drawX, int drawY,
+	int clipX, int clipY, int clipWidth,	int clipHeight)
+{
+	// Take a graphicBuffer and render it on the screen
+
 	int status = 0;
 
 	// Make sure we've been initialized
@@ -715,8 +789,8 @@ int kernelGraphicRenderBuffer(kernelGraphicBuffer *buffer, int drawX,
 }
 
 
-int kernelGraphicFilter(kernelGraphicBuffer *buffer, color *filterColor,
-	int xCoord, int yCoord, int width, int height)
+int kernelGraphicFilter(graphicBuffer *buffer, color *filterColor, int xCoord,
+	int yCoord, int width, int height)
 {
 	// Take an area of a buffer and average it with the supplied color
 
@@ -749,7 +823,7 @@ int kernelGraphicFilter(kernelGraphicBuffer *buffer, color *filterColor,
 }
 
 
-void kernelGraphicDrawGradientBorder(kernelGraphicBuffer *buffer, int drawX,
+void kernelGraphicDrawGradientBorder(graphicBuffer *buffer, int drawX,
 	int drawY, int width, int height, int thickness, color *drawColor,
 	int shadingIncrement, drawMode mode, borderType type)
 {
@@ -760,9 +834,9 @@ void kernelGraphicDrawGradientBorder(kernelGraphicBuffer *buffer, int drawX,
 	int count;
 
 	if (drawColor)
-		kernelMemCopy(drawColor, &tmpColor, sizeof(color));
+		memcpy(&tmpColor, drawColor, sizeof(color));
 	else
-		kernelMemCopy(&kernelDefaultBackground, &tmpColor, sizeof(color));
+		memcpy(&tmpColor, &kernelDefaultBackground, sizeof(color));
 
 	drawColor = &tmpColor;
 
@@ -851,7 +925,7 @@ void kernelGraphicDrawGradientBorder(kernelGraphicBuffer *buffer, int drawX,
 }
 
 
-void kernelGraphicConvexShade(kernelGraphicBuffer *buffer, color *drawColor,
+void kernelGraphicConvexShade(graphicBuffer *buffer, color *drawColor,
 	int drawX, int drawY, int width, int height, shadeType type)
 {
 	// Given an buffer, area, color, and shading mode, shade the area as a
@@ -865,9 +939,9 @@ void kernelGraphicConvexShade(kernelGraphicBuffer *buffer, color *drawColor,
 	int count;
 
 	if (drawColor)
-		kernelMemCopy(drawColor, &tmpColor, sizeof(color));
+		memcpy(&tmpColor, drawColor, sizeof(color));
 	else
-		kernelMemCopy(&kernelDefaultBackground, &tmpColor, sizeof(color));
+		memcpy(&tmpColor, &kernelDefaultBackground, sizeof(color));
 
 	drawColor = &tmpColor;
 
@@ -906,8 +980,9 @@ void kernelGraphicConvexShade(kernelGraphicBuffer *buffer, color *drawColor,
 			if (count == ((limit / 2) - 1))
 			{
 				drawColor->red = max((drawColor->red - (centerDiff * 2)), 0);
-				drawColor->green = max((drawColor->green - (centerDiff * 2)), 0);
-				drawColor->blue =	max((drawColor->blue - (centerDiff * 2)), 0);
+				drawColor->green =
+					max((drawColor->green - (centerDiff * 2)), 0);
+				drawColor->blue = max((drawColor->blue - (centerDiff * 2)), 0);
 			}
 			else
 			{

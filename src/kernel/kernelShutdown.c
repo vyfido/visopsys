@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,21 +23,21 @@
 // the kernel
 
 #include "kernelShutdown.h"
+#include "kernelCpu.h"
 #include "kernelError.h"
 #include "kernelFilesystem.h"
 #include "kernelFont.h"
 #include "kernelGraphic.h"
 #include "kernelLocale.h"
 #include "kernelLog.h"
-#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelNetwork.h"
 #include "kernelPower.h"
-#include "kernelProcessorX86.h"
-#include "kernelSysTimer.h"
 #include "kernelUsbDriver.h"
 #include "kernelWindow.h"
 #include <stdio.h>
+#include <string.h>
+#include <sys/processor.h>
 
 #define _(string) kernelGetText(string)
 #define SHUTDOWN_MSG1			_("Shutting down Visopsys, please wait...")
@@ -66,9 +66,10 @@ static void messageBox(asciiFont *font, int numLines, char *message[])
 		if (tmp > messageWidth)
 			messageWidth = tmp;
 	}
-	messageHeight = (font->charHeight * numLines);
+
+	messageHeight = (font->glyphHeight * numLines);
 	boxWidth = (messageWidth + 30);
-	boxHeight = (messageHeight + (font->charHeight * 2));
+	boxHeight = (messageHeight + (font->glyphHeight * 2));
 
 	// The box
 	kernelGraphicDrawRect(NULL, &kernelDefaultDesktop, draw_normal,
@@ -76,19 +77,18 @@ static void messageBox(asciiFont *font, int numLines, char *message[])
 		boxWidth, boxHeight, 1, 1);
 
 	// Nice white border
-	kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
-		draw_normal, ((screenWidth - boxWidth) / 2),
-			((screenHeight - boxHeight) / 2), boxWidth, boxHeight, 2, 0);
+	kernelGraphicDrawRect(NULL, &COLOR_WHITE, draw_normal,
+		((screenWidth - boxWidth) / 2), ((screenHeight - boxHeight) / 2),
+		boxWidth, boxHeight, 2, 0);
 
 	// The message
 	for (count = 0; count < numLines; count ++)
 	{
-		kernelGraphicDrawText(NULL, &((color) { 255, 255, 255 }),
-			&kernelDefaultDesktop, font, message[count],
-			draw_normal, ((screenWidth -
+		kernelGraphicDrawText(NULL, &COLOR_WHITE, &kernelDefaultDesktop, font,
+			message[count], draw_normal, ((screenWidth -
 				kernelFontGetPrintedWidth(font, message[count])) / 2),
 			(((screenHeight - messageHeight) / 2) +
-				(font->charHeight * count)));
+				(font->glyphHeight * count)));
 	}
 }
 
@@ -100,7 +100,6 @@ static void messageBox(asciiFont *font, int numLines, char *message[])
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelShutdown(int reboot, int force)
 {
@@ -142,7 +141,7 @@ int kernelShutdown(int reboot, int force)
 		status = kernelFileFind(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE, NULL);
 		if (status >= 0)
 		{
-			status = kernelFontLoad(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
+			status = kernelFontLoadSystem(WINDOW_DEFAULT_VARFONT_MEDIUM_FILE,
 				WINDOW_DEFAULT_VARFONT_MEDIUM_NAME, &font, 0);
 		}
 		if (status < 0)
@@ -155,7 +154,7 @@ int kernelShutdown(int reboot, int force)
 			_("Shutting down"));
 		if (window)
 		{
-			kernelMemClear(&params, sizeof(componentParameters));
+			memset(&params, 0, sizeof(componentParameters));
 			params.gridWidth = 1;
 			params.gridHeight = 1;
 			params.padLeft = 10;
@@ -286,10 +285,10 @@ int kernelShutdown(int reboot, int force)
 	// Finally, we either halt or reboot the computer
 	if (reboot)
 	{
-		kernelSysTimerWaitTicks(20); // Wait ~2 seconds
+		kernelCpuSpinMs(1000); // Wait 1 second
 		// Disable interrupts
-		kernelProcessorDisableInts();
-		kernelProcessorReboot();
+		processorDisableInts();
+		processorReboot();
 	}
 	else
 	{
@@ -298,7 +297,7 @@ int kernelShutdown(int reboot, int force)
 		kernelPowerOff();
 
 		// Default to processor stop.
-		kernelProcessorStop();
+		processorStop();
 	}
 
 	// Just for good form
@@ -317,7 +316,7 @@ void kernelPanicOutput(const char *fileName, const char *function, int line,
 	char errorText[MAX_ERRORTEXT_LENGTH];
 	va_list list;
 
-	kernelProcessorDisableInts();
+	processorDisableInts();
 
 	snprintf(panicMessage, MAX_ERRORTEXT_LENGTH,
 		_("SYSTEM HALTED: Panic at %s:%s(%d)"), fileName, function, line);
@@ -339,6 +338,6 @@ void kernelPanicOutput(const char *fileName, const char *function, int line,
 		kernelTextPrintLine("%s", errorText);
 	}
 
-	kernelProcessorStop();
+	processorStop();
 }
 

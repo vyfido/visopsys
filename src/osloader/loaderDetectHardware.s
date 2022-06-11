@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -33,7 +33,6 @@
 	EXTERN PRINTINFO
 	EXTERN DRIVENUMBER
 	EXTERN CYLINDERS
-	EXTERN PARTENTRY
 
 	SEGMENT .text
 	BITS 16
@@ -104,11 +103,6 @@ loaderDetectHardware:
 
 	;; Detect Fixed disk drives, if any
 	call detectHardDisks
-
-	;; Record the sector number (LBA) of the boot sector
-	mov SI, PARTENTRY
-	mov EAX, dword [SI + 8]
-	mov dword [BOOTSECT], EAX
 
 	;; Serial ports
 	call detectSerial
@@ -1068,10 +1062,10 @@ IEND
 	ALIGN 4
 
 HARDWAREINFO:
-	CPUTYPE		dd 0	;; See %defines at top
-	CPUVEND		dd 0, 0, 0, 0 ;; CPU vendor string, if supported
-	MMXEXT		dd 0	;; Boolean; 1 or zero
-	EXTENDEDMEMORY	dd 0	;; In Kbytes
+	CPUTYPE			dd 0			;; See %defines at top
+	CPUVEND			dd 0, 0, 0, 0	;; CPU vendor string, if supported
+	MMXEXT			dd 0			;; Boolean; 1 or zero
+	EXTENDEDMEMORY	dd 0			;; In Kbytes
 
 	;; Info returned by int 15h function E820h
 	MEMORYMAP:
@@ -1079,57 +1073,56 @@ HARDWAREINFO:
 
 	;; This is all the information about the video capabilities
 	VIDEO: ISTRUC graphicsInfoBlock
-	times graphicsInfoBlock_size db 0
+		times graphicsInfoBlock_size db 0
 	IEND
 
 	;; This is the info about the boot device and booted sector
-	BOOTSECT	dd 0	;; Boot sector LBA
-	BOOTSECTSIG	dd 0	;; Boot sector signature
-	BOOTCD		dd 0	;; Booting from a CD
+	BOOTSECTSIG		dd 0			;; Boot sector signature
+	BOOTCD			dd 0			;; Booting from a CD
 
 	;; This is an array of info about up to 2 floppy disks in the system
-	FLOPPYDISKS	dd 0	;; Number present
+	FLOPPYDISKS		dd 0			;; Number present
 	;; Floppy 0
 	FD0: ISTRUC fddInfoBlock
-	times fddInfoBlock_size db 0
+		times fddInfoBlock_size db 0
 	IEND
 	;; Floppy 1
 	FD1: ISTRUC fddInfoBlock
-	times fddInfoBlock_size db 0
+		times fddInfoBlock_size db 0
 	IEND
 
 	;; Info about the serial ports
 	SERIAL: ISTRUC serialInfoBlock
-	times serialInfoBlock_size db 0
+		times serialInfoBlock_size db 0
 	IEND
 
 ;;
 ;; These are general messages related to hardware detection
 ;;
 
-HAPPY		db 01h, ' ', 0
-BLANK		db '               ', 10h, ' ', 0
-PROCESSOR	db 'Processor    ', 10h, ' ', 0
-CPUPPRO		db 'Pentium Pro or better ("', 0
-CPUPENTIUM	db 'Pentium ("', 0
-CPU486		db 'i486', 0
-CPU386		db 'i386 (or lower)', 0
+HAPPY			db 01h, ' ', 0
+BLANK			db '               ', 10h, ' ', 0
+PROCESSOR		db 'Processor    ', 10h, ' ', 0
+CPUPPRO			db 'Pentium Pro or better ("', 0
+CPUPENTIUM		db 'Pentium ("', 0
+CPU486			db 'i486', 0
+CPU386			db 'i386 (or lower)', 0
 CLOSEBRACKETS	db '") ', 0
-MMX		db 'with MMX', 0
-MEMDETECT1	db 'Extended RAM ', 10h, ' ', 0
-KREPORTED	db 'K reported', 0
-FDDCHECK	db 'Floppy disks ', 10h, ' ', 0
-CDCHECK		db 'CD/DVD       ', 10h, ' ', 0
-CDEMUL		db 'Booting in emulation mode', 0
-HDDCHECK	db 'Hard disks   ', 10h, ' ', 0
-DISKCHECK	db ' disk(s)', 0
-HEADS		db ' heads, ', 0
-TRACKS		db ' tracks, ', 0
-CYLS		db ' cyls, ', 0
-SECTS		db ' sects, ', 0
-BPSECT		db ' bps  ', 0
-MEGA		db ' MBytes', 0
-NOGRAPHICS	db 'NOGRAPH    ', 0
+MMX				db 'with MMX', 0
+MEMDETECT1		db 'Extended RAM ', 10h, ' ', 0
+KREPORTED		db 'K reported', 0
+FDDCHECK		db 'Floppy disks ', 10h, ' ', 0
+CDCHECK			db 'CD/DVD       ', 10h, ' ', 0
+CDEMUL			db 'Booting in emulation mode', 0
+HDDCHECK		db 'Hard disks   ', 10h, ' ', 0
+DISKCHECK		db ' disk(s)', 0
+HEADS			db ' heads, ', 0
+TRACKS			db ' tracks, ', 0
+CYLS			db ' cyls, ', 0
+SECTS			db ' sects, ', 0
+BPSECT			db ' bps  ', 0
+MEGA			db ' MBytes', 0
+NOGRAPHICS		db 'NOGRAPH    ', 0
 
 EMUL_SAVE	times 20 db 0
 
@@ -1137,11 +1130,12 @@ EMUL_SAVE	times 20 db 0
 ;; These are error messages related to hardware detection
 ;;
 
-SAD		db 'x ', 0
+SAD				db 'x ', 0
 EMULCHECKBAD	db 'CD-ROM emulation check failed.  CD booting might not be '
-		db 'successful.', 0
-CPUCHECKBAD	db ': This processor is not adequate to run Visopsys.  '
-		db 'Visopsys', 0
+				db 'successful.', 0
+CPUCHECKBAD		db ': This processor is not adequate to run Visopsys.  '
+				db 'Visopsys', 0
 CPUCHECKBAD2	db 'requires an i486 or better processor in order to '
-		db 'function', 0
+				db 'function', 0
 CPUCHECKBAD3	db 'properly.  Please see your computer dealer.', 0
+

@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2014-01-22 05:00-0400\n"
-"Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -17,11 +17,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: ps.c:86
+#: ps.c:87
 msgid "Process list:\n"
 msgstr "Lista de procesos:\n"
 
-#: ps.c:91
+#: ps.c:92
 #, c-format
 msgid ""
 "\"%s\"  PID=%d UID=%d priority=%d priv=%d parent=%d\n"
@@ -30,34 +30,34 @@ msgstr ""
 "\"%s\"  PID=%d UID=%d Prioridad=%d priv=%d parent=%d\n"
 "        %d%% Estado CPU="
 
-#: ps.c:101
+#: ps.c:102
 msgid "running"
 msgstr "corriendo"
 
-#: ps.c:105
+#: ps.c:106
 msgid "ready"
 msgstr "listo"
 
-#: ps.c:108
+#: ps.c:109
 msgid "waiting"
 msgstr "esperando"
 
-#: ps.c:111
+#: ps.c:112
 msgid "sleeping"
 msgstr "durmiendo"
 
-#: ps.c:114
+#: ps.c:115
 msgid "stopped"
 msgstr "parado"
 
-#: ps.c:117
+#: ps.c:118
 msgid "finished"
 msgstr "terminado"
 
-#: ps.c:120
+#: ps.c:121
 msgid "zombie"
 msgstr "zombie"
 
-#: ps.c:123
+#: ps.c:124
 msgid "unknown"
 msgstr "desconocido"

@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2013-11-02 13:15-0400\n"
-"Last-Translator: Jens León Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens León Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -17,11 +17,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.7\n"
 
-#: defrag.c:74
+#: defrag.c:75
 msgid "Confirmation"
 msgstr "Bestätigung"
 
-#: defrag.c:103
+#: defrag.c:104
 msgid ""
 "\n"
 "Press any key to continue. "
@@ -29,27 +29,27 @@ msgstr ""
 "\n"
 "Drücke eine Taste zum Fortfahren. "
 
-#: defrag.c:125
+#: defrag.c:127
 msgid "Error"
 msgstr "Fehler"
 
-#: defrag.c:150
+#: defrag.c:153
 msgid "Please choose the disk to defragment:"
 msgstr ""
 
-#: defrag.c:170
+#: defrag.c:173
 msgid "Choose Disk"
 msgstr "Wähle eine Disk"
 
-#: defrag.c:185
+#: defrag.c:188
 msgid "OK"
 msgstr "OK"
 
-#: defrag.c:189 defrag.c:258
+#: defrag.c:192 defrag.c:260
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: defrag.c:251
+#: defrag.c:254
 #, c-format
 msgid ""
 "The disk is mounted as %s.  It is STRONGLY recommended\n"
@@ -58,19 +58,19 @@ msgstr ""
 "Die Disk wurde als %s verbunden. Es wird SEHR empfohlen\n"
 "diese erst zu trennen"
 
-#: defrag.c:257
+#: defrag.c:259
 msgid "Disk is mounted"
 msgstr "Disk verbunden"
 
-#: defrag.c:258
+#: defrag.c:260
 msgid "Ignore"
 msgstr "Ignorieren"
 
-#: defrag.c:258
+#: defrag.c:260
 msgid "Unmount"
 msgstr "Trennen"
 
-#: defrag.c:261
+#: defrag.c:263
 #, c-format
 msgid ""
 "\n"
@@ -79,38 +79,43 @@ msgstr ""
 "\n"
 "%s (I) Ignorieren/(U) Trennen/(C) Abbrechen?: "
 
-#: defrag.c:270
+#: defrag.c:272
 msgid "Ignore\n"
 msgstr "Ignorieren\n"
 
-#: defrag.c:276
+#: defrag.c:278
 msgid "Unmount\n"
 msgstr "Trennen\n"
 
-#: defrag.c:282
+#: defrag.c:284
 msgid "Cancel\n"
 msgstr "Abbrechen\n"
 
-#: defrag.c:301
+#: defrag.c:303
 #, c-format
 msgid "Unable to unmount %s"
 msgstr "%s kann nicht getrennt werden"
 
-#: defrag.c:345
+#: defrag.c:344
+#, c-format
+msgid "Unknown option '%c'"
+msgstr ""
+
+#: defrag.c:356
 msgid "Error getting disks info"
 msgstr "Fehler beim Aufrufen der Disk Info"
 
-#: defrag.c:351
+#: defrag.c:362
 msgid ""
 "\n"
 "Visopsys DEFRAG Utility\n"
-"Copyright (C) 1998-2014 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2015 J. Andrew McLaughlin\n"
 msgstr ""
 "\n"
 "Visopsys DEFRAG Werkzeug\n"
-"Copyright (C) 1998-2014 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2015 J. Andrew McLaughlin\n"
 
-#: defrag.c:373
+#: defrag.c:384
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
@@ -118,27 +123,27 @@ msgstr ""
 "Sie müssen ein Benutzer mit bestimmten Rechten sein.\n"
 "(Versuchen Sie, sich als \"admin\" anzumelden)"
 
-#: defrag.c:400
+#: defrag.c:411
 #, c-format
 msgid "Unknown filesystem type on disk \"%s\""
 msgstr "Unbekannter Dateisystem-typ auf der Disk \"%s\""
 
-#: defrag.c:410
+#: defrag.c:421
 #, c-format
 msgid "Error getting info for disk \"%s\""
 msgstr "Fehler beim Aufrufen der Info für die Disk \"%s\""
 
-#: defrag.c:419
+#: defrag.c:430
 #, c-format
 msgid "Defragmenting the filesystem type \"%s\" is not supported"
 msgstr "Defragmentierung des Dateisystem-typs \"%s\" ist nicht unterstützt"
 
-#: defrag.c:426
+#: defrag.c:437
 #, c-format
 msgid "Defragmenting disk %s.  Are you sure?"
 msgstr "Defragmentire Disk %s. Sind Sie sicher?"
 
-#: defrag.c:430
+#: defrag.c:441
 msgid ""
 "\n"
 "Quitting.\n"
@@ -146,14 +151,14 @@ msgstr ""
 "\n"
 "Abbrechen...\n"
 
-#: defrag.c:442
+#: defrag.c:453
 msgid "Defragmenting..."
 msgstr "Defragmentiere..."
 
-#: defrag.c:454
+#: defrag.c:465
 msgid "Defragmentation complete"
 msgstr "Defragmentation abgeschlossen"
 
-#: defrag.c:456
+#: defrag.c:467
 msgid "Success"
 msgstr "Fertig"

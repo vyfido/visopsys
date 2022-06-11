@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -78,11 +78,12 @@ bootCode:
 ;; Data.  There is no data segment, so this space will have to do
 
 NOBOOT		db 'This is not a bootable Visopsys disk', 0Dh, 0Ah
-		db 'Press any key to continue', 0Dh, 0Ah, 0
+			db 'Press any key to continue', 0Dh, 0Ah, 0
 
 ;; This puts the value AA55h in the last two bytes of the boot
 ;; sector.  The BIOS uses this to determine whether this sector was
 ;; meant to be booted from (and also helps prevent us from making the
 ;; boot sector code larger than 512 bytes)
 times (510-($-$$))	db 0
-ENDSECTOR:		dw 0AA55h
+ENDSECTOR:			dw 0AA55h
+

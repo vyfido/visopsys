@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2014-01-22 17:34-0400\n"
-"Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -17,29 +17,29 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: iconwin.c:93
+#: iconwin.c:94
 msgid "Error"
 msgstr "Error"
 
-#: iconwin.c:111
+#: iconwin.c:112
 #, c-format
 msgid "Can't locate configuration file %s"
 msgstr "No se encuentra el archivo de configuración %s"
 
-#: iconwin.c:171
+#: iconwin.c:172
 msgid "Icon Window"
 msgstr ""
 
-#: iconwin.c:213
+#: iconwin.c:214
 msgid "Memory allocation error"
 msgstr "Error de memoria"
 
-#: iconwin.c:381
+#: iconwin.c:386
 #, c-format
 msgid "Couldn't execute command \"%s\""
 msgstr "No se puede ejecutar el comando \"%s\""
 
-#: iconwin.c:450
+#: iconwin.c:455
 #, c-format
 msgid ""
 "\n"
@@ -48,7 +48,7 @@ msgstr ""
 "\n"
 "El comando \"%s\"funciona solamente en modo gráfico\n"
 
-#: iconwin.c:464
+#: iconwin.c:469
 #, c-format
 msgid ""
 "usage:\n"
@@ -57,7 +57,7 @@ msgstr ""
 "Uso:\n"
 "%s <Archivo_config>\n"
 
-#: iconwin.c:495
+#: iconwin.c:500
 #, c-format
 msgid "Config file %s specifies no valid icons"
 msgstr "El archivo de configuración %s especifica íconos inválidos"

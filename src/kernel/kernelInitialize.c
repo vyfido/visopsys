@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,6 +47,7 @@
 #include "kernelWindow.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/paths.h>
 
 #define _(string) kernelGetText(string)
@@ -157,7 +158,6 @@ static void logLoaderInfo(void)
 		}
 	}
 
-	kernelLog("OS Loader: boot sector=%u", kernelOsLoaderInfo->bootSector);
 	kernelLog("OS Loader: boot signature=0x%08x",
 		kernelOsLoaderInfo->bootSectorSig);
 	kernelLog("OS Loader: boot from CD: %s",
@@ -190,7 +190,6 @@ static void logLoaderInfo(void)
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	unsigned kernelStackSize)
@@ -296,7 +295,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	kernelLogSetToConsole(0);
 
 	// Log a starting message
-	sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2014 J. Andrew "
+	sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2015 J. Andrew "
 		"McLaughlin", kernelVersion[0], kernelVersion[1]);
 	kernelLog("%s", welcomeMessage);
 
@@ -416,7 +415,8 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	rootDisk = kernelDiskGetByName(rootDiskName);
 	if (rootDisk == NULL)
 	{
-		kernelError(kernel_error, "Couldn't get root disk \"%s\"", rootDiskName);
+		kernelError(kernel_error, "Couldn't get root disk \"%s\"",
+			rootDiskName);
 		return (status = ERR_INVALID);
 	}
 
@@ -456,53 +456,52 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 			// Get the default color values, if they're set in this file
 
 			value = kernelVariableListGet(kernelVariables,
-				"color.foreground.red");
+				COLOR_FOREGROUND_RED);
 			if (value)
 				kernelDefaultForeground.red = atoi(value);
 
 			value = kernelVariableListGet(kernelVariables,
-				"color.foreground.green");
+				COLOR_FOREGROUND_GREEN);
 			if (value)
 				kernelDefaultForeground.green = atoi(value);
 
 			value = kernelVariableListGet(kernelVariables,
-				"color.foreground.blue");
+				COLOR_FOREGROUND_BLUE);
 			if (value)
 				kernelDefaultForeground.blue = atoi(value);
 
 			value = kernelVariableListGet(kernelVariables,
-				"color.background.red");
+				COLOR_BACKGROUND_RED);
 			if (value)
 				kernelDefaultBackground.red = atoi(value);
 
 			value = kernelVariableListGet(kernelVariables,
-				"color.background.green");
+				COLOR_BACKGROUND_GREEN);
 			if (value)
 				kernelDefaultBackground.green = atoi(value);
 
 			value = kernelVariableListGet(kernelVariables,
-				"color.background.blue");
+				COLOR_BACKGROUND_BLUE);
 			if (value)
 				kernelDefaultBackground.blue = atoi(value);
 
-			value = kernelVariableListGet(kernelVariables,
-				"color.desktop.red");
+			value = kernelVariableListGet(kernelVariables, COLOR_DESKTOP_RED);
 			if (value)
 				kernelDefaultDesktop.red = atoi(value);
 
 			value = kernelVariableListGet(kernelVariables,
-				"color.desktop.green");
+				COLOR_DESKTOP_GREEN);
 			if (value)
 				kernelDefaultDesktop.green = atoi(value);
 
-			value = kernelVariableListGet(kernelVariables,
-				"color.desktop.blue");
+			value = kernelVariableListGet(kernelVariables, COLOR_DESKTOP_BLUE);
 			if (value)
 				kernelDefaultDesktop.blue = atoi(value);
 
 			// Get the name of the splash image (used only if we are in
 			// graphics mode)
-			splashName = kernelVariableListGet(kernelVariables, "splash.image");
+			splashName = kernelVariableListGet(kernelVariables,
+				"splash.image");
 		}
 
 		value = kernelVariableListGet(kernelVariables, "network");
@@ -516,7 +515,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 
 		// Clear the screen with our default background color
 		kernelGraphicClearScreen(&kernelDefaultDesktop);
-		kernelMemClear(&splashImage, sizeof(image));
+		memset(&splashImage, 0, sizeof(image));
 
 		if (splashName && !kernelFileFind(splashName, NULL))
 		{
@@ -528,11 +527,12 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 				// Loaded successfully.  Put it in the middle of the screen.
 				kernelGraphicDrawImage(NULL, &splashImage, draw_normal,
 					((kernelGraphicGetScreenWidth() - splashImage.width) / 2),
-					((kernelGraphicGetScreenHeight() - splashImage.height) / 2),
-					0, 0, 0, 0);
+					((kernelGraphicGetScreenHeight() -
+						splashImage.height) / 2), 0, 0, 0, 0);
 				kernelGraphicDrawRect(NULL, &COLOR_BLACK, draw_normal,
 					((kernelGraphicGetScreenWidth() - splashImage.width) / 2),
-					((kernelGraphicGetScreenHeight() - splashImage.height) / 2),
+					((kernelGraphicGetScreenHeight() -
+						splashImage.height) / 2),
 					splashImage.width, splashImage.height, 1, 0);
 			}
 		}
@@ -605,8 +605,10 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 			kernelImageFree(&splashImage);
 	}
 	else
+	{
 		kernelTextPrint("\nGraphics are not enabled.  Operating in text "
 			"mode.\n");
+	}
 
 	kernelDebug(debug_misc, "Finished kernel initialization");
 

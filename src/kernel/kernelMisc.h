@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -45,10 +45,6 @@ static inline int POW(int x, int y)
 
 void kernelGetVersion(char *, int);
 int kernelSystemInfo(struct utsname *);
-void kernelMemCopy(const void *, void *, unsigned);
-void kernelMemSet(void *, unsigned char, unsigned);
-#define kernelMemClear(ptr, num) kernelMemSet(ptr, 0, num)
-int kernelMemCmp(const void *, const void *, unsigned);
 const char *kernelLookupClosestSymbol(kernelProcess *, void *);
 int kernelStackTrace(kernelProcess *, char *, int);
 void kernelConsoleLogin(void);
@@ -65,3 +61,4 @@ void kernelPause(int);
 
 #define _KERNELMISC_H
 #endif
+

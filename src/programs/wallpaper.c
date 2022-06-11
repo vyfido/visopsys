@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,29 +48,90 @@ Currently, bitmap (.bmp) and JPEG (.jpg) image formats are supported.
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 #include <sys/vsh.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
 
+#define DESKTOP_CONFIG		"desktop.conf"
+
+static int readOnly = 1;
+
+
+static int writeFileConfig(const char *configName, const char *imageName)
+{
+	// Set the wallpaper in the requested config file.
+
+	int status = 0;
+	file f;
+
+	memset(&f, 0, sizeof(file));
+
+	status = fileFind(configName, NULL);
+	if (status < 0)
+	{
+		// The file doesn't exist.  Try to create it.
+		status = fileOpen(configName, (OPENMODE_WRITE | OPENMODE_CREATE), &f);
+		if (status < 0)
+			return (status);
+
+		// Now close the file
+		fileClose(&f);
+	}
+
+	// Save the wallpaper variable
+	if (imageName)
+		status = configSet(configName, "background.image", imageName);
+	else
+		status = configUnset(configName, "background.image");
+
+	return (status);
+}
+
+
+static int writeConfig(const char *imageName)
+{
+	// Set the wallpaper in the desktop config.
+
+	int status = 0;
+	char configName[MAX_PATH_NAME_LENGTH];
+
+	if (readOnly)
+		return (status = ERR_NOWRITE);
+
+	sprintf(configName, PATH_SYSTEM_CONFIG "/" DESKTOP_CONFIG);
+
+	status = writeFileConfig(configName, imageName);
+
+	return (status);
+}
+
 
 int main(int argc, char *argv[])
 {
 	int status = 0;
+	disk sysDisk;
 	char fileName[MAX_PATH_NAME_LENGTH];
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("wallpaper");
 
 	// Only work in graphics mode
 	if (!graphicsAreEnabled())
 	{
-		printf(_("\nThe \"%s\" command only works in graphics mode\n"), argv[0]);
+		printf(_("\nThe \"%s\" command only works in graphics mode\n"),
+			argv[0]);
 		return (status = ERR_NOTINITIALIZED);
 	}
 
-	bzero(fileName, MAX_PATH_NAME_LENGTH);
+	memset(&sysDisk, 0, sizeof(disk));
+	memset(fileName, 0, MAX_PATH_NAME_LENGTH);
+
+	// Find out whether we are currently running on a read-only filesystem
+	if (!fileGetDisk(PATH_SYSTEM, &sysDisk))
+		readOnly = sysDisk.readOnly;
 
 	if (argc < 2)
 	{
@@ -80,16 +141,17 @@ int main(int argc, char *argv[])
 			fileName, MAX_PATH_NAME_LENGTH, 1);
 		if (status != 1)
 		{
-			if (status == 0)
+			if (!status)
 				return (status);
 
 			printf("%s", _("No filename specified\n"));
 			return (status);
 		}
 	}
-
 	else
+	{
 		strncpy(fileName, argv[1], MAX_PATH_NAME_LENGTH);
+	}
 
 	if (strncmp(fileName, "none", MAX_PATH_NAME_LENGTH))
 	{
@@ -100,11 +162,14 @@ int main(int argc, char *argv[])
 			return (status);
 		}
 
-		status = windowShellTileBackground(fileName);
+		windowShellTileBackground(fileName);
+	}
+	else
+	{
+		windowShellTileBackground(NULL);
 	}
 
-	else
-		status = windowShellTileBackground(NULL);
+	status = writeConfig(fileName);
 
 	return (status);
 }

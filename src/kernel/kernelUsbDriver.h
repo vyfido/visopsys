@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -74,10 +74,30 @@ typedef volatile struct {
 struct _usbController;
 struct _usbHub;
 
+typedef struct {
+	unsigned char number;
+	unsigned char attributes;
+	unsigned short maxPacketSize;
+	unsigned char interval;
+	unsigned char dataToggle;
+	unsigned char maxBurst;
+
+} usbEndpoint;
+
+typedef struct {
+	unsigned char classCode;
+	unsigned char subClassCode;
+	unsigned char protocol;
+	int numEndpoints;
+	usbEndpoint endpoint[USB_MAX_ENDPOINTS];
+	void *claimed;
+	void *data;
+
+} usbInterface;
+
 typedef volatile struct {
 	volatile struct _usbController *controller;
 	volatile struct _usbHub *hub;
-	kernelDevice dev;
 	int rootPort;
 	int hubAddress;
 	int hubDepth;
@@ -91,21 +111,15 @@ typedef volatile struct {
 	unsigned char protocol;
 	unsigned short vendorId;
 	unsigned short deviceId;
+	int configured;
 	usbDeviceDesc deviceDesc;
 	usbDevQualDesc devQualDesc;
 	usbConfigDesc *configDesc;
-	usbInterDesc *interDesc[USB_MAX_INTERFACES];
-	usbEndpointDesc endpoint0Desc;
-	usbEndpointDesc *endpointDesc[USB_MAX_ENDPOINTS];
+	usbEndpoint endpoint0;
+	int numInterfaces;
+	usbInterface interface[USB_MAX_INTERFACES];
 	int numEndpoints;
-	struct {
-		unsigned char interNum;
-		unsigned char number;
-		unsigned char dataToggle;
-		unsigned char maxBurst;
-	} endpoint[USB_MAX_ENDPOINTS];
-	void *claimed;
-	void *data;
+	usbEndpoint *endpoint[USB_MAX_ENDPOINTS];
 
 } usbDevice;
 
@@ -113,12 +127,11 @@ typedef volatile struct _usbHub {
 	volatile struct _usbController *controller;
 	usbDevice *usbDev;
 	kernelBusTarget *busTarget;
+	kernelDevice dev;
 	usbHubDesc hubDesc;
 	unsigned char *changeBitmap;
-	int gotInterrupt;
 	int doneColdDetect;
-	usbEndpointDesc *intrInDesc;
-	unsigned char intrInEndpoint;
+	usbEndpoint *intrInEndp;
 	kernelLinkedList devices;
 
 	// Functions for managing the hub
@@ -144,9 +157,9 @@ typedef volatile struct _usbController {
 	int (*interrupt)(volatile struct _usbController *);
 	int (*queue)(volatile struct _usbController *, usbDevice *,
 		usbTransaction *, int);
-	int (*schedInterrupt)(volatile struct _usbController *, usbDevice *,
+	int (*schedInterrupt)(volatile struct _usbController *, usbDevice *, int,
 		unsigned char, int, unsigned,
-		void (*)(usbDevice *, void *, unsigned));
+		void (*)(usbDevice *, int, void *, unsigned));
 	int (*deviceRemoved)(volatile struct _usbController *, usbDevice *);
 
 } usbController;
@@ -167,15 +180,15 @@ typedef struct {
 } usbClass;
 
 // Make our proprietary USB target code
-#define usbMakeTargetCode(controller, address, endpoint)			\
+#define usbMakeTargetCode(controller, address, interface)			\
 	((((controller) & 0xFF) << 16) | (((address) & 0xFF) << 8) |	\
-	((endpoint) & 0xFF))
+	((interface) & 0xFF))
 
-// Translate a target code back to controller, address, endpoint
-#define usbMakeContAddrEndp(targetCode, controller, address, endpoint)	\
+// Translate a target code back to controller, address, interface
+#define usbMakeContAddrIntr(targetCode, controller, address, interface)	\
 	{  (controller) = (((targetCode) >> 16) & 0xFF);					\
 		(address) = (((targetCode) >> 8) & 0xFF);						\
-		(endpoint) = ((targetCode) & 0xFF);  }
+		(interface) = ((targetCode) & 0xFF);  }
 
 static inline const char *usbDevSpeed2String(usbDevSpeed speed) {	\
 	switch (speed) {												\
@@ -195,15 +208,16 @@ void kernelUsbAddHub(usbHub *, int);
 int kernelUsbDevConnect(usbController *, usbHub *, int, usbDevSpeed, int);
 void kernelUsbDevDisconnect(usbController *, usbHub *, int);
 usbDevice *kernelUsbGetDevice(int);
-usbEndpointDesc *kernelUsbGetEndpointDesc(usbDevice *, unsigned char);
+usbEndpoint *kernelUsbGetEndpoint(usbDevice *, unsigned char);
 volatile unsigned char *kernelUsbGetEndpointDataToggle(usbDevice *,
 	unsigned char);
 int kernelUsbSetDeviceConfig(usbDevice *);
 int kernelUsbSetupDeviceRequest(usbTransaction *, usbDeviceRequest *);
 int kernelUsbControlTransfer(usbDevice *, unsigned char, unsigned short,
 	unsigned short, unsigned char, unsigned short, void *,	unsigned *);
-int kernelUsbScheduleInterrupt(usbDevice *, unsigned char, int, unsigned,
-	void (*)(usbDevice *, void *, unsigned));
+int kernelUsbScheduleInterrupt(usbDevice *, int, unsigned char, int, unsigned,
+	void (*)(usbDevice *, int, void *, unsigned));
+int kernelUsbSetDeviceAttrs(usbDevice *, int, kernelDevice *);
 
 // Detection routines for different driver types
 kernelDevice *kernelUsbUhciDetect(kernelBusTarget *, kernelDriver *);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,6 +52,7 @@ Options:
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 
 #define _(string) gettext(string)
 
@@ -70,11 +71,12 @@ int main(int argc, char *argv[])
 	// the supplied process id
 
 	int status = 0;
+	char opt;
 	int processId = 0;
 	int force = 0;
 	int count = 1;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("kill");
 
 	if (argc < 2)
@@ -83,24 +85,34 @@ int main(int argc, char *argv[])
 		return (status = ERR_ARGUMENTCOUNT);
 	}
 
-	// Check for -f ('force') option
-	if (getopt(argc, argv, "f") == 'f')
+	// Check options
+	while (strchr("f?", (opt = getopt(argc, argv, "f"))))
 	{
-		if (argc < 3)
+		switch (opt)
 		{
-			usage(argv[0]);
-			return (status = ERR_ARGUMENTCOUNT);
-		}
+			case 'f':
+				// 'force' option
+				if (argc < 3)
+				{
+					usage(argv[0]);
+					return (status = ERR_ARGUMENTCOUNT);
+				}
+				force = 1;
+				count++;
+				break;
 
-		force = 1;
-		count++;
+			default:
+				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
+				usage(argv[0]);
+				return (status = ERR_ARGUMENTCOUNT);
+		}
 	}
 
 	// Loop through all of our process ID arguments
 	for ( ; count < argc; count ++)
 	{
 		// Make sure our argument isn't NULL
-		if (argv[count] == NULL)
+		if (!argv[count])
 			return (status = ERR_NULLPARAMETER);
 
 		processId = atoi(argv[count]);
@@ -121,7 +133,9 @@ int main(int argc, char *argv[])
 			perror(argv[0]);
 		}
 		else
+		{
 			printf(_("%d killed\n"), processId);
+		}
 	}
 
 	// Return success

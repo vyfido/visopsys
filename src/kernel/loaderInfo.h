@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,96 +24,88 @@
 
 #if !defined(_LOADERINFO_H)
 
-#include <sys/image.h>
+#include <sys/graphic.h>
 
 // The data structure created by the loader (actually, by the BIOS) to
 // describe a memory range
 
 // The types of memory ranges described by the memoryInfoBlock structure,
 // below
-typedef enum
-{
-  available = 1,
-  reserved  = 2,
-  acpi_reclaim = 3,
-  acpi_nvs = 4,
-  bad = 5
+typedef enum {
+	available = 1,
+	reserved  = 2,
+	acpi_reclaim = 3,
+	acpi_nvs = 4,
+	bad = 5
 
 } memoryRangeType;
 
-typedef struct
-{
-  long long start;
-  long long size;
-  memoryRangeType type;
+typedef struct {
+	long long start;
+	long long size;
+	memoryRangeType type;
 
 } memoryInfoBlock;
 
 // The data structure created by the loader to describe the particulars
 // about the current graphics environment to the kernel
-typedef struct
-{
-  unsigned videoMemory;
-  void *framebuffer;
-  int mode;
-  int xRes;
-  int yRes;
-  int bitsPerPixel;
-  int numberModes;
-  videoMode supportedModes[MAXVIDEOMODES];
+typedef struct {
+	unsigned videoMemory;
+	void *framebuffer;
+	int mode;
+	int xRes;
+	int yRes;
+	int bitsPerPixel;
+	int numberModes;
+	videoMode supportedModes[MAXVIDEOMODES];
 
 } graphicsInfoBlock;
 
 // The data structure created by the loader to describe the particulars
 // about a floppy disk drive to the kernel
-typedef struct
-{
-  int type;
-  int heads;
-  int tracks;
-  int sectors;
+typedef struct {
+	int type;
+	int heads;
+	int tracks;
+	int sectors;
 
 } fddInfoBlock;
 
 // The data structure created by the loader to describe the particulars
 // about a hard disk drive to the kernel
-typedef struct
-{
-  unsigned heads;
-  unsigned cylinders;
-  unsigned sectorsPerCylinder;
-  unsigned bytesPerSector;
-  unsigned totalSectors;
+typedef struct {
+	unsigned heads;
+	unsigned cylinders;
+	unsigned sectorsPerCylinder;
+	unsigned bytesPerSector;
+	unsigned totalSectors;
 
 } hddInfoBlock;
 
 // The data structure created by the loader to hold info about the serial
 // ports
-typedef struct
-{
-  unsigned port1;
-  unsigned port2;
-  unsigned port3;
-  unsigned port4;
+typedef struct {
+	unsigned port1;
+	unsigned port2;
+	unsigned port3;
+	unsigned port4;
 
 } serialInfoBlock;
 
 // The data structure created by the loader to describe the system's hardware
 // to the kernel
-typedef struct
-{
-  int cpuType;
-  char cpuVendor[16];
-  int mmxExtensions;
-  unsigned extendedMemory;
-  memoryInfoBlock memoryMap[50];
-  graphicsInfoBlock graphicsInfo;
-  unsigned bootSector;
-  unsigned bootSectorSig;
-  int bootCd;
-  int floppyDisks;
-  fddInfoBlock fddInfo[2];
-  serialInfoBlock serialPorts;
+typedef struct {
+	int cpuType;
+	char cpuVendor[16];
+	int mmxExtensions;
+	unsigned extendedMemory;
+	memoryInfoBlock memoryMap[50];
+	graphicsInfoBlock graphicsInfo;
+	unsigned bootSectorSig;
+	int bootCd;
+	int floppyDisks;
+	fddInfoBlock fddInfo[2];
+	serialInfoBlock serialPorts;
 
 } __attribute__((packed)) loaderInfoStruct;
 

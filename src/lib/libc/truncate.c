@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -40,7 +40,7 @@ int truncate(const char *path, off_t length)
 	int fd = 0;
 
 	// Check params
-	if (path == NULL)
+	if (!path)
 	{
 		errno = ERR_NULLPARAMETER;
 		return (-1);
@@ -65,3 +65,4 @@ int truncate(const char *path, off_t length)
 	// Return success
 	return (0);
 }
+

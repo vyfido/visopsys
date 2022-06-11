@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -25,55 +25,48 @@
 #include <sys/vsh.h>
 
 
-_X_ void vshPrintDate(char *buffer, unsigned unformattedDate)
+_X_ void vshPrintDate(char *buffer, struct tm *date)
 {
-	// Desc: Print the packed date value, specified by the unsigned integer 'unformattedDate' -- such as that found in the file.modifiedDate field -- into 'buffer' in a (for now, arbitrary) human-readable format.
-
-	int day = 0;
-	int month = 0;
-	int year = 0;
+	// Desc: Return the date value, specified by the tm structure 'date' -- such as that found in the file.modified field -- into 'buffer' in a (for now, arbitrary) human-readable format.
 
 	const char *monthString = NULL;
-	day = (unformattedDate & 0x0000001F);
-	month = ((unformattedDate & 0x000001E0) >> 5);
-	year = ((unformattedDate & 0xFFFFFE00) >> 9);
 
-	switch(month)
+	switch (date->tm_mon)
 	{
-		case 1:
+		case 0:
 			monthString = "Jan";
 			break;
-		case 2:
+		case 1:
 			monthString = "Feb";
 			break;
-		case 3:
+		case 2:
 			monthString = "Mar";
 			break;
-		case 4:
+		case 3:
 			monthString = "Apr";
 			break;
-		case 5:
+		case 4:
 			monthString = "May";
 			break;
-		case 6:
+		case 5:
 			monthString = "Jun";
 			break;
-		case 7:
+		case 6:
 			monthString = "Jul";
 			break;
-		case 8:
+		case 7:
 			monthString = "Aug";
 			break;
-		case 9:
+		case 8:
 			monthString = "Sep";
 			break;
-		case 10:
+		case 9:
 			monthString = "Oct";
 			break;
-		case 11:
+		case 10:
 			monthString = "Nov";
 			break;
-		case 12:
+		case 11:
 			monthString = "Dec";
 			break;
 		default:
@@ -81,8 +74,7 @@ _X_ void vshPrintDate(char *buffer, unsigned unformattedDate)
 			break;
 	}
 
-	sprintf(buffer, "%s %02u %u", monthString, day, year);
-
-	return;
+	sprintf(buffer, "%s %02u %u", monthString, (date->tm_mday + 1),
+		(1900 + date->tm_year));
 }
 

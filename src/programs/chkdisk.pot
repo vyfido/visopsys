@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,30 +17,30 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: chkdisk.c:57
+#: chkdisk.c:58
 msgid "usage:\n"
 msgstr ""
 
-#: chkdisk.c:58
+#: chkdisk.c:59
 #, c-format
 msgid "%s <disk_name>\n"
 msgstr ""
 
-#: chkdisk.c:90
+#: chkdisk.c:91
 msgid ""
 "\n"
 "Visopsys CHKDISK Utility\n"
-"Copyright (C) 1998-2014 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2015 J. Andrew McLaughlin\n"
 "\n"
 msgstr ""
 
-#: chkdisk.c:102
+#: chkdisk.c:103
 msgid ""
 "\n"
 "The filesystem may contain errors.\n"
 "Do you want to try to repair it? (y/n): "
 msgstr ""
 
-#: chkdisk.c:115
+#: chkdisk.c:116
 msgid "Filesystem consistency check failed.\n"
 msgstr ""

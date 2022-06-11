@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,7 +26,6 @@
 #include "kernelMultitasker.h"
 #include "kernelMalloc.h"
 #include "kernelWindow.h"
-#include "kernelMisc.h"
 #include "kernelError.h"
 #include <signal.h>
 #include <stdio.h>
@@ -157,7 +156,6 @@ static inline void updateComponent(kernelTextArea *area)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelTextInitialize(int columns, int rows)
 {
 	// Initialize the console input and output streams
@@ -193,10 +191,8 @@ int kernelTextInitialize(int columns, int rows)
 		return (status);
 
 	// Copy the current screen into the buffer
-	kernelMemCopy(consoleArea.visibleData,
-		(consoleArea.bufferData +
-			((consoleArea.maxBufferLines - rows) * columns *
-				consoleArea.bytesPerChar)),
+	memcpy((consoleArea.bufferData + ((consoleArea.maxBufferLines - rows) *
+		columns * consoleArea.bytesPerChar)), consoleArea.visibleData,
 		(columns * rows * consoleArea.bytesPerChar));
 
 	// Initialize the console drivers
@@ -337,7 +333,7 @@ void kernelTextAreaDestroy(kernelTextArea *area)
 	if (area->visibleData)
 		kernelFree(area->visibleData);
 
-	kernelMemClear((void *) area, sizeof(kernelTextArea));
+	memset((void *) area, 0, sizeof(kernelTextArea));
 	kernelFree((void *) area);
 }
 
@@ -414,7 +410,7 @@ int kernelTextAreaResize(kernelTextArea *area, int columns, int rows)
 
 	// Update the visible bit.  Not sure this is really necessary since in most
 	// cases the screenDraw() function will be called next.
-	kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), area->visibleData,
+	memcpy(area->visibleData, TEXTAREA_FIRSTVISIBLE(area),
 		(columns * rows * area->bytesPerChar));
 
 	return (0);
@@ -641,7 +637,7 @@ int kernelTextGetForeground(color *foreground)
 	if (!outputStream)
 		return (ERR_INVALID);
 
-	kernelMemCopy((color *) &(outputStream->textArea->foreground), foreground,
+	memcpy(foreground, (color *) &(outputStream->textArea->foreground),
 		sizeof(color));
 	return (0);
 }
@@ -672,8 +668,8 @@ int kernelTextSetForeground(color *foreground)
 		status = outputStream->outputDriver
 			->setForeground(outputStream->textArea, foreground);
 
-	kernelMemCopy(foreground, (color *)
-		&(outputStream->textArea->foreground), sizeof(color));
+	memcpy((color *) &(outputStream->textArea->foreground), foreground,
+		sizeof(color));
 	return (status);
 }
 
@@ -695,7 +691,7 @@ int kernelTextGetBackground(color *background)
 	if (!outputStream)
 		return (ERR_INVALID);
 
-	kernelMemCopy((color *) &(outputStream->textArea->background), background,
+	memcpy(background, (color *) &(outputStream->textArea->background),
 		sizeof(color));
 	return (0);
 }
@@ -726,8 +722,8 @@ int kernelTextSetBackground(color *background)
 		status = outputStream->outputDriver
 			->setBackground(outputStream->textArea, background);
 
-	kernelMemCopy(background, (color *)
-		&(outputStream->textArea->background), sizeof(color));
+	memcpy((color *) &(outputStream->textArea->background), background,
+		sizeof(color));
 	return (status);
 }
 

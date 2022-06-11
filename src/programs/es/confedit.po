@@ -1,14 +1,14 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2014 J. Andrew McLaughlin
+#  Copyright (C) 1998-2015 J. Andrew McLaughlin
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2014-01-22 18:30-0400\n"
-"Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -16,81 +16,81 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: confedit.c:63
+#: confedit.c:64
 msgid "Configuration Editor"
 msgstr "Editor de configuración"
 
-#: confedit.c:64
+#: confedit.c:65
 msgid "File"
 msgstr "Archivo"
 
-#: confedit.c:65 confedit.c:365
+#: confedit.c:66 confedit.c:371
 msgid "Save"
 msgstr "Guardar"
 
-#: confedit.c:66 confedit.c:365
+#: confedit.c:67 confedit.c:371
 msgid "Quit"
 msgstr "Salir"
 
-#: confedit.c:67
+#: confedit.c:68
 msgid "Add variable"
 msgstr "Agregar variable"
 
-#: confedit.c:68
+#: confedit.c:69
 msgid "Change variable"
 msgstr "Cambiar variable"
 
-#: confedit.c:69
+#: confedit.c:70
 msgid "Delete variable"
 msgstr "Borrar variable"
 
-#: confedit.c:108
+#: confedit.c:109
 msgid "Error"
 msgstr "Error"
 
-#: confedit.c:121
+#: confedit.c:122
 #, c-format
 msgid "Error %d reading configuration file."
 msgstr "Error %d al leer el archivo de configuración."
 
-#: confedit.c:138
+#: confedit.c:139
 #, c-format
 msgid "Error %d writing configuration file."
 msgstr "Error %d al escribir el archivo de configuración."
 
-#: confedit.c:206
+#: confedit.c:208
 msgid "Change Variable"
 msgstr "Cambiar variable"
 
-#: confedit.c:211
+#: confedit.c:214
 msgid "Add Variable"
 msgstr "Agregar variable"
 
-#: confedit.c:225
+#: confedit.c:230
 msgid "Variable name:"
 msgstr "Nombre de variable:"
 
-#: confedit.c:249
+#: confedit.c:254
 msgid "value:"
 msgstr "Valor:"
 
-#: confedit.c:267
+#: confedit.c:273
 msgid "OK"
 msgstr "OK"
 
-#: confedit.c:273 confedit.c:365
+#: confedit.c:279 confedit.c:371
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: confedit.c:363
+#: confedit.c:369
 msgid "Unsaved changes"
 msgstr "Cambios no guardados"
 
-#: confedit.c:364
+#: confedit.c:370
 msgid "Quit without saving changes?"
 msgstr "Salir sin guardar?"
 
-#: confedit.c:600
+#: confedit.c:611
 #, c-format
 msgid ""
 "\n"
@@ -99,15 +99,15 @@ msgstr ""
 "\n"
 "El comando \"%s\" funciona solamente en modo gráfico\n"
 
-#: confedit.c:611
+#: confedit.c:623
 msgid "Enter filename"
 msgstr "Ingresar nombre del archivo"
 
-#: confedit.c:612
+#: confedit.c:624
 msgid "Please enter a configuration file to edit:"
 msgstr "Por favor, ingrese un archivo de configuración para editar:"
 
-#: confedit.c:632
+#: confedit.c:646
 #, c-format
 msgid "Error %d creating new configuration file."
 msgstr "Error %d al crear un nuevo archivo de configuración."

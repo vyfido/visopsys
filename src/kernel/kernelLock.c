@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,9 +29,9 @@
 #include "kernelInterrupt.h"
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
-#include "kernelProcessorX86.h"
 #include "kernelShutdown.h"
 #include <string.h>
+#include <sys/processor.h>
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -41,7 +41,6 @@
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelLockGet(lock *getLock)
 {
@@ -97,11 +96,11 @@ int kernelLockGet(lock *getLock)
 
 		// Disable interrupts from here, so that we don't get the lock granted
 		// or released out from under us.
-		kernelProcessorSuspendInts(interrupts);
+		processorSuspendInts(interrupts);
 
-		kernelProcessorLock(getLock->processId, currentProcId);
+		processorLock(getLock->processId, currentProcId);
 
-		kernelProcessorRestoreInts(interrupts);
+		processorRestoreInts(interrupts);
 
 		if (getLock->processId == currentProcId)
 			break;
@@ -206,3 +205,4 @@ int kernelLockVerify(lock *verLock)
 		// It's a valid lock
 		return (status = 1);
 }
+

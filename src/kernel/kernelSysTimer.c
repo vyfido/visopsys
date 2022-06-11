@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,7 @@
 //  kernelSysTimer.c
 //
 
-// These are the generic C "wrapper" functions for the routines which
+// These are the generic C "wrapper" functions for the functions which
 // reside in the system timer driver.  Most of them basically just call
 // their associated functions, but there will be extra functionality here
 // as well.
@@ -28,8 +28,8 @@
 #include "kernelError.h"
 #include "kernelInterrupt.h"
 #include "kernelPic.h"
-#include "kernelProcessorX86.h"
 #include <string.h>
+#include <sys/processor.h>
 
 static kernelDevice *systemTimer = NULL;
 static kernelSysTimerOps *ops = NULL;
@@ -42,7 +42,7 @@ static void timerInterrupt(void)
 
 	void *address = NULL;
 
-	kernelProcessorIsrEnter(address);
+	processorIsrEnter(address);
 	kernelInterruptSetCurrent(INTERRUPT_NUM_SYSTIMER);
 
 	// Call the driver function
@@ -51,7 +51,7 @@ static void timerInterrupt(void)
 
 	kernelPicEndOfInterrupt(INTERRUPT_NUM_SYSTIMER);
 	kernelInterruptClearCurrent();
-	kernelProcessorIsrExit(address);
+	processorIsrExit(address);
 }
 
 
@@ -137,11 +137,11 @@ unsigned kernelSysTimerRead(void)
 	if (!systemTimer)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Now make sure the device driver timer tick routine has been
+	// Now make sure the device driver timer tick function has been
 	// installed
 	if (!ops->driverRead)
 	{
-		kernelError(kernel_error, "The device driver routine is NULL");
+		kernelError(kernel_error, "The device driver function is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
 	}
 
@@ -163,11 +163,11 @@ int kernelSysTimerReadValue(int timer)
 	if (!systemTimer)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Now make sure the device driver read value routine has been
+	// Now make sure the device driver read value function has been
 	// installed
 	if (!ops->driverReadValue)
 	{
-		kernelError(kernel_error, "The device driver routine is NULL");
+		kernelError(kernel_error, "The device driver function is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
 	}
 
@@ -188,11 +188,11 @@ int kernelSysTimerSetupTimer(int timer, int mode, int startCount)
 	if (!systemTimer)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Now make sure the device driver setup timer routine has been
+	// Now make sure the device driver setup timer function has been
 	// installed
 	if (!ops->driverSetupTimer)
 	{
-		kernelError(kernel_error, "The device driver routine is NULL");
+		kernelError(kernel_error, "The device driver function is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
 	}
 
@@ -204,20 +204,46 @@ int kernelSysTimerSetupTimer(int timer, int mode, int startCount)
 }
 
 
+int kernelSysTimerGetOutput(int timer)
+{
+	// This returns the current value of the requested timer.
+
+	int value = 0;
+	int status = 0;
+
+	if (!systemTimer)
+		return (status = ERR_NOTINITIALIZED);
+
+	// Now make sure the device driver get output function has been
+	// installed
+	if (!ops->driverGetOutput)
+	{
+		kernelError(kernel_error, "The device driver function is NULL");
+		return (status = ERR_NOSUCHFUNCTION);
+	}
+
+	// Call the driver function
+	value = ops->driverGetOutput(timer);
+
+	// Return the result from the driver call
+	return (value);
+}
+
+
 void kernelSysTimerWaitTicks(int waitTicks)
 {
-	// This routine waits for a specified number of timer ticks to occur.
+	// This function waits for a specified number of timer ticks to occur.
 
 	int targetTime = 0;
 
 	if (!systemTimer)
 		return;
 
-	// Now make sure the device driver read timer routine has been
+	// Now make sure the device driver read timer function has been
 	// installed
 	if (!ops->driverRead)
 	{
-		kernelError(kernel_error, "The device driver routine is NULL");
+		kernelError(kernel_error, "The device driver function is NULL");
 		return;
 	}
 

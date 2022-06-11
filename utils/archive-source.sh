@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2014 J. Andrew McLaughlin
+##  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ##
 ##  archive-source.sh
 ##
@@ -47,6 +47,7 @@ make -C "$DESTDIR" clean > /dev/null 2>&1
 find "$DESTDIR" -name CVS -exec rm -R {} \; > /dev/null 2>&1
 # Other stuff
 rm -f "$DESTDIR"/*.patch
+rm -f "$DESTDIR"/RELEASE.txt
 rm -Rf "$DESTDIR"/docs/visopsys.org
 rm -f "$DESTDIR"/src/ISSUES.txt
 rm -Rf "$DESTDIR"/patches
@@ -58,7 +59,7 @@ echo Done
 
 echo -n "Archiving... "
 echo "Visopsys $RELEASE Source Release" > /tmp/comment
-echo "Copyright (C) 1998-2014 J. Andrew McLaughlin" >> /tmp/comment
+echo "Copyright (C) 1998-2015 J. Andrew McLaughlin" >> /tmp/comment
 rm -f "$DESTDIR".zip
 zip -9 -z -r "$DESTDIR".zip "$DESTDIR" < /tmp/comment > $ZIPLOG 2>&1
 if [ $? -ne 0 ] ; then

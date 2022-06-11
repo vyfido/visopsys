@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,10 +26,8 @@
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelWindowEventStream.h"
 #include <string.h>
-
 
 extern kernelWindowVariables *windowVariables;
 
@@ -138,14 +136,21 @@ static void setItemGrid(kernelWindowComponent *component)
 
 
 static inline int isMouseInScrollBar(windowEvent *event,
-	kernelWindowComponent *scrollBar)
+	kernelWindowComponent *component)
 {
-	// We use this to determine whether a mouse event is inside the slider
+	// We use this to determine whether a mouse event is inside the scroll bar
 
-	if (event->xPosition >= (scrollBar->window->xCoord + scrollBar->xCoord))
+	kernelWindowScrollBar *scrollBar = component->data;
+
+	if (scrollBar->dragging ||
+		(event->xPosition >= (component->window->xCoord + component->xCoord)))
+	{
 		return (1);
+	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -328,7 +333,7 @@ static int numComps(kernelWindowComponent *component)
 		numItems = list->container->numComps(list->container);
 
 	if (list->scrollBar)
-		// Return 1 for our scrollbar,
+		// Add 1 for our scrollbar
 		numItems += 1;
 
 	return (numItems);
@@ -481,7 +486,7 @@ static kernelWindowComponent *eventComp(kernelWindowComponent *component,
 			// Make a copy of this event, make it also a 'selection' event,
 			// and put it into the windowList's event stream
 
-			kernelMemCopy(event, &tmpEvent, sizeof(windowEvent));
+			memcpy(&tmpEvent, event, sizeof(windowEvent));
 
 			// Make this also a 'selection' event
 			tmpEvent.type |= EVENT_SELECTION;
@@ -505,8 +510,7 @@ static kernelWindowComponent *eventComp(kernelWindowComponent *component,
 }
 
 
-static int setBuffer(kernelWindowComponent *component,
-	kernelGraphicBuffer *buffer)
+static int setBuffer(kernelWindowComponent *component, graphicBuffer *buffer)
 {
 	// Set the graphics buffer for the component and its subcomponents.
 
@@ -608,7 +612,7 @@ static void populateList(kernelWindowComponent *listComponent,
 		list->selectedItem = (numItems - 1);
 
 	// Standard parameters for the list items
-	kernelMemCopy((componentParameters *) &(listComponent->params), &params,
+	memcpy(&params, (componentParameters *) &(listComponent->params),
 		sizeof(componentParameters));
 	params.gridX = 0;
 	params.gridY = 0;
@@ -632,7 +636,7 @@ static void populateList(kernelWindowComponent *listComponent,
 		kernelDebug(debug_gui, "WindowList create %s", items[count].text);
 		listItemComponent = kernelWindowNewListItem(list->container, list->type,
 			&items[count], &params);
-		if (listItemComponent == NULL)
+		if (!listItemComponent)
 			continue;
 
 		// Make it not visible for now.
@@ -844,8 +848,10 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			{
 				// Don't bother passing the mouse event to the list item
 				setSelected(component, count);
+
 				// Make this also a 'selection' event
 				event->type |= EVENT_SELECTION;
+
 				break;
 			}
 		}
@@ -883,19 +889,19 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 
 			switch (event->key)
 			{
-				case ASCII_CRSRUP:
+				case keyUpArrow:
 					// Cursor up
 					if (gridY > 0)
 						gridY -= 1;
 					break;
 
-				case ASCII_CRSRDOWN:
+				case keyDownArrow:
 					// Cursor down
 					if (gridY < (list->itemRows - 1))
 						gridY += 1;
 					break;
 
-				case ASCII_CRSRLEFT:
+				case keyLeftArrow:
 					// Cursor left
 					if (gridX > 0)
 						gridX -= 1;
@@ -906,7 +912,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 					}
 					break;
 
-				case ASCII_CRSRRIGHT:
+				case keyRightArrow:
 					// Cursor right
 					if (gridX < (list->columns - 1))
 						gridX += 1;
@@ -917,7 +923,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 					}
 					break;
 
-				case ASCII_ENTER:
+				case keyEnter:
 					// ENTER.  We will make this also a 'selection' event.
 					event->type |= EVENT_SELECTION;
 					break;
@@ -988,7 +994,6 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewList(objectKey parent,
 	windowListType type, int rows, int columns, int selectMultiple,
 	listItemParameters *items, int numItems, componentParameters *params)
@@ -1014,7 +1019,7 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
 
 	// Get the basic component structure
 	component = kernelWindowComponentNew(parent, params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	component->type = listComponentType;
@@ -1042,18 +1047,18 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
 	// with the one we prefer (white)
 	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
 	{
-		kernelMemCopy(&COLOR_WHITE, (color *) &component->params.background,
+		memcpy((color *) &component->params.background, &COLOR_WHITE,
 			sizeof(color));
 		component->params.flags |= WINDOW_COMPFLAG_CUSTOMBACKGROUND;
 	}
 
 	// If font is NULL, use the default
-	if (component->params.font == NULL)
+	if (!component->params.font)
 		component->params.font = windowVariables->font.varWidth.medium.font;
 
 	// Get memory for this list component
 	list = kernelMalloc(sizeof(kernelWindowList));
-	if (list == NULL)
+	if (!list)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
@@ -1071,7 +1076,7 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
 	// Get our container component
 	list->container = kernelWindowNewContainer(parent, "windowlist container",
 		params);
-	if (list->container == NULL)
+	if (!list->container)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
@@ -1083,17 +1088,16 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
 	container = list->container->data;
 
 	// Standard parameters for a scroll bar
-	kernelMemCopy(params, &subParams, sizeof(componentParameters));
-	subParams.flags &=
-		~(WINDOW_COMPFLAG_CUSTOMFOREGROUND | WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+	memcpy(&subParams, params, sizeof(componentParameters));
+	subParams.flags &= ~(WINDOW_COMPFLAG_CUSTOMFOREGROUND |
+		WINDOW_COMPFLAG_CUSTOMBACKGROUND);
 
 	if (!(subParams.flags & WINDOW_COMPFLAG_NOSCROLLBARS))
 	{
 		// Get our scrollbar component
-		list->scrollBar =
-			kernelWindowNewScrollBar(parent, scrollbar_vertical, 0,
-						 component->height, &subParams);
-		if (list->scrollBar == NULL)
+		list->scrollBar = kernelWindowNewScrollBar(parent, scrollbar_vertical,
+			0, component->height, &subParams);
+		if (!list->scrollBar)
 		{
 			kernelWindowComponentDestroy(component);
 			return (component = NULL);
@@ -1119,7 +1123,9 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
 
 	// Take care of any default selection
 	if (selectMultiple)
+	{
 		list->selectedItem = -1;
+	}
 	else
 	{
 		// Multiple selections are not allowed, so we select the first one
@@ -1133,3 +1139,4 @@ kernelWindowComponent *kernelWindowNewList(objectKey parent,
 
 	return (component);
 }
+

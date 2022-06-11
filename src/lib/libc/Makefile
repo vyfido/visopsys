@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2014 J. Andrew McLaughlin
+##  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -160,7 +160,10 @@ STRINGNAMES = bcopy \
 
 TIMENAMES = asctime \
 	clock \
+	ctime \
 	difftime \
+	gmtime \
+	mktime \
 	time
 
 UNISTDNAMES = close \

@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -320,4 +320,6 @@ loaderEnableA20:
 
 A20BAD1		db 'Could not enable the A20 address line, which could cause '
 			db 'serious memory', 0
-A20BAD2		db 'problems for the kernel.  This is often associated with keyboard errors.', 0
+A20BAD2		db 'problems for the kernel.  This is often associated with '
+			db 'keyboard errors.', 0
+

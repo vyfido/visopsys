@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -55,6 +55,7 @@ directories then the flag has no effect.
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 
 #define _(string) gettext(string)
 
@@ -62,7 +63,8 @@ directories then the flag has no effect.
 static void usage(char *name)
 {
 	fprintf(stderr, "%s", _("usage:\n"));
-	fprintf(stderr, _("%s [-R] <source1> [source2] ... <destination>\n"), name);
+	fprintf(stderr, _("%s [-R] <source1> [source2] ... <destination>\n"),
+		name);
 	return;
 }
 
@@ -74,7 +76,7 @@ int main(int argc, char *argv[])
 	int recurse = 0;
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("cp");
 
 	// There need to be at least a source and destination name
@@ -84,6 +86,7 @@ int main(int argc, char *argv[])
 		return (status = ERR_ARGUMENTCOUNT);
 	}
 
+	// Check options
 	while (strchr("Rr?", (opt = getopt(argc, argv, "Rr"))))
 	{
 		switch (opt)

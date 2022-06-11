@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -327,5 +327,6 @@ scrollLine:
 REMAINDER	dd 0	;; For number printing
 CURSORPOS	dw 0
 TALLY		db '0', 0, '1', 0, '2', 0, '3', 0, '4', 0, '5', 0, '6', 0,
-		db '7', 0, '8', 0, '9', 0
+			db '7', 0, '8', 0, '9', 0
 LEADZERO	db 0	;; In number generation
+

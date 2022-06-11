@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,21 +31,29 @@
 #include "kernelError.h"
 #include "kernelLoader.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
+#include "kernelMemory.h"
 #include <stdio.h>
 #include <string.h>
 
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+// Standard font driver functions
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 static int detect(const char *fileName, void *dataPtr, unsigned size,
 	loaderFileClass *class)
 {
 	// This function returns 1 and fills the fileClass structure if the data
-	// points to an VBF file.
+	// points to a VBF file.
 
 	vbfFileHeader *vbfHeader = dataPtr;
 
 	// Check params
-	if ((fileName == NULL) || (dataPtr == NULL) || (class == NULL))
+	if (!fileName || !dataPtr || !class)
 		return (0);
 
 	// Make sure there's enough data here for our detection
@@ -53,7 +61,7 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
 		return (0);
 
 	// See whether this file claims to be a VBF file.
-	if (!strncmp(vbfHeader->magic, VBF_MAGIC, 4))
+	if (!strncmp(vbfHeader->magic, VBF_MAGIC, VBF_MAGIC_LEN))
 	{
 		// We'll accept that.
 		sprintf(class->className, "%s %s", FILECLASS_NAME_VBF,
@@ -63,11 +71,13 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 
-static int load(unsigned char *fontFileData, int dataLength,
+static int load(unsigned char *fontFileData, int dataLength, int kernel,
 	asciiFont **pointer, int fixedWidth)
 {
 	// Loads a VBF file and returns it as a font.  The memory for this and
@@ -75,7 +85,7 @@ static int load(unsigned char *fontFileData, int dataLength,
 
 	int status = 0;
 	vbfFileHeader *vbfHeader = (vbfFileHeader *) fontFileData;
-	int charWidth = 0, charHeight = 0, charBytes = 0;
+	int glyphWidth = 0, glyphHeight = 0, glyphBytes = 0;
 	asciiFont *newFont = NULL;
 	unsigned char *fontData = NULL;
 	unsigned char *charData = 0;
@@ -83,18 +93,28 @@ static int load(unsigned char *fontFileData, int dataLength,
 	int count1, count2, count3;
 
 	// Check params
-	if ((fontFileData == NULL) || !dataLength || (pointer == NULL))
+	if (!fontFileData || !dataLength || !pointer)
 		return (status = ERR_NULLPARAMETER);
 
 	// How many bytes per char?
-	charWidth = vbfHeader->glyphWidth;
-	charHeight = vbfHeader->glyphHeight;
-	charBytes = (((charWidth * charHeight) + 7) / 8);
+	glyphWidth = vbfHeader->glyphWidth;
+	glyphHeight = vbfHeader->glyphHeight;
+	glyphBytes = (((glyphWidth * glyphHeight) + 7) / 8);
 
 	// Get memory for the font structure and the images data.
-	newFont = kernelMalloc(sizeof(asciiFont));
-	fontData = kernelMalloc(charBytes * vbfHeader->numGlyphs);
-	if ((newFont == NULL) || (fontData == NULL))
+	if (kernel)
+	{
+		newFont = kernelMalloc(sizeof(asciiFont));
+		fontData = kernelMalloc(glyphBytes * vbfHeader->numGlyphs);
+	}
+	else
+	{
+		newFont = kernelMemoryGet(sizeof(asciiFont), "user font");
+		fontData = kernelMemoryGet((glyphBytes * vbfHeader->numGlyphs),
+			"user font data");
+	}
+
+	if (!newFont || !fontData)
 	{
 		kernelError(kernel_error, "Unable to get memory to hold the font data");
 		return (status = ERR_MEMORY);
@@ -102,22 +122,22 @@ static int load(unsigned char *fontFileData, int dataLength,
 
 	// Copy the basic font info
 	strncpy(newFont->name, vbfHeader->name, 32);
-	newFont->charWidth = charWidth;
-	newFont->charHeight = charHeight;
+	newFont->glyphWidth = glyphWidth;
+	newFont->glyphHeight = glyphHeight;
 
 	// Copy the bitmap data directory from the file into the font memory
-	kernelMemCopy(&(vbfHeader->codes[vbfHeader->numGlyphs]), fontData,
-		(charBytes * vbfHeader->numGlyphs));
+	memcpy(fontData, &(vbfHeader->codes[vbfHeader->numGlyphs]),
+		(glyphBytes * vbfHeader->numGlyphs));
 
 	// Loop through the all the images (whether they're implemented of not)
 	for (count1 = 0; count1 < ASCII_CHARS; count1 ++)
 	{
 		// Stuff that won't change in the rest of the code for this character,
 		// below (things like width can change -- see below)
-		newFont->chars[count1].type = IMAGETYPE_MONO;
-		newFont->chars[count1].width = charWidth;
-		newFont->chars[count1].height = charHeight;
-		newFont->chars[count1].pixels = (charWidth * charHeight);
+		newFont->glyphs[count1].type = IMAGETYPE_MONO;
+		newFont->glyphs[count1].width = glyphWidth;
+		newFont->glyphs[count1].height = glyphHeight;
+		newFont->glyphs[count1].pixels = (glyphWidth * glyphHeight);
 
 		// Does this character appear in our character map?
 		for (count2 = 0; count2 < vbfHeader->numGlyphs; count2 ++)
@@ -126,34 +146,34 @@ static int load(unsigned char *fontFileData, int dataLength,
 			{
 				// The character is implemented.  'count2' is the index into
 				// the character codes.
-				newFont->chars[count1].dataLength = charBytes;
-				newFont->chars[count1].data = (fontData + (count2 * charBytes));
+				newFont->glyphs[count1].dataLength = glyphBytes;
+				newFont->glyphs[count1].data = (fontData + (count2 * glyphBytes));
 				break;
 			}
 		}
 
-		if (!newFont->chars[count1].data)
+		if (!newFont->glyphs[count1].data)
 			continue;
 
 		// If a variable-width font has been requested, then we need to do some
 		// bit-bashing to remove surplus space on either side of each character.
 		if (!fixedWidth)
 		{
-			charData = newFont->chars[count1].data;
+			charData = newFont->glyphs[count1].data;
 
 			// These allow us to keep track of the leftmost and rightmost 'on'
 			// pixels for this character.  We can use these for narrowing the
 			// image if we want a variable-width font
-			firstOnPixel = (charWidth - 1);
+			firstOnPixel = (glyphWidth - 1);
 			lastOnPixel = 0;
 
-			for (count2 = 0; count2 < charHeight; count2 ++)
+			for (count2 = 0; count2 < glyphHeight; count2 ++)
 			{
 				// Find the first-on pixel
 				for (count3 = 0; count3 < firstOnPixel; count3 ++)
 				{
-					if (charData[((count2 * charWidth) + count3) / 8] &
-						(0x80 >> (((count2 * charWidth) + count3) % 8)))
+					if (charData[((count2 * glyphWidth) + count3) / 8] &
+						(0x80 >> (((count2 * glyphWidth) + count3) % 8)))
 					{
 						firstOnPixel = count3;
 						break;
@@ -161,10 +181,10 @@ static int load(unsigned char *fontFileData, int dataLength,
 				}
 
 				// Find the last-on pixel
-				for (count3 = (charWidth - 1); count3 > lastOnPixel; count3 --)
+				for (count3 = (glyphWidth - 1); count3 > lastOnPixel; count3 --)
 				{
-					if (charData[((count2 * charWidth) + count3) / 8] &
-						(0x80 >> (((count2 * charWidth) + count3) % 8)))
+					if (charData[((count2 * glyphWidth) + count3) / 8] &
+						(0x80 >> (((count2 * glyphWidth) + count3) % 8)))
 					{
 						lastOnPixel = count3;
 						break;
@@ -177,14 +197,14 @@ static int load(unsigned char *fontFileData, int dataLength,
 			// buggered up by anything with no 'on' pixels such as the space
 			// character
 
-			if ((firstOnPixel > 0) || (lastOnPixel < (charWidth - 2)))
+			if ((firstOnPixel > 0) || (lastOnPixel < (glyphWidth - 2)))
 			{
 				if (firstOnPixel > lastOnPixel)
 				{
 					// This has no pixels.  Probably a space character.  Give
 					// it a width of approximately 1/5th the char width
 					firstOnPixel = 0;
-					lastOnPixel = ((charWidth / 5) - 1);
+					lastOnPixel = ((glyphWidth / 5) - 1);
 				}
 
 				// We will strip bits from each row of the character image.
@@ -193,9 +213,9 @@ static int load(unsigned char *fontFileData, int dataLength,
 				// bits that aren't being skipped, and sets/clears them.
 
 				count3 = 0;
-				for (count2 = 0; count2 < (charWidth * charHeight); count2 ++)
+				for (count2 = 0; count2 < (glyphWidth * glyphHeight); count2 ++)
 				{
-					currentPixel = (count2 % charWidth);
+					currentPixel = (count2 % glyphWidth);
 					if ((currentPixel < firstOnPixel) ||
 						(currentPixel > (lastOnPixel + 1)))
 					{
@@ -214,10 +234,10 @@ static int load(unsigned char *fontFileData, int dataLength,
 				}
 
 				// Adjust the character image information
-				newFont->chars[count1].width -=
-					(firstOnPixel + (((charWidth - 2) - lastOnPixel)));
-				newFont->chars[count1].pixels =
-					(newFont->chars[count1].width * charHeight);
+				newFont->glyphs[count1].width -=
+					(firstOnPixel + (((glyphWidth - 2) - lastOnPixel)));
+				newFont->glyphs[count1].pixels =
+					(newFont->glyphs[count1].width * glyphHeight);
 			}
 		}
 	}
@@ -243,7 +263,6 @@ kernelFileClass vbfFileClass = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 kernelFileClass *kernelFileClassVbf(void)
 {

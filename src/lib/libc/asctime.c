@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -36,25 +36,28 @@ char *asctime(const struct tm *timePtr)
 	// the date and time functions.
 
 	// ctime() time format:
-	// "Wed Jun 30 21:49:08 1993\n"
+	// "Wed Jun 30 21:49:08 1993"
 
-	static char *weekDay[] = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
-	static char *month[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul",
-				 "Aug", "Sep", "Oct", "Nov", "Dec" };
-	static char timeString[25];
+	static const char *weekDay[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri",
+		"Sat" };
+	static const char *month[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+	static char timeString[26];
 
 	// Make sure timePtr is not NULL
-	if (timePtr == NULL)
+	if (!timePtr)
 	{
 		errno = ERR_NULLPARAMETER;
 		return (NULL);
 	}
 
 	// Create the string
-	sprintf(timeString, "%s %s %d %02d:%02d:%02d %d", weekDay[timePtr->tm_wday],
-		month[timePtr->tm_mon], timePtr->tm_mday, timePtr->tm_hour,
-		timePtr->tm_min, timePtr->tm_sec, timePtr->tm_year);
+	sprintf(timeString, "%s %s %d %02d:%02d:%02d %d",
+		weekDay[timePtr->tm_wday], month[timePtr->tm_mon],
+		(timePtr->tm_mday + 1), timePtr->tm_hour, timePtr->tm_min,
+		timePtr->tm_sec, (1900 + timePtr->tm_year));
 
 	// Ok, return a pointer to timeString
 	return (timeString);
 }
+

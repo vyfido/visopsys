@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -35,16 +35,18 @@ char *strtok(char *string, const char *delim)
 	char *token = NULL;
 
 	// Check params
-	if (string == NULL)
+	if (!string)
 	{
-		if (saveptr == NULL)
+		if (!saveptr)
 			return (saveptr = NULL);
 	}
 	else
+	{
 		// This is the first call with this string
 		saveptr = string;
+	}
 
-	if (delim == NULL)
+	if (!delim)
 		// We need delimiters
 		return (saveptr = NULL);
 
@@ -75,3 +77,4 @@ char *strtok(char *string, const char *delim)
 
 	return (token);
 }
+

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,7 +52,7 @@ static int setText(kernelWindowComponent *component, const char *text,
 	}
 
 	label->text = kernelMalloc(length + 1);
-	if (label->text == NULL)
+	if (!label->text)
 		return (status = ERR_NOCREATE);
 
 	strncpy((char *) label->text, text, length);
@@ -83,7 +83,7 @@ static int setText(kernelWindowComponent *component, const char *text,
 	}
 
 	if (font)
-		component->height = (font->charHeight * label->lines);
+		component->height = (font->glyphHeight * label->lines);
 	component->minWidth = component->width;
 	component->minHeight = component->height;
 
@@ -105,12 +105,11 @@ static int draw(kernelWindowComponent *component)
 	{
 		if (font)
 		{
-			status =
-				kernelGraphicDrawText(component->buffer,
-					(color *) &(component->params.foreground),
-					(color *) &(component->params.background),
-					font, tmp, draw_normal, component->xCoord,
-					(component->yCoord + (font->charHeight * count)));
+			status = kernelGraphicDrawText(component->buffer,
+				(color *) &(component->params.foreground),
+				(color *) &(component->params.background), font, tmp,
+				draw_normal, component->xCoord,
+				(component->yCoord + (font->glyphHeight * count)));
 			if (status < 0)
 				break;
 		}
@@ -177,7 +176,6 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewTextLabel(objectKey parent,
 	const char *text, componentParameters *params)
 {
@@ -196,7 +194,7 @@ kernelWindowComponent *kernelWindowNewTextLabel(objectKey parent,
 
 	// Get the basic component structure
 	component = kernelWindowComponentNew(parent, params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	component->type = textLabelComponentType;
@@ -207,12 +205,12 @@ kernelWindowComponent *kernelWindowNewTextLabel(objectKey parent,
 	component->destroy = &destroy;
 
 	// If font is NULL, use the default
-	if (component->params.font == NULL)
+	if (!component->params.font)
 		component->params.font = windowVariables->font.varWidth.medium.font;
 
 	// Get the label component
 	textLabel = kernelMalloc(sizeof(kernelWindowTextLabel));
-	if (textLabel == NULL)
+	if (!textLabel)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);

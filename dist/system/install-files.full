@@ -52,7 +52,6 @@
 /programs/helpfiles/install.txt
 /programs/helpfiles/keymap.txt
 /programs/helpfiles/kill.txt
-/programs/helpfiles/loadfont.txt
 /programs/helpfiles/login.txt
 /programs/helpfiles/logout.txt
 /programs/helpfiles/ls.txt
@@ -93,7 +92,6 @@
 /programs/install
 /programs/keymap
 /programs/kill
-/programs/loadfont
 /programs/ls
 /programs/lsdev
 /programs/md5
@@ -136,11 +134,13 @@
 /system/config/de/
 /system/config/de/administration.conf
 /system/config/de/desktop.conf
+/system/config/de/kernel.conf
 /system/config/de/network.conf
 /system/config/de/programs.conf
 /system/config/es/
 /system/config/es/administration.conf
 /system/config/es/desktop.conf
+/system/config/es/kernel.conf
 /system/config/es/network.conf
 /system/config/es/programs.conf
 /system/config/network.conf
@@ -191,12 +191,14 @@
 /system/headers/sys/debug.h
 /system/headers/sys/device.h
 /system/headers/sys/disk.h
+/system/headers/sys/env.h
 /system/headers/sys/errors.h
 /system/headers/sys/ext.h
 /system/headers/sys/fat.h
 /system/headers/sys/file.h
 /system/headers/sys/font.h
 /system/headers/sys/gpt.h
+/system/headers/sys/graphic.h
 /system/headers/sys/guid.h
 /system/headers/sys/image.h
 /system/headers/sys/iso.h
@@ -212,6 +214,7 @@
 /system/headers/sys/ntfs.h
 /system/headers/sys/paths.h
 /system/headers/sys/process.h
+/system/headers/sys/processor.h
 /system/headers/sys/progress.h
 /system/headers/sys/stat.h
 /system/headers/sys/stream.h
@@ -309,7 +312,6 @@
 /system/locale/de/LC_MESSAGES/kill.mo
 /system/locale/de/LC_MESSAGES/libntfs.mo
 /system/locale/de/LC_MESSAGES/libwindow.mo
-/system/locale/de/LC_MESSAGES/loadfont.mo
 /system/locale/de/LC_MESSAGES/login.mo
 /system/locale/de/LC_MESSAGES/lsdev.mo
 /system/locale/de/LC_MESSAGES/mem.mo
@@ -376,7 +378,6 @@
 /system/locale/es/LC_MESSAGES/kill.mo
 /system/locale/es/LC_MESSAGES/libntfs.mo
 /system/locale/es/LC_MESSAGES/libwindow.mo
-/system/locale/es/LC_MESSAGES/loadfont.mo
 /system/locale/es/LC_MESSAGES/login.mo
 /system/locale/es/LC_MESSAGES/lsdev.mo
 /system/locale/es/LC_MESSAGES/mem.mo

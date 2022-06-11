@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,7 +26,7 @@
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
+#include <string.h>
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -36,7 +36,6 @@
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelLinkedListAdd(kernelLinkedList *list, void *data)
 {
@@ -145,7 +144,7 @@ int kernelLinkedListClear(kernelLinkedList *list)
 	list->numItems = 0;
 
 	kernelLockRelease(&list->lock);
-	kernelMemClear(list, sizeof(kernelLinkedList));
+	memset(list, 0, sizeof(kernelLinkedList));
 	return (status = 0);
 }
 

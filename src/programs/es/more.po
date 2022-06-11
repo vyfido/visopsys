@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2014-01-22 05:04-0400\n"
-"Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -17,16 +17,16 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: more.c:60
+#: more.c:61
 msgid "usage:\n"
 msgstr "Uso:\n"
 
-#: more.c:61
+#: more.c:62
 #, c-format
 msgid "%s <file1> [file2] [...]\n"
 msgstr "%s <Archivo1> [Archivo2] [...]\n"
 
-#: more.c:126
+#: more.c:127
 #, c-format
 msgid "--More--(%d%%)"
 msgstr "--Más--(%d%%)"

@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2014-01-22 18:25-0400\n"
-"Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: cdrom.c:143
+#: cdrom.c:144
 msgid ""
 "\n"
 "\n"
@@ -29,7 +29,7 @@ msgstr ""
 "Problema al obtener información del CD-ROM\n"
 "\n"
 
-#: cdrom.c:157
+#: cdrom.c:158
 msgid ""
 "\n"
 "\n"
@@ -41,7 +41,7 @@ msgstr ""
 "No hay CD-ROMS registrados\n"
 "\n"
 
-#: cdrom.c:198
+#: cdrom.c:199
 #, c-format
 msgid ""
 "\n"

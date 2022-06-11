@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,6 +30,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/network.h>
 #include <sys/telnet.h>
 
@@ -214,7 +215,7 @@ int main(int argc, char *argv[])
 	unsigned char *buffer = NULL;
 	int count, bytes;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("telnet");
 
 	if (argc != 2)
@@ -247,7 +248,7 @@ int main(int argc, char *argv[])
 	}
 
 	buffer = malloc(NETWORK_PACKET_MAX_LENGTH);
-	if (buffer == NULL)
+	if (!buffer)
 	{
 		errno = ERR_MEMORY;
 		perror(argv[0]);
@@ -255,7 +256,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Clear out our filter and ask for the network the headers we want
-	bzero(&filter, sizeof(networkFilter));
+	memset(&filter, 0, sizeof(networkFilter));
 	filter.transProtocol = NETWORK_TRANSPROTOCOL_TCP;
 	filter.localPort = 12468;
 	filter.remotePort = 23;
@@ -265,7 +266,7 @@ int main(int argc, char *argv[])
 
 	// Open a connection on the adapter
 	connection = networkOpen(NETWORK_MODE_READWRITE, &address, &filter);
-	if (connection == NULL)
+	if (!connection)
 	{
 		errno = ERR_IO;
 		perror(argv[0]);
@@ -319,7 +320,8 @@ int main(int argc, char *argv[])
 								printOption(buffer[count]);
 								printCommand(TELNET_COMMAND_WONT);
 								printOption(buffer[count]);
-								sendCommand(TELNET_COMMAND_WONT, buffer[count]);
+								sendCommand(TELNET_COMMAND_WONT,
+									buffer[count]);
 								break;
 
 							default:

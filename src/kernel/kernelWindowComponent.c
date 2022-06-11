@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,9 +26,9 @@
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelWindowEventStream.h"
 #include <stdlib.h>
+#include <string.h>
 
 extern kernelWindowVariables *windowVariables;
 
@@ -107,24 +107,23 @@ static void renderComponent(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
 	componentParameters *params)
 {
 	// Creates a new component and adds it to the main container of the
-	// window.
+	// parent window, or to the parent itself if it's a container.
 
 	int status = 0;
 	kernelWindowComponent *parentComponent = NULL;
 	kernelWindowComponent *component = NULL;
 
 	// Check params
-	if ((parent == NULL) || (params == NULL))
+	if (!parent || !params)
 		return (component = NULL);
 
 	// Get memory for the basic component
 	component = kernelMalloc(sizeof(kernelWindowComponent));
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	component->type = genericComponentType;
@@ -144,8 +143,7 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
 		component->flags |= WINFLAG_CANFOCUS;
 
 	// Copy the parameters into the component
-	kernelMemCopy(params, (void *) &(component->params),
-		sizeof(componentParameters));
+	memcpy((void *) &(component->params), params, sizeof(componentParameters));
 
 	// If the default colors are requested, copy them into the component
 	// parameters
@@ -185,13 +183,15 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
 	// Now we need to add the component somewhere.
 
 	if (((kernelWindow *) parent)->type == windowType)
+	{
 		// The parent is a window, so we use the window's main container.
 		parentComponent = ((kernelWindow *) parent)->mainContainer;
-
+	}
 	else if (((kernelWindowComponent *) parent)->add)
+	{
 		// Not a window but a component with an 'add' function.
 		parentComponent = parent;
-
+	}
 	else
 	{
 		kernelError(kernel_error, "Invalid parent object for new component");
@@ -208,7 +208,7 @@ kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
 		return (component = NULL);
 	}
 
-	if (component->container == NULL)
+	if (!component->container)
 		component->container = parentComponent;
 
 	return (component);
@@ -221,7 +221,7 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
 	extern kernelWindowComponent *consoleTextArea;
 
 	// Check params.
-	if (component == NULL)
+	if (!component)
 		return;
 
 	// Make sure the component is removed from any containers it's in
@@ -238,6 +238,7 @@ void kernelWindowComponentDestroy(kernelWindowComponent *component)
 	// Call the component's own destroy function
 	if (component->destroy)
 		component->destroy(component);
+
 	component->data = NULL;
 
 	// Deallocate generic things
@@ -265,7 +266,7 @@ int kernelWindowComponentSetVisible(kernelWindowComponent *component,
 	int count;
 
 	// Check params
-	if (component == NULL)
+	if (!component)
 		return (status = ERR_NULLPARAMETER);
 
 	window = component->window;
@@ -277,7 +278,7 @@ int kernelWindowComponentSetVisible(kernelWindowComponent *component,
 	numComponents += 1;
 
 	array = kernelMalloc(numComponents * sizeof(kernelWindowComponent *));
-	if (array == NULL)
+	if (!array)
 		return (status = ERR_MEMORY);
 
 	array[0] = component;
@@ -402,7 +403,7 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
 int kernelWindowComponentGetWidth(kernelWindowComponent *component)
 {
 	// Return the width parameter of the component
-	if (component == NULL)
+	if (!component)
 		return (0);
 	else
 		return (component->width);
@@ -559,7 +560,7 @@ int kernelWindowComponentGetData(kernelWindowComponent *component,
 
 
 int kernelWindowComponentSetData(kernelWindowComponent *component,
-	void *buffer, int size)
+	void *buffer, int size, int render)
 {
 	// Set (generic) data in a component
 
@@ -574,7 +575,8 @@ int kernelWindowComponentSetData(kernelWindowComponent *component,
 
 	status = component->setData(component, buffer, size);
 
-	renderComponent(component);
+	if (render)
+		renderComponent(component);
 
 	return (status);
 }

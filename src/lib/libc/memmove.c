@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,42 +23,55 @@
 
 #include <errno.h>
 #include <string.h>
+#include <sys/processor.h>
 
 
-void *memmove(void *dest, const void *src, size_t len)
+void *memmove(void *dest, const void *src, size_t bytes)
 {
 	// The memmove() function copies n bytes from memory area src to memory
 	// area dest.  The memory areas may overlap.
 
-	size_t count = 0;
+	unsigned dwords = (bytes >> 2);
 
-	if ((dest == NULL) || (src == NULL))
+	if (!dest || !src)
 	{
 		errno = ERR_NULLPARAMETER;
 		return (dest);
 	}
 
-	if (len)
+	if (bytes)
 	{
 		// In case the memory areas overlap, we will copy the data differently
 		// depending on the position of the src and dest pointers
 		if (dest < src)
 		{
-			for (count = 0; count < len; count ++)
-				((char *) dest)[count] = ((char *) src)[count];
+			if (!dwords || ((src - dest) < 4) || ((unsigned) src % 4) ||
+				((unsigned) dest % 4) || (bytes % 4))
+			{
+				processorCopyBytes(src, dest, bytes);
+			}
+			else
+			{
+				processorCopyDwords(src, dest, dwords);
+			}
 		}
+
 		else if (dest > src)
 		{
-			for (count = (len - 1); ; count --)
+			if (!dwords || ((dest - src) < 4) || ((unsigned) src % 4) ||
+				((unsigned) dest % 4) || (bytes % 4))
 			{
-				((char *) dest)[count] = ((char *) src)[count];
-
-				// Can't do this easily in the 'for' above because it's unsigned
-				if (!count)
-					break;
+				processorCopyBytesBackwards((src + (bytes - 1)),
+					(dest + (bytes - 1)), bytes);
+			}
+			else
+			{
+				processorCopyDwordsBackwards((src + (bytes - 4)),
+					(dest + (bytes - 4)), dwords);
 			}
 		}
 	}
 
 	return (dest);
 }
+

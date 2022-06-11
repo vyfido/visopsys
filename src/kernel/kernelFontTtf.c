@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,9 +29,9 @@
 #include "kernelLoader.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
-#include "kernelProcessorX86.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/processor.h>
 
 
 /*
@@ -42,10 +42,10 @@ static inline void debugEBLC(ttfEblcTable *table)
 
 	kernelDebug(debug_misc, "Debug EBLC table:\n"
 		"  version=%04x\n"
-		"  numSizes=%d\n", kernelProcessorSwap32(table->version),
-		kernelProcessorSwap32(table->numSizes));
+		"  numSizes=%d\n", processorSwap32(table->version),
+		processorSwap32(table->numSizes));
 
-	for (count = 0; count < kernelProcessorSwap32(table->numSizes); count ++)
+	for (count = 0; count < processorSwap32(table->numSizes); count ++)
 	{
 		kernelDebug(debug_misc, "Debug EBLC size table %d:\n"
 			"  indexSubTableOffset=%d\n"
@@ -79,14 +79,10 @@ static inline void debugEBLC(ttfEblcTable *table)
 			"  bitDepth=%d\n"
 			"  flags=%02x\n",
 			count,
-			kernelProcessorSwap32(table->sizeTables[count]
-						.indexSubTableOffset),
-			kernelProcessorSwap32(table->sizeTables[count]
-						.indexTablesSize),
-			kernelProcessorSwap32(table->sizeTables[count]
-						.numIndexSubTables),
-			kernelProcessorSwap32(table->sizeTables[count]
-						.colorRef),
+			processorSwap32(table->sizeTables[count].indexSubTableOffset),
+			processorSwap32(table->sizeTables[count].indexTablesSize),
+			processorSwap32(table->sizeTables[count].numIndexSubTables),
+			processorSwap32(table->sizeTables[count].colorRef),
 			table->sizeTables[count].hori.ascender,
 			table->sizeTables[count].hori.descender,
 			table->sizeTables[count].hori.widthMax,
@@ -107,10 +103,8 @@ static inline void debugEBLC(ttfEblcTable *table)
 			table->sizeTables[count].vert.minAdvanceSB,
 			table->sizeTables[count].vert.maxBeforeBL,
 			table->sizeTables[count].vert.minAfterBL,
-			kernelProcessorSwap16(table->sizeTables[count]
-						.startGlyphIndex),
-			kernelProcessorSwap16(table->sizeTables[count]
-						.endGlyphIndex),
+			processorSwap16(table->sizeTables[count].startGlyphIndex),
+			processorSwap16(table->sizeTables[count].endGlyphIndex),
 			table->sizeTables[count].ppemX,
 			table->sizeTables[count].ppemY,
 			table->sizeTables[count].bitDepth,
@@ -179,9 +173,8 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
 		return (1);
 
 	// Otherwise we will see if there is a 'cmap' table tag in a table directory.
-	tableEntries =
-		min(kernelProcessorSwap16(offSub->numTables),
-			((size - sizeof(ttfOffsetSubtable)) / sizeof(ttfTableDirEntry)));
+	tableEntries = min(processorSwap16(offSub->numTables),
+		((size - sizeof(ttfOffsetSubtable)) / sizeof(ttfTableDirEntry)));
 
 	if (findTableDirEntry(tableDir, tableEntries, TTF_TABLETAG_CMAP))
 	{
@@ -217,7 +210,7 @@ static int readTables(unsigned char *fontFileData, ttfFont *font)
 	ttfIndexSubTableHeader *indexSubTableHeader = NULL;
 	int count;
 
-	numTables = kernelProcessorSwap16(offSub->numTables);
+	numTables = processorSwap16(offSub->numTables);
 
 	// Find the 'head' or 'bhed' table
 	tableDirEntry = findTableDirEntry(tableDir, numTables, TTF_TABLETAG_BHED);
@@ -235,15 +228,15 @@ static int readTables(unsigned char *fontFileData, ttfFont *font)
 	}
 
 	headTable =
-		((void *) fontFileData + kernelProcessorSwap32(tableDirEntry->offset));
+		((void *) fontFileData + processorSwap32(tableDirEntry->offset));
 
 	// Check the version and magic number
 	if ((headTable->version != 0x00000100) || (headTable->magic != 0xF53C0F5F))
 	{
 		// Doesn't seem like a font we can load
 		kernelDebugError("TTF header table has unknown version (%x) or magic "
-			"(%x)", kernelProcessorSwap32(headTable->version),
-			kernelProcessorSwap32(headTable->magic));
+			"(%x)", processorSwap32(headTable->version),
+			processorSwap32(headTable->magic));
 		return (status = ERR_NOTIMPLEMENTED);
 	}
 
@@ -257,19 +250,19 @@ static int readTables(unsigned char *fontFileData, ttfFont *font)
 	}
 
 	maxpTable =
-		((void *) fontFileData + kernelProcessorSwap32(tableDirEntry->offset));
+		((void *) fontFileData + processorSwap32(tableDirEntry->offset));
 
 	// Check the version
 	if (maxpTable->version != 0x00000100)
 	{
 		// Doesn't seem like a font we can load
 		kernelDebugError("TTF maximum profile table has unknown version (%x)",
-			 kernelProcessorSwap32(maxpTable->version));
+			 processorSwap32(maxpTable->version));
 		return (status = ERR_NOTIMPLEMENTED);
 	}
 
-	font->numGlyphs = kernelProcessorSwap16(maxpTable->numGlyphs);
-	font->maxPoints = kernelProcessorSwap16(maxpTable->maxPoints);
+	font->numGlyphs = processorSwap16(maxpTable->numGlyphs);
+	font->maxPoints = processorSwap16(maxpTable->maxPoints);
 	kernelDebug(debug_misc, "TTF numGlyphs=%d maxPoints=%d", font->numGlyphs,
 		font->maxPoints);
 
@@ -283,14 +276,14 @@ static int readTables(unsigned char *fontFileData, ttfFont *font)
 	}
 
 	ebdtTable =
-		((void *) fontFileData + kernelProcessorSwap32(tableDirEntry->offset));
+		((void *) fontFileData + processorSwap32(tableDirEntry->offset));
 
 	// Check the version
 	if (ebdtTable->version != 0x00000200)
 	{
 		// Doesn't seem like a font we can load
 		kernelDebugError("TTF embedded bitmap data table has unknown version "
-			"(%x)", kernelProcessorSwap32(ebdtTable->version));
+			"(%x)", processorSwap32(ebdtTable->version));
 		return (status = ERR_NOTIMPLEMENTED);
 	}
 
@@ -306,14 +299,14 @@ static int readTables(unsigned char *fontFileData, ttfFont *font)
 	}
 
 	eblcTable =
-		((void *) fontFileData + kernelProcessorSwap32(tableDirEntry->offset));
+		((void *) fontFileData + processorSwap32(tableDirEntry->offset));
 
 	// Check the version
 	if (eblcTable->version != 0x00000200)
 	{
 		// Doesn't seem like a font we can load
 		kernelDebugError("TTF embedded bitmap location table has unknown "
-			"version (%x)", kernelProcessorSwap32(eblcTable->version));
+			"version (%x)", processorSwap32(eblcTable->version));
 		return (status = ERR_NOTIMPLEMENTED);
 	}
 
@@ -329,8 +322,7 @@ static int readTables(unsigned char *fontFileData, ttfFont *font)
 	if ((font->charWidth * font->charHeight) % 8)
 		font->charBytes += 1;
 
-	font->numIndexSubTables =
-		kernelProcessorSwap32(sizeTable->numIndexSubTables);
+	font->numIndexSubTables = processorSwap32(sizeTable->numIndexSubTables);
 
 	font->indexSubTables =
 		kernelMalloc(font->numIndexSubTables * sizeof(ttfIndexSubTable));
@@ -338,26 +330,25 @@ static int readTables(unsigned char *fontFileData, ttfFont *font)
 		return (status = ERR_MEMORY);
 
 	indexSubTableArray = ((void *) eblcTable +
-		kernelProcessorSwap32(sizeTable->indexSubTableOffset));
+		processorSwap32(sizeTable->indexSubTableOffset));
 
 	for (count = 0; count < font->numIndexSubTables; count ++)
 	{
 		font->indexSubTables[count].firstGlyphIndex =
-			kernelProcessorSwap16(indexSubTableArray[count].firstGlyphIndex);
+			processorSwap16(indexSubTableArray[count].firstGlyphIndex);
 		font->indexSubTables[count].lastGlyphIndex =
-			kernelProcessorSwap16(indexSubTableArray[count].lastGlyphIndex);
+			processorSwap16(indexSubTableArray[count].lastGlyphIndex);
 
-		indexSubTableHeader =
-			((void *) eblcTable +
-				kernelProcessorSwap32(sizeTable->indexSubTableOffset) +
-				kernelProcessorSwap32(indexSubTableArray[count].offset));
+		indexSubTableHeader = ((void *) eblcTable +
+			processorSwap32(sizeTable->indexSubTableOffset) +
+			processorSwap32(indexSubTableArray[count].offset));
 
 		font->indexSubTables[count].indexFormat =
-			kernelProcessorSwap16(indexSubTableHeader->indexFormat);
+			processorSwap16(indexSubTableHeader->indexFormat);
 		font->indexSubTables[count].imageFormat =
-			kernelProcessorSwap16(indexSubTableHeader->imageFormat);
+			processorSwap16(indexSubTableHeader->imageFormat);
 		font->indexSubTables[count].imageDataOffset =
-			kernelProcessorSwap32(indexSubTableHeader->imageDataOffset);
+			processorSwap32(indexSubTableHeader->imageDataOffset);
 
 		font->indexSubTables[count].data = indexSubTableHeader;
 
@@ -487,7 +478,6 @@ kernelFileClass ttfFileClass = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 kernelFileClass *kernelFileClassTtf(void)
 {

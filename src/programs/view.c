@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,6 +53,7 @@ The currently-supported file formats are:
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/font.h>
 #include <sys/paths.h>
 #include <sys/vsh.h>
@@ -176,14 +177,17 @@ static int resizeImage(double scale)
 				(unsigned)((double) showImage.width * scale),
 				(unsigned)((double) showImage.height * scale));
 			if (status >= 0)
-				imageScale = ((double) showImage.width / (double) origImage.width);
+			{
+				imageScale = ((double) showImage.width /
+					(double) origImage.width);
+			}
 		}
 	}
 
 	if (windowImage)
 		windowComponentDestroy(windowImage);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.orientationX = orient_center;
@@ -245,8 +249,8 @@ static int viewImage(void)
 	componentParameters params;
 	int count;
 
-	bzero(&origImage, sizeof(image));
-	bzero(&showImage, sizeof(image));
+	memset(&origImage, 0, sizeof(image));
+	memset(&showImage, 0, sizeof(image));
 
 	bannerDialog = windowNewBannerDialog(NULL, _("Loading"),
 		_("Loading image..."));
@@ -271,7 +275,7 @@ static int viewImage(void)
 	imageCopy(&origImage, &showImage);
 	imageScale = 1.0;
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.orientationX = orient_center;
@@ -292,7 +296,8 @@ static int viewImage(void)
 	if (showImage.width > ((screenWidth * 2) / 3))
 		xScale = ((double)((screenWidth * 2) / 3) / (double) showImage.width);
 	if (showImage.height > ((screenHeight * 2) / 3))
-		yScale = ((double)((screenHeight * 2) / 3) / (double) showImage.height);
+		yScale = ((double)((screenHeight * 2) / 3) /
+			(double) showImage.height);
 
 	if (xScale || yScale)
 		resizeImage(min(xScale, yScale));
@@ -313,10 +318,10 @@ static int viewText(void)
 	objectKey textAreaComponent = NULL;
 	componentParameters params;
 
-	bzero(&showFile, sizeof(file));
+	memset(&showFile, 0, sizeof(file));
 
 	textData = loaderLoad(fileName, &showFile);
-	if (textData == NULL)
+	if (!textData)
 	{
 		error(_("Unable to load the file \"%s\"\n"), fileName);
 		return (status = ERR_IO);
@@ -324,7 +329,7 @@ static int viewText(void)
 
 	textLines = countTextLines(80, textData, showFile.size);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.orientationX = orient_center;
@@ -332,7 +337,7 @@ static int viewText(void)
 
 	status = fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL);
 	if (status >= 0)
-		status = fontLoad("xterm-normal-10.vbf", "xterm-normal-10",
+		status = fontLoadSystem("xterm-normal-10.vbf", "xterm-normal-10",
 			&(params.font), 1);
 	if (status < 0)
 	{
@@ -341,8 +346,8 @@ static int viewText(void)
 		rows = 40;
 	}
 
-	textAreaComponent =
-		windowNewTextArea(window, 80, rows, textLines, &params);
+	textAreaComponent = windowNewTextArea(window, 80, rows, textLines,
+		 &params);
 
 	// Put the data into the component
 	windowSetTextOutput(textAreaComponent);
@@ -364,7 +369,7 @@ int main(int argc, char *argv[])
 	int processId = 0;
 	loaderFileClass class;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("view");
 
 	graphics = graphicsAreEnabled();
@@ -381,7 +386,7 @@ int main(int argc, char *argv[])
 
 	fileName = malloc(MAX_PATH_NAME_LENGTH);
 	windowTitle = malloc(MAX_PATH_NAME_LENGTH + 8);
-	if ((fileName == NULL) || (windowTitle == NULL))
+	if (!fileName || !windowTitle)
 	{
 		status = ERR_MEMORY;
 		perror(argv[0]);
@@ -395,7 +400,7 @@ int main(int argc, char *argv[])
 			MAX_PATH_NAME_LENGTH, 1);
 		if (status != 1)
 		{
-			if (status != 0)
+			if (status)
 				perror(argv[0]);
 
 			goto deallocate;
@@ -414,7 +419,7 @@ int main(int argc, char *argv[])
 	shortName = basename(fileName);
 
 	// Get the classification of the file.
-	if (loaderClassifyFile(fileName, &class) == NULL)
+	if (!loaderClassifyFile(fileName, &class))
 	{
 		error(_("Unable to classify the file \"%s\""), fileName);
 		goto deallocate;

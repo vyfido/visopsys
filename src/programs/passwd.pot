@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,44 +17,44 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: passwd.c:61
+#: passwd.c:62
 msgid "usage:\n"
 msgstr ""
 
-#: passwd.c:62
+#: passwd.c:63
 #, c-format
 msgid "%s [username]\n"
 msgstr ""
 
-#: passwd.c:100
+#: passwd.c:101
 #, c-format
 msgid "User %s does not exist.\n"
 msgstr ""
 
-#: passwd.c:110
+#: passwd.c:111
 msgid "Enter current password: "
 msgstr ""
 
-#: passwd.c:126
+#: passwd.c:127
 msgid "Password incorrect\n"
 msgstr ""
 
-#: passwd.c:136
+#: passwd.c:137
 #, c-format
 msgid "Enter new password for %s: "
 msgstr ""
 
-#: passwd.c:138
+#: passwd.c:139
 msgid "Confirm password: "
 msgstr ""
 
-#: passwd.c:143
+#: passwd.c:144
 msgid ""
 "\n"
 "Passwords do not match.\n"
 "\n"
 msgstr ""
 
-#: passwd.c:154
+#: passwd.c:155
 msgid "Password changed.\n"
 msgstr ""

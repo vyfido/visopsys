@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,7 +28,6 @@
 #include "kernelFile.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
-#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelPage.h"
 #include <stdio.h>
@@ -145,7 +144,7 @@ static void *load(const char *filename, file *theFile, int kernel)
 	}
 
 	// Initialize the file structure we're going to use
-	kernelMemClear((void *) theFile, sizeof(file));
+	memset((void *) theFile, 0, sizeof(file));
 
 	// Now, we need to ask the filesystem driver to find the appropriate
 	// file, and return a little information about it
@@ -160,7 +159,7 @@ static void *load(const char *filename, file *theFile, int kernel)
 
 	// If we get here, that means the file was found.  Make sure the size
 	// of the program is greater than zero
-	if (theFile->size == 0)
+	if (!theFile->size)
 	{
 		kernelError(kernel_error, "File to load is empty (size is zero)");
 		return (fileData = NULL);
@@ -172,7 +171,8 @@ static void *load(const char *filename, file *theFile, int kernel)
 	else
 		fileData = kernelMemoryGet((theFile->blocks * theFile->blockSize),
 			"file data");
-	if (fileData == NULL)
+
+	if (!fileData)
 		return (fileData);
 
 	// We got the memory.  Now we can load the program into memory
@@ -231,15 +231,15 @@ static int sortSymbols(loaderSymbolTable *table)
 
 		if (smallestValue)
 		{
-			kernelMemCopy(&table->symbols[smallestPosition],
-				&tempTable->symbols[count1], sizeof(loaderSymbol));
+			memcpy(&tempTable->symbols[count1],
+				&table->symbols[smallestPosition], sizeof(loaderSymbol));
 			table->symbols[smallestPosition].value = NULL;
 		}
 	}
 
 	// Copy our temporary table's sorted symbols back to the original table
-	kernelMemCopy(tempTable->symbols, table->symbols,
-		(table->numSymbols * sizeof(loaderSymbol)));
+	memcpy(table->symbols, tempTable->symbols, (table->numSymbols *
+		sizeof(loaderSymbol)));
 
 	kernelFree(tempTable);
 	return (status = 0);
@@ -319,15 +319,15 @@ kernelFileClass *kernelLoaderClassify(const char *fileName, void *fileData,
 	if (!fileName || !fileClass)
 		return (NULL);
 
-	kernelDebug(debug_loader, "Classifying file %s fileData=%p size=%u class=%p",
-		fileName, fileData, size, fileClass);
+	kernelDebug(debug_loader, "Classifying file %s fileData=%p size=%u "
+		"class=%p", fileName, fileData, size, fileClass);
 
 	// Has our list of file classes been initialized?
 	if (!numFileClasses)
 		populateFileClassList();
 
 	// Empty file?
-	if ((fileData == NULL) || !size)
+	if (!fileData || !size)
 	{
 		kernelDebug(debug_loader, "File is empty");
 		strcpy(fileClass->className, FILECLASS_NAME_EMPTY);
@@ -336,7 +336,9 @@ kernelFileClass *kernelLoaderClassify(const char *fileName, void *fileData,
 		return (&emptyFileClass);
 	}
 	else
+	{
 		kernelDebug(debug_loader, "File is not empty");
+	}
 
 	// Determine the file's class
 	for (count = 0; count < numFileClasses; count ++)
@@ -370,7 +372,7 @@ kernelFileClass *kernelLoaderClassifyFile(const char *fileName,
 		return (class = NULL);
 
 	// Initialize the file structure we're going to use
-	kernelMemClear(&theFile, sizeof(file));
+	memset(&theFile, 0, sizeof(file));
 
 	status = kernelFileOpen(fileName, OPENMODE_READ, &theFile);
 	if (status < 0)
@@ -381,7 +383,7 @@ kernelFileClass *kernelLoaderClassifyFile(const char *fileName,
 	if (readBlocks)
 	{
 		fileData = kernelMalloc(readBlocks * theFile.blockSize);
-		if (fileData == NULL)
+		if (!fileData)
 		{
 			kernelFileClose(&theFile);
 			return (class = NULL);
@@ -401,7 +403,9 @@ kernelFileClass *kernelLoaderClassifyFile(const char *fileName,
 
 	if (fileData)
 		kernelFree(fileData);
+
 	kernelFileClose(&theFile);
+
 	return (class);
 }
 
@@ -426,13 +430,13 @@ loaderSymbolTable *kernelLoaderGetSymbols(const char *fileName)
 	// Load the file data into memory
 	loadAddress =
 		(unsigned char *) load(fileName, &theFile, 1 /* kernel memory */);
-	if (loadAddress == NULL)
+	if (!loadAddress)
 		return (symTable = NULL);
 
 	// Try to determine what kind of executable format we're dealing with.
 	fileClassDriver = kernelLoaderClassify(fileName, loadAddress, theFile.size,
 		&fileClass);
-	if (fileClassDriver == NULL)
+	if (!fileClassDriver)
 	{
 		kernelFree(loadAddress);
 		return (symTable = NULL);
@@ -466,7 +470,7 @@ loaderSymbol *kernelLoaderFindSymbol(const char *name,
 	int count;
 
 	// Check params
-	if ((name == NULL) || (symTable == NULL))
+	if (!name || !symTable)
 		return (symbol = NULL);
 
 	for (count = 0; count < symTable->numSymbols; count ++)
@@ -535,7 +539,7 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	kernelMemClear(&execImage, sizeof(processImage));
+	memset(&execImage, 0, sizeof(processImage));
 
 	// Set up argc and argv
 	strncpy(execImage.commandLine, command, MAXSTRINGLENGTH);
@@ -547,13 +551,13 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
 	// Load the program code/data into memory
 	loadAddress = (unsigned char *) load(execImage.argv[0], &theFile,
 		0 /* not kernel */);
-	if (loadAddress == NULL)
+	if (!loadAddress)
 		return (status = ERR_INVALID);
 
 	// Try to determine what kind of executable format we're dealing with.
 	fileClassDriver = kernelLoaderClassify(execImage.argv[0], loadAddress,
 		theFile.size, &fileClass);
-	if (fileClassDriver == NULL)
+	if (!fileClassDriver)
 	{
 		kernelMemoryRelease(loadAddress);
 		return (status = ERR_INVALID);
@@ -587,7 +591,8 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
 		strncpy(procName, command, MAX_NAME_LENGTH);
 
 	// Create the user program as a process in the multitasker
-	newProcId = kernelMultitaskerCreateProcess(procName, privilege, &execImage);
+	newProcId = kernelMultitaskerCreateProcess(procName, privilege,
+		&execImage);
 	if (newProcId < 0)
 	{
 		// Release the memory we allocated for the program
@@ -598,8 +603,8 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
 
 	if (fileClass.subClass & LOADERFILESUBCLASS_DYNAMIC)
 	{
-		// It's a dynamically-linked program, so we need to link in the required
-		// libraries
+		// It's a dynamically-linked program, so we need to link in the
+		// required libraries
 		if (fileClassDriver->executable.link)
 		{
 			status = fileClassDriver->executable.link(newProcId, loadAddress,
@@ -656,17 +661,18 @@ int kernelLoaderLoadLibrary(const char *libraryName)
 
 	kernelDebug(debug_loader, "Load library %s", libraryName);
 
-	kernelMemClear(&libImage, sizeof(processImage));
+	memset(&libImage, 0, sizeof(processImage));
 
 	// Load the program code/data into memory
-	loadAddress = (unsigned char *) load(libraryName, &theFile, 1 /* kernel */);
-	if (loadAddress == NULL)
+	loadAddress = (unsigned char *) load(libraryName, &theFile,
+		1 /* kernel */);
+	if (!loadAddress)
 		return (status = ERR_INVALID);
 
 	// Try to determine what kind of executable format we're dealing with.
 	fileClassDriver = kernelLoaderClassify(libraryName, loadAddress,
 		theFile.size, &fileClass);
-	if (fileClassDriver == NULL)
+	if (!fileClassDriver)
 	{
 		kernelFree(loadAddress);
 		return (status = ERR_INVALID);
@@ -684,7 +690,7 @@ int kernelLoaderLoadLibrary(const char *libraryName)
 
 	// Get memory for our dynamic library
 	library = kernelMalloc(sizeof(kernelDynamicLibrary));
-	if (library == NULL)
+	if (!library)
 	{
 		kernelFree(loadAddress);
 		return (status = ERR_MEMORY);
@@ -700,7 +706,8 @@ int kernelLoaderLoadLibrary(const char *libraryName)
 	if (fileClassDriver->executable.layoutLibrary)
 	{
 		// Do our library layout
-		status = fileClassDriver->executable.layoutLibrary(loadAddress, library);
+		status = fileClassDriver->executable.layoutLibrary(loadAddress,
+			library);
 		if (status < 0)
 		{
 			kernelFree(loadAddress);
@@ -795,13 +802,13 @@ kernelDynamicLibrary *kernelLoaderLinkLibrary(const char *libraryName)
 	kernelDebug(debug_loader, "Link library %s", libraryName);
 
 	origLibrary = kernelLoaderGetLibrary(libraryName);
-	if (origLibrary == NULL)
+	if (!origLibrary)
 	{
 		kernelDebugError("Library %s not found", libraryName);
 		return (NULL);
 	}
 
-	kernelMemCopy(origLibrary, &library, sizeof(kernelDynamicLibrary));
+	memcpy(&library, origLibrary, sizeof(kernelDynamicLibrary));
 
 	kernelDebug(debug_loader, "Got library %s", libraryName);
 
@@ -835,7 +842,7 @@ void *kernelLoaderGetSymbol(const char *symbolName)
 
 	// Get the symbols for the current process
 	symTable = kernelMultitaskerGetSymbols(kernelCurrentProcess->processId);
-	if (symTable == NULL)
+	if (!symTable)
 		return (value = NULL);
 
 	symbol = kernelLoaderFindSymbol(symbolName, symTable);

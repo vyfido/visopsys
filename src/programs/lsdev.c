@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -45,6 +45,7 @@ Options:
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/font.h>
 #include <sys/paths.h>
 
@@ -148,7 +149,7 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("lsdev");
 
 	// Refresh the window title
@@ -180,13 +181,13 @@ static void constructWindow(void)
 
 	// Create a new window
 	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
-	if (window == NULL)
+	if (!window)
 		return;
 
 	status = fileFind(PATH_SYSTEM_FONTS "/xterm-normal-10.vbf", NULL);
 	if (status >= 0)
 	{
-		status = fontLoad("xterm-normal-10.vbf", "xterm-normal-10",
+		status = fontLoadSystem("xterm-normal-10.vbf", "xterm-normal-10",
 			&(params.font), 1);
 	}
 	if (status < 0)
@@ -197,7 +198,7 @@ static void constructWindow(void)
 	}
 
 	// Create a text area to show our stuff
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 1;
@@ -226,17 +227,26 @@ int main(int argc, char *argv[])
 	char opt;
 	device dev;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("lsdev");
 
 	// Are graphics enabled?
 	graphics = graphicsAreEnabled();
 
-	while (strchr("T", (opt = getopt(argc, argv, "T"))))
+	// Check options
+	while (strchr("T?", (opt = getopt(argc, argv, "T"))))
 	{
-		// Force text mode?
-		if (opt == 'T')
-			graphics = 0;
+		switch (opt)
+		{
+			case 'T':
+				// Force text mode
+				graphics = 0;
+				break;
+
+			default:
+				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
+				quit(status = ERR_INVALID);
+		}
 	}
 
 	if (graphics)

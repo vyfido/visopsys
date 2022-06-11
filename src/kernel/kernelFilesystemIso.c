@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,7 +27,6 @@
 #include "kernelFile.h"
 #include "kernelMalloc.h"
 #include "kernelSysTimer.h"
-#include "kernelMisc.h"
 #include "kernelError.h"
 #include <stdlib.h>
 #include <string.h>
@@ -58,7 +57,7 @@ static int readPrimaryVolDesc(isoInternalData *isoData)
 	}
 
 	// Initialize the volume descriptor we were given
-	kernelMemClear((void *) &(isoData->volDesc), sizeof(isoPrimaryDescriptor));
+	memset((void *) &(isoData->volDesc), 0, sizeof(isoPrimaryDescriptor));
 
 	// Read the primary volume descriptor
 	status = kernelDiskReadSectors((char *) isoData->disk->name,
@@ -112,10 +111,10 @@ static void readDirRecord(isoDirectoryRecord *record,
 	int count;
 
 	// Copy the static bits of the directory record
-	kernelMemCopy(record, (void *) &(fileData->dirRec), record->recordLength);
+	memcpy((void *) &(fileData->dirRec), record, record->recordLength);
 
 	// Copy the name into the file entry
-	kernelMemCopy((char *) fileData->dirRec.name, (char *) fileEntry->name,
+	memcpy((char *) fileEntry->name, (char *) fileData->dirRec.name,
 		fileData->dirRec.nameLength);
 	fileEntry->name[fileData->dirRec.nameLength] = '\0';
 
@@ -365,7 +364,7 @@ static int detect(kernelDisk *theDisk)
 	}
 
 	// Clear stack memory
-	kernelMemClear((void * ) &isoData, sizeof(isoInternalData));
+	memset((void * ) &isoData, 0, sizeof(isoInternalData));
 
 	isoData.disk = theDisk;
 
@@ -523,7 +522,7 @@ static int inactiveEntry(kernelFileEntry *entry)
 	if (entry->driverData)
 	{
 		// Erase all of the data in this entry
-		kernelMemClear(entry->driverData, sizeof(isoFileData));
+		memset(entry->driverData, 0, sizeof(isoFileData));
 
 		// Need to actually deallocate memory here.
 		kernelFree(entry->driverData);
@@ -666,7 +665,6 @@ static kernelFilesystemDriver defaultIsoDriver = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelFilesystemIsoInitialize(void)
 {

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -56,6 +56,7 @@ Note the -S option is not allowed if the -R option is used.
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/vsh.h>
 
 #define _(string) gettext(string)
@@ -77,7 +78,7 @@ int main(int argc, char *argv[])
 	int secure = 0;
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("rm");
 
 	if (argc < 2)
@@ -88,7 +89,8 @@ int main(int argc, char *argv[])
 
 	count = 1;
 
-	while (strchr("RrS?", (opt = getopt(argc, argv, "RrS::"))))
+	// Check options
+	while (strchr("rRS?", (opt = getopt(argc, argv, "rRS::"))))
 	{
 		switch (opt)
 		{

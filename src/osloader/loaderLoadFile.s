@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -63,15 +63,15 @@ headTrackSector:
 	xor EBX, EBX
 	mov BX, word [SECPERTRACK]
 	div EBX
-	mov byte [SECTOR], DL		; The remainder
-	add byte [SECTOR], 1		; Sectors start at 1
+	mov byte [SECTOR], DL			; The remainder
+	add byte [SECTOR], 1			; Sectors start at 1
 
 	;; Now the head and track
-	xor EDX, EDX			; Don't need the remainder anymore
+	xor EDX, EDX					; Don't need the remainder anymore
 	xor EBX, EBX
 	mov BX, word [HEADS]
 	div EBX
-	mov byte [HEAD], DL		; The remainder
+	mov byte [HEAD], DL				; The remainder
 	mov word [CYLINDER], AX
 
 	popa
@@ -90,7 +90,7 @@ read:
 	;; Save the stack pointer
 	mov BP, SP
 
-	push word 0		; To keep track of read attempts
+	push word 0						; To keep track of read attempts
 
 	.readAttempt:
 	;; Determine whether int13 extensions are available
@@ -106,16 +106,16 @@ read:
 	;; We have a nice extended read function which will allow us to
 	;; just use the logical sector number for the read
 
-	mov word [DISKPACKET], 0010h		; Packet size
+	mov word [DISKPACKET], 0010h	; Packet size
  	mov EAX, dword [SS:(BP + 28)]
-	mov word [DISKPACKET + 2], AX		; Sector count
+	mov word [DISKPACKET + 2], AX	; Sector count
 	mov AX, word [SS:(BP + 26)]
-	mov word [DISKPACKET + 4], AX		; Offset
+	mov word [DISKPACKET + 4], AX	; Offset
 	mov AX, word [SS:(BP + 24)]
-	mov word [DISKPACKET + 6], AX		; Segment
+	mov word [DISKPACKET + 6], AX	; Segment
 	mov EAX, dword [SS:(BP + 20)]
-	mov dword [DISKPACKET + 8], EAX		; Logical sector
-	mov dword [DISKPACKET + 12], 0		;
+	mov dword [DISKPACKET + 8], EAX	; Logical sector
+	mov dword [DISKPACKET + 12], 0	;
 	mov AX, 4200h
 	mov DX, word [DRIVENUMBER]
 	mov SI, DISKPACKET
@@ -129,19 +129,19 @@ read:
 	call headTrackSector
 
 	mov EAX, dword [SS:(BP + 28)]	; Number to read
-	mov AH, 02h			; Subfunction 2
-	mov CX, word [CYLINDER]		; >
-	rol CX, 8			; > Cylinder
-	shl CL, 6			; >
-	or CL, byte [SECTOR]		; Sector
-	mov DX, word [DRIVENUMBER]	; Drive
-	mov DH, byte [HEAD]		; Head
-	mov BX, word [SS:(BP + 26)]	; Offset
-	push ES				; Save ES
-	push word [SS:(BP + 24)]	; Use user-supplied segment
+	mov AH, 02h						; Subfunction 2
+	mov CX, word [CYLINDER]			; >
+	rol CX, 8						; > Cylinder
+	shl CL, 6						; >
+	or CL, byte [SECTOR]			; Sector
+	mov DX, word [DRIVENUMBER]		; Drive
+	mov DH, byte [HEAD]				; Head
+	mov BX, word [SS:(BP + 26)]		; Offset
+	push ES							; Save ES
+	push word [SS:(BP + 24)]		; Use user-supplied segment
 	pop ES
 	int 13h
-	pop ES				; Restore ES
+	pop ES							; Restore ES
 	jc .IOError
 	jmp .done
 
@@ -163,10 +163,10 @@ read:
 	mov word [SS:(BP + 16)], -1
 
 	.done:
-	pop AX			; Counter
+	pop AX							; Counter
 	popa
 	xor EAX, EAX
-	pop AX			; Status
+	pop AX							; Status
 	ret
 
 
@@ -190,16 +190,16 @@ loadFAT:
 	.noShrink:
 
 	xor EAX, EAX
-	mov AX, word [RESSECS]		; FAT starts after reserved sectors
+	mov AX, word [RESSECS]			; FAT starts after reserved sectors
 
 	cmp word [DRIVENUMBER], 80h
 	jb .noOffset
 	add EAX, dword [PARTENTRY + 8]
 	.noOffset:
 
-	push dword EBX			; Number of FAT sectors
-	push word 0			; Offset (beginning of buffer)
-	push word [FATSEGMENT]		; Segment of data buffer
+	push dword EBX					; Number of FAT sectors
+	push word 0						; Offset (beginning of buffer)
+	push word [FATSEGMENT]			; Segment of data buffer
 	push dword EAX
 	call read
 	add SP, 12
@@ -236,10 +236,10 @@ loadDirectory:
 
 	;; Get the logical sector number of the root directory
 	xor EAX, EAX
-	mov AX, word [RESSECS]		; The reserved sectors
-	mov EBX, dword [FATSECS]	; Sectors per FAT
-	add EAX, EBX			; Sectors for 1st FAT
-	add EAX, EBX			; Sectors for 2nd FAT
+	mov AX, word [RESSECS]			; The reserved sectors
+	mov EBX, dword [FATSECS]		; Sectors per FAT
+	add EAX, EBX					; Sectors for 1st FAT
+	add EAX, EBX					; Sectors for 2nd FAT
 
 	cmp word [FSTYPE], FS_FAT32
 	jne .notFat32
@@ -257,10 +257,10 @@ loadDirectory:
 	;; This is normally where we will keep the FAT data, but we will
 	;; put the directory here temporarily
 	xor EBX, EBX
-	mov BX, word [DIRSECTORS]	; Number of sectors to read
+	mov BX, word [DIRSECTORS]		; Number of sectors to read
 	push dword EBX
-	push word 0			; Load at offset 0 of the data buffer
-	push word [FATSEGMENT]		; Segment of the data buffer
+	push word 0						; Load at offset 0 of the data buffer
+	push word [FATSEGMENT]			; Segment of the data buffer
 	push dword EAX
 	call read
 	add SP, 12
@@ -365,16 +365,16 @@ searchFile:
 	;; Return the starting cluster number of the file
 	xor EAX, EAX
 	mov BX, word [ENTRYSTART]
-	add BX, 0014h		;; Offset in directory entry of high word
+	add BX, 0014h					;; Offset in directory entry of high word
 	mov AX, word [ES:BX]
 	shl EAX, 16
-	add BX, 6		;; Offset (1Ah) in directory entry of low word
+	add BX, 6						;; Offset (1Ah) in dir entry of low word
 	mov AX, word [ES:BX]
 	mov dword [SS:(BP + 16)], EAX
 
 	;; Record the size of the file
 	mov BX, word [ENTRYSTART]
-	add BX, 001Ch		;; Offset in directory entry
+	add BX, 001Ch					;; Offset in directory entry
 	mov EAX, dword [ES:BX]
 	mov dword [FILESIZE], EAX
 
@@ -478,25 +478,25 @@ clusterToLogical:
 	;; Save the stack pointer
 	mov BP, SP
 
-	sub EAX, 2			;  Subtract 2 (because they start at 2)
+	sub EAX, 2						;  Subtract 2 (because they start at 2)
 	xor EBX, EBX
-	mov BX, word [SECPERCLUST]	; How many sectors per cluster?
+	mov BX, word [SECPERCLUST]		; How many sectors per cluster?
 	mul EBX
 
 	;; This little sequence figures out where the data clusters
 	;; start on this volume
 
 	xor EBX, EBX
-	mov BX, word [RESSECS]		; The reserved sectors
+	mov BX, word [RESSECS]			; The reserved sectors
 	add EAX, EBX
 	mov EBX, dword [FATSECS]
-	shl EBX, 1			; Add sectors for both FATs
+	shl EBX, 1						; Add sectors for both FATs
 	add EAX, EBX
 
 	cmp word [FSTYPE], FS_FAT32
 	je .noAddDir
 	xor EBX, EBX
-	mov BX, word [DIRSECTORS]	; Root dir sectors
+	mov BX, word [DIRSECTORS]		; Root dir sectors
 	add EAX, EBX
 	.noAddDir:
 
@@ -561,10 +561,10 @@ loadFile:
 	;; FAT data.  This is where we will initially load each cluster's
 	;; contents.
 	xor EBX, EBX
-	mov BX, word [SECPERCLUST]	; Read 1 cluster's worth of sectors
+	mov BX, word [SECPERCLUST]		; Read 1 cluster's worth of sectors
 	push dword EBX
-	push word 0			; >
-	push word [CLUSTERSEGMENT]	; > Real-mode buffer for data
+	push word 0						; >
+	push word [CLUSTERSEGMENT]		; > Real-mode buffer for data
 	push dword EAX
 	call read
 	add SP, 12
@@ -603,7 +603,7 @@ loadFile:
 	mov EAX, dword [BYTESPERCLUST]
 	push dword EAX
 	push dword [MEMORYMARKER]
-	push dword [CLUSTERBUFFER]	; 32-bit source address
+	push dword [CLUSTERBUFFER]		; 32-bit source address
 	call loaderMemCopy
 	add SP, 12
 
@@ -642,8 +642,8 @@ loadFile:
 	.fat12:
 	mov EAX, dword [NEXTCLUSTER]
 	mov BX, FAT12_NYBBLESPERCLUST
-	mul BX   	; We can ignore DX because it shouldn't
-			; be bigger than a word
+	mul BX   						; We can ignore DX because it shouldn't
+									; be bigger than a word
 	mov BX, AX
 	;; There are 2 nybbles per byte.  We will shift the register
 	;; right by 1, and the remainder (1 or 0) will be in the
@@ -811,7 +811,7 @@ loaderFindFile:
 
 	.done:
 	popa
-	pop AX			; return code
+	pop AX							; return code
 	ret
 
 
@@ -922,41 +922,43 @@ loaderLoadFile:
 	SEGMENT .data
 	ALIGN 4
 
-MEMORYMARKER	dd 0	;; Offset to load next data cluster
-FATSEGMENT	dw 0	;; The segment for FAT and directory data
-CLUSTERBUFFER	dd 0	;; The buffer for cluster data
-CLUSTERSEGMENT	dw 0	;; The segment of the buffer for cluster data
-FILEDATABUFFER	dd 0	;; The buffer for general file data
-DIRSECTORS	dw 0	;; The size of the root directory, in sectors
-BYTESPERCLUST   dd 0	;; Bytes per cluster
-ENTRYSTART	dw 0 	;; Directory entry start
-FILESIZE	dd 0	;; Size of the file we're loading
-BYTESREAD	dd 0    ;; Number of bytes read so far
-NEXTCLUSTER	dd 0	;; Next cluster to load
+MEMORYMARKER	dd 0		;; Offset to load next data cluster
+FATSEGMENT		dw 0		;; The segment for FAT and directory data
+CLUSTERBUFFER	dd 0		;; The buffer for cluster data
+CLUSTERSEGMENT	dw 0		;; The segment of the buffer for cluster data
+FILEDATABUFFER	dd 0		;; The buffer for general file data
+DIRSECTORS		dw 0		;; The size of the root directory, in sectors
+BYTESPERCLUST	dd 0		;; Bytes per cluster
+ENTRYSTART		dw 0 		;; Directory entry start
+FILESIZE		dd 0		;; Size of the file we're loading
+BYTESREAD		dd 0    	;; Number of bytes read so far
+NEXTCLUSTER		dd 0		;; Next cluster to load
 
 ;; For int13 disk ops
-CYLINDER	dw 0
-HEAD		db 0
-SECTOR		db 0
+CYLINDER		dw 0
+HEAD			db 0
+SECTOR			db 0
 
 ;; Disk cmd packet for ext. int13
-DISKPACKET:	dd 0, 0, 0, 0
+DISKPACKET		dd 0, 0, 0, 0
 
-PARTENTRY	times 16 db 0	;; Partition table entry of bootable partition
+PARTENTRY		times 16 db 0 ;; Partition table entry of bootable partition
 
 ;; Stuff for the progress indicator
-PROGRESSCHARS	dw 0	;; Number of progress indicator chars showing
-OLDPROGRESS	dd 0	;; Percentage of file load completed
-SHOWPROGRESS	db 0	;; Whether or not to show a progress bar
-PROGRESSTOP	db 218
-		times PROGRESSLENGTH db 196
-		db 191, 0
+PROGRESSCHARS	dw 0		;; Number of progress indicator chars showing
+OLDPROGRESS		dd 0		;; Percentage of file load completed
+SHOWPROGRESS	db 0		;; Whether or not to show a progress bar
+PROGRESSTOP		db 218
+				times PROGRESSLENGTH db 196
+				db 191, 0
 PROGRESSMIDDLE	db 179
-		times PROGRESSLENGTH db ' '
-		db 179, 0
+				times PROGRESSLENGTH db ' '
+				db 179, 0
 PROGRESSBOTTOM	db 192
-		times PROGRESSLENGTH db 196
-		db 217, 0
+				times PROGRESSLENGTH db 196
+				db 217, 0
 PROGRESSCHAR	db 177, 0
 
-INT15ERR	db 'The computer', 27h, 's BIOS was unable to move data into high memory.', 0
+INT15ERR		db 'The computer', 27h, 's BIOS was unable to move data into '
+				db 'high memory.', 0
+

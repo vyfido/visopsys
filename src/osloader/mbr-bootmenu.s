@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -149,13 +149,15 @@ DATA_DISKSIG	dd 0
 DATA_NULLS	dw 0
 
 ;; Here's where the partition table goes
-DATA_PART_TABLE	times 16	db 0
-		times 16	db 0
-		times 16	db 0
-		times 16	db 0
+DATA_PART_TABLE
+	times 16	db 0
+	times 16	db 0
+	times 16	db 0
+	times 16	db 0
 
 ;; This puts the value AA55h in the last two bytes of the boot
 ;; sector.  The BIOS uses this to determine whether this sector was
 ;; meant to be booted from (and also helps prevent us from making the
 ;; boot sector code larger than 512 bytes)
 DATA_BOOTSIG	dw 0AA55h
+

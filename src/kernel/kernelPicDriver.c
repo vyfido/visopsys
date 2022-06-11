@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,8 +28,8 @@
 #include "kernelInterrupt.h"
 #include "kernelMalloc.h"
 #include "kernelPic.h"
-#include "kernelProcessorX86.h"
 #include <string.h>
+#include <sys/processor.h>
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -39,7 +39,6 @@
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 static int driverGetVector(kernelPic *pic __attribute__((unused)),
 	int intNumber)
@@ -59,10 +58,10 @@ static int driverEndOfInterrupt(kernelPic *pic __attribute__((unused)),
 
 	if (intNumber > 0x07)
 		// Issue an end-of-interrupt (EOI) to the slave PIC
-		kernelProcessorOutPort8(0xA0, 0x20);
+		processorOutPort8(0xA0, 0x20);
 
 	// Issue an end-of-interrupt (EOI) to the master PIC
-	kernelProcessorOutPort8(0x20, 0x20);
+	processorOutPort8(0x20, 0x20);
 
 	return (0);
 }
@@ -81,7 +80,7 @@ static int driverMask(kernelPic *pic __attribute__((unused)), int intNumber,
 		intNumber = (0x01 << intNumber);
 
 		// Get the current mask value
-		kernelProcessorInPort8(0x21, data);
+		processorInPort8(0x21, data);
 
 		// An enabled interrupt has its mask bit off
 		if (on)
@@ -89,14 +88,14 @@ static int driverMask(kernelPic *pic __attribute__((unused)), int intNumber,
 		else
 			data |= intNumber;
 
-		kernelProcessorOutPort8(0x21, data);
+		processorOutPort8(0x21, data);
 	}
 	else
 	{
 		intNumber = (0x01 << (intNumber - 0x08));
 
 		// Get the current mask value
-		kernelProcessorInPort8(0xA1, data);
+		processorInPort8(0xA1, data);
 
 		// An enabled interrupt has its mask bit off
 		if (on)
@@ -104,7 +103,7 @@ static int driverMask(kernelPic *pic __attribute__((unused)), int intNumber,
 		else
 			data |= intNumber;
 
-		kernelProcessorOutPort8(0xA1, data);
+		processorOutPort8(0xA1, data);
 	}
 
 	return (0);
@@ -119,8 +118,8 @@ static int driverGetActive(kernelPic *pic __attribute__((unused)))
 	int intNumber = 0;
 
 	// First ask the master pic
-	kernelProcessorOutPort8(0x20, 0x0B);
-	kernelProcessorInPort8(0x20, data);
+	processorOutPort8(0x20, 0x0B);
+	processorInPort8(0x20, data);
 
 	if (!data)
 		return (intNumber = ERR_NODATA);
@@ -132,8 +131,8 @@ static int driverGetActive(kernelPic *pic __attribute__((unused)))
 	if (intNumber == 2)
 	{
 		// Ask the slave PIC which interrupt
-		kernelProcessorOutPort8(0xA0, 0x0B);
-		kernelProcessorInPort8(0xA0, data);
+		processorOutPort8(0xA0, 0x0B);
+		processorInPort8(0xA0, data);
 
 		if (!data)
 			return (intNumber = ERR_NODATA);
@@ -154,8 +153,8 @@ static int driverDisable(kernelPic *pic)
 
 	kernelDebug(debug_io, "PIC disabling 8259s");
 
-	kernelProcessorOutPort8(0xA1, 0xFF);
-	kernelProcessorOutPort8(0x21, 0xFF);
+	processorOutPort8(0xA1, 0xFF);
+	processorOutPort8(0x21, 0xFF);
 
 	pic->enabled = 0;
 
@@ -176,32 +175,32 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	// The master controller
 
 	// Initialization byte 1 - init
-	kernelProcessorOutPort8(0x20, 0x11);
+	processorOutPort8(0x20, 0x11);
 	// Initialization byte 2 - starting vector
-	kernelProcessorOutPort8(0x21, INTERRUPT_VECTORSTART);
+	processorOutPort8(0x21, INTERRUPT_VECTORSTART);
 	// Initialization byte 3 - slave at IRQ2
-	kernelProcessorOutPort8(0x21, 0x04);
+	processorOutPort8(0x21, 0x04);
 	// Initialization byte 4 - 8086/88 mode
-	kernelProcessorOutPort8(0x21, 0x01);
+	processorOutPort8(0x21, 0x01);
 	// Normal operation, normal priorities
-	kernelProcessorOutPort8(0x20, 0x20);
+	processorOutPort8(0x20, 0x20);
 	// Mask all ints off initially, except for 2 (the slave controller)
-	kernelProcessorOutPort8(0x21, 0xFB);
+	processorOutPort8(0x21, 0xFB);
 
 	// The slave controller
 
 	// Initialization byte 1 - init
-	kernelProcessorOutPort8(0xA0, 0x11);
+	processorOutPort8(0xA0, 0x11);
 	// Initialization byte 2 - starting vector
-	kernelProcessorOutPort8(0xA1, (INTERRUPT_VECTORSTART + 8));
+	processorOutPort8(0xA1, (INTERRUPT_VECTORSTART + 8));
 	// Initialization byte 3 - cascade ID
-	kernelProcessorOutPort8(0xA1, 0x02);
+	processorOutPort8(0xA1, 0x02);
 	// Initialization byte 4 - 8086/88 mode
-	kernelProcessorOutPort8(0xA1, 0x01);
+	processorOutPort8(0xA1, 0x01);
 	// Normal operation, normal priorities
-	kernelProcessorOutPort8(0xA0, 0x20);
+	processorOutPort8(0xA0, 0x20);
 	// Mask all ints off initially
-	kernelProcessorOutPort8(0xA1, 0xFF);
+	processorOutPort8(0xA1, 0xFF);
 
 	// Allocate memory for the PIC
 	pic = kernelMalloc(sizeof(kernelPic));
@@ -253,7 +252,6 @@ static kernelPicOps picOps = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 void kernelPicDriverRegister(kernelDriver *driver)
 {

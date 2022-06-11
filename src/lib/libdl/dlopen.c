@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -49,17 +49,17 @@ void *dlopen(const char *fileName, int flags __attribute__((unused)))
 	void *handle = NULL;
 
 	// Make sure we've got room in our array to store the handle we get.
-	if ((dlopenHandles == NULL) || (dlopenNumHandles >= dlopenMaxHandles))
+	if (!dlopenHandles || (dlopenNumHandles >= dlopenMaxHandles))
 	{
 		dlopenMaxHandles += 16;
 
-		if (dlopenHandles == NULL)
+		if (!dlopenHandles)
 			dlopenHandles = malloc(dlopenMaxHandles * sizeof(void *));
 		else
 			dlopenHandles =
 				realloc(dlopenHandles, (dlopenMaxHandles * sizeof(void *)));
 
-		if (dlopenHandles == NULL)
+		if (!dlopenHandles)
 		{
 			errno = ERR_MEMORY;
 			dlerrorMessage = strerror(errno);
@@ -68,13 +68,15 @@ void *dlopen(const char *fileName, int flags __attribute__((unused)))
 	}
 
 	handle = loaderLinkLibrary(fileName);
-	if (handle == NULL)
+	if (!handle)
 	{
 		errno = ERR_NOSUCHENTRY;
 		dlerrorMessage = strerror(errno);
 	}
 	else
+	{
 		dlopenHandles[dlopenNumHandles++] = handle;
+	}
 
 	return (handle);
 }

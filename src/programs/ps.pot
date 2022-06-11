@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,45 +17,45 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ps.c:86
+#: ps.c:87
 msgid "Process list:\n"
 msgstr ""
 
-#: ps.c:91
+#: ps.c:92
 #, c-format
 msgid ""
 "\"%s\"  PID=%d UID=%d priority=%d priv=%d parent=%d\n"
 "        %d%% CPU State="
 msgstr ""
 
-#: ps.c:101
+#: ps.c:102
 msgid "running"
 msgstr ""
 
-#: ps.c:105
+#: ps.c:106
 msgid "ready"
 msgstr ""
 
-#: ps.c:108
+#: ps.c:109
 msgid "waiting"
 msgstr ""
 
-#: ps.c:111
+#: ps.c:112
 msgid "sleeping"
 msgstr ""
 
-#: ps.c:114
+#: ps.c:115
 msgid "stopped"
 msgstr ""
 
-#: ps.c:117
+#: ps.c:118
 msgid "finished"
 msgstr ""
 
-#: ps.c:120
+#: ps.c:121
 msgid "zombie"
 msgstr ""
 
-#: ps.c:123
+#: ps.c:124
 msgid "unknown"
 msgstr ""

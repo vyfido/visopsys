@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,6 +49,7 @@ usage.  It is a graphical utility combining the same functionalities as the
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 #include <sys/vsh.h>
 
@@ -158,7 +159,7 @@ static int getUpdate(void)
 	int count;
 
 	// Try to get the memory stats
-	bzero(&memStats, sizeof(memoryStats));
+	memset(&memStats, 0, sizeof(memoryStats));
 	status = memoryGetStats(&memStats, 0);
 	if (status >= 0)
 	{
@@ -173,23 +174,23 @@ static int getUpdate(void)
 		// Assign the strings to our labels
 		if (memoryBlocksLabel)
 		{
-			sprintf(labelChar, "%s%d", USEDBLOCKS_STRING , memStats.usedBlocks);
+			sprintf(labelChar, "%s%d", USEDBLOCKS_STRING, memStats.usedBlocks);
 			windowComponentSetData(memoryBlocksLabel, labelChar,
-				strlen(labelChar));
+				strlen(labelChar), 1 /* redraw */);
 		}
 		if (memoryUsedLabel)
 		{
 			sprintf(labelChar, "%s%u Kb - %d%%", USEDMEM_STRING,
 				memStats.usedMemory, percentUsed);
 			windowComponentSetData(memoryUsedLabel, labelChar,
-				strlen(labelChar));
+				strlen(labelChar), 1 /* redraw */);
 		}
 		if (memoryFreeLabel)
 		{
 			sprintf(labelChar, "%s%u Kb - %d%%", FREEMEM_STRING, totalFree,
 				(100 - percentUsed));
 			windowComponentSetData(memoryFreeLabel, labelChar,
-				strlen(labelChar));
+				strlen(labelChar), 1 /* redraw */);
 		}
 	}
 
@@ -210,7 +211,7 @@ static int getUpdate(void)
 			sprintf(labelChar, "%s%u%s", READPERF_STRING, readPerf,
 				IORATE_STRING);
 			windowComponentSetData(diskReadPerfLabel, labelChar,
-				strlen(labelChar));
+				strlen(labelChar), 1 /* redraw */);
 		}
 
 		if (diskWritePerfLabel)
@@ -218,12 +219,12 @@ static int getUpdate(void)
 			sprintf(labelChar, "%s%u%s", WRITEPERF_STRING, writePerf,
 				IORATE_STRING);
 			windowComponentSetData(diskWritePerfLabel, labelChar,
-				strlen(labelChar));
+				strlen(labelChar), 1 /* redraw */);
 		}
 	}
 
 	tmpProcessArray = malloc(SHOW_MAX_PROCESSES * sizeof(process));
-	if (tmpProcessArray == NULL)
+	if (!tmpProcessArray)
 	{
 		error("%s", _("Can't get temporary memory for processes"));
 		return (status = ERR_MEMORY);
@@ -410,7 +411,8 @@ static int setPriority(int whichProcess)
 
 	// Refresh our list of processes
 	getUpdate();
-	windowComponentSetData(processList, processListParams, numProcesses);
+	windowComponentSetData(processList, processListParams, numProcesses,
+		1 /* redraw */);
 
 	return (status);
 }
@@ -430,7 +432,8 @@ static int killProcess(int whichProcess)
 
 	// Refresh our list of processes
 	getUpdate();
-	windowComponentSetData(processList, processListParams, numProcesses);
+	windowComponentSetData(processList, processListParams, numProcesses,
+		1 /* redraw */);
 
 	return (status);
 }
@@ -442,12 +445,12 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("progman");
 
 	// Refresh the 'disk performance' label
 	windowComponentSetData(diskPerfLabel, DISKPERF_STRING,
-		strlen(DISKPERF_STRING));
+		strlen(DISKPERF_STRING), 1 /* redraw */);
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
@@ -478,7 +481,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 		windowComponentGetSelected(showThreadsCheckbox, &showThreads);
 		getUpdate();
-		windowComponentSetData(processList, processListParams, numProcesses);
+		windowComponentSetData(processList, processListParams, numProcesses,
+			1 /* redraw */);
 	}
 
 	else
@@ -522,7 +526,7 @@ static void constructWindow(void)
 	if (!window)
 		return;
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 5;
@@ -623,7 +627,7 @@ int main(int argc, char *argv[])
 	int status = 0;
 	int guiThreadPid = 0;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("progman");
 
 	// Only work in graphics mode
@@ -642,7 +646,7 @@ int main(int argc, char *argv[])
 	// Get an array of list parameters structures for process strings
 	processListParams = malloc(SHOW_MAX_PROCESSES * sizeof(listItemParameters));
 
-	if ((processes == NULL) || (processListParams == NULL))
+	if (!processes || !processListParams)
 	{
 		if (processes)
 			free(processes);
@@ -674,7 +678,8 @@ int main(int argc, char *argv[])
 	{
 		if (getUpdate() < 0)
 			break;
-		windowComponentSetData(processList, processListParams, numProcesses);
+		windowComponentSetData(processList, processListParams, numProcesses,
+			1 /* redraw */);
 		sleep(1);
 	}
 

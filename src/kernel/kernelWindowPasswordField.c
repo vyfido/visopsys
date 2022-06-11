@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,7 +37,6 @@
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewPasswordField(objectKey parent,
 	int columns, componentParameters *params)
 {
@@ -49,7 +48,7 @@ kernelWindowComponent *kernelWindowNewPasswordField(objectKey parent,
 	kernelWindowTextArea *area = NULL;
 
 	component = kernelWindowNewTextField(parent, columns, params);
-	if (component == NULL)
+	if (!component)
 		return (component = NULL);
 
 	area = component->data;
@@ -57,3 +56,4 @@ kernelWindowComponent *kernelWindowNewPasswordField(objectKey parent,
 
 	return (component);
 }
+

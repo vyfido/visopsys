@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,8 +24,8 @@
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelError.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include <stdlib.h>
+#include <string.h>
 
 extern kernelWindowVariables *windowVariables;
 
@@ -35,37 +35,36 @@ static void calcSliderSizePos(kernelWindowScrollBar *scrollBar, int width,
 {
 	if (scrollBar->type == scrollbar_horizontal)
 	{
-		scrollBar->sliderWidth =
-			(((width - (windowVariables->border.thickness * 2)) *
-				scrollBar->state.displayPercent) / 100);
-		scrollBar->sliderHeight =
-			(height - (windowVariables->border.thickness * 2));
+		scrollBar->sliderWidth = (((width -
+			(windowVariables->border.thickness * 2)) *
+			scrollBar->state.displayPercent) / 100);
+		scrollBar->sliderHeight = (height -
+			(windowVariables->border.thickness * 2));
 
 		// Need a minimum width
-		scrollBar->sliderWidth =
-			max(scrollBar->sliderWidth, (windowVariables->border.thickness * 3));
+		scrollBar->sliderWidth = max(scrollBar->sliderWidth,
+			(windowVariables->border.thickness * 3));
 
-		scrollBar->sliderX =
-			(((width - (windowVariables->border.thickness * 2) -
-				scrollBar->sliderWidth) *
-			scrollBar->state.positionPercent) / 100);
+		scrollBar->sliderX = (((width -
+			(windowVariables->border.thickness * 2) - scrollBar->sliderWidth) *
+				scrollBar->state.positionPercent) / 100);
 		scrollBar->sliderY = 0;
 	}
 	else if (scrollBar->type == scrollbar_vertical)
 	{
-		scrollBar->sliderWidth =
-			(width - (windowVariables->border.thickness * 2));
-		scrollBar->sliderHeight =
-			(((height - (windowVariables->border.thickness * 2)) *
+		scrollBar->sliderWidth = (width -
+			(windowVariables->border.thickness * 2));
+		scrollBar->sliderHeight = (((height -
+			(windowVariables->border.thickness * 2)) *
 				scrollBar->state.displayPercent) / 100);
 
 		// Need a minimum height
-		scrollBar->sliderHeight =
-			max(scrollBar->sliderHeight, (windowVariables->border.thickness * 3));
+		scrollBar->sliderHeight = max(scrollBar->sliderHeight,
+			(windowVariables->border.thickness * 3));
 
 		scrollBar->sliderX = 0;
-		scrollBar->sliderY =
-			((((height - (windowVariables->border.thickness * 2)) -
+		scrollBar->sliderY = ((((height -
+			(windowVariables->border.thickness * 2)) -
 				scrollBar->sliderHeight) *
 			scrollBar->state.positionPercent) / 100);
 	}
@@ -81,21 +80,31 @@ static void calcSliderPosPercent(kernelWindowScrollBar *scrollBar, int width,
 	{
 		extraSpace = ((width - (windowVariables->border.thickness * 2)) -
 			scrollBar->sliderWidth);
+
 		if (extraSpace > 0)
-			scrollBar->state.positionPercent =
-				((scrollBar->sliderX * 100) / extraSpace);
+		{
+			scrollBar->state.positionPercent = ((scrollBar->sliderX * 100) /
+				extraSpace);
+		}
 		else
+		{
 			scrollBar->state.positionPercent = 0;
+		}
 	}
 	else if (scrollBar->type == scrollbar_vertical)
 	{
 		extraSpace = ((height - (windowVariables->border.thickness * 2)) -
 			scrollBar->sliderHeight);
+
 		if (extraSpace > 0)
-			scrollBar->state.positionPercent =
-				((scrollBar->sliderY * 100) / extraSpace);
+		{
+			scrollBar->state.positionPercent = ((scrollBar->sliderY * 100) /
+				extraSpace);
+		}
 		else
+		{
 			scrollBar->state.positionPercent = 0;
+		}
 	}
 }
 
@@ -154,7 +163,7 @@ static int getData(kernelWindowComponent *component, void *buffer, int size)
 
 	kernelWindowScrollBar *scrollBar = component->data;
 
-	kernelMemCopy((void *) &(scrollBar->state), buffer,
+	memcpy(buffer, (void *) &(scrollBar->state),
 		max(size, (int) sizeof(scrollBarState)));
 
 	return (0);
@@ -167,16 +176,15 @@ static int setData(kernelWindowComponent *component, void *buffer, int size)
 
 	kernelWindowScrollBar *scrollBar = component->data;
 
-	kernelMemCopy(buffer, (void *) &(scrollBar->state),
+	memcpy((void *) &(scrollBar->state), buffer,
 		max(size, (int) sizeof(scrollBarState)));
 
 	calcSliderSizePos(scrollBar, component->width, component->height);
 
 	draw(component);
 
-	component->window
-		->update(component->window, component->xCoord, component->yCoord,
-			component->width, component->height);
+	component->window->update(component->window, component->xCoord,
+		component->yCoord, component->width, component->height);
 
 	return (0);
 }
@@ -187,41 +195,43 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 	kernelWindowScrollBar *scrollBar = component->data;
 	int eventX = 0;
 	int eventY = 0;
-	static int dragging = 0;
-	static int dragX;
-	static int dragY;
 
 	// Get X and Y coordinates relative to the component
 	eventX = (event->xPosition - component->window->xCoord - component->xCoord);
 	eventY = (event->yPosition - component->window->yCoord - component->yCoord);
 
 	// Is the mouse event in the slider?
-	if ((eventX >= scrollBar->sliderX) &&
+	if (scrollBar->dragging ||
+		((eventX >= scrollBar->sliderX) &&
 		(eventX < (scrollBar->sliderX + scrollBar->sliderWidth)) &&
 		(eventY >= scrollBar->sliderY) &&
-		(eventY < (scrollBar->sliderY + scrollBar->sliderHeight)))
+		(eventY < (scrollBar->sliderY + scrollBar->sliderHeight))))
 	{
 		if (event->type == EVENT_MOUSE_DRAG)
 		{
-			if (dragging)
+			if (scrollBar->dragging)
 			{
 				// The scroll bar is still moving.  Set the new position
 				if (scrollBar->type == scrollbar_horizontal)
-					scrollBar->sliderX += (eventX - dragX);
+					scrollBar->sliderX += (eventX - scrollBar->dragX);
 				else if (scrollBar->type == scrollbar_vertical)
-					scrollBar->sliderY += (eventY - dragY);
+					scrollBar->sliderY += (eventY - scrollBar->dragY);
 			}
 			else
+			{
 				// The scroll bar has started moving
-				dragging = 1;
+				scrollBar->dragging = 1;
+			}
 
 			// Save the current dragging Y and Y coordinate
-			dragX = eventX;
-			dragY = eventY;
+			scrollBar->dragX = eventX;
+			scrollBar->dragY = eventY;
 		}
 		else
+		{
 			// Not dragging.  Do nothing.
-			dragging = 0;
+			scrollBar->dragging = 0;
+		}
 	}
 
 	// Not in the slider.
@@ -244,8 +254,10 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			scrollBar->sliderX += scrollBar->sliderWidth;
 		}
 		else
+		{
 			// Do nothing.
 			return (0);
+		}
 	}
 
 	else if (scrollBar->type == scrollbar_vertical)
@@ -266,9 +278,11 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			scrollBar->sliderY += scrollBar->sliderHeight;
 		}
 		else
+		{
 			// Do nothing.
 			return (0);
 		}
+	}
 
 	// Make sure the slider stays within the bounds
 
@@ -280,9 +294,9 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		if ((scrollBar->sliderX + scrollBar->sliderWidth) >=
 			(component->width - (windowVariables->border.thickness * 2)))
 		{
-			scrollBar->sliderX =
-				(component->width - (windowVariables->border.thickness * 2) -
-					scrollBar->sliderWidth);
+			scrollBar->sliderX = (component->width -
+				(windowVariables->border.thickness * 2) -
+				scrollBar->sliderWidth);
 		}
 	}
 	else if (scrollBar->type == scrollbar_vertical)
@@ -293,9 +307,9 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		if ((scrollBar->sliderY + scrollBar->sliderHeight) >=
 			(component->height - (windowVariables->border.thickness * 2)))
 		{
-			scrollBar->sliderY =
-				(component->height - (windowVariables->border.thickness * 2) -
-					scrollBar->sliderHeight);
+			scrollBar->sliderY = (component->height -
+				(windowVariables->border.thickness * 2) -
+				scrollBar->sliderHeight);
 		}
 	}
 
@@ -304,9 +318,8 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 	draw(component);
 
-	component->window
-		->update(component->window, component->xCoord, component->yCoord,
-			component->width, component->height);
+	component->window->update(component->window, component->xCoord,
+		component->yCoord, component->width, component->height);
 
 	return (0);
 }
@@ -333,7 +346,6 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewScrollBar(objectKey parent,
 	scrollBarType type, int width, int height, componentParameters *params)
 {
@@ -351,7 +363,7 @@ kernelWindowComponent *kernelWindowNewScrollBar(objectKey parent,
 
 	// Get the basic component structure
 	component = kernelWindowComponentNew(parent, params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	component->type = scrollBarComponentType;
@@ -376,7 +388,7 @@ kernelWindowComponent *kernelWindowNewScrollBar(objectKey parent,
 	}
 
 	scrollBar = kernelMalloc(sizeof(kernelWindowScrollBar));
-	if (scrollBar == NULL)
+	if (!scrollBar)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
@@ -385,9 +397,9 @@ kernelWindowComponent *kernelWindowNewScrollBar(objectKey parent,
 	component->data = (void *) scrollBar;
 
 	if ((type == scrollbar_vertical) && !width)
-		width = 20;
+		width = windowVariables->slider.width;
 	if ((type == scrollbar_horizontal) && !height)
-		height = 20;
+		height = windowVariables->slider.width;
 
 	component->width = width;
 	component->height = height;
@@ -402,3 +414,4 @@ kernelWindowComponent *kernelWindowNewScrollBar(objectKey parent,
 
 	return (component);
 }
+

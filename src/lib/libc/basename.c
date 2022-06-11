@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -56,7 +56,7 @@ char *basename(char *path)
 
 	// Get the memory to return.  Always a maxed-out pathname.
 	newPath = malloc(MAX_PATH_NAME_LENGTH);
-	if (newPath == NULL)
+	if (!newPath)
 	{
 		// Nothing much we can do here.
 		errno = ERR_MEMORY;
@@ -64,7 +64,7 @@ char *basename(char *path)
 	}
 
 	// Look for NULL, or an empty string
-	if ((path == NULL) || (path[0] == '\0'))
+	if (!path || (path[0] == '\0'))
 	{
 		newPath[0] = '.';
 		newPath[1] = '\0';
@@ -74,7 +74,7 @@ char *basename(char *path)
 	strncpy(newPath, path, MAX_PATH_NAME_LENGTH);
 
 	// Check for no '/'
-	if (strrchr(newPath, '/') == NULL)
+	if (!strrchr(newPath, '/'))
 		return (newPath);
 
 	// Remove any trailing separators, not including the first character
@@ -96,3 +96,4 @@ char *basename(char *path)
 
 	return (newPath);
 }
+

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,7 +27,6 @@
 #include "kernelError.h"
 #include "kernelFilesystem.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include <stdlib.h>
 #include <string.h>
 #include <sys/iso.h>
@@ -741,7 +740,7 @@ static int inactiveEntry(kernelFileEntry *entry)
 	if (entry->driverData)
 	{
 		// Erase all of the data in this entry
-		kernelMemClear(entry->driverData, sizeof(udfFileData));
+		memset(entry->driverData, 0, sizeof(udfFileData));
 
 		// Need to actually deallocate memory here.
 		kernelFree(entry->driverData);
@@ -884,7 +883,6 @@ static kernelFilesystemDriver defaultUdfDriver = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelFilesystemUdfInitialize(void)
 {

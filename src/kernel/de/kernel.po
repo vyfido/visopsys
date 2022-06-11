@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2014 J. Andrew McLaughlin
+#  Copyright (C) 1998-2015 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:18+0000\n"
+"POT-Creation-Date: 2015-06-16 01:24+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,86 +18,23 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-15\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: kernelFilesystemFat.c:3906
+#: kernelFilesystemFat.c:3888
 #, c-format
 msgid "Defragmenting %llu/%llu: %s"
 msgstr "Defragmentieren von %llu/%llu: %s"
 
-#: kernelFilesystemFat.c:4040 kernelFilesystemFatPlus.c:304
+#: kernelFilesystemFat.c:4022
 msgid "Reading filesystem info"
 msgstr "Informationen zum Dateisystem werden ausgelesen"
 
-#: kernelFilesystemFat.c:4079
+#: kernelFilesystemFat.c:4061
 msgid "Analyzing"
 msgstr "Analyse läuft"
 
-#: kernelFilesystemFat.c:4093
+#: kernelFilesystemFat.c:4075
 #, c-format
 msgid "%llu files need defragmentation"
 msgstr "%llu Dateien benötigen eine Defragmentierung"
-
-#: kernelFilesystemFatPlus.c:275
-msgid "Checking constraints"
-msgstr "Die Bedingungen werden überprüft"
-
-#: kernelFilesystemFatPlus.c:285
-msgid "Error getting resizing constraints"
-msgstr "Fehler beim beziehen der Bedingungen für die Größenanpassung"
-
-#: kernelFilesystemFatPlus.c:292
-#, c-format
-msgid "Filesystem cannot resize to %llu blocks (minimum is %llu)"
-msgstr ""
-"Das Dateisystem kann nicht auf die Größe von %llu Blöcken angepasst werden "
-"(Minimum ist %llu)"
-
-#: kernelFilesystemFatPlus.c:295
-#, c-format
-msgid "Filesystem cannot resize to %llu blocks (maximum is %llu)"
-msgstr ""
-"Das Dateisystem kann nicht auf die Größe von %llu Blöcken angepasst werden "
-"(Maximum ist %llu)"
-
-#: kernelFilesystemFatPlus.c:312 kernelFilesystemFatPlus.c:336
-msgid "Error reading filesystem info"
-msgstr "Fehler beim auslesen der Informationen zum Dateisystem"
-
-#: kernelFilesystemFatPlus.c:328
-msgid "Error defragmenting filesystem"
-msgstr "Fehler beim Defragmentieren des Dateisystems"
-
-#: kernelFilesystemFatPlus.c:347
-#, c-format
-msgid "Data exists outside the new size (%u >= %llu)"
-msgstr "Die Daten existieren außerhalb der neuen Größe (%u >= %llu)"
-
-#: kernelFilesystemFatPlus.c:393
-msgid "Error moving data"
-msgstr "Fehler beim verschieben der Daten"
-
-#: kernelFilesystemFatPlus.c:404
-msgid "Clearing new FAT sectors"
-msgstr "Die neuen FAT-Sektoren werden bereinigt"
-
-#: kernelFilesystemFatPlus.c:411
-msgid "Error getting memory"
-msgstr "Fehler beim beziehen von Speicher"
-
-#: kernelFilesystemFatPlus.c:431
-msgid "Error clearing new FAT sectors"
-msgstr "Fehler beim bereinigen der neuen FAT-Sektoren"
-
-#: kernelFilesystemFatPlus.c:445
-msgid "Error synching FAT copies"
-msgstr "Fehler beim synchronisieren der FAT-Kopien"
-
-#: kernelFilesystemFatPlus.c:456
-msgid "Updating filesystem info"
-msgstr "Aktualisieren der Informationen zum Dateisystem"
-
-#: kernelFilesystemFatPlus.c:471 kernelFilesystemFatPlus.c:480
-msgid "Error updating filesystem info"
-msgstr "Fehler beim aktualisieren der Informationen zum Dateisystem"
 
 #: kernelShutdown.c:43
 msgid "Shutting down Visopsys, please wait..."
@@ -115,14 +52,60 @@ msgstr "Es wird neu gestartet."
 msgid "OK to power off now."
 msgstr "OK jetzt herunterzufahren"
 
-#: kernelShutdown.c:155
+#: kernelShutdown.c:154
 msgid "Shutting down"
 msgstr "Herunterfahren"
 
-#: kernelShutdown.c:323
+#: kernelShutdown.c:322
 #, c-format
 msgid "SYSTEM HALTED: Panic at %s:%s(%d)"
 msgstr "SYSTEM WURDE ANGEHALTEN: Fehler bei %s:%s(%d)"
+
+#~ msgid "Checking constraints"
+#~ msgstr "Die Bedingungen werden überprüft"
+
+#~ msgid "Error getting resizing constraints"
+#~ msgstr "Fehler beim beziehen der Bedingungen für die Größenanpassung"
+
+#~ msgid "Filesystem cannot resize to %llu blocks (minimum is %llu)"
+#~ msgstr ""
+#~ "Das Dateisystem kann nicht auf die Größe von %llu Blöcken angepasst "
+#~ "werden (Minimum ist %llu)"
+
+#~ msgid "Filesystem cannot resize to %llu blocks (maximum is %llu)"
+#~ msgstr ""
+#~ "Das Dateisystem kann nicht auf die Größe von %llu Blöcken angepasst "
+#~ "werden (Maximum ist %llu)"
+
+#~ msgid "Error reading filesystem info"
+#~ msgstr "Fehler beim auslesen der Informationen zum Dateisystem"
+
+#~ msgid "Error defragmenting filesystem"
+#~ msgstr "Fehler beim Defragmentieren des Dateisystems"
+
+#~ msgid "Data exists outside the new size (%u >= %llu)"
+#~ msgstr "Die Daten existieren außerhalb der neuen Größe (%u >= %llu)"
+
+#~ msgid "Error moving data"
+#~ msgstr "Fehler beim verschieben der Daten"
+
+#~ msgid "Clearing new FAT sectors"
+#~ msgstr "Die neuen FAT-Sektoren werden bereinigt"
+
+#~ msgid "Error getting memory"
+#~ msgstr "Fehler beim beziehen von Speicher"
+
+#~ msgid "Error clearing new FAT sectors"
+#~ msgstr "Fehler beim bereinigen der neuen FAT-Sektoren"
+
+#~ msgid "Error synching FAT copies"
+#~ msgstr "Fehler beim synchronisieren der FAT-Kopien"
+
+#~ msgid "Updating filesystem info"
+#~ msgstr "Aktualisieren der Informationen zum Dateisystem"
+
+#~ msgid "Error updating filesystem info"
+#~ msgstr "Fehler beim aktualisieren der Informationen zum Dateisystem"
 
 #, fuzzy
 #~ msgid ""

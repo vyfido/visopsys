@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,7 +27,7 @@
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelPic.h"
-#include "kernelProcessorX86.h"
+#include <sys/processor.h>
 
 // Hooked interrupt vectors
 static void **vectorList = NULL;
@@ -38,9 +38,9 @@ static int initialized = 0;
 #define EXHANDLERX(exceptionNum) {	\
 	unsigned exAddress = 0;			\
 	int exInterrupts = 0;			\
-	kernelProcessorExceptionEnter(exAddress, exInterrupts);	\
+	processorExceptionEnter(exAddress, exInterrupts);	\
 	kernelException(exceptionNum, exAddress);	\
-	kernelProcessorExceptionExit(exInterrupts);	\
+	processorExceptionExit(exInterrupts);	\
 }
 
 static void exHandler0(void) EXHANDLERX(EXCEPTION_DIVBYZERO)
@@ -69,8 +69,8 @@ static void intHandlerUnimp(void)
 
 	void *address = NULL;
 
-	kernelProcessorIsrEnter(address);
-	kernelProcessorIsrExit(address);
+	processorIsrEnter(address);
+	processorIsrExit(address);
 }
 
 

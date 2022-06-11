@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,7 +24,6 @@
 #include "kernelError.h"
 #include "kernelLinkedList.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include <string.h>
 
 static kernelLinkedList buses;
@@ -56,7 +55,6 @@ static inline const char *busType2String(kernelBusType type)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelBusRegister(kernelBus *bus)
 {
 	int status = 0;
@@ -73,7 +71,7 @@ int kernelBusRegister(kernelBus *bus)
 
 	if (!initialized)
 	{
-		kernelMemClear(&buses, sizeof(kernelLinkedList));
+		memset(&buses, 0, sizeof(kernelLinkedList));
 		initialized = 1;
 	}
 
@@ -142,7 +140,7 @@ int kernelBusGetTargets(kernelBusType type, kernelBusTarget **pointer)
 				if (*pointer == NULL)
 					return (status = ERR_MEMORY);
 
-				kernelMemCopy(tmpTargets, &((*pointer)[numTargets]),
+				memcpy(&((*pointer)[numTargets]), tmpTargets,
 					(status * sizeof(kernelBusTarget)));
 
 				numTargets += status;
@@ -194,7 +192,7 @@ kernelBusTarget *kernelBusGetTarget(kernelBusType type, int id)
 			if (target == NULL)
 				break;
 
-			kernelMemCopy(&targets[count], target, sizeof(kernelBusTarget));
+			memcpy(target, &targets[count], sizeof(kernelBusTarget));
 			break;
 		}
 	}

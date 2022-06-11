@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,10 +26,9 @@
 #include "kernelStream.h"
 #include "kernelLock.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelError.h"
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 static int clear(stream *theStream)
@@ -48,7 +47,7 @@ static int clear(stream *theStream)
 		return (status);
 
 	// We clear the buffer and set first, next, and count to zero
-	kernelMemClear(theStream->buffer, theStream->buffSize);
+	memset(theStream->buffer, 0, theStream->buffSize);
 
 	theStream->first = 0;
 	theStream->last = 0;
@@ -546,7 +545,6 @@ static int popDwords(stream *theStream, unsigned number, unsigned *buffer)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelStreamNew(stream *theStream, unsigned size, streamItemSize itemSize)
 {
 	// Gets memory, initializes, clears out, and prepares the new stream
@@ -562,7 +560,7 @@ int kernelStreamNew(stream *theStream, unsigned size, streamItemSize itemSize)
 		return (status = ERR_BOUNDS);
 
 	// Clear out the stream structure
-	kernelMemClear((void *) theStream, sizeof(stream));
+	memset((void *) theStream, 0, sizeof(stream));
 
 	theStream->size = size;
 
@@ -600,6 +598,7 @@ int kernelStreamNew(stream *theStream, unsigned size, streamItemSize itemSize)
 			theStream->pop = (int(*)(stream *, ...)) &popByte;
 			theStream->popN = (int(*)(stream *, unsigned, ...)) &popBytes;
 			break;
+
 		case itemsize_dword:
 			// Copy the dword stream functions
 			theStream->append = (int(*)(stream *, ...)) &appendDword;
@@ -627,7 +626,7 @@ int kernelStreamDestroy(stream *theStream)
 		return (status = ERR_NULLPARAMETER);
 
 	// Clear it
-	kernelMemClear((void *) theStream, sizeof(stream));
+	memset((void *) theStream, 0, sizeof(stream));
 
 	// Free memory
 	kernelFree(buffer);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -33,35 +33,35 @@
 #define _(string) gettext(string)
 #define FILEBROWSE_CONFIG			PATH_SYSTEM_CONFIG "/filebrowse.conf"
 #define DEFAULT_FOLDERICON_VAR		"icon.folder"
-#define DEFAULT_FOLDERICON_FILE		PATH_SYSTEM_ICONS "/foldicon.bmp"
+#define DEFAULT_FOLDERICON_FILE		PATH_SYSTEM_ICONS "/foldicon.ico"
 #define DEFAULT_FILEICON_VAR		"icon.file"
-#define DEFAULT_FILEICON_FILE		PATH_SYSTEM_ICONS "/pageicon.bmp"
+#define DEFAULT_FILEICON_FILE		PATH_SYSTEM_ICONS "/pageicon.ico"
 #define DEFAULT_IMAGEICON_VAR		"icon.image"
-#define DEFAULT_IMAGEICON_FILE		PATH_SYSTEM_ICONS "/imageicon.bmp"
+#define DEFAULT_IMAGEICON_FILE		PATH_SYSTEM_ICONS "/imageicon.ico"
 #define DEFAULT_EXECICON_VAR		"icon.executable"
-#define DEFAULT_EXECICON_FILE		PATH_SYSTEM_ICONS "/execicon.bmp"
+#define DEFAULT_EXECICON_FILE		PATH_SYSTEM_ICONS "/execicon.ico"
 #define DEFAULT_MESSAGEICON_VAR		"icon.message"
 #define DEFAULT_MESSAGEICON_FILE	PATH_SYSTEM_ICONS "/mesgicon.ico"
 #define DEFAULT_OBJICON_VAR			"icon.object"
-#define DEFAULT_OBJICON_FILE		PATH_SYSTEM_ICONS "/objicon.bmp"
-#define DEFAULT_BOOTICON_VAR		"icon.boot"
-#define DEFAULT_BOOTICON_FILE		PATH_SYSTEM_ICONS "/booticon.bmp"
+#define DEFAULT_OBJICON_FILE		PATH_SYSTEM_ICONS "/objicon.ico"
+#define DEFAULT_BOOTSECTICON_VAR	"icon.bootsect"
+#define DEFAULT_BOOTSECTICON_FILE	PATH_SYSTEM_ICONS "/booticon.ico"
 #define DEFAULT_KEYMAPICON_VAR		"icon.keymap"
 #define DEFAULT_KEYMAPICON_FILE		PATH_SYSTEM_ICONS "/kmapicon.ico"
 #define DEFAULT_PDFICON_VAR			"icon.pdf"
 #define DEFAULT_PDFICON_FILE		PATH_SYSTEM_ICONS "/pdficon.ico"
-#define DEFAULT_ARCHICON_VAR		"icon.archive"
-#define DEFAULT_ARCHICON_FILE		PATH_SYSTEM_ICONS "/archicon.ico"
+#define DEFAULT_ARCHIVEICON_VAR		"icon.archive"
+#define DEFAULT_ARCHIVEICON_FILE	PATH_SYSTEM_ICONS "/archicon.ico"
 #define DEFAULT_FONTICON_VAR		"icon.font"
 #define DEFAULT_FONTICON_FILE		PATH_SYSTEM_ICONS "/fonticon.ico"
 #define DEFAULT_CONFIGICON_VAR		"icon.config"
-#define DEFAULT_CONFIGICON_FILE		PATH_SYSTEM_ICONS "/conficon.bmp"
+#define DEFAULT_CONFIGICON_FILE		PATH_SYSTEM_ICONS "/conficon.ico"
 #define DEFAULT_HTMLICON_VAR		"icon.html"
-#define DEFAULT_HTMLICON_FILE		PATH_SYSTEM_ICONS "/htmlicon.bmp"
+#define DEFAULT_HTMLICON_FILE		PATH_SYSTEM_ICONS "/htmlicon.ico"
 #define DEFAULT_TEXTICON_VAR		"icon.text"
-#define DEFAULT_TEXTICON_FILE		PATH_SYSTEM_ICONS "/texticon.bmp"
+#define DEFAULT_TEXTICON_FILE		PATH_SYSTEM_ICONS "/texticon.ico"
 #define DEFAULT_BINICON_VAR			"icon.binary"
-#define DEFAULT_BINICON_FILE		PATH_SYSTEM_ICONS "/binicon.bmp"
+#define DEFAULT_BINICON_FILE		PATH_SYSTEM_ICONS "/binicon.ico"
 
 typedef struct {
 	int class;
@@ -127,14 +127,14 @@ static icon iconList[] = {
 	// of binary file, put it *before* the icon for plain binaries.
 	{ LOADERFILECLASS_IMAGE, LOADERFILESUBCLASS_NONE, DEFAULT_IMAGEICON_VAR,
 		DEFAULT_IMAGEICON_FILE, &imageImage },
-	{ LOADERFILECLASS_BOOT, LOADERFILESUBCLASS_NONE, DEFAULT_BOOTICON_VAR,
-		DEFAULT_BOOTICON_FILE, &bootImage },
+	{ LOADERFILECLASS_BOOT, LOADERFILESUBCLASS_NONE, DEFAULT_BOOTSECTICON_VAR,
+		DEFAULT_BOOTSECTICON_FILE, &bootImage },
 	{ LOADERFILECLASS_KEYMAP, LOADERFILESUBCLASS_NONE, DEFAULT_KEYMAPICON_VAR,
 		DEFAULT_KEYMAPICON_FILE, &keymapImage },
 	{ LOADERFILECLASS_DOC, LOADERFILESUBCLASS_PDF, DEFAULT_PDFICON_VAR,
 		DEFAULT_PDFICON_FILE, &pdfImage },
-	{ LOADERFILECLASS_ARCHIVE, LOADERFILESUBCLASS_NONE, DEFAULT_ARCHICON_VAR,
-		DEFAULT_ARCHICON_FILE, &archImage },
+	{ LOADERFILECLASS_ARCHIVE, LOADERFILESUBCLASS_NONE, DEFAULT_ARCHIVEICON_VAR,
+		DEFAULT_ARCHIVEICON_FILE, &archImage },
 	{ LOADERFILECLASS_FONT, LOADERFILESUBCLASS_NONE, DEFAULT_FONTICON_VAR,
 		DEFAULT_FONTICON_FILE, &fontImage },
 	{ LOADERFILECLASS_EXEC, LOADERFILESUBCLASS_NONE, DEFAULT_EXECICON_VAR,
@@ -458,9 +458,9 @@ static int changeDirWithLock(windowFileList *fileList, const char *newDir)
 	}
 
 	// Clear the list
-	windowComponentSetData(fileList->key, NULL, 0);
+	windowComponentSetData(fileList->key, NULL, 0, 0 /* no redraw */);
 	windowComponentSetData(fileList->key, iconParams,
-		fileList->numFileEntries);
+		fileList->numFileEntries, 1 /* redraw */);
 	windowComponentSetSelected(fileList->key, 0);
 
 	windowSwitchPointer(fileList->key, "default");
@@ -521,7 +521,7 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
 	// if it is a mouse click selection, or an ENTER key selection
 	if ((event->type & EVENT_SELECTION) &&
 		((event->type & EVENT_MOUSE_LEFTUP) ||
-		((event->type & EVENT_KEY_DOWN) && (event->key == ASCII_ENTER))))
+		((event->type & EVENT_KEY_DOWN) && (event->key == keyEnter))))
 	{
 		memcpy(&saveEntry, &fileEntries[selected], sizeof(fileEntry));
 
@@ -550,7 +550,7 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
 				(loaderFileClass *) &saveEntry.class);
 	}
 
-	else if ((event->type & EVENT_KEY_DOWN) && (event->key == ASCII_DEL))
+	else if ((event->type & EVENT_KEY_DOWN) && (event->key == keyDel))
 	{
 		if ((fileList->browseFlags & WINFILEBROWSE_CAN_DEL) &&
 			strcmp((char *) fileEntries[selected].file.name, ".."))
@@ -609,9 +609,9 @@ _X_ windowFileList *windowNewFileList(objectKey parent, windowListType type, int
 	}
 
 	// Initialize the images
-	bzero(&folderImage, sizeof(image));
+	memset(&folderImage, 0, sizeof(image));
 	for (count = 0; iconList[count].image ; count ++)
-		bzero(iconList[count].image, sizeof(image));
+		memset(iconList[count].image, 0, sizeof(image));
 
 	// Try to read our config file
 	status = configRead(FILEBROWSE_CONFIG, &config);

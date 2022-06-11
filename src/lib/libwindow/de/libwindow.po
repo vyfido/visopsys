@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2014 J. Andrew McLaughlin
+#  Copyright (C) 1998-2015 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:17+0000\n"
+"POT-Creation-Date: 2015-06-16 01:23+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,31 +22,31 @@ msgstr ""
 msgid "Color Chooser"
 msgstr "Farbauswahl"
 
-#: windowColorDialog.c:151
+#: windowColorDialog.c:152
 msgid "Red"
 msgstr "Rot"
 
-#: windowColorDialog.c:182
+#: windowColorDialog.c:184
 msgid "Green"
 msgstr "Grün"
 
-#: windowColorDialog.c:212
+#: windowColorDialog.c:215
 msgid "Blue"
 msgstr "Blau"
 
-#: windowColorDialog.c:264 windowFileDialog.c:207 windowLanguageDialog.c:197
-#: windowNumberDialog.c:166 windowOkDialog.c:127 windowPromptDialog.c:135
+#: windowColorDialog.c:268 windowFileDialog.c:215 windowLanguageDialog.c:198
+#: windowNumberDialog.c:167 windowOkDialog.c:127 windowPromptDialog.c:135
 #: windowQueryDialog.c:57 windowRadioDialog.c:157
 msgid "OK"
 msgstr "OK"
 
-#: windowColorDialog.c:274 windowFileDialog.c:217 windowLanguageDialog.c:207
-#: windowNumberDialog.c:171 windowProgressDialog.c:258
+#: windowColorDialog.c:278 windowFileDialog.c:225 windowLanguageDialog.c:208
+#: windowNumberDialog.c:172 windowProgressDialog.c:259
 #: windowPromptDialog.c:145 windowQueryDialog.c:57 windowRadioDialog.c:169
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: windowFileList.c:174 windowProgressDialog.c:122
+#: windowFileList.c:174 windowProgressDialog.c:123
 msgid "Error"
 msgstr "Fehler"
 
@@ -88,10 +88,10 @@ msgstr "Fehler beim löschen der Datei %s"
 msgid "Can't locate configuration file %s"
 msgstr "Konfigurationsdatei %s konnte nicht gefunden werden %s"
 
-#: windowLanguageDialog.c:34
+#: windowLanguageDialog.c:35
 msgid "Language Chooser"
 msgstr ""
 
-#: windowProgressDialog.c:111
+#: windowProgressDialog.c:112
 msgid "Confirmation"
 msgstr "Bestätigung"

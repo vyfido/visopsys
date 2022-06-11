@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,6 +25,8 @@
 
 #include "kernelDevice.h"
 #include <sys/font.h>
+#include <sys/graphic.h>
+#include <sys/image.h>
 
 // Definitions
 #define DEFAULT_FOREGROUND_RED		40
@@ -44,34 +46,25 @@ typedef enum {
 
 } borderType;
 
-// Structure to represent a drawing area
-typedef volatile struct {
-	int width;
-	int height;
-	void *data;
-
-} kernelGraphicBuffer;
-
 // Structures for the graphic adapter device
 
 typedef struct {
-	int (*driverClearScreen) (color *);
-	int (*driverDrawPixel) (kernelGraphicBuffer *, color *, drawMode, int, int);
-	int (*driverDrawLine) (kernelGraphicBuffer *, color *, drawMode, int, int,
-		int, int);
-	int (*driverDrawRect) (kernelGraphicBuffer *, color *, drawMode, int, int,
-		int, int, int, int);
-	int (*driverDrawOval) (kernelGraphicBuffer *, color *, drawMode, int, int,
-		int, int, int, int);
-	int (*driverDrawMonoImage) (kernelGraphicBuffer *, image *, drawMode,
-		color *, color *, int, int);
-	int (*driverDrawImage) (kernelGraphicBuffer *, image *, drawMode, int, int,
-		int, int, int, int);
-	int (*driverGetImage) (kernelGraphicBuffer *, image *, int, int, int, int);
-	int (*driverCopyArea) (kernelGraphicBuffer *, int, int, int, int, int, int);
-	int (*driverRenderBuffer) (kernelGraphicBuffer *, int, int, int, int, int,
+	int (*driverClearScreen)(color *);
+	int (*driverDrawPixel)(graphicBuffer *, color *, drawMode, int, int);
+	int (*driverDrawLine)(graphicBuffer *, color *, drawMode, int, int, int,
 		int);
-	int (*driverFilter) (kernelGraphicBuffer *, color *, int, int, int, int);
+	int (*driverDrawRect)(graphicBuffer *, color *, drawMode, int, int, int,
+		int, int, int);
+	int (*driverDrawOval)(graphicBuffer *, color *, drawMode, int, int, int,
+		int, int, int);
+	int (*driverDrawMonoImage)(graphicBuffer *, image *, drawMode, color *,
+		color *, int, int);
+	int (*driverDrawImage)(graphicBuffer *, image *, drawMode, int, int, int,
+		int, int, int);
+	int (*driverGetImage)(graphicBuffer *, image *, int, int, int, int);
+	int (*driverCopyArea)(graphicBuffer *, int, int, int, int, int, int);
+	int (*driverRenderBuffer)(graphicBuffer *, int, int, int, int, int, int);
+	int (*driverFilter)(graphicBuffer *, color *, int, int, int, int);
 
 } kernelGraphicOps;
 
@@ -99,27 +92,27 @@ int kernelGraphicGetScreenWidth(void);
 int kernelGraphicGetScreenHeight(void);
 int kernelGraphicCalculateAreaBytes(int, int);
 int kernelGraphicClearScreen(color *);
-int kernelGraphicDrawPixel(kernelGraphicBuffer *, color *, drawMode, int, int);
-int kernelGraphicDrawLine(kernelGraphicBuffer *, color *, drawMode, int, int,
-	int, int);
-int kernelGraphicDrawRect(kernelGraphicBuffer *, color *, drawMode, int, int,
-	int, int, int, int);
-int kernelGraphicDrawOval(kernelGraphicBuffer *, color *, drawMode, int, int,
-	int, int, int, int);
-int kernelGraphicGetImage(kernelGraphicBuffer *, image *, int, int, int, int);
-int kernelGraphicDrawImage(kernelGraphicBuffer *, image *, drawMode, int, int,
-	int, int, int, int);
-int kernelGraphicDrawText(kernelGraphicBuffer *, color *, color *,
-	asciiFont *, const char *, drawMode, int, int);
-int kernelGraphicCopyArea(kernelGraphicBuffer *, int, int, int, int, int, int);
-int kernelGraphicClearArea(kernelGraphicBuffer *, color *, int, int, int, int);
-int kernelGraphicRenderBuffer(kernelGraphicBuffer *, int, int, int, int, int,
+int kernelGraphicDrawPixel(graphicBuffer *, color *, drawMode, int, int);
+int kernelGraphicDrawLine(graphicBuffer *, color *, drawMode, int, int, int,
 	int);
-int kernelGraphicFilter(kernelGraphicBuffer *, color *, int, int, int, int);
-void kernelGraphicDrawGradientBorder(kernelGraphicBuffer *, int, int, int, int,
-	int, color *, int, drawMode, borderType);
-void kernelGraphicConvexShade(kernelGraphicBuffer *, color *, int, int, int,
-	int, shadeType);
+int kernelGraphicDrawRect(graphicBuffer *, color *, drawMode, int, int, int,
+	int, int, int);
+int kernelGraphicDrawOval(graphicBuffer *, color *, drawMode, int, int, int,
+	int, int, int);
+int kernelGraphicGetImage(graphicBuffer *, image *, int, int, int, int);
+int kernelGraphicDrawImage(graphicBuffer *, image *, drawMode, int, int, int,
+	int, int, int);
+int kernelGraphicDrawText(graphicBuffer *, color *, color *, asciiFont *,
+	const char *, drawMode, int, int);
+int kernelGraphicCopyArea(graphicBuffer *, int, int, int, int, int, int);
+int kernelGraphicClearArea(graphicBuffer *, color *, int, int, int, int);
+int kernelGraphicCopyBuffer(graphicBuffer *, graphicBuffer *, int, int);
+int kernelGraphicRenderBuffer(graphicBuffer *, int, int, int, int, int,	int);
+int kernelGraphicFilter(graphicBuffer *, color *, int, int, int, int);
+void kernelGraphicDrawGradientBorder(graphicBuffer *, int, int, int, int, int,
+	color *, int, drawMode, borderType);
+void kernelGraphicConvexShade(graphicBuffer *, color *, int, int, int, int,
+	shadeType);
 
 #define _KERNELGRAPHIC_H
 #endif

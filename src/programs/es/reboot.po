@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2014-01-22 04:56-0400\n"
-"Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: reboot.c:64
+#: reboot.c:65
 msgid ""
 "\n"
 "Ejecting, please wait... "
@@ -25,7 +25,7 @@ msgstr ""
 "\n"
 "Expulsando, por favor espere... "
 
-#: reboot.c:67
+#: reboot.c:68
 msgid ""
 "\n"
 "\n"
@@ -35,7 +35,7 @@ msgstr ""
 "\n"
 "No se puede abrir la puerta de medios\n"
 
-#: reboot.c:77
+#: reboot.c:78
 msgid ""
 "\n"
 "\n"
@@ -46,7 +46,12 @@ msgstr ""
 "No se puede expulsar. Intente otra vez a\n"
 "pulsar el botón 'Expulsar'.\n"
 
-#: reboot.c:120
+#: reboot.c:115
+#, c-format
+msgid "Unknown option '%c'\n"
+msgstr ""
+
+#: reboot.c:131
 #, c-format
 msgid "Use \"%s -f\" to force.\n"
 msgstr "Usa \"%s -f\" para forzar.\n"

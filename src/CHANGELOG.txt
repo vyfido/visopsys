@@ -1,4 +1,194 @@
 --------------
+ Version 0.77   16/06/2015
+--------------
+
+  Overview: This maintenance release provides performance and quality
+  improvements, rather than new features.  Improved boot time and
+  reliability, GUI performance, support for composite USB devices, fixes
+  to several hardware drivers, and additions to the C library.
+
+- Added proper support for composite USB devices, treating each interface as
+a separate device at the kernel level.
+- The CPU driver no longer determines the CPU frequency using the RTC, but
+rather using the system timer and a short countdown.  This shortens the boot
+time by 1-2 seconds.
+- It is now possible to drag scrollbars and sliders without keeping the mouse
+pointer strictly within the component or window.
+- Added language-specific kernel.conf files for Spanish and German
+- Improved the window system graphics performance.  Added a 'redraw' parameter
+to the 'set data' function for window components, and added a 'buffer' flag to
+the window drawing parameters, for components that draw into a private
+graphics buffer.  These allow for a sequence of drawing and updating
+operations to happen without the visible screen data needing to be updated
+every time.
+- Improved the performance of the PS2 mouse driver.  It was very laggy on
+some systems.
+- Improved the performance of the kernel's file stream code, when reading or
+writing larger amounts of data (multiple file blocks).
+- Added kernel functionality for virtual keyboards.  A virtual keyboard device
+is now created by default, and key strokes can be sent to it via the new
+function kernelKeyboardVirtualInput() (keyboardVirtualInput() in user space).
+- In the Display Settings program, the desktop wallpaper sample is now scaled
+to the screen aspect ratio, and if no wallpaper is chosen, the sample is
+filled with the desktop color.
+- The command shell no longer requires typing a space character before or
+after special symbols, such as an ampersand.
+- The Display Settings program was reading the colors from the kernel
+configuration, but calling kernelWindowSetColor() would save them in the
+window configuration.  kernelWindowSetColor() no longer saves the values -
+only sets them for the current session.  The Display Settings program now
+loads from, and saves to, the window configuration.
+- Fixed and standardized command-line option processing for most of the
+included programs.
+- Converted all usages of bzero() to memset().  bzero() just calls memset()
+to do the work anyway.
+- Removed the outdated 'loadfont' program and kernelFontSetDefault() function,
+as loadfont was the only user of that.
+- Re-engineered the GUI 'canvas' component for better drawing performance.
+- The window system's icon code that formats labels has been re-written, and
+will now split the text label with newlines.
+- The window 'canvas' component will now auto-fill with a custom background
+color, if one is specified.
+- Added a new kernel function kernelWindowSetFocusable() (windowSetFocusable()
+in user space) for indicating that a window should never take the focus away
+from other windows.  It can still receive GUI events, but doesn't receive key
+strokes or similar things by default.
+- Made the thickness of slider bars and scroll bars configurable in the
+window.conf file.
+- Window events now contain the keyboard scan code for a keyboard event, in
+addition to the ASCII code.
+- Exported the kernel's graphics drawing functions to user space.
+- Added a kernel kernelGraphicCopyBuffer() function, for copying graphics
+buffers, or portions thereof.
+- Added kernelImageFill() (imageFill() in userspace) and kernelImagePaste()
+(imagePaste() in userspace) functions for filling an image with a color, or
+pasting one image into another, respectively.
+- The window shell's functions for setting the desktop background image were
+saving the setting in the desktop configuration file.  They no longer do this,
+and the 'wallpaper' program now updates the file.  Also reworked configuration
+file reading in the main window system code and the window shell, and reading
+and writing in the Display Settings program.
+- The USB subsystem now adds kernelDevice entries for USB devices that aren't
+supported (aren't claimed by device drivers) so that the device listing is
+more complete.
+- USB work: updated the hub definitions to make USB version compatibility
+more obvious, and moved them from the hub driver's header to the system USB
+header.  Split the keyboard and mouse drivers into separate files, and removed
+the combined HID one.  Improved the collection of interface and endpoint data,
+by adding new data structures for them and grouping endpoints with their
+interfaces. Improved support for composite (multi-interface) devices by giving
+each interface its own bus target number, and requiring drivers to 'claim'
+individual interfaces, instead of the whole device.  Reduced the overhead of
+setting EHCI static endpoint characteristics+capabilities, and fixed the
+setting of USB 2.0 hub address and port for low- and full-speed devices.
+- Changed the USB drivers so that a physical device will only have its
+configuration set once, in the case where drivers are claiming and using
+multiple interfaces.
+- Added a longer ready timeout to the USB disk driver.
+- The XHCI (USB3) driver no longer disables I/O and memory decoding in PCI
+when detecting controllers.
+- The kernel loader's gzip file classification no longer requires the file to
+qualify as binary; it's possible to have uncompressed text blocks/members
+inside the archive, which can cause the gzip file to be considered text by the
+loader.
+- Reduced reliance on the system timer, particularly in the disk drivers, in
+favour of the kernelCpu functions that measure time in milliseconds.  The
+multitasker uses it less, and the kernelMultitaskerWait() function now takes
+milliseconds instead of 'ticks' as its argument.
+- The IDE disk driver's 'identify device' code now uses the data structure
+used by the AHCI SATA driver (in kernelAtaDriver.h).
+- Added an RTC function kernelRtcDateTime2Tm() for converting the kernel's
+arbitrary RTC 'packed date' and 'packed time' formats to 'struct tm'.
+- kernelMemCopy(), kernelMemClear(), kernelMemSet(), and kernelMemCmp() have
+been removed; we now use the C library versions instead.
+- When locating the boot device, the kernel no longer relies on the OS loader
+to pass the LBA of boot sector.  Identification is now based strictly on the
+boot sector signature.
+- The floppy disk driver has been updated so that it won't attempt to support
+'type 16' (removable ATAPI/USB) drives.
+- Kernel function index numbers (in <sys/api.h>) are now expressed in
+hexadecimal, to speed up indexing by avoiding expensive division operations
+in kernelApi.c, in favour of shifts and masks.  Also, font, image, and
+variable list functions have been given their own categories (instead of
+being 'misc').
+- Updated the kernel's font subsystem and API to allow userspace manipulation
+of font data.
+- The window library's functions for making thumbnail images have been updated
+to allow images to be stretched to the maximum size, and to fill any unfilled
+area with a background color.
+- Added a <sys/env.h> include file for centralizing the names of standard
+environment variables.
+- Implemented the C library ctime() and gmtime() functions, and fixed up the
+behaviour of other time functions so that everything is consistent with the
+libary specs.
+- Implemented the C library mktime() function.  The code for converting
+'struct tm' to time_t has been taken from the time() and kernelUnixTime()
+functions, and those functions now use mktime().
+- The 'file' structure in <sys/file.h> now expresses file creation, accessed,
+and modification times as 'struct tm'.  The fileEntry2File() function in
+kernelFile.c was modified to use the kernelRtcDateTime2Tm() function.  The
+VSH library functions vshPrintDate() and vshPrintTime() functions have been
+modified to cope with the change.
+- The kernelProcessorX86.h file of assembly language macros has been cleaned
+up and simplified, and moved to <sys/processor.h> so that it can be used by
+userspace and library code, such as memcpy(), memset(), crt0.c.  Added a macro
+for copying data backwards (direction flag set) and used it in the C library
+memmove() function.
+- Updated the metadata in the Arial and Viner font files.
+- Fixed: The kernel's fileStream code was not correctly handling streams
+opened in 'append' (write-only) mode.
+- Fixed: The kernel's file stream code was not keeping track of/setting
+the file size correctly.
+- Fixed: The EXT filesystem driver had a bug in its readFile() functionality.
+When the inode uses block lists, and the starting block number is greater
+than the number of 'direct' blocks, the driver was simply reading the first
+sequence of indirect blocks, without regard to the starting block number.
+- Fixed: The AHCI SATA driver could fail to detect disk(s) with the error
+message "AHCI port %d BSY or DRQ set - skipping device detection".
+- Fixed: Incorrect status and error register writing functions in the USB1
+UHCI driver.
+- Fixed: The IDE driver wasn't dealing well with individual controllers and
+channels operating in 'compatibilily' mode (alongside others that may be
+native).  Now, we examine each controller and channel, whether it has PCI
+I/O ports and interrupts, and whether it should continue to stay in
+compatibility mode or be switched to native.
+- Fixed: Added PCI definition for class:subclass FF:00 to suppress spurious
+warnings about unknown subclasses.
+- Fixed: A minor memory leak in the kernel's main font loading function.
+Only occurred when the file to load wasn't a recognized font file.
+- Fixed: Some of the kernel's graphics drawing functions, so that the oval-
+drawing functionality works as documented (same as drawing inside a bounding
+rectangle), and tuned the behavior with various parameters (dimensions,
+thickness, fill).
+- Fixed: Upon initial window creation, the window's graphics buffer was being
+created with minimum size and width, preventing larger, image-based
+components (such as a canvas) from being drawn upon before the first window
+layout had been completed.
+- Fixed: Removed the automatic USB Mass Storage reset during device
+enumeration of USB disks.  Some devices, on some controllers, stop responding,
+and it seems unnecessary.
+- Fixed: The EHCI (USB2) unregisterInterrupt() function was incorrectly
+unlinking interrupt queue heads.
+- Fixed: The middle and right mouse buttons were swapped for all USB boot-
+protocol mice.
+- Fixed: XHCI (USB3) interrupt handling to allow concurrent interrupt and
+non-interrupt communication between multiple endpoints.
+- Fixed: In the window library's file browser widget, some of the default
+icon names were wrong, not up to date.
+- Fixed: The stat() C library function has been updated to set the file times
+correctly, to proper unix time.
+- Fixed: The window library's windowCenterDialog() function, so that it won't
+place a window at negative coordinates (off the top or left edges of the
+visible screen).
+- Fixed: In the Disk Manager, when resizing a partition in graphics mode
+(and other sliders generally) merely mousing over the slider could cause
+the text field to be changed.
+- Fixed: When setting the video resolution in the Display Settings program,
+the video mode file was not having its size set correctly, and an error
+message "File has not been opened for writing" would appear on the command
+line.
+
+--------------
  Version 0.76   27/12/2014
 --------------
 

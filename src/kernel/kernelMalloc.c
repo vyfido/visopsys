@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,10 +28,10 @@
 #include "kernelInterrupt.h"
 #include "kernelLock.h"
 #include "kernelMemory.h"
-#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
 #include <stdlib.h>
+#include <string.h>
 #include <sys/memory.h>
 
 static int initialized = 0;
@@ -45,7 +45,6 @@ static int initialized = 0;
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 void *_kernelMalloc(unsigned size, const char *function)
 {
 	// Just like a malloc(), for kernel memory, but the data is cleared like
@@ -56,7 +55,7 @@ void *_kernelMalloc(unsigned size, const char *function)
 	if (!initialized)
 	{
 		// Set up malloc()'s kernel operations pointers
-		kernelMemClear(&mallocKernOps, sizeof(mallocKernelOps));
+		memset(&mallocKernOps, 0, sizeof(mallocKernelOps));
 		mallocKernOps.multitaskerGetCurrentProcessId =
 			&kernelMultitaskerGetCurrentProcessId;
 		mallocKernOps.memoryGet = &kernelMemoryGetSystem;
@@ -78,7 +77,7 @@ void *_kernelMalloc(unsigned size, const char *function)
 
 	// If we got the memory, clear it.
 	if (address)
-		kernelMemClear(address, size);
+		memset(address, 0, size);
 
 	return (address);
 }
@@ -138,7 +137,7 @@ void *_kernelRealloc(void *oldAddress, size_t size, const char *function)
 	if (address)
 	{
 		size = min(size, ((oldBlock.endLocation - oldBlock.startLocation) + 1));
-		kernelMemCopy(oldAddress, address, size);
+		memcpy(address, oldAddress, size);
 		_kernelFree(oldAddress, function);
 	}
 

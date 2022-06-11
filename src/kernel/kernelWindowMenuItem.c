@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,7 +25,6 @@
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelDebug.h"
 #include "kernelError.h"
-#include "kernelMisc.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -76,7 +75,7 @@ static int setData(kernelWindowComponent *component, void *text, int length)
 
 	if (saveListItemSetData)
 	{
-		kernelMemClear(&itemParams, sizeof(listItemParameters));
+		memset(&itemParams, 0, sizeof(listItemParameters));
 
 		strncpy(itemParams.text, text, min(length, WINDOW_MAX_LABEL_LENGTH));
 
@@ -105,7 +104,6 @@ static int setData(kernelWindowComponent *component, void *text, int length)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewMenuItem(kernelWindow *menu,
 	const char *text, componentParameters *userParams)
 {
@@ -124,7 +122,7 @@ kernelWindowComponent *kernelWindowNewMenuItem(kernelWindow *menu,
 
 	kernelDebug(debug_gui, "WindowMenuItem new menu item %s", text);
 
-	kernelMemCopy(userParams, &params, sizeof(componentParameters));
+	memcpy(&params, userParams, sizeof(componentParameters));
 	params.gridX = 0;
 	params.gridY =
 		((kernelWindowContainer *) menu->mainContainer->data)->numComponents;
@@ -136,13 +134,13 @@ kernelWindowComponent *kernelWindowNewMenuItem(kernelWindow *menu,
 	if (!params.font)
 		params.font = windowVariables->font.varWidth.small.font;
 
-	kernelMemClear(&itemParams, sizeof(listItemParameters));
+	memset(&itemParams, 0, sizeof(listItemParameters));
 	strncpy(itemParams.text, text, WINDOW_MAX_LABEL_LENGTH);
 
 	// Get the superclass list item component
 	component = kernelWindowNewListItem(menu, windowlist_textonly, &itemParams,
 		&params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	// If we don't have the list item's setData() function pointer saved, save
@@ -156,8 +154,8 @@ kernelWindowComponent *kernelWindowNewMenuItem(kernelWindow *menu,
 	// We use a different default background color than the window list
 	// item component that the menu item is based upon
 	if (!(params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
-		kernelMemCopy(&windowVariables->color.background,
-			(color *) &component->params.background, sizeof(color));
+		memcpy((color *) &component->params.background,
+			&windowVariables->color.background, sizeof(color));
 
 	// Set the new size of the menu
 	kernelWindowSetSize(menu, menuWidth(menu), menuHeight(menu));

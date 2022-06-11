@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,25 +27,30 @@
 #include "kernelFont.h"
 #include "kernelGraphic.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelWindowEventStream.h"
 #include <stdlib.h>
+#include <string.h>
 
 extern kernelWindowVariables *windowVariables;
 
 
 static inline int isMouseInScrollBar(windowEvent *event,
-	kernelWindowComponent *scrollBar)
+	kernelWindowComponent *component)
 {
-	// We use this to determine whether a mouse event is inside the slider
+	// We use this to determine whether a mouse event is inside the scroll bar
 
-	kernelWindow *window = scrollBar->window;
+	kernelWindowScrollBar *scrollBar = component->data;
 
-	if (event->xPosition >= (window->xCoord + scrollBar->xCoord))
+	if (scrollBar->dragging ||
+		(event->xPosition >= (component->window->xCoord + component->xCoord)))
+	{
 		return (1);
+	}
 	else
+	{
 		return (0);
+	}
 }
 
 
@@ -98,8 +103,7 @@ static int flatten(kernelWindowComponent *component,
 }
 
 
-static int setBuffer(kernelWindowComponent *component,
-	kernelGraphicBuffer *buffer)
+static int setBuffer(kernelWindowComponent *component, graphicBuffer *buffer)
 {
 	// Set the graphics buffer for the component's subcomponents.
 
@@ -200,8 +204,8 @@ static int resize(kernelWindowComponent *component, int width, int height)
 	if (area->font)
 	{
 		// Calculate the new columns and rows.
-		newColumns = (textArea->areaWidth / area->font->charWidth);
-		newRows = (height / area->font->charHeight);
+		newColumns = (textArea->areaWidth / area->font->glyphWidth);
+		newRows = (height / area->font->glyphHeight);
 	}
 
 	if ((newColumns != area->columns) || (newRows != area->rows))
@@ -265,7 +269,7 @@ static int getData(kernelWindowComponent *component, void *buffer, int size)
 	if (size > (area->columns * area->rows))
 		size = (area->columns * area->rows);
 
-	kernelMemCopy(area->visibleData, buffer, size);
+	memcpy(buffer, area->visibleData, size);
 
 	return (0);
 }
@@ -327,12 +331,12 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 		if (textArea->area->font)
 			cursorColumn = ((event->xPosition - (component->window->xCoord +
-				textArea->area->xCoord)) / textArea->area->font->charWidth);
+				textArea->area->xCoord)) / textArea->area->font->glyphWidth);
 		cursorColumn = min(cursorColumn, textArea->area->columns);
 
 		if (textArea->area->font)
 			cursorRow = ((event->yPosition - (component->window->yCoord +
-				textArea->area->yCoord)) / textArea->area->font->charHeight);
+				textArea->area->yCoord)) / textArea->area->font->glyphHeight);
 		cursorRow = min(cursorRow, textArea->area->rows);
 
 		if (textArea->area && textArea->area->outputStream &&
@@ -343,7 +347,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 			kernelTextStreamSetRow(textArea->area->outputStream, cursorRow);
 
 			// Write a 'cursor moved' event to the component event stream
-			kernelMemClear(&cursorEvent, sizeof(windowEvent));
+			memset(&cursorEvent, 0, sizeof(windowEvent));
 			cursorEvent.type = EVENT_CURSOR_MOVE;
 			kernelWindowEventStreamWrite(&(component->events), &cursorEvent);
 		}
@@ -360,8 +364,11 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 	kernelWindowTextArea *textArea = component->data;
 	kernelTextInputStream *inputStream = textArea->area->inputStream;
 
-	if ((event->type == EVENT_KEY_DOWN) && inputStream && inputStream->s.append)
-		inputStream->s.append(&(inputStream->s), (char) event->key);
+	if ((event->type == EVENT_KEY_DOWN) && inputStream &&
+		inputStream->s.append && event->ascii)
+	{
+		inputStream->s.append(&(inputStream->s), (char) event->ascii);
+	}
 
 	if (textArea->scrollBar)
 		updateScrollBar(textArea);
@@ -417,7 +424,6 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 	int rows, int bufferLines, componentParameters *params)
 {
@@ -461,13 +467,13 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 	// If the user wants the default colors, we change set them to the
 	// default for a text area
 	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
-		kernelMemCopy(&COLOR_WHITE, (color *) &component->params.background,
+		memcpy((color *) &component->params.background, &COLOR_WHITE,
 			sizeof(color));
 
 	// If font is NULL, get the default font
 	if (!component->params.font)
 	{
-		status = kernelFontGetDefault((asciiFont **) &(component->params.font));
+		status = kernelFontGetDefault((asciiFont **) &component->params.font);
 		if (status < 0)
 		{
 			kernelWindowComponentDestroy(component);
@@ -496,29 +502,29 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 	// Set some values
 	textArea->area->xCoord = windowVariables->border.thickness;
 	textArea->area->yCoord = windowVariables->border.thickness;
-	kernelMemCopy((color *) &component->params.foreground,
-		(color *) &textArea->area->foreground, sizeof(color));
-	kernelMemCopy((color *) &component->params.background,
-		(color *) &textArea->area->background, sizeof(color));
+	memcpy((color *) &textArea->area->foreground,
+		(color *) &component->params.foreground, sizeof(color));
+	memcpy((color *) &textArea->area->background,
+		(color *) &component->params.background, sizeof(color));
 	textArea->area->font = (asciiFont *) component->params.font;
 	textArea->area->windowComponent = (void *) component;
-	textArea->areaWidth =
-		(columns * ((asciiFont *) component->params.font)->charWidth);
+	textArea->areaWidth = (columns *
+		((asciiFont *) component->params.font)->glyphWidth);
 
 	// Populate the rest of the component fields
 	component->width =
 		(textArea->areaWidth + (windowVariables->border.thickness * 2));
-	component->height =
-		((rows * ((asciiFont *) component->params.font)->charHeight) +
+	component->height = ((rows *
+		((asciiFont *) component->params.font)->glyphHeight) +
 			(windowVariables->border.thickness * 2));
 
 	// If there are any buffer lines, we need a scroll bar as well.
 	if (bufferLines)
 	{
 		// Standard parameters for a scroll bar
-		kernelMemCopy(params, &subParams, sizeof(componentParameters));
-		subParams.flags &=
-			~(WINDOW_COMPFLAG_CUSTOMFOREGROUND | WINDOW_COMPFLAG_CUSTOMBACKGROUND);
+		memcpy(&subParams, params, sizeof(componentParameters));
+		subParams.flags &= ~(WINDOW_COMPFLAG_CUSTOMFOREGROUND |
+			WINDOW_COMPFLAG_CUSTOMBACKGROUND);
 
 		textArea->scrollBar =
 			kernelWindowNewScrollBar(parent, scrollbar_vertical, 0,

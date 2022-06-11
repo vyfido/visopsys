@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,6 +23,7 @@
 
 #if !defined(_VSH_H)
 
+#include <time.h>
 #include <sys/progress.h>
 
 #ifndef _X_
@@ -39,8 +40,8 @@ void vshMakeAbsolutePath(const char *, char *);
 int vshMoveFile(const char *, const char *);
 int vshParseCommand(char *, char *, int *, char *[]);
 void vshPasswordPrompt(const char *, char *);
-void vshPrintDate(char *, unsigned);
-void vshPrintTime(char *, unsigned);
+void vshPrintDate(char *, struct tm *);
+void vshPrintTime(char *, struct tm *);
 int vshProgressBar(progress *);
 int vshProgressBarDestroy(progress *);
 int vshSearchPath(const char *, char *);

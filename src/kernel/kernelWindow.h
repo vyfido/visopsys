@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,40 +34,43 @@
 
 // Definitions
 
-#define WINDOW_TITLEBAR_HEIGHT				19
-#define WINDOW_TITLEBAR_MINWIDTH			(WINDOW_TITLEBAR_HEIGHT * 4)
-#define WINDOW_BORDER_THICKNESS				3
-#define WINDOW_SHADING_INCREMENT			15
-#define WINDOW_RADIOBUTTON_SIZE				10
-#define WINDOW_CHECKBOX_SIZE				10
+#define WINDOW_TITLEBAR_HEIGHT					19
+#define WINDOW_TITLEBAR_MINWIDTH				(WINDOW_TITLEBAR_HEIGHT * 4)
+#define WINDOW_BORDER_THICKNESS					3
+#define WINDOW_SHADING_INCREMENT				15
+#define WINDOW_RADIOBUTTON_SIZE					10
+#define WINDOW_CHECKBOX_SIZE					10
+#define WINDOW_SLIDER_WIDTH						20
 #define WINDOW_MIN_WIDTH \
 	(WINDOW_TITLEBAR_MINWIDTH + (WINDOW_BORDER_THICKNESS * 2))
 #define WINDOW_MIN_HEIGHT \
 	(WINDOW_TITLEBAR_HEIGHT + (WINDOW_BORDER_THICKNESS * 2))
-#define WINDOW_MINREST_TRACERS				20
-#define WINDOW_MAX_CHILDREN					32
-#define WINDOW_DEFAULT_CONFIG				PATH_SYSTEM_CONFIG "/window.conf"
-#define WINDOW_DEFAULT_DESKTOP_CONFIG		PATH_SYSTEM_CONFIG "/desktop.conf"
-#define WINDOW_DEFAULT_VARFONT_SMALL_FILE	PATH_SYSTEM_FONTS "/arial-bold-10.vbf"
-#define WINDOW_DEFAULT_VARFONT_SMALL_NAME	"arial-bold-10"
-#define WINDOW_DEFAULT_VARFONT_MEDIUM_FILE	PATH_SYSTEM_FONTS "/arial-bold-12.vbf"
-#define WINDOW_DEFAULT_VARFONT_MEDIUM_NAME	"arial-bold-12"
+#define WINDOW_MINREST_TRACERS					20
+#define WINDOW_MAX_CHILDREN						32
+#define WINDOW_CONFIG							"window.conf"
+#define WINDOW_DESKTOP_CONFIG					"desktop.conf"
+#define WINDOW_DEFAULT_VARFONT_SMALL_FILE \
+	PATH_SYSTEM_FONTS "/arial-bold-10.vbf"
+#define WINDOW_DEFAULT_VARFONT_SMALL_NAME		"arial-bold-10"
+#define WINDOW_DEFAULT_VARFONT_MEDIUM_FILE \
+	PATH_SYSTEM_FONTS "/arial-bold-12.vbf"
+#define WINDOW_DEFAULT_VARFONT_MEDIUM_NAME		"arial-bold-12"
 
-#define WINFLAG_VISIBLE						0x0400
-#define WINFLAG_ENABLED						0x0200
-#define WINFLAG_MOVABLE						0x0100
-#define WINFLAG_RESIZABLE					0x00C0
-#define WINFLAG_RESIZABLEX					0x0080
-#define WINFLAG_RESIZABLEY					0x0040
-#define WINFLAG_HASBORDER					0x0020
-#define WINFLAG_CANFOCUS					0x0010
-#define WINFLAG_HASFOCUS					0x0008
-#define WINFLAG_ROOTWINDOW					0x0004
-#define WINFLAG_BACKGROUNDTILED				0x0002
-#define WINFLAG_DEBUGLAYOUT					0x0001
+#define WINFLAG_VISIBLE							0x0400
+#define WINFLAG_ENABLED							0x0200
+#define WINFLAG_MOVABLE							0x0100
+#define WINFLAG_RESIZABLE						0x00C0
+#define WINFLAG_RESIZABLEX						0x0080
+#define WINFLAG_RESIZABLEY						0x0040
+#define WINFLAG_HASBORDER						0x0020
+#define WINFLAG_CANFOCUS						0x0010
+#define WINFLAG_HASFOCUS						0x0008
+#define WINFLAG_ROOTWINDOW						0x0004
+#define WINFLAG_BACKGROUNDTILED					0x0002
+#define WINFLAG_DEBUGLAYOUT						0x0001
 
-#define WINNAME_TEMPCONSOLE					"temp console window"
-#define WINNAME_ROOTWINDOW					"root window"
+#define WINNAME_TEMPCONSOLE						"temp console window"
+#define WINNAME_ROOTWINDOW						"root window"
 
 typedef struct {
 	struct {
@@ -99,6 +102,10 @@ typedef struct {
 	struct {
 		int size;
 	} checkbox;
+
+	struct {
+		int width;
+	} slider;
 
 	struct {
 		asciiFont *defaultFont;
@@ -152,7 +159,7 @@ typedef volatile struct _kernelWindowComponent {
 	volatile struct _kernelWindow *window;
 	volatile struct _kernelWindowComponent *container;
 	volatile struct _kernelWindow *contextMenu;
-	kernelGraphicBuffer *buffer;
+	graphicBuffer *buffer;
 	int xCoord;
 	int yCoord;
 	int level;
@@ -188,7 +195,7 @@ typedef volatile struct _kernelWindowComponent {
 	volatile struct _kernelWindowComponent *
 		(*eventComp)(volatile struct _kernelWindowComponent *, windowEvent *);
 	int (*setBuffer)(volatile struct _kernelWindowComponent *,
-			kernelGraphicBuffer *);
+		graphicBuffer *);
 
 	// More routines for managing this component.  These are set by the
 	// code which builds the instance of the particular component type
@@ -243,7 +250,8 @@ typedef volatile struct {
 	int selected;
 	image iconImage;
 	image selectedImage;
-	char label[2][WINDOW_MAX_LABEL_LENGTH];
+	char labelData[WINDOW_MAX_LABEL_LENGTH];
+	char *labelLine[WINDOW_MAX_LABEL_LINES];
 	int labelLines;
 	int labelWidth;
 	char command[MAX_PATH_NAME_LENGTH];
@@ -257,7 +265,10 @@ typedef volatile struct {
 
 } kernelWindowImage;
 
-typedef kernelWindowImage kernelWindowCanvas;
+typedef volatile struct {
+	graphicBuffer buffer;
+
+} kernelWindowCanvas;
 
 typedef volatile struct {
 	windowListType type;
@@ -317,6 +328,9 @@ typedef volatile struct {
 	int sliderY;
 	int sliderWidth;
 	int sliderHeight;
+	int dragging;
+	int dragX;
+	int dragY;
 
 } kernelWindowScrollBar;
 
@@ -356,7 +370,7 @@ typedef volatile struct _kernelWindow {
 	int yCoord;
 	int level;
 	unsigned flags;
-	kernelGraphicBuffer buffer;
+	graphicBuffer buffer;
 	image backgroundImage;
 	color background;
 	windowEventStream events;
@@ -541,7 +555,7 @@ kernelWindow *kernelWindowNew(int, const char *);
 kernelWindow *kernelWindowNewChild(kernelWindow *, const char *);
 kernelWindow *kernelWindowNewDialog(kernelWindow *, const char *);
 int kernelWindowDestroy(kernelWindow *);
-int kernelWindowUpdateBuffer(kernelGraphicBuffer *, int, int, int, int);
+int kernelWindowUpdateBuffer(graphicBuffer *, int, int, int, int);
 int kernelWindowSetTitle(kernelWindow *, const char *);
 int kernelWindowGetSize(kernelWindow *, int *, int *);
 int kernelWindowSetSize(kernelWindow *, int, int);
@@ -553,6 +567,7 @@ int kernelWindowSetHasBorder(kernelWindow *, int);
 int kernelWindowSetHasTitleBar(kernelWindow *, int);
 int kernelWindowSetMovable(kernelWindow *, int);
 int kernelWindowSetResizable(kernelWindow *, int);
+int kernelWindowSetFocusable(kernelWindow *, int);
 int kernelWindowRemoveMinimizeButton(kernelWindow *);
 int kernelWindowRemoveCloseButton(kernelWindow *);
 int kernelWindowFocus(kernelWindow *);
@@ -606,7 +621,7 @@ int kernelWindowComponentFocus(kernelWindowComponent *);
 int kernelWindowComponentUnfocus(kernelWindowComponent *);
 int kernelWindowComponentDraw(kernelWindowComponent *);
 int kernelWindowComponentGetData(kernelWindowComponent *, void *, int);
-int kernelWindowComponentSetData(kernelWindowComponent *, void *, int);
+int kernelWindowComponentSetData(kernelWindowComponent *, void *, int, int);
 int kernelWindowComponentGetSelected(kernelWindowComponent *, int *);
 int kernelWindowComponentSetSelected(kernelWindowComponent *, int);
 
@@ -660,3 +675,4 @@ kernelWindowComponent *kernelWindowNewTitleBar(kernelWindow *,
 
 #define _KERNELWINDOW_H
 #endif
+

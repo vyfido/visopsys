@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,10 +28,10 @@
 #include "kernelFileStream.h"
 #include "kernelLock.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelRtc.h"
 #include <stdio.h>
+#include <string.h>
 
 static volatile int logToConsole = 0;
 static volatile int logToFile = 0;
@@ -115,7 +115,7 @@ static void logUpdater(void)
 		}
 
 		// Yield the rest of the timeslice and wait
-		kernelMultitaskerWait(40);
+		kernelMultitaskerWait(2000);
 	}
 
 	kernelMultitaskerTerminate(status);
@@ -129,7 +129,6 @@ static void logUpdater(void)
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelLogInitialize(void)
 {
@@ -153,7 +152,7 @@ int kernelLogInitialize(void)
 	// Make a note that we've been initialized
 	loggingInitialized = 1;
 
-	kernelMemClear((void *) &logLock, sizeof(lock));
+	memset((void *) &logLock, 0, sizeof(lock));
 
 	// Return success
 	return (status = 0);

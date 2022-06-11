@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,14 +28,14 @@
 #include "kernelBus.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
+#include "kernelMemory.h"
 #include "kernelNetworkDevice.h"
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelPciDriver.h"
-#include "kernelProcessorX86.h"
-#include "kernelMemory.h"
-#include "kernelMisc.h"
+#include "kernelVariableList.h"
 #include <string.h>
+#include <sys/processor.h>
 
 static struct {
 	unsigned version;
@@ -60,17 +60,14 @@ static void reset(lanceDevice *lance)
 	unsigned tmp;
 
 	// 32-bit reset, by doing a 32-bit read from the 32-bit reset port.
-	kernelProcessorInPort32((lance->ioAddress + LANCE_PORTOFFSET32_RESET),
-		tmp);
+	processorInPort32((lance->ioAddress + LANCE_PORTOFFSET32_RESET), tmp);
 
 	// Then 16-bit reset, by doing a 16-bit read from the 16-bit reset port,
 	// so the chip is reset and in 16-bit mode.
-	kernelProcessorInPort16((lance->ioAddress + LANCE_PORTOFFSET16_RESET),
-		tmp);
+	processorInPort16((lance->ioAddress + LANCE_PORTOFFSET16_RESET), tmp);
 
 	// The NE2100 LANCE card needs an extra write access to follow
-	kernelProcessorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RESET),
-		tmp);
+	processorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RESET), tmp);
 }
 
 
@@ -80,8 +77,8 @@ static unsigned readCSR(lanceDevice *lance, int idx)
 
 	unsigned short data = 0;
 
-	kernelProcessorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RAP), idx);
-	kernelProcessorInPort16((lance->ioAddress + LANCE_PORTOFFSET_RDP), data);
+	processorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RAP), idx);
+	processorInPort16((lance->ioAddress + LANCE_PORTOFFSET_RDP), data);
 	return (data);
 }
 
@@ -93,8 +90,8 @@ static void writeCSR(lanceDevice *lance, int idx, unsigned data)
 	// 16-bit only
 	data &= 0xFFFF;
 
-	kernelProcessorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RAP), idx);
-	kernelProcessorOutPort16((lance->ioAddress + LANCE_PORTOFFSET_RDP), data);
+	processorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RAP), idx);
+	processorOutPort16((lance->ioAddress + LANCE_PORTOFFSET_RDP), data);
 	return;
 }
 
@@ -109,17 +106,15 @@ static void modifyCSR(lanceDevice *lance, int idx, unsigned data, opType op)
 	// 16-bit only
 	data &= 0xFFFF;
 
-	kernelProcessorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RAP), idx);
-	kernelProcessorInPort16((lance->ioAddress + LANCE_PORTOFFSET_RDP),
-		contents);
+	processorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RAP), idx);
+	processorInPort16((lance->ioAddress + LANCE_PORTOFFSET_RDP), contents);
 
 	if (op == op_or)
 		contents |= data;
 	else if (op == op_and)
 		contents &= data;
 
-	kernelProcessorOutPort16((lance->ioAddress + LANCE_PORTOFFSET_RDP),
-		contents);
+	processorOutPort16((lance->ioAddress + LANCE_PORTOFFSET_RDP), contents);
 	return;
 }
 
@@ -130,8 +125,8 @@ static unsigned readBCR(lanceDevice *lance, int idx)
 
 	unsigned short data = 0;
 
-	kernelProcessorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RAP), idx);
-	kernelProcessorInPort16((lance->ioAddress + LANCE_PORTOFFSET16_BDP), data);
+	processorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RAP), idx);
+	processorInPort16((lance->ioAddress + LANCE_PORTOFFSET16_BDP), data);
 	return (data);
 }
 
@@ -140,8 +135,8 @@ static void writeBCR(lanceDevice *lance, int idx, unsigned data)
 {
 	// Write the indexed 16-bit bus configuration register (BCR)
 
-	kernelProcessorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RAP), idx);
-	kernelProcessorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_BDP), data);
+	processorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RAP), idx);
+	processorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_BDP), data);
 	return;
 }
 
@@ -350,7 +345,7 @@ static unsigned driverReadData(kernelNetworkDevice *adapter,
 	{
 		messageLength = (unsigned) recvDesc[*head].messageSize;
 
-		kernelMemCopy(lance->recvRing.buffers[*head], buffer, messageLength);
+		memcpy(buffer, lance->recvRing.buffers[*head], messageLength);
 
 		adapter->device.recvQueued -= 1;
 
@@ -565,7 +560,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 		// Get the ethernet address
 		for (count = 0; count < 6; count ++)
-			kernelProcessorInPort8((lance->ioAddress + count),
+			processorInPort8((lance->ioAddress + count),
 				adapter->device.hardwareAddress.bytes[count]);
 
 		// Get chip version and set the model name
@@ -756,7 +751,6 @@ static kernelNetworkDeviceOps networkOps = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 void kernelLanceDriverRegister(kernelDriver *driver)
 {

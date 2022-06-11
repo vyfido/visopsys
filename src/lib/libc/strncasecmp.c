@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -70,3 +70,4 @@ int strncasecmp(const char *s1, const char *s2, size_t length)
 	// If we fall through to here, we matched as many as we could
 	return (result = 0);
 }
+

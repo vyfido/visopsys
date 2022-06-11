@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,6 +46,7 @@ CD-ROM image files that asks if you want to 'install' or 'run now'.
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/font.h>
 #include <sys/paths.h>
 #include <sys/vsh.h>
@@ -54,7 +55,7 @@ CD-ROM image files that asks if you want to 'install' or 'run now'.
 #define gettext_noop(string) (string)
 
 #define WELCOME			_("Welcome to %s")
-#define COPYRIGHT		_("Copyright (C) 1998-2014 J. Andrew McLaughlin")
+#define COPYRIGHT		_("Copyright (C) 1998-2015 J. Andrew McLaughlin")
 #define GPL				_( \
 	"  This program is free software; you can redistribute it and/or modify it  \n" \
 	"  under the terms of the GNU General Public License as published by the\n" \
@@ -78,8 +79,8 @@ static int readOnly = 1;
 static int haveInstall = 0;
 static int passwordSet = 0;
 static char *rebootQuestion	= gettext_noop("Would you like to reboot now?");
-static char *adminString	= gettext_noop("Using the administrator account 'admin'.\n"
-	"There is no password set.");
+static char *adminString	= gettext_noop("Using the administrator account "
+	"'admin'.\nThere is no password set.");
 
 // GUI stuff
 static int graphics = 0;
@@ -94,6 +95,7 @@ static objectKey goAwayCheckbox = NULL;
 static image flagImage;
 
 
+__attribute__((noinline)) // crashes
 __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
@@ -131,7 +133,7 @@ static void quit(int status, const char *message, ...)
 	if (graphics)
 		windowGuiStop();
 
-	if (status < 0)
+	if ((status < 0) && message)
 		error(_("%s  Quitting."), output);
 
 	if (graphics && window)
@@ -150,8 +152,9 @@ static int rebootNow(void)
 
 	if (graphics)
 	{
-		response = windowNewChoiceDialog(window, _("Reboot?"), _(rebootQuestion),
-			(char *[]) { _("Reboot"), _("Continue") }, 2, 0);
+		response = windowNewChoiceDialog(window, _("Reboot?"),
+			_(rebootQuestion), (char *[]) { _("Reboot"), _("Continue") },
+			2, 0);
 		if (response == 0)
 			return (1);
 		else
@@ -165,12 +168,6 @@ static int rebootNow(void)
 		while (1)
 		{
 			character = getchar();
-			if (errno)
-			{
-				// Eek.  We can't get input.  Quit.
-				textInputSetEcho(1);
-				return (0);
-			}
 
 			if ((character == 'y') || (character == 'Y'))
 			{
@@ -193,7 +190,7 @@ static void doEject(void)
 {
 	static disk sysDisk;
 
-	bzero(&sysDisk, sizeof(disk));
+	memset(&sysDisk, 0, sizeof(disk));
 
 	if (fileGetDisk("/", &sysDisk) >= 0)
 	{
@@ -253,38 +250,44 @@ static void refreshWindow(void)
 	char title[80];
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("imgboot");
 
 	// Refresh the 'copyright' label
-	windowComponentSetData(copyrightLabel, COPYRIGHT, strlen(COPYRIGHT));
+	windowComponentSetData(copyrightLabel, COPYRIGHT, strlen(COPYRIGHT),
+		1 /* redraw */);
 
 	// Refresh the 'gpl' label
-	windowComponentSetData(gplLabel, GPL, strlen(GPL));
+	windowComponentSetData(gplLabel, GPL, strlen(GPL), 1 /* redraw */);
 
 	if (haveInstall)
 	{
 		// Refresh the 'install' label
-		windowComponentSetData(instLabel, INSTALLQUEST,	strlen(INSTALLQUEST));
+		windowComponentSetData(instLabel, INSTALLQUEST,	strlen(INSTALLQUEST),
+			1 /* redraw */);
 
 		// Refresh the 'install' button
-		windowComponentSetData(instButton, INSTALL, strlen(INSTALL));
+		windowComponentSetData(instButton, INSTALL, strlen(INSTALL),
+			1 /* redraw */);
 	}
 
 	// Refresh the 'continue' button
-	windowComponentSetData(contButton, CONTINUE, strlen(CONTINUE));
+	windowComponentSetData(contButton, CONTINUE, strlen(CONTINUE),
+		1 /* redraw */);
 
 	if (langButton)
 	{
 		// Refresh the 'language' button
 		if (flagImage.data)
 			imageFree(&flagImage);
-		if (loadFlagImage(getenv("LANG"), &flagImage) >= 0)
-			windowComponentSetData(langButton, &flagImage, sizeof(image));
+		if (loadFlagImage(getenv(ENV_LANG), &flagImage) >= 0)
+			windowComponentSetData(langButton, &flagImage, sizeof(image),
+				1 /* redraw */);
 	}
 
 	// Refresh the 'go away' checkbox
-	windowComponentSetData(goAwayCheckbox, DONTASK, strlen(DONTASK));
+	windowComponentSetData(goAwayCheckbox, DONTASK, strlen(DONTASK),
+		1 /* redraw */);
 
 	// Refresh the window title
 	getVersion(versionString, sizeof(versionString));
@@ -299,7 +302,7 @@ static void chooseLanguage(void)
 
 	if (windowNewLanguageDialog(window, pickedLanguage) >= 0)
 	{
-		setenv("LANG", pickedLanguage, 1);
+		setenv(ENV_LANG, pickedLanguage, 1);
 		refreshWindow();
 	}
 }
@@ -360,10 +363,10 @@ static void constructWindow(void)
 
 	// Create a new window
 	window = windowNew(processId, title);
-	if (window == NULL)
+	if (!window)
 		quit(ERR_NOCREATE, "%s", _("Can't create window!"));
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padTop = 5;
@@ -375,7 +378,8 @@ static void constructWindow(void)
 
 	params.gridY += 1;
 	if (fileFind(PATH_SYSTEM_FONTS "/arial-bold-10.vbf", NULL) >= 0)
-		fontLoad("arial-bold-10.vbf", "arial-bold-10", &(params.font), 0);
+		fontLoadSystem("arial-bold-10.vbf", "arial-bold-10",
+			&(params.font), 0);
 	gplLabel = windowNewTextLabel(window, GPL, &params);
 
 	params.orientationX = orient_center;
@@ -413,8 +417,8 @@ static void constructWindow(void)
 		{
 			params.gridX += 1;
 			params.orientationX = orient_left;
-			if (getenv("LANG"))
-				status = loadFlagImage(getenv("LANG"), &flagImage);
+			if (getenv(ENV_LANG))
+				status = loadFlagImage(getenv(ENV_LANG), &flagImage);
 			else
 				status = loadFlagImage("en", &flagImage);
 			if (status >= 0)
@@ -445,13 +449,15 @@ static void constructWindow(void)
 
 static inline void changeStartProgram(void)
 {
-	configSet(PATH_SYSTEM_CONFIG "/kernel.conf", "start.program", LOGINPROGRAM);
+	configSet(PATH_SYSTEM_CONFIG "/kernel.conf", "start.program",
+		LOGINPROGRAM);
 }
 
 
 __attribute__((noreturn))
 int main(int argc, char *argv[])
 {
+	char opt;
 	disk sysDisk;
 	int numOptions = 0;
 	int defOption = 0;
@@ -461,7 +467,7 @@ int main(int argc, char *argv[])
 	char *optionStrings[3] = { NULL, NULL, NULL };
 	int selected = 0;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("imgboot");
 
 	processId = multitaskerGetCurrentProcessId();
@@ -474,12 +480,23 @@ int main(int argc, char *argv[])
 		quit(ERR_PERMISSION, "%s", _("This program can only be run as a "
 			"privileged user.\n(Try logging in as user \"admin\")."));
 
-	if (getopt(argc, argv, "T") == 'T')
-		// Force text mode
-		graphics = 0;
+	// Check options
+	while (strchr("T?", (opt = getopt(argc, argv, "T"))))
+	{
+		switch (opt)
+		{
+			case 'T':
+				// Force text mode
+				graphics = 0;
+				break;
+
+			default:
+				quit(ERR_INVALID, _("Unknown option '%c'"), optopt);
+		}
+	}
 
 	// Find out whether we are currently running on a read-only filesystem
-	bzero(&sysDisk, sizeof(disk));
+	memset(&sysDisk, 0, sizeof(disk));
 	if (!fileGetDisk(PATH_SYSTEM, &sysDisk))
 		readOnly = sysDisk.readOnly;
 
@@ -544,7 +561,9 @@ int main(int argc, char *argv[])
 				"options"), optionStrings, numOptions, defOption);
 		}
 		else
+		{
 			selected = defOption;
+		}
 
 		if (selected < 0)
 		{

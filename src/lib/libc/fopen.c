@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -76,7 +76,7 @@ FILE *fopen(const char *fileName, const char *mode)
 	}
 
 	// Check params
-	if ((fileName == NULL) || (mode == NULL))
+	if (!fileName || !mode)
 	{
 		errno = ERR_NULLPARAMETER;
 		return (theStream = NULL);
@@ -88,10 +88,12 @@ FILE *fopen(const char *fileName, const char *mode)
 		flags |= OPENMODE_READWRITE;
 	else if (strchr(mode, 'r'))
 		flags |= OPENMODE_READ;
+
 	if (strstr(mode, "w+"))
 		flags |= (OPENMODE_READWRITE | OPENMODE_CREATE | OPENMODE_TRUNCATE);
 	else if (strchr(mode, 'w'))
 		flags |= (OPENMODE_WRITE | OPENMODE_CREATE | OPENMODE_TRUNCATE);
+
 	if (strstr(mode, "a+"))
 	{
 		flags |= (OPENMODE_READWRITE | OPENMODE_CREATE);
@@ -105,13 +107,13 @@ FILE *fopen(const char *fileName, const char *mode)
 
 	// Get memory for the file stream
 	theStream = malloc(sizeof(fileStream));
-	if (theStream == NULL)
+	if (!theStream)
 	{
 		errno = ERR_MEMORY;
 		return (theStream);
 	}
 
-	bzero(theStream, sizeof(fileStream));
+	memset(theStream, 0, sizeof(fileStream));
 	status = fileStreamOpen(fileName, flags, theStream);
 	if (status < 0)
 	{
@@ -120,10 +122,10 @@ FILE *fopen(const char *fileName, const char *mode)
 		return (theStream = NULL);
 	}
 
-	// If we're writing, and not appending, seek to the beginning of the file,
-	// since the fileStreamOpen() call is automatically in 'append' mode
+	// If we're only writing, and not appending, seek to the beginning of the
+	// file, since the fileStreamOpen() call is automatically in 'append' mode
 	// when the mode is write-only.
-	if ((flags & OPENMODE_WRITE) && !append)
+	if (OPENMODE_ISWRITEONLY(flags) && !append)
 	{
 		status = fileStreamSeek(theStream, 0);
 		if (status < 0)
@@ -137,3 +139,4 @@ FILE *fopen(const char *fileName, const char *mode)
 
 	return ((FILE *) theStream);
 }
+

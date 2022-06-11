@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,6 +53,7 @@ choices for the first hard disk, hd0.
 #include <string.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 #include <sys/vsh.h>
 
@@ -64,7 +65,7 @@ choices for the first hard disk, hd0.
 #define VBM_MAGIC			"VBM2"
 #define SLICESTRING_LENGTH	60
 #define TITLE				_("Visopsys Boot Menu Installer\n" \
-	"Copyright (C) 1998-2014 J. Andrew McLaughlin")
+	"Copyright (C) 1998-2015 J. Andrew McLaughlin")
 #define PERM				_("You must be a privileged user to use this " \
 	"command.\n(Try logging in as user \"admin\")")
 #define PARTITIONS			_("Partitions on the disk:")
@@ -190,8 +191,10 @@ static void refreshList(void)
 				entryArray->entries[count].string);
 
 		windowComponentSetData(entryList, entryParams,
-			entryArray->numberEntries);
-		windowComponentSetEnabled(deleteButton, (entryArray->numberEntries > 1));
+			entryArray->numberEntries, 1 /* redraw */);
+
+		windowComponentSetEnabled(deleteButton,
+			(entryArray->numberEntries > 1));
 	}
 }
 
@@ -213,10 +216,10 @@ static void editEntryLabel(int entryNumber)
 	{
 		// Create the dialog
 		dialogWindow = windowNewDialog(window, _("Edit entry label"));
-		if (dialogWindow == NULL)
+		if (!dialogWindow)
 			return;
 
-		bzero(&params, sizeof(componentParameters));
+		memset(&params, 0, sizeof(componentParameters));
 		params.gridWidth = 2;
 		params.gridHeight = 1;
 		params.padLeft = 5;
@@ -224,8 +227,8 @@ static void editEntryLabel(int entryNumber)
 		params.padTop = 5;
 		params.orientationX = orient_left;
 		params.orientationY = orient_middle;
-		windowNewTextLabel(dialogWindow, entryArray->entries[entryNumber].string,
-			&params);
+		windowNewTextLabel(dialogWindow,
+			entryArray->entries[entryNumber].string, &params);
 
 		params.gridY = 1;
 		newLabelField =
@@ -254,7 +257,7 @@ static void editEntryLabel(int entryNumber)
 		{
 			// Check for the OK button
 			if (((windowComponentEventGet(newLabelField, &event) > 0) &&
-				(event.key == (unsigned char) ASCII_ENTER) &&
+				(event.key == keyEnter) &&
 				(event.type == EVENT_KEY_DOWN)) ||
 				((windowComponentEventGet(okBut, &event) > 0) &&
 					(event.type == EVENT_MOUSE_LEFTUP)))
@@ -276,7 +279,8 @@ static void editEntryLabel(int entryNumber)
 			multitaskerYield();
 		}
 
-		windowComponentGetData(newLabelField, string, (SLICESTRING_LENGTH - 1));
+		windowComponentGetData(newLabelField, string,
+			(SLICESTRING_LENGTH - 1));
 
 		windowDestroy(dialogWindow);
 	}
@@ -340,15 +344,15 @@ static void deleteEntryLabel(int entryNumber)
 {
 	int count;
 
-	bzero(&entryArray->entries[entryNumber], sizeof(entryStruct));
+	memset(&entryArray->entries[entryNumber], 0, sizeof(entryStruct));
 
 	entryArray->numberEntries -= 1;
 
 	if (entryNumber < entryArray->numberEntries)
 	{
 		for (count = entryNumber; count < entryArray->numberEntries; count ++)
-			memcpy(&entryArray->entries[count], &entryArray->entries[count + 1],
-				sizeof(entryStruct));
+			memcpy(&entryArray->entries[count],
+				&entryArray->entries[count + 1], sizeof(entryStruct));
 	}
 
 	refreshList();
@@ -362,7 +366,7 @@ static int getLogicalDisks(disk *physicalDisk)
 	int count;
 
 	logicalDisks = malloc(tmpNumberLogical * sizeof(disk));
-	if (logicalDisks == NULL)
+	if (!logicalDisks)
 	{
 		error("%s", _("Can't get memory for the logical disk list"));
 		return (status = ERR_MEMORY);
@@ -407,7 +411,7 @@ static int readBootMenu(file *theFile)
 	}
 
 	buffer = malloc(theFile->blocks * theFile->blockSize);
-	if (buffer == NULL)
+	if (!buffer)
 	{
 		error("%s", _("Can't get buffer memory"));
 		return (status = ERR_MEMORY);
@@ -434,7 +438,7 @@ static void getOldEntries(disk *physicalDisk, entryStructArray *oldEntries)
 	entryStructArray *tmpEntries = NULL;
 	char *buf = NULL;
 
-	bzero(oldEntries, sizeof(entryStructArray));
+	memset(oldEntries, 0, sizeof(entryStructArray));
 
 	buf = malloc(physicalDisk->sectorSize);
 	if (!buf)
@@ -499,36 +503,41 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("bootmenu");
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
 
 	// Refresh the 'partitions' label
-	windowComponentSetData(partitionsLabel, PARTITIONS, strlen(PARTITIONS));
+	windowComponentSetData(partitionsLabel, PARTITIONS, strlen(PARTITIONS),
+		1 /* redraw */);
 
 	// Refresh the 'entries' label
-	windowComponentSetData(entriesLabel, ENTRIES, strlen(ENTRIES));
+	windowComponentSetData(entriesLabel, ENTRIES, strlen(ENTRIES),
+		1 /* redraw */);
 
 	// Refresh the 'edit' button
-	windowComponentSetData(editButton, EDIT, strlen(EDIT));
+	windowComponentSetData(editButton, EDIT, strlen(EDIT), 1 /* redraw */);
 
 	// Refresh the 'default' button
-	windowComponentSetData(defaultButton, DEFAULT, strlen(DEFAULT));
+	windowComponentSetData(defaultButton, DEFAULT, strlen(DEFAULT),
+		1 /* redraw */);
 
 	// Refresh the 'delete' button
-	windowComponentSetData(deleteButton, DELETE, strlen(DELETE));
+	windowComponentSetData(deleteButton, DELETE, strlen(DELETE),
+		1 /* redraw */);
 
 	// Refresh the 'automatic boot' checkbox
 	windowComponentSetData(timeoutCheckbox, AUTOMATICALLY,
-		strlen(AUTOMATICALLY));
+		strlen(AUTOMATICALLY), 1 /* redraw */);
 
 	// Refresh the 'ok' button
-	windowComponentSetData(okButton, OK, strlen(OK));
+	windowComponentSetData(okButton, OK, strlen(OK), 1 /* redraw */);
 
 	// Refresh the 'cancel' button
-	windowComponentSetData(cancelButton, CANCEL, strlen(CANCEL));
+	windowComponentSetData(cancelButton, CANCEL, strlen(CANCEL),
+		1 /* redraw */);
 }
 
 
@@ -603,10 +612,10 @@ static void constructWindow(void)
 
 	// Create a new window, with small, arbitrary size and location
 	window = windowNew(processId, WINDOW_TITLE);
-	if (window == NULL)
+	if (!window)
 		return;
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padTop = 10;
@@ -630,7 +639,7 @@ static void constructWindow(void)
 
 	params.gridY = 3;
 	params.gridHeight = 3;
-	bzero(&entryParams, (DISK_MAX_PRIMARY_PARTITIONS *
+	memset(&entryParams, 0, (DISK_MAX_PRIMARY_PARTITIONS *
 			 sizeof(listItemParameters)));
 	for (count = 0; count < entryArray->numberEntries; count ++)
 		sprintf(entryParams[count].text, "%s%s",
@@ -658,7 +667,8 @@ static void constructWindow(void)
 	params.gridX = 0;
 	params.gridY = 6;
 	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
-	timeoutContainer = windowNewContainer(window, "timeout container", &params);
+	timeoutContainer = windowNewContainer(window, "timeout container",
+		&params);
 
 	params.gridX = 0;
 	params.gridY = 0;
@@ -671,7 +681,8 @@ static void constructWindow(void)
 	params.gridX = 1;
 	timeoutValueField = windowNewTextField(timeoutContainer, 4, &params);
 	sprintf(tmp, "%d", entryArray->timeoutSeconds);
-	windowComponentSetData(timeoutValueField, tmp, strlen(tmp));
+	windowComponentSetData(timeoutValueField, tmp, strlen(tmp),
+		1 /* redraw */);
 
 	params.gridX = 0;
 	params.gridY = 7;
@@ -766,7 +777,7 @@ int main(int argc, char *argv[])
 	textAttrs attrs;
 	int count1, count2;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("bootmenu");
 
 	if (argc != 2)
@@ -776,7 +787,7 @@ int main(int argc, char *argv[])
 		return (status = -1);
 	}
 
-	bzero(&attrs, sizeof(textAttrs));
+	memset(&attrs, 0, sizeof(textAttrs));
 
 	// Are graphics enabled?
 	graphics = graphicsAreEnabled();
@@ -794,7 +805,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Get the disk specified by the name
-	bzero(&theDisk, sizeof(disk));
+	memset(&theDisk, 0, sizeof(disk));
 	status = diskGet(argv[1], &theDisk);
 	if (status < 0)
 	{
@@ -820,7 +831,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Read the boot menu file into memory
-	bzero(&theFile, sizeof(file));
+	memset(&theFile, 0, sizeof(file));
 	status = readBootMenu(&theFile);
 	if (status < 0)
 	{
@@ -832,7 +843,7 @@ int main(int argc, char *argv[])
 	entryArray = (entryStructArray *)(buffer + 4);
 
 	// Clear the entries
-	bzero(entryArray, sizeof(entryStructArray));
+	memset(entryArray, 0, sizeof(entryStructArray));
 	entryArray->timeoutSeconds = DEFAULTTIMEOUT;
 
 	// Is there an existing boot menu on the disk?
@@ -865,10 +876,15 @@ int main(int argc, char *argv[])
 			}
 
 			if (oldEntry)
+			{
 				strncpy(string, oldEntry->string, SLICESTRING_LENGTH);
+			}
 			else
+			{
 				sprintf(string, _("\"%s\" [Filesystem: %s]"),
-					logicalDisks[count1].partType, logicalDisks[count1].fsType);
+					logicalDisks[count1].partType,
+						logicalDisks[count1].fsType);
+			}
 
 			// Set the string
 			setEntryString(entryArray->numberEntries, string);

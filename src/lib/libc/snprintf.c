@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -37,7 +37,7 @@ int snprintf(char *output, size_t size, const char *format, ...)
 	va_list list;
 	int len = 0;
 
-	bzero(output, size);
+	memset(output, 0, size);
 
 	// Initialize the argument list
 	va_start(list, format);
@@ -50,3 +50,4 @@ int snprintf(char *output, size_t size, const char *format, ...)
 	// Return the number of characters we wrote to the string
 	return (len);
 }
+

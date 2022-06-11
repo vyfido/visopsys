@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -128,7 +128,7 @@ _X_ void vshCompleteFilename(char *buffer)
 	// Now, prefixPath must have something in it.  Preferably this is the
 	// name of the last directory of the path we're searching.  Try to look
 	// it up
-	bzero(&aFile, sizeof(file));
+	memset(&aFile, 0, sizeof(file));
 	status = fileFind(prefixPath, &aFile);
 	if (status < 0)
 	{

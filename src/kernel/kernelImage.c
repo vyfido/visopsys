@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,12 +25,13 @@
 #include "kernelImage.h"
 #include "kernelDebug.h"
 #include "kernelError.h"
+#include "kernelGraphic.h"
 #include "kernelLoader.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
-#include "kernelMisc.h"
 #include "kernelParameters.h"
 #include <stdlib.h>
+#include <string.h>
 
 extern color kernelDefaultBackground;
 
@@ -75,7 +76,7 @@ static int imageCopy(image *srcImage, image *destImage, int kernel)
 	int status = 0;
 
 	// Copy the image structure
-	kernelMemCopy(srcImage, destImage, sizeof(image));
+	memcpy(destImage, srcImage, sizeof(image));
 
 	// Get new memory
 	if (kernel)
@@ -84,22 +85,26 @@ static int imageCopy(image *srcImage, image *destImage, int kernel)
 		destImage->isMalloc = 1;
 	}
 	else
+	{
 		destImage->data = kernelMemoryGet(destImage->dataLength, "image data");
+	}
 
-	if (destImage->data == NULL)
+	if (!destImage->data)
 		return (status = ERR_MEMORY);
 
 	// Copy the data
-	kernelMemCopy(srcImage->data, destImage->data, destImage->dataLength);
+	memcpy(destImage->data, srcImage->data, destImage->dataLength);
 
-	// Make a copy of the alpha data, if it exists
+	// Make a copy of the alpha channel data, if it exists
 	if (srcImage->alpha)
 	{
 		destImage->alpha = kernelMalloc(destImage->pixels * sizeof(float));
 		if (destImage->alpha)
+		{
 			// Copy the data
-			kernelMemCopy(srcImage->alpha, destImage->alpha,
+			memcpy(destImage->alpha, srcImage->alpha,
 				(destImage->pixels * sizeof(float)));
+		}
 	}
 
 	return (status = 0);
@@ -114,7 +119,6 @@ static int imageCopy(image *srcImage, image *destImage, int kernel)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelImageNew(image *blankImage, unsigned width, unsigned height)
 {
 	// This allocates a new image of the specified size, with the default
@@ -128,7 +132,7 @@ int kernelImageNew(image *blankImage, unsigned width, unsigned height)
 	if (!blankImage)
 		return (status = ERR_NULLPARAMETER);
 
-	kernelMemClear(blankImage, sizeof(image));
+	memset(blankImage, 0, sizeof(image));
 	blankImage->type = IMAGETYPE_COLOR;
 	blankImage->pixels = (width * height);
 	blankImage->width = width;
@@ -160,7 +164,7 @@ int kernelImageFree(image *freeImage)
 	int status = 0;
 
 	// Check parameters
-	if (freeImage == NULL)
+	if (!freeImage)
 		return (status = ERR_NULLPARAMETER);
 
 	if (freeImage->data)
@@ -192,20 +196,20 @@ int kernelImageLoad(const char *fileName, unsigned reqWidth,
 	kernelFileClass *fileClassDriver = NULL;
 
 	// Check params
-	if ((fileName == NULL) || (loadImage == NULL))
+	if (!fileName || !loadImage)
 		return (status = ERR_NULLPARAMETER);
 
-	kernelMemClear(loadImage, sizeof(image));
+	memset(loadImage, 0, sizeof(image));
 
 	// Load the image file into memory
 	imageFileData = kernelLoaderLoad(fileName, &theFile);
-	if (imageFileData == NULL)
+	if (!imageFileData)
 		return (status = ERR_NOSUCHENTRY);
 
 	// Get the file class of the file.
 	fileClassDriver = kernelLoaderClassify(fileName, imageFileData,
 		theFile.size, &loaderClass);
-	if (fileClassDriver == NULL)
+	if (!fileClassDriver)
 	{
 		kernelError(kernel_error, "File type of %s is unknown", fileName);
 		status = ERR_INVALID;
@@ -258,7 +262,7 @@ int kernelImageSave(const char *fileName, int format, image *saveImage)
 	kernelFileClass *fileClassDriver = NULL;
 
 	// Check params
-	if ((fileName == NULL) || (saveImage == NULL))
+	if (!fileName || !saveImage)
 		return (status = ERR_NULLPARAMETER);
 
 	switch (format)
@@ -267,22 +271,33 @@ int kernelImageSave(const char *fileName, int format, image *saveImage)
 			fileClassName = FILECLASS_NAME_BMP;
 			break;
 
+		case IMAGEFORMAT_ICO:
+			fileClassName = FILECLASS_NAME_ICO;
+			break;
+
+		case IMAGEFORMAT_JPG:
+			fileClassName = FILECLASS_NAME_JPG;
+			break;
+
 		default:
 			kernelError(kernel_error, "Image format %d is unknown", format);
 			return (status = ERR_NULLPARAMETER);
-			break;
 	}
 
 	// Get the file class for the specified format
 	fileClassDriver = kernelLoaderGetFileClass(fileClassName);
-	if (fileClassDriver == NULL)
+	if (!fileClassDriver)
 		return (status = ERR_INVALID);
 
-	// Call the appropriate 'save' function
-	if (fileClassDriver->image.save)
-		return (fileClassDriver->image.save(fileName, saveImage));
-	else
+	if (!fileClassDriver->image.save)
+	{
+		kernelError(kernel_error, "Saving as type \"%s\" is not supported",
+			fileClassName);
 		return (status = ERR_NOTIMPLEMENTED);
+	}
+
+	// Call the appropriate 'save' function
+	return (fileClassDriver->image.save(fileName, saveImage));
 }
 
 
@@ -312,7 +327,7 @@ int kernelImageResize(image *resizeImage, unsigned width, unsigned height)
 	int kernImage = 0;
 
 	// Check parameters
-	if (resizeImage == NULL)
+	if (!resizeImage)
 		return (status = ERR_NULLPARAMETER);
 
 	if ((resizeImage->width == width) && (resizeImage->height == height))
@@ -326,7 +341,7 @@ int kernelImageResize(image *resizeImage, unsigned width, unsigned height)
 	if (resizeImage->alpha)
 	{
 		newImage.alpha = kernelMalloc(newImage.pixels * sizeof(float));
-		if (newImage.alpha == NULL)
+		if (!newImage.alpha)
 			return (status = ERR_MEMORY);
 	}
 
@@ -371,7 +386,8 @@ int kernelImageResize(image *resizeImage, unsigned width, unsigned height)
 			{
 				srcAlpha[0] = &resizeImage->alpha[srcIndex];
 				srcAlpha[1] = &resizeImage->alpha[srcIndex + 1];
-				srcAlpha[2] = &resizeImage->alpha[srcIndex + resizeImage->width];
+				srcAlpha[2] =
+					&resizeImage->alpha[srcIndex + resizeImage->width];
 				srcAlpha[3] =
 					&resizeImage->alpha[srcIndex + resizeImage->width + 1];
 
@@ -382,7 +398,9 @@ int kernelImageResize(image *resizeImage, unsigned width, unsigned height)
 				// For now we only use alpha channel values of 0 or 1, so do
 				// simple rounding.
 				if (newImage.alpha[destIndex] > 0.5)
+				{
 					newImage.alpha[destIndex] = 1.0;
+				}
 				else
 				{
 					newImage.alpha[destIndex] = 0;
@@ -390,8 +408,10 @@ int kernelImageResize(image *resizeImage, unsigned width, unsigned height)
 				}
 			}
 			else
+			{
 				bilinearInterpolation(distanceX, distanceY, srcArea, NULL,
 					&destPixels[destIndex], NULL);
+			}
 		}
 	}
 
@@ -409,7 +429,9 @@ int kernelImageResize(image *resizeImage, unsigned width, unsigned height)
 		kernelImageFree(&newImage);
 	}
 	else
-		kernelMemCopy(&newImage, resizeImage, sizeof(image));
+	{
+		memcpy(resizeImage, &newImage, sizeof(image));
+	}
 
 	return (status = 0);
 }
@@ -431,7 +453,8 @@ int kernelImageCopy(image *srcImage, image *destImage)
 
 int kernelImageCopyToKernel(image *srcImage, image *destImage)
 {
-	// Given an image, make a copy of it using globally-accessible kernel memory
+	// Given an image, make a copy of it using globally-accessible kernel
+	// memory
 
 	int status = 0;
 
@@ -440,6 +463,70 @@ int kernelImageCopyToKernel(image *srcImage, image *destImage)
 		return (status = ERR_NULLPARAMETER);
 
 	return (status = imageCopy(srcImage, destImage, 1));
+}
+
+
+int kernelImageFill(image *fillImage, color *fillColor)
+{
+	// Given an image, fill it with the given color
+
+	int status = 0;
+	pixel *p = NULL;
+	unsigned count;
+
+	// Check parameters
+	if (!fillImage || !fillColor)
+		return (status = ERR_NULLPARAMETER);
+
+	p = fillImage->data;
+	for (count = 0; count < fillImage->pixels; count ++)
+	{
+		p[count].red = fillColor->red;
+		p[count].green = fillColor->green;
+		p[count].blue = fillColor->blue;
+	}
+
+	return (status = 0);
+}
+
+
+int kernelImagePaste(image *srcImage, image *destImage, int xCoord, int yCoord)
+{
+	// Given source and destination images, paste the source into the
+	// destination at the given X and Y coordinates.
+
+	int status = 0;
+	void *srcPixel = 0;
+	void *destPixel = 0;
+	int maxLines = 0;
+	int lineWidth = 0;
+	int lineCount;
+
+	// Check parameters
+	if (!srcImage || !destImage)
+		return (status = ERR_NULLPARAMETER);
+
+	if (xCoord < 0)
+		xCoord = 0;
+	if (yCoord < 0)
+		yCoord = 0;
+
+	srcPixel = srcImage->data;
+	destPixel = (destImage->data + (((yCoord * destImage->width) + xCoord) *
+		sizeof(pixel)));
+
+	maxLines = min(srcImage->height, (destImage->height - yCoord));
+	lineWidth = min(srcImage->width, (destImage->width - xCoord));
+
+	for (lineCount = 0; lineCount < maxLines; lineCount ++)
+	{
+		memcpy(destPixel, srcPixel, (lineWidth * sizeof(pixel)));
+
+		srcPixel += (srcImage->width * sizeof(pixel));
+		destPixel += (destImage->width * sizeof(pixel));
+	}
+
+	return (status = 0);
 }
 
 
@@ -455,7 +542,7 @@ int kernelImageGetAlpha(image *alphaImage)
 	unsigned count;
 
 	alphaImage->alpha = kernelMalloc(alphaImage->pixels * sizeof(float));
-	if (alphaImage->alpha == NULL)
+	if (!alphaImage->alpha)
 		return (status = ERR_MEMORY);
 
 	// Calculate it.
@@ -464,8 +551,10 @@ int kernelImageGetAlpha(image *alphaImage)
 	a = alphaImage->alpha;
 
 	for (count = 0; count < alphaImage->pixels; count ++)
+	{
 		if (!PIXELS_EQ(&p[count], &alphaImage->transColor))
 			a[count] = 1.0;
+	}
 
 	return (status = 0);
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,16 +24,16 @@
 #include "kernelDriver.h" // Contains my prototypes
 #include "kernelCpu.h"
 #include "kernelDebug.h"
+#include "kernelDevice.h"
 #include "kernelError.h"
 #include "kernelInterrupt.h"
 #include "kernelKeyboard.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelPic.h"
-#include "kernelProcessorX86.h"
 #include <string.h>
+#include <sys/processor.h>
 #include <sys/window.h>
 
 #define KEYTIMEOUT			20 // ms
@@ -83,7 +83,7 @@ static inline int isData(void)
 
 	unsigned char status = 0;
 
-	kernelProcessorInPort8(0x64, status);
+	processorInPort8(0x64, status);
 
 	if ((status & 0x21) == 0x01)
 		return (1);
@@ -107,15 +107,15 @@ static int inPort60(unsigned char *data)
 	{
 		if (isData())
 		{
-			kernelProcessorInPort8(0x60, *data);
+			processorInPort8(0x60, *data);
 			return (0);
 		}
 
-		kernelProcessorDelay();
+		processorDelay();
 		currTime = kernelCpuGetMs();
 	}
 
-	kernelProcessorInPort8(0x64, status);
+	processorInPort8(0x64, status);
 	kernelError(kernel_error, "Timeout reading port 60, port 64=%02x", status);
 	return (ERR_TIMEOUT);
 }
@@ -131,7 +131,7 @@ static int waitControllerReady(void)
 
 	while (currTime <= endTime)
 	{
-		kernelProcessorInPort8(0x64, status);
+		processorInPort8(0x64, status);
 
 		if (!(status & 0x02))
 			return (0);
@@ -153,7 +153,7 @@ static int waitCommandReceived(void)
 
 	while (currTime <= endTime)
 	{
-		kernelProcessorInPort8(0x64, status);
+		processorInPort8(0x64, status);
 
 		if (status & 0x08)
 			return (0);
@@ -178,7 +178,7 @@ static int outPort60(unsigned char data)
 	if (status < 0)
 		return (status);
 
-	kernelProcessorOutPort8(0x60, data);
+	processorOutPort8(0x60, data);
 
 	return (status = 0);
 }
@@ -195,7 +195,7 @@ static int outPort64(unsigned char data)
 	if (status < 0)
 		return (status);
 
-	kernelProcessorOutPort8(0x64, data);
+	processorOutPort8(0x64, data);
 
 	// Wait until the controller believes it has received it.
 	status = waitCommandReceived();
@@ -412,14 +412,14 @@ static void interrupt(void)
 
 	void *address = NULL;
 
-	kernelProcessorIsrEnter(address);
+	processorIsrEnter(address);
 	kernelInterruptSetCurrent(INTERRUPT_NUM_KEYBOARD);
 
 	kernelDebug(debug_io, "Ps2Key keyboard interrupt");
 	readData();
 
 	kernelInterruptClearCurrent();
-	kernelProcessorIsrExit(address);
+	processorIsrExit(address);
 }
 
 
@@ -433,7 +433,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	unsigned char flags;
 	kernelDevice *dev = NULL;
 
-	kernelMemClear(&keyboard, sizeof(kernelKeyboard));
+	memset(&keyboard, 0, sizeof(kernelKeyboard));
 	keyboard.type = keyboard_ps2;
 
 	kernelDebug(debug_io, "Ps2Key get flags data from BIOS");

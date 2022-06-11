@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -47,15 +47,15 @@
 
 ;; Disk cmd packet for ext. int13
 %define DISKPACKET		(CYLINDER + CYLINDER_SZ)
-%define DISKPACKET_SZ		(BYTE * 16)
+%define DISKPACKET_SZ	(BYTE * 16)
 
 ;; Space for the partition table entry
 %define PARTENTRY		(DISKPACKET + DISKPACKET_SZ)
-%define PARTENTRY_SZ		(BYTE * 16)
+%define PARTENTRY_SZ	(BYTE * 16)
 
 main:
-	jmp short bootCode			; 00 - 01 Jump instruction
-	nop					; 02 - 02 No op
+	jmp short bootCode				; 00 - 01 Jump instruction
+	nop								; 02 - 02 No op
 
 	%include "bootsect-fatBPB.s"
 
@@ -103,7 +103,7 @@ bootCode:
 	%include "bootsect-diskparms.s"
 
 	push word [LOADERNUMSECTORS]
-	push word 0				; Offset where we'll move it
+	push word 0						; Offset where we'll move it
 	push word (LDRCODESEGMENTLOCATION / 16)	; Segment where we'll move it
 	push dword [LOADERSTARTSECTOR]
 	call read
@@ -121,14 +121,14 @@ bootCode:
 	%include "bootsect-read.s"
 
 
-IOERR			db 'Error reading OS loader', 0Dh, 0Ah
-			db 'Press any key to continue', 0Dh, 0Ah, 0
+IOERR				db 'Error reading OS loader', 0Dh, 0Ah
+					db 'Press any key to continue', 0Dh, 0Ah, 0
 
 times (498-($-$$))	db 0
 
 ;; This is the boot sector signature, to help the kernel find the root
 ;; filesystem.
-BOOTSECTSIG		dd 0
+BOOTSECTSIG			dd 0
 
 ;; The installation process will record the logical starting sector of
 ;; the loader, and number of sectors to read, here.
@@ -139,4 +139,5 @@ LOADERNUMSECTORS	dd 0
 ;; sector.  The BIOS uses this to determine whether this sector was
 ;; meant to be booted from (and also helps prevent us from making the
 ;; boot sector code larger than 512 bytes)
-ENDSECTOR		dw 0AA55h
+ENDSECTOR			dw 0AA55h
+

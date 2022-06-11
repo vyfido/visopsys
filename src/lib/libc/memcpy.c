@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,24 +23,7 @@
 
 #include <string.h>
 #include <errno.h>
-
-#define copyBytes(src, dest, count)		\
-	__asm__ __volatile__ ("pushal \n\t"	\
-		"pushfl \n\t"					\
-		"cld \n\t"						\
-		"rep movsb \n\t"				\
-		"popfl \n\t"					\
-		"popal"							\
-		: : "S" (src), "D" (dest), "c" (count))
-
-#define copyDwords(src, dest, count)	\
-	__asm__ __volatile__ ("pushal \n\t"	\
-		"pushfl \n\t"					\
-		"cld \n\t"						\
-		"rep movsl \n\t"				\
-		"popfl \n\t"					\
-		"popal"							\
-		: : "S" (src), "D" (dest), "c" (count))
+#include <sys/processor.h>
 
 
 void *memcpy(void *dest, const void *src, size_t bytes)
@@ -52,16 +35,25 @@ void *memcpy(void *dest, const void *src, size_t bytes)
 	unsigned dwords = (bytes >> 2);
 
 	// Check params
-	if ((src == NULL) || (dest == NULL))
+	if (!src || !dest)
 	{
 		errno = ERR_NULLPARAMETER;
 		return (NULL);
 	}
 
-	if (((unsigned) src % 4) || ((unsigned) dest % 4) || (bytes % 4))
-		copyBytes(src, dest, bytes);
-	else
-		copyDwords(src, dest, dwords);
+	if (bytes)
+	{
+		if (!dwords || ((unsigned) src % 4) || ((unsigned) dest % 4) ||
+			(bytes % 4))
+		{
+			processorCopyBytes(src, dest, bytes);
+		}
+		else
+		{
+			processorCopyDwords(src, dest, dwords);
+		}
+	}
 
 	return (dest);
 }
+

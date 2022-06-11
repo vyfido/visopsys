@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,52 +17,52 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: copy-mbr.c:69
+#: copy-mbr.c:70
 #, c-format
 msgid ""
 "usage:\n"
 "%s <MBR image> <output device>\n"
 msgstr ""
 
-#: copy-mbr.c:79
+#: copy-mbr.c:80
 #, c-format
 msgid "Read MBR sector from %s\n"
 msgstr ""
 
-#: copy-mbr.c:87
+#: copy-mbr.c:88
 #, c-format
 msgid "Error reading disk %s\n"
 msgstr ""
 
-#: copy-mbr.c:97
+#: copy-mbr.c:98
 #, c-format
 msgid "Error opening file %s\n"
 msgstr ""
 
-#: copy-mbr.c:108
+#: copy-mbr.c:109
 #, c-format
 msgid "Error reading file %s\n"
 msgstr ""
 
-#: copy-mbr.c:114
+#: copy-mbr.c:115
 #, c-format
 msgid "Could only read %d bytes from %s\n"
 msgstr ""
 
-#: copy-mbr.c:170
+#: copy-mbr.c:171
 msgid "Add disk signature to new MBR\n"
 msgstr ""
 
-#: copy-mbr.c:175
+#: copy-mbr.c:176
 msgid "Copy partition table to new MBR\n"
 msgstr ""
 
-#: copy-mbr.c:179
+#: copy-mbr.c:180
 #, c-format
 msgid "Write MBR sector to %s\n"
 msgstr ""
 
-#: copy-mbr.c:183
+#: copy-mbr.c:184
 #, c-format
 msgid "Error writing disk %s\n"
 msgstr ""

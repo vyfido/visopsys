@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2014 J. Andrew McLaughlin
+#  Copyright (C) 1998-2015 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,120 +17,120 @@ msgstr ""
 "Content-Type: text/plain; charset=ISO-8859-15\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: progman.c:57
+#: progman.c:58
 msgid "Program Manager"
 msgstr "Programm-Manager"
 
-#: progman.c:58
+#: progman.c:59
 msgid "Memory blocks: "
 msgstr "Speicherblöcke: "
 
-#: progman.c:59
+#: progman.c:60
 msgid "Used memory: "
 msgstr "Belegte Speicher: "
 
-#: progman.c:60
+#: progman.c:61
 msgid "Free memory: "
 msgstr "Freier Speicher: "
 
-#: progman.c:61
+#: progman.c:62
 msgid "Disk performance:"
 msgstr "Leistung der Disk: "
 
-#: progman.c:62
+#: progman.c:63
 msgid "Read: "
 msgstr "Lesen: "
 
-#: progman.c:63
+#: progman.c:64
 msgid "Write: "
 msgstr "Schreiben: "
 
-#: progman.c:64
+#: progman.c:65
 msgid "K/tick"
 msgstr " K/tick"
 
-#: progman.c:101
+#: progman.c:102
 msgid "Error"
 msgstr "Fehler"
 
-#: progman.c:228
+#: progman.c:229
 msgid "Can't get temporary memory for processes"
 msgstr "Es existiert kein temporärer Speicher für die Prozesse"
 
-#: progman.c:292
+#: progman.c:293
 msgid "running "
 msgstr "läuft "
 
-#: progman.c:296
+#: progman.c:297
 msgid "ready "
 msgstr "bereit "
 
-#: progman.c:299
+#: progman.c:300
 msgid "waiting "
 msgstr "warte "
 
-#: progman.c:302
+#: progman.c:303
 msgid "sleeping "
 msgstr "im stand-by "
 
-#: progman.c:305
+#: progman.c:306
 msgid "stopped "
 msgstr "angehalten "
 
-#: progman.c:308
+#: progman.c:309
 msgid "finished "
 msgstr "abgeschlossen "
 
-#: progman.c:311
+#: progman.c:312
 msgid "zombie "
 msgstr "zombie "
 
-#: progman.c:314
+#: progman.c:315
 msgid "unknown "
 msgstr "unbekannt "
 
-#: progman.c:336
+#: progman.c:337
 msgid "Enter command"
 msgstr "Befehl eingeben"
 
-#: progman.c:337
+#: progman.c:338
 msgid "Please enter a command to run:"
 msgstr "Bitte geben Sie einen Befehl an der ausgeführt werden soll:"
 
-#: progman.c:366
+#: progman.c:367
 msgid "Unable to execute program"
 msgstr "Programm kann nicht gestartet werden"
 
-#: progman.c:403 progman.c:603
+#: progman.c:404 progman.c:607
 msgid "Set priority"
 msgstr "Priorität festlegen"
 
-#: progman.c:404
+#: progman.c:405
 msgid "Please enter the desired priority"
 msgstr "Bitte geben Sie die gewünschte Priorität an"
 
-#: progman.c:493
+#: progman.c:497
 msgid "Unable to launch file dialog"
 msgstr "Datei-Fenster kann nicht angezeigt werden"
 
-#: progman.c:562
+#: progman.c:566
 #, c-format
 msgid "Process                   PID PPID UID Pri Priv CPU% STATE   "
 msgstr "Prozess                   PID PPID UID Pri Priv CPU% STATUS   "
 
-#: progman.c:576
+#: progman.c:580
 msgid "Show all sub-processes"
 msgstr "Alle Unter-Prozesse anzeigen"
 
-#: progman.c:596
+#: progman.c:600
 msgid "Run program"
 msgstr "Programm ausführen"
 
-#: progman.c:609
+#: progman.c:613
 msgid "Kill process"
 msgstr "Prozess beenden"
 
-#: progman.c:632
+#: progman.c:636
 #, c-format
 msgid ""
 "\n"
@@ -139,6 +139,6 @@ msgstr ""
 "\n"
 "Der Befehl \"%s\" funktioniert nur im Grafik-Modus\n"
 
-#: progman.c:651
+#: progman.c:655
 msgid "Error getting memory"
 msgstr "Fehler beim beziehen von Speicher"

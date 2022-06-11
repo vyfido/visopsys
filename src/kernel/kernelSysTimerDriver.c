@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,9 +25,9 @@
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
-#include "kernelProcessorX86.h"
 #include "kernelSysTimer.h"
 #include <string.h>
+#include <sys/processor.h>
 
 static int portNumber[] = { 0x40, 0x41, 0x42 };
 static char timerMode[3] = { -1, -1, -1 };
@@ -42,10 +42,10 @@ static unsigned char readBackStatus(int counter)
 	commandByte = (0xE0 | (0x02 << counter));
 
 	// Send the command to the general command port
-	kernelProcessorOutPort8(0x43, commandByte);
+	processorOutPort8(0x43, commandByte);
 
 	// Read the status byte
-	kernelProcessorInPort8(portNumber[counter], data);
+	processorInPort8(portNumber[counter], data);
 
 	return (data);
 }
@@ -92,16 +92,16 @@ static int driverReadValue(int counter)
 	commandByte = (0xD0 | (0x02 << counter));
 
 	// Send the command to the general command port
-	kernelProcessorOutPort8(0x43, commandByte);
+	processorOutPort8(0x43, commandByte);
 
 	// The counter will now be expecting us to read two bytes from
 	// the applicable port.
 
 	// Read the low byte first, followed by the high byte
-	kernelProcessorInPort8(portNumber[counter], data);
+	processorInPort8(portNumber[counter], data);
 	timerValue = data;
 
-	kernelProcessorInPort8(portNumber[counter], data);
+	processorInPort8(portNumber[counter], data);
 	timerValue |= (data << 8);
 
 	kernelDebug(debug_misc, "PIT read counter %d count=%d", counter,
@@ -135,17 +135,17 @@ static int driverSetupTimer(int counter, int mode, int count)
 	commandByte = ((counter << 6) | 0x30 | (mode << 1));
 
 	// Send the command to the general command port
-	kernelProcessorOutPort8(0x43, commandByte);
+	processorOutPort8(0x43, commandByte);
 
 	// The timer is now expecting us to send two bytes which represent the
 	// initial count of the timer.
 
 	// Send low byte first, followed by the high byte to the data
 	data = (unsigned char) (count & 0xFF);
-	kernelProcessorOutPort8(portNumber[counter], data);
+	processorOutPort8(portNumber[counter], data);
 
 	data = (unsigned char) ((count >> 8) & 0xFF);
-	kernelProcessorOutPort8(portNumber[counter], data);
+	processorOutPort8(portNumber[counter], data);
 
 	// Wait until the count is loaded (NULL count is zero)
 	while (readBackStatus(counter) & 0x40);
@@ -155,6 +155,23 @@ static int driverSetupTimer(int counter, int mode, int count)
 	kernelDebug(debug_misc, "PIT set counter cmd=0x%02x", commandByte);
 
 	return (status = 0);
+}
+
+
+static int driverGetOutput(int counter)
+{
+	// This function is used to read the output pin of one of the system timer
+	// counters
+
+	// Make sure the timer number is not greater than 2.  This driver only
+	// supports timers 0 through 2 (since that's all most systems will have)
+	if (counter > 2)
+		return (ERR_RANGE);
+
+	if (readBackStatus(counter) & 0x80)
+		return (1);
+	else
+		return (0);
 }
 
 
@@ -200,7 +217,8 @@ static kernelSysTimerOps sysTimerOps = {
 	driverTick,
 	driverRead,
 	driverReadValue,
-	driverSetupTimer
+	driverSetupTimer,
+	driverGetOutput
 };
 
 

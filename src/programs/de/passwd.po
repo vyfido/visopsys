@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2013-11-09 23:18-0400\n"
-"Last-Translator: Jens León Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens León Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -17,38 +17,38 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.7\n"
 
-#: passwd.c:61
+#: passwd.c:62
 msgid "usage:\n"
 msgstr "Benutzung:\n"
 
-#: passwd.c:62
+#: passwd.c:63
 #, c-format
 msgid "%s [username]\n"
 msgstr "%s [Benutzername]\n"
 
-#: passwd.c:100
+#: passwd.c:101
 #, c-format
 msgid "User %s does not exist.\n"
 msgstr ""
 
-#: passwd.c:110
+#: passwd.c:111
 msgid "Enter current password: "
 msgstr "Geben Sie Ihr aktuelles Passwort ein:"
 
-#: passwd.c:126
+#: passwd.c:127
 msgid "Password incorrect\n"
 msgstr "Passwort inkorrekt\n"
 
-#: passwd.c:136
+#: passwd.c:137
 #, c-format
 msgid "Enter new password for %s: "
 msgstr "Geben Sie ein neues Passwort für %s ein:"
 
-#: passwd.c:138
+#: passwd.c:139
 msgid "Confirm password: "
 msgstr "Passwortbestätigung:"
 
-#: passwd.c:143
+#: passwd.c:144
 msgid ""
 "\n"
 "Passwords do not match.\n"
@@ -58,6 +58,6 @@ msgstr ""
 "Passwörter unterschiedlich.\n"
 "\n"
 
-#: passwd.c:154
+#: passwd.c:155
 msgid "Password changed.\n"
 msgstr "Passwort geändert\n"

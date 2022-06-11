@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,7 +26,6 @@
 
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -66,7 +65,7 @@ static int getData(kernelWindowComponent *component, void *buffer, int size)
 
 	size = min(size, (MAXSTRINGLENGTH - 1));
 
-	kernelMemCopy(textArea->fieldBuffer, buffer, size);
+	memcpy(buffer, textArea->fieldBuffer, size);
 
 	return (0);
 }
@@ -100,7 +99,7 @@ static int setData(kernelWindowComponent *component, void *buffer, int size)
 
 	size = min(size, (MAXSTRINGLENGTH - 1));
 
-	kernelMemCopy(buffer, textArea->fieldBuffer, size);
+	memcpy(textArea->fieldBuffer, buffer, size);
 	textArea->fieldBuffer[size] = '\0';
 
 	return (showScrolled(component));
@@ -115,7 +114,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 
 	if (event->type == EVENT_KEY_DOWN)
 	{
-		if (event->key == ASCII_BACKSPACE)
+		if (event->key == keyBackSpace)
 		{
 			if (bufferChars <= 0)
 				return (0);
@@ -128,14 +127,14 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 				showScrolled(component);
 		}
 
-		else if (event->key >= ASCII_SPACE)
+		else if (event->ascii >= ASCII_SPACE)
 		{
 			if (bufferChars >= (MAXSTRINGLENGTH - 1))
 				return (0);
 
-			textArea->fieldBuffer[bufferChars++] = event->key;
+			textArea->fieldBuffer[bufferChars++] = event->ascii;
 			textArea->fieldBuffer[bufferChars++] = '\0';
-			kernelTextStreamPutc(area->outputStream, event->key);
+			kernelTextStreamPutc(area->outputStream, event->ascii);
 
 			// Do we need to do any horizontal scrolling?
 			if (bufferChars >= (area->columns - 1))
@@ -178,7 +177,6 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewTextField(objectKey parent, int columns,
 	componentParameters *params)
 {
@@ -190,7 +188,7 @@ kernelWindowComponent *kernelWindowNewTextField(objectKey parent, int columns,
 	kernelTextArea *area = NULL;
 	componentParameters newParams;
 
-	kernelMemCopy(params, &newParams, sizeof(componentParameters));
+	memcpy(&newParams, params, sizeof(componentParameters));
 	params = &newParams;
 
 	component = kernelWindowNewTextArea(parent, columns, 1, 0, params);

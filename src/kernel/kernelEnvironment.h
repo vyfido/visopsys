@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,6 +21,7 @@
 
 #if !defined(_KERNELENVIRONMENT_H)
 
+#include <sys/env.h>
 #include <sys/variable.h>
 
 // Definitions.
@@ -36,3 +37,4 @@ void kernelEnvironmentDump(void);
 
 #define _KERNELENVIRONMENT_H
 #endif
+

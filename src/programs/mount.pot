@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,21 +17,21 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: mount.c:69
+#: mount.c:70
 msgid "usage:\n"
 msgstr ""
 
-#: mount.c:70
+#: mount.c:71
 #, c-format
 msgid "%s <disk> [mount point]\n"
 msgstr ""
 
-#: mount.c:177
+#: mount.c:178
 #, c-format
 msgid "No mount point specified for %s in %s\n"
 msgstr ""
 
-#: mount.c:203
+#: mount.c:204
 #, c-format
 msgid "No media in disk %s\n"
 msgstr ""

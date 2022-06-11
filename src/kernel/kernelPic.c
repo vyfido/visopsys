@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,8 +22,8 @@
 #include "kernelPic.h"
 #include "kernelDebug.h"
 #include "kernelError.h"
-#include "kernelProcessorX86.h"
 #include <string.h>
+#include <sys/processor.h>
 
 static kernelPic *pics[MAX_PICS];
 static int numPics = 0;
@@ -82,7 +82,6 @@ static kernelPic *findPic(int intNumber)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelPicAdd(kernelPic *pic)
 {
 	int status = 0;
@@ -106,7 +105,7 @@ int kernelPicAdd(kernelPic *pic)
 	pics[numPics++] = pic;
 
 	// Enable interrupts as soon as a good PIC is online.
-	kernelProcessorEnableInts();
+	processorEnableInts();
 
 	return (status = 0);
 }

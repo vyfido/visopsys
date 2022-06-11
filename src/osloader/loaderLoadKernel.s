@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2014 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2015 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -542,12 +542,12 @@ loaderLoadKernel:
 	SEGMENT .data
 	ALIGN 4
 
-KERNELENTRY	dd 0
-PROGHEADERS	dd 0
-CODE_OFFSET	dd 0
+KERNELENTRY		dd 0
+PROGHEADERS		dd 0
+CODE_OFFSET		dd 0
 CODE_VIRTADDR	dd 0
 CODE_SIZEINFILE	dd 0
-DATA_OFFSET	dd 0
+DATA_OFFSET		dd 0
 DATA_VIRTADDR	dd 0
 DATA_SIZEINFILE	dd 0
 DATA_SIZEINMEM	dd 0
@@ -574,3 +574,4 @@ SEGALIGN	db ' has incorrectly aligned ELF segments.', 0
 SEGLAYOUT	db ' has an incorrect ELF segment layout.', 0
 REINSTALL	db 'You will probably need to reinstall Visopsys on this boot media.', 0
 UNKNOWN		db 'The error code is unknown.', 0
+

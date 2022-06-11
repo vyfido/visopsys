@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,10 +24,9 @@
 #include "kernelText.h"
 #include "kernelError.h"
 #include "kernelMemory.h"
-#include "kernelMisc.h"
-#include "kernelProcessorX86.h"
 #include <stdlib.h>
 #include <string.h>
+#include <sys/processor.h>
 
 
 static void scrollBuffer(kernelTextArea *area, int lines)
@@ -41,8 +40,8 @@ static void scrollBuffer(kernelTextArea *area, int lines)
 		area->scrollBackLines += min(lines, (area->maxBufferLines -
 			(area->rows + area->scrollBackLines)));
 
-	kernelMemCopy((TEXTAREA_FIRSTSCROLLBACK(area) + dataLength),
-		TEXTAREA_FIRSTSCROLLBACK(area),
+	memcpy(TEXTAREA_FIRSTSCROLLBACK(area),
+		(TEXTAREA_FIRSTSCROLLBACK(area) + dataLength),
 		((area->rows + area->scrollBackLines) * (area->columns * 2)));
 }
 
@@ -135,7 +134,7 @@ static void scrollLine(kernelTextArea *area)
 	}
 
 	// Copy our buffer data to the visible area
-	kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), area->visibleData,
+	memcpy(area->visibleData, TEXTAREA_FIRSTVISIBLE(area),
 		(area->rows * lineLength));
 
 	// Move the cursor up by one row.
@@ -166,8 +165,7 @@ static int screenDraw(kernelTextArea *area)
 	bufferAddress = TEXTAREA_FIRSTVISIBLE(area);
 	bufferAddress -= (area->scrolledBackLines * area->columns * 2);
 
-	kernelMemCopy(bufferAddress, area->visibleData,
-		(area->rows * area->columns * 2));
+	memcpy(area->visibleData, bufferAddress, (area->rows * area->columns * 2));
 
 	// If we aren't scrolled back, show the cursor again
 	if (area->cursorState && !(area->scrolledBackLines))
@@ -378,10 +376,10 @@ static int screenClear(kernelTextArea *area)
 	// Formula is ((COLS * ROWS) / 2)
 	dwords = (area->columns * area->rows) / 2;
 
-	kernelProcessorWriteDwords(tmpData, TEXTAREA_FIRSTVISIBLE(area), dwords);
+	processorWriteDwords(tmpData, TEXTAREA_FIRSTVISIBLE(area), dwords);
 
 	// Copy to the visible area
-	kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), area->visibleData,
+	memcpy(area->visibleData, TEXTAREA_FIRSTVISIBLE(area),
 		(area->rows * area->columns * 2));
 
 	// Make the cursor go to the top left
@@ -405,7 +403,7 @@ static int screenSave(kernelTextArea *area, textScreen *screen)
 	if (screen->data == NULL)
 		return (ERR_MEMORY);
 
-	kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), screen->data,
+	memcpy(screen->data, TEXTAREA_FIRSTVISIBLE(area),
 		(area->rows * area->columns * 2));
 
 	screen->column = area->cursorColumn;
@@ -421,11 +419,11 @@ static int screenRestore(kernelTextArea *area, textScreen *screen)
 
 	if (screen->data)
 	{
-		kernelMemCopy(screen->data, TEXTAREA_FIRSTVISIBLE(area),
+		memcpy(TEXTAREA_FIRSTVISIBLE(area), screen->data,
 			(area->rows * area->columns * 2));
 
 		// Copy to the visible area
-		kernelMemCopy(screen->data, area->visibleData,
+		memcpy(area->visibleData, screen->data,
 			(area->rows * area->columns * 2));
 	}
 
@@ -459,7 +457,6 @@ static kernelTextOutputDriver textModeDriver = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelTextConsoleInitialize(void)
 {

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -80,6 +80,7 @@ Options:
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/ntfs.h>
 #include <sys/paths.h>
 #include <sys/vsh.h>
@@ -150,7 +151,9 @@ static void error(const char *format, ...)
 	va_end(list);
 
 	if (graphics)
+	{
 		windowNewErrorDialog(NULL, _("Error"), output);
+	}
 	else
 	{
 		printf("\n\n%s\n", output);
@@ -177,7 +180,7 @@ static int chooseDisk(void)
 
 	#define CHOOSEDISK_STRING _("Please choose the disk to format:")
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridX = 0;
 	params.gridY = 0;
 	params.gridWidth = 2;
@@ -188,7 +191,7 @@ static int chooseDisk(void)
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
-	bzero(diskListParams, (numberDisks * sizeof(listItemParameters)));
+	memset(diskListParams, 0, (numberDisks * sizeof(listItemParameters)));
 	for (count = 0; count < numberDisks; count ++)
 		snprintf(diskListParams[count].text, WINDOW_MAX_LABEL_LENGTH,
 			"%s  [ %s ]", diskInfo[count].name, diskInfo[count].partType);
@@ -214,7 +217,8 @@ static int chooseDisk(void)
 
 		params.gridX = 1;
 		params.orientationX = orient_left;
-		cancelButton = windowNewButton(chooseWindow, _("Cancel"), NULL, &params);
+		cancelButton = windowNewButton(chooseWindow, _("Cancel"), NULL,
+			&params);
 
 		// Make the window visible
 		windowRemoveMinimizeButton(chooseWindow);
@@ -253,8 +257,8 @@ static int chooseDisk(void)
 	{
 		for (count = 0; count < numberDisks; count ++)
 			diskStrings[count] = diskListParams[count].text;
-		diskNumber =
-			vshCursorMenu(CHOOSEDISK_STRING, diskStrings, numberDisks, 0);
+		diskNumber = vshCursorMenu(CHOOSEDISK_STRING, diskStrings, numberDisks,
+			0 /* selected */);
 	}
 
 	return (diskNumber);
@@ -402,11 +406,11 @@ int main(int argc, char *argv[])
 	char tmpChar[240];
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("format");
 
 	// Clear stack data
-	bzero(volName, MAX_NAME_LENGTH);
+	memset(volName, 0, MAX_NAME_LENGTH);
 
 	// Are graphics enabled?
 	graphics = graphicsAreEnabled();
@@ -414,8 +418,8 @@ int main(int argc, char *argv[])
 	// By default, we do 'generic' (i.e. let the driver make decisions) FAT.
 	strcpy(type, "fat");
 
-	// Check for options
-	while (strchr("ln:st:T?", (opt = getopt(argc, argv, "ln:st:T"))))
+	// Check options
+	while (strchr("lnstT:?", (opt = getopt(argc, argv, "ln:st:T"))))
 	{
 		switch (opt)
 		{
@@ -462,7 +466,7 @@ int main(int argc, char *argv[])
 				usage(argv[0]);
 				return (status = ERR_NULLPARAMETER);
 
-			case '?':
+			default:
 				error(_("Unknown option '%c'"), optopt);
 				usage(argv[0]);
 				return (status = ERR_INVALID);
@@ -479,7 +483,7 @@ int main(int argc, char *argv[])
 
 	if (!graphics && !silentMode)
 		// Print a message
-		printf("%s", _("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2014 J. "
+		printf("%s", _("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2015 J. "
 			"Andrew McLaughlin\n"));
 
 	if (argc > 1)
@@ -542,10 +546,10 @@ int main(int argc, char *argv[])
 		{
 			if (!silentMode)
 			{
-				sprintf(tmpChar, "%s", _("\nYOU HAVE REQUESTED TO FORMAT YOUR ROOT DISK.  "
-					"I probably shouldn't let you\ndo this.  After format is "
-					"complete, you should shut down the computer.\nAre you "
-					"SURE you want to proceed?"));
+				sprintf(tmpChar, "%s", _("\nYOU HAVE REQUESTED TO FORMAT YOUR "
+					"ROOT DISK.  I probably shouldn't let you\ndo this.  "
+					"After format is complete, you should shut down the "
+					"computer.\nAre you SURE you want to proceed?"));
 				if (!yesOrNo(tmpChar))
 				{
 					printf("%s", _("\nQuitting.\n"));
@@ -555,7 +559,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	bzero((void *) &prog, sizeof(progress));
+	memset((void *) &prog, 0, sizeof(progress));
 	if (graphics)
 	{
 		progressDialog = windowNewProgressDialog(NULL, _("Formatting..."),

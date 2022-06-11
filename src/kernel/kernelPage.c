@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,11 +29,10 @@
 #include "kernelInterrupt.h"
 #include "kernelLog.h"
 #include "kernelMemory.h"
-#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
-#include "kernelProcessorX86.h"
 #include <string.h>
+#include <sys/processor.h>
 
 // The kernel's page directory and first page table
 kernelPageDirectory *kernelPageDir = NULL;
@@ -277,12 +276,12 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
 	kernelTable->freePages--;
 
 	// Clear this memory block, since kernelMemoryGetPhysical can't do it for us
-	kernelMemClear((void *) virtualAddr, sizeof(kernelPageTableVirtualMem));
+	memset((void *) virtualAddr, 0, sizeof(kernelPageTableVirtualMem));
 
 	// Put our new table in the next available kernelPageTable slot of the
 	// page table list, and increase the count of kernelPageTables
 	newTable = pageTableList[numberPageTables++];
-	kernelMemClear((void *) newTable, sizeof(kernelPageTable));
+	memset((void *) newTable, 0, sizeof(kernelPageTable));
 
 	// Fill in this page table
 	newTable->directory = directory;
@@ -363,7 +362,7 @@ static int deletePageTable(kernelPageDirectory *directory,
 	kernelTable->freePages++;
 
 	// Clear the TLB entry for the table's virtual memory
-	kernelProcessorClearAddressCache(table->virtual);
+	processorClearAddressCache(table->virtual);
 
 	// Release the physical memory used by the table
 	status = kernelMemoryReleasePhysical((unsigned) table->physical);
@@ -675,7 +674,7 @@ static int unmap(kernelPageDirectory *directory, void *virtualAddress,
 		pageTable->virtual->page[pageNumber] = NULL;
 
 		// Clear the TLB entry for this page
-		kernelProcessorClearAddressCache(virtualAddress);
+		processorClearAddressCache(virtualAddress);
 
 		// Increase the count of free pages
 		pageTable->freePages++;
@@ -724,12 +723,12 @@ static kernelPageDirectory *createPageDirectory(int processId)
 		return (directory = NULL);
 
 	// Clear this memory block, since kernelMemoryGetPhysical can't do it for us
-	kernelMemClear((void *) virtualAddr, sizeof(kernelPageDirPhysicalMem));
+	memset((void *) virtualAddr, 0, sizeof(kernelPageDirPhysicalMem));
 
 	// Put it in the next available kernelPageDirectory slot, and increase
 	// the count of kernelPageDirectories
 	directory = pageDirList[numberPageDirectories++];
-	kernelMemClear((void *) directory, sizeof(kernelPageDirectory));
+	memset((void *) directory, 0, sizeof(kernelPageDirectory));
 
 	// Fill in this page directory
 	directory->processId = processId;
@@ -846,7 +845,7 @@ static int firstPageDirectory(void)
 	kernelPageDir->virtual = kernelPageDir->physical;
 
 	// Clear the physical memory
-	kernelMemClear((void *) kernelPageDir->physical,
+	memset((void *) kernelPageDir->physical, 0,
 		sizeof(kernelPageDirPhysicalMem));
 
 	kernelPageDir->processId = KERNELPROCID;
@@ -892,8 +891,7 @@ static int firstPageTable(void)
 	table->virtual = table->physical;
 
 	// Clear the physical memory
-	kernelMemClear((void *) table->physical,
-		sizeof(kernelPageTablePhysicalMem));
+	memset((void *) table->physical, 0, sizeof(kernelPageTablePhysicalMem));
 
 	// Now we actually go into the page directory memory and add the
 	// real page table to the requested slot number.
@@ -922,7 +920,7 @@ static int kernelPaging(unsigned kernelMemory)
 	void *kernelAddress;
 
 	// Interrupts should currently be disabled at this point.
-	kernelProcessorSuspendInts(status);
+	processorSuspendInts(status);
 
 	// The kernel is currently located at kernelVirtualAddress (virtually).
 	// We need to locate the current, temporary page directory, then the page
@@ -934,7 +932,7 @@ static int kernelPaging(unsigned kernelMemory)
 	// the physical address we get back from this call can be used like
 	// a virtual address, since the lower part of memory should presently
 	// be identity-mapped.
-	kernelProcessorGetCR3(oldPageDirectory);
+	processorGetCR3(oldPageDirectory);
 	oldPageDirectory = (kernelPageDirPhysicalMem *)
 		((unsigned) oldPageDirectory & 0xFFFFF800);
 
@@ -1007,7 +1005,7 @@ static int kernelPaging(unsigned kernelMemory)
 	// Now we should be able to switch the processor to our new page
 	// directory and table(s).
 
-	kernelProcessorSetCR3(kernelPageDir->physical);
+	processorSetCR3(kernelPageDir->physical);
 
 	// Return success
 	return (status = 0);
@@ -1086,7 +1084,6 @@ static int setPageAttrs(kernelPageDirectory *directory, int set,
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelPageInitialize(unsigned kernelMemory)
 {
 	// This function will initialize the page manager and call the kernelPaging
@@ -1101,9 +1098,9 @@ int kernelPageInitialize(unsigned kernelMemory)
 
 	// Clear out the memory we'll use to keep track of all the page
 	// directories and page tables, and set both counters to zero.
-	kernelMemClear((void *) pageDirMemory,
+	memset((void *) pageDirMemory, 0,
 		(sizeof(kernelPageDirectory) * MAX_PROCESSES));
-	kernelMemClear((void *) pageTableMemory,
+	memset((void *) pageTableMemory, 0,
 		(sizeof(kernelPageTable) * MAX_PROCESSES));
 
 	// Loop through both of the dynamic lists that we'll use to keep

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -61,7 +61,8 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 	// The argument list must already have been initialized using va_start
 
 	// Loop through all of the characters in the format string
-	for (inCount = 0; ((inCount < formatLen) && (outCount < (outputLen - 1))); )
+	for (inCount = 0; ((inCount < formatLen) &&
+		(outCount < (outputLen - 1))); )
 	{
 		if (format[inCount] != '%')
 		{
@@ -201,7 +202,8 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 
 			case 's':
 				// This is a string.  Copy the string from the next argument
-				// to the destnation string and increment outCount appropriately
+				// to the destnation string and increment outCount
+				// appropriately
 				if (intArg)
 				{
 					strcpy((output + outCount), (char *) ((unsigned) intArg));
@@ -265,13 +267,14 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 			case 'F':
 			case 'g':
 			case 'G':
-				// This is a double.  Doubles are a special case, and we get the
-				// argument here instead of above.
+				// This is a double.  Doubles are a special case, and we get
+				// the argument here instead of above.
 				doubleArg = (double) va_arg(list, double);
 				// Skip the next word of arguments, since it was part of our
 				// double.
 				list += sizeof(int);
-				// Put the characters for the double into the destination string
+				// Put the characters for the double into the destination
+				// string
 				if (fieldWidth)
 					dtoa(doubleArg, (output + outCount), fieldWidth);
 				else
@@ -295,3 +298,4 @@ int _xpndfmt(char *output, int outputLen, const char *format, va_list list)
 	// Return the number of characters we wrote
 	return (outCount);
 }
+

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,6 +49,7 @@ Options:
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/memory.h>
 
 #define _(string) gettext(string)
@@ -59,6 +60,7 @@ int main(int argc, char *argv[])
 	// This command will dump lists of memory allocations and usage statistics
 
 	int status = 0;
+	char opt;
 	int kernelMem = 0;
 	memoryStats stats;
 	memoryBlock *blocksArray = NULL;
@@ -66,16 +68,30 @@ int main(int argc, char *argv[])
 	unsigned percentUsed = 0;
 	unsigned count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("mem");
 
-	// Want kernel memory stats?
-	if (getopt(argc, argv, "k") == 'k')
-		kernelMem = 1;
+	// Check options
+	while (strchr("k?", (opt = getopt(argc, argv, "k"))))
+	{
+		switch (opt)
+		{
+			case 'k':
+				// Want kernel memory stats
+				kernelMem = 1;
+				break;
+
+			default:
+				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
+				errno = status = ERR_INVALID;
+				perror(argv[0]);
+				return (status);
+		}
+	}
 
 	// Get overall statistics so we know how large our blocks array needs
 	// to be
-	bzero(&stats, sizeof(memoryStats));
+	memset(&stats, 0, sizeof(memoryStats));
 	status = memoryGetStats(&stats, kernelMem);
 	if (status < 0)
 	{
@@ -86,7 +102,7 @@ int main(int argc, char *argv[])
 
 	// Get memory for the blocks memory
 	blocksArray = malloc(stats.usedBlocks * sizeof(memoryBlock));
-	if (blocksArray == NULL)
+	if (!blocksArray)
 	{
 		errno = ERR_MEMORY;
 		perror(argv[0]);
@@ -129,8 +145,8 @@ int main(int argc, char *argv[])
 		percentUsed = ((stats.usedMemory * 100) / stats.totalMemory);
 
 	// Print out the percent usage information
-	printf(_(" --- Usage totals ---\nUsed blocks : %d\nTotal memory: %u Kb\nUsed "
-		"memory : %u Kb - %d%%\nFree memory : %u Kb - %d%%\n"),
+	printf(_(" --- Usage totals ---\nUsed blocks : %d\nTotal memory: %u "
+		"Kb\nUsed memory : %u Kb - %d%%\nFree memory : %u Kb - %d%%\n"),
 		stats.usedBlocks, stats.totalMemory, stats.usedMemory, percentUsed,
 		totalFree, (100 - percentUsed));
 

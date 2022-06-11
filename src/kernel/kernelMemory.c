@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -32,7 +32,6 @@
 #include "kernelMain.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
-#include "kernelMisc.h"
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include <stdio.h>
@@ -105,7 +104,7 @@ static int allocateBlock(int processId, unsigned start, unsigned end,
 		return (status = ERR_INVALID);
 
 	// Clear the memory occupied by the first unused memory block structure
-	kernelMemClear((void *) usedBlockList[usedBlocks], sizeof(memoryBlock));
+	memset((void *) usedBlockList[usedBlocks], 0, sizeof(memoryBlock));
 
 	// Assign the appropriate values to the block structure
 	usedBlockList[usedBlocks]->processId = processId;
@@ -348,7 +347,6 @@ static int releaseBlock(int index)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 int kernelMemoryInitialize(unsigned kernelMemory)
 {
 	// This function will initialize all of the machine's memory between the
@@ -368,7 +366,7 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 		return (status = ERR_ALREADY);
 
 	// Clear the static memory manager lock
-	kernelMemClear((void *) &memoryLock, sizeof(lock));
+	memset((void *) &memoryLock, 0, sizeof(lock));
 
 	// Calculate the amount of total memory we're managing.  First, count
 	// 1024 kilobytes for standard and high memory (first "megabyte")
@@ -416,7 +414,7 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 		return (status);
 
 	// Clear the memory we use for the bitmap
-	kernelMemClear((void *) freeBlockBitmap, bitmapSize);
+	memset((void *) freeBlockBitmap, 0, bitmapSize);
 
 	// The list of reserved memory blocks needs to be completed here, before
 	// we attempt to use it to calculate the location of the free-block
@@ -617,7 +615,7 @@ void *kernelMemoryGetSystem(unsigned size, const char *description)
 	}
 
 	// Clear the memory area we allocated
-	kernelMemClear(virtual, size);
+	memset(virtual, 0, size);
 
 	return (virtual);
 }
@@ -731,7 +729,7 @@ int kernelMemoryGetIo(unsigned size, unsigned alignment, kernelIoMemory *ioMem)
 
 	// Clear it out, as the kernelMemoryGetPhysical function can't do that
 	// for us
-	kernelMemClear(ioMem->virtual, ioMem->size);
+	memset(ioMem->virtual, 0, ioMem->size);
 
 	return (status = 0);
 
@@ -826,7 +824,7 @@ void *kernelMemoryGet(unsigned size, const char *description)
 	}
 
 	// Clear the memory area we allocated
-	kernelMemClear(virtual, size);
+	memset(virtual, 0, size);
 
 	return (virtual);
 }
@@ -1268,7 +1266,7 @@ int kernelMemoryBlockInfo(void *virtual, memoryBlock *block)
 	if (index < 0)
 		return (status = ERR_NOSUCHENTRY);
 
-	kernelMemCopy(usedBlockList[index], block, sizeof(memoryBlock));
+	memcpy(block, usedBlockList[index], sizeof(memoryBlock));
 	block->endLocation = (unsigned)(virtual + (block->endLocation -
 		block->startLocation));
 	block->startLocation = (unsigned) virtual;

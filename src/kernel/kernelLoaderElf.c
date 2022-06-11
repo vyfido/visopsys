@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,7 +28,6 @@
 #include "kernelError.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
-#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelPage.h"
 #include "kernelParameters.h"
@@ -232,7 +231,7 @@ static loaderSymbolTable *getSymbols(void *data, int kernel)
 		(numSymbols * sizeof(loaderSymbol)));
 
 	// Copy the string table data
-	kernelMemCopy((data + stringTableHeader->sh_offset), symTableData,
+	memcpy(symTableData, (data + stringTableHeader->sh_offset),
 		stringTableHeader->sh_size);
 
 	// Fill out the symbol array
@@ -393,7 +392,7 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
 				"(%x)", srcAddr, destAddr, programHeader[count].p_filesz,
 				programHeader[count].p_filesz);
 
-			kernelMemCopy(srcAddr, destAddr, programHeader[count].p_filesz);
+			memcpy(destAddr, srcAddr, programHeader[count].p_filesz);
 
 			// Code segment?
 			if (programHeader[count].p_flags == (ELFPF_R | ELFPF_X))
@@ -485,7 +484,7 @@ static int getLibraryDependencies(void *loadAddress, elfLibraryArray *array)
 			if (!library)
 				return (status = ERR_NOTINITIALIZED);
 
-			kernelMemCopy(library, &(array->libraries[array->numLibraries]),
+			memcpy(&(array->libraries[array->numLibraries]), library,
 				sizeof(kernelDynamicLibrary));
 			array->numLibraries += 1;
 		}
@@ -530,7 +529,7 @@ static int resolveLibrarySymbols(loaderSymbolTable **symTable,
 			continue;
 
 		newSymbol = &(newTable->symbols[newTable->numSymbols]);
-		kernelMemCopy(symbol, newSymbol, sizeof(loaderSymbol));
+		memcpy(newSymbol, symbol, sizeof(loaderSymbol));
 		strcpy(newTableData, newSymbol->name);
 		newSymbol->name = newTableData;
 		newTableData += (strlen(newSymbol->name) + 1);
@@ -559,7 +558,7 @@ static int resolveLibrarySymbols(loaderSymbolTable **symTable,
 		{
 			if (!newSymbol->defined)
 			{
-				kernelMemCopy(symbol, newSymbol, sizeof(loaderSymbol));
+				memcpy(newSymbol, symbol, sizeof(loaderSymbol));
 				newSymbol->value += (unsigned) library->codeVirtual;
 			}
 		}
@@ -567,7 +566,7 @@ static int resolveLibrarySymbols(loaderSymbolTable **symTable,
 		{
 			// Put the symbol in the new table
 			newSymbol = &(newTable->symbols[newTable->numSymbols]);
-			kernelMemCopy(symbol, newSymbol, sizeof(loaderSymbol));
+			memcpy(newSymbol, symbol, sizeof(loaderSymbol));
 			strcpy(newTableData, newSymbol->name);
 			newSymbol->name = newTableData;
 			newSymbol->value += (unsigned) library->codeVirtual;
@@ -844,7 +843,7 @@ static int layoutLibrary(void *loadAddress, kernelDynamicLibrary *library)
 	// already sure that this file is both ELF and a shared library.  Thus, we
 	// will not check the magic number stuff at the head of the file.
 
-	kernelMemClear(&libImage, sizeof(processImage));
+	memset(&libImage, 0, sizeof(processImage));
 
 	// Get the section header for the 'dynamic' section
 	dynamicHeader = getSectionHeader(loadAddress, ".dynamic");
@@ -987,7 +986,7 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
 		library->dataSize);
 
 	// Make a copy of the data
-	kernelMemCopy(library->data, (dataMem + dataOffset), library->dataSize);
+	memcpy((dataMem + dataOffset), library->data, library->dataSize);
 
 	kernelDebug(debug_loader, "ELF copied library data");
 
@@ -1222,7 +1221,6 @@ kernelFileClass elfFileClass = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 kernelFileClass *kernelFileClassElf(void)
 {

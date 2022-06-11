@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -64,7 +64,7 @@
 #define ASCII_CRSRDOWN		ASCII_DEVCONT4	// 20
 
 #define ASCII_CHARS			255
-#define ASCII_PRINTABLES	(ASCII_DEL - ASCII_SPACE)	// 95
+#define ASCII_PRINTABLES	((ASCII_DEL - ASCII_SPACE) + 1)	// 96
 
 /*
                                ASCII CODES

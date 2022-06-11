@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -107,7 +107,8 @@ _X_ int windowClearEventHandlers(void)
 	numCallBacks = 0;
 
 	if (callBacks)
-		bzero((void *) callBacks, (WINDOW_MAX_EVENTHANDLERS * sizeof(callBack)));
+		memset((void *) callBacks, 0, (WINDOW_MAX_EVENTHANDLERS *
+			sizeof(callBack)));
 
 	return (0);
 }

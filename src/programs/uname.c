@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -61,7 +61,8 @@ int main(int argc, char *argv[])
 
 	if (argc > 1)
 	{
-		while (strchr("asnrvmpio", (opt = getopt(argc, argv, "asnrvmpio"))))
+		// Check options
+		while (strchr("aimnoprsv?", (opt = getopt(argc, argv, "aimnoprsv"))))
 		{
 			switch (opt)
 			{
@@ -70,8 +71,8 @@ int main(int argc, char *argv[])
 						machine = 1;
 					break;
 
-				case 's':
 				case 'o':
+				case 's':
 					sysname = 1;
 					break;
 
@@ -87,18 +88,26 @@ int main(int argc, char *argv[])
 					version = 1;
 					break;
 
+				case 'i':
 				case 'm':
 				case 'p':
-				case 'i':
 					machine = 1;
 					break;
+
+				default:
+					fprintf(stderr, "Unknown option '%c'\n", optopt);
+					status = errno = ERR_INVALID;
+					perror(argv[0]);
+					return (status);
 			}
 		}
 	}
 	else
+	{
 		sysname = 1;
+	}
 
-	bzero(&data, sizeof(struct utsname));
+	memset(&data, 0, sizeof(struct utsname));
 	status = systemInfo(&data);
 	if (status < 0)
 	{
@@ -109,6 +118,7 @@ int main(int argc, char *argv[])
 
 	if (sysname && data.sysname[0])
 		printf("%s ", data.sysname);
+
 	if (nodename && data.nodename[0])
 	{
 		printf("%s", data.nodename);
@@ -116,13 +126,18 @@ int main(int argc, char *argv[])
 			printf(".%s", data.domainname);
 		printf(" ");
 	}
+
 	if (release && data.release[0])
 		printf("%s ", data.release);
+
 	if (version && data.version[0])
 		printf("%s ", data.version);
+
 	if (machine && data.machine[0])
 		printf("%s ", data.machine);
+
 	printf("\n");
 
 	return (status = 0);
 }
+

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,25 +17,30 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: mem.c:101
+#: mem.c:85
+#, c-format
+msgid "Unknown option '%c'\n"
+msgstr ""
+
+#: mem.c:117
 #, c-format
 msgid " --- %s usage information by block ---\n"
 msgstr ""
 
-#: mem.c:102
+#: mem.c:118
 msgid "Kernel heap"
 msgstr ""
 
-#: mem.c:102
+#: mem.c:118
 msgid "Memory"
 msgstr ""
 
-#: mem.c:107
+#: mem.c:123
 #, c-format
 msgid "%u->%u (size %u)"
 msgstr ""
 
-#: mem.c:132
+#: mem.c:148
 #, c-format
 msgid ""
 " --- Usage totals ---\n"

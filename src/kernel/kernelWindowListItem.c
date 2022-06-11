@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,7 +28,6 @@
 #include "kernelFont.h"
 #include "kernelGraphic.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include <string.h>
 
 extern kernelWindowVariables *windowVariables;
@@ -61,8 +60,7 @@ static int flatten(kernelWindowComponent *component,
 }
 
 
-static int setBuffer(kernelWindowComponent *component,
-	kernelGraphicBuffer *buffer)
+static int setBuffer(kernelWindowComponent *component, graphicBuffer *buffer)
 {
 	// Set the graphics buffer for the component's subcomponents.
 
@@ -98,7 +96,7 @@ static int draw(kernelWindowComponent *component)
 	if (item->type == windowlist_textonly)
 	{
 		textBuffer = kernelMalloc(strlen((char *) item->params.text) + 1);
-		if (textBuffer == NULL)
+		if (!textBuffer)
 			return (status = ERR_MEMORY);
 		strncpy(textBuffer, (char *) item->params.text,
 			strlen((char *) item->params.text));
@@ -195,21 +193,24 @@ static int setData(kernelWindowComponent *component, void *itemParams,
 
 	kernelWindowListItem *listItem = component->data;
 
-	kernelMemCopy((listItemParameters *) itemParams,
-		(listItemParameters *) &listItem->params, sizeof(listItemParameters));
+	memcpy((listItemParameters *) &listItem->params,
+		(listItemParameters *) itemParams, sizeof(listItemParameters));
 
 	if (listItem->type == windowlist_textonly)
 	{
 		component->width = 2;
 		if (component->params.font)
-			component->width +=
-				kernelFontGetPrintedWidth((asciiFont *) component->params.font,
-					(char *) listItem->params.text);
+		{
+			component->width += kernelFontGetPrintedWidth((asciiFont *)
+				component->params.font, (char *) listItem->params.text);
+		}
 
 		component->height = 2;
 		if (component->params.font)
-			component->height +=
-				((asciiFont *) component->params.font)->charHeight;
+		{
+			component->height += ((asciiFont *)
+				component->params.font)->glyphHeight;
+		}
 	}
 
 	else if (listItem->type == windowlist_icononly)
@@ -320,7 +321,6 @@ static int destroy(kernelWindowComponent *component)
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-
 kernelWindowComponent *kernelWindowNewListItem(objectKey parent,
 	windowListType type, listItemParameters *itemParams,
 	componentParameters *params)
@@ -339,7 +339,7 @@ kernelWindowComponent *kernelWindowNewListItem(objectKey parent,
 
 	// Get the basic component structure
 	component = kernelWindowComponentNew(parent, params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	component->type = listItemComponentType;
@@ -359,16 +359,16 @@ kernelWindowComponent *kernelWindowNewListItem(objectKey parent,
 	// If default colors were requested, override the standard background color
 	// with the one we prefer (white)
 	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
-		kernelMemCopy(&COLOR_WHITE, (color *) &component->params.background,
+		memcpy((color *) &component->params.background, &COLOR_WHITE,
 			sizeof(color));
 
 	// If font is NULL, use the default
-	if (component->params.font == NULL)
+	if (!component->params.font)
 		component->params.font = windowVariables->font.varWidth.medium.font;
 
 	// The list item data
 	listItem = kernelMalloc(sizeof(kernelWindowListItem));
-	if (listItem == NULL)
+	if (!listItem)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);

@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2014-01-22 18:22-0400\n"
-"Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -18,7 +18,7 @@ msgstr ""
 "X-Generator: Poedit 1.5.4\n"
 "X-Poedit-Bookmarks: 5,-1,-1,-1,-1,-1,-1,-1,-1,-1\n"
 
-#: copy-boot.c:129
+#: copy-boot.c:130
 #, c-format
 msgid ""
 "usage:\n"
@@ -27,161 +27,161 @@ msgstr ""
 "Uso:\n"
 "%s <imágen_de_arranque> <archivo_de_salida|dispositivo>\n"
 
-#: copy-boot.c:147
+#: copy-boot.c:148
 #, c-format
 msgid "Error reading disk %s\n"
 msgstr ""
 
-#: copy-boot.c:157 copy-boot.c:208
+#: copy-boot.c:158 copy-boot.c:209
 #, c-format
 msgid "Can't open device %s\n"
 msgstr ""
 
-#: copy-boot.c:164 copy-boot.c:215
+#: copy-boot.c:165 copy-boot.c:216
 #, c-format
 msgid "Can't seek device to sector %u\n"
 msgstr ""
 
-#: copy-boot.c:175
+#: copy-boot.c:176
 msgid "Can't read sector\n"
 msgstr ""
 
-#: copy-boot.c:198
+#: copy-boot.c:199
 #, c-format
 msgid "Error writing disk %s\n"
 msgstr ""
 
-#: copy-boot.c:226
+#: copy-boot.c:227
 msgid "Can't write sector\n"
 msgstr ""
 
-#: copy-boot.c:239
+#: copy-boot.c:240
 #, c-format
 msgid "Read boot sector from %s\n"
 msgstr ""
 
-#: copy-boot.c:244
+#: copy-boot.c:245
 #, c-format
 msgid "Couldn't read boot sector from %s\n"
 msgstr ""
 
-#: copy-boot.c:250
+#: copy-boot.c:251
 #, c-format
 msgid "%s is not a valid boot sector\n"
 msgstr ""
 
-#: copy-boot.c:264
+#: copy-boot.c:265
 #, c-format
 msgid "Write boot sector to %s\n"
 msgstr "Escribiendo sector de arranque a %s\n"
 
-#: copy-boot.c:269
+#: copy-boot.c:270
 #, c-format
 msgid "Couldn't write boot sector to %s\n"
 msgstr ""
 
-#: copy-boot.c:281
+#: copy-boot.c:282
 #, c-format
 msgid "Couldn't write backup boot sector to %s\n"
 msgstr ""
 
-#: copy-boot.c:297
+#: copy-boot.c:298
 msgid "Merge boot sectors\n"
 msgstr ""
 
-#: copy-boot.c:310
+#: copy-boot.c:313
 msgid "File system type is not supported\n"
 msgstr ""
 
-#: copy-boot.c:332
+#: copy-boot.c:335
 msgid "Find first unused cluster\n"
 msgstr ""
 
-#: copy-boot.c:337
+#: copy-boot.c:340
 #, c-format
 msgid "Can't alloc %u bytes to find an unused cluster\n"
 msgstr ""
 
-#: copy-boot.c:346
+#: copy-boot.c:349
 msgid "Can't read FAT sector\n"
 msgstr ""
 
-#: copy-boot.c:400
+#: copy-boot.c:403
 #, c-format
 msgid "Unknown FAT type %s\n"
 msgstr "Tipo FAT desconocido %s\n"
 
-#: copy-boot.c:405
+#: copy-boot.c:408
 #, c-format
 msgid "First unused cluster %u\n"
 msgstr ""
 
-#: copy-boot.c:432
+#: copy-boot.c:435
 msgid "Set OS loader parameters\n"
 msgstr ""
 
-#: copy-boot.c:438
+#: copy-boot.c:441
 msgid "Target filesystem is FAT12\n"
 msgstr ""
 
-#: copy-boot.c:440
+#: copy-boot.c:443
 msgid "Target filesystem is FAT16\n"
 msgstr ""
 
-#: copy-boot.c:441 copy-boot.c:477
+#: copy-boot.c:444 copy-boot.c:480
 #, c-format
 msgid "%u reserved\n"
 msgstr ""
 
-#: copy-boot.c:443 copy-boot.c:479
+#: copy-boot.c:446 copy-boot.c:482
 #, c-format
 msgid "%u FATs of %u\n"
 msgstr ""
 
-#: copy-boot.c:446
+#: copy-boot.c:449
 #, c-format
 msgid "%u root dir sectors\n"
 msgstr ""
 
-#: copy-boot.c:449 copy-boot.c:483
+#: copy-boot.c:452 copy-boot.c:486
 #, c-format
 msgid "Sectors per cluster %u\n"
 msgstr ""
 
-#: copy-boot.c:476
+#: copy-boot.c:479
 msgid "Target filesystem is FAT32\n"
 msgstr ""
 
-#: copy-boot.c:481
+#: copy-boot.c:484
 #, c-format
 msgid "Root dir cluster %u\n"
 msgstr ""
 
-#: copy-boot.c:499
+#: copy-boot.c:502
 #, c-format
 msgid "First user sector for OS loader is %u\n"
 msgstr ""
 
-#: copy-boot.c:511
+#: copy-boot.c:513
 #, c-format
 msgid "OS loader sectors are %u\n"
 msgstr ""
 
-#: copy-boot.c:525
+#: copy-boot.c:527
 msgid "Add boot sector signature\n"
 msgstr ""
 
-#: copy-boot.c:547
+#: copy-boot.c:549
 #, c-format
 msgid "fatBSHeader size is 0x%02x instead of 0x3E\n"
 msgstr "El tamaño de fatBSHeader es 0x%02x en vez de 0x3E\n"
 
-#: copy-boot.c:554
+#: copy-boot.c:556
 #, c-format
 msgid "fat32BSHeader size is 0x%02x instead of 0x5A\n"
 msgstr "El tamaño de fat32BSHeader es 0x%02x en vez de 0x5A\n"
 
-#: copy-boot.c:561
+#: copy-boot.c:563
 #, c-format
 msgid "fat32FsInfo size is %d instead of 512\n"
 msgstr "El tamaño de fat32FsInfo es %d en vez de 512\n"

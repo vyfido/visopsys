@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -31,7 +31,6 @@
 #include "kernelLock.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
-#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
 #include "kernelRtc.h"
@@ -43,23 +42,6 @@
 #include <sys/msdos.h>
 
 #define _(string) kernelGetText(string)
-
-#ifdef PLUS
-extern int fatResizeConstraints(kernelDisk *, uquad_t *, uquad_t *);
-extern int fatResize(kernelDisk *, uquad_t, progress *);
-#endif
-
-// Some things needed by the 'plus' module
-fatInternalData *getFatData(kernelDisk *);
-uquad_t fatGetFreeBytes(kernelDisk *);
-void freeFatData(kernelDisk *);
-fatInternalData *makingFatFree;
-int makeFatFreePid;
-void fatProgressConfirmError(progress *, const char *);
-int fatDefragment(kernelDisk *, progress *);
-int fatFlushVolumeInfo(fatInternalData *);
-int fatFlushFSInfo(fatInternalData *);
-int markFatFsClean(fatInternalData *, int);
 
 static int initialized = 0;
 int makeFatFreePid = -1;
@@ -75,7 +57,7 @@ static int readBootSector(kernelDisk *theDisk, fatBPB *bpb)
 	int status = 0;
 
 	// Initialize the structure
-	kernelMemClear(bpb, sizeof(fatBPB));
+	memset(bpb, 0, sizeof(fatBPB));
 
 	// Read the boot sector
 	status = kernelDiskReadSectors((char *) theDisk->name, 0, 1, bpb);
@@ -131,7 +113,7 @@ static int readFSInfo(fatInternalData *fatData)
 }
 
 
-int fatFlushFSInfo(fatInternalData *fatData)
+static int fatFlushFSInfo(fatInternalData *fatData)
 {
 	// This function is designed to support extra functionality that is
 	// found only in FAT32 filesystems (not FAT12 or FAT16).  The FAT32
@@ -459,7 +441,7 @@ static int readVolumeInfo(fatInternalData *fatData)
 }
 
 
-int fatFlushVolumeInfo(fatInternalData *fatData)
+static int fatFlushVolumeInfo(fatInternalData *fatData)
 {
 	// This function writes information about the filesystem to
 	// the boot sector info block.
@@ -1862,7 +1844,7 @@ static int fillDirectory(fatInternalData *fatData, kernelFileEntry *currentDir,
 	if ((currentDir == currentDir->disk->filesystem.filesystemRoot) &&
 		fatData->rootDirLabel[0])
 	{
-		kernelMemCopy((unsigned char *) fatData->rootDirLabel, dirEntry,
+		memcpy(dirEntry, (unsigned char *) fatData->rootDirLabel,
 			FAT_BYTES_PER_DIR_ENTRY);
 		dirEntry += FAT_BYTES_PER_DIR_ENTRY;
 	}
@@ -2273,7 +2255,7 @@ static int makeShortAlias(kernelFileEntry *theFile)
 	// Loop through the file name, translating characters to ones that are
 	// legal for short aliases, and put them into a copy of the file name
 	// Make a copy of the name
-	kernelMemClear(nameCopy, MAX_NAME_LENGTH);
+	memset(nameCopy, 0, MAX_NAME_LENGTH);
 	int tmpCount = 0;
 	for (count = 0; count < (MAX_NAME_LENGTH - 1); count ++)
 	{
@@ -2496,7 +2478,7 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 			// remember this entry so we can re-write it later.
 			if (currentDir == theDisk->filesystem.filesystemRoot)
 			{
-				kernelMemCopy(dirEntry, (unsigned char *) fatData->rootDirLabel,
+				memcpy((unsigned char *) fatData->rootDirLabel, dirEntry,
 					FAT_BYTES_PER_DIR_ENTRY);
 				setVolumeLabel(theDisk, (char *) dirEntry);
 			}
@@ -2982,7 +2964,7 @@ static int readRootDir(fatInternalData *fatData, kernelDisk *theDisk)
 }
 
 
-fatInternalData *getFatData(kernelDisk *theDisk)
+static fatInternalData *getFatData(kernelDisk *theDisk)
 {
 	// This function reads the filesystem parameters from the control
 	// structures on disk.
@@ -3052,7 +3034,7 @@ fatInternalData *getFatData(kernelDisk *theDisk)
 	}
 
 	// Set them all used for the moment
-	kernelMemSet(fatData->freeClusterBitmap, 0xFF, fatData->freeBitmapSize);
+	memset(fatData->freeClusterBitmap, 0xFF, fatData->freeBitmapSize);
 
 	// Everything went right.  Looks like we will have a legitimate new
 	// bouncing baby FAT filesystem.
@@ -3073,7 +3055,7 @@ fatInternalData *getFatData(kernelDisk *theDisk)
 }
 
 
-void freeFatData(kernelDisk *theDisk)
+static void freeFatData(kernelDisk *theDisk)
 {
 	// Deallocate the FAT data structure from a disk.
 
@@ -3084,7 +3066,7 @@ void freeFatData(kernelDisk *theDisk)
 		if (fatData->freeClusterBitmap)
 			kernelFree(fatData->freeClusterBitmap);
 
-		kernelMemClear((void *) fatData, sizeof(fatInternalData));
+		memset((void *) fatData, 0, sizeof(fatInternalData));
 		kernelFree((void *) fatData);
 	}
 
@@ -3414,7 +3396,7 @@ static int detect(kernelDisk *theDisk)
 }
 
 
-void fatProgressConfirmError(progress *prog, const char *message)
+static void fatProgressConfirmError(progress *prog, const char *message)
 {
 	if (!prog)
 		return;
@@ -3493,7 +3475,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	}
 
 	// Clear out our new FAT data structure
-	kernelMemClear((void *) &fatData, sizeof(fatInternalData));
+	memset((void *) &fatData, 0, sizeof(fatInternalData));
 
 	if (prog && (kernelLockGet(&prog->progLock) >= 0))
 	{
@@ -4018,7 +4000,7 @@ static int defragRecursive(fatInternalData *fatData, kernelFileEntry *entry,
 }
 
 
-int fatDefragment(kernelDisk *theDisk, progress *prog)
+static int fatDefragment(kernelDisk *theDisk, progress *prog)
 {
 	// This function defragments a FAT filesystem.  It's pretty primitive in
 	// that it simply re-writes files that are fragmented, which will tend to
@@ -4133,7 +4115,7 @@ out:
 }
 
 
-uquad_t fatGetFreeBytes(kernelDisk *theDisk)
+static uquad_t fatGetFreeBytes(kernelDisk *theDisk)
 {
 	// This function returns the amount of free disk space, in bytes.
 
@@ -4176,7 +4158,7 @@ uquad_t fatGetFreeBytes(kernelDisk *theDisk)
 }
 
 
-int markFatFsClean(fatInternalData *fatData, int clean)
+static int markFatFsClean(fatInternalData *fatData, int clean)
 {
 	int wasClean = 0;
 	unsigned tmp;
@@ -4431,7 +4413,7 @@ static int inactiveEntry(kernelFileEntry *entry)
 	if (entry->driverData)
 	{
 		// Erase all of the data in this entry
-		kernelMemClear(entry->driverData, sizeof(fatEntryData));
+		memset(entry->driverData, 0, sizeof(fatEntryData));
 
 		kernelFree(entry->driverData);
 
@@ -4922,13 +4904,8 @@ static kernelFilesystemDriver defaultFatDriver = {
 	fatDefragment,
 	NULL,	// driverStat
 	fatGetFreeBytes,
-#ifdef PLUS
-	fatResizeConstraints,
-	fatResize,
-#else
 	NULL,	// resizeConstraints
 	NULL,	// resize
-#endif
 	mount,
 	unmount,
 	newEntry,
@@ -4955,7 +4932,6 @@ static kernelFilesystemDriver defaultFatDriver = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 int kernelFilesystemFatInitialize(void)
 {

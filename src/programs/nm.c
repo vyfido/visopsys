@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,6 +49,7 @@ items are shown, along with their bindings (such as 'local', 'global', or
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/env.h>
 #include <sys/vsh.h>
 
 #define _(string) gettext(string)
@@ -84,7 +85,7 @@ int main(int argc, char *argv[])
 	loaderSymbolTable *symTable = NULL;
 	int count1, count2;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("nm");
 
 	// Need at least one argument
@@ -99,12 +100,12 @@ int main(int argc, char *argv[])
 	for (count1 = 1; count1 < argc; count1 ++)
 	{
 		// Initialize the file and file class structures
-		bzero(&theFile, sizeof(file));
-		bzero(&class, sizeof(loaderFileClass));
+		memset(&theFile, 0, sizeof(file));
+		memset(&class, 0, sizeof(loaderFileClass));
 
 		// Load the file
 		fileData = loaderLoad(argv[count1], &theFile);
-		if (fileData == NULL)
+		if (!fileData)
 		{
 			errno = ERR_NODATA;
 			printf(_("Can't load file \"%s\"\n"), argv[count1]);
@@ -112,7 +113,7 @@ int main(int argc, char *argv[])
 		}
 
 		// Make sure it's a dynamic library or executable
-		if (loaderClassify(argv[count1], fileData, theFile.size, &class) == NULL)
+		if (!loaderClassify(argv[count1], fileData, theFile.size, &class))
 		{
 			printf(_("File type of \"%s\" is unknown\n"), argv[count1]);
 			continue;
@@ -132,7 +133,7 @@ int main(int argc, char *argv[])
 
 		// Get the symbol table
 		symTable = loaderGetSymbols(argv[count1]);
-		if (symTable == NULL)
+		if (!symTable)
 		{
 			printf(_("Unable to get dynamic symbols from \"%s\".\n"),
 				argv[count1]);

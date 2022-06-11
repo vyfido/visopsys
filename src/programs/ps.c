@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -44,6 +44,7 @@ privilege level, priority level, CPU utilization and other statistics.
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
+#include <sys/env.h>
 
 #define _(string) gettext(string)
 
@@ -62,13 +63,13 @@ int main(int argc __attribute__((unused)), char *argv[])
 	char lineBuffer[160];
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("ps");
 
 	bufferSize = (SHOW_MAX_PROCESSES * sizeof(process));
 
 	processes = malloc(bufferSize);
-	if (processes == NULL)
+	if (!processes)
 	{
 		perror(argv[0]);
 		return (ERR_MEMORY);

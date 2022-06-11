@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -50,27 +50,30 @@ static void doFileSelection(file *theFile, char *fullName,
 	if (doImageThumbs)
 	{
 		if ((theFile->type == fileT) &&
-		(loaderClass->class & LOADERFILECLASS_IMAGE))
+			(loaderClass->class & LOADERFILECLASS_IMAGE))
 		{
 			windowSwitchPointer(dialogWindow, "busy");
 			windowThumbImageUpdate(thumbImage, fullName, MAX_IMAGE_DIMENSION,
-				MAX_IMAGE_DIMENSION);
+				MAX_IMAGE_DIMENSION, 0 /* no stretch */, &COLOR_WHITE);
 			windowSwitchPointer(dialogWindow, "default");
 		}
 		else
+		{
 			windowThumbImageUpdate(thumbImage, NULL, MAX_IMAGE_DIMENSION,
-				MAX_IMAGE_DIMENSION);
+				MAX_IMAGE_DIMENSION, 0 /* no stretch */, &COLOR_WHITE);
+		}
 	}
 
 	if (theFile->type == fileT)
 		windowComponentSetData(textField, theFile->name,
-			(strlen(theFile->name) + 1));
+			(strlen(theFile->name) + 1), 1 /* redraw */);
 
 	// Did we change directory?
 	if (theFile->type == dirT)
 	{
 		strncpy(cwd, fullName, MAX_PATH_LENGTH);
-		windowComponentSetData(locationField, cwd, strlen(cwd));
+		windowComponentSetData(locationField, cwd, strlen(cwd),
+			1 /* redraw */);
 	}
 }
 
@@ -117,7 +120,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	if (!dialogWindow)
 		return (status = ERR_NOCREATE);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 4;
 	params.padLeft = 5;
@@ -129,9 +132,12 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 
 	if (thumb)
 	{
-		params.flags |= WINDOW_COMPFLAG_HASBORDER;
+		params.flags |= (WINDOW_COMPFLAG_CUSTOMBACKGROUND |
+			WINDOW_COMPFLAG_HASBORDER);
+		params.background = COLOR_WHITE;
 		thumbImage = windowNewThumbImage(dialogWindow, NULL,
-			MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION, &params);
+			MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION, 0 /* no stretch */,
+			&params);
 		if (!thumbImage)
 			return (status = ERR_NOCREATE);
 
@@ -143,7 +149,8 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	params.gridHeight = 1;
 	params.orientationX = orient_left;
 	params.orientationY = orient_top;
-	params.flags &= ~WINDOW_COMPFLAG_HASBORDER;
+	params.flags &= ~(WINDOW_COMPFLAG_CUSTOMBACKGROUND |
+		WINDOW_COMPFLAG_HASBORDER);
 	textLabel = windowNewTextLabel(dialogWindow, message, &params);
 	if (!textLabel)
 	{
@@ -160,7 +167,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 		goto out;
 	}
 
-	windowComponentSetData(locationField, cwd, strlen(cwd));
+	windowComponentSetData(locationField, cwd, strlen(cwd), 1 /* redraw */);
 	windowComponentSetEnabled(locationField, 0); // For now
 
 	// Create the file list widget
@@ -191,7 +198,8 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 		baseName = basename(fileName);
 		if (baseName)
 		{
-			windowComponentSetData(textField, baseName, MAX_PATH_LENGTH);
+			windowComponentSetData(textField, baseName, MAX_PATH_LENGTH,
+				1 /* redraw */);
 			free(baseName);
 		}
 	}
@@ -236,7 +244,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 		if (((windowComponentEventGet(okButton, &event) > 0) &&
 				(event.type == EVENT_MOUSE_LEFTUP)) ||
 			((windowComponentEventGet(textField, &event) > 0) &&
-				(event.type == EVENT_KEY_DOWN) && (event.key == 10)))
+				(event.type == EVENT_KEY_DOWN) && (event.key == keyEnter)))
 		{
 			windowComponentGetData(textField, fileName, maxLength);
 			if (fileName[0] == '\0')

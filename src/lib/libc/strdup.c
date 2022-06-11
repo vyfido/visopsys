@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -35,7 +35,7 @@ char *strdup(const char *srcString)
 	char *destString = NULL;
 
 	// Check params
-	if (srcString == NULL)
+	if (!srcString)
 	{
 		errno = ERR_NULLPARAMETER;
 		return (destString = NULL);
@@ -47,7 +47,7 @@ char *strdup(const char *srcString)
 	length = strlen(srcString);
 
 	destString = malloc(length + 1);
-	if (destString == NULL)
+	if (!destString)
 	{
 		errno = ERR_MEMORY;
 		return (destString = NULL);
@@ -58,3 +58,4 @@ char *strdup(const char *srcString)
 	// Return success
 	return (destString);
 }
+

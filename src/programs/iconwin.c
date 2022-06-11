@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,6 +48,7 @@ custom icons for each.
 #include <stdlib.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 #include <sys/vsh.h>
 #include <sys/window.h>
@@ -114,13 +115,13 @@ static int readConfig(const char *fileName, variableList *config)
 
 	// If the 'LANG' environment variable is set, see whether there's another
 	// language-specific config file that matches it.
-	if (getenv("LANG"))
+	if (getenv(ENV_LANG))
 	{
 		status = fileFind(fileName, &f);
 		if (status >= 0)
 		{
 			sprintf(langFileName, "%s/%s/%s", PATH_SYSTEM_CONFIG,
-				getenv("LANG"), f.name);
+				getenv(ENV_LANG), f.name);
 
 			status = configRead(langFileName, &langConfig);
 			if (status >= 0)
@@ -208,7 +209,7 @@ static int processConfig(variableList *config)
 	{
 		iconParams = malloc(numIcons * sizeof(listItemParameters));
 		icons = malloc(numIcons * sizeof(iconInfo));
-		if ((iconParams == NULL) || (icons == NULL))
+		if (!iconParams || !icons)
 		{
 			error("%s", _("Memory allocation error"));
 			return (status = ERR_MEMORY);
@@ -234,7 +235,10 @@ static int processConfig(variableList *config)
 			sprintf(tmp, "icon.%s.image", name);
 			value = variableListGet(config, tmp);
 			if (value)
-				strncpy(icons[numIcons].imageFile, value, MAX_PATH_NAME_LENGTH);
+			{
+				strncpy(icons[numIcons].imageFile, value,
+					MAX_PATH_NAME_LENGTH);
+			}
 
 			if (!value || (fileFind(icons[numIcons].imageFile, NULL) < 0) ||
 				(imageLoad(icons[numIcons].imageFile, 0, 0,
@@ -259,7 +263,8 @@ static int processConfig(variableList *config)
 				// Can't get the command.  We won't be showing this one.
 				continue;
 
-			strncpy(fullCommand, icons[numIcons].command, MAX_PATH_NAME_LENGTH);
+			strncpy(fullCommand, icons[numIcons].command,
+				MAX_PATH_NAME_LENGTH);
 
 			// See whether the command exists
 			if (loaderCheckCommand(fullCommand) < 0)
@@ -300,10 +305,10 @@ static void refreshWindow(void)
 	int count1, count2;
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("iconwin");
 
-	bzero(&tmpConfig, sizeof(variableList));
+	memset(&tmpConfig, 0, sizeof(variableList));
 
 	// Try to read the config file(s)
 	if (readConfig(configFile, &tmpConfig) >= 0)
@@ -341,7 +346,7 @@ static void refreshWindow(void)
 			}
 		}
 
-		windowComponentSetData(iconList, iconParams, numIcons);
+		windowComponentSetData(iconList, iconParams, numIcons, 1 /* redraw */);
 
 		variableListDestroy(&tmpConfig);
 	}
@@ -368,7 +373,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// if it is a mouse click selection, or an ENTER key selection
 	else if ((key == iconList) && (event->type & EVENT_SELECTION) &&
 		((event->type & EVENT_MOUSE_LEFTUP) ||
-		((event->type & EVENT_KEY_DOWN) && (event->key == ASCII_ENTER))))
+		((event->type & EVENT_KEY_DOWN) && (event->key == keyEnter))))
 	{
 		// Get the selected item
 		windowComponentGetSelected(iconList, &clickedIcon);
@@ -392,10 +397,10 @@ static int constructWindow(void)
 
 	// Create a new window, with small, arbitrary size and location
 	window = windowNew(processId, windowTitle);
-	if (window == NULL)
+	if (!window)
 		return (status = ERR_NOTINITIALIZED);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padTop = 5;
@@ -441,7 +446,7 @@ int main(int argc, char *argv[])
 	int status = 0;
 	variableList config;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("iconwin");
 
 	// Only work in graphics mode
@@ -467,7 +472,7 @@ int main(int argc, char *argv[])
 
 	configFile = argv[argc - 1];
 
-	bzero(&config, sizeof(variableList));
+	memset(&config, 0, sizeof(variableList));
 
 	// Try to read the config file(s)
 	status = readConfig(configFile, &config);

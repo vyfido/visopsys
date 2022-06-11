@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,23 +17,23 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: filebrowse.c:61
+#: filebrowse.c:62
 msgid "File Browser"
 msgstr ""
 
-#: filebrowse.c:62
+#: filebrowse.c:63
 msgid "File"
 msgstr ""
 
-#: filebrowse.c:63
+#: filebrowse.c:64
 msgid "View"
 msgstr ""
 
-#: filebrowse.c:72
+#: filebrowse.c:73
 msgid "Quit"
 msgstr ""
 
-#: filebrowse.c:80
+#: filebrowse.c:81
 msgid "Refresh"
 msgstr ""
 
@@ -41,27 +41,27 @@ msgstr ""
 msgid "Error"
 msgstr ""
 
-#: filebrowse.c:226
+#: filebrowse.c:223
 #, c-format
 msgid "Couldn't execute command \"%s\""
 msgstr ""
 
-#: filebrowse.c:420
+#: filebrowse.c:419
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: filebrowse.c:434
+#: filebrowse.c:433
 msgid "Memory allocation error"
 msgstr ""
 
-#: filebrowse.c:449
+#: filebrowse.c:448
 #, c-format
 msgid "Can't change to directory \"%s\""
 msgstr ""
 
-#: filebrowse.c:456
+#: filebrowse.c:455
 msgid "Can't determine current directory"
 msgstr ""

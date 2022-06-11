@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -41,6 +41,7 @@ Usage:
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
+#include <sys/env.h>
 #include <sys/paths.h>
 
 #define _(string) gettext(string)
@@ -49,7 +50,7 @@ Usage:
 #define CHANGE_DIRECTION	_("Use cursor keys to change direction")
 #define SCREENWIDTH			20
 #define SCREENHEIGHT		9
-#define SPEED				3
+#define SPEED				200
 #define TREAT_MULTIPLE		5
 #define TREAT_TIMER			20
 #define TREAT_BASESCORE		30
@@ -144,7 +145,7 @@ static void clearImage(coord *c)
 {
 	windowDrawParameters drawParams;
 
-	bzero(&drawParams, sizeof(windowDrawParameters));
+	memset(&drawParams, 0, sizeof(windowDrawParameters));
 	drawParams.operation = draw_rect;
 	drawParams.mode = draw_normal;
 	drawParams.xCoord1 = (c->x * imageWidth);
@@ -156,7 +157,7 @@ static void clearImage(coord *c)
 	drawParams.foreground.red = 255;
 	drawParams.foreground.green = 255;
 	drawParams.foreground.blue = 255;
-	windowComponentSetData(canvas, &drawParams, 1);
+	windowComponentSetData(canvas, &drawParams, 1, 1 /* redraw */);
 }
 
 
@@ -164,13 +165,13 @@ static void putImage(coord *c, imageEnum ie)
 {
 	windowDrawParameters drawParams;
 
-	bzero(&drawParams, sizeof(windowDrawParameters));
+	memset(&drawParams, 0, sizeof(windowDrawParameters));
 	drawParams.operation = draw_image;
 	drawParams.mode = draw_translucent;
 	drawParams.xCoord1 = (c->x * imageWidth);
 	drawParams.yCoord1 = (c->y * imageHeight);
 	drawParams.data = &images[ie];
-	windowComponentSetData(canvas, &drawParams, 1);
+	windowComponentSetData(canvas, &drawParams, 1, 1 /* redraw */);
 }
 
 
@@ -219,7 +220,8 @@ static void makeTreat(void)
 	if (graphics)
 	{
 		windowComponentSetVisible(treatImage, 1);
-		windowComponentSetData(treatLabel, tmpChar, strlen(tmpChar));
+		windowComponentSetData(treatLabel, tmpChar, strlen(tmpChar),
+			1 /* redraw */);
 		windowComponentSetVisible(treatLabel, 1);
 	}
 	else
@@ -248,9 +250,14 @@ static void updateTreat(void)
 	{
 		sprintf(tmpChar, "%02d", treatTimer);
 		if (graphics)
-			windowComponentSetData(treatLabel, tmpChar, strlen(tmpChar));
+		{
+			windowComponentSetData(treatLabel, tmpChar, strlen(tmpChar),
+				1 /* redraw */);
+		}
 		else
+		{
 			printf("* %s", tmpChar);
+		}
 	}
 	else
 	{
@@ -258,7 +265,8 @@ static void updateTreat(void)
 		{
 			windowComponentSetVisible(treatImage, 0);
 			windowComponentSetVisible(treatLabel, 0);
-			windowComponentSetData(treatLabel, "    ", strlen(tmpChar));
+			windowComponentSetData(treatLabel, "    ", strlen(tmpChar),
+				1 /* redraw */);
 		}
 		else
 			printf("    ");
@@ -661,12 +669,12 @@ static void refreshWindow(void)
 	// so we need to update things
 
 	// Re-get the language setting
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("snake");
 
 	// Refresh the 'change direction' label
 	windowComponentSetData(changeDirLabel, CHANGE_DIRECTION,
-		strlen(CHANGE_DIRECTION));
+		strlen(CHANGE_DIRECTION), 1 /* redraw */);
 
 	// Refresh the window title
 	windowSetTitle(window, WINDOW_TITLE);
@@ -694,25 +702,25 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 		switch (event->key)
 		{
-			case ASCII_CRSRUP:
+			case keyUpArrow:
 				// Cursor up
 				if (snakeArray[0].dir != south)
 					snakeDirection = north;
 				break;
 
-			case ASCII_CRSRDOWN:
+			case keyDownArrow:
 				// Cursor down
 				if (snakeArray[0].dir != north)
 					snakeDirection = south;
 				break;
 
-			case ASCII_CRSRLEFT:
+			case keyLeftArrow:
 				// Cursor left
 				if (snakeArray[0].dir != east)
 					snakeDirection = west;
 				break;
 
-			case ASCII_CRSRRIGHT:
+			case keyRightArrow:
 				// Cursor right
 				if (snakeArray[0].dir != west)
 					snakeDirection = east;
@@ -749,10 +757,10 @@ static int constructWindow(void)
 
 	// Create a new window
 	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
-	if (window == NULL)
+	if (!window)
 		return (status = ERR_NOTINITIALIZED);
 
-	bzero(&params, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
 	params.padLeft = 5;
@@ -804,7 +812,7 @@ static int constructWindow(void)
 	windowSetVisible(window, 1);
 
 	// Clear the background of the canvas
-	bzero(&drawParams, sizeof(windowDrawParameters));
+	memset(&drawParams, 0, sizeof(windowDrawParameters));
 	drawParams.operation = draw_rect;
 	drawParams.mode = draw_normal;
 	drawParams.width = (screenWidth * imageWidth);
@@ -814,7 +822,7 @@ static int constructWindow(void)
 	drawParams.foreground.red = 255;
 	drawParams.foreground.green = 255;
 	drawParams.foreground.blue = 255;
-	windowComponentSetData(canvas, &drawParams, 1);
+	windowComponentSetData(canvas, &drawParams, 1, 1 /* redraw */);
 
 	return (status = 0);
 }
@@ -864,7 +872,10 @@ static int play(void)
 
 		sprintf(tmpChar, "%04d", score);
 		if (graphics)
-			windowComponentSetData(scoreLabel, tmpChar, strlen(tmpChar));
+		{
+			windowComponentSetData(scoreLabel, tmpChar, strlen(tmpChar),
+				1 /* redraw */);
+		}
 		else
 		{
 			textSetColumn(0);
@@ -885,17 +896,26 @@ int main(int argc, char *argv[])
 	char tmpChar[80];
 	int count;
 
-	setlocale(LC_ALL, getenv("LANG"));
+	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("snake");
 
 	// Are graphics enabled?
 	graphics = graphicsAreEnabled();
 
-	while (strchr("T", (opt = getopt(argc, argv, "T"))))
+	// Check options
+	while (strchr("T?", (opt = getopt(argc, argv, "T"))))
 	{
-		// Force text mode?
-		if (opt == 'T')
-			graphics = 0;
+		switch (opt)
+		{
+			case 'T':
+				// Force text mode
+				graphics = 0;
+				break;
+
+			default:
+				fprintf(stderr, _("Unknown option '%c'\n"), optopt);
+				return (status = ERR_INVALID);
+		}
 	}
 
 	if (graphics)

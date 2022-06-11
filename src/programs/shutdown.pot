@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,41 +17,46 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: shutdown.c:69
+#: shutdown.c:70
 msgid "Reboot"
 msgstr ""
 
-#: shutdown.c:70
+#: shutdown.c:71
 msgid "Shut down"
 msgstr ""
 
-#: shutdown.c:71
+#: shutdown.c:72
 msgid "Eject CD-ROM"
 msgstr ""
 
-#: shutdown.c:73
+#: shutdown.c:74
 msgid "Ejecting, please wait..."
 msgstr ""
 
-#: shutdown.c:74
+#: shutdown.c:75
 msgid "Unable to unlock the media door"
 msgstr ""
 
-#: shutdown.c:75
+#: shutdown.c:76
 msgid ""
 "Can't seem to eject.  Try pushing\n"
 "the 'eject' button now."
 msgstr ""
 
-#: shutdown.c:94
+#: shutdown.c:96
 msgid "Ejecting"
 msgstr ""
 
-#: shutdown.c:105
+#: shutdown.c:111
 msgid "Error"
 msgstr ""
 
-#: shutdown.c:339
+#: shutdown.c:335
+#, c-format
+msgid "Unknown option '%c'\n"
+msgstr ""
+
+#: shutdown.c:363
 #, c-format
 msgid "Use \"%s -f\" to force.\n"
 msgstr ""

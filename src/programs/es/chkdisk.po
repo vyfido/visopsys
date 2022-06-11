@@ -7,9 +7,9 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-12-27 02:06+0000\n"
+"POT-Creation-Date: 2015-06-16 01:26+0100\n"
 "PO-Revision-Date: 2014-01-22 18:46-0400\n"
-"Last-Translator: Jens Leon Wagner <jenswagner20@ovi.com>\n"
+"Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
@@ -17,28 +17,28 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
-#: chkdisk.c:57
+#: chkdisk.c:58
 msgid "usage:\n"
 msgstr "Uso:\n"
 
-#: chkdisk.c:58
+#: chkdisk.c:59
 #, c-format
 msgid "%s <disk_name>\n"
 msgstr "%s <nombre_del_disco>\n"
 
-#: chkdisk.c:90
+#: chkdisk.c:91
 msgid ""
 "\n"
 "Visopsys CHKDISK Utility\n"
-"Copyright (C) 1998-2014 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2015 J. Andrew McLaughlin\n"
 "\n"
 msgstr ""
 "\n"
 "Herramienta CHKDISK de Visopsys\n"
-"Copyright (C) 1998-2014 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2015 J. Andrew McLaughlin\n"
 "\n"
 
-#: chkdisk.c:102
+#: chkdisk.c:103
 msgid ""
 "\n"
 "The filesystem may contain errors.\n"
@@ -48,6 +48,6 @@ msgstr ""
 "El sistema de archivos contiene errores.\n"
 "Desea intentar a repararlos? (y/n): "
 
-#: chkdisk.c:115
+#: chkdisk.c:116
 msgid "Filesystem consistency check failed.\n"
 msgstr "Prueba de consistencia del sistema de archivos fallada.\n"

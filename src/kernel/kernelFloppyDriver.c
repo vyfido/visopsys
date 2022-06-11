@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,6 +22,7 @@
 // Driver for standard 3.5" floppy disks
 
 #include "kernelDisk.h"
+#include "kernelCpu.h"
 #include "kernelDma.h"
 #include "kernelError.h"
 #include "kernelInterrupt.h"
@@ -29,14 +30,13 @@
 #include "kernelMain.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
-#include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelPic.h"
-#include "kernelProcessorX86.h"
-#include "kernelSysTimer.h"
 #include <stdio.h>
+#include <string.h>
+#include <sys/processor.h>
 
 // Error codes and messages
 #define FLOPPY_ABNORMAL				0
@@ -105,22 +105,22 @@ static void commandWrite(unsigned char cmd)
 	// Waits until the floppy controller is ready for a new command (or part
 	// thereof) in port 03F5h, and then writes it.
 
-	unsigned startTime = kernelSysTimerRead();
+	uquad_t timeout = (kernelCpuGetMs() + 500);
 	unsigned char data;
 
-	while (kernelSysTimerRead() < (startTime + 10))
+	while (kernelCpuGetMs() < timeout)
 	{
 		// Get the drive transfer mode from the port
-		kernelProcessorDelay();
-		kernelProcessorInPort8(0x03F4, data);
+		processorDelay();
+		processorInPort8(0x03F4, data);
 
 		// Check whether access is permitted
 		if ((data & 0xC0) == 0x80)
 			break;
 	}
 
-	kernelProcessorOutPort8(0x03F5, cmd);
-	kernelProcessorDelay();
+	processorOutPort8(0x03F5, cmd);
+	processorDelay();
 
 	return;
 }
@@ -131,21 +131,21 @@ static unsigned char statusRead(void)
 	// Waits until the floppy controller is ready for a read of port 03F5h,
 	// and then reads it.
 
-	unsigned startTime = kernelSysTimerRead();
+	uquad_t timeout = (kernelCpuGetMs() + 500);
 	unsigned char data;
 
-	while (kernelSysTimerRead() < (startTime + 10))
+	while (kernelCpuGetMs() < timeout)
 	{
 		// Get the drive transfer mode from the port
-		kernelProcessorDelay();
-		kernelProcessorInPort8(0x03F4, data);
+		processorDelay();
+		processorInPort8(0x03F4, data);
 
 		// Check whether access is permitted
 		if ((data >> 6) == 3)
 			break;
 	}
 
-	kernelProcessorInPort8(0x03F5, data);
+	processorInPort8(0x03F5, data);
 	return (data);
 }
 
@@ -157,14 +157,14 @@ static int waitOperationComplete(void)
 	// out, the function returns negative.  Otherwise, it returns 0.
 
 	int status = 0;
-	unsigned startTime = kernelSysTimerRead();
+	uquad_t timeout = (kernelCpuGetMs() + 1000);
 
 	while (!interruptReceived)
 	{
 		// Yield the rest of this timeslice.
 		// kernelMultitaskerYield();
 
-		if (kernelSysTimerRead() > (startTime + 20))
+		if (kernelCpuGetMs() > timeout)
 			break;
 	}
 
@@ -272,8 +272,8 @@ static void selectDrive(unsigned driveNum)
 	// Select the drive on the controller
 
 	// Get the current register value
-	kernelProcessorDelay();
-	kernelProcessorInPort8(0x03F2, data);
+	processorDelay();
+	processorInPort8(0x03F2, data);
 
 	// Make sure the DMA/Interrupt and reset-off bits are set
 	data |= 0x0C;
@@ -285,8 +285,8 @@ static void selectDrive(unsigned driveNum)
 	data |= (unsigned char) driveNum;
 
 	// Issue the command
-	kernelProcessorOutPort8(0x03F2, data);
-	kernelProcessorDelay();
+	processorOutPort8(0x03F2, data);
+	processorDelay();
 
 	return;
 }
@@ -303,8 +303,8 @@ static void specify(unsigned driveNum)
 
 	// Construct the data rate byte
 	command = floppyData->dataRate;
-	kernelProcessorOutPort8(0x03F7, command);
-	kernelProcessorDelay();
+	processorOutPort8(0x03F7, command);
+	processorDelay();
 
 	// Construct the command byte
 	command = 0x03;  // Specify command
@@ -353,8 +353,8 @@ static int setMotorState(int driveNum, int onOff)
 	selectDrive(driveNum);
 
 	// Read the port's current state
-	kernelProcessorDelay();
-	kernelProcessorInPort8(0x03F2, data);
+	processorDelay();
+	processorInPort8(0x03F2, data);
 
 	// Move the motor select bit to the correct location [7:4]
 	tmp = ((unsigned char) 0x10 << driveNum);
@@ -368,8 +368,8 @@ static int setMotorState(int driveNum, int onOff)
 			data |= tmp;
 
 			// Issue the command
-			kernelProcessorOutPort8(0x03F2, data);
-			kernelProcessorDelay();
+			processorOutPort8(0x03F2, data);
+			processorDelay();
 		}
 	}
 	else
@@ -381,8 +381,8 @@ static int setMotorState(int driveNum, int onOff)
 		data &= tmp;
 
 		// Issue the command
-		kernelProcessorOutPort8(0x03F2, data);
-		kernelProcessorDelay();
+		processorOutPort8(0x03F2, data);
+		processorDelay();
 	}
 
 	if (onOff)
@@ -439,7 +439,7 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 		// operation we have to wait for it.
 		if (!read)
 			// Wait half a second for the drive to spin up
-			kernelMultitaskerWait(10);
+			kernelMultitaskerWait(500);
 	}
 
 	// We don't want to cross a track boundary in one operation.  Some
@@ -500,7 +500,7 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 		// If it's a write operation, copy xferBytes worth of user data
 		// into the transfer area
 		if (!read)
-			kernelMemCopy(buffer, xferArea.virtual, xferBytes);
+			memcpy(xferArea.virtual, buffer, xferBytes);
 
 		// Set up the DMA controller for the transfer.
 		if (read)
@@ -636,7 +636,7 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 			// If this was a read operation, copy xferBytes worth of data from
 			// the transfer area to the user buffer
 			if (read)
-				kernelMemCopy(xferArea.virtual, buffer, xferBytes);
+				memcpy(buffer, xferArea.virtual, xferBytes);
 		}
 
 		logicalSector += doSectors;
@@ -672,7 +672,7 @@ static void floppyInterrupt(void)
 
 	void *address = NULL;
 
-	kernelProcessorIsrEnter(address);
+	processorIsrEnter(address);
 	kernelInterruptSetCurrent(INTERRUPT_NUM_FLOPPY);
 
 	// Check whether to do the "sense interrupt status" command.
@@ -695,7 +695,7 @@ static void floppyInterrupt(void)
 
 	kernelPicEndOfInterrupt(INTERRUPT_NUM_FLOPPY);
 	kernelInterruptClearCurrent();
-	kernelProcessorIsrExit(address);
+	processorIsrExit(address);
 }
 
 
@@ -741,8 +741,8 @@ static int driverMediaChanged(int driveNum)
 	selectDrive(driveNum);
 
 	// Now simply read port 03F7h.  Bit 7 is the only part that matters.
-	kernelProcessorDelay();
-	kernelProcessorInPort8(0x03F7, data);
+	processorDelay();
+	processorInPort8(0x03F7, data);
 
 	// Unlock the controller
 	kernelLockRelease(&controllerLock);
@@ -789,33 +789,35 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	kernelDevice *theDevice = NULL;
 	int count;
 
-	kernelMemClear(&disks, (MAXFLOPPIES * sizeof(kernelPhysicalDisk)));
-	kernelMemClear((void *) &controllerLock, sizeof(lock));
-	kernelMemClear(&xferArea, sizeof(kernelIoMemory));
+	numberFloppies = 0;
+	memset((void *) &controllerLock, 0, sizeof(lock));
+	memset(&xferArea, 0, sizeof(kernelIoMemory));
 
-	// Reset the number of floppy devices
-	numberFloppies = kernelOsLoaderInfo->floppyDisks;
-
-	// Loop for each device
-	for (count = 0; count < numberFloppies; count ++)
+	// Loop for each device reported by the BIOS
+	for (count = 0; count < kernelOsLoaderInfo->floppyDisks; count ++)
 	{
+		memset((void *) &disks[numberFloppies], 0, sizeof(kernelPhysicalDisk));
+
 		// The head, track and sector values we got from the loader
-		disks[count].heads = kernelOsLoaderInfo->fddInfo[count].heads;
-		disks[count].cylinders = kernelOsLoaderInfo->fddInfo[count].tracks;
-		disks[count].sectorsPerCylinder =
+		disks[numberFloppies].heads = kernelOsLoaderInfo->fddInfo[count].heads;
+		disks[numberFloppies].cylinders =
+			kernelOsLoaderInfo->fddInfo[count].tracks;
+		disks[numberFloppies].sectorsPerCylinder =
 			kernelOsLoaderInfo->fddInfo[count].sectors;
-		disks[count].numSectors = (disks[count].heads *
-			disks[count].cylinders * disks[count].sectorsPerCylinder);
+		disks[numberFloppies].numSectors = (disks[numberFloppies].heads *
+			disks[numberFloppies].cylinders *
+			disks[numberFloppies].sectorsPerCylinder);
 
 		// Some additional universal default values
-		disks[count].type =
+		disks[numberFloppies].type =
 			(DISKTYPE_PHYSICAL | DISKTYPE_REMOVABLE | DISKTYPE_FLOPPY);
-		disks[count].deviceNumber = count;
-		disks[count].sectorSize = 512;
+		disks[numberFloppies].deviceNumber = count;
+		disks[numberFloppies].sectorSize = 512;
 		// Assume motor off for now
 
 		// We do division operations with these values
-		if (!disks[count].sectorsPerCylinder || !disks[count].heads)
+		if (!disks[numberFloppies].sectorsPerCylinder ||
+			!disks[numberFloppies].heads)
 		{
 			// We do division operations with these values
 			kernelError(kernel_error, "NULL sectors or heads value");
@@ -841,21 +843,21 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		{
 			case 1:
 				// This is a 360 KB 5.25" Disk.  Yuck.
-				disks[count].description = "360 Kb 5.25\" floppy";
+				disks[numberFloppies].description = "360 Kb 5.25\" floppy";
 				floppyData->stepRate = 0x0D;
 				floppyData->gapLength = 0x2A;
 				break;
 
 			case 2:
 				// This is a 1.2 MB 5.25" Disk.  Yuck.
-				disks[count].description = "1.2 MB 5.25\" floppy";
+				disks[numberFloppies].description = "1.2 MB 5.25\" floppy";
 				floppyData->stepRate = 0x0D;
 				floppyData->gapLength = 0x2A;
 				break;
 
 			case 3:
 				// This is a 720 KB 3.5" Disk.  Yuck.
-				disks[count].description = "720 Kb 3.5\" floppy";
+				disks[numberFloppies].description = "720 Kb 3.5\" floppy";
 				floppyData->stepRate = 0x0D;
 				floppyData->gapLength = 0x1B;
 				break;
@@ -863,30 +865,41 @@ static int driverDetect(void *parent, kernelDriver *driver)
 			case 5:
 			case 6:
 				// This is a 2.88 MB 3.5" Disk.
-				disks[count].description = "2.88 MB 3.5\" floppy";
+				disks[numberFloppies].description = "2.88 MB 3.5\" floppy";
 				floppyData->stepRate = 0x0A;
 				floppyData->gapLength = 0x1B;
 				break;
+
+			case 16:
+				// This is a removable ATAPI device (possibly USB).  Not an
+				// old-fashioned floppy that we can use with this driver.
+				kernelError(kernel_warn, "Floppy disk fd%d is not a standard "
+					"floppy disk (ATAPI)", disks[numberFloppies].deviceNumber);
+				kernelFree((void *) floppyData);
+				continue;
 
 			default:
 				// Oh oh.  This is an unexpected value.  Make a warning and
 				// fall through to 1.44 MB.
 				kernelError(kernel_warn, "Floppy disk fd%d type %d is "
-					"unknown.  Assuming 1.44 MB.", disks[count].deviceNumber,
+					"unknown.  Assuming 1.44 MB.",
+					disks[numberFloppies].deviceNumber,
 					kernelOsLoaderInfo->fddInfo[count].type);
 
 			case 4:
 				// This is a 1.44 MB 3.5" Disk.
-				disks[count].description = "1.44 MB 3.5\" floppy";
+				disks[numberFloppies].description = "1.44 MB 3.5\" floppy";
 				floppyData->stepRate = 0x0A;
 				floppyData->gapLength = 0x1B;
 				break;
 		}
 
 		// Attach the drive data to the disk
-		disks[count].driverData = (void *) floppyData;
+		disks[numberFloppies].driverData = (void *) floppyData;
 
-		disks[count].driver = driver;
+		disks[numberFloppies].driver = driver;
+
+		numberFloppies += 1;
 	}
 
 	// Get memory for a disk transfer area.
@@ -985,7 +998,6 @@ static kernelDiskOps floppyOps = {
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 
 void kernelFloppyDriverRegister(kernelDriver *driver)
 {

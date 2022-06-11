@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -43,7 +43,7 @@ int wctomb(char *string, wchar_t wc)
 
 	int numBytes = 1;
 
-	if (string == NULL)
+	if (!string)
 		// Stateless.
 		return (0);
 
@@ -59,7 +59,9 @@ int wctomb(char *string, wchar_t wc)
 		numBytes += 1;
 
 	if (numBytes == 1)
+	{
 		string[0] = (wc & 0x7F);
+	}
 	else if (numBytes == 2)
 	{
 		string[0] = (0xC0 | ((wc & 0x07D0) >> 6));
@@ -81,3 +83,4 @@ int wctomb(char *string, wchar_t wc)
 
 	return (numBytes);
 }
+

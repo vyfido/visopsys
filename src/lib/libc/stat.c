@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2014 J. Andrew McLaughlin
+//  Copyright (C) 1998-2015 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +22,9 @@
 // This is the standard "stat" function, as found in standard C libraries
 
 #include <unistd.h>
-#include <string.h>
 #include <errno.h>
+#include <string.h>
+#include <time.h>
 #include <sys/api.h>
 
 
@@ -39,7 +40,7 @@ int stat(const char *fileName, struct stat *buf)
 		return (errno = ERR_BUG);
 
 	// Try to find the file
-	bzero(&theFile, sizeof(file));
+	memset(&theFile, 0, sizeof(file));
 	status = fileFind(fileName, &theFile);
 	if (status < 0)
 	{
@@ -48,7 +49,7 @@ int stat(const char *fileName, struct stat *buf)
 	}
 
 	// Get the disk
-	bzero(&theDisk, sizeof(disk));
+	memset(&theDisk, 0, sizeof(disk));
 	status = fileGetDisk(fileName, &theDisk);
 	if (status < 0)
 	{
@@ -66,9 +67,10 @@ int stat(const char *fileName, struct stat *buf)
 	buf->st_size = theFile.size;
 	buf->st_blksize = theFile.blockSize;
 	buf->st_blocks = theFile.blocks;
-	buf->st_atime = theFile.accessedDate;
-	buf->st_mtime = theFile.modifiedDate;
-	buf->st_ctime = theFile.creationDate;
+	buf->st_atime = mktime(&theFile.accessed);
+	buf->st_mtime = mktime(&theFile.modified);
+	buf->st_ctime = mktime(&theFile.created);
 
 	return (0);
 }
+
