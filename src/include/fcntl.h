@@ -1,32 +1,32 @@
-//
+// 
 //  Visopsys
 //  Copyright (C) 1998-2003 J. Andrew McLaughlin
-// 
-//  This program is free software; you can redistribute it and/or modify it
-//  under the terms of the GNU General Public License as published by the Free
-//  Software Foundation; either version 2 of the License, or (at your option)
-//  any later version.
-// 
-//  This program is distributed in the hope that it will be useful, but
-//  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-//  or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-//  for more details.
 //  
-//  You should have received a copy of the GNU General Public License along
-//  with this program; if not, write to the Free Software Foundation, Inc.,
-//  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//  This library is free software; you can redistribute it and/or modify it
+//  under the terms of the GNU Lesser General Public License as published by
+//  the Free Software Foundation; either version 2.1 of the License, or (at
+//  your option) any later version.
 //
-//  fnctl.h
+//  This library is distributed in the hope that it will be useful, but
+//  WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+//  General Public License for more details.
+//
+//  You should have received a copy of the GNU Lesser General Public License
+//  along with this library; if not, write to the Free Software Foundation,
+//  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//
+//  fcntl.h
 //
 //  The information gathered here and some of the descriptions are from
 //  http://www.opennc.org/onlinepubs/7908799/xsh/fcntl.h.html
-//  Copyright © 1997 The Open Group
+//  Copyright (C) 1997 The Open Group
 //
 
 // This header defines the following requests and arguments for use by the
 // functions fcntl() and open().  
 
-#if !defined(_TYPES_H)
+#if !defined(_FCNTL_H)
 
 // Values for cmd used by fcntl() (the following values are unique): 
 #define F_DUPFD  0x01  // Duplicate file descriptor 
@@ -99,5 +99,5 @@ int creat(const char *, mode_t);
 int fcntl(int, int, ...);
 int open(const char *, int, ...);
 
-#define _TYPES_H
+#define _FCNTL_H
 #endif

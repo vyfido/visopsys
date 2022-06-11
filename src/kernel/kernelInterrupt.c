@@ -157,8 +157,7 @@ void kernelInterruptHandler25(void)
   // Issue an end-of-interrupt (EOI) to the PIC
   kernelProcessorOutPort8(0x20, 0x20);
 
-  // Just print a message
-  kernelTextPrintLine("Parallel port 2 interrupt");
+  // Nothing
 
   kernelProcessingInterrupt = 0;
   kernelProcessorIsrExit();
@@ -203,10 +202,10 @@ void kernelInterruptHandler27(void)
   kernelProcessorOutPort8(0x20, 0x0B);
   kernelProcessorDelay();
   kernelProcessorInPort8(0x20, data);
+
   if (data & 0x80)
     {
-      // Call ?
-      ;
+      // Nothing
     }
 
   kernelProcessingInterrupt = 0;
@@ -226,8 +225,7 @@ void kernelInterruptHandler28(void)
   // Issue an end-of-interrupt (EOI) to the master PIC
   kernelProcessorOutPort8(0x20, 0x20);
 
-  // Just print a message
-  kernelTextPrintLine("Real-time clock alarm interrupt");
+  // Nothing
 
   kernelProcessingInterrupt = 0;
   kernelProcessorIsrExit();
@@ -246,8 +244,7 @@ void kernelInterruptHandler29(void)
   // Issue an end-of-interrupt (EOI) to the master PIC
   kernelProcessorOutPort8(0x20, 0x20);
 
-  // Just print a message
-  kernelTextPrintLine("VGA retrace interrupt");
+  // Nothing
 
   kernelProcessingInterrupt = 0;
   kernelProcessorIsrExit();
@@ -266,8 +263,7 @@ void kernelInterruptHandler2A(void)
   // Issue an end-of-interrupt (EOI) to the master PIC
   kernelProcessorOutPort8(0x20, 0x20);
 
-  // Just print a message
-  kernelTextPrintLine("Interrupt 72");
+  // Nothing
 
   kernelProcessingInterrupt = 0;
   kernelProcessorIsrExit();
@@ -296,6 +292,7 @@ void kernelInterruptHandler2B(void)
   kernelProcessorOutPort8(0xA0, 0x0B);
   kernelProcessorDelay();
   kernelProcessorInPort8(0xA0, data);
+
   if (data & 0x08)
     {
       // DON'T print the interrupt message.  This looks like it might be
@@ -341,8 +338,7 @@ void kernelInterruptHandler2D(void)
   // Issue an end-of-interrupt (EOI) to the master PIC
   kernelProcessorOutPort8(0x20, 0x20);
 
-  // Just print a message
-  kernelTextPrintLine("Numeric co-processor error");
+  // Nothing
 
   kernelProcessingInterrupt = 0;
   kernelProcessorIsrExit();
@@ -373,28 +369,24 @@ void kernelInterruptHandler2F(void)
 {
   // This is the 'available 3' interrupt handler.  We will be using
   // it for the secondary hard disk controller interrupt.
-	
-  // This interrupt can sometimes occur frivolously from "noise"
-  // on the interrupt request lines.  Before we do anything at all,
-  // we MUST ensure that the interrupt really occurred.
 
   static unsigned char data;
-
+	
   kernelProcessorIsrEnter();
   kernelProcessingInterrupt = 0x2F;
 
-  // Issue an end-of-interrupt (EOI) to the slave PIC
-  kernelProcessorOutPort8(0xA0, 0x20);
-  // Issue an end-of-interrupt (EOI) to the master PIC
-  kernelProcessorOutPort8(0x20, 0x20);
-
-  // Poll bit 7 in the PIC
+  // This interrupt can sometimes occur frivolously from "noise"
+  // on the interrupt request lines.  Before we do anything at all,
+  // we MUST ensure that the interrupt really occurred.
   kernelProcessorOutPort8(0xA0, 0x0B);
-  kernelProcessorDelay();
   kernelProcessorInPort8(0xA0, data);
-
   if (data & 0x80)
     {
+      // Issue an end-of-interrupt (EOI) to the slave PIC
+      kernelProcessorOutPort8(0xA0, 0x20);
+      // Issue an end-of-interrupt (EOI) to the master PIC
+      kernelProcessorOutPort8(0x20, 0x20);
+
       // Call the kernel's hard disk driver
       kernelIdeDriverReceiveInterrupt();
     }
@@ -416,8 +408,7 @@ void kernelInterruptHandlerUnimp(void)
   // Issue an end-of-interrupt (EOI) to the master PIC
   kernelProcessorOutPort8(0x20, 0x20);
 
-  // Just print a message
-  kernelTextPrintLine("Unimplemented interrupt handler");
+  // Nothing
 
   kernelProcessingInterrupt = 0;
   kernelProcessorIsrExit();

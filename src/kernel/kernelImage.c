@@ -50,8 +50,8 @@
 
 int kernelImageLoadBmp(const char *filename, image *loadImage)
 {
-  // Loads a .bmp file and returns it as a image object.  The memory
-  // for this object and its data must be freed by the caller.
+  // Loads a .bmp file and returns it as an image.  The memory
+  // for this and its data must be freed by the caller.
 
   int status = 0;
   file theFile;
@@ -101,7 +101,7 @@ int kernelImageLoadBmp(const char *filename, image *loadImage)
   palette = imageFileData + sizeof(bmpHeader) + 2;
 
   // Figure out how much memory we need for the array of pixels that
-  // we'll attach to the image object, and allocate it.  The size is a
+  // we'll attach to the image, and allocate it.  The size is a
   // product of the image height and width.
   loadImage->pixels = (width * height);
   loadImage->dataLength = (loadImage->pixels * sizeof(pixel));

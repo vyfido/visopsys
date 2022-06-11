@@ -40,7 +40,7 @@
 // An enumeration of driver types
 typedef enum {
   picDriver, sysTimerDriver, rtcDriver, dmaDriver, keyboardDriver,
-  mouseDriver, floppyDriver, ideDriver, graphicDriver, fatDriver,
+  mouseDriver, floppyDriver, ideDriver, graphicDriver, fatDriver, extDriver,
   textConsoleDriver, graphicConsoleDriver
 
 } kernelDriverType;
@@ -63,6 +63,7 @@ typedef struct
   kernelDiskDriver *ideDriver;
   kernelGraphicDriver *graphicDriver;
   kernelFilesystemDriver *fatDriver;
+  kernelFilesystemDriver *extDriver;
   kernelTextOutputDriver *textConsoleDriver;
   kernelTextOutputDriver *graphicConsoleDriver;
 
@@ -78,9 +79,10 @@ void kernelInstallDmaDriver(kernelDma *);
 void kernelInstallKeyboardDriver(kernelKeyboard *);
 void kernelInstallMouseDriver(kernelMouse *);
 void kernelInstallFloppyDriver(kernelPhysicalDisk *);
-void kernelInstallHardDiskDriver(kernelPhysicalDisk *);
+void kernelInstallIdeDriver(kernelPhysicalDisk *);
 void kernelInstallGraphicDriver(kernelGraphicAdapter *);
 kernelFilesystemDriver *kernelDriverGetFat(void);
+kernelFilesystemDriver *kernelDriverGetExt(void);
 kernelTextOutputDriver *kernelDriverGetTextConsole(void);
 kernelTextOutputDriver *kernelDriverGetGraphicConsole(void);
 

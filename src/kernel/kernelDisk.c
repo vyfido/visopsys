@@ -159,7 +159,7 @@ static int recalibrate(kernelPhysicalDisk *theDisk)
 #if (DISK_CACHE)
 static int getDiskCache(kernelPhysicalDisk *theDisk)
 {
-  // This routine is called when a physical disk object is first used
+  // This routine is called when a physical disk structure is first used
   // by the read/write function.  It initializes the cache memory and
   // control structures..
 
@@ -988,32 +988,32 @@ static int readWriteSectors(kernelPhysicalDisk *physicalDisk,
 
 int kernelDiskRegisterDevice(kernelPhysicalDisk *physicalDisk)
 {
-  // This routine will receive a new physical disk object, and register
+  // This routine will receive a new physical disk structure, and register
   // all of its logical disks for use by the system.
 
   int status = 0;
   int count;
 
-  // Check the disk object and device driver before proceeding
+  // Check the disk structure and device driver before proceeding
 
   if (physicalDisk == NULL)
     {
-      kernelError(kernel_error, "Disk object is NULL");
+      kernelError(kernel_error, "Disk structure is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
-  // Make sure that the disk object has a non-NULL driver
+  // Make sure that the disk structure has a non-NULL driver
   if (physicalDisk->driver == NULL)
     {
       kernelError(kernel_error, "Disk device driver is NULL");
       return (status = ERR_NOSUCHDRIVER);
     }
 
-  // Make sure the arrays of disk objects aren't full
+  // Make sure the arrays of disk structures aren't full
   if ((physicalDiskCounter >= DISK_MAXDEVICES) ||
       (logicalDiskCounter >= DISK_MAXDEVICES))
     {
-      kernelError(kernel_error, "Max disk objects already registered");
+      kernelError(kernel_error, "Max disk structures already registered");
       return (status = ERR_NOFREE);
     }
 
@@ -1072,11 +1072,11 @@ int kernelDiskReadPartitions(void)
   // Loop through all of the registered physical disks
   for (count = 0; count < physicalDiskCounter; count ++)
     {
+      physicalDisk = physicalDisks[count];
+
       // Assume UNKNOWN (code 0) partition type for now.
       partType.code = 0;
-      strcpy((char *) partType.description, "Unknown");
-
-      physicalDisk = physicalDisks[count];
+      strcpy((char *) partType.description, physicalDisk->description);
 
       // If this is a not a hard disk, make the logical disk be the same as
       // the physical disk
@@ -1091,10 +1091,11 @@ int kernelDiskReadPartitions(void)
 	  status = kernelDiskReadAbsoluteSectors((char *) physicalDisk->name,
 						 0, 1, sectBuf);
 	  if (status < 0)
-	    // Don't make an error here; sometimes when the disks are
-	    // configured in certain ways, they won't appear sequentially
-	    // or with the device numbers we expect.  Just keep looping.
-	    continue;
+	    {
+	      kernelError(kernel_error, "Can't read partitions: disk %s", 
+				  (char *) physicalDisk->name);
+	      continue;
+	    }
 
 	  // Is this a valid MBR?
 	  if ((sectBuf[511] == (unsigned char) 0xAA) ||
@@ -1424,7 +1425,7 @@ int kernelDiskGetBoot(char *boot)
 
 int kernelDiskGetCount(void)
 {
-  // Returns the number of registered logical disk objects.  Useful for
+  // Returns the number of registered logical disk structures.  Useful for
   // iterating through calls to kernelGetDiskByName or kernelDiskGetInfo
 
   if (!initialized)
@@ -1436,7 +1437,7 @@ int kernelDiskGetCount(void)
 
 int kernelDiskGetPhysicalCount(void)
 {
-  // Returns the number of registered physical disk objects.  Useful for
+  // Returns the number of registered physical disk structures.  Useful for
   // iterating through calls to kernelGetDiskByName or kernelDiskGetInfo
 
   if (!initialized)
@@ -1451,7 +1452,7 @@ int kernelDiskGetInfo(disk *array)
   // Fills a simplified disk info structure of all the logical disks
 
   int status = 0;
-  kernelDisk *diskObject = NULL;
+  kernelDisk *diskStructure = NULL;
   kernelPhysicalDisk *physicalDisk = NULL;
   int count;
 
@@ -1465,15 +1466,15 @@ int kernelDiskGetInfo(disk *array)
   // Loop through the disks, filling the array supplied
   for (count = 0; count < logicalDiskCounter; count ++)
     {
-      diskObject = logicalDisks[count];
-      physicalDisk = (kernelPhysicalDisk *) diskObject->physical;
+      diskStructure = logicalDisks[count];
+      physicalDisk = (kernelPhysicalDisk *) diskStructure->physical;
 
       // Got it.  Fill in the relevant information
-      strncpy(array[count].name, (char *) diskObject->name,
+      strncpy(array[count].name, (char *) diskStructure->name,
 	      DISK_MAX_NAMELENGTH);
-      kernelMemCopy((void *) &(diskObject->partType), &(array[count].partType),
-		    sizeof(partitionType));
-      strncpy(array[count].fsType, (char *) diskObject->fsType,
+      kernelMemCopy((void *) &(diskStructure->partType),
+		    &(array[count].partType), sizeof(partitionType));
+      strncpy(array[count].fsType, (char *) diskStructure->fsType,
 	      FSTYPE_MAX_NAMELENGTH);
       array[count].deviceNumber = physicalDisk->deviceNumber;
       array[count].type = physicalDisk->type;
@@ -1481,8 +1482,8 @@ int kernelDiskGetInfo(disk *array)
       array[count].heads = physicalDisk->heads;
       array[count].cylinders = physicalDisk->cylinders;
       array[count].sectorsPerCylinder = physicalDisk->sectorsPerCylinder;
-      array[count].startSector = diskObject->startSector;
-      array[count].numSectors = diskObject->numSectors;
+      array[count].startSector = diskStructure->startSector;
+      array[count].numSectors = diskStructure->numSectors;
       array[count].sectorSize = physicalDisk->sectorSize;
     }
 
@@ -1495,7 +1496,7 @@ int kernelDiskGetPhysicalInfo(disk *array)
   // Fills a simplified disk info structure of all the physical disks
 
   int status = 0;
-  kernelPhysicalDisk *diskObject = NULL;
+  kernelPhysicalDisk *diskStructure = NULL;
   int count;
 
   if (!initialized)
@@ -1508,20 +1509,20 @@ int kernelDiskGetPhysicalInfo(disk *array)
   // Loop through the physical disks, filling the array supplied
   for (count = 0; count < physicalDiskCounter; count ++)
     {
-      diskObject = physicalDisks[count];
+      diskStructure = physicalDisks[count];
 
       // Got it.  Fill in the relevant information
-      strncpy(array[count].name, (char *) diskObject->name,
+      strncpy(array[count].name, (char *) diskStructure->name,
 	      DISK_MAX_NAMELENGTH);
-      array[count].deviceNumber = diskObject->deviceNumber;
-      array[count].type = diskObject->type;
-      array[count].fixedRemovable = diskObject->fixedRemovable;
-      array[count].heads = diskObject->heads;
-      array[count].cylinders = diskObject->cylinders;
-      array[count].sectorsPerCylinder = diskObject->sectorsPerCylinder;
+      array[count].deviceNumber = diskStructure->deviceNumber;
+      array[count].type = diskStructure->type;
+      array[count].fixedRemovable = diskStructure->fixedRemovable;
+      array[count].heads = diskStructure->heads;
+      array[count].cylinders = diskStructure->cylinders;
+      array[count].sectorsPerCylinder = diskStructure->sectorsPerCylinder;
       array[count].startSector = 0;
-      array[count].numSectors = diskObject->numSectors;
-      array[count].sectorSize = diskObject->sectorSize;
+      array[count].numSectors = diskStructure->numSectors;
+      array[count].sectorSize = diskStructure->sectorSize;
     }
 
   return (status = 0);
@@ -1642,7 +1643,7 @@ int kernelDiskReadSectors(const char *diskName, unsigned logicalSector,
   if ((diskName == NULL) || (dataPointer == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  // Get the disk object
+  // Get the disk structure
   theDisk = kernelGetDiskByName(diskName);
   if (theDisk == NULL)
     return (status = ERR_NOSUCHENTRY);
@@ -1703,7 +1704,7 @@ int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector,
   if ((diskName == NULL) || (dataPointer == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  // Get the disk object
+  // Get the disk structure
   theDisk = kernelGetDiskByName(diskName);
 
   if (theDisk == NULL)
@@ -1765,7 +1766,7 @@ int kernelDiskReadAbsoluteSectors(const char *diskName,
   if ((diskName == NULL) || (dataPointer == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  // Get the disk object
+  // Get the disk structure
   physicalDisk = kernelGetPhysicalDiskByName(diskName);
   if (physicalDisk == NULL)
     return (status = ERR_NOSUCHENTRY);
@@ -1810,7 +1811,7 @@ int kernelDiskWriteAbsoluteSectors(const char *diskName,
   if ((diskName == NULL) || (dataPointer == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  // Get the disk object
+  // Get the disk structure
   physicalDisk = kernelGetPhysicalDiskByName(diskName);
   if (physicalDisk == NULL)
     return (status = ERR_NOSUCHENTRY);

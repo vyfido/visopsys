@@ -48,6 +48,8 @@ static kernelPhysicalDisk floppyDevices[MAXFLOPPIES];
 static int numberFloppies = 0;
 static kernelPhysicalDisk hardDiskDevices[MAXHARDDISKS];  
 static int numberHardDisks = 0;
+static kernelPhysicalDisk cdRomDevices[MAXHARDDISKS];  
+static int numberCdRoms = 0;
 static kernelGraphicAdapter graphicAdapterDevice;
 
 
@@ -273,80 +275,102 @@ static int enumerateHardDiskDevices(void)
 {
   // This routine enumerates hard disks, and creates kernelPhysicalDisks
   // to store the information.  If successful, it returns the number of 
-  // devices it enumerated.  It has a complementary routine which will 
-  // return a pointer to the data structure it has created.
-
-  // The floppy disks must previously have been enumerated, because this
-  // routine numbers disks starting with the number of floppies
-  // previously detected.
+  // devices it enumerated.
 
   int status = 0;
-  int physicalDisk = 0;
+  int deviceNumber = 0;
+  kernelPhysicalDisk physicalDisk;
 
   // Reset the number of physical hard disk devices we've actually
   // examined, and reset the number of logical disks we've created
   numberHardDisks = 0;
 
-  // We need to loop through the list of physical hard disks, and check
-  // each one for partitions.  These in turn will become "logical" disk
-  // objects in Visopsys.
-
   // Make a message
   kernelLog("Examining hard disk partitions...");
 
-  for (physicalDisk = 0; ((numberHardDisks < systemInfo->hardDisks) &&
-			  (physicalDisk < MAXHARDDISKS));
-       physicalDisk ++)
+  for (deviceNumber = 0; (deviceNumber < MAXHARDDISKS); deviceNumber ++)
     {
-      // Save info about the physical device.
-      
-      // Install the IDE driver
-      kernelInstallHardDiskDriver(&hardDiskDevices[numberHardDisks]);
+      // Clear our disk structure
+      kernelMemClear((void *) &physicalDisk, sizeof(kernelPhysicalDisk));
 
-      // The device name and filesystem type
-      sprintf((char *) hardDiskDevices[numberHardDisks].name, (char *) "hd%d",
-	      numberHardDisks);
+      // Install the ATA/ATAPI/IDE driver
+      kernelInstallIdeDriver(&physicalDisk);
 
-      hardDiskDevices[numberHardDisks].deviceNumber = physicalDisk;
-      hardDiskDevices[numberHardDisks].dmaChannel = 3;
-      hardDiskDevices[numberHardDisks].description = "IDE hard disk";
-      hardDiskDevices[numberHardDisks].fixedRemovable = fixed;
-      hardDiskDevices[numberHardDisks].type = idedisk;
-
-      // We get more hard disk info from the physical disk
-      // info we were passed.
-      hardDiskDevices[numberHardDisks].heads = 
-	systemInfo->hddInfo[numberHardDisks].heads;
-      hardDiskDevices[numberHardDisks].cylinders = 
-	systemInfo->hddInfo[numberHardDisks].cylinders;
-      hardDiskDevices[numberHardDisks].sectorsPerCylinder = 
-	systemInfo->hddInfo[numberHardDisks].sectorsPerCylinder;
-      hardDiskDevices[numberHardDisks].numSectors = (unsigned)
-	systemInfo->hddInfo[numberHardDisks].totalSectors;
-      hardDiskDevices[numberHardDisks].sectorSize = 
-	systemInfo->hddInfo[numberHardDisks].bytesPerSector;
-      // Sometimes 0?  We can't have that as we are about to use it to
-      // perform a division operation.
-      if (hardDiskDevices[numberHardDisks].sectorSize == 0)
+      // Call the detect routine
+      if (physicalDisk.driver->driverDetect != NULL)
 	{
-	  kernelError(kernel_warn, "Physical disk %d sector size 0; "
-		      "assuming 512", physicalDisk);
-	  hardDiskDevices[numberHardDisks].sectorSize = 512;
+	  status = physicalDisk.driver
+	    ->driverDetect(deviceNumber, (void *) &physicalDisk);
+	  if (status != 1)
+	    continue;
 	}
-      hardDiskDevices[numberHardDisks].bootLBA =
-	systemInfo->hddInfo[numberHardDisks].bootLBA;
-      hardDiskDevices[numberHardDisks].motorStatus = 1;
 
-      // Register the hard disk device
-      status = kernelDiskRegisterDevice(&hardDiskDevices[numberHardDisks]);
-      if (status < 0)
-	return (status);
+      if (physicalDisk.type == idedisk)
+	{
+	  // Hard disk.  Put it into our hard disks array
+	  kernelMemCopy((void *) &physicalDisk,
+			(void *) &(hardDiskDevices[numberHardDisks]),
+			sizeof(kernelPhysicalDisk));
 
-      // Increase the number of logical hard disk devices
-      numberHardDisks++;
+	  // The device name
+	  sprintf((char *) hardDiskDevices[numberHardDisks].name,
+		  (char *) "hd%d", numberHardDisks);
+
+	  // We get more hard disk info from the physical disk info we were
+	  //passed.
+	  hardDiskDevices[numberHardDisks].heads = 
+	    systemInfo->hddInfo[numberHardDisks].heads;
+	  hardDiskDevices[numberHardDisks].cylinders = 
+	    systemInfo->hddInfo[numberHardDisks].cylinders;
+	  hardDiskDevices[numberHardDisks].sectorsPerCylinder = 
+	    systemInfo->hddInfo[numberHardDisks].sectorsPerCylinder;
+	  hardDiskDevices[numberHardDisks].numSectors = (unsigned)
+	    systemInfo->hddInfo[numberHardDisks].totalSectors;
+	  hardDiskDevices[numberHardDisks].sectorSize = 
+	    systemInfo->hddInfo[numberHardDisks].bytesPerSector;
+	  // Sometimes 0?  We can't have that as we are about to use it to
+	  // perform a division operation.
+	  if (hardDiskDevices[numberHardDisks].sectorSize == 0)
+	    {
+	      kernelError(kernel_warn, "Physical disk %d sector size 0; "
+			  "assuming 512", deviceNumber);
+	      hardDiskDevices[numberHardDisks].sectorSize = 512;
+	    }
+	  hardDiskDevices[numberHardDisks].bootLBA =
+	    systemInfo->hddInfo[numberHardDisks].bootLBA;
+	  hardDiskDevices[numberHardDisks].motorStatus = 1;
+
+	  // Register the hard disk device
+	  status = kernelDiskRegisterDevice(&hardDiskDevices[numberHardDisks]);
+	  if (status < 0)
+	    return (status);
+
+	  // Increase the number of logical hard disk devices
+	  numberHardDisks++;
+	}
+
+      else if (physicalDisk.type == idecdrom)
+	{
+	  // Hard disk.  Put it into our hard disks array
+	  kernelMemCopy((void *) &physicalDisk,
+			(void *) &(cdRomDevices[numberCdRoms]),
+			sizeof(kernelPhysicalDisk));
+
+	  // The device name
+	  sprintf((char *) cdRomDevices[numberCdRoms].name,
+		  (char *) "cd%d", numberCdRoms);
+
+	  // Register the CDROM device
+	  status = kernelDiskRegisterDevice(&cdRomDevices[numberCdRoms]);
+	  if (status < 0)
+	    return (status);
+
+	  // Increase the number of logical hard disk devices
+	  numberCdRoms++;
+	}
     }
 
-  return (numberHardDisks);
+  return (numberHardDisks + numberCdRoms);
 }
 
 
@@ -449,7 +473,7 @@ int kernelHardwareEnumerate(loaderInfoStruct *info)
   // Save the pointer to the data structure that describes the hardware
   systemInfo = info;
 
-  // Initialize the memory for the various objects we're managing
+  // Initialize the memory for the various structures we're managing
   kernelMemClear(&picDevice, sizeof(kernelPic));
   kernelMemClear(&systemTimerDevice, sizeof(kernelSysTimer));
   kernelMemClear(&rtcDevice, sizeof(kernelRtc));

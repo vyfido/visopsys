@@ -99,7 +99,7 @@ int kernelGraphicInitialize(void)
 
 int kernelGraphicRegisterDevice(kernelGraphicAdapter *theAdapter)
 {
-  // This routine will register a new graphic adapter object.  On error,
+  // This routine will register a new graphic adapter.  On error,
   // it returns negative
 
   int status = 0;

@@ -41,8 +41,7 @@ static int initialized = 0;
 
 int kernelRtcRegisterDevice(kernelRtc *theRtc)
 {
-  // This routine will register a new RTC object.  It takes a 
-  // kernelRtc structure and returns 0 if successful.
+  // This routine will register a new RTC.  Returns 0 if successful.
 
   int status = 0;
 
@@ -80,11 +79,10 @@ int kernelRtcInitialize(void)
 
   int status = 0;
 
-  // Check the RTC object before proceeding
-
+  // Check the RTC before proceeding
   if (systemRtc == NULL)
     {
-      kernelError(kernel_error, "The Real-Time clock object is NULL");
+      kernelError(kernel_error, "The Real-Time clock is NULL");
       return (status = ERR_NOSUCHENTRY);
     }
 

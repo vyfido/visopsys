@@ -21,6 +21,7 @@
 
 // Visopsys fork for Newlib
 
+#include <sys/types.h>
 #include <sys/api.h>
 
 pid_t fork()

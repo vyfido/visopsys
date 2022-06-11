@@ -44,12 +44,13 @@ static kernelFilesystemDriver defaultFatDriver = {
   kernelFilesystemFatDetect,
   kernelFilesystemFatFormat,
   kernelFilesystemFatCheck,
-  NULL,  // driverDefragment
+  kernelFilesystemFatDefragment,
   kernelFilesystemFatMount,
   kernelFilesystemFatUnmount,
   kernelFilesystemFatGetFreeBytes,
   kernelFilesystemFatNewEntry,
   kernelFilesystemFatInactiveEntry,
+  kernelFilesystemFatResolveLink,
   kernelFilesystemFatReadFile,
   kernelFilesystemFatWriteFile,
   kernelFilesystemFatCreateFile,
@@ -62,18 +63,16 @@ static kernelFilesystemDriver defaultFatDriver = {
   kernelFilesystemFatTimestamp
 };
 
-// These represent a pool of memory for holding private data for each
-// FAT file we manage. 
-static fatEntryData *entryDataMemory = NULL;
-static fatEntryData *entryDatas[MAX_BUFFERED_FILES];
-static int usedEntryDatas = 0;
+// These hold free private data memory
+static fatEntryData *freeEntryDatas = NULL;
+static unsigned numFreeEntryDatas = 0;
 
 static int initialized = 0;
 
 
 static int readBootSector(kernelDisk *theDisk, unsigned char *buffer)
 {
-  // This simple function will read a disk object's boot sector into
+  // This simple function will read a disk structure's boot sector into
   // the requested buffer and ensure that it is (at least trivially) 
   // valid.  Returns 0 on success, negative on error.
 
@@ -99,10 +98,7 @@ static int readBootSector(kernelDisk *theDisk, unsigned char *buffer)
   // may not be a valid boot sector at all.
   if ((buffer[510] != (unsigned char) 0x55) || 
       (buffer[511] != (unsigned char) 0xAA))
-    {
-      kernelError(kernel_error, "Not a valid boot sector");
-      return (status = ERR_BADDATA);
-    }
+    return (status = ERR_BADDATA);
 
   // Return success
   return (status = 0);
@@ -112,7 +108,7 @@ static int readBootSector(kernelDisk *theDisk, unsigned char *buffer)
 static int readFSInfo(kernelPhysicalDisk *theDisk, unsigned sectorNumber,
 		      unsigned char *buffer)
 {
-  // This simple function will read a disk object's fsInfo sector into
+  // This simple function will read a disk structure's fsInfo sector into
   // the requested buffer and ensure that it is (at least trivially) 
   // valid.  Returns 0 on success, negative on error.
 
@@ -187,7 +183,7 @@ static int flushFSInfo(fatInternalData *fatData)
   // select values before writing it back).  Call the function that will 
   // read the FSInfo block
   status =
-    kernelDiskReadSectors((char *) ((kernelPhysicalDisk *) fatData->diskObject)
+    kernelDiskReadSectors((char *) ((kernelPhysicalDisk *) fatData->disk)
 			  ->name, (unsigned) fatData->fsInfoSectorF32, 1,
 			  fsInfoBlock);
   if (status < 0)
@@ -212,7 +208,7 @@ static int flushFSInfo(fatInternalData *fatData)
   *((unsigned *)(fsInfoBlock + FAT_FSINFO_TRAILSIG)) = 0xAA550000;
 
   // Now write the updated FSInfo block back to the disk
-  status = kernelDiskWriteSectors((char *) fatData->diskObject->name, 
+  status = kernelDiskWriteSectors((char *) fatData->disk->name, 
 				  fatData->fsInfoSectorF32, 1, fsInfoBlock);
   // Make sure that the write was successful
   if (status < 0)
@@ -237,20 +233,23 @@ static int readVolumeInfo(fatInternalData *fatData)
   // negative otherwise.
   
   // This is only used internally, so there is no need to check the
-  // disk object.  The functions that are exported will do this.
+  // disk structure.  The functions that are exported will do this.
   
   int status = 0;
   unsigned char bootSector[FAT_MAX_SECTORSIZE];
   kernelPhysicalDisk *physicalDisk = NULL;
 
-  physicalDisk = (kernelPhysicalDisk *) fatData->diskObject->physical;
+  physicalDisk = (kernelPhysicalDisk *) fatData->disk->physical;
 
   // Call the function that reads the boot sector
-  status = readBootSector((kernelDisk *) fatData->diskObject, bootSector);
+  status = readBootSector((kernelDisk *) fatData->disk, bootSector);
   // Make sure we were successful
   if (status < 0)
-    // Couldn't read the boot sector, or it was bad
-    return (status);
+    {
+      // Couldn't read the boot sector, or it was bad
+      kernelError(kernel_error, "Not a valid boot sector");
+      return (status);
+    }
 
   // Now we can gather some information about the filesystem
 
@@ -277,7 +276,7 @@ static int readVolumeInfo(fatInternalData *fatData)
     }
 
   // Also, the bytes-per-sector field should match the value for the
-  // disk object we're referencing
+  // disk structure we're referencing
   if (fatData->bytesPerSector != physicalDisk->sectorSize)
     {
       // Not a legal value for FAT
@@ -621,7 +620,7 @@ static int readVolumeInfo(fatInternalData *fatData)
       // sector, so we will reuse the buffer to hold the FSInfo.
 	  
       // Call the function that will read the FSInfo block
-      status = readFSInfo((kernelPhysicalDisk *) fatData->diskObject, 
+      status = readFSInfo((kernelPhysicalDisk *) fatData->disk, 
 			  (unsigned) fatData->fsInfoSectorF32, bootSector);
       // Make sure we were successful
       if (status < 0)
@@ -674,7 +673,7 @@ static int flushVolumeInfo(fatInternalData *fatData)
   // the boot sector info block.
   
   // This is only used internally, so there is no need to check the
-  // disk object.  The functions that are exported will do this.
+  // disk structure.  The functions that are exported will do this.
   
   int status = 0;
   char bootSector[512];
@@ -684,7 +683,7 @@ static int flushVolumeInfo(fatInternalData *fatData)
 
   // Read the existing boot sector
   status =
-    kernelDiskReadSectors((char *)((kernelDisk *) fatData->diskObject)->name,
+    kernelDiskReadSectors((char *)((kernelDisk *) fatData->disk)->name,
 			  0, 1, &bootSector);
   if (status < 0)
     {
@@ -763,13 +762,13 @@ static int flushVolumeInfo(fatInternalData *fatData)
 
   *((short *)(bootSector + 510)) = (unsigned short) 0xAA55;
 
-  status = kernelDiskWriteSectors((char *) fatData->diskObject->name,
+  status = kernelDiskWriteSectors((char *) fatData->disk->name,
 				  0, 1, (void *) &bootSector);
   
   // If FAT32 and backupBootF32 is non-zero, make a backup copy of the
   // boot sector
   if ((fatData->fsType == fat32) && fatData->backupBootF32)
-    kernelDiskWriteSectors((char *) fatData->diskObject->name,
+    kernelDiskWriteSectors((char *) fatData->disk->name,
 			   fatData->backupBootF32, 1, (void *) &bootSector);
 
   return (status);
@@ -793,7 +792,7 @@ static int writeDirtyFatSects(fatInternalData *fatData)
 	 sectorCount ++)
       {
 	status =
-	  kernelDiskWriteSectors((char *) fatData->diskObject->name, 
+	  kernelDiskWriteSectors((char *) fatData->disk->name, 
 				 (fatData->reservedSectors +
 				  (fatCount * fatData->fatSectors) +
 				  fatData->dirtyFatSectList[sectorCount]), 1,
@@ -1434,7 +1433,7 @@ static int clearClusterChainData(fatInternalData *fatData,
 	}
 
       status = 
-	kernelDiskWriteSectors((char *) fatData->diskObject->name,
+	kernelDiskWriteSectors((char *) fatData->disk->name,
 			       (((currentCluster - 2) *
 				 fatData->sectorsPerCluster) + 
 				fatData->reservedSectors +
@@ -1828,8 +1827,10 @@ static int fillDirectory(kernelFileEntry *currentDir,
 
   while(listItemPointer != NULL)
     {
-      // Resolve links
-      realEntry = kernelFileResolveLink(listItemPointer);
+      realEntry = listItemPointer;
+      if (listItemPointer->type == linkT)
+        // Resolve links
+        realEntry = kernelFileResolveLink(listItemPointer);
 
       // Get the entry's data
       entryData = (fatEntryData *) realEntry->fileEntryData;
@@ -2316,7 +2317,7 @@ static int write(fatInternalData *fatData, kernelFileEntry *writeFile,
       // Alright, we can write the clusters we were saving up
       
       status =
-	kernelDiskWriteSectors((char *) fatData->diskObject->name,
+	kernelDiskWriteSectors((char *) fatData->disk->name,
 			       (((startSavedClusters - 2) *
 				 fatData->sectorsPerCluster) +
 				fatData->reservedSectors +
@@ -2622,85 +2623,6 @@ static int makeShortAlias(kernelFileEntry *theFile)
     }
   
   return (status = 0);
-}
-
-
-static fatEntryData *newEntryData(void)
-{
-  // This function will find an unused entry data and return it to
-  // the calling function.
-
-  fatEntryData *entryData = NULL;
-
-  // Make sure there is a free entry data available
-  if (usedEntryDatas >= MAX_BUFFERED_FILES)
-    {
-      // This should never happen.  Something is wrong at an upper level
-      kernelError(kernel_error, "No more entries for private filesystem data");
-      return (entryData = NULL);
-    }
-
-  // Get a free entry data.  Grab it from the spot right after the
-  // last used entry data
-  entryData = entryDatas[usedEntryDatas++];
-
-  // Make sure it's not NULL
-  if (entryData == NULL)
-    {
-      kernelError(kernel_error, "No more entries for private filesystem data");
-      return (entryData = NULL);
-    }
-      
-  // Initialize this new one
-  kernelMemClear((void *) entryData, sizeof(fatEntryData));
-
-  return (entryData);
-}
-
-
-static void releaseEntryData(fatEntryData *entryData)
-{
-  // This function takes an entry data to release, and puts it back
-  // in the pool of free entry datas.
-
-  int spotNumber = -1;
-  fatEntryData *temp = NULL;
-  int count;
-
-  // Find the supplied entry in the list.
-  for (count = 0; ((count < usedEntryDatas) && 
-		   (count < MAX_BUFFERED_FILES)); count ++)
-    if (entryData == entryDatas[count])
-      {
-	spotNumber = count;
-	break;
-      }
-
-  // Did we find it?
-  if (spotNumber == -1)
-    return;
-
-  // Erase all of the data in this entry
-  kernelMemClear((void *) entryData, sizeof(fatEntryData));
-
-  // Put the entry data back into the pool of unallocated entry datas.
-  // The way we do this is to move the LAST entry into the spot occupied by
-  // this entry, and stick this entry where the old LAST entry was.  The only
-  // time we DON'T do this is if the entry was (a) the only used entry; or
-  // (b) the last used entry.
-
-  // Update the counts
-  usedEntryDatas -= 1;
-
-  if ((usedEntryDatas != 0) && (spotNumber != usedEntryDatas))
-    {
-      temp = entryDatas[usedEntryDatas];
-      entryDatas[usedEntryDatas] = entryData;
-      entryDatas[spotNumber] = temp;
-    }
-
-  // Cool.
-  return;
 }
 
 
@@ -3046,7 +2968,7 @@ static int read(fatInternalData *fatData, kernelFileEntry *theFile,
       // Read the cluster into the buffer.
 
       status =
-	kernelDiskReadSectors((char *) fatData->diskObject->name,
+	kernelDiskReadSectors((char *) fatData->disk->name,
 			      (((startSavedClusters - 2) *
 				fatData->sectorsPerCluster) +
 			       fatData->reservedSectors +
@@ -3083,7 +3005,7 @@ static int readRootDir(fatInternalData *fatData, kernelFilesystem *filesystem)
   // unquestioningly).  It returns 0 on success, negative otherwise.
   
   // This is only used internally, so there is no need to check the
-  // disk object.  The functions that are exported will do this.
+  // disk structure.  The functions that are exported will do this.
   
   int status = 0;
   kernelFileEntry *rootDir = NULL;
@@ -3146,7 +3068,7 @@ static int readRootDir(fatInternalData *fatData, kernelFilesystem *filesystem)
       // make up the root directory
 
       // Now we read all of the sectors for the root directory
-      status = kernelDiskReadSectors((char *) fatData->diskObject->name,
+      status = kernelDiskReadSectors((char *) fatData->disk->name,
 				     rootDirStart, fatData->rootDirSectors,
 				     dirBuffer);
       if (status < 0)
@@ -3265,8 +3187,8 @@ static fatInternalData *getFatData(kernelFilesystem *filesystem)
       return (fatData = NULL);
     }
 
-  // Attach the disk object to the fatData structure
-  fatData->diskObject = filesystem->disk;
+  // Attach the disk structure to the fatData structure
+  fatData->disk = filesystem->disk;
 
   // Get the disk's boot sector info
   status = readVolumeInfo(fatData);
@@ -3288,7 +3210,7 @@ static fatInternalData *getFatData(kernelFilesystem *filesystem)
       return (fatData = NULL);
     }
 
-  status = kernelDiskReadSectors((char *) fatData->diskObject->name, 
+  status = kernelDiskReadSectors((char *) fatData->disk->name, 
 				 fatData->reservedSectors,
 				 fatData->fatSectors, fatData->FAT);
   if (status < 0)
@@ -3338,35 +3260,6 @@ static fatInternalData *getFatData(kernelFilesystem *filesystem)
     (fatData->bytesPerSector * fatData->sectorsPerCluster);
 
   return (fatData);
-}
-
-
-static int initEntryDataList(void)
-{
-  // This function is used to initialize (or re-initialize) the list
-  // of FAT file entry data
-
-  int status = 0;
-  int count;
-
-  // Allocate memory for fatEntryData structures
-  entryDataMemory = kernelMalloc(sizeof(fatEntryData) * MAX_BUFFERED_FILES);
-  if (entryDataMemory == NULL)
-    {
-      kernelError(kernel_error, 
-		  "Error allocating memory for fat entry data lists");
-      return (status = ERR_MEMORY);
-    }
-
-  // Initialize all of the fatEntryData structures.
-
-  for (count = 0; count < MAX_BUFFERED_FILES; count ++)
-    entryDatas[count] = &entryDataMemory[count];
-
-  // Reset the number of used files and directories to 0
-  usedEntryDatas = 0;
-
-  return (status = 0);
 }
 
 
@@ -3604,27 +3497,16 @@ int kernelFilesystemFatInitialize(void)
 {
   // Initialize the driver
 
-  int status = 0;
-
-  status = initEntryDataList();
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Error making entry data list");
-      return (status);
-    }
-
   initialized = 1;
 
   // Register our driver
-  kernelDriverRegister(fatDriver, &defaultFatDriver);
-
-  return (status = 0);
+  return (kernelDriverRegister(fatDriver, &defaultFatDriver));
 }
 
 
 int kernelFilesystemFatDetect(const kernelDisk *theDisk)
 {
-  // This function is used to determine whether the data on a disk object
+  // This function is used to determine whether the data on a disk structure
   // is using a FAT filesystem.  It uses a simple test or two to determine
   // simply whether this is a FAT volume.  Any data that it gathers is
   // discarded when the call terminates.  It returns 1 for true, 0 for false, 
@@ -3637,10 +3519,10 @@ int kernelFilesystemFatDetect(const kernelDisk *theDisk)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  // Make sure the disk object isn't NULL
+  // Make sure the disk structure isn't NULL
   if (theDisk == NULL)
     {
-      kernelError(kernel_error, "NULL disk object");
+      kernelError(kernel_error, "NULL disk structure");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -3747,8 +3629,8 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
   // Clear out our new FAT data structure
   kernelMemClear((void *) &fatData, sizeof(fatInternalData));
 
-  // Set the disk object
-  fatData.diskObject = theDisk;
+  // Set the disk structure
+  fatData.disk = theDisk;
 
   strcpy((char *) fatData.oemName, "Visopsys");
   fatData.sectorsPerTrack = physicalDisk->sectorsPerCylinder;
@@ -4013,9 +3895,9 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
 int kernelFilesystemFatCheck(kernelFilesystem *checkFilesystem, int force,
 			     int repair)
 {
-  // This function performs a check of the FAT filesystem object supplied.
+  // This function performs a check of the FAT filesystem structure supplied.
   // Assumptions: the filesystem is REALLY a FAT filesystem, the filesystem
-  // is not currently mounted anywhere, and the filesystem driver object for
+  // is not currently mounted anywhere, and the filesystem driver structure for
   // the filesystem is installed.
 
   int status = 0;
@@ -4026,10 +3908,10 @@ int kernelFilesystemFatCheck(kernelFilesystem *checkFilesystem, int force,
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  // Make sure the filesystem object isn't NULL
+  // Make sure the filesystem structure isn't NULL
   if (checkFilesystem == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem object");
+      kernelError(kernel_error, "NULL filesystem structure");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -4038,7 +3920,7 @@ int kernelFilesystemFatCheck(kernelFilesystem *checkFilesystem, int force,
   // Make sure there's really a FAT filesystem on the disk
   if (!kernelFilesystemFatDetect(checkFilesystem->disk))
     {
-      kernelError(kernel_error, "Disk object to check does not contain "
+      kernelError(kernel_error, "Disk structure to check does not contain "
 		  "a FAT filesystem");
       return (status = ERR_INVALID);
     }
@@ -4110,6 +3992,17 @@ int kernelFilesystemFatCheck(kernelFilesystem *checkFilesystem, int force,
 }
 
 
+int kernelFilesystemFatDefragment(kernelFilesystem *filesystem)
+{
+  // Defragment the FAT filesystem.
+
+  if (!initialized)
+    return (ERR_NOTINITIALIZED);
+
+  return (ERR_NOTIMPLEMENTED);
+}
+
+
 int kernelFilesystemFatMount(kernelFilesystem *filesystem)
 {
   // This function initializes the filesystem driver by gathering all
@@ -4126,7 +4019,7 @@ int kernelFilesystemFatMount(kernelFilesystem *filesystem)
   // Make sure the filesystem isn't NULL
   if (filesystem == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem object");
+      kernelError(kernel_error, "NULL filesystem structure");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -4152,7 +4045,7 @@ int kernelFilesystemFatMount(kernelFilesystem *filesystem)
       return (status = ERR_BADDATA);
     }
 
-  // Set the proper filesystem type name on the disk object
+  // Set the proper filesystem type name on the disk structure
   switch (fatData->fsType)
     {
     case fat12:
@@ -4204,7 +4097,7 @@ int kernelFilesystemFatUnmount(kernelFilesystem *filesystem)
   // Check the filesystem pointer before proceeding
   if (filesystem == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem object");
+      kernelError(kernel_error, "NULL filesystem structure");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -4277,7 +4170,7 @@ unsigned kernelFilesystemFatGetFreeBytes(kernelFilesystem *filesystem)
   // Check the filsystem pointer before proceeding
   if (filesystem == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem object");
+      kernelError(kernel_error, "NULL filesystem structure");
       return (0);
     }
 
@@ -4301,6 +4194,9 @@ int kernelFilesystemFatNewEntry(kernelFileEntry *newEntry)
   // to attach FAT-specific data to the file entry
 
   int status = 0;
+  fatEntryData *entryData = NULL;
+  fatEntryData *newEntryDatas = NULL;
+  int count;
 
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
@@ -4320,12 +4216,35 @@ int kernelFilesystemFatNewEntry(kernelFileEntry *newEntry)
       return (status = ERR_ALREADY);
     }
 
-  // Get a private data structure for FAT-specific information
-  newEntry->fileEntryData = (void *) newEntryData();
+  // Make sure there is a free entry data available
+  if (numFreeEntryDatas == 0)
+    {
+      // Allocate memory for file entries
+      newEntryDatas = kernelMalloc(sizeof(fatEntryData) * MAX_BUFFERED_FILES);
+      if (newEntryDatas == NULL)
+	{
+	  kernelError(kernel_error, "Error allocating memory for FAT private "
+		      "data lists");
+	  return (status = ERR_MEMORY);
+	}
 
-  // s'ok?
-  if (newEntry->fileEntryData == NULL)
-    return (status = ERR_NOCREATE);
+      // Initialize the new fatEntryData structures.
+      for (count = 0; count < (MAX_BUFFERED_FILES - 1); count ++)
+	newEntryDatas[count].next = (void *) &(newEntryDatas[count + 1]);
+
+      // The free file entries are the new memory
+      freeEntryDatas = newEntryDatas;
+
+      // Add the number of new file entries
+      numFreeEntryDatas = MAX_BUFFERED_FILES;
+    }
+
+  // Get a private data structure for FAT-specific information.  Grab it from
+  // the first spot
+  entryData = freeEntryDatas;
+  freeEntryDatas = (fatEntryData *) entryData->next;
+  numFreeEntryDatas -= 1;
+  newEntry->fileEntryData = (void *) entryData;
 
   // Return success
   return (status = 0);
@@ -4340,6 +4259,7 @@ int kernelFilesystemFatInactiveEntry(kernelFileEntry *inactiveEntry)
   // to deallocate our FAT-specific data from the file entry
 
   int status = 0;
+  fatEntryData *entryData = NULL;
 
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
@@ -4351,20 +4271,40 @@ int kernelFilesystemFatInactiveEntry(kernelFileEntry *inactiveEntry)
       return (status = ERR_NULLPARAMETER);
     }
 
-  if (inactiveEntry->fileEntryData == NULL)
+  entryData = (fatEntryData *) inactiveEntry->fileEntryData;
+  if (entryData == NULL)
     {
       kernelError(kernel_error, "File entry has no private filesystem data");
       return (status = ERR_ALREADY);
     }
 
-  // Release the entry data structure attached to this file entry
-  releaseEntryData(inactiveEntry->fileEntryData);
+  // Erase all of the data in this entry
+  kernelMemClear((void *) entryData, sizeof(fatEntryData));
+
+  // Release the entry data structure attached to this file entry.  Put the
+  // entry data back into the pool of free ones.
+  entryData->next = (void *) freeEntryDatas;
+  freeEntryDatas = entryData;
+  numFreeEntryDatas += 1;
 
   // Remove the reference
   inactiveEntry->fileEntryData = NULL;
 
   // Return success
   return (status = 0);
+}
+
+
+int kernelFilesystemFatResolveLink(kernelFileEntry *theFile)
+{
+  // This gets called to resolve any unresolved links, but that should
+  // not happen in this type of filesystem.
+
+  if (!initialized)
+    return (ERR_NOTINITIALIZED);
+
+  // All links should already have been resolved.
+  return (ERR_NOSUCHFILE);
 }
 
 
@@ -4407,7 +4347,7 @@ int kernelFilesystemFatReadFile(kernelFileEntry *theFile, unsigned blockNum,
   filesystem = (kernelFilesystem *) theFile->filesystem;
   if (filesystem == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem object");
+      kernelError(kernel_error, "NULL filesystem structure");
       return (status = ERR_BADADDRESS);
     }
 
@@ -4472,7 +4412,7 @@ int kernelFilesystemFatWriteFile(kernelFileEntry *theFile, unsigned blockNum,
   filesystem = (kernelFilesystem *) theFile->filesystem;
   if (filesystem == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem object");
+      kernelError(kernel_error, "NULL filesystem structure");
       return (status = ERR_BADADDRESS);
     }
 
@@ -4570,7 +4510,7 @@ int kernelFilesystemFatDeleteFile(kernelFileEntry *theFile, int secure)
   filesystem = (kernelFilesystem *) theFile->filesystem;
   if (filesystem == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem object");
+      kernelError(kernel_error, "NULL filesystem structure");
       return (status = ERR_BADADDRESS);
     }
 
@@ -4696,7 +4636,7 @@ int kernelFilesystemFatReadDir(kernelFileEntry *directory)
   filesystem = (kernelFilesystem *) directory->filesystem;
   if (filesystem == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem object");
+      kernelError(kernel_error, "NULL filesystem structure");
       return (status = ERR_BADADDRESS);
     }
 
@@ -4782,7 +4722,7 @@ int kernelFilesystemFatWriteDir(kernelFileEntry *directory)
   filesystem = (kernelFilesystem *) directory->filesystem;
   if (filesystem == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem object");
+      kernelError(kernel_error, "NULL filesystem structure");
       return (status = ERR_BADADDRESS);
     }
 
@@ -4880,7 +4820,7 @@ int kernelFilesystemFatWriteDir(kernelFileEntry *directory)
   if ((fatData->fsType != fat32) &&
       (directory == (kernelFileEntry *) filesystem->filesystemRoot))
     status = 
-      kernelDiskWriteSectors((char *) fatData->diskObject->name, 
+      kernelDiskWriteSectors((char *) fatData->disk->name, 
 			     (fatData->reservedSectors +
 			      (fatData->fatSectors * fatData->numberOfFats)),
 			     blocks, dirBuffer);
@@ -4938,7 +4878,7 @@ int kernelFilesystemFatMakeDir(kernelFileEntry *directory)
   filesystem = (kernelFilesystem *) directory->filesystem;
   if (filesystem == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem object");
+      kernelError(kernel_error, "NULL filesystem structure");
       return (status = ERR_BADADDRESS);
     }
 
@@ -5008,7 +4948,7 @@ int kernelFilesystemFatRemoveDir(kernelFileEntry *directory)
   filesystem = (kernelFilesystem *) directory->filesystem;
   if (filesystem == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem object");
+      kernelError(kernel_error, "NULL filesystem structure");
       return (status = ERR_BADADDRESS);
     }
 
@@ -5078,7 +5018,7 @@ int kernelFilesystemFatTimestamp(kernelFileEntry *theFile)
   filesystem = (kernelFilesystem *) theFile->filesystem;
   if (filesystem == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem object");
+      kernelError(kernel_error, "NULL filesystem structure");
       return (status = ERR_BADADDRESS);
     }
 

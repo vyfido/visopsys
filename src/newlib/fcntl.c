@@ -21,10 +21,10 @@
 
 // Visopsys fcntl for Newlib
 
+#include <fcntl.h>   // Defines the commands such as F_GETFD
 #include <sys/api.h>
-#include <unistd.h>   // Defines the commands such as F_GETFD
 
-int fcntl(int fd, int flag, int arg)
+int fcntl(int fd, int flag, ...)
 {
   return (0);
 }

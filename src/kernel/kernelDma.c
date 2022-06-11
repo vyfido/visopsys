@@ -43,7 +43,7 @@ static int initialized = 0;
 
 int kernelDmaRegisterDevice(kernelDma *theDma)
 {
-  // This routine will register a new Dma object.  It takes a 
+  // This routine will register a new Dma structure.  It takes a 
   // kernelDma structure and returns 0 if successful
 
   int status = 0;
@@ -79,9 +79,9 @@ int kernelDmaInitialize(void)
 
   int status = 0;
 
-  // Check the DMA object and device driver before proceeding
+  // Check the DMA structure and device driver before proceeding
 
-  // Make sure the DMA object isn't NULL (which could indicate that the
+  // Make sure the DMA structure isn't NULL (which could indicate that the
   // device has not been properly registered)
   if (systemDma == NULL)
     {

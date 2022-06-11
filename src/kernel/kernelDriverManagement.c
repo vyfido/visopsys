@@ -39,6 +39,7 @@ static void *builtinDriverInits[] = {
   kernelIdeDriverInitialize,
   kernelLFBGraphicDriverInitialize,
   kernelFilesystemFatInitialize,
+  kernelFilesystemExtInitialize,
   kernelTextConsoleInitialize,
   kernelGraphicConsoleInitialize,
   (void *) -1
@@ -58,6 +59,7 @@ kernelDriverManager kernelAllDrivers =
   NULL, // IDE driver
   NULL, // Graphics driver
   NULL, // FAT filesystem driver
+  NULL, // EXT filesystem driver
   NULL, // Text-mode console driver
   NULL  // Graphic-mode console driver
 };
@@ -156,6 +158,9 @@ int kernelDriverRegister(kernelDriverType type, void *driver)
     case fatDriver:
       kernelAllDrivers.fatDriver = (kernelFilesystemDriver *) driver;
       break;
+    case extDriver:
+      kernelAllDrivers.extDriver = (kernelFilesystemDriver *) driver;
+      break;
     case textConsoleDriver:
       kernelAllDrivers.textConsoleDriver = (kernelTextOutputDriver *) driver;
       break;
@@ -221,7 +226,7 @@ void kernelInstallFloppyDriver(kernelPhysicalDisk *theDisk)
 }
 
 
-void kernelInstallHardDiskDriver(kernelPhysicalDisk *theDisk)
+void kernelInstallIdeDriver(kernelPhysicalDisk *theDisk)
 {
   // Install the hard disk driver
   theDisk->driver = kernelAllDrivers.ideDriver;
@@ -239,6 +244,13 @@ kernelFilesystemDriver *kernelDriverGetFat(void)
 {
   // Return the default FAT filesystem driver
   return (kernelAllDrivers.fatDriver);
+}
+
+
+kernelFilesystemDriver *kernelDriverGetExt(void)
+{
+  // Return the default EXT filesystem driver
+  return (kernelAllDrivers.extDriver);
 }
 
 

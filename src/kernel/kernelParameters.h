@@ -45,7 +45,7 @@
 // Disks
 #define MAXFLOPPIES 4
 #define MAXPARTITIONS 4
-#define MAXHARDDISKS 8
+#define MAXHARDDISKS 4
 
 // Other
 #define MAX_SERIAL_PORTS 4

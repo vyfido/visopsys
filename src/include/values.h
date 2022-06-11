@@ -1,68 +1,60 @@
-/* Old compatibility names for <limits.h> and <float.h> constants.
-   This file is part of the GNU C Library.
+// 
+//  Visopsys
+//  Copyright (C) 1998-2003 J. Andrew McLaughlin
+//  
+//  This library is free software; you can redistribute it and/or modify it
+//  under the terms of the GNU Lesser General Public License as published by
+//  the Free Software Foundation; either version 2.1 of the License, or (at
+//  your option) any later version.
+//
+//  This library is distributed in the hope that it will be useful, but
+//  WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+//  General Public License for more details.
+//
+//  You should have received a copy of the GNU Lesser General Public License
+//  along with this library; if not, write to the Free Software Foundation,
+//  Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+//
+//  values.h
+//
 
-   The GNU C Library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public License as
-   published by the Free Software Foundation; either version 2 of the
-   License, or (at your option) any later version.
+// This is the Visopsys version of the standard header file values.h
 
-   The GNU C Library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
 
-   You should have received a copy of the GNU Library General Public
-   License along with the GNU C Library; see the file COPYING.LIB.  If not,
-   write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
-
-/* This interface is obsolete.  New programs should use
-   <limits.h> and/or <float.h> instead of <values.h>.  */
-
-#ifndef	_VALUES_H
-#define	_VALUES_H	1
-
-#include <features.h>
+#if !defined(_VALUES_H)
 
 #include <limits.h>
-
-#define _TYPEBITS(type)	(sizeof (type) * CHAR_BIT)
-
-#define CHARBITS	_TYPEBITS (char)
-#define SHORTBITS	_TYPEBITS (short int)
-#define INTBITS		_TYPEBITS (int)
-#define LONGBITS	_TYPEBITS (long int)
-#define PTRBITS		_TYPEBITS (char *)
-#define DOUBLEBITS	_TYPEBITS (double)
-#define FLOATBITS	_TYPEBITS (float)
-
-#define MINSHORT	SHRT_MIN
-#define	MININT		INT_MIN
-#define	MINLONG		LONG_MIN
-
-#define	MAXSHORT	SHRT_MAX
-#define	MAXINT		INT_MAX
-#define	MAXLONG		LONG_MAX
-
-#define HIBITS		MINSHORT
-#define HIBITL		MINLONG
-
-
 #include <float.h>
 
-#define	MAXDOUBLE	DBL_MAX
-#define	MAXFLOAT	FLT_MAX
-#define	MINDOUBLE	DBL_MIN
-#define	MINFLOAT	FLT_MIN
-#define	DMINEXP		DBL_MIN_EXP
-#define	FMINEXP		FLT_MIN_EXP
-#define	DMAXEXP		DBL_MAX_EXP
-#define	FMAXEXP		FLT_MAX_EXP
+#define CHARBITS        (sizeof(char) * CHAR_BIT)
+#define SHORTBITS       (sizeof(short int) * CHAR_BIT)
+#define INTBITS	        (sizeof(int) * CHAR_BIT)
+#define LONGBITS        (sizeof(long int) * CHAR_BIT)
+#define PTRBITS	        (sizeof(char *) * CHAR_BIT)
+#define DOUBLEBITS      (sizeof(double) * CHAR_BIT)
+#define FLOATBITS       (sizeof(float) * CHAR_BIT)
 
+#define MINSHORT        SHRT_MIN
+#define	MININT          INT_MIN
+#define	MINLONG         LONG_MIN
 
-#ifdef __USE_MISC
-/* Some systems define this name instead of CHAR_BIT or CHARBITS.  */
-# define BITSPERBYTE	CHAR_BIT
+#define	MAXSHORT        SHRT_MAX
+#define	MAXINT          INT_MAX
+#define	MAXLONG         LONG_MAX
+
+#define HIBITS          MINSHORT
+#define HIBITL          MINLONG
+
+#define	MAXDOUBLE       DBL_MAX
+#define	MAXFLOAT        FLT_MAX
+#define	MINDOUBLE       DBL_MIN
+#define	MINFLOAT        FLT_MIN
+#define	DMINEXP         DBL_MIN_EXP
+#define	FMINEXP         FLT_MIN_EXP
+#define	DMAXEXP         DBL_MAX_EXP
+#define	FMAXEXP         FLT_MAX_EXP
+#define BITSPERBYTE     CHAR_BIT
+
+#define	_VALUES_H
 #endif
-
-#endif	/* values.h */

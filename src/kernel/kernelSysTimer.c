@@ -46,9 +46,7 @@ int initialized = 0;
 
 int kernelSysTimerRegisterDevice(kernelSysTimer *theTimer)
 {
-  // This routine will register a new system timer object.  It takes a 
-  // kernelSysTimer structure and returns 0 if successful.  It returns 
-  // -1 if the device srtucture is NULL.
+  // This routine will register a new system timer.  Returns 0 if successful.
 
   int status = 0;
 
@@ -86,7 +84,7 @@ int kernelSysTimerInitialize(void)
 
   int status = 0;
 
-  // Check the timer object and device driver before proceeding
+  // Check the timer before proceeding
   if (systemTimer == NULL)
     {
       kernelError(kernel_error, "The system timer is NULL");

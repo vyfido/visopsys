@@ -37,6 +37,7 @@
 int kernelFileInitialize(void);
 int kernelFileSetRoot(kernelFileEntry *);
 int kernelFileFixupPath(const char *, char *);
+int kernelFileGetFullName(kernelFileEntry *, char *);
 kernelFileEntry *kernelFileNewEntry(kernelFilesystem *);
 void kernelFileReleaseEntry(kernelFileEntry *);
 int kernelFileInsertEntry(kernelFileEntry *, kernelFileEntry *);

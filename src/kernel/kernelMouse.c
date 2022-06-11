@@ -99,7 +99,7 @@ static inline void status2event(windowEvent *event)
 
 int kernelMouseRegisterDevice(kernelMouse *theMouse)
 {
-  // This routine will register a new mouse object.
+  // This routine will register a new mouse
 
   int status = 0;
 
@@ -132,10 +132,10 @@ int kernelMouseInitialize(void)
 
   int status = 0;
 
-  // Check the keyboard object and device driver before proceeding
+  // Check the mouse structure and device driver before proceeding
   if (systemMouse == NULL)
     {
-      kernelError(kernel_error, "NULL mouse object");
+      kernelError(kernel_error, "NULL mouse structure");
       return (status = ERR_NULLPARAMETER);
     }
 

@@ -35,9 +35,7 @@ set FSTAB = /etc/fstab
 
 
 echo ""
-echo "INSTALL.SH - Visopsys installation script for UNIX"
-echo "Copyright (C) 1998-2003 Andrew McLaughlin"
-echo " -= NOTE: Suitable for use only with Visopsys SOURCE distribution =-"
+echo "Visopsys installation script for UNIX"
 echo ""
 
 set DEVICE = $1

@@ -64,12 +64,12 @@ typedef volatile struct
 // This is an enumeration that lists the names of the known types of 
 // filesystems.
 typedef enum
-{
-  unknown, Fat
+  {
+    unknown, Fat, Ext
   
-} kernelFileSysTypeEnum;
+  } kernelFileSysTypeEnum;
 
-// This is the structure that is used to define file system objects
+// This is the structure that is used to define file systems
 typedef volatile struct
 {
   int filesystemNumber;
@@ -101,6 +101,7 @@ typedef struct
   unsigned (*driverGetFree) (kernelFilesystem *);
   int (*driverNewEntry) (kernelFileEntry *);
   int (*driverInactiveEntry) (kernelFileEntry *);
+  int (*driverResolveLink) (kernelFileEntry *);
   int (*driverReadFile) (kernelFileEntry *, unsigned, unsigned,
 			 unsigned char *);
   int (*driverWriteFile) (kernelFileEntry *, unsigned, unsigned,
@@ -118,6 +119,7 @@ typedef struct
 
 // The default driver initializations
 int kernelFilesystemFatInitialize(void);
+int kernelFilesystemExtInitialize(void);
 
 // Functions exported by kernelFilesystem.c
 int kernelFilesystemInitialize(void);

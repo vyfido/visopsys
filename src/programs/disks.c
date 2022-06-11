@@ -39,7 +39,6 @@ int main(int argc, char *argv[])
   availableDisks = diskGetCount();
 
   status = diskGetInfo(diskInfo);
-  
   if (status < 0)
     {
       // Eek.  Problem getting disk info

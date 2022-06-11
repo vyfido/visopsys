@@ -1,5 +1,24 @@
 
 ---------------
+Version 0.31
+---------------
+
+  Overview: This is primarily a bugfix release, with EXT2 filesystem support
+  added as a new (alpha) feature.
+
+- Implemented a preliminary, alpha, read-only EXT2 filesystem driver
+- The libraries and (non-kernel) include files have been relicensed under
+  the GNU LGPL to permit use by proprietary programs
+- The IDE/ATA/ATAPI driver was not responding to disks on the secondary
+  controller.
+- Fixed: The 'cat' program wasn't printing tabs properly the way the 'more'
+  program does.
+- Fixed: kernelMalloc allocations were not necessarily being done on any
+  boundaries.  It is now done on sizeof(unsigned) (dword) boundaries.
+- Added a *very* basic 'find' program which only traverses whole directory
+  trees.  Initially to aid in development of new filesystems
+
+---------------
 Version 0.3
 ---------------
 

@@ -101,7 +101,8 @@ ABSDRIVEROBJS	= build/kernelSysTimer.o \
 FILEOBJS	= build/kernelFilesystem.o \
 		build/kernelFile.o \
 		build/kernelFileStream.o \
-		build/kernelFilesystemFat.o
+		build/kernelFilesystemFat.o \
+		build/kernelFilesystemExt.o
 
 OBJS		= ${GLOBALOBJS} ${DRIVEROBJS} ${ABSDRIVEROBJS} \
 		${FILEOBJS}
@@ -114,6 +115,7 @@ all: visopsys
 visopsys: message build ${OBJS}
 	${CC} ${CFLAGS} ${LIB} ${LINKOPTS} ${OBJS} -lc -o build/visopsys
 	../../utils/kernel-symbols.sh build/visopsys build/kernelSymbols.txt
+	strip -s build/visopsys
 
 message:
 	#
@@ -319,3 +321,6 @@ build/kernelFileStream.o: kernelFileStream.c kernelFileStream.h ${STDDEPS}
 
 build/kernelFilesystemFat.o: kernelFilesystemFat.c kernelFilesystemFat.h ${STDDEPS}
 	${CC} ${CFLAGS} -c kernelFilesystemFat.c -o $@
+
+build/kernelFilesystemExt.o: kernelFilesystemExt.c kernelFilesystemExt.h ${STDDEPS}
+	${CC} ${CFLAGS} -c kernelFilesystemExt.c -o $@

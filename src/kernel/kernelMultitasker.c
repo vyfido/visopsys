@@ -93,7 +93,7 @@ static kernelProcess *getProcessById(int processId)
 }
 
 
-static inline int requestProcessObject(kernelProcess **processPointer)
+static inline int requestProcess(kernelProcess **processPointer)
 {
   // This routine is used to allocate new process control memory.  It
   // should be passed a reference to a pointer that will point to
@@ -117,7 +117,7 @@ static inline int requestProcessObject(kernelProcess **processPointer)
 }
 
 
-static inline int releaseProcessObject(kernelProcess *killProcess)
+static inline int releaseProcess(kernelProcess *killProcess)
 {
   // This routine is used to free process control memory.  It
   // should be passed the process Id of the process to kill.  It
@@ -303,8 +303,7 @@ static int createNewProcess(void *codeDataPointer, unsigned codeDataSize,
   // should have done this already.
 
   // We need to see if we can get some fresh process control memory
-  status = requestProcessObject(&newProcess);
-
+  status = requestProcess(&newProcess);
   if (status < 0)
     return (status);
 
@@ -336,7 +335,7 @@ static int createNewProcess(void *codeDataPointer, unsigned codeDataSize,
       // Make sure the current process isn't NULL
       if (kernelCurrentProcess == NULL)
 	{
-	  releaseProcessObject(newProcess);
+	  releaseProcess(newProcess);
 	  return (status = ERR_NOSUCHPROCESS);
 	}
 
@@ -379,7 +378,7 @@ static int createNewProcess(void *codeDataPointer, unsigned codeDataSize,
     {
       // We couldn't make a stack for the new process.  Maybe the system
       // doesn't have anough available memory?
-      releaseProcessObject(newProcess);
+      releaseProcess(newProcess);
       return (status = ERR_MEMORY);
     }
 
@@ -415,7 +414,7 @@ static int createNewProcess(void *codeDataPointer, unsigned codeDataSize,
 	{
 	  // Not able to setup a page directory
 	  kernelMemoryRelease(stackMemoryAddr);
-	  releaseProcessObject(newProcess);
+	  releaseProcess(newProcess);
 	  return (status = ERR_NOVIRTUAL);
 	}
 
@@ -428,7 +427,7 @@ static int createNewProcess(void *codeDataPointer, unsigned codeDataSize,
 	{
 	  // Couldn't make the process own its memory
 	  kernelMemoryRelease(stackMemoryAddr);
-	  releaseProcessObject(newProcess);
+	  releaseProcess(newProcess);
 	  return (status);
 	}
     }
@@ -442,7 +441,7 @@ static int createNewProcess(void *codeDataPointer, unsigned codeDataSize,
 	{
 	  // Not able to setup a page directory
 	  kernelMemoryRelease(stackMemoryAddr);
-	  releaseProcessObject(newProcess);
+	  releaseProcess(newProcess);
 	  return (status = ERR_NOVIRTUAL);
 	}
     }
@@ -456,7 +455,7 @@ static int createNewProcess(void *codeDataPointer, unsigned codeDataSize,
     {
       // Couldn't make the process own its memory
       kernelMemoryRelease(stackMemoryAddr);
-      releaseProcessObject(newProcess);
+      releaseProcess(newProcess);
       return (status);
     }
 
@@ -472,7 +471,7 @@ static int createNewProcess(void *codeDataPointer, unsigned codeDataSize,
       // Not able to create the TSS
       kernelMemoryRelease(stackMemoryAddr);
       kernelMemoryRelease((void *) newProcess->environment);
-      releaseProcessObject(newProcess);
+      releaseProcess(newProcess);
       return (status);
     }
 
@@ -489,7 +488,7 @@ static int createNewProcess(void *codeDataPointer, unsigned codeDataSize,
       // Not able to queue the process.
       kernelMemoryRelease(stackMemoryAddr);
       kernelMemoryRelease((void *) newProcess->environment);
-      releaseProcessObject(newProcess);
+      releaseProcess(newProcess);
       return (status);
     }
 
@@ -543,7 +542,7 @@ static int deleteProcess(kernelProcess *killProcess)
   status = kernelMemoryReleaseAllByProcId(killProcess->processId);
   
   // Likewise, if this deallocation was unsuccessful, we don't want to
-  // deallocate the process object.  If we did, the memory would become
+  // deallocate the process structure.  If we did, the memory would become
   // "lost".
   if (status < 0)
     {
@@ -555,19 +554,19 @@ static int deleteProcess(kernelProcess *killProcess)
   status = kernelPageDeleteDirectory(killProcess->processId);
 
   // If this deletion was unsuccessful, we don't want to deallocate the 
-  // process object.  If we did, the page directory would become "lost".
+  // process structure.  If we did, the page directory would become "lost".
   if (status < 0)
     {
       kernelError(kernel_error, "Can't release page directory");
       return (status);
     }
 
-  // Finally, release the process object
-  status = releaseProcessObject(killProcess);
+  // Finally, release the process structure
+  status = releaseProcess(killProcess);
   
   if (status < 0)
     {
-      kernelError(kernel_error, "Can't release process object");
+      kernelError(kernel_error, "Can't release process structure");
       return (status);
     }
 
@@ -1983,7 +1982,7 @@ int kernelMultitaskerPassArgs(int processId, int numberArgs, void *args)
     return (status = ERR_NULLPARAMETER);
 
   // Try to match the requested process Id number with a real
-  // live process object
+  // live process structure
   targetProcess = getProcessById(processId);
 
   if (targetProcess == NULL)
@@ -2050,7 +2049,7 @@ kernelProcess *kernelMultitaskerGetProcess(int processId)
     return (targetProcess = NULL);
   
   // Try to match the requested process Id number with a real
-  // live process object
+  // live process structure
   targetProcess = getProcessById(processId);
 
   if (targetProcess == NULL)
@@ -2102,7 +2101,7 @@ int kernelMultitaskerGetProcessOwner(int processId)
     return (status = KERNELPROCID);
   
   // Try to match the requested process Id number with a real
-  // live process object
+  // live process structure
   targetProcess = getProcessById(processId);
 
   if (targetProcess == NULL)
@@ -2132,7 +2131,7 @@ const char *kernelMultitaskerGetProcessName(int processId)
     return ((processId == KERNELPROCID)? "kernel process" : NULL);
   
   // Try to match the requested process Id number with a real
-  // live process object
+  // live process structure
   targetProcess = getProcessById(processId);
 
   if (targetProcess == NULL)
@@ -2159,7 +2158,7 @@ int kernelMultitaskerGetProcessState(int processId, kernelProcessState *state)
     // We can't continue here
     return (status = ERR_NOTINITIALIZED);
   
-  // We need to find the process object based on the process Id
+  // We need to find the process structure based on the process Id
   process = getProcessById(processId);
 
   if (process == NULL)
@@ -2193,7 +2192,7 @@ int kernelMultitaskerSetProcessState(int processId,
     // We can't continue here
     return (status = ERR_NOTINITIALIZED);
   
-  // We need to find the process object based on the process Id
+  // We need to find the process structure based on the process Id
   changeProcess = getProcessById(processId);
 
   if (changeProcess == NULL)
@@ -2233,7 +2232,7 @@ int kernelMultitaskerProcessIsAlive(int processId)
     return (0);
   
   // Try to match the requested process Id number with a real
-  // live process object
+  // live process structure
   targetProcess = getProcessById(processId);
 
   if (targetProcess && ((targetProcess->state == running) ||
@@ -2260,7 +2259,7 @@ int kernelMultitaskerGetProcessPriority(int processId)
     // We can't continue here
     return (status = ERR_NOTINITIALIZED);
   
-  // We need to find the process object based on the process Id
+  // We need to find the process structure based on the process Id
   getProcess = getProcessById(processId);
 
   if (getProcess == NULL)
@@ -2288,7 +2287,7 @@ int kernelMultitaskerSetProcessPriority(int processId, int newPriority)
     // We can't continue here
     return (status = ERR_NOTINITIALIZED);
   
-  // We need to find the process object based on the process Id
+  // We need to find the process structure based on the process Id
   changeProcess = getProcessById(processId);
 
   if (changeProcess == NULL)
@@ -2331,7 +2330,7 @@ int kernelMultitaskerGetProcessPrivilege(int processId)
     // We can't continue here
     return (status = ERR_NOTINITIALIZED);
   
-  // We need to find the process object based on the process Id
+  // We need to find the process structure based on the process Id
   theProcess = getProcessById(processId);
 
   if (theProcess == NULL)
@@ -2771,7 +2770,7 @@ int kernelMultitaskerKillProcess(int processId, int force)
     // We can't continue here
     return (status = ERR_NOTINITIALIZED);
 
-  // OK, we need to find the process object based on the Id we were passed
+  // OK, we need to find the process structure based on the Id we were passed
   killProcess = getProcessById(processId);
   if (killProcess == NULL)
     // There's no such process

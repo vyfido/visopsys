@@ -87,11 +87,7 @@
 // Structures used internally by the filesystem driver to keep track
 // of files and directories
 
-typedef enum
-{
-  fat12, fat16, fat32, fatUnknown
-
-} fatType;
+typedef enum { fat12, fat16, fat32, fatUnknown } fatType;
 
 typedef volatile struct
 {
@@ -101,6 +97,9 @@ typedef volatile struct
   unsigned res;
   unsigned timeTenth;
   unsigned startCluster;
+
+  // For keeping a list of free ones
+  void *next;
  
 } fatEntryData;
 
@@ -157,7 +156,7 @@ typedef volatile struct
   kernelLock freeBitmapLock;
 
   // Miscellany
-  const kernelDisk *diskObject;
+  const kernelDisk *disk;
   
 } fatInternalData;
 
@@ -166,12 +165,14 @@ typedef volatile struct
 int kernelFilesystemFatDetect(const kernelDisk *);
 int kernelFilesystemFatFormat(kernelDisk *, const char *, const char *, int);
 int kernelFilesystemFatCheck(kernelFilesystem *, int, int);
+int kernelFilesystemFatDefragment(kernelFilesystem *);
 int kernelFilesystemFatMount(kernelFilesystem *);
 int kernelFilesystemFatSync(kernelFilesystem *);
 int kernelFilesystemFatUnmount(kernelFilesystem *);
 unsigned kernelFilesystemFatGetFreeBytes(kernelFilesystem *);
 int kernelFilesystemFatNewEntry(kernelFileEntry *);
 int kernelFilesystemFatInactiveEntry(kernelFileEntry *);
+int kernelFilesystemFatResolveLink(kernelFileEntry *);
 int kernelFilesystemFatReadFile(kernelFileEntry *, unsigned, unsigned,
 				unsigned char *);
 int kernelFilesystemFatWriteFile(kernelFileEntry *, unsigned, unsigned,

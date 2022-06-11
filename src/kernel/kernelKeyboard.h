@@ -33,7 +33,7 @@ typedef struct
 
 } kernelKeyboardDriver;
 
-// A structure for holding information about the keyboard object
+// A structure for holding information about the keyboard
 typedef struct
 {
   kernelKeyboardDriver *driver;

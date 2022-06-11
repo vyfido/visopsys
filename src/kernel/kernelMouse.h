@@ -41,7 +41,7 @@ typedef struct
 
 } kernelMousePointer;
 
-// A structure for holding information about the mouse object
+// A structure for holding information about the mouse
 typedef struct
 {
   kernelMouseDriver *driver;

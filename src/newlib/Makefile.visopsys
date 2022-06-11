@@ -27,10 +27,9 @@ CC		= gcc
 LD		= ld
 
 CCOPTS		= -nostdlib -nodefaultlibs -nostartfiles -nostdinc -O2 \
-		-falign-loops=2 -falign-jumps=2 -falign-functions=2 \
 		-mcpu=pentium -Wall -fno-strength-reduce -Werror
 
-INCLUDES	= -I. -I ../../include
+INCLUDES	= -I. -I ../include
 STDDEP		= Makefile.visopsys sys/*.h
 
 OBJS  	= close.o \

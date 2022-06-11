@@ -48,6 +48,7 @@ COMMANDS	= build/cat \
 		build/date \
 		build/disks \
 		build/display \
+		build/find \
 		build/kill \
 		build/loadfont \
 		build/logout \
@@ -139,6 +140,9 @@ build/display: display.c ${STDDEPS}
 
 build/hello: hello.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} hello.c -lc -o $@
+
+build/find: find.c ${STDDEPS}
+	${CC} ${INCLUDES} ${OPTS} find.c -lvsh -lc -o $@
 
 build/kill: kill.c ${STDDEPS}
 	${CC} ${INCLUDES} ${OPTS} kill.c -lc -o $@

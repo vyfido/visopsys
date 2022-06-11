@@ -49,7 +49,7 @@ static int initialized = 0;
 
 int kernelKeyboardRegisterDevice(kernelKeyboard *theKeyboard)
 {
-  // This routine will register a new keyboard object.  It takes a 
+  // This routine will register a new keyboard.  It takes a 
   // kernelKeyboard structure and returns 0 if successful.
 
   int status = 0;
@@ -87,7 +87,7 @@ int kernelKeyboardInitialize(void)
 
   int status = 0;
 
-  // Check the keyboard object and device driver before proceeding
+  // Check the keyboard and device driver before proceeding
   if (systemKeyboard == NULL)
     {
       kernelError(kernel_error, "The keyboard is NULL");

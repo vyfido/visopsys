@@ -40,7 +40,7 @@ static int initialized = 0;
 
 int kernelPicRegisterDevice(kernelPic *thePic)
 {
-  // This routine will register a new PIC object.
+  // This routine will register a new PIC.
 
   int status = 0;
 

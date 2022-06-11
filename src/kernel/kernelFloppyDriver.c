@@ -840,6 +840,7 @@ static int writeSectors(int driveNum, unsigned logicalSector,
 
 static kernelDiskDriver defaultFloppyDriver =
 {
+  NULL, // driverDetect
   registerDevice,
   reset,
   recalibrate,

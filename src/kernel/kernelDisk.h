@@ -41,7 +41,8 @@ typedef struct
   // This is a structure containing pointers to the
   // generic disk driver routines
 
-  int (*driverRegisterDevice) (void *); // Pointer is a kernelDiskObject *
+  int (*driverDetect) (int, void *);    // Pointer is a kernelPhysicalDisk *
+  int (*driverRegisterDevice) (void *); // Pointer is a kernelPhysicalDisk *
   int (*driverReset) (int);
   int (*driverRecalibrate) (int);
   int (*driverMotorOn) (int);

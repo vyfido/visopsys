@@ -19,8 +19,7 @@
 //  kernelFilesystem.c
 //
 
-// This file contains the routines designed to control file system
-// objects.
+// This file contains the routines designed to manage file systems
 
 #include "kernelFilesystem.h"
 #include "kernelFile.h"
@@ -44,7 +43,7 @@ static int initialized = 0;
 
 static kernelFilesystemDriver *detectType(const kernelDisk *theDisk)
 {
-  // This function takes a disk object (initialized, with its driver
+  // This function takes a disk structure (initialized, with its driver
   // accounted for) and calls functions to determine its type.  At the
   // moment there will be a set number of known filesystem types that
   // will be more-or-less hard-coded into this routine.  Of course this
@@ -65,11 +64,19 @@ static kernelFilesystemDriver *detectType(const kernelDisk *theDisk)
   // Check 'em
 
   // Check for FAT
-  if (kernelDriverGetFat()->driverDetect(theDisk))
+  if (kernelDriverGetFat()->driverDetect(theDisk) == 1)
     {
       driver = kernelDriverGetFat();
       typeName = driver->driverTypeName;
     }
+
+  // Check for EXT
+  else if (kernelDriverGetExt()->driverDetect(theDisk) == 1)
+    {
+      driver = kernelDriverGetExt();
+      typeName = driver->driverTypeName;
+    } 
+
   else
     typeName = "Unsupported";
 
@@ -86,22 +93,22 @@ static kernelFilesystemDriver *detectType(const kernelDisk *theDisk)
 static int installDriver(kernelFilesystem *theFilesystem)
 {
   // This function is called to make sure that the correct filesystem
-  // driver is installed in the filesystem object.  It is passed a
-  // pointer to that filesystem object, and a pointer to an empty
-  // driver object.  It sets them up with the correct values.  This 
+  // driver is installed in the filesystem structure.  It is passed a
+  // pointer to that filesystem structure, and a pointer to an empty
+  // driver structure.  It sets them up with the correct values.  This 
   // function should not be called by a user.  It should really only 
   // be called by the kernelFilesystemNew function.
 
   int status = 0;
   kernelFilesystemDriver *theDriver = NULL;
 
-  // Now, we have make sure the filesystem's disk object has been properly
+  // Now, we have make sure the filesystem's disk structure has been properly
   // installed
   if (theFilesystem->disk == NULL)
     {
       // Make an error
-      kernelError(kernel_error, "The filesystem object has a NULL disk "
-		  "object");
+      kernelError(kernel_error, "The filesystem structure has a NULL disk "
+		  "structure");
       return (status = ERR_NULLPARAMETER);
     }
 
@@ -122,50 +129,10 @@ static int installDriver(kernelFilesystem *theFilesystem)
 }
 
 
-static int checkObjectAndDriver(kernelFilesystem *theFilesystem, 
-				char *invokedBy)
-{
-  // This routine consists of a couple of things commonly done by the
-  // other driver wrapper routines.  I've done this to minimize the amount
-  // of duplicated code.  As its argument, it takes the name of the 
-  // routine that called it so that any error messages can better reflect
-  // what was really being done when the error occurred.
-
-  int status = 0;
-
-  // Make sure the filesystem object isn't NULL (which could indicate that the
-  // filesystem has not been properly mounted)
-  if (theFilesystem == NULL)
-    {
-      kernelError(kernel_error, "The filesystem object is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  // Make sure that the filesystem has a non-NULL driver
-  if (theFilesystem->driver == NULL)
-    {
-      kernelError(kernel_error, "The filesystem driver attached to the "
-		  "filesystem object is NULL");
-      return (status = ERR_NOSUCHDRIVER);
-    }
-
-  // Make sure the disk object isn't NULL (which could indicate that the
-  // device has not been properly registered)
-  if (theFilesystem->disk == NULL)
-    {
-      kernelError(kernel_error, "The filesystem object has a NULL disk "
-		  "object");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  return (status = 0);
-}
-
-
 static int releaseFilesystem(kernelFilesystem *theFilesystem)
 {
   // We have to remove that filesystem by shifting all of the following
-  // objects in the array up by one spot and reduce the counter that keeps
+  // structures in the array up by one spot and reduce the counter that keeps
   // track of the number of devices.  If the device was the last spot,
   // all we do is reduce the counter.
 
@@ -206,7 +173,7 @@ static int releaseFilesystem(kernelFilesystem *theFilesystem)
 
 static kernelFilesystem *getNewFilesystem(kernelDisk *theDisk)
 {
-  // Get a new filesystem object from the list, fill in some values,
+  // Get a new filesystem structure from the list, fill in some values,
   // detect the filesystem type, and install the driver.
 
   int status = 0;
@@ -220,16 +187,16 @@ static kernelFilesystem *getNewFilesystem(kernelDisk *theDisk)
       return (theFilesystem = NULL);
     }
 
-  // Get a new filesystem object from the list
+  // Get a new filesystem structure from the list
   theFilesystem = filesystemPointerArray[filesystemCounter];
 
-  // Initialize the filesystem object
+  // Initialize the filesystem structure
   kernelMemClear((void *) theFilesystem, sizeof(kernelFilesystem));
 
   // Set the filesystem's Id number
   theFilesystem->filesystemNumber = filesystemIdCounter;
 
-  // Make "theDisk" be the filesystem's disk object
+  // Make "theDisk" be the filesystem's disk structure
   theFilesystem->disk = theDisk;
   
   // Now install the filesystem driver functions
@@ -418,7 +385,7 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair)
   if (tmpFilesystem == NULL)
     {
       kernelError(kernel_error, "Unable to allocate a temporary filesystem "
-		  "object for checking");
+		  "structure for checking");
       return (status = ERR_NOFREE);
     }
   
@@ -440,12 +407,12 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair)
       return (status);
     }
 
-  // Release the temporary filesystem object we allocated
+  // Release the temporary filesystem structure we allocated
   status = releaseFilesystem(tmpFilesystem);
   if (status < 0)
     {
       // Not fatal, we don't suppose
-      kernelError(kernel_warn, "Unable to deallocate the filesystem object "
+      kernelError(kernel_warn, "Unable to deallocate the filesystem structure "
 		  "and/or its driver");
     }
 
@@ -486,7 +453,7 @@ int kernelFilesystemDefragment(const char *diskName)
   if (tmpFilesystem == NULL)
     {
       kernelError(kernel_error, "Unable to allocate a temporary filesystem "
-		  "object for defragmenting");
+		  "structure for defragmenting");
       return (status = ERR_NOFREE);
     }
   
@@ -509,12 +476,12 @@ int kernelFilesystemDefragment(const char *diskName)
       return (status);
     }
 
-  // Release the temporary filesystem object we allocated
+  // Release the temporary filesystem structure we allocated
   status = releaseFilesystem(tmpFilesystem);
   if (status < 0)
     {
       // Not fatal, we don't suppose
-      kernelError(kernel_warn, "Unable to deallocate the filesystem object "
+      kernelError(kernel_warn, "Unable to deallocate the filesystem structure "
 		  "and/or its driver");
     }
 
@@ -569,7 +536,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 
   // Make sure that the filesystem hasn't already been mounted (or
   // more precisely, that the requested mount point is not already
-  // in use).  Also make sure that the disk object has not already been 
+  // in use).  Also make sure that the disk structure has not already been 
   // mounted as some other name.
   for (count = 0; count < filesystemCounter; count ++)
     if ((!strcmp((char *) filesystemPointerArray[count]->mountPoint, 
@@ -623,7 +590,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
   theFilesystem = getNewFilesystem(theDisk);
   if (theFilesystem == NULL)
     {
-      kernelError(kernel_error, "Unable to get filesystem object for "
+      kernelError(kernel_error, "Unable to get filesystem structure for "
 		  "mounting");
       return (status = ERR_NOSUCHENTRY);
     }
@@ -723,8 +690,6 @@ int kernelFilesystemMount(const char *diskName, const char *path)
       else
       */
 	{      
-	  kernelError(kernel_error, "Error %d mounting filesystem", status);
-	  // Return the code that the driver routine produced
 	  return (status);
 	}
     }
@@ -735,7 +700,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 
 int kernelFilesystemUnmount(const char *path)
 {
-  // This routine will remove a filesystem object and its driver from the 
+  // This routine will remove a filesystem structure and its driver from the 
   // lists.  It takes the filesystem number and returns the new number of 
   // filesystems in the array.  If the filesystem number doesn't exist, 
   // it returns negative
@@ -764,7 +729,7 @@ int kernelFilesystemUnmount(const char *path)
   if (status < 0)
     return (status);
 
-  // Find the filesystem object based on its name
+  // Find the filesystem structure based on its name
   theFilesystem = filesystemFromPath(mountPointName);
 
   // If the filesystem is NULL, then we assume the requested mount
@@ -777,11 +742,6 @@ int kernelFilesystemUnmount(const char *path)
 
   theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
 
-  // (Redundantly check the filesystem) its driver, and its disk object
-  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-  if (status < 0)
-    return (status);
-  
   // DO NOT attempt to unmount the root filesystem if there are
   // ANY other filesystems mounted.  This would be bad, since root is
   // the parent filesystem of all other filesystems
@@ -851,7 +811,7 @@ int kernelFilesystemUnmount(const char *path)
   if (status < 0)
     {
       // Not fatal, we don't suppose
-      kernelError(kernel_warn, "Unable to deallocate the filesystem object "
+      kernelError(kernel_warn, "Unable to deallocate the filesystem structure "
 		  "and/or its driver");
     }
   
@@ -1075,7 +1035,7 @@ unsigned kernelFilesystemGetFree(const char *path)
   if (status < 0)
     return (freeSpace = 0);
 
-  // Find the filesystem object based on its name
+  // Find the filesystem structure based on its name
   theFilesystem = filesystemFromPath(mountPoint);
 
   if (theFilesystem == NULL)
@@ -1086,12 +1046,6 @@ unsigned kernelFilesystemGetFree(const char *path)
 
   theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
 
-  // Check the filesystem, its driver, and its disk object
-  status = checkObjectAndDriver(theFilesystem, __FUNCTION__);
-  if (status < 0)
-    // Report NO free space
-    return (freeSpace = 0);
-  
   // OK, we just have to check on the filsystem driver function we want
   // to call
   if (theDriver->driverGetFree == NULL)
@@ -1137,7 +1091,7 @@ unsigned kernelFilesystemGetBlockSize(const char *path)
   if (status < 0)
     return (blockSize = 0);
 
-  // Find the filesystem object based on its name
+  // Find the filesystem structure based on its name
   theFilesystem = filesystemFromPath(fixedPath);
 
   if (theFilesystem == NULL)

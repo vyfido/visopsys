@@ -367,6 +367,10 @@ void *_kernelMalloc(char *function, unsigned size)
 
   FUNCTION = function;
 
+  // Make sure we do allocations on nice boundaries
+  if (size % sizeof(unsigned))
+    size += (sizeof(unsigned) - (size % sizeof(unsigned)));
+
   // Make sure there's enough heap memory.  This will get called the first
   // time we're invoked, as totalMemory will be zero.
   while (size > (totalMemory - usedMemory))
