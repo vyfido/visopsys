@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -121,6 +121,7 @@
 #define WINDOW_MAX_LABEL_LINES				4
 
 // Flags for window components
+#define WINDOW_COMPFLAG_CANDRAG				0x0200
 #define WINDOW_COMPFLAG_NOSCROLLBARS		0x0100
 #define WINDOW_COMPFLAG_CLICKABLECURSOR		0x0080
 #define WINDOW_COMPFLAG_CUSTOMBACKGROUND	0x0040

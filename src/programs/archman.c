@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,7 +29,7 @@
 A graphical program for managing archive files.
 
 Usage:
-  filebrowse [archive]
+  archman [archive]
 
 The archman program is interactive, and may only be used in graphics
 mode.  It displays a window with icons representing archive menbers.

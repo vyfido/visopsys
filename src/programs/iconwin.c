@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -42,6 +42,7 @@ custom icons for each.
 */
 
 #include <errno.h>
+#include <libgen.h>
 #include <libintl.h>
 #include <locale.h>
 #include <stdio.h>
@@ -99,7 +100,6 @@ static void error(const char *format, ...)
 static int readConfig(const char *fileName, variableList *config)
 {
 	int status = 0;
-	file f;
 	char langFileName[MAX_PATH_NAME_LENGTH];
 	variableList langConfig;
 	const char *variable = NULL;
@@ -119,9 +119,9 @@ static int readConfig(const char *fileName, variableList *config)
 	if (getenv(ENV_LANG))
 	{
 		sprintf(langFileName, "%s/%s/%s", PATH_SYSTEM_CONFIG,
-			getenv(ENV_LANG), f.name);
+			getenv(ENV_LANG), basename((char *) fileName));
 
-		status = fileFind(langFileName, &f);
+		status = fileFind(langFileName, NULL);
 		if (status >= 0)
 		{
 			status = configRead(langFileName, &langConfig);

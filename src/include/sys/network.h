@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -19,8 +19,8 @@
 //  network.h
 //
 
-// This file contains definitions and structures for using network
-// functions in Visopsys.
+// This file contains definitions and structures for using network functions
+// in Visopsys.
 
 #if !defined(_NETWORK_H)
 
@@ -46,18 +46,24 @@
 
 // Lengths of addresses for protocols
 #define NETWORK_ADDRLENGTH_ETHERNET			6
-#define NETWORK_ADDRLENGTH_IP				4
+#define NETWORK_ADDRLENGTH_IPV4				4
 
-// Supported protocols.  Link layer protocols:
+// Supported link layer protocols
 #define NETWORK_LINKPROTOCOL_ETHERNET		1
-// Supported network layer protocols:
+
+// Supported network layer protocols
 #define NETWORK_NETPROTOCOL_IP				1
-// Supported top-level (transport layer) protocols, or network layer ones
-// that have no corresponding transport protocol.  Where applicable,
-// these match the IANA assigned IP protocol numbers:
+
+// Supported transport layer protocols, or network layer ones that have no
+// corresponding transport protocol.  Where applicable, these match the IANA
+// assigned IP protocol numbers.
 #define NETWORK_TRANSPROTOCOL_ICMP			1
 #define NETWORK_TRANSPROTOCOL_TCP			6
 #define NETWORK_TRANSPROTOCOL_UDP			17
+
+// Ethernet frame types we care about
+#define NETWORK_ETHERTYPE_IP				0x800	// Internet Protocol (IP)
+#define NETWORK_ETHERTYPE_ARP				0x806	// Addr Resolution Proto
 
 // TCP/UDP port numbers we care about
 #define NETWORK_PORT_BOOTPSERVER			67  // TCP/UDP: BOOTP/DHCP Server
@@ -73,8 +79,9 @@
 #define NETWORK_MODE_LISTEN					0x04
 #define NETWORK_MODE_READ					0x02
 #define NETWORK_MODE_WRITE					0x01
-#define NETWORK_MODE_READWRITE				(NETWORK_MODE_READ | \
-											NETWORK_MODE_WRITE)
+#define NETWORK_MODE_READWRITE				\
+	(NETWORK_MODE_READ | NETWORK_MODE_WRITE)
+
 // ICMP message types
 #define NETWORK_ICMP_ECHOREPLY				0
 #define NETWORK_ICMP_DESTUNREACHABLE		3
@@ -88,6 +95,42 @@
 #define NETWORK_ICMP_INFOREQUEST			15
 #define NETWORK_ICMP_INFOREPLY				16
 
+// TCP header flags
+#define NETWORK_TCPFLAG_URG					0x20
+#define NETWORK_TCPFLAG_ACK					0x10
+#define NETWORK_TCPFLAG_PSH					0x08
+#define NETWORK_TCPFLAG_RST					0x04
+#define NETWORK_TCPFLAG_SYN					0x02
+#define NETWORK_TCPFLAG_FIN					0x01
+
+// DHCP constants
+#define NETWORK_DHCP_COOKIE					0x63825363
+#define NETWORK_DHCPHARDWARE_ETHERNET		1
+#define NETWORK_DHCPOPCODE_BOOTREQUEST		1
+#define NETWORK_DHCPOPCODE_BOOTREPLY		2
+#define NETWORK_DHCPOPTION_PAD				0
+#define NETWORK_DHCPOPTION_SUBNET			1
+#define NETWORK_DHCPOPTION_ROUTER			3
+#define NETWORK_DHCPOPTION_DNSSERVER		6
+#define NETWORK_DHCPOPTION_HOSTNAME			12
+#define NETWORK_DHCPOPTION_DOMAIN			15
+#define NETWORK_DHCPOPTION_BROADCAST		28
+#define NETWORK_DHCPOPTION_ADDRESSREQ		50
+#define NETWORK_DHCPOPTION_LEASETIME		51
+#define NETWORK_DHCPOPTION_MSGTYPE			53
+#define NETWORK_DHCPOPTION_SERVERID			54
+#define NETWORK_DHCPOPTION_PARAMREQ			55
+#define NETWORK_DHCPOPTION_END				255
+#define NETWORK_DHCPMSG_DHCPDISCOVER		1
+#define NETWORK_DHCPMSG_DHCPOFFER			2
+#define NETWORK_DHCPMSG_DHCPREQUEST			3
+#define NETWORK_DHCPMSG_DHCPDECLINE			4
+#define NETWORK_DHCPMSG_DHCPACK				5
+#define NETWORK_DHCPMSG_DHCPNAK				6
+#define NETWORK_DHCPMSG_DHCPRELEASE			7
+#define NETWORK_DHCPMSG_DHCPINFORM			8
+
+// Ping
 #define NETWORK_PING_DATASIZE				56
 
 #define networkAddressesEqual(addr1, addr2, addrSize) \
@@ -199,6 +242,33 @@ typedef struct {
 	unsigned short checksum;
 
 } __attribute__((packed)) networkUdpHeader;
+
+typedef struct {
+	unsigned char code;
+	unsigned char length;
+	unsigned char data[];
+
+}  __attribute__((packed)) networkDhcpOption;
+
+typedef struct {												// RFC names:
+	unsigned char opCode;										// op
+	unsigned char hardwareType;									// htype
+	unsigned char hardwareAddrLen;								// hlen
+	unsigned char hops;											// hops
+	unsigned transactionId;										// xid
+	unsigned short seconds;										// secs
+	unsigned short flags;										// flags
+	unsigned char clientLogicalAddr[NETWORK_ADDRLENGTH_IPV4];	// ciaddr
+	unsigned char yourLogicalAddr[NETWORK_ADDRLENGTH_IPV4];		// yiaddr
+	unsigned char serverLogicalAddr[NETWORK_ADDRLENGTH_IPV4];	// siaddr
+	unsigned char relayLogicalAddr[NETWORK_ADDRLENGTH_IPV4];	// giaddr
+	unsigned char clientHardwareAddr[16];						// chaddr
+	char serverName[64];										// sname
+	char bootFile[128];											// file
+	unsigned cookie;											// \ options
+	unsigned char options[308];									// /
+
+} __attribute__((packed)) networkDhcpPacket;
 
 typedef struct {
 	networkIcmpHeader icmpHeader;

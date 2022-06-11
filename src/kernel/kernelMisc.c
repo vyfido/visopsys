@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -230,7 +230,7 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 	int status = 0;
 	void *instPointer = 0;
 	void *framePointer = NULL;
-	unsigned stackPhysical = NULL;
+	unsigned stackPhysical = 0;
 	void *stackVirtual = NULL;
 	long memoryOffset = 0;
 	const char *symbolName = NULL;

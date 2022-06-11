@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -35,6 +35,9 @@ Usage:
 This program is the default 'first boot' program on Visopsys floppy or
 CD-ROM image files that asks if you want to 'install' or 'run now'.
 
+Options:
+-T  : Force text mode operation
+
 </help>
 */
 
@@ -58,7 +61,7 @@ CD-ROM image files that asks if you want to 'install' or 'run now'.
 #define gettext_noop(string) (string)
 
 #define WELCOME			_("Welcome to %s")
-#define COPYRIGHT		_("Copyright (C) 1998-2016 J. Andrew McLaughlin")
+#define COPYRIGHT		_("Copyright (C) 1998-2017 J. Andrew McLaughlin")
 #define GPL				_( \
 	"  This program is free software; you can redistribute it and/or modify it\n" \
 	"  under the terms of the GNU General Public License as published by the\n" \
@@ -282,17 +285,14 @@ static int loadFlagImage(const char *lang, image *img)
 {
 	int status = 0;
 	char path[MAX_PATH_LENGTH];
-	file f;
 
 	sprintf(path, "%s/flag-%s.bmp", PATH_SYSTEM_LOCALE, lang);
 
-	status = fileFind(path, &f);
+	status = fileFind(path, NULL);
 	if (status < 0)
 		return (status);
 
-	status = imageLoad(path, 30, 20, img);
-
-	return (status);
+	return (status = imageLoad(path, 30, 20, img));
 }
 
 
@@ -346,6 +346,9 @@ static void refreshWindow(void)
 	getVersion(versionString, sizeof(versionString));
 	sprintf(title, WELCOME, versionString);
 	windowSetTitle(window, title);
+
+	// Re-do the window layout
+	windowLayout(window);
 }
 
 
@@ -428,9 +431,9 @@ static void constructWindow(void)
 	char welcome[80];
 	color background = { COLOR_DEFAULT_DESKTOP_BLUE,
 		COLOR_DEFAULT_DESKTOP_GREEN, COLOR_DEFAULT_DESKTOP_RED };
+	static char *splashName = PATH_SYSTEM "/visopsys.jpg";
 	image splashImage;
 	objectKey buttonContainer = NULL;
-	file langDir;
 	componentParameters params;
 
 	getVersion(versionString, sizeof(versionString));
@@ -470,9 +473,9 @@ static void constructWindow(void)
 	// Try to load a splash image to go at the top of the window
 	params.orientationX = orient_center;
 	memset(&splashImage, 0, sizeof(image));
-	if (fileFind(PATH_SYSTEM "/visopsys.jpg", NULL) >= 0)
+	if (fileFind(splashName, NULL) >= 0)
 	{
-		status = imageLoad(PATH_SYSTEM "/visopsys.jpg", 0, 0, &splashImage);
+		status = imageLoad(splashName, 0, 0, &splashImage);
 		if (status >= 0)
 		{
 			// Create an image component from it, and add it to the window
@@ -511,8 +514,8 @@ static void constructWindow(void)
 		windowRegisterEventHandler(contButton, &eventHandler);
 		windowComponentFocus(contButton);
 
-		// Does the 'locale' directory exist?  Anything in it?
-		if (fileFind(PATH_SYSTEM_LOCALE, &langDir) >= 0)
+		// Does the 'locale' directory exist?
+		if (fileFind(PATH_SYSTEM_LOCALE, NULL) >= 0)
 		{
 			params.gridX += 1;
 			params.orientationX = orient_left;
@@ -522,11 +525,15 @@ static void constructWindow(void)
 				status = loadFlagImage(LANG_ENGLISH, &flagImage);
 
 			if (status >= 0)
+			{
 				langButton = windowNewButton(buttonContainer, NULL, &flagImage,
 					&params);
+			}
 			else
+			{
 				langButton = windowNewButton(buttonContainer, LANGUAGE, NULL,
 					&params);
+			}
 
 			windowRegisterEventHandler(langButton, &eventHandler);
 		}

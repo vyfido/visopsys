@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -80,8 +80,8 @@ static int detectVbe(void)
 
 	kernelDebug(debug_io, "VBE: detecting VBE protected mode interface");
 
-	// Map the video BIOS image into memory.  Starts at 0xC0000 and 'normally' is
-	// 32Kb according to the VBE 3.0 spec (but not really in my experience)
+	// Map the video BIOS image into memory.  Starts at 0xC0000 and 'normally'
+	// is 32Kb according to the VBE 3.0 spec (but not really in my experience)
 	status = kernelPageMapToFree(KERNELPROCID, VIDEO_BIOS_MEMORY, &biosOrig,
 		VIDEO_BIOS_MEMORY_SIZE);
 	if (status < 0)

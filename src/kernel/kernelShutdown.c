@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -38,6 +38,7 @@
 #include "kernelWindow.h"
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <sys/processor.h>
 
 #define _(string) kernelGetText(string)
@@ -292,7 +293,7 @@ int kernelShutdown(int reboot, int force)
 	// Finally, we either halt or reboot the computer
 	if (reboot)
 	{
-		kernelCpuSpinMs(1000); // Wait 1 second
+		kernelCpuSpinMs(MS_PER_SEC); // Wait 1 second
 		// Disable interrupts
 		processorDisableInts();
 		processorReboot();

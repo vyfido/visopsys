@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,6 +34,7 @@
 #include "kernelVariableList.h"
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <sys/processor.h>
 
 static kernelPhysicalDisk *disks[USBATAPI_MAX_DISKS];
@@ -569,7 +570,7 @@ static int atapiStartup(kernelPhysicalDisk *physical)
 	atapiSenseData senseData;
 	scsiCapacityData capacityData;
 	atapiTocData tocData;
-	uquad_t timeout = (kernelCpuGetMs() + 10000);	// Timout after 10 seconds
+	uquad_t timeout = (kernelCpuGetMs() + (10 * MS_PER_SEC)); // timout 10 secs
 
 	dsk = (kernelUsbAtapiDisk *) physical->driverData;
 

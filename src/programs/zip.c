@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -42,10 +42,10 @@ Usage:
     Print info about the members of the archive file.
 
 Options:
--a         : add files to an archive
--d         : delete members from an archive
--i         : print info about the archive members
--p         : show a progress indicator
+-a  : Add files to an archive
+-d  : Delete members from an archive
+-i  : Print info about the archive members
+-p  : Show a progress indicator
 
 </help>
 */

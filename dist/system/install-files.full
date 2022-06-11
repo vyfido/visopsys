@@ -253,6 +253,7 @@
 /system/headers/sys/desktop.h
 /system/headers/sys/device.h
 /system/headers/sys/disk.h
+/system/headers/sys/elf.h
 /system/headers/sys/env.h
 /system/headers/sys/errors.h
 /system/headers/sys/ext.h
@@ -279,6 +280,7 @@
 /system/headers/sys/multiproc.h
 /system/headers/sys/network.h
 /system/headers/sys/ntfs.h
+/system/headers/sys/osloader.h
 /system/headers/sys/paths.h
 /system/headers/sys/png.h
 /system/headers/sys/process.h

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -36,7 +36,7 @@ parameter is the name of a new directory to create.  Any number of other
 (optional) directories to create can be specified at the same time.
 
 Options:
--p              : Create parent directories, if necessary.
+-p  : Create parent directories, if necessary.
 
 </help>
 */
@@ -66,10 +66,9 @@ static void usage(char *name)
 static int makeDirRecursive(char *path)
 {
 	int status = 0;
-	file theDir;
 	char *parent = NULL;
 
-	if (fileFind(path, &theDir) >= 0)
+	if (fileFind(path, NULL) >= 0)
 		return (status = 0);
 
 	parent = dirname(path);

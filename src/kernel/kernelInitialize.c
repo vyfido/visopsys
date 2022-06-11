@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -91,10 +91,6 @@ static void logLoaderInfo(void)
 	char *memType = NULL;
 	int count;
 
-	kernelLog("OS Loader: CPU type=%d", kernelOsLoaderInfo->cpuType);
-	kernelLog("OS Loader: CPU vendor=%s", kernelOsLoaderInfo->cpuVendor);
-	kernelLog("OS Loader: MMS extensions=%s",
-		(kernelOsLoaderInfo->mmxExtensions? "yes" : "no"));
 	kernelLog("OS Loader: Extended mem=%uK",
 		kernelOsLoaderInfo->extendedMemory);
 
@@ -138,7 +134,7 @@ static void logLoaderInfo(void)
 		kernelLog("OS Loader: video memory=%uK",
 			kernelOsLoaderInfo->graphicsInfo.videoMemory);
 		kernelLog("OS Loader: video framebuffer=%p",
-			kernelOsLoaderInfo->graphicsInfo.framebuffer);
+			(void *) kernelOsLoaderInfo->graphicsInfo.framebuffer);
 		kernelLog("OS Loader: video mode=0x%x: %dx%d @%dbpp",
 			kernelOsLoaderInfo->graphicsInfo.mode,
 			kernelOsLoaderInfo->graphicsInfo.xRes,
@@ -173,12 +169,6 @@ static void logLoaderInfo(void)
 			kernelOsLoaderInfo->fddInfo[count].tracks,
 			kernelOsLoaderInfo->fddInfo[count].sectors);
 	}
-
-	kernelLog("OS Loader: serial ports 0x%04x 0x%04x 0x%04x 0x%04x",
-		kernelOsLoaderInfo->serialPorts.port1,
-		kernelOsLoaderInfo->serialPorts.port2,
-		kernelOsLoaderInfo->serialPorts.port3,
-		kernelOsLoaderInfo->serialPorts.port4);
 
 	return;
 }
@@ -294,7 +284,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	kernelLogSetToConsole(0);
 
 	// Log a starting message
-	sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2016 J. Andrew "
+	sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2017 J. Andrew "
 		"McLaughlin", kernelVersion[0], kernelVersion[1]);
 	kernelLog("%s", welcomeMessage);
 
@@ -576,9 +566,6 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 		if (status < 0)
 			// Make a warning, but don't return error.  This is not fatal.
 			kernelError(kernel_warn, "Unable to start the window manager");
-
-		// Clear the screen with our default desktop color
-		kernelGraphicClearScreen(&kernelDefaultDesktop);
 	}
 	else
 	{

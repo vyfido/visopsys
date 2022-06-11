@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -32,6 +32,7 @@
 #include "kernelPic.h"
 #include <errno.h>
 #include <string.h>
+#include <time.h>
 #include <sys/processor.h>
 
 #define MOUSE_SHORT_TIMEOUT		50 // ms
@@ -383,7 +384,7 @@ static int command(unsigned char cmd, int numParams, unsigned char *inParams,
 			// If this is a reset command, wait a little bit for the operation
 			// to complete
 			if ((cmd == 0xFF) && !count)
-				status = inPort60(&data, mouse_input, 1000 /* ms */);
+				status = inPort60(&data, mouse_input, MS_PER_SEC);
 			else
 				status = inPort60(&data, mouse_input, MOUSE_LONG_TIMEOUT);
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -720,7 +720,7 @@ _X_ unsigned filesystemGetBlockSize(const char *fs)
 _X_ int fileFixupPath(const char *origPath, char *newPath _U_)
 {
 	// Proto: int kernelFileFixupPath(const char *, char *);
-	// Desc : Take the absolute pathname in 'origPath' and fix it up.  This means eliminating extra file separator characters (for example) and resolving links or '.' or '..' components in the pathname.
+	// Desc : Take the relative or absolute pathname in 'origPath' and fix it up.  This means ensuring the pathname is absolute (possibly adding the current directory as a prefix), removing unnecessary characters such as extra file separator characters (for example) and resolving links or '.' or '..' components in the pathname.
 	return (_syscall(_fnum_fileFixupPath, &origPath));
 }
 
@@ -734,28 +734,28 @@ _X_ int fileGetDisk(const char *path, disk *d _U_)
 _X_ int fileCount(const char *path)
 {
 	// Proto: int kernelFileCount(const char *);
-	// Desc : Get the count of file entries from the directory referenced by 'path'.
+	// Desc : Get the count of directory entries from the directory referenced by 'path'.
 	return (_syscall(_fnum_fileCount, &path));
 }
 
 _X_ int fileFirst(const char *path, file *f _U_)
 {
 	// Proto: int kernelFileFirst(const char *, file *);
-	// Desc : Get the first file from the directory referenced by 'path'.  Put the information in the file structure 'f'.
+	// Desc : Get the first directory entry from the directory referenced by 'path'.  Put the information in the file structure 'f'.
 	return (_syscall(_fnum_fileFirst, &path));
 }
 
 _X_ int fileNext(const char *path, file *f _U_)
 {
 	// Proto: int kernelFileNext(const char *, file *);
-	// Desc : Get the next file from the directory referenced by 'path'.  'f' should be a file structure previously filled by a call to either fileFirst() or fileNext().
+	// Desc : Get the next directory entry from the directory referenced by 'path'.  'f' should be a file structure previously filled by a call to either fileFirst() or fileNext().
 	return (_syscall(_fnum_fileNext, &path));
 }
 
 _X_ int fileFind(const char *name, file *f _U_)
 {
 	// Proto: int kernelFileFind(const char *, kernelFile *);
-	// Desc : Find the file referenced by 'name', and fill the file data structure 'f' with the results if successful.
+	// Desc : Find the file referenced by 'name', and if successful and the file data structure pointer 'f' is non-NULL, fill with file info.
 	return (_syscall(_fnum_fileFind, &name));
 }
 
@@ -776,14 +776,14 @@ _X_ int fileClose(file *f)
 _X_ int fileRead(file *f, unsigned blocknum _U_, unsigned blocks _U_, void *buff _U_)
 {
 	// Proto: int kernelFileRead(file *, unsigned, unsigned, void *);
-	// Desc : Read data from the previously opened file 'f'.  'f' should have been opened in a read or read/write mode.  Read 'blocks' blocks (see the filesystem functions for information about getting the block size of a given filesystem) and put them in buffer 'buff'.
+	// Desc : Read data from the previously opened file 'f'.  'f' should have been opened in a read or read/write mode.  Read 'blocks' blocks ('f' contains the block size after opening) and put them in buffer 'buff'.
 	return (_syscall(_fnum_fileRead, &f));
 }
 
 _X_ int fileWrite(file *f, unsigned blocknum _U_, unsigned blocks _U_, void *buff _U_)
 {
 	// Proto: int kernelFileWrite(file *, unsigned, unsigned, void *);
-	// Desc : Write data to the previously opened file 'f'.  'f' should have been opened in a write or read/write mode.  Write 'blocks' blocks (see the filesystem functions for information about getting the block size of a given filesystem) from the buffer 'buff'.
+	// Desc : Write data to the previously opened file 'f'.  'f' should have been opened in a write or read/write mode.  Write 'blocks' blocks ('f' contains the block size after opening) from the buffer 'buff'.
 	return (_syscall(_fnum_fileWrite, &f));
 }
 
@@ -804,7 +804,7 @@ _X_ int fileDeleteRecursive(const char *name)
 _X_ int fileDeleteSecure(const char *name, int passes _U_)
 {
 	// Proto: int kernelFileDeleteSecure(const char *);
-	// Desc : Securely delete the file referenced by the pathname 'name'.  'passes' indicates the number of times to overwrite the file.  The file is overwritten (number - 1) times with random data, and then NULLs.  A larger number of passes is more secure but takes longer.
+	// Desc : Securely delete the file referenced by the pathname 'name'.  'passes' indicates the number of times to overwrite the file.  Before deletion, the file is overwritten (passes - 1) times with random data, and then NULLs.  A larger number of passes is more secure but takes longer.
 	return (_syscall(_fnum_fileDeleteSecure, &name));
 }
 
@@ -986,13 +986,6 @@ _X_ int memoryGetBlocks(memoryBlock *blocksArray, unsigned buffSize _U_, int ker
 	// Proto: int kernelMemoryGetBlocks(memoryBlock *, unsigned, int);
 	// Desc : Returns a copy of the array of used memory blocks in 'blocksArray', up to 'buffSize' bytes.  If non-zero, the flag 'kernel' will return kernel heap blocks instead of overall heap allocations.
 	return (_syscall(_fnum_memoryGetBlocks, &blocksArray));
-}
-
-_X_ int memoryBlockInfo(void *p, memoryBlock *block _U_)
-{
-	// Proto: int kernelMemoryBlockInfo(void *, memoryBlock *);
-	// Desc : Fills in the structure 'block' with information about the allocated memory block starting at virtual address 'p'
-	return (_syscall(_fnum_memoryBlockInfo, &p));
 }
 
 

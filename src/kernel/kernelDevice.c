@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -56,6 +56,7 @@ static kernelDeviceClass allClasses[] = {
 // An array of device subclasses, with names
 static kernelDeviceClass allSubClasses[] = {
 	{ DEVICESUBCLASS_CPU_X86,			"x86"					},
+	{ DEVICESUBCLASS_CPU_X86_64,		"x86_64"				},
 	{ DEVICESUBCLASS_SYSTEM_BIOS,		"BIOS"					},
 	{ DEVICESUBCLASS_SYSTEM_BIOS32,		"BIOS (32-bit)"			},
 	{ DEVICESUBCLASS_SYSTEM_BIOSPNP,	"BIOS (Plug and Play)"	},
@@ -96,7 +97,7 @@ static kernelDriver displayDrivers[] = {
 
 // Our static list of built-in drivers
 static kernelDriver deviceDrivers[] = {
-	{ DEVICECLASS_CPU, DEVICESUBCLASS_CPU_X86,
+	{ DEVICECLASS_CPU, DEVICESUBCLASS_CPU_X86, // also _X86_64
 		kernelCpuDriverRegister, NULL, NULL, NULL						},
 	{ DEVICECLASS_MEMORY, 0,
 		kernelMemoryDriverRegister, NULL, NULL, NULL					},

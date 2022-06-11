@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -40,6 +40,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <sys/processor.h>
 
 // Some little macro shortcuts
@@ -339,7 +340,7 @@ static int waitOperationComplete(int diskNum, int yield, int dataWait,
 		DISK_CHAN(diskNum).interrupt, dataWait, ack);
 
 	if (!timeout)
-		timeout = 1000;
+		timeout = MS_PER_SEC;
 
 	endTime = (kernelCpuGetMs() + timeout);
 
@@ -618,7 +619,7 @@ static int atapiStartStop(int diskNum, int start)
 	// Start or stop an ATAPI device
 
 	int status = 0;
-	uquad_t timeout = (kernelCpuGetMs() + 10000);
+	uquad_t timeout = (kernelCpuGetMs() + (10 * MS_PER_SEC));
 	unsigned short dataWord = 0;
 	atapiSenseData senseData;
 
@@ -883,7 +884,7 @@ static int dmaSetup(int diskNum, void *address, unsigned bytes, int read,
 
 	int status = 0;
 	unsigned maxBytes = 0;
-	unsigned physicalAddress = NULL;
+	unsigned physicalAddress = 0;
 	unsigned doBytes = 0;
 	int numPrds = 0;
 	idePrd *prds = NULL;
@@ -1852,10 +1853,24 @@ static void pciIdeInterrupt(void)
 
 	kernelInterruptClearCurrent();
 
-	if (!serviced && oldIntHandlers[interruptNum])
-		// We didn't service this interrupt, and we're sharing this PCI
-		// interrupt with another device whose handler we saved.  Call it.
-		processorIsrCall(oldIntHandlers[interruptNum]);
+	if (!serviced)
+	{
+		if (oldIntHandlers[interruptNum])
+		{
+			// We didn't service this interrupt, and we're sharing this PCI
+			// interrupt with another device whose handler we saved.  Call it.
+			kernelDebug(debug_io, "IDE interrupt not serviced - chaining");
+			processorIsrCall(oldIntHandlers[interruptNum]);
+		}
+		else
+		{
+			// We'd better acknowledge the interrupt, or else it wouldn't be
+			// cleared, and our controllers using this vector wouldn't receive
+			// any more.
+			kernelDebugError("Interrupt not serviced and no saved ISR");
+			kernelPicEndOfInterrupt(interruptNum);
+		}
+	}
 
 out:
 	processorIsrExit(address);
@@ -2668,6 +2683,7 @@ static int detectPciControllers(kernelDevice *controllerDevices[],
 				sizeof(idePrd));
 
 			status = kernelMemoryGetIo(prdMemorySize, DISK_CACHE_ALIGN,
+				0 /* not low memory */, "ide prds",
 				(kernelIoMemory *) &CHANNEL(numControllers, count).prds);
 		}
 

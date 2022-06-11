@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,7 +37,7 @@ that host.  The most common usage of this command is to test network
 connectivity.
 
 Options:
--T              : Force text mode operation
+-T  : Force text mode operation
 
 </help>
 */
@@ -312,14 +312,15 @@ int main(int argc, char *argv[])
 		return (status = ERR_ARGUMENTCOUNT);
 	}
 
-	// If we are in graphics mode, we will create an interactive window
-	// which prompts for a destination to ping.
+	// If we are in graphics mode, and no destination has been specified, we
+	// will create an interactive window which prompts for it.
 	if (graphics)
 	{
 		if (argc < 2)
 		{
 			status = windowNewPromptDialog(window, _("Enter Address"),
-				_("Enter the network address to ping:"), 1, 18, addressBuffer);
+				_("Enter the network address to ping:"), 1,
+				sizeof(addressBuffer), addressBuffer);
 			if (status <= 0)
 				quit(status);
 
@@ -327,14 +328,16 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	// Parse the supplied network address into our networkAddress structure.
+	// Parse the supplied destination.
 
 	length = strlen(argv[argc - 1]);
 
 	// Replace dots ('.') with NULLS
 	for (count = 0; count < length; count ++)
+	{
 		if (argv[argc - 1][count] == '.')
 			argv[argc - 1][count] = '\0';
+	}
 
 	// Get the decimal value of up to 4 numbers
 	for (count = 0; count < 4; count ++)
@@ -362,7 +365,7 @@ int main(int argc, char *argv[])
 	for (count = 0; count < NETWORK_PING_DATASIZE; count ++)
 		pingData[count] = (char)(count + 65);
 
-	// Clear out our filter and ask for the network the headers we want
+	// Clear out our filter and ask for the network headers we want
 	memset(&filter, 0, sizeof(networkFilter));
 	filter.headers = NETWORK_HEADERS_NET;
 	filter.transProtocol = NETWORK_TRANSPROTOCOL_ICMP;
@@ -400,8 +403,8 @@ int main(int argc, char *argv[])
 
 	// Launch our thread to read response packets from the connection we just
 	// opened
-	threadPid =
-	multitaskerSpawn(responseThread, "ping receive thread", 0, NULL);
+	threadPid = multitaskerSpawn(responseThread, "ping receive thread", 0,
+		NULL);
 	if (threadPid < 0)
 	{
 		error("%s", _("Error starting response thread"));

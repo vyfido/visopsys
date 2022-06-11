@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2016 J. Andrew McLaughlin
+#  Copyright (C) 1998-2017 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-30 02:02+0100\n"
+"POT-Creation-Date: 2017-05-29 02:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -62,32 +62,32 @@ msgstr "Adresi girin"
 msgid "Enter the network address to ping:"
 msgstr "Pinglenecek ag adresini girin:"
 
-#: ping.c:357
+#: ping.c:360
 msgid "Memory allocation error"
 msgstr "Bellek ayirma hatasi"
 
-#: ping.c:376
+#: ping.c:379
 msgid "Error opening network connection"
 msgstr "Ag baglantisi açilirken hata olustu"
 
-#: ping.c:380
+#: ping.c:383
 #, c-format
 msgid "Ping %d.%d.%d.%d %d bytes of data\n"
 msgstr "Ping %d.%d.%d.%d %d Bayt kadar veri\n"
 
-#: ping.c:394
+#: ping.c:397
 msgid "Error setting signal handler"
 msgstr "Sinyal isleyicisi ayarlanirken hata olustu"
 
-#: ping.c:407
+#: ping.c:410
 msgid "Error starting response thread"
 msgstr "Yanit islemi olusturulurken hata olustu"
 
-#: ping.c:417
+#: ping.c:420
 msgid "Error pinging host"
 msgstr "saglayici pinglenirken hata olustu"
 
-#: ping.c:435
+#: ping.c:438
 #, c-format
 msgid ""
 "\n"
@@ -96,7 +96,7 @@ msgstr ""
 "\n"
 "--- %d.%d.%d.%d Ping-istatistigi ---\n"
 
-#: ping.c:437
+#: ping.c:440
 #, c-format
 msgid "%d packets transmitted, %d received, %d%% packet loss, time Xms\n"
 msgstr "%d paket aktarildi, %d alindi, %d%% paket kaybi, süre Xms\n"

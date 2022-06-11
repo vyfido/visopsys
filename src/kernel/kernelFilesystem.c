@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -814,7 +814,8 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 	// Fill in any information that we already know for this filesystem
 
 	// Make "mountPoint" be the filesystem's mount point
-	strcpy((char *) theDisk->filesystem.mountPoint, mountPoint);
+	strncpy((char *) theDisk->filesystem.mountPoint, mountPoint,
+		MAX_PATH_LENGTH);
 
 	// Get a new file entry for the filesystem's root directory
 	theDisk->filesystem.filesystemRoot = kernelFileNewEntry(theDisk);

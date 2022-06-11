@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -65,7 +65,9 @@ static inline int waitReady(void)
 		return (ERR_BUSY);
 	}
 	else
+	{
 		return (0);
+	}
 }
 
 

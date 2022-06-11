@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 
 	for (count1 = 1; count1 < argc; count1 ++)
 	{
-		// Get a buffer to hold the digest result.  This may  be bigger than it
+		// Get a buffer to hold the digest result.  This may be bigger than it
 		// needs to be but that's okay
 		outputSize = (((strlen(argv[count1]) / 56) + 1) * 4);
 

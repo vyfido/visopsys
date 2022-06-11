@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -86,6 +86,9 @@ windowMenuContents viewMenuContents = {
 
 typedef struct {
 	char name[MAX_PATH_LENGTH];
+	time_t dirModified;
+	time_t fileModified;
+	unsigned filesSize;
 	int selected;
 
 } dirRecord;
@@ -100,7 +103,6 @@ static windowFileList *fileList = NULL;
 static dirRecord *dirStack = NULL;
 static int dirStackCurr = 0;
 static lock dirStackLock;
-static time_t cwdModified = 0;
 static int stop = 0;
 
 
@@ -125,14 +127,52 @@ static void error(const char *format, ...)
 }
 
 
-static void changeDir(file *theFile, char *fullName)
+static void scanDir(dirRecord *dirRec, char *dirName)
 {
-	file cwdFile;
+	// Scan the contents of the directory, so that we'll know if it has
+	// changed.  The caller should probably acquire the dirStackLock before
+	// invoking this function.
 
+	file dirFile;
+
+	dirRec->dirModified = 0;
+	dirRec->fileModified = 0;
+	dirRec->filesSize = 0;
+
+	memset(&dirFile, 0, sizeof(file));
+
+	if (fileFind(dirName, &dirFile) >= 0)
+	{
+		// Note the modification time of the directory itself.
+		dirRec->dirModified = mktime(&dirFile.modified);
+
+		// Size up the files in the directory and note the most recent
+		// modification time
+
+		if (fileFirst(dirName, &dirFile) >= 0)
+		{
+			do {
+				// Ignore 'dot' dirs
+				if (!strcmp(dirFile.name, ".") || !strcmp(dirFile.name, ".."))
+					continue;
+
+				dirRec->filesSize += dirFile.size;
+
+				if (mktime(&dirFile.modified) > dirRec->fileModified)
+					dirRec->fileModified = mktime(&dirFile.modified);
+
+			} while (fileNext(dirName, &dirFile) >= 0);
+		}
+	}
+}
+
+
+static void changeDir(file *dir, char *dirName)
+{
 	while (lockGet(&dirStackLock) < 0)
 		multitaskerYield();
 
-	if (!strcmp(theFile->name, ".."))
+	if (!strcmp(dir->name, ".."))
 	{
 		if (dirStackCurr > 0)
 		{
@@ -142,26 +182,24 @@ static void changeDir(file *theFile, char *fullName)
 		}
 		else
 		{
-			strncpy(dirStack[dirStackCurr].name, fullName, MAX_PATH_LENGTH);
+			strncpy(dirStack[dirStackCurr].name, dirName, MAX_PATH_LENGTH);
 			dirStack[dirStackCurr].selected = 0;
 		}
 	}
 	else
 	{
 		dirStackCurr += 1;
-		strncpy(dirStack[dirStackCurr].name, fullName, MAX_PATH_LENGTH);
+		strncpy(dirStack[dirStackCurr].name, dirName, MAX_PATH_LENGTH);
 		dirStack[dirStackCurr].selected = 0;
 	}
 
 	if (multitaskerSetCurrentDirectory(dirStack[dirStackCurr].name) >= 0)
 	{
-		// Look up the directory and save the modified date and time, so we
-		// can rescan it if it gets modified
-		if (fileFind(dirStack[dirStackCurr].name, &cwdFile) >= 0)
-			cwdModified = mktime(&cwdFile.modified);
+		// Record the new modification times and file sizes
+		scanDir(&dirStack[dirStackCurr], dirStack[dirStackCurr].name);
 
 		windowComponentSetData(locationField, dirStack[dirStackCurr].name,
-			strlen(fullName), 1 /* redraw */);
+			strlen(dirName), 1 /* redraw */);
 	}
 
 	lockRelease(&dirStackLock);
@@ -278,9 +316,11 @@ static void refreshMenuContents(windowMenuContents *contents)
 	initMenuContents(contents);
 
 	for (count = 0; count < contents->numItems; count ++)
+	{
 		windowComponentSetData(contents->items[count].key,
 			contents->items[count].text, strlen(contents->items[count].text),
 			(count == (contents->numItems - 1)));
+	}
 }
 
 
@@ -343,8 +383,10 @@ static void eventHandler(objectKey key, windowEvent *event)
 	else if (key == fileList->key)
 	{
 		if ((event->type & EVENT_MOUSE_DOWN) || (event->type & EVENT_KEY_DOWN))
+		{
 			windowComponentGetSelected(fileList->key,
 				&dirStack[dirStackCurr].selected);
+		}
 
 		fileList->eventHandler(fileList, event);
 	}
@@ -426,7 +468,8 @@ int main(int argc, char *argv[])
 {
 	int status = 0;
 	int guiThreadPid = 0;
-	file cwdFile;
+	dirRecord dirRec;
+	int update = 0;
 
 	setlocale(LC_ALL, getenv(ENV_LANG));
 	textdomain("filebrowse");
@@ -475,6 +518,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	// Record the new modification times and file sizes
+	scanDir(&dirStack[dirStackCurr], dirStack[dirStackCurr].name);
+
 	status = constructWindow(dirStack[dirStackCurr].name);
 	if (status < 0)
 		goto out;
@@ -483,36 +529,50 @@ int main(int argc, char *argv[])
 	// updates.
 	guiThreadPid = windowGuiThread();
 
-	if (fileFind(dirStack[dirStackCurr].name, &cwdFile) >= 0)
-		cwdModified = mktime(&cwdFile.modified);
-
 	// Loop, looking for changes in the current directory
 	while (!stop && multitaskerProcessIsAlive(guiThreadPid))
 	{
 		while (lockGet(&dirStackLock) < 0)
 			multitaskerYield();
 
-		if (fileFind(dirStack[dirStackCurr].name, &cwdFile) >= 0)
+		if (fileFind(dirStack[dirStackCurr].name, NULL) >= 0)
 		{
-			if (mktime(&cwdFile.modified) != cwdModified)
+			// Get the latest modification times and file sizes
+			scanDir(&dirRec, dirStack[dirStackCurr].name);
+
+			update = 0;
+
+			if ((dirRec.dirModified != dirStack[dirStackCurr].dirModified) ||
+				(dirRec.fileModified != dirStack[dirStackCurr].fileModified) ||
+				(dirRec.filesSize != dirStack[dirStackCurr].filesSize))
+			{
+				dirStack[dirStackCurr].dirModified = dirRec.dirModified;
+				dirStack[dirStackCurr].fileModified = dirRec.fileModified;
+				dirStack[dirStackCurr].filesSize = dirRec.filesSize;
+				update = 1;
+			}
+
+			if (update)
 			{
 				fileList->update(fileList);
 				windowComponentSetSelected(fileList->key,
 					dirStack[dirStackCurr].selected);
-
-				cwdModified = mktime(&cwdFile.modified);
 			}
 
 			lockRelease(&dirStackLock);
+
+			if (update)
+				// Don't update more than once per second
+				multitaskerWait(MS_PER_SEC);
+			else
+				multitaskerYield();
 		}
 		else
 		{
-			// Filesystem unmounted or something?  Quit.
+			// Filesystem unmounted, directory deleted, or something?  Quit.
 			lockRelease(&dirStackLock);
 			break;
 		}
-
-		multitaskerYield();
 	}
 
 	// We're back.

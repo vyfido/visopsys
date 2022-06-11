@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,13 +27,13 @@
 #include <stddef.h>
 #include <sys/cdefs.h>
 
-#define EXIT_FAILURE  -1
-#define EXIT_SUCCESS  0
-#define MB_CUR_MAX    MB_LEN_MAX
-#define RAND_MAX      UINT_MAX
+#define EXIT_FAILURE	-1
+#define EXIT_SUCCESS	0
+#define MB_CUR_MAX		MB_LEN_MAX
+#define RAND_MAX		UINT_MAX
 
 #ifndef NULL
-#define NULL 0
+	#define NULL		0
 #endif
 
 // We're supposed to define size_t here???  Same with wchar_t???  I thought

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,7 +30,7 @@
 #define NETWORK_ARPOP_REPLY				2
 
 typedef struct {
-	void (*driverInterruptHandler)(kernelNetworkDevice *);
+	int (*driverInterruptHandler)(kernelNetworkDevice *);
 	int (*driverSetFlags)(kernelNetworkDevice *, unsigned, int);
 	unsigned (*driverReadData)(kernelNetworkDevice *, unsigned char *);
 	int (*driverWriteData)(kernelNetworkDevice *, unsigned char *, unsigned);
@@ -46,9 +46,9 @@ typedef struct {
 	unsigned short opCode;
 	// The rest of these are only valid for IP over ethernet
 	unsigned char srcHardwareAddress[NETWORK_ADDRLENGTH_ETHERNET];
-	unsigned char srcLogicalAddress[NETWORK_ADDRLENGTH_IP];
+	unsigned char srcLogicalAddress[NETWORK_ADDRLENGTH_IPV4];
 	unsigned char destHardwareAddress[NETWORK_ADDRLENGTH_ETHERNET];
-	unsigned char destLogicalAddress[NETWORK_ADDRLENGTH_IP];
+	unsigned char destLogicalAddress[NETWORK_ADDRLENGTH_IPV4];
 	// Padding to bring us up to the mininum 46 byte ethernet packet size.
 	// Some adapters can't automatically pad it for us.
 	char pad[18];

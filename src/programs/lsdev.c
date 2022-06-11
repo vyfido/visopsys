@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,7 +34,7 @@ Usage:
 This command will show a listing of the system's hardware devices.
 
 Options:
--T              : Force text mode operation
+-T  : Force text mode operation
 
 </help>
 */

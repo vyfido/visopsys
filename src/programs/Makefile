@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2016 J. Andrew McLaughlin
+##  Copyright (C) 1998-2017 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -144,9 +144,6 @@ ${BUILDDIR}/archman: archman.c ${STDDEPS}
 
 ${BUILDDIR}/copy-boot: copy-boot.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} -DVISOPSYS $< -lintl -lc -o $@
-
-${BUILDDIR}/format: format.c ${STDDEPS}
-	${CC} ${CFLAGS} ${LFLAGS} $< -lntfs -lwindow -lintl -lvsh -lc -o $@
 
 ${BUILDDIR}/unzip: unzip.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -o $@

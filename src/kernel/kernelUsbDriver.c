@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -294,7 +294,11 @@ static void usbInterrupt(void)
 		}
 		else
 		{
+			// We'd better acknowledge the interrupt, or else it wouldn't be
+			// cleared, and our controllers using this vector wouldn't receive
+			// any more.
 			kernelDebugError("Interrupt not serviced and no saved ISR");
+			kernelPicEndOfInterrupt(interruptNum);
 		}
 	}
 
@@ -1350,8 +1354,8 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 	{
 		for (count1 = 0; count1 < usbDev->numInterfaces; count1 ++)
 		{
-			// See about calling the appropriate hotplug detection functions of
-			// the appropriate drivers
+			// See about calling the appropriate hotplug detection functions
+			// of the appropriate drivers
 
 			class = kernelUsbGetClass((usbDev->interface[count1].classCode?
 				usbDev->interface[count1].classCode : usbDev->classCode));
@@ -1367,8 +1371,8 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 			{
 				status = kernelDeviceHotplug(controller->dev,
 					subClass->systemSubClassCode, bus_usb,
-					usbMakeTargetCode(usbDev->controller->num, usbDev->address,
-						count1), 1 /* connected */);
+					usbMakeTargetCode(usbDev->controller->num,
+						usbDev->address, count1), 1 /* connected */);
 				if (status < 0)
 					return (status);
 			}
@@ -1418,8 +1422,15 @@ void kernelUsbDevDisconnect(usbController *controller, usbHub *hub, int port)
 			&iter);
 	}
 
-	kernelDebug(debug_usb, "USB %d controllers, %d hubs, %d devices",
-		controllerList.numItems, hubList.numItems, deviceList.numItems);
+	if (usbDev)
+	{
+		kernelDebug(debug_usb, "USB %d controllers, %d hubs, %d devices",
+			controllerList.numItems, hubList.numItems, deviceList.numItems);
+	}
+	else
+	{
+		kernelDebug(debug_usb, "USB no matching device");
+	}
 
 	return;
 }

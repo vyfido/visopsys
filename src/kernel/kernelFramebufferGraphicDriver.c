@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -96,8 +96,10 @@ static int driverClearScreen(color *background)
 			background->blue);
 
 		for (lineCount = 0; lineCount < adapter->yRes; lineCount ++)
+		{
 			processorWriteDwords(pix, (adapter->framebuffer +
 				(lineCount * adapter->scanLineBytes)), adapter->xRes);
+		}
 	}
 
 	else if (adapter->bitsPerPixel == 24)
@@ -133,8 +135,10 @@ static int driverClearScreen(color *background)
 		}
 
 		for (lineCount = 0; lineCount < adapter->yRes; lineCount ++)
+		{
 			processorWriteWords(pix, (adapter->framebuffer +
 				(lineCount * adapter->scanLineBytes)), adapter->xRes);
+		}
 	}
 
 	return (status = 0);
@@ -149,7 +153,7 @@ static int driverDrawPixel(graphicBuffer *buffer, color *foreground,
 
 	int status = 0;
 	int scanLineBytes = 0;
-	unsigned char *framebufferPointer = NULL;
+	unsigned char *bufferPointer = NULL;
 	short pix = 0;
 
 	// If the supplied graphicBuffer is NULL, we draw directly to the whole
@@ -172,28 +176,28 @@ static int driverDrawPixel(graphicBuffer *buffer, color *foreground,
 		scanLineBytes = adapter->scanLineBytes;
 
 	// Draw the pixel using the supplied color
-	framebufferPointer = (buffer->data + (yCoord * scanLineBytes) + (xCoord *
+	bufferPointer = (buffer->data + (yCoord * scanLineBytes) + (xCoord *
 		adapter->bytesPerPixel));
 
 	if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
 	{
 		if (mode == draw_normal)
 		{
-			framebufferPointer[0] = foreground->blue;
-			framebufferPointer[1] = foreground->green;
-			framebufferPointer[2] = foreground->red;
+			bufferPointer[0] = foreground->blue;
+			bufferPointer[1] = foreground->green;
+			bufferPointer[2] = foreground->red;
 		}
 		else if (mode == draw_or)
 		{
-			framebufferPointer[0] |= foreground->blue;
-			framebufferPointer[1] |= foreground->green;
-			framebufferPointer[2] |= foreground->red;
+			bufferPointer[0] |= foreground->blue;
+			bufferPointer[1] |= foreground->green;
+			bufferPointer[2] |= foreground->red;
 		}
 		else if (mode == draw_xor)
 		{
-			framebufferPointer[0] ^= foreground->blue;
-			framebufferPointer[1] ^= foreground->green;
-			framebufferPointer[2] ^= foreground->red;
+			bufferPointer[0] ^= foreground->blue;
+			bufferPointer[1] ^= foreground->green;
+			bufferPointer[2] ^= foreground->red;
 		}
 	}
 
@@ -213,11 +217,11 @@ static int driverDrawPixel(graphicBuffer *buffer, color *foreground,
 		}
 
 		if (mode == draw_normal)
-			*((short *) framebufferPointer) = pix;
+			*((short *) bufferPointer) = pix;
 		else if (mode == draw_or)
-			*((short *) framebufferPointer) |= pix;
+			*((short *) bufferPointer) |= pix;
 		else if (mode == draw_xor)
-			*((short *) framebufferPointer) ^= pix;
+			*((short *) bufferPointer) ^= pix;
 	}
 
 	return (status = 0);
@@ -233,7 +237,7 @@ static int driverDrawLine(graphicBuffer *buffer, color *foreground,
 	int scanLineBytes = 0;
 	int lineLength = 0;
 	int lineBytes = 0;
-	unsigned char *framebufferPointer = NULL;
+	unsigned char *bufferPointer = NULL;
 	int count;
 
 	#define SWAP(a, b) do { int tmp = a; a = b; b = tmp; } while (0)
@@ -275,8 +279,8 @@ static int driverDrawLine(graphicBuffer *buffer, color *foreground,
 		// How many bytes in the line?
 		lineBytes = (adapter->bytesPerPixel * lineLength);
 
-		framebufferPointer = (buffer->data + (startY * scanLineBytes) +
-			(startX * adapter->bytesPerPixel));
+		bufferPointer = (buffer->data + (startY * scanLineBytes) + (startX *
+			adapter->bytesPerPixel));
 
 		// Do a loop through the line, copying the color values consecutively
 
@@ -289,21 +293,21 @@ static int driverDrawLine(graphicBuffer *buffer, color *foreground,
 				{
 					if (mode == draw_normal)
 					{
-						framebufferPointer[count] = foreground->blue;
-						framebufferPointer[count + 1] = foreground->green;
-						framebufferPointer[count + 2] = foreground->red;
+						bufferPointer[count] = foreground->blue;
+						bufferPointer[count + 1] = foreground->green;
+						bufferPointer[count + 2] = foreground->red;
 					}
 					else if (mode == draw_or)
 					{
-						framebufferPointer[count] |= foreground->blue;
-						framebufferPointer[count + 1] |= foreground->green;
-						framebufferPointer[count + 2] |= foreground->red;
+						bufferPointer[count] |= foreground->blue;
+						bufferPointer[count + 1] |= foreground->green;
+						bufferPointer[count + 2] |= foreground->red;
 					}
 					else if (mode == draw_xor)
 					{
-						framebufferPointer[count] ^= foreground->blue;
-						framebufferPointer[count + 1] ^= foreground->green;
-						framebufferPointer[count + 2] ^= foreground->red;
+						bufferPointer[count] ^= foreground->blue;
+						bufferPointer[count + 1] ^= foreground->green;
+						bufferPointer[count + 2] ^= foreground->red;
 					}
 
 					count += 3;
@@ -316,7 +320,7 @@ static int driverDrawLine(graphicBuffer *buffer, color *foreground,
 				unsigned pix = ((foreground->red << 16) |
 					(foreground->green << 8) | foreground->blue);
 
-				processorWriteDwords(pix, framebufferPointer, lineLength);
+				processorWriteDwords(pix, bufferPointer, lineLength);
 			}
 		}
 
@@ -338,11 +342,11 @@ static int driverDrawLine(graphicBuffer *buffer, color *foreground,
 			for (count = 0; count < lineLength; count ++)
 			{
 				if (mode == draw_normal)
-					((short *) framebufferPointer)[count] = pix;
+					((short *) bufferPointer)[count] = pix;
 				else if (mode == draw_or)
-					((short *) framebufferPointer)[count] |= pix;
+					((short *) bufferPointer)[count] |= pix;
 				else if (mode == draw_xor)
-					((short *) framebufferPointer)[count] ^= pix;
+					((short *) bufferPointer)[count] ^= pix;
 			}
 		}
 	}
@@ -372,8 +376,8 @@ static int driverDrawLine(graphicBuffer *buffer, color *foreground,
 		if (lineLength <= 0)
 			return (status = 0);
 
-		framebufferPointer = (buffer->data + (startY * scanLineBytes) +
-			(startX * adapter->bytesPerPixel));
+		bufferPointer = (buffer->data + (startY * scanLineBytes) + (startX *
+			adapter->bytesPerPixel));
 
 		// Do a loop through the line, copying the color values
 		// into each row
@@ -384,24 +388,24 @@ static int driverDrawLine(graphicBuffer *buffer, color *foreground,
 			{
 				if (mode == draw_normal)
 				{
-					framebufferPointer[0] = foreground->blue;
-					framebufferPointer[1] = foreground->green;
-					framebufferPointer[2] = foreground->red;
+					bufferPointer[0] = foreground->blue;
+					bufferPointer[1] = foreground->green;
+					bufferPointer[2] = foreground->red;
 				}
 				else if (mode == draw_or)
 				{
-					framebufferPointer[0] |= foreground->blue;
-					framebufferPointer[1] |= foreground->green;
-					framebufferPointer[2] |= foreground->red;
+					bufferPointer[0] |= foreground->blue;
+					bufferPointer[1] |= foreground->green;
+					bufferPointer[2] |= foreground->red;
 				}
 				else if (mode == draw_xor)
 				{
-					framebufferPointer[0] ^= foreground->blue;
-					framebufferPointer[1] ^= foreground->green;
-					framebufferPointer[2] ^= foreground->red;
+					bufferPointer[0] ^= foreground->blue;
+					bufferPointer[1] ^= foreground->green;
+					bufferPointer[2] ^= foreground->red;
 				}
 
-				framebufferPointer += scanLineBytes;
+				bufferPointer += scanLineBytes;
 			}
 		}
 
@@ -423,13 +427,13 @@ static int driverDrawLine(graphicBuffer *buffer, color *foreground,
 			for (count = 0; count < lineLength; count ++)
 			{
 				if (mode == draw_normal)
-					*((short *) framebufferPointer) = pix;
+					*((short *) bufferPointer) = pix;
 				else if (mode == draw_or)
-					*((short *) framebufferPointer) |= pix;
+					*((short *) bufferPointer) |= pix;
 				else if (mode == draw_xor)
-					*((short *) framebufferPointer) ^= pix;
+					*((short *) bufferPointer) ^= pix;
 
-				framebufferPointer += scanLineBytes;
+				bufferPointer += scanLineBytes;
 			}
 		}
 	}
@@ -498,13 +502,19 @@ static int driverDrawRect(graphicBuffer *buffer, color *foreground,
 	int endY = (yCoord + (height - 1));
 	int lineBytes = 0;
 	unsigned char *lineBuffer = NULL;
-	void *framebufferPointer = NULL;
+	void *bufferPointer = NULL;
 	int count;
 
 	// If the supplied graphicBuffer is NULL, we draw directly to the whole
 	// screen
 	if (!buffer)
+	{
 		buffer = &wholeScreen;
+
+		// For performance reasons, we don't want to use the framebuffer
+		// memory itself as a linebuffer
+		lineBuffer = adapter->lineBuffer;
+	}
 
 	// Out of the buffer entirely?
 	if ((xCoord >= buffer->width) || (yCoord >= buffer->height))
@@ -545,8 +555,10 @@ static int driverDrawRect(graphicBuffer *buffer, color *foreground,
 			// with individually and we can't really do that better than the
 			// line drawing routine does already.
 			for (count = yCoord; count <= endY; count ++)
+			{
 				driverDrawLine(buffer, foreground, mode, xCoord, count, endX,
 					count);
+			}
 		}
 		else
 		{
@@ -554,10 +566,16 @@ static int driverDrawRect(graphicBuffer *buffer, color *foreground,
 
 			lineBytes = (width * adapter->bytesPerPixel);
 
-			// Make one line of the buffer
-			lineBuffer = kernelMalloc(lineBytes);
+			// Do the first line manually
+
+			// Point to the starting place
+			bufferPointer = (buffer->data + (yCoord * scanLineBytes) +
+				(xCoord * adapter->bytesPerPixel));
+
+			// If we're not using the adapter's linebuffer, use the first line
+			// of the target buffer
 			if (!lineBuffer)
-				return (status = ERR_MEMORY);
+				lineBuffer = (unsigned char *) bufferPointer;
 
 			// Do a loop through the line, copying the color values
 			// consecutively
@@ -596,21 +614,16 @@ static int driverDrawRect(graphicBuffer *buffer, color *foreground,
 					((short *) lineBuffer)[count] = pix;
 			}
 
-			// Point to the starting place
-			framebufferPointer = (buffer->data + (yCoord * scanLineBytes) +
-				(xCoord * adapter->bytesPerPixel));
+			// If we're using the adapter's linebuffer, copy the first line
+			if (lineBuffer != bufferPointer)
+				processorCopyBytes(lineBuffer, bufferPointer, lineBytes);
 
-			// Copy the line 'height' times
-			for (count = 0; count < height; count ++)
+			// Copy the line 'height' -1 times
+			for (count = 1; count < height; count ++)
 			{
-				processorCopyBytes(lineBuffer, framebufferPointer,
-					lineBytes);
-
-				framebufferPointer += scanLineBytes;
+				bufferPointer += scanLineBytes;
+				processorCopyBytes(lineBuffer, bufferPointer, lineBytes);
 			}
-
-			// Free linebuffer memory
-			kernelFree(lineBuffer);
 		}
 	}
 	else
@@ -794,7 +807,7 @@ static int driverDrawMonoImage(graphicBuffer *buffer, image *drawImage,
 	unsigned lineLength = 0;
 	unsigned lineBytes = 0;
 	int numberLines = 0;
-	unsigned char *framebufferPointer = NULL;
+	unsigned char *bufferPointer = NULL;
 	unsigned char *monoImageData = NULL;
 	int lineCounter = 0;
 	unsigned pixelCounter = 0;
@@ -841,8 +854,8 @@ static int driverDrawMonoImage(graphicBuffer *buffer, image *drawImage,
 	// How many bytes in a line of data?
 	lineBytes = (adapter->bytesPerPixel * lineLength);
 
-	framebufferPointer = (buffer->data + (yCoord * scanLineBytes) +
-		(xCoord * adapter->bytesPerPixel));
+	bufferPointer = (buffer->data + (yCoord * scanLineBytes) + (xCoord *
+		adapter->bytesPerPixel));
 
 	// A mono image has a bitmap of 'on' bits and 'off' bits.  We will
 	// draw all 'on' bits using the current foreground color.
@@ -853,7 +866,7 @@ static int driverDrawMonoImage(graphicBuffer *buffer, image *drawImage,
 	for (lineCounter = 0; lineCounter < numberLines; lineCounter++)
 	{
 		// Do a loop through the line, copying either the foreground color
-		// value or the background color into framebuffer
+		// value or the background color into buffer
 
 		if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
 		{
@@ -864,9 +877,9 @@ static int driverDrawMonoImage(graphicBuffer *buffer, image *drawImage,
 					(0x80 >> (pixelCounter % 8)))
 				{
 					// 'on' bit.
-					framebufferPointer[count++] = foreground->blue;
-					framebufferPointer[count++] = foreground->green;
-					framebufferPointer[count++] = foreground->red;
+					bufferPointer[count++] = foreground->blue;
+					bufferPointer[count++] = foreground->green;
+					bufferPointer[count++] = foreground->red;
 					if (adapter->bitsPerPixel == 32)
 						count++;
 				}
@@ -879,9 +892,9 @@ static int driverDrawMonoImage(graphicBuffer *buffer, image *drawImage,
 					else
 					{
 						// 'off' bit.
-						framebufferPointer[count++] = background->blue;
-						framebufferPointer[count++] = background->green;
-						framebufferPointer[count++] = background->red;
+						bufferPointer[count++] = background->blue;
+						bufferPointer[count++] = background->green;
+						bufferPointer[count++] = background->red;
 						if (adapter->bitsPerPixel == 32)
 							count++;
 					}
@@ -919,21 +932,21 @@ static int driverDrawMonoImage(graphicBuffer *buffer, image *drawImage,
 					(0x80 >> (pixelCounter % 8)))
 				{
 					// 'on' bit.
-					((short *) framebufferPointer)[count] = onPixel;
+					((short *) bufferPointer)[count] = onPixel;
 				}
 
 				else if (mode != draw_translucent)
 				{
 					// 'off' bit
-					((short *) framebufferPointer)[count] = offPixel;
+					((short *) bufferPointer)[count] = offPixel;
 				}
 
 				pixelCounter += 1;
 			}
 		}
 
-		// Move to the next line in the framebuffer
-		framebufferPointer += scanLineBytes;
+		// Move to the next line in the buffer
+		bufferPointer += scanLineBytes;
 
 		// Are we skipping any because it's off the buffer?
 		if (drawImage->width > lineLength)
@@ -957,7 +970,7 @@ static int driverDrawImage(graphicBuffer *buffer, image *drawImage,
 	unsigned lineLength = 0;
 	unsigned lineBytes = 0;
 	int numberLines = 0;
-	unsigned char *framebufferPointer = NULL;
+	unsigned char *bufferPointer = NULL;
 	pixel *imageData = NULL;
 	int lineCounter = 0;
 	register unsigned pixelCounter = 0;
@@ -1025,8 +1038,8 @@ static int driverDrawImage(graphicBuffer *buffer, image *drawImage,
 	// How many bytes in a line of data?
 	lineBytes = (adapter->bytesPerPixel * lineLength);
 
-	framebufferPointer = (buffer->data + (yCoord * scanLineBytes) +
-		(xCoord * adapter->bytesPerPixel));
+	bufferPointer = (buffer->data + (yCoord * scanLineBytes) + (xCoord *
+		adapter->bytesPerPixel));
 
 	imageData = (pixel *)(drawImage->data + (((yOffset * drawImage->width) +
 		xOffset) * 3));
@@ -1036,7 +1049,7 @@ static int driverDrawImage(graphicBuffer *buffer, image *drawImage,
 	for (lineCounter = 0; lineCounter < numberLines; lineCounter++)
 	{
 		// Do a loop through the line, copying the color values from the
-		// image into the framebuffer
+		// image into the buffer
 
 		if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
 		{
@@ -1059,7 +1072,7 @@ static int driverDrawImage(graphicBuffer *buffer, image *drawImage,
 						// contents of the buffer.
 						alphaBlend32(&imageData[pixelCounter],
 							drawImage->alpha[pixelCounter],
-							(pixel *) &framebufferPointer[count]);
+							(pixel *) &bufferPointer[count]);
 					}
 
 					count += adapter->bytesPerPixel;
@@ -1067,9 +1080,9 @@ static int driverDrawImage(graphicBuffer *buffer, image *drawImage,
 
 				else
 				{
-					framebufferPointer[count++] = imageData[pixelCounter].blue;
-					framebufferPointer[count++] = imageData[pixelCounter].green;
-					framebufferPointer[count++] = imageData[pixelCounter].red;
+					bufferPointer[count++] = imageData[pixelCounter].blue;
+					bufferPointer[count++] = imageData[pixelCounter].green;
+					bufferPointer[count++] = imageData[pixelCounter].red;
 					if (adapter->bitsPerPixel == 32)
 						count++;
 				}
@@ -1099,7 +1112,7 @@ static int driverDrawImage(graphicBuffer *buffer, image *drawImage,
 						// contents of the buffer.
 						alphaBlend16(&imageData[pixelCounter],
 							drawImage->alpha[pixelCounter],
-							(short *)(framebufferPointer + (count * 2)));
+							(short *)(bufferPointer + (count * 2)));
 					}
 				}
 
@@ -1118,13 +1131,13 @@ static int driverDrawImage(graphicBuffer *buffer, image *drawImage,
 							(imageData[pixelCounter].blue >> 3));
 					}
 
-					((short *) framebufferPointer)[count] = pix;
+					((short *) bufferPointer)[count] = pix;
 				}
 			}
 		}
 
-		// Move to the next line in the framebuffer
-		framebufferPointer += scanLineBytes;
+		// Move to the next line in the buffer
+		bufferPointer += scanLineBytes;
 
 		// Are we skipping any of this line because it's off the buffer?
 		if (drawImage->width > lineLength)
@@ -1146,7 +1159,7 @@ static int driverGetImage(graphicBuffer *buffer, image *theImage, int xCoord,
 	int lineLength = 0;
 	int numberLines = 0;
 	int lineBytes = 0;
-	unsigned char *framebufferPointer = NULL;
+	unsigned char *bufferPointer = NULL;
 	pixel *imageData = NULL;
 	int lineCounter = 0;
 	unsigned pixelCounter = 0;
@@ -1188,9 +1201,9 @@ static int driverGetImage(graphicBuffer *buffer, image *theImage, int xCoord,
 	// How many bytes in a line of data?
 	lineBytes = (adapter->bytesPerPixel * lineLength);
 
-	// Figure out the starting memory location in the framebuffer
-	framebufferPointer = (buffer->data + (yCoord * scanLineBytes) +
-		(xCoord * adapter->bytesPerPixel));
+	// Figure out the starting memory location in the buffer
+	bufferPointer = (buffer->data + (yCoord * scanLineBytes) + (xCoord *
+		adapter->bytesPerPixel));
 
 	imageData = (pixel *) theImage->data;
 
@@ -1200,15 +1213,15 @@ static int driverGetImage(graphicBuffer *buffer, image *theImage, int xCoord,
 	for (lineCounter = 0; lineCounter < numberLines; lineCounter++)
 	{
 		// Do a loop through the line, copying the color values from the
-		// framebuffer into the image data
+		// buffer into the image data
 
 		if ((adapter->bitsPerPixel == 32) || (adapter->bitsPerPixel == 24))
 		{
 			for (count = 0; count < lineBytes; )
 			{
-				imageData[pixelCounter].blue = framebufferPointer[count++];
-				imageData[pixelCounter].green = framebufferPointer[count++];
-				imageData[pixelCounter].red = framebufferPointer[count++];
+				imageData[pixelCounter].blue = bufferPointer[count++];
+				imageData[pixelCounter].green = bufferPointer[count++];
+				imageData[pixelCounter].red = bufferPointer[count++];
 				if (adapter->bitsPerPixel == 32)
 					count++;
 
@@ -1220,7 +1233,7 @@ static int driverGetImage(graphicBuffer *buffer, image *theImage, int xCoord,
 		{
 			for (count = 0; count < lineLength; count ++)
 			{
-				short pix = ((short *) framebufferPointer)[count];
+				short pix = ((short *) bufferPointer)[count];
 
 				if (adapter->bitsPerPixel == 16)
 				{
@@ -1245,8 +1258,8 @@ static int driverGetImage(graphicBuffer *buffer, image *theImage, int xCoord,
 			}
 		}
 
-		// Move to the next line in the framebuffer
-		framebufferPointer += scanLineBytes;
+		// Move to the next line in the buffer
+		bufferPointer += scanLineBytes;
 	}
 
 	return (status = 0);
@@ -1402,7 +1415,7 @@ static int driverFilter(graphicBuffer *buffer, color *filterColor, int xCoord,
 	int status = 0;
 	int scanLineBytes = 0;
 	int lineBytes = 0;
-	unsigned char *framebufferPointer = NULL;
+	unsigned char *bufferPointer = NULL;
 	int red, green, blue;
 	int lineCount, count;
 
@@ -1444,8 +1457,8 @@ static int driverFilter(graphicBuffer *buffer, color *filterColor, int xCoord,
 	// How many bytes in the line?
 	lineBytes = (adapter->bytesPerPixel * width);
 
-	framebufferPointer = (buffer->data + (yCoord * scanLineBytes) +
-		(xCoord * adapter->bytesPerPixel));
+	bufferPointer = (buffer->data + (yCoord * scanLineBytes) + (xCoord *
+		adapter->bytesPerPixel));
 
 	// Do a loop through each line, copying the color values consecutively
 	for (lineCount = 0; lineCount < height; lineCount ++)
@@ -1454,12 +1467,12 @@ static int driverFilter(graphicBuffer *buffer, color *filterColor, int xCoord,
 		{
 			for (count = 0; count < lineBytes; )
 			{
-				framebufferPointer[count] =
-					((framebufferPointer[count] + filterColor->blue) / 2);
-				framebufferPointer[count + 1] =
-					((framebufferPointer[count + 1] + filterColor->green) / 2);
-				framebufferPointer[count + 2] =
-					((framebufferPointer[count + 2] + filterColor->red) / 2);
+				bufferPointer[count] = ((bufferPointer[count] +
+					filterColor->blue) / 2);
+				bufferPointer[count + 1] = ((bufferPointer[count + 1] +
+					filterColor->green) / 2);
+				bufferPointer[count + 2] = ((bufferPointer[count + 2] +
+					filterColor->red) / 2);
 
 				count += 3;
 				if (adapter->bitsPerPixel == 32)
@@ -1471,7 +1484,7 @@ static int driverFilter(graphicBuffer *buffer, color *filterColor, int xCoord,
 		{
 			for (count = 0; count < width; count ++)
 			{
-				short *ptr = (short *) framebufferPointer;
+				short *ptr = (short *) bufferPointer;
 
 				blue = ((((ptr[count] & 0x001F) +
 					(filterColor->blue >> 3)) >> 1) & 0x001F);
@@ -1495,7 +1508,7 @@ static int driverFilter(graphicBuffer *buffer, color *filterColor, int xCoord,
 			}
 		}
 
-		framebufferPointer += scanLineBytes;
+		bufferPointer += scanLineBytes;
 	}
 
 	return (status = 0);
@@ -1519,7 +1532,8 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	// Set up the device parameters
 	adapter->videoMemory = kernelOsLoaderInfo->graphicsInfo.videoMemory;
-	adapter->framebuffer = kernelOsLoaderInfo->graphicsInfo.framebuffer;
+	adapter->framebuffer = (void *)
+		kernelOsLoaderInfo->graphicsInfo.framebuffer;
 	adapter->mode = kernelOsLoaderInfo->graphicsInfo.mode;
 	adapter->xRes = kernelOsLoaderInfo->graphicsInfo.xRes;
 	adapter->yRes = kernelOsLoaderInfo->graphicsInfo.yRes;
@@ -1563,6 +1577,10 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	wholeScreen.width = adapter->xRes;
 	wholeScreen.height = adapter->yRes;
 	wholeScreen.data = adapter->framebuffer;
+
+	adapter->lineBuffer = kernelMalloc(adapter->scanLineBytes);
+	if (!adapter->lineBuffer)
+		return (status = ERR_MEMORY);
 
 	// Add the kernel device
 	return (status = kernelDeviceAdd(parent, dev));

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-30 02:02+0100\n"
+"POT-Creation-Date: 2017-05-29 02:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,52 +17,52 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ifconfig.c:54
+#: ifconfig.c:67
 msgid "Network Devices"
 msgstr ""
 
-#: ifconfig.c:55
+#: ifconfig.c:68
 msgid "Enabled at startup"
 msgstr ""
 
-#: ifconfig.c:56
+#: ifconfig.c:69
 msgid "Host name"
 msgstr ""
 
-#: ifconfig.c:57
+#: ifconfig.c:70
 msgid "Domain name"
 msgstr ""
 
-#: ifconfig.c:58
+#: ifconfig.c:71
 msgid "OK"
 msgstr ""
 
-#: ifconfig.c:59
+#: ifconfig.c:72
 msgid "Cancel"
 msgstr ""
 
-#: ifconfig.c:60
+#: ifconfig.c:73
 msgid "No supported network devices."
 msgstr ""
 
-#: ifconfig.c:93
+#: ifconfig.c:106
 msgid "Error"
 msgstr ""
 
-#: ifconfig.c:108
+#: ifconfig.c:121
 #, c-format
 msgid "Can't get info for device %s"
 msgstr ""
 
-#: ifconfig.c:115
+#: ifconfig.c:128
 msgid "Ethernet"
 msgstr ""
 
-#: ifconfig.c:118
+#: ifconfig.c:131
 msgid "Unknown"
 msgstr ""
 
-#: ifconfig.c:123
+#: ifconfig.c:136
 #, c-format
 msgid ""
 "%s   Link encap:%s  HWaddr %02x:%02x:%02x:%02x:%02x:%02x\n"
@@ -72,64 +72,64 @@ msgid ""
 "       %s, %s collisions:%u txqueuelen:%u Interrupt:%d"
 msgstr ""
 
-#: ifconfig.c:142
+#: ifconfig.c:155
 msgid "LINK"
 msgstr ""
 
-#: ifconfig.c:142
+#: ifconfig.c:155
 msgid "NOLINK"
 msgstr ""
 
-#: ifconfig.c:143
+#: ifconfig.c:156
 msgid "UP"
 msgstr ""
 
-#: ifconfig.c:143
+#: ifconfig.c:156
 msgid "DOWN"
 msgstr ""
 
-#: ifconfig.c:201
+#: ifconfig.c:216
 #, c-format
 msgid "Networking is %s"
 msgstr ""
 
-#: ifconfig.c:202
+#: ifconfig.c:217
 msgid "enabled"
 msgstr ""
 
-#: ifconfig.c:202
+#: ifconfig.c:217
 msgid "disabled"
 msgstr ""
 
-#: ifconfig.c:205
+#: ifconfig.c:220
 msgid "Disable"
 msgstr ""
 
-#: ifconfig.c:205 ifconfig.c:432
+#: ifconfig.c:220 ifconfig.c:451
 msgid "Enable"
 msgstr ""
 
-#: ifconfig.c:342
+#: ifconfig.c:361
 msgid "Shutting down networking"
 msgstr ""
 
-#: ifconfig.c:343
+#: ifconfig.c:362
 msgid "Initializing networking"
 msgstr ""
 
-#: ifconfig.c:343
+#: ifconfig.c:362
 msgid "One moment please..."
 msgstr ""
 
-#: ifconfig.c:427
+#: ifconfig.c:446
 msgid "Networking is disabled"
 msgstr ""
 
-#: ifconfig.c:587
+#: ifconfig.c:617
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ifconfig.c:595
+#: ifconfig.c:625
 msgid "Can't get the count of network devices"
 msgstr ""

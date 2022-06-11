@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -756,7 +756,6 @@ static int file_recurse(const char *dirPath, unsigned startTime)
 {
 	int status = 0;
 	file theFile;
-	file tmpFile;
 	int numFiles = 0;
 	int fileNum = 0;
 	char relPath[MAX_PATH_NAME_LENGTH];
@@ -812,7 +811,7 @@ static int file_recurse(const char *dirPath, unsigned startTime)
 
 		// And a new one in case we want to move/rename it
 		strncpy(newPath, relPath, MAX_PATH_NAME_LENGTH);
-		while (fileFind(newPath, &tmpFile) >= 0)
+		while (fileFind(newPath, NULL) >= 0)
 			snprintf(newPath, MAX_PATH_NAME_LENGTH, "%s/%c%s", dirPath,
 				randomFormatted(65, 90), theFile.name);
 
@@ -893,7 +892,7 @@ static int file_recurse(const char *dirPath, unsigned startTime)
 			{
 				case 0:
 					// Just find the file
-					status = fileFind(relPath, &theFile);
+					status = fileFind(relPath, NULL);
 					if (status < 0)
 					{
 						FAILMESS("Error %d finding file %s", status, relPath);
@@ -1022,15 +1021,11 @@ static int file_ops(void)
 	// Test filesystem IO
 
 	int status = 0;
-	file theFile;
 	unsigned startTime = 0;
 	int count;
 
 	char *useFiles[] = { PATH_PROGRAMS, PATH_SYSTEM, "/visopsys", NULL };
 	#define DIRNAME "./test_tmp"
-
-	// Initialize the file structure
-	memset(&theFile, 0, sizeof(file));
 
 	// Save the current text screen
 	status = textScreenSave(&screen);
@@ -1038,7 +1033,7 @@ static int file_ops(void)
 		goto fail;
 
 	// If the test directory exists, delete it
-	if (fileFind(DIRNAME, &theFile) >= 0)
+	if (fileFind(DIRNAME, NULL) >= 0)
 	{
 		printf("Recursively delete %s\n", DIRNAME);
 		status = fileDeleteRecursive(DIRNAME);
@@ -1082,7 +1077,7 @@ static int file_ops(void)
 	}
 
 fail:
-	if (fileFind(DIRNAME, &theFile) >= 0)
+	if (fileFind(DIRNAME, NULL) >= 0)
 	{
 		printf("Recursively delete %s\n", DIRNAME);
 		fileDeleteRecursive(DIRNAME);

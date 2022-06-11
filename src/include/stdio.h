@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,20 +26,20 @@
 #include <sys/file.h>
 
 // Make FILE be the same as a Visopsys 'fileStream'
-#define FILE fileStream
+#define FILE		fileStream
 
 #ifndef EOF
-#define EOF -1
+	#define EOF		-1
 #endif
 
-#define stdout (FILE *) 1
-#define stdin  (FILE *) 2
-#define stderr (FILE *) 3
+#define stdout		(FILE *) 1
+#define stdin		(FILE *) 2
+#define stderr		(FILE *) 3
 
 // For seeking using fseek()
-#define SEEK_SET 0x01
-#define SEEK_CUR 0x02
-#define SEEK_END 0x03
+#define SEEK_SET	0x01
+#define SEEK_CUR	0x02
+#define SEEK_END	0x03
 
 // fpos_t
 typedef unsigned fpos_t;

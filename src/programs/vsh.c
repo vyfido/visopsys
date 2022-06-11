@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -39,6 +39,9 @@ Normally, vsh operates interactively.  However, if the (optional) -c
 parameter is supplied, vsh will execute the command that follows.  If the
 command contains spaces or tab characters, it must be surrounded by
 double-quotes (").
+
+Options:
+-c <command>  : Execute a command inside the shell
 
 </help>
 */

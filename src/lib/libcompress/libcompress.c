@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -60,7 +60,7 @@
 
 static int gzipReadMemberHeader(FILE *inStream, archiveMemberInfo *info)
 {
-	// Read the next member header of a GZIP file, and return the relevent
+	// Read the next member header of a GZIP file, and return the relevant
 	// info from it.
 
 	int status = 0;
@@ -208,7 +208,7 @@ out:
 
 static int tarReadMemberHeader(FILE *inStream, archiveMemberInfo *info)
 {
-	// Read the next member header of a TAR file, and return the relevent
+	// Read the next member header of a TAR file, and return the relevant
 	// info from it.
 
 	int status = 0;
@@ -699,10 +699,9 @@ static int copyFileData(FILE *inStream, FILE *outStream, unsigned totalBytes,
 static int makeDirRecursive(char *path)
 {
 	int status = 0;
-	file theDir;
 	char *parent = NULL;
 
-	if (fileFind(path, &theDir) >= 0)
+	if (fileFind(path, NULL) >= 0)
 		return (status = 0);
 
 	parent = dirname(path);
@@ -1764,7 +1763,6 @@ int archiveAddMember(const char *inFileName, const char *outFileName,
 	// If the archive doesn't exist, create it (we choose the type).
 
 	int status = 0;
-	file theFile;
 	loaderFileClass class;
 
 	if (visopsys_in_kernel)
@@ -1786,7 +1784,7 @@ int archiveAddMember(const char *inFileName, const char *outFileName,
 	DEBUGMSG("Add %s to archive %s\n", inFileName, outFileName);
 
 	// Does the archive already exist?
-	if (outFileName && (fileFind(outFileName, &theFile) >= 0))
+	if (outFileName && (fileFind(outFileName, NULL) >= 0))
 	{
 		// What kind of file have we got?  Ask the runtime loader to classify
 		// it.

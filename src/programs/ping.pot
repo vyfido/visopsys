@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-30 02:02+0100\n"
+"POT-Creation-Date: 2017-05-29 02:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -58,39 +58,39 @@ msgstr ""
 msgid "Enter the network address to ping:"
 msgstr ""
 
-#: ping.c:357
+#: ping.c:360
 msgid "Memory allocation error"
 msgstr ""
 
-#: ping.c:376
+#: ping.c:379
 msgid "Error opening network connection"
 msgstr ""
 
-#: ping.c:380
+#: ping.c:383
 #, c-format
 msgid "Ping %d.%d.%d.%d %d bytes of data\n"
 msgstr ""
 
-#: ping.c:394
+#: ping.c:397
 msgid "Error setting signal handler"
 msgstr ""
 
-#: ping.c:407
+#: ping.c:410
 msgid "Error starting response thread"
 msgstr ""
 
-#: ping.c:417
+#: ping.c:420
 msgid "Error pinging host"
 msgstr ""
 
-#: ping.c:435
+#: ping.c:438
 #, c-format
 msgid ""
 "\n"
 "--- %d.%d.%d.%d ping statistics ---\n"
 msgstr ""
 
-#: ping.c:437
+#: ping.c:440
 #, c-format
 msgid "%d packets transmitted, %d received, %d%% packet loss, time Xms\n"
 msgstr ""

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -83,6 +83,10 @@ static void interrupt(usbDevice *usbDev, int interface, void *buffer,
 	// Mouse movement.
 	if (mouseData->xChange || mouseData->yChange)
 		kernelMouseMove((int) mouseData->xChange, (int) mouseData->yChange);
+
+	// Scroll wheel
+	if ((length >= 4) && mouseData->devSpec[0])
+		kernelMouseScroll((int) -((char) mouseData->devSpec[0]));
 }
 
 
@@ -97,8 +101,8 @@ static int setBootProtocol(usbMouse *mouseDev, int interNum,
 	memset((void *) &usbTrans, 0, sizeof(usbTrans));
 	usbTrans.type = usbxfer_control;
 	usbTrans.address = mouseDev->usbDev->address;
-	usbTrans.control.requestType =
-		(USB_DEVREQTYPE_CLASS | USB_DEVREQTYPE_INTERFACE);
+	usbTrans.control.requestType = (USB_DEVREQTYPE_CLASS |
+		USB_DEVREQTYPE_INTERFACE);
 	usbTrans.control.request = USB_HID_SET_PROTOCOL;
 	usbTrans.control.index = interNum;
 	usbTrans.timeout = USB_STD_TIMEOUT_MS;

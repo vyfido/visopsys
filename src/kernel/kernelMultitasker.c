@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -85,7 +85,6 @@ static kernelProcess *schedulerProc = NULL;
 static volatile int schedulerStop = 0;
 static void (*oldSysTimerHandler)(void) = NULL;
 static volatile unsigned schedulerTimeslices = 0;
-static volatile unsigned schedulerTime = 0;
 
 // An array of exception types.  The selectors are initialized later.
 static struct {
@@ -426,7 +425,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	int status = 0;
 	kernelProcess *newProcess = NULL;
 	void *stackMemoryAddr = NULL;
-	unsigned physicalCodeData = NULL;
+	unsigned physicalCodeData = 0;
 	int argMemorySize = 0;
 	char *argMemory = NULL;
 	char *oldArgPtr = NULL;
@@ -1091,8 +1090,8 @@ static int spawnIdleThread(void)
 		return (status = ERR_NOSUCHPROCESS);
 
 	// Set it to the lowest priority
-	status =
-		kernelMultitaskerSetProcessPriority(idleProcId, (PRIORITY_LEVELS - 1));
+	status = kernelMultitaskerSetProcessPriority(idleProcId,
+		(PRIORITY_LEVELS - 1));
 	if (status < 0)
 		// There's no reason we should have to fail here, but make a warning
 		kernelError(kernel_warn, "The multitasker was unable to lower the "
@@ -1173,7 +1172,7 @@ static int schedulerShutdown(void)
 }
 
 
-static kernelProcess *chooseNextProcess(kernelProcess *previousProcess)
+static kernelProcess *chooseNextProcess(void)
 {
 	// Loops through the process queue, and determines which process to run
 	// next
@@ -1250,7 +1249,7 @@ static kernelProcess *chooseNextProcess(kernelProcess *previousProcess)
 	// A tie beteen the highest-weighted tasks is broken based on queue order.
 	// The queue is neither FIFO nor LIFO, but closer to LIFO.
 
-	// Get the system timer time
+	// Get the CPU time
 	theTime = kernelCpuGetMs();
 
 	for (count = 0; count < numQueued; count ++)
@@ -1258,10 +1257,11 @@ static kernelProcess *chooseNextProcess(kernelProcess *previousProcess)
 		// Get a pointer to the process' main process
 		miscProcess = processQueue[count];
 
-		// This will change the state of a waiting process to "ready"
-		// if the specified "waiting reason" has come to pass
 		if (miscProcess->state == proc_waiting)
 		{
+			// This will change the state of a waiting process to "ready"
+			// if the specified "waiting reason" has come to pass
+
 			// If the process is waiting for a specified time.  Has the
 			// requested time come?
 			if (miscProcess->waitUntil && (miscProcess->waitUntil < theTime))
@@ -1276,10 +1276,10 @@ static kernelProcess *chooseNextProcess(kernelProcess *previousProcess)
 			}
 		}
 
-		// This will dismantle any process that has identified itself
-		// as finished
-		else if (miscProcess->state == proc_finished)
+		if (miscProcess->state == proc_finished)
 		{
+			// This will dismantle any process that has identified itself
+			// as finished
 			kernelMultitaskerKillProcess(miscProcess->processId, 0);
 
 			// This removed it from the queue and placed another process
@@ -1289,70 +1289,76 @@ static kernelProcess *chooseNextProcess(kernelProcess *previousProcess)
 			continue;
 		}
 
-		else if ((miscProcess->state != proc_ready) &&
+		if ((miscProcess->state != proc_ready) &&
 			(miscProcess->state != proc_ioready))
 		{
-			// Otherwise, this process should not be considered for
-			// execution in this time slice (might be stopped, sleeping,
-			// or zombie)
+			// This process is not ready (might be stopped, sleeping, or
+			// zombie)
 			continue;
 		}
 
-		// If the process is of the highest (real-time) priority, it
-		// should get an infinite weight
+		// This process is ready to run.  Determine its weight.
+
 		if (!miscProcess->priority)
+		{
+			// If the process is of the highest (real-time) priority, it
+			// should get an infinite weight
 			processWeight = 0xFFFFFFFF;
-
-		// Else if the process is of the lowest priority, it should
-		// get a weight of zero
+		}
 		else if (miscProcess->priority == (PRIORITY_LEVELS - 1))
+		{
+			// Else if the process is of the lowest priority, it should
+			// get a weight of zero
 			processWeight = 0;
-
-		// If this process was waiting for I/O which has now arrived, give
-		// it a high (1) priority weight
+		}
 		else if (miscProcess->state == proc_ioready)
+		{
+			// If this process was waiting for I/O which has now arrived, give
+			// it a high (1) temporary priority level
 			processWeight = (((PRIORITY_LEVELS - 1) * PRIORITY_RATIO) +
 				miscProcess->waitTime);
-
-		// If this process has yielded this timeslice already, we
-		// should give it a low weight this time so that high-priority
-		// processes don't gobble time unnecessarily
-		else if (schedulerSwitchedByCall && (miscProcess == previousProcess))
+		}
+		else if (schedulerSwitchedByCall && (miscProcess->lastSlice ==
+			schedulerTimeslices))
+		{
+			// If this process has yielded this timeslice already, we should
+			// give it no weight this time so that a bunch of yielding
+			// processes don't gobble up all the CPU time.
 			processWeight = 0;
-
-		// Otherwise, calculate the weight of this task, using the
-		// algorithm described above
+		}
 		else
+		{
+			// Otherwise, calculate the weight of this task, using the
+			// algorithm described above
 			processWeight = (((PRIORITY_LEVELS - miscProcess->priority) *
 				PRIORITY_RATIO) + miscProcess->waitTime);
+		}
+
+		// Did this process win?
 
 		if (processWeight < topProcessWeight)
 		{
-			// Increase the waiting time of this process, since it's not
+			// No.  Increase the waiting time of this process, since it's not
 			// the one we're selecting
 			miscProcess->waitTime += 1;
-			continue;
 		}
 		else
 		{
 			if (nextProcess)
 			{
-				// If the process' weight is tied with that of the
-				// previously winning process, it will NOT win if the
-				// other process has been waiting as long or longer
 				if ((processWeight == topProcessWeight) &&
 					(nextProcess->waitTime >= miscProcess->waitTime))
 				{
+					// If the process' weight is tied with that of the
+					// previously winning process, it will NOT win if the
+					// other process has been waiting as long or longer
 					miscProcess->waitTime += 1;
 					continue;
 				}
-
 				else
 				{
-					// We have the currently winning process here.
-					// Remember it in case we don't find a better one,
-					// and increase the waiting time of the process this
-					// one is replacing
+					// We have a new winning process.  Increase the waiting
+					// time of the previous winner this one is replacing
 					nextProcess->waitTime += 1;
 				}
 			}
@@ -1382,8 +1388,11 @@ static int scheduler(void)
 	// queue of processes that it examines will have the new process added.
 
 	int status = 0;
-	volatile int timeUsed = 0;
-	volatile int timerTicks = 0;
+	unsigned timeUsed = 0;
+	unsigned systemTime = 0;
+	unsigned schedulerTime = 0;
+	unsigned sliceCount = 0;
+	unsigned oldSliceCount = 0;
 	int count;
 
 	// This is info about the processes we run
@@ -1397,34 +1406,44 @@ static int scheduler(void)
 		// Make sure.  No interrupts allowed inside this task.
 		processorDisableInts();
 
+		// The scheduler is the current process.
+		kernelCurrentProcess = schedulerProc;
+
 		// Calculate how many timer ticks were used in the previous time slice.
 		// This will be different depending on whether the previous timeslice
 		// actually expired, or whether we were called for some other reason
-		// (for example a yield()).  The timer wraps around if the timeslice
-		// expired, so we can't use that value -- we use the length of an
-		// entire timeslice instead.
+		// (for example a yield()).
 
 		if (!schedulerSwitchedByCall)
 			timeUsed = TIME_SLICE_LENGTH;
 		else
 			timeUsed = (TIME_SLICE_LENGTH - kernelSysTimerReadValue(0));
 
-		// We count the timer ticks that were used
-		timerTicks += timeUsed;
+		// Count the time used for legacy system timer purposes
+		systemTime += timeUsed;
 
 		// Have we had the equivalent of a full timer revolution?  If so, we
 		// need to call the standard timer interrupt handler
-		if (timerTicks >= 65535)
+		if (systemTime >= SYSTIMER_FULLCOUNT)
 		{
 			// Reset to zero
-			timerTicks = 0;
+			systemTime = 0;
 
 			// Artifically register a system timer tick.
 			kernelSysTimerTick();
 		}
 
-		// The scheduler is the current process.
-		kernelCurrentProcess = schedulerProc;
+		// Count the time used for the purpose of tracking CPU usage
+		schedulerTime += timeUsed;
+		sliceCount = (schedulerTime / TIME_SLICE_LENGTH);
+		if (sliceCount > oldSliceCount)
+		{
+			// Increment the count of time slices.  This can just keep going
+			// up until it wraps, which is no problem.
+			schedulerTimeslices += 1;
+
+			oldSliceCount = sliceCount;
+		}
 
 		// Remember the previous process we ran
 		previousProcess = nextProcess;
@@ -1432,55 +1451,61 @@ static int scheduler(void)
 		if (previousProcess)
 		{
 			if (previousProcess->state == proc_running)
+			{
 				// Change the state of the previous process to ready, since it
 				// was interrupted while still on the CPU.
 				previousProcess->state = proc_ready;
+			}
 
 			// Add the last timeslice to the process' CPU time
 			previousProcess->cpuTime += timeUsed;
-		}
 
-		// Increment the counts of scheduler time slices and scheduler time
-		// time
-		schedulerTimeslices += 1;
-		schedulerTime += timeUsed;
+			// Record the current timeslice number, so we can remember when
+			// this process was last active (see chooseNextProcess())
+			previousProcess->lastSlice = schedulerTimeslices;
+		}
 
 		// Every CPU_PERCENT_TIMESLICES timeslices we will update the %CPU
 		// value for each process currently in the queue
-		if (!(schedulerTimeslices % CPU_PERCENT_TIMESLICES))
+		if (sliceCount >= CPU_PERCENT_TIMESLICES)
 		{
 			for (count = 0; count < numQueued; count ++)
 			{
-				// Calculate the CPU percentage
+				// Calculate the CPU percentage.
 				if (!schedulerTime)
+				{
 					processQueue[count]->cpuPercent = 0;
+				}
 				else
+				{
 					processQueue[count]->cpuPercent =
 						((processQueue[count]->cpuTime * 100) / schedulerTime);
+				}
 
 				// Reset the process' cpuTime counter
 				processQueue[count]->cpuTime = 0;
 			}
 
-			// Reset the schedulerTime counter
-			schedulerTime = 0;
+			// Reset the schedulerTime and slice counters
+			schedulerTime = sliceCount = oldSliceCount = 0;
 		}
 
-		// If we were processing an exception (either the exception process or
-		// another exception handler), keep it active
 		if (processingException)
 		{
+			// If we were processing an exception (either the exception process
+			// or another exception handler), keep it active
 			nextProcess = previousProcess;
-			kernelDebugError("Scheduler interrupt whilst processing exception");
+			kernelDebugError("Scheduler interrupt while processing exception");
 		}
 		else
 		{
-			nextProcess = chooseNextProcess(previousProcess);
+			// Choose the next process to run
+			nextProcess = chooseNextProcess();
 		}
 
 		// We should now have selected a process to run.  If not, we should
 		// re-start the old one.  This should only be likely to happen if some
-		// goombah kills the idle task.
+		// goombah kills the idle thread.
 		if (!nextProcess)
 			nextProcess = kernelCurrentProcess;
 
@@ -1492,14 +1517,14 @@ static int scheduler(void)
 		// currently selected process.
 		kernelCurrentProcess = nextProcess;
 
-		// Acknowledge the timer interrupt if one occurred
 		if (!schedulerSwitchedByCall)
+			// Acknowledge the timer interrupt if one occurred
 			kernelPicEndOfInterrupt(INTERRUPT_NUM_SYSTIMER);
+		else
+			// Reset the "switched by call" flag
+			schedulerSwitchedByCall = 0;
 
-		// Reset the "switched by call" flag
-		schedulerSwitchedByCall = 0;
-
-		// Set up a new time slice
+		// Set up a new time slice - PIT single countdown.
 		while (kernelSysTimerSetupTimer(0 /* timer */, 0 /* mode */,
 			TIME_SLICE_LENGTH) < 0)
 		{
@@ -1509,13 +1534,13 @@ static int scheduler(void)
 
 		// In the final part, we do the actual context switch.
 
-		// Mark the exception handler process and scheduler task as not busy so
-		// they can be jumped back to.
+		// Mark the exception handler and scheduler tasks as not busy so they
+		// can be jumped back to.
 		if (exceptionProc)
 			markTaskBusy(exceptionProc->tssSelector, 0);
 		markTaskBusy(schedulerProc->tssSelector, 0);
 
-		// Mark the task as not busy and jump to it.
+		// Mark the next task as not busy and jump to it.
 		markTaskBusy(nextProcess->tssSelector, 0);
 		processorFarJump(nextProcess->tssSelector);
 
@@ -1697,9 +1722,6 @@ static void incrementDescendents(kernelProcess *theProcess)
 	if (parentProcess->type == proc_thread)
 		// Do a recursion to walk up the chain
 		incrementDescendents(parentProcess);
-
-	// Done
-	return;
 }
 
 
@@ -1724,9 +1746,6 @@ static void decrementDescendents(kernelProcess *theProcess)
 	if (parentProcess->type == proc_thread)
 		// Do a recursion to walk up the chain
 		decrementDescendents(parentProcess);
-
-	// Done
-	return;
 }
 
 
@@ -2034,8 +2053,7 @@ void kernelException(int num, unsigned address)
 	else
 		exceptionHandler();
 
-	// If the exception is handled, then this code is reached we return.
-	return;
+	// If the exception is handled, then we return.
 }
 
 
@@ -2109,7 +2127,6 @@ void kernelMultitaskerDumpProcessList(void)
 		kernelTextStreamPrintLine(currentOutput, "No processes remaining");
 
 	kernelTextStreamNewline(currentOutput);
-	return;
 }
 
 
@@ -2440,7 +2457,9 @@ int kernelMultitaskerGetProcessState(int processId, processState *state)
 			return (status = 0);
 		}
 		else
+		{
 			return (status = ERR_NOTINITIALIZED);
+		}
 	}
 
 	// We need to find the process structure based on the process Id
@@ -2481,17 +2500,28 @@ int kernelMultitaskerSetProcessState(int processId, processState newState)
 	// other process, but a non-privileged process can only change the state
 	// of processes owned by the same user
 	if (kernelCurrentProcess->privilege != PRIVILEGE_SUPERVISOR)
+	{
 		if (kernelCurrentProcess->userId != changeProcess->userId)
 			return (status = ERR_PERMISSION);
+	}
 
 	// Make sure the new state is a legal one
-	if ((newState != proc_running) && (newState != proc_ready) &&
-		(newState != proc_ioready) && (newState != proc_waiting) &&
-		(newState != proc_sleeping) && (newState != proc_stopped) &&
-		(newState != proc_finished) && (newState != proc_zombie))
+	switch (newState)
 	{
-		// Not a legal state value
-		return (status = ERR_INVALID);
+		case proc_running:
+		case proc_ready:
+		case proc_ioready:
+		case proc_waiting:
+		case proc_sleeping:
+		case proc_stopped:
+		case proc_finished:
+		case proc_zombie:
+			// Ok
+			break;
+
+		default:
+			// Not a legal state value
+			return (status = ERR_INVALID);
 	}
 
 	// Set the state value of the process
@@ -2982,8 +3012,6 @@ void kernelMultitaskerYield(void)
 	// The scheduler sees this almost as if the current timeslice had expired.
 	schedulerSwitchedByCall = 1;
 	processorFarJump(schedulerProc->tssSelector);
-
-	return;
 }
 
 
@@ -2995,19 +3023,29 @@ void kernelMultitaskerWait(unsigned milliseconds)
 
 	// Make sure multitasking has been enabled
 	if (!multitaskingEnabled)
-		// We can't wait if we're not multitasking yet
+	{
+		// We can't wait properly if we're not multitasking yet, but we can
+		// try to spin
+		kernelDebugError("Cannot wait() before multitasking is enabled.  "
+			"Spinning.");
+		kernelCpuSpinMs(milliseconds);
 		return;
+	}
 
 	// Don't do this inside an interrupt
 	if (kernelProcessingInterrupt())
+	{
 		kernelPanic("Cannot wait() inside an interrupt handler (%d)",
 			kernelInterruptGetCurrent());
+	}
 
 	// Make sure the current process isn't NULL
 	if (!kernelCurrentProcess)
+	{
 		// Can't return an error code, but we can't perform the specified
 		// action either
 		return;
+	}
 
 	// Set the wait until time
 	kernelCurrentProcess->waitUntil = (kernelCpuGetMs() + milliseconds);
@@ -3018,8 +3056,6 @@ void kernelMultitaskerWait(unsigned milliseconds)
 
 	// And yield
 	kernelMultitaskerYield();
-
-	return;
 }
 
 

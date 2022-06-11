@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,6 +23,7 @@
 
 #include "kernelDescriptor.h"
 #include "kernelPage.h"
+#include "kernelSysTimer.h"
 #include "kernelText.h"
 #include <time.h>
 #include <sys/file.h>
@@ -35,8 +36,9 @@
 #define PRIORITY_LEVELS				8
 #define DEFAULT_STACK_SIZE			(32 * 1024)
 #define DEFAULT_SUPER_STACK_SIZE	(32 * 1024)
-#define TIME_SLICE_LENGTH			0x4000
-#define CPU_PERCENT_TIMESLICES		150
+#define TIME_SLICES_PER_SEC			64 // ~15ms per slice
+#define TIME_SLICE_LENGTH			(SYSTIMER_FREQ_HZ / TIME_SLICES_PER_SEC)
+#define CPU_PERCENT_TIMESLICES		(TIME_SLICES_PER_SEC / 2) // every 1/2 sec
 #define PRIORITY_RATIO				3
 #define PRIORITY_DEFAULT			((PRIORITY_LEVELS / 2) - 1)
 #define FPU_STATE_LEN				108
@@ -112,6 +114,7 @@ typedef volatile struct {
 	int descendentThreads;
 	unsigned cpuTime;
 	int cpuPercent;
+	unsigned lastSlice;
 	unsigned waitTime;
 	unsigned long long waitUntil;
 	int waitForProcess;

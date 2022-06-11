@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2016 J. Andrew McLaughlin
+#  Copyright (C) 1998-2017 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
 #  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
@@ -10,7 +10,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-10-02 00:44+0100\n"
+"POT-Creation-Date: 2017-05-29 02:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
 "Language-Team: Turkish/Türkçe\n"
@@ -23,19 +23,19 @@ msgstr ""
 msgid "System Diagnostics"
 msgstr "Sistem Tanilama"
 
-#: sysdiag.c:55 sysdiag.c:1023
+#: sysdiag.c:55 sysdiag.c:1024
 msgid "Disk test"
 msgstr "Disk testi"
 
-#: sysdiag.c:56 sysdiag.c:1024
+#: sysdiag.c:56 sysdiag.c:1025
 msgid "Memory test"
 msgstr "Bellek testi"
 
-#: sysdiag.c:57 sysdiag.c:1028
+#: sysdiag.c:57 sysdiag.c:1029
 msgid "Read-only"
 msgstr "Sadece-okunabilir"
 
-#: sysdiag.c:58 sysdiag.c:1029
+#: sysdiag.c:58 sysdiag.c:1030
 msgid "Read-write"
 msgstr "Okunabilir-yazilabilir"
 
@@ -117,10 +117,10 @@ msgstr "Iptal"
 #, c-format
 msgid ""
 "%s\n"
-"Copyright (C) 1998-2016 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2017 J. Andrew McLaughlin\n"
 msgstr ""
 "%s\n"
-"Copyright (C) 1998-2016 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2017 J. Andrew McLaughlin\n"
 
 #: sysdiag.c:223
 msgid "Please choose the disk to test:"
@@ -179,6 +179,6 @@ msgstr "Disk sektörleri test ediliyor %llu/%llu"
 msgid "Testing memory MB %llu/%llu"
 msgstr "Bellek test ediliyor (MB) %llu/%llu"
 
-#: sysdiag.c:1074
+#: sysdiag.c:1075
 msgid "Do you want to do a disk test, or a memory test?\n"
 msgstr "Disk testi mi yoksa bellek testi mi yapmak istiyorsunuz?\n"

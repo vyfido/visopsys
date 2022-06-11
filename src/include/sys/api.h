@@ -1,6 +1,6 @@
 //
 //	Visopsys
-//	Copyright (C) 1998-2016 J. Andrew McLaughlin
+//	Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //	This library is free software; you can redistribute it and/or modify it
 //	under the terms of the GNU Lesser General Public License as published by
@@ -203,7 +203,6 @@ extern int visopsys_in_kernel;
 #define _fnum_memoryReleaseAllByProcId			0x5002
 #define _fnum_memoryGetStats					0x5003
 #define _fnum_memoryGetBlocks					0x5004
-#define _fnum_memoryBlockInfo					0x5005
 
 // Multitasker functions.  All are in the 0x6000-0x6FFF range.
 #define _fnum_multitaskerCreateProcess			0x6000
@@ -616,7 +615,6 @@ int memoryRelease(void *);
 int memoryReleaseAllByProcId(int);
 int memoryGetStats(memoryStats *, int);
 int memoryGetBlocks(memoryBlock *, unsigned, int);
-int memoryBlockInfo(void *, memoryBlock *);
 
 //
 // Multitasker functions

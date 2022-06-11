@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -27,6 +27,24 @@
 #include "kernelError.h"
 #include "kernelMalloc.h"
 #include <string.h>
+
+
+static inline int inList(kernelLinkedList *list, kernelLinkedListItem *item)
+{
+	// Returns 1 if the item is in the list and the data matches, else 0
+
+	kernelLinkedListItem *iter = list->first;
+
+	while (iter)
+	{
+		if ((iter == item) && (iter->data == item->data))
+			return (1);
+
+		iter = iter->next;
+	}
+
+	return (0);
+}
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -186,7 +204,11 @@ void *kernelLinkedListIterNext(kernelLinkedList *list,
 	if (!(*iter))
 		return (NULL);
 
-	*iter = (*iter)->next;
+	// Ensure that the current item hasn't been removed from the list
+	if (inList(list, *iter))
+		*iter = (*iter)->next;
+	else
+		*iter = list->first; // restart
 
 	if (!(*iter))
 		return (NULL);

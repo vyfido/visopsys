@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -294,7 +294,30 @@ static void eventHandler(objectKey key, windowEvent *event)
 	scrollBarState vert;
 
 	// Check for editor events.
-	if (key == editor->canvas)
+
+	if ((key == editor->canvas) && (event->type & EVENT_MOUSE_SCROLL))
+	{
+		windowComponentGetData(scrollVert, &vert, sizeof(scrollBarState));
+
+		if (event->type == EVENT_MOUSE_SCROLLUP)
+		{
+			vert.positionPercent = ((vert.positionPercent > 5)?
+				(vert.positionPercent - 5) : 0);
+		}
+		else if (event->type == EVENT_MOUSE_SCROLLDOWN)
+		{
+			vert.positionPercent = ((vert.positionPercent < 95)?
+				(vert.positionPercent + 5) : 100);
+		}
+
+		windowComponentSetData(scrollVert, &vert, sizeof(scrollBarState),
+			1 /* redraw */);
+
+		if (vert.positionPercent != editor->vert.positionPercent)
+			editor->scrollVert(editor, vert.positionPercent);
+	}
+
+	else if (key == editor->canvas)
 	{
 		editor->eventHandler(editor, event);
 
@@ -333,7 +356,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 	}
 
-	// Horizontal scroll button
+	// Horizontal scroll bar
 	else if (key == scrollHoriz)
 	{
 		windowComponentGetData(scrollHoriz, &horiz, sizeof(scrollBarState));
@@ -341,7 +364,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 			editor->scrollHoriz(editor, horiz.positionPercent);
 	}
 
-	// Vertical scroll button
+	// Vertical scroll bar
 	else if (key == scrollVert)
 	{
 		windowComponentGetData(scrollVert, &vert, sizeof(scrollBarState));

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -342,24 +342,23 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 			// If we've moved the icon outside the parent container, expand
 			// the container to contain it.
+
 			if ((component->xCoord + component->width) >=
 				(component->container->xCoord + component->container->width))
 			{
-				component->container->width =
-					((component->xCoord - component->container->xCoord) +
-						component->width + 1);
+				component->container->width = ((component->xCoord -
+					component->container->xCoord) + component->width + 1);
 			}
+
 			if ((component->yCoord + component->height) >=
 				(component->container->yCoord + component->container->height))
 			{
-				component->container->height =
-					((component->yCoord - component->container->yCoord) +
-						component->height + 1);
+				component->container->height = ((component->yCoord -
+					component->container->yCoord) + component->height + 1);
 			}
 
-			component->window
-				->update(component->window, component->xCoord,
-					component->yCoord, component->width, component->height);
+			component->window->update(component->window, component->xCoord,
+				component->yCoord, component->width, component->height);
 
 			// If the new location intersects any other components of the
 			// window, we need to focus the icon
@@ -372,7 +371,8 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		kernelMouseDraw();
 	}
 
-	else if (event->type == EVENT_MOUSE_DRAG)
+	else if ((event->type == EVENT_MOUSE_DRAG) &&
+		(component->params.flags & WINDOW_COMPFLAG_CANDRAG))
 	{
 		// The icon has started moving
 
@@ -380,9 +380,8 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 		component->flags &= ~WINFLAG_VISIBLE;
 
 		if (component->window->drawClip)
-			component->window
-				->drawClip(component->window, component->xCoord,
-					component->yCoord, component->width, component->height);
+			component->window->drawClip(component->window, component->xCoord,
+				component->yCoord, component->width, component->height);
 
 		// Draw the moving image.
 		kernelGraphicDrawImage(NULL, (image *) &icon->selectedImage,
@@ -409,6 +408,7 @@ static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 
 			icon->selected = 1;
 		}
+
 		else if (event->type == EVENT_MOUSE_LEFTUP)
 		{
 			kernelDebug(debug_gui, "WindowIcon mouse unclick");

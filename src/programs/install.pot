@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-10-02 00:44+0100\n"
+"POT-Creation-Date: 2017-05-29 02:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -24,7 +24,7 @@ msgstr ""
 #: install.c:64
 msgid ""
 "Visopsys Installer\n"
-"Copyright (C) 1998-2016 J. Andrew McLaughlin"
+"Copyright (C) 1998-2017 J. Andrew McLaughlin"
 msgstr ""
 
 #: install.c:66
@@ -109,282 +109,282 @@ msgstr ""
 msgid "Unable to get disk information."
 msgstr ""
 
-#: install.c:321
+#: install.c:326
 msgid "Can't create window!"
 msgstr ""
 
-#: install.c:421
+#: install.c:430
 msgid "Confirmation"
 msgstr ""
 
-#: install.c:425
+#: install.c:435
 #, c-format
 msgid ""
 "\n"
 "%s (y/n): "
 msgstr ""
 
-#: install.c:434
+#: install.c:444
 msgid "Yes\n"
 msgstr ""
 
-#: install.c:440
+#: install.c:450
 msgid "No\n"
 msgstr ""
 
-#: install.c:487
+#: install.c:499
 msgid "Choose Installation Disk"
 msgstr ""
 
-#: install.c:502 install.c:1001
+#: install.c:514 install.c:1026
 msgid "OK"
 msgstr ""
 
-#: install.c:513 install.c:1007
+#: install.c:525 install.c:1032
 msgid "Cancel"
 msgstr ""
 
-#: install.c:645
+#: install.c:662
 #, c-format
 msgid "Can't open source file \"%s\""
 msgstr ""
 
-#: install.c:666 install.c:682
+#: install.c:683 install.c:699
 msgid "Default"
 msgstr ""
 
-#: install.c:666
+#: install.c:683
 msgid "FAT12"
 msgstr ""
 
-#: install.c:666
+#: install.c:683
 msgid "FAT16"
 msgstr ""
 
-#: install.c:666
+#: install.c:683
 msgid "FAT32"
 msgstr ""
 
-#: install.c:671
+#: install.c:688
 msgid "Choose Filesystem Type"
 msgstr ""
 
-#: install.c:671
+#: install.c:688
 msgid "Supported types:"
 msgstr ""
 
-#: install.c:675
+#: install.c:692
 msgid "Choose the filesystem type:"
 msgstr ""
 
-#: install.c:736
+#: install.c:758
 #, c-format
 msgid ""
 "The disk is mounted as %s.  It must be unmounted\n"
 "before continuing.  Unmount?"
 msgstr ""
 
-#: install.c:747
+#: install.c:768
 #, c-format
 msgid "Unable to unmount %s"
 msgstr ""
 
-#: install.c:764
+#: install.c:785
 msgid "Copying boot sector...  "
-msgstr ""
-
-#: install.c:771
-#, c-format
-msgid "Unable to determine the filesystem type on disk \"%s\""
-msgstr ""
-
-#: install.c:779
-#, c-format
-msgid "Can't install a boot sector for filesystem type \"%s\""
 msgstr ""
 
 #: install.c:792
 #, c-format
+msgid "Unable to determine the filesystem type on disk \"%s\""
+msgstr ""
+
+#: install.c:800
+#, c-format
+msgid "Can't install a boot sector for filesystem type \"%s\""
+msgstr ""
+
+#: install.c:813
+#, c-format
 msgid "Unable to find the boot sector file \"%s\""
 msgstr ""
 
-#: install.c:806
+#: install.c:828
 #, c-format
 msgid "Error %d copying boot sector \"%s\" to disk %s"
 msgstr ""
 
-#: install.c:811 install.c:923 install.c:1352 install.c:1366 install.c:1437
+#: install.c:833 install.c:948 install.c:1388 install.c:1402 install.c:1473
 msgid "Done\n"
 msgstr ""
 
-#: install.c:840
+#: install.c:862
 #, c-format
 msgid "Can't open install file \"%s\""
 msgstr ""
 
-#: install.c:844
+#: install.c:866
 #, c-format
 msgid "Copying %s files...  "
 msgstr ""
 
-#: install.c:845
+#: install.c:867
 msgid "basic"
 msgstr ""
 
-#: install.c:845
+#: install.c:867
 msgid "extra"
 msgstr ""
 
-#: install.c:874
+#: install.c:899
 #, c-format
 msgid "Missing file \"%s\""
 msgstr ""
 
-#: install.c:949
+#: install.c:974
 msgid "Set Administrator Password"
 msgstr ""
 
-#: install.c:965
+#: install.c:990
 msgid "New password:"
 msgstr ""
 
-#: install.c:978
+#: install.c:1003
 msgid "Confirm password:"
 msgstr ""
 
-#: install.c:990 install.c:1093
+#: install.c:1015 install.c:1119
 msgid "Passwords do not match"
 msgstr ""
 
-#: install.c:1021 install.c:1036
+#: install.c:1046 install.c:1061
 msgid "No password set.  It will be blank."
 msgstr ""
 
-#: install.c:1086
+#: install.c:1112
 msgid "New password: "
 msgstr ""
 
-#: install.c:1087
+#: install.c:1113
 msgid "Confirm password: "
 msgstr ""
 
-#: install.c:1115
+#: install.c:1143
 msgid "Unable to create the password file"
 msgstr ""
 
-#: install.c:1123
+#: install.c:1151
 msgid "Unable to set the \"admin\" password"
 msgstr ""
 
-#: install.c:1172
+#: install.c:1200
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: install.c:1178
+#: install.c:1207
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")."
 msgstr ""
 
-#: install.c:1185
+#: install.c:1215
 msgid "Can't determine the root disk."
 msgstr ""
 
-#: install.c:1238
+#: install.c:1269
 #, c-format
 msgid ""
 "Disk %s is too small (%dK) to install Visopsys\n"
 "(%dK required)"
 msgstr ""
 
-#: install.c:1286
+#: install.c:1319
 msgid "Please choose the install type:"
 msgstr ""
 
-#: install.c:1287
+#: install.c:1320
 msgid "Basic"
 msgstr ""
 
-#: install.c:1287
+#: install.c:1320
 msgid "Full"
 msgstr ""
 
-#: install.c:1303
+#: install.c:1337
 #, c-format
 msgid "Installing on disk %s.  Are you SURE?"
 msgstr ""
 
-#: install.c:1323
+#: install.c:1359
 msgid "Formatting... "
 msgstr ""
 
-#: install.c:1327
+#: install.c:1363
 msgid "Formatting..."
 msgstr ""
 
-#: install.c:1332
+#: install.c:1368
 msgid ""
 "\n"
 "Formatting...\n"
 msgstr ""
 
-#: install.c:1345
+#: install.c:1381
 msgid "Errors during format."
 msgstr ""
 
-#: install.c:1350
+#: install.c:1386
 msgid "Error rescanning disk after format."
 msgstr ""
 
-#: install.c:1359
+#: install.c:1395
 msgid "Couldn't copy the boot sector."
 msgstr ""
 
-#: install.c:1362
+#: install.c:1398
 msgid "Mounting target disk...  "
 msgstr ""
 
-#: install.c:1365
+#: install.c:1401
 msgid "Unable to mount the target disk."
 msgstr ""
 
-#: install.c:1371
+#: install.c:1407
 msgid "Error rescanning disk after mount."
 msgstr ""
 
-#: install.c:1380 install.c:1396 install.c:1436
+#: install.c:1416 install.c:1432 install.c:1472
 msgid "Unable to unmount the target disk."
 msgstr ""
 
-#: install.c:1382
+#: install.c:1418
 #, c-format
 msgid ""
 "The filesystem on disk %s is too small (%lluK) for\n"
 "the selected Visopsys installation (%uK required)."
 msgstr ""
 
-#: install.c:1389
+#: install.c:1425
 #, c-format
 msgid ""
 "There MAY not be enough free space on disk %s (%lluK) for the\n"
 "selected Visopsys installation (%uK required).  Continue?"
 msgstr ""
 
-#: install.c:1405
+#: install.c:1441
 msgid ""
 "\n"
 "Installing...\n"
 msgstr ""
 
-#: install.c:1434
+#: install.c:1470
 msgid "Unmounting target disk...  "
 msgstr ""
 
-#: install.c:1442
+#: install.c:1478
 msgid "Unable to copy files."
 msgstr ""
 
-#: install.c:1450
+#: install.c:1486
 msgid "Installation successful."
 msgstr ""

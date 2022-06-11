@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,6 +26,7 @@
 #include "kernelDriver.h" // Contains my prototypes
 #include "kernelNetworkPcNetDriver.h"
 #include "kernelBus.h"
+#include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
@@ -34,6 +35,7 @@
 #include "kernelParameters.h"
 #include "kernelPciDriver.h"
 #include "kernelVariableList.h"
+#include <stdio.h>
 #include <string.h>
 #include <sys/processor.h>
 
@@ -59,6 +61,8 @@ static void reset(pcNetDevice *pcNet)
 {
 	unsigned tmp;
 
+	kernelDebug(debug_net, "PcNet reset");
+
 	// 32-bit reset, by doing a 32-bit read from the 32-bit reset port.
 	processorInPort32((pcNet->ioAddress + PCNET_PORTOFFSET32_RESET), tmp);
 
@@ -75,10 +79,11 @@ static unsigned readCSR(pcNetDevice *pcNet, int idx)
 {
 	// Read the indexed 16-bit control status register (CSR)
 
-	unsigned short data = 0;
+	unsigned data = 0;
 
 	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_RAP), idx);
 	processorInPort16((pcNet->ioAddress + PCNET_PORTOFFSET_RDP), data);
+
 	return (data);
 }
 
@@ -92,7 +97,6 @@ static void writeCSR(pcNetDevice *pcNet, int idx, unsigned data)
 
 	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_RAP), idx);
 	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET_RDP), data);
-	return;
 }
 
 
@@ -101,7 +105,7 @@ static void modifyCSR(pcNetDevice *pcNet, int idx, unsigned data, opType op)
 	// Read the indexed 16-bit control status register (CSR), then do logical
 	// AND or OR with the supplied data, and write it back.
 
-	unsigned short contents = 0;
+	unsigned contents = 0;
 
 	// 16-bit only
 	data &= 0xFFFF;
@@ -115,7 +119,6 @@ static void modifyCSR(pcNetDevice *pcNet, int idx, unsigned data, opType op)
 		contents &= data;
 
 	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET_RDP), contents);
-	return;
 }
 
 
@@ -123,10 +126,11 @@ static unsigned readBCR(pcNetDevice *pcNet, int idx)
 {
 	// Read the indexed 16-bit bus configuration register (BCR)
 
-	unsigned short data = 0;
+	unsigned data = 0;
 
 	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_RAP), idx);
 	processorInPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_BDP), data);
+
 	return (data);
 }
 
@@ -137,16 +141,15 @@ static void writeBCR(pcNetDevice *pcNet, int idx, unsigned data)
 
 	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_RAP), idx);
 	processorOutPort16((pcNet->ioAddress + PCNET_PORTOFFSET16_BDP), data);
-	return;
 }
 
 
-static void driverInterruptHandler(kernelNetworkDevice *adapter)
+static int driverInterruptHandler(kernelNetworkDevice *adapter)
 {
 	// This is the 'body' of the interrupt handler for pcNet devices.  Called
 	// from the netorkInterrupt() function in kernelNetwork.c
 
-	unsigned csr0 = 0;
+	unsigned csr0 = 0, csr4 = 0;
 	pcNetDevice *pcNet = NULL;
 	int head = 0;
 	int *tail = NULL;
@@ -154,16 +157,20 @@ static void driverInterruptHandler(kernelNetworkDevice *adapter)
 
 	// Check params
 	if (!adapter)
-		return;
+		return (ERR_NULLPARAMETER);
 
 	pcNet = adapter->data;
 
-	// Get the contents of the status register
+	// Get the contents of the status registers
 	csr0 = readCSR(pcNet, PCNET_CSR_STATUS);
+	csr4 = readCSR(pcNet, PCNET_CSR_FEAT);
 
-	// Disable pcNet interrupts and clear interrupt status
-	csr0 &= ~PCNET_CSR_STATUS_IENA;
-	writeCSR(pcNet, PCNET_CSR_STATUS, csr0); // Should this be done later?
+	if (!(csr0 & PCNET_CSR_STATUS_INTR))
+		// This adapter didn't interrupt
+		return (ERR_NODATA);
+
+	kernelDebug(debug_net, "PcNet interrupt, CSR0=%04x, CSR4=%04x", csr0,
+		csr4);
 
 	// Check for collision errors
 	if (csr0 & PCNET_CSR_STATUS_CERR)
@@ -173,11 +180,13 @@ static void driverInterruptHandler(kernelNetworkDevice *adapter)
 	if (csr0 & PCNET_CSR_STATUS_RINT)
 	{
 		// Received
+		kernelDebug(debug_net, "PcNet receive interrupt");
 
 		// If there were general errors in reception, update the error
 		// statistics
 		if (csr0 & PCNET_CSR_STATUS_ERR)
 		{
+			kernelDebugError("Receive error");
 			adapter->device.recvErrors += 1;
 			if (csr0 & PCNET_CSR_STATUS_MISS)
 				adapter->device.recvOverruns += 1;
@@ -194,12 +203,8 @@ static void driverInterruptHandler(kernelNetworkDevice *adapter)
 			if (flags & PCNET_DESCFLAG_ERR)
 			{
 				adapter->device.recvErrors += 1;
-				if ((flags & PCNET_DESCFLAG_RECV_FRAM) ||
-					(flags & PCNET_DESCFLAG_RECV_OFLO) ||
-					(flags & PCNET_DESCFLAG_RECV_CRC))
-				{
+				if (flags & PCNET_DESCFLAG_RCV_DROPPED)
 					adapter->device.recvDropped += 1;
-				}
 			}
 
 			// Increase the count of packets queued for receiving
@@ -219,11 +224,13 @@ static void driverInterruptHandler(kernelNetworkDevice *adapter)
 	if (csr0 & PCNET_CSR_STATUS_TINT)
 	{
 		// Transmitted
+		kernelDebug(debug_net, "PcNet transmit interrupt");
 
 		// If there were general errors in tranmission, update the error
 		// statistics
 		if (csr0 & PCNET_CSR_STATUS_ERR)
 		{
+			kernelDebugError("Transmit error");
 			adapter->device.transErrors += 1;
 			if (csr0 & PCNET_CSR_STATUS_MISS)
 				adapter->device.transOverruns += 1;
@@ -240,13 +247,8 @@ static void driverInterruptHandler(kernelNetworkDevice *adapter)
 			if (flags & PCNET_DESCFLAG_ERR)
 			{
 				adapter->device.transErrors += 1;
-				if ((flags & PCNET_DESCFLAG_TRANS_UFLO) ||
-					(flags & PCNET_DESCFLAG_TRANS_LCOL) ||
-					(flags & PCNET_DESCFLAG_TRANS_LCAR) ||
-					(flags & PCNET_DESCFLAG_TRANS_RTRY))
-				{
+				if (flags & PCNET_DESCFLAG_TRANS_DROPPED)
 					adapter->device.transDropped += 1;
-				}
 			}
 
 			// Reduce the counter of packets queued for transmission
@@ -259,10 +261,11 @@ static void driverInterruptHandler(kernelNetworkDevice *adapter)
 		}
 	}
 
-	// Reenable pcNet interrupts
-	modifyCSR(pcNet, PCNET_CSR_STATUS, PCNET_CSR_STATUS_IENA, op_or);
+	// Clear interrupt status
+	writeCSR(pcNet, PCNET_CSR_FEAT, csr4);
+	writeCSR(pcNet, PCNET_CSR_STATUS, csr0);
 
-	return;
+	return (0);
 }
 
 
@@ -277,6 +280,8 @@ static int driverSetFlags(kernelNetworkDevice *adapter, unsigned flags,
 	// Check params
 	if (!adapter)
 		return (status = ERR_NULLPARAMETER);
+
+	kernelDebug(debug_net, "PcNet set flags");
 
 	pcNet = adapter->data;
 
@@ -336,6 +341,8 @@ static unsigned driverReadData(kernelNetworkDevice *adapter,
 	if (!adapter || !buffer)
 		return (messageLength = 0);
 
+	kernelDebug(debug_net, "PcNet read data");
+
 	pcNet = adapter->data;
 	head = &pcNet->recvRing.head;
 	recvDesc = pcNet->recvRing.desc.recv;
@@ -370,11 +377,13 @@ static int driverWriteData(kernelNetworkDevice *adapter,
 	pcNetDevice *pcNet = NULL;
 	pcNetTransDesc16 *transDesc = NULL;
 	int *head = NULL;
-	unsigned bufferPhysical = NULL;
+	unsigned bufferPhysical = 0;
 
 	// Check params
 	if (!adapter || !buffer)
 		return (status = ERR_NULLPARAMETER);
+
+	kernelDebug(debug_net, "PcNet write data, %u bytes", bufferSize);
 
 	pcNet = adapter->data;
 	transDesc = pcNet->transRing.desc.trans;
@@ -384,20 +393,27 @@ static int driverWriteData(kernelNetworkDevice *adapter,
 	if (adapter->device.transQueued >= adapter->device.transQueueLen)
 		return (status = ERR_NOFREE);
 
+	// Get the physical address of the buffer.
+	bufferPhysical = kernelPageGetPhysical(KERNELPROCID, buffer);
+	if (!bufferPhysical)
+	{
+		kernelError(kernel_error, "Unable to get memory physical address");
+		return (status = ERR_MEMORY);
+	}
+
+	if (bufferPhysical > 0x00FFFFFF)
+	{
+		// TODO: need to allocate (and free) our own I/O memory, in this case
+		kernelError(kernel_error, "Buffer address is too high");
+		return (status = ERR_RANGE);
+	}
+
 	if (!(transDesc[*head].flags & PCNET_DESCFLAG_OWN))
 	{
-		// Get the physical address of the buffer.
-		bufferPhysical = kernelPageGetPhysical(KERNELPROCID, buffer);
-		if (!bufferPhysical)
-		{
-			kernelError(kernel_error, "Unable to get memory physical address.");
-			return (status = ERR_MEMORY);
-		}
-
 		transDesc[*head].buffAddrLow =
-			(unsigned short)((unsigned) bufferPhysical & 0xFFFF);
+			(unsigned short)(bufferPhysical & 0xFFFF);
 		transDesc[*head].buffAddrHigh =
-			(unsigned short)(((unsigned) bufferPhysical & 0x00FF0000) >> 16);
+			(unsigned char)((bufferPhysical & 0x00FF0000) >> 16);
 		transDesc[*head].bufferSize =
 			(unsigned short)(0xF000 | (((short) -bufferSize) & 0x0FFF));
 		transDesc[*head].transFlags = 0;
@@ -440,7 +456,10 @@ static int driverDetect(void *parent __attribute__((unused)),
 	kernelIoMemory transRing;
 	kernelIoMemory init;
 	pcNetInitBlock16 *initBlock = NULL;
+	char value[80];
 	int deviceCount, count, shift;
+
+	kernelDebug(debug_net, "PcNet detect devices");
 
 	// Search the PCI bus(es) for devices
 	numBusTargets = kernelBusGetTargets(bus_pci, &busTargets);
@@ -477,6 +496,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 			continue;
 
 		// After this point, we know we have a supported device.
+		kernelDebug(debug_net, "PcNet device detected");
 
 		// Enable the device on the PCI bus as a bus master
 		if ((kernelBusDeviceEnable(&busTargets[deviceCount],
@@ -508,24 +528,24 @@ static int driverDetect(void *parent __attribute__((unused)),
 		adapter = kernelMalloc(sizeof(kernelNetworkDevice));
 		if (!adapter)
 		{
-			kernelFree(busTargets);
 			kernelFree(dev);
+			kernelFree(busTargets);
 			return (status = ERR_MEMORY);
 		}
 
 		pcNet = kernelMalloc(sizeof(pcNetDevice));
 		if (!pcNet)
 		{
-			kernelFree(busTargets);
-			kernelFree(dev);
 			kernelFree((void *) adapter);
+			kernelFree(dev);
+			kernelFree(busTargets);
 			return (status = ERR_MEMORY);
 		}
 
 		adapter->data = pcNet;
 
-		pcNet->ioAddress =
-			(void *)(pciDevInfo.device.nonBridge.baseAddress[0] & 0xFFFFFFFC);
+		pcNet->ioAddress = (void *)
+			(pciDevInfo.device.nonBridge.baseAddress[0] & 0xFFFFFFFC);
 
 		// Determine the I/O space size.  Write all 1s to the register.
 		kernelBusWriteRegister(&busTargets[deviceCount],
@@ -543,9 +563,8 @@ static int driverDetect(void *parent __attribute__((unused)),
 			PCI_CONFREG_BASEADDRESS0_32, 32,
 			pciDevInfo.device.nonBridge.baseAddress[0]);
 
-		adapter->device.flags =
-			(NETWORK_ADAPTERFLAG_AUTOPAD | NETWORK_ADAPTERFLAG_AUTOSTRIP |
-				NETWORK_ADAPTERFLAG_AUTOCRC);
+		adapter->device.flags = (NETWORK_ADAPTERFLAG_AUTOPAD |
+			NETWORK_ADAPTERFLAG_AUTOSTRIP | NETWORK_ADAPTERFLAG_AUTOCRC);
 		adapter->device.linkProtocol = NETWORK_LINKPROTOCOL_ETHERNET;
 		adapter->device.interruptNum =
 			pciDevInfo.device.nonBridge.interruptLine;
@@ -560,36 +579,64 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 		// Get the ethernet address
 		for (count = 0; count < 6; count ++)
+		{
 			processorInPort8((pcNet->ioAddress + count),
 				adapter->device.hardwareAddress.bytes[count]);
+		}
 
 		// Get chip version and set the model name
-		pcNet->chipVersion = ((readCSR(pcNet, PCNET_CSR_MODEL0) & 0x0FFF) << 4);
+		pcNet->chipVersion =
+			((readCSR(pcNet, PCNET_CSR_MODEL0) & 0x0FFF) << 4);
 		pcNet->chipVersion |=
 			((readCSR(pcNet, PCNET_CSR_MODEL1) & 0xF000) >> 12);
 
-		kernelVariableListCreate(&dev->device.attrs);
-		kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR,
-			"unknown");
-		kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_MODEL,
-			"PCNET");
-		for (count = 0; pcNetVendorModel[count].version; count ++)
+		status = kernelVariableListCreate(&dev->device.attrs);
+		if (status >= 0)
 		{
-			if (pcNetVendorModel[count].version == pcNet->chipVersion)
+			// Record the vendor name and model
+			kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR,
+				"unknown");
+			kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_MODEL,
+				"PCNET");
+			for (count = 0; pcNetVendorModel[count].version; count ++)
 			{
-				kernelVariableListSet(&dev->device.attrs,
-					DEVICEATTRNAME_VENDOR, pcNetVendorModel[count].vendor);
-				kernelVariableListSet(&dev->device.attrs,
-					DEVICEATTRNAME_MODEL, pcNetVendorModel[count].model);
-				break;
+				if (pcNetVendorModel[count].version == pcNet->chipVersion)
+				{
+					kernelVariableListSet(&dev->device.attrs,
+						DEVICEATTRNAME_VENDOR, pcNetVendorModel[count].vendor);
+					kernelVariableListSet(&dev->device.attrs,
+						DEVICEATTRNAME_MODEL, pcNetVendorModel[count].model);
+					break;
+				}
 			}
+
+			// Record the interrupt number
+			sprintf(value, "%d", adapter->device.interruptNum);
+			kernelVariableListSet(&dev->device.attrs, "adapter.interrupt",
+				value);
+
+			// Record the MAC address
+			sprintf(value, "%02x:%02x:%02x:%02x:%02x:%02x",
+				adapter->device.hardwareAddress.bytes[0],
+				adapter->device.hardwareAddress.bytes[1],
+				adapter->device.hardwareAddress.bytes[2],
+				adapter->device.hardwareAddress.bytes[3],
+				adapter->device.hardwareAddress.bytes[4],
+				adapter->device.hardwareAddress.bytes[5]);
+			kernelVariableListSet(&dev->device.attrs, "adapter.address",
+				value);
+			kernelDebug(debug_net, "PcNet MAC address %s",value);
 		}
 
 		// Get space for the buffers
 		status = kernelMemoryGetIo((PCNET_NUM_RINGBUFFERS *
-			PCNET_RINGBUFFER_SIZE), 0, &recvBuff);
+			PCNET_RINGBUFFER_SIZE), 0 /* no alignment */, 1 /* low memory */,
+			"pcnet recvbuff", &recvBuff);
 		if (status < 0)
 			continue;
+
+		if (recvBuff.physical > 0x00FFFFFF)
+			kernelError(kernel_error, "Receive buffer address is too high");
 
 		receiveBuffer = recvBuff.virtual;
 		receiveBufferPhysical = recvBuff.physical;
@@ -599,26 +646,32 @@ static int driverDetect(void *parent __attribute__((unused)),
 		pcNet->recvRing.tail = 0;
 
 		status = kernelMemoryGetIo((PCNET_NUM_RINGBUFFERS *
-			sizeof(pcNetRecvDesc16)), 0, &recvRing);
+			sizeof(pcNetRecvDesc16)), 16 /* 8-byte alignment for 16-bit,
+			16-byte for 32-bit */, 1 /* low memory */, "pcnet recvring",
+			&recvRing);
 		if (status < 0)
 		{
 			kernelMemoryReleaseIo(&recvBuff);
 			continue;
 		}
 
+		if (recvRing.physical > 0x00FFFFFF)
+			kernelError(kernel_error, "Receive ring address is too high");
+
 		pcNet->recvRing.desc.recv = recvRing.virtual;
 		for (count = 0; count < PCNET_NUM_RINGBUFFERS; count ++)
 		{
 			pcNet->recvRing.desc.recv[count].buffAddrLow = (unsigned short)
 				(receiveBufferPhysical & 0xFFFF);
-			pcNet->recvRing.desc.recv[count].buffAddrHigh = (unsigned short)
+			pcNet->recvRing.desc.recv[count].buffAddrHigh = (unsigned char)
 				((receiveBufferPhysical & 0x00FF0000) >> 16);
 			pcNet->recvRing.desc.recv[count].flags = PCNET_DESCFLAG_OWN;
 			pcNet->recvRing.desc.recv[count].bufferSize = (unsigned short)
 				(0xF000 | (((short) -PCNET_RINGBUFFER_SIZE) & 0x0FFF));
-			receiveBufferPhysical += PCNET_RINGBUFFER_SIZE;
 			pcNet->recvRing.buffers[count] = receiveBuffer;
+
 			receiveBuffer += PCNET_RINGBUFFER_SIZE;
+			receiveBufferPhysical += PCNET_RINGBUFFER_SIZE;
 		}
 
 		// Set up the transmit ring descriptors
@@ -626,7 +679,9 @@ static int driverDetect(void *parent __attribute__((unused)),
 		pcNet->transRing.tail = 0;
 
 		status = kernelMemoryGetIo((PCNET_NUM_RINGBUFFERS *
-			sizeof(pcNetTransDesc16)), 0, &transRing);
+			sizeof(pcNetTransDesc16)), 16 /* 8-byte alignment for 16-bit,
+			16-byte for 32-bit */, 1 /* low memory */, "pcnet transring",
+			&transRing);
 		if (status < 0)
 		{
 			kernelMemoryReleaseIo(&recvRing);
@@ -634,14 +689,21 @@ static int driverDetect(void *parent __attribute__((unused)),
 			continue;
 		}
 
+		if (transRing.physical > 0x00FFFFFF)
+			kernelError(kernel_error, "Transmit ring address is too high");
+
 		pcNet->transRing.desc.trans = transRing.virtual;
 
 		// Set up the initialization registers.
 
 		// Set the software style as 0 == 16-bit PCNET
 		writeCSR(pcNet, PCNET_CSR_STYLE, 0);
+		kernelDebug(debug_net, "PcNet software style CSR58=%08x",
+			readCSR(pcNet, PCNET_CSR_STYLE));
 
-		status = kernelMemoryGetIo(sizeof(pcNetInitBlock16), 0, &init);
+		status = kernelMemoryGetIo(sizeof(pcNetInitBlock16),
+			4 /* word alignment for 16-bit, dword for 32-bit */,
+			1 /* low memory */, "pcnet initblock", &init);
 		if (status < 0)
 		{
 			kernelMemoryReleaseIo(&transRing);
@@ -650,24 +712,30 @@ static int driverDetect(void *parent __attribute__((unused)),
 			continue;
 		}
 
+		if (init.physical > 0x00FFFFFF)
+			kernelError(kernel_error, "Init block address is too high");
+
 		initBlock = init.virtual;
 
-		// Mode zero is 'normal' mode
-		initBlock->mode = 0; //PCNET_CSR_MODE_PROM;
+		// Mode zero is 'normal' 16-bit mode
+		initBlock->mode = 0;
 
 		for (count = 0; count < 6; count ++)
+		{
 			initBlock->physAddr[count] =
 				adapter->device.hardwareAddress.bytes[count];
+		}
 
 		// Accept all multicast packets for now.
 		for (count = 0; count < 4; count ++)
 			initBlock->addressFilter[count] = 0xFFFF;
 
-		initBlock->recvDescLow = ((unsigned) recvRing.physical & 0xFFFF);
-		initBlock->recvDescHigh = ((unsigned) recvRing.physical >> 16);
+		initBlock->recvDescLow = (unsigned short)(recvRing.physical & 0xFFFF);
+		initBlock->recvDescHigh = (unsigned char)(recvRing.physical >> 16);
 		initBlock->recvRingLen = (PCNET_NUM_RINGBUFFERS_CODE << 5);
-		initBlock->transDescLow = ((unsigned) transRing.physical & 0xFFFF);
-		initBlock->transDescHigh = ((unsigned) transRing.physical >> 16);
+		initBlock->transDescLow = (unsigned short)(transRing.physical &
+			0xFFFF);
+		initBlock->transDescHigh = (unsigned char)(transRing.physical >> 16);
 		initBlock->transRingLen = (PCNET_NUM_RINGBUFFERS_CODE << 5);
 
 		// Interrupt mask and deferral control: enable everything except
@@ -684,8 +752,8 @@ static int driverDetect(void *parent __attribute__((unused)),
 			(readBCR(pcNet, PCNET_BCR_BURST) | 0x0260));
 
 		// Load init block address registers
-		writeCSR(pcNet, PCNET_CSR_IADR0, ((unsigned) init.physical & 0xFFFF));
-		writeCSR(pcNet, PCNET_CSR_IADR1, ((unsigned) init.physical >> 16));
+		writeCSR(pcNet, PCNET_CSR_IADR0, (init.physical & 0xFFFF));
+		writeCSR(pcNet, PCNET_CSR_IADR1, (init.physical >> 16));
 
 		// Start the init
 		writeCSR(pcNet, PCNET_CSR_STATUS, PCNET_CSR_STATUS_INIT);
@@ -696,10 +764,10 @@ static int driverDetect(void *parent __attribute__((unused)),
 		kernelMemoryReleaseIo(&init);
 
 		// Start it and enable device interrupts
-		writeCSR(pcNet, PCNET_CSR_STATUS,
-			(PCNET_CSR_STATUS_STRT | PCNET_CSR_STATUS_IENA));
+		writeCSR(pcNet, PCNET_CSR_STATUS, (PCNET_CSR_STATUS_STRT |
+			PCNET_CSR_STATUS_IENA));
 
-		// Set link status
+		// Record link status
 		if (readBCR(pcNet, PCNET_BCR_LINK) & PCNET_BCR_LINK_LEDOUT)
 			adapter->device.flags |= NETWORK_ADAPTERFLAG_LINK;
 

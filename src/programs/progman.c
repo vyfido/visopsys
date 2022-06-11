@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,7 +62,7 @@ usage.  It is a graphical utility combining the same functionalities as the
 #define DISKPERF_STRING			_("Disk performance:")
 #define READPERF_STRING			_("Read: ")
 #define WRITEPERF_STRING		_("Write: ")
-#define IORATE_STRING			_("K/tick")
+#define IORATE_STRING			_("K/sec")
 #define SHOW_MAX_PROCESSES		100
 #define PROCESS_STRING_LENGTH	64
 
@@ -197,14 +197,18 @@ static int getUpdate(void)
 	status = diskGetStats(NULL, &dskStats);
 	if (status >= 0)
 	{
-		if (!dskStats.readTime)
-			dskStats.readTime = 1;
+		// Convert ms times to seconds
+		dskStats.readTimeMs /= 1000;
+		dskStats.writeTimeMs /= 1000;
 
-		if (!dskStats.writeTime)
-			dskStats.writeTime = 1;
+		if (!dskStats.readTimeMs)
+			dskStats.readTimeMs = 1;
 
-		readPerf = (dskStats.readKbytes / dskStats.readTime);
-		writePerf = (dskStats.writeKbytes / dskStats.writeTime);
+		if (!dskStats.writeTimeMs)
+			dskStats.writeTimeMs = 1;
+
+		readPerf = (dskStats.readKbytes / dskStats.readTimeMs);
+		writePerf = (dskStats.writeKbytes / dskStats.writeTimeMs);
 
 		if (diskReadPerfLabel)
 		{

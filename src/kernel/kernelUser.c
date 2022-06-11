@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,6 +28,7 @@
 #include "kernelError.h"
 #include "kernelFile.h"
 #include "kernelKeyboard.h"
+#include "kernelLog.h"
 #include "kernelMemory.h"
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
@@ -384,8 +385,11 @@ int kernelUserLogin(const char *userName, const char *password)
 	if (status >= 0)
 	{
 		sprintf(keyMapFile, PATH_SYSTEM_KEYMAPS "/%s.map", keyMapName);
-		kernelKeyboardSetMap(keyMapFile);
+		if (kernelFileFind(keyMapFile, NULL) >= 0)
+			kernelKeyboardSetMap(keyMapFile);
 	}
+
+	kernelLog("User %s logged in", userName);
 
 	return (status = 0);
 }
@@ -406,6 +410,10 @@ int kernelUserLogout(const char *userName)
 	if (!userName)
 		userName = currentUser.name;
 
+	// Is the user logged in?
+	if (!currentUser.name[0] || !currentUser.loginPid)
+		return (status = ERR_NOSUCHUSER);
+
 	// Kill the user's login process.  The termination of the login process
 	// is what effectively logs out the user.  This will only succeed if the
 	// current process is owned by the user, or if the current process is
@@ -417,8 +425,9 @@ int kernelUserLogout(const char *userName)
 	kernelEnvironmentClear();
 
 	// Restore keyboard mapping to the default
-	if (kernelConfigGet(PATH_SYSTEM_CONFIG "/kernel.conf", "keyboard.map",
-		keyMapFile, MAX_PATH_NAME_LENGTH) >= 0)
+	if ((kernelConfigGet(PATH_SYSTEM_CONFIG "/kernel.conf", "keyboard.map",
+			keyMapFile, MAX_PATH_NAME_LENGTH) >= 0) &&
+		(kernelFileFind(keyMapFile, NULL) >= 0))
 	{
 		kernelKeyboardSetMap(keyMapFile);
 	}
@@ -429,6 +438,8 @@ int kernelUserLogout(const char *userName)
 
 	// Set the current directory to '/'
 	kernelMultitaskerSetCurrentDirectory("/");
+
+	kernelLog("User %s logged out", userName);
 
 	// Clear the user structure
 	memset(&currentUser, 0, sizeof(kernelUser));

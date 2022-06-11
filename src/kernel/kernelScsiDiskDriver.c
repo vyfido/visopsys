@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -363,7 +363,7 @@ static int scsiReadWrite(kernelScsiDisk *scsiDisk, unsigned char lun,
 		// Set up the USB transaction, with the SCSI 'read' or 'write' command.
 		status = usbScsiCommand(scsiDisk, lun, (unsigned char *) &cmd10,
 			sizeof(scsiCmd10), buffer, dataLength, &bytes,
-			0 /* default timeout */, read);
+			(USB_STD_TIMEOUT_MS + (10 * numSectors)), read);
 		if ((status < 0) || (bytes < dataLength))
 		{
 			kernelError(kernel_error, "SCSI %s failed",

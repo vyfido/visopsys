@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -41,6 +41,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <sys/processor.h>
 
 #define DISK_CTRL(diskNum) (&controllers[diskNum >> 8])
@@ -590,7 +591,8 @@ static int allocPortMemory(ahciController *controller, int portNum)
 	}
 
 	status = kernelMemoryGetIo(sizeof(ahciCommandList),
-		max(AHCI_CMDLIST_ALIGN, MEMORY_BLOCK_SIZE), &cmdIoMem);
+		max(AHCI_CMDLIST_ALIGN, MEMORY_BLOCK_SIZE), 0 /* not low memory */,
+		"ahci cmdlist", &cmdIoMem);
 	if (status < 0)
 		return (status);
 
@@ -618,7 +620,8 @@ static int allocPortMemory(ahciController *controller, int portNum)
 	}
 
 	status = kernelMemoryGetIo(sizeof(ahciReceivedFises),
-		max(AHCI_RECVFIS_ALIGN, MEMORY_BLOCK_SIZE), &fisIoMem);
+		max(AHCI_RECVFIS_ALIGN, MEMORY_BLOCK_SIZE), 0 /* not low memory */,
+		"ahci recvfis", &fisIoMem);
 	if (status < 0)
 	{
 		kernelMemoryReleaseIo(&cmdIoMem);
@@ -800,12 +803,16 @@ static void interruptHandler(void)
 		{
 			// We didn't service this interrupt, and we're sharing this PCI
 			// interrupt with another device whose handler we saved.  Call it.
-			kernelDebug(debug_usb, "AHCI interrupt not serviced - chaining");
+			kernelDebug(debug_io, "AHCI interrupt not serviced - chaining");
 			processorIsrCall(oldIntHandlers[interruptNum]);
 		}
 		else
 		{
+			// We'd better acknowledge the interrupt, or else it wouldn't be
+			// cleared, and our controllers using this vector wouldn't receive
+			// any more.
 			kernelDebugError("Interrupt not serviced and no saved ISR");
+			kernelPicEndOfInterrupt(interruptNum);
 		}
 	}
 
@@ -1084,7 +1091,8 @@ static unsigned allocCommandTable(int numPrds, unsigned *commandTablePhysical,
 
 	commandTableSize = (sizeof(ahciCommandTable) + (numPrds * sizeof(ahciPrd)));
 
-	if (kernelMemoryGetIo(commandTableSize, DISK_CACHE_ALIGN, &ioMem) < 0)
+	if (kernelMemoryGetIo(commandTableSize, DISK_CACHE_ALIGN,
+		0 /* not low memory */, "ahci cmdtable", &ioMem) < 0)
 	{
 		kernelError(kernel_error, "Couldn't allocate command table memory");
 		return (commandTableSize = 0);
@@ -1137,7 +1145,7 @@ static int setupPrds(ahciPrd *prd, int numPrds, unsigned char *buffer,
 	// that enough of them are allocated.
 
 	int status = 0;
-	unsigned bufferPhysical = NULL;
+	unsigned bufferPhysical = 0;
 	unsigned dataLen = 0;
 	int count;
 
@@ -1272,16 +1280,17 @@ static int issueCommand(ahciController *controller, int portNum,
 	int slotNum = -1;
 	unsigned numPrds = 0;
 	unsigned commandTableSize = 0;
-	unsigned commandTablePhysical = NULL;
+	unsigned commandTablePhysical = 0;
 	ahciCommandTable *commandTable = NULL;
 	unsigned fisLen = 0;
 	ahciCommandHeader *commandHeader = NULL;
 	uquad_t startTime = 0;
 	uquad_t currTime = 0;
+	int procId = 0;
 	int retries;
 
 	if (!timeout)
-		timeout = 1000;
+		timeout = MS_PER_SEC;
 
 	// Find a free command slot.
 	slotNum = findCommandSlot(controller, portNum);
@@ -1367,13 +1376,17 @@ static int issueCommand(ahciController *controller, int portNum,
 			if (currTime > (startTime + timeout))
 				break;
 
-			// Record that we are waiting for an interrupt from this port, and
-			// go into a waiting state.  When the interrupt comes, the
-			// interrupt handler will change our state to 'IO ready' which will
-			// give us high priority for a wakeup
-			controller->port[portNum].waitProcess =
-				kernelMultitaskerGetCurrentProcessId();
-			kernelMultitaskerWait(timeout - (currTime - startTime));
+			// If multitasking is in effect, record that we are waiting for an
+			// interrupt from this port, and go into a waiting state.  When
+			// the interrupt comes, the interrupt handler will change our
+			// state to 'IO ready' which will give us high priority for a
+			// wakeup
+			procId = kernelMultitaskerGetCurrentProcessId();
+			if (procId != KERNELPROCID)
+			{
+				controller->port[portNum].waitProcess = procId;
+				kernelMultitaskerWait(timeout - (currTime - startTime));
+			}
 		}
 
 		if (!(controller->portInterrupts & (1 << portNum)))
@@ -2004,7 +2017,8 @@ static int sendAtapiPacket(ahciController *controller, ahciDisk *dsk,
 
 	status = issueCommand(controller, dsk->portNum, 0, 0, 0,
 		(byteCount & 0xFF), ((byteCount >> 8) & 0xFF), 0, ATA_ATAPIPACKET,
-		packet, buffer,	byteCount, 0 /* read */, 10000 /* timeout 10s */);
+		packet, buffer,	byteCount, 0 /* read */,
+		(10 * MS_PER_SEC) /* timeout 10s */);
 	if (status < 0)
 		return (status);
 

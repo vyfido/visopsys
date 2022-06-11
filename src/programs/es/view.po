@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-30 02:02+0100\n"
+"POT-Creation-Date: 2017-05-29 02:02+0100\n"
 "PO-Revision-Date: 2014-01-22 04:40-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -70,7 +70,7 @@ msgstr "Imágen"
 msgid "Unable to load the file \"%s\"\n"
 msgstr "No se puede cargar el archivo \"%s\"\n"
 
-#: view.c:374
+#: view.c:375
 #, c-format
 msgid ""
 "\n"
@@ -79,25 +79,25 @@ msgstr ""
 "\n"
 "El comando \"%s\" funciona solamente en modo gráfico\n"
 
-#: view.c:392
+#: view.c:393
 msgid "Enter filename"
 msgstr "Ingrese un nombre de archivo"
 
-#: view.c:393
+#: view.c:394
 msgid "Please choose the file to view:"
 msgstr "Selecciona un archivo para mostrar:"
 
-#: view.c:409
+#: view.c:410
 #, c-format
 msgid "The file \"%s\" was not found"
 msgstr "Archivo \"%s\" no encontrado"
 
-#: view.c:418
+#: view.c:419
 #, c-format
 msgid "Unable to classify the file \"%s\""
 msgstr "No se puede clasificar el archivo \"%s\""
 
-#: view.c:425
+#: view.c:426
 #, c-format
 msgid "Can't display the file type of \"%s\" (%s)"
 msgstr "El tipo de archivo \"%s\" no se puede mostrar (%s)"

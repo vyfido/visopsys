@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -236,7 +236,7 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
 	// Allocate some physical memory for the page table
 	physicalAddr = (kernelPageTablePhysicalMem *)
 		kernelMemoryGetPhysical(sizeof(kernelPageTablePhysicalMem),
-			MEMORY_PAGE_SIZE, "page table");
+			MEMORY_PAGE_SIZE, 0 /* not low memory */, "page table");
 	if (!physicalAddr)
 		return (newTable = NULL);
 
@@ -526,7 +526,7 @@ static int map(kernelPageDirectory *directory, unsigned physicalAddress,
 	int status = 0;
 	kernelPageTable *pageTable = NULL;
 	void *currentVirtualAddress = NULL;
-	unsigned currentPhysicalAddress = NULL;
+	unsigned currentPhysicalAddress = 0;
 	int tableNumber = 0;
 	unsigned pageNumber = 0;
 	unsigned numPages = 0;
@@ -731,12 +731,12 @@ static kernelPageDirectory *createPageDirectory(int processId)
 
 	int status = 0;
 	kernelPageDirectory *directory = NULL;
-	unsigned physicalAddr = NULL;
+	unsigned physicalAddr = 0;
 	kernelPageDirVirtualMem *virtualAddr = NULL;
 
 	// Get some physical memory for the page directory
 	physicalAddr = kernelMemoryGetPhysical(sizeof(kernelPageDirPhysicalMem),
-		MEMORY_PAGE_SIZE, "page directory");
+		MEMORY_PAGE_SIZE, 0 /* not low memory */, "page directory");
 	if (!physicalAddr)
 		return (directory = NULL);
 
@@ -1666,7 +1666,7 @@ void kernelPageTableDebug(int processId)
 	kernelPageTable *pageTable = NULL;
 	void *tableAddress = NULL;
 	void *pageAddress = NULL;
-	unsigned pagePhysical = NULL;
+	unsigned pagePhysical = 0;
 	unsigned rangeStart = (void *) -1;
 	unsigned rangePhysicalStart = 0;
 	unsigned rangeSize = 0;

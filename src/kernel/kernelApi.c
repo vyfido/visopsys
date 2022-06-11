@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -625,9 +625,6 @@ static kernelArgInfo args_memoryGetBlocks[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_val, API_ARG_ANYVAL } };
-static kernelArgInfo args_memoryBlockInfo[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 
 static kernelFunctionIndex memoryFunctionIndex[] = {
 	{ _fnum_memoryGet, kernelMemoryGet,
@@ -639,9 +636,7 @@ static kernelFunctionIndex memoryFunctionIndex[] = {
 	{ _fnum_memoryGetStats, kernelMemoryGetStats,
 		PRIVILEGE_USER, 2, args_memoryGetStats, type_val },
 	{ _fnum_memoryGetBlocks, kernelMemoryGetBlocks,
-		PRIVILEGE_USER, 3, args_memoryGetBlocks, type_val },
-	{ _fnum_memoryBlockInfo, kernelMemoryBlockInfo,
-		PRIVILEGE_USER, 2, args_memoryBlockInfo, type_val }
+		PRIVILEGE_USER, 3, args_memoryGetBlocks, type_val }
 };
 
 // Multitasker functions (0x6000-0x6FFF range)
@@ -2124,6 +2119,6 @@ out:
 	kernelDebug(debug_api, "ret=%lld", status);
 	#endif
 
-	processorApiExit(stackAddress, (int) status, (status >> 32));
+	processorApiExit(stackAddress, (status & 0xFFFFFFFF), (status >> 32));
 }
 

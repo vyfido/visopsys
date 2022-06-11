@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -29,12 +29,25 @@
 Network device control.
 
 Usage:
-  ifconfig [-T] [device_name]
+  ifconfig [-T] [-e] [-d] [device_name]
 
-This command will show information about the system's network devices.
+This command will show information about the system's network devices, and
+allow a privileged user to perform various network administration tasks.
+
+In text mode:
+
+  The -d option will will disable networking, de-configuring network devices.
+
+  The -e option will enable networking, causing network devices to be
+  configured.
+
+In graphics mode, the program is interactive and the user can view network
+device status and perform tasks visually.
 
 Options:
--T              : Force text mode operation
+-d  : Disable networking (text mode).
+-e  : Enable networking (text mode).
+-T  : Force text mode operation
 
 </help>
 */
@@ -182,7 +195,9 @@ static int printDevices(char *arg)
 			}
 		}
 		else
+		{
 			printf("%s\n\n", NO_DEVICES);
+		}
 	}
 
 	return (status = 0);
@@ -253,13 +268,17 @@ static void updateHostName(void)
 		{
 			value = variableListGet(&kernelConf, "network.hostname");
 			if (value)
+			{
 				windowComponentSetData(hostField, (void *) value,
 					NETWORK_MAX_HOSTNAMELENGTH, 1 /* redraw */);
+			}
 
 			value = variableListGet(&kernelConf, "network.domainname");
 			if (value)
+			{
 				windowComponentSetData(domainField, (void *) value,
 					NETWORK_MAX_DOMAINNAMELENGTH, 1 /* redraw */);
+			}
 
 			variableListDestroy(&kernelConf);
 		}
@@ -335,8 +354,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	// Check for the user clicking the enable/disable networking button
 	else if ((key == enableButton) && (event->type == EVENT_MOUSE_LEFTUP))
 	{
-		// The user wants to enable or disable networking button.  Make a
-		// little dialog while we're doing this because enabling can take a few
+		// The user wants to enable or disable networking.  Make a little
+		// dialog while we're doing this because enabling can take a few
 		// seconds
 		enableDialog = windowNewBannerDialog(window,
 			(networkEnabled? _("Shutting down networking") :
@@ -564,6 +583,7 @@ int main(int argc, char *argv[])
 {
 	int status = 0;
 	char opt;
+	int enable = 0, disable = 0;
 	char *arg = NULL;
 	disk sysDisk;
 
@@ -574,10 +594,20 @@ int main(int argc, char *argv[])
 	graphics = graphicsAreEnabled();
 
 	// Check options
-	while (strchr("T?", (opt = getopt(argc, argv, "T"))))
+	while (strchr("deT?", (opt = getopt(argc, argv, "deT"))))
 	{
 		switch (opt)
 		{
+			case 'd':
+				// Disable networking
+				disable = 1;
+				break;
+
+			case 'e':
+				// Enable networking
+				enable = 1;
+				break;
+
 			case 'T':
 				// Force text mode
 				graphics = 0;
@@ -615,6 +645,11 @@ int main(int argc, char *argv[])
 	}
 	else
 	{
+		if (disable && networkEnabled)
+			networkShutdown();
+		else if (enable && !networkEnabled)
+			networkInitialize();
+
 		status = printDevices(arg);
 	}
 

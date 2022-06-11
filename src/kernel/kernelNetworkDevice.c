@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,13 +26,14 @@
 // but which does all the interfacing with the hardware drivers.
 
 #include "kernelNetworkDevice.h"
-#include "kernelNetworkStream.h"
+#include "kernelDebug.h"
+#include "kernelError.h"
 #include "kernelInterrupt.h"
-#include "kernelPic.h"
+#include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
-#include "kernelError.h"
-#include "kernelLog.h"
+#include "kernelNetworkStream.h"
+#include "kernelPic.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/processor.h>
@@ -80,13 +81,13 @@ static void debugArp(kernelArpPacket *arpPacket)
 		NETWORK_ADDRLENGTH_ETHERNET, 1);
 	kernelTextPrint(" srcLogAddr=");
 	printAddress((networkAddress *) &arpPacket->srcLogicalAddress,
-		NETWORK_ADDRLENGTH_IP, 0);
+		NETWORK_ADDRLENGTH_IPV4, 0);
 	kernelTextPrint("\nARP: dstHardAddr=");
 	printAddress((networkAddress *) &arpPacket->destHardwareAddress,
 		NETWORK_ADDRLENGTH_ETHERNET, 1);
 	kernelTextPrint(" dstLogAddr=");
 	printAddress((networkAddress *) &arpPacket->destLogicalAddress,
-		NETWORK_ADDRLENGTH_IP, 0);
+		NETWORK_ADDRLENGTH_IPV4, 0);
 	kernelTextPrintLine("");
 }
 */
@@ -105,7 +106,8 @@ static int searchArpCache(kernelNetworkDevice *adapter,
 	for (count = 0; count < adapter->numArpCaches; count ++)
 	{
 		if (networkAddressesEqual(logicalAddress,
-			&adapter->arpCache[count].logicalAddress, NETWORK_ADDRLENGTH_IP))
+			&adapter->arpCache[count].logicalAddress,
+			NETWORK_ADDRLENGTH_IPV4))
 		{
 			return (count);
 		}
@@ -156,7 +158,7 @@ static int sendArp(kernelNetworkDevice *adapter,
 	// Hardware address length is 6
 	arpPacket->hardwareAddrLen = NETWORK_ADDRLENGTH_ETHERNET;
 	// Protocol address length is 4 for IP
-	arpPacket->protocolAddrLen = NETWORK_ADDRLENGTH_IP;
+	arpPacket->protocolAddrLen = NETWORK_ADDRLENGTH_IPV4;
 	// Operation code.  Request or reply.
 	arpPacket->opCode = processorSwap16(opCode);
 
@@ -166,10 +168,10 @@ static int sendArp(kernelNetworkDevice *adapter,
 		NETWORK_ADDRLENGTH_ETHERNET);
 	// Our source logical address
 	memcpy(&arpPacket->srcLogicalAddress,
-		(void *) &adapter->device.hostAddress, NETWORK_ADDRLENGTH_IP);
+		(void *) &adapter->device.hostAddress, NETWORK_ADDRLENGTH_IPV4);
 	// Our desired logical address
 	memcpy(&arpPacket->destLogicalAddress, destLogicalAddress,
-		NETWORK_ADDRLENGTH_IP);
+		NETWORK_ADDRLENGTH_IPV4);
 
 	if ((opCode == NETWORK_ARPOP_REPLY) && destPhysicalAddress)
 		// The target's hardware address
@@ -223,7 +225,7 @@ static void addArpCache(kernelNetworkDevice *adapter,
 
 	//kernelTextPrint("Added ARP address ");
 	//printAddress((networkAddress *) &adapter->arpCache[0].logicalAddress,
-	//	NETWORK_ADDRLENGTH_IP, 0);
+	//	NETWORK_ADDRLENGTH_IPV4, 0);
 	//kernelTextPrint(" = ");
 	//printAddress((networkAddress *) &adapter->arpCache[0].physicalAddress,
 	//	NETWORK_ADDRLENGTH_ETHERNET, 1);
@@ -271,7 +273,7 @@ static void receiveArp(kernelNetworkDevice *adapter,
 	// If this isn't for me, ignore it.
 	if (!networkAddressesEqual(&adapter->device.hostAddress,
 		(networkAddress *) &arpPacket->destLogicalAddress,
-			NETWORK_ADDRLENGTH_IP))
+			NETWORK_ADDRLENGTH_IPV4))
 	{
 		return;
 	}
@@ -412,24 +414,24 @@ static void networkInterrupt(void)
 			adapter = dev->data;
 			ops = dev->driver->ops;
 
-			// Try to get a lock, though it might fail since we are are inside
-			// an interrupt
-			kernelLockGet(&adapter->adapterLock);
-
 			if (ops->driverInterruptHandler)
-				// Call the driver routine.
-				ops->driverInterruptHandler(adapter);
-
-			if (adapter->device.recvQueued)
 			{
-				// Read the data from all queued packets
-				while (adapter->device.recvQueued)
-					readData(dev);
+				// Try to get a lock, though it might fail since we are are
+				// inside an interrupt
+				kernelLockGet(&adapter->adapterLock);
 
-				serviced = 1;
+				// Call the driver routine.
+				if (ops->driverInterruptHandler(adapter) >= 0)
+				{
+					// Read the data from all queued packets
+					while (adapter->device.recvQueued)
+						readData(dev);
+
+					serviced = 1;
+				}
+
+				kernelLockRelease(&adapter->adapterLock);
 			}
-
-			kernelLockRelease(&adapter->adapterLock);
 		}
 	}
 
@@ -438,10 +440,24 @@ static void networkInterrupt(void)
 
 	kernelInterruptClearCurrent();
 
-	if (!serviced && oldIntHandlers[interruptNum])
-		// We didn't service this interrupt, and we're sharing this PCI
-		// interrupt with another device whose handler we saved.  Call it.
-		processorIsrCall(oldIntHandlers[interruptNum]);
+	if (!serviced)
+	{
+		if (oldIntHandlers[interruptNum])
+		{
+			// We didn't service this interrupt, and we're sharing this PCI
+			// interrupt with another device whose handler we saved.  Call it.
+			kernelDebug(debug_net, "NETDEV interrupt not serviced - chaining");
+			processorIsrCall(oldIntHandlers[interruptNum]);
+		}
+		else
+		{
+			// We'd better acknowledge the interrupt, or else it wouldn't be
+			// cleared, and our controllers using this vector wouldn't receive
+			// any more.
+			kernelDebugError("Interrupt not serviced and no saved ISR");
+			kernelPicEndOfInterrupt(interruptNum);
+		}
+	}
 
 out:
 	processorIsrExit(address);

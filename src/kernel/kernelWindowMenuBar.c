@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -37,17 +37,34 @@ static int (*saveMenuKeyEvent)(kernelWindow *, kernelWindowComponent *,
 extern kernelWindowVariables *windowVariables;
 
 
+static inline int maxWidth(kernelWindow *window,
+	kernelWindowComponent *component)
+{
+	// Calculate the maximum width of the menu bar
+
+	int width = 0;
+
+	width = (window->buffer.width - component->xCoord);
+	if (window->flags & WINFLAG_HASBORDER)
+		width -= windowVariables->border.thickness;
+
+	return (width);
+}
+
+
 static inline int menuTitleWidth(kernelWindowComponent *component, int num)
 {
 	kernelWindowMenuBar *menuBar = component->data;
 	kernelFont *font = (kernelFont *) component->params.font;
 	kernelWindow *menu = menuBar->menu[num];
 
-	int width = (windowVariables->border.thickness * 2);
+	int width = (windowVariables->border.thickness * 4);
 
 	if (font)
+	{
 		width += kernelFontGetPrintedWidth(font, (char *) component->charSet,
 			(char *) menu->title);
+	}
 
 	return (width);
 }
@@ -57,7 +74,7 @@ static inline int menuTitleHeight(kernelWindowComponent *component)
 {
 	kernelFont *font = (kernelFont *) component->params.font;
 
-	int height = (windowVariables->border.thickness * 2);
+	int height = (windowVariables->border.thickness * 4);
 
 	if (font)
 		height += font->glyphHeight;
@@ -73,9 +90,8 @@ static void changedVisible(kernelWindowComponent *component)
 	if (component->draw)
 		component->draw(component);
 
-	component->window
-		->update(component->window, component->xCoord, component->yCoord,
-			component->width, component->height);
+	component->window->update(component->window, component->xCoord,
+		component->yCoord, component->width, component->height);
 }
 
 
@@ -280,9 +296,11 @@ static int flatten(kernelWindowComponent *component,
 	kernelWindowMenuBar *menuBar = component->data;
 
 	if (menuBar->container->flatten)
+	{
 		// Flatten our container
 		status = menuBar->container->flatten(menuBar->container, array,
 			numItems, flags);
+	}
 
 	return (status);
 }
@@ -294,7 +312,7 @@ static int layout(kernelWindowComponent *component)
 
 	int status = 0;
 	kernelWindowMenuBar *menuBar = component->data;
-	int width = 0;
+	int minWidth = 0;
 	kernelWindowContainer *container = menuBar->container->data;
 	int xCoord = 0;
 	int count;
@@ -305,12 +323,14 @@ static int layout(kernelWindowComponent *component)
 	for (count = 0; count < menuBar->numMenus; count ++)
 	{
 		if (count)
+		{
 			menuBar->menuXCoord[count] = (menuBar->menuXCoord[count - 1] +
 				menuBar->menuTitleWidth[count - 1]);
+		}
 
 		menuBar->menuTitleWidth[count] = menuTitleWidth(component, count);
 
-		width += menuBar->menuTitleWidth[count];
+		minWidth += menuBar->menuTitleWidth[count];
 	}
 
 	// Now lay out our container
@@ -332,8 +352,9 @@ static int layout(kernelWindowComponent *component)
 	if (menuBar->container->layout)
 		menuBar->container->layout(menuBar->container);
 
-	width += menuBar->container->width;
-	xCoord = (component->window->buffer.width - menuBar->container->width);
+	minWidth += menuBar->container->width;
+	xCoord = ((maxWidth(component->window, component) -
+		menuBar->container->width) - 1);
 
 	if (menuBar->container->xCoord != xCoord)
 	{
@@ -344,8 +365,8 @@ static int layout(kernelWindowComponent *component)
 	menuBar->container->xCoord = xCoord;
 	menuBar->container->yCoord = 0;
 
-	component->width = component->window->buffer.width;
-	component->minWidth = width;
+	component->width = maxWidth(component->window, component);
+	component->minWidth = minWidth;
 
 	component->doneLayout = 1;
 
@@ -407,6 +428,7 @@ static int draw(kernelWindowComponent *component)
 	int status = 0;
 	kernelWindowMenuBar *menuBar = component->data;
 	kernelWindowContainer *container = menuBar->container->data;
+	kernelFont *font = (kernelFont *) component->params.font;
 	kernelWindow *menu = NULL;
 	int xCoord = 0, titleWidth = 0, titleHeight = 0;
 	int count;
@@ -414,6 +436,9 @@ static int draw(kernelWindowComponent *component)
 	kernelDebug(debug_gui, "WindowMenuBar draw '%s' menu bar",
 		component->window->title);
 
+	// Menu titles can change without our knowledge, and we don't re-layout
+	// every time a new element gets added (maybe we should, but we'd still
+	// have the titles problem) so we do layout every time we draw.
 	layout(component);
 
 	// Draw the background of the menu bar
@@ -442,16 +467,15 @@ static int draw(kernelWindowComponent *component)
 				border_all);
 		}
 
-		if (component->params.font)
+		if (font)
 		{
 			kernelGraphicDrawText(component->buffer,
 				(color *) &component->params.foreground,
 				(color *) &component->params.background,
-				(kernelFont *) component->params.font,
-				(char *) component->charSet, (char *) menu->title, draw_normal,
-				(component->xCoord + xCoord +
-					windowVariables->border.thickness),
-				(component->yCoord + windowVariables->border.thickness));
+				font, (char *) component->charSet, (char *) menu->title,
+				draw_normal, (component->xCoord + xCoord +
+					(windowVariables->border.thickness * 2)),
+				(component->yCoord + (windowVariables->border.thickness * 2)));
 		}
 	}
 
@@ -504,7 +528,8 @@ static int resize(kernelWindowComponent *component,
 		"width %d, height %d", component->width, component->height,
 		width, height);
 
-	xCoord = (component->window->buffer.width - menuBar->container->width);
+	xCoord = ((maxWidth(component->window, component) -
+		menuBar->container->width) - 1);
 
 	if (menuBar->container->move)
 		menuBar->container->move(menuBar->container, xCoord, 0);
@@ -702,11 +727,9 @@ kernelWindowComponent *kernelWindowNewMenuBar(kernelWindow *window,
 
 	component->data = (void *) menuBar;
 
-	component->width = window->buffer.width;
-	component->height = (windowVariables->border.thickness * 2);
-	if (component->params.font)
-		component->height += ((kernelFont *)
-			component->params.font)->glyphHeight;
+	component->width = maxWidth(window, component);
+	component->height = menuTitleHeight(component);
+
 	component->minWidth = component->width;
 	component->minHeight = component->height;
 

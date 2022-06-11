@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2016 J. Andrew McLaughlin
+# Copyright (C) 1998-2017 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libwindow.po\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-10-02 01:08+0100\n"
+"POT-Creation-Date: 2017-05-29 02:02+0100\n"
 "PO-Revision-Date: 2014-07-25 16:48+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -49,8 +49,8 @@ msgid "OK"
 msgstr "ОК"
 
 #: windowColorDialog.c:278 windowFileDialog.c:229 windowLanguageDialog.c:209
-#: windowNumberDialog.c:172 windowProgressDialog.c:260
-#: windowPromptDialog.c:145 windowQueryDialog.c:57 windowRadioDialog.c:169
+#: windowNumberDialog.c:172 windowProgressDialog.c:260 windowPromptDialog.c:145
+#: windowQueryDialog.c:57 windowRadioDialog.c:169
 msgid "Cancel"
 msgstr "Отмена"
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,10 +22,10 @@
 // This file contains loader functions for dealing with ELF format executables
 // and object files.
 
-#include "kernelLoader.h"
 #include "kernelLoaderElf.h"
 #include "kernelDebug.h"
 #include "kernelError.h"
+#include "kernelLoader.h"
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
 #include "kernelMultitasker.h"
@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/elf.h>
 
 
 static Elf32SectionHeader *getSectionHeader(void *data, const char *name)
@@ -240,7 +241,7 @@ static loaderSymbolTable *getSymbols(void *data, int kernel)
 		symTable->symbols[count - 1].name =
 			(char *)((int) symTableData + symbols[count].st_name);
 		symTable->symbols[count - 1].defined = symbols[count].st_shndx;
-		symTable->symbols[count - 1].value = symbols[count].st_value;
+		symTable->symbols[count - 1].value = (void *) symbols[count].st_value;
 		symTable->symbols[count - 1].size = (unsigned) symbols[count].st_size;
 
 		if (ELF32_ST_BIND(symbols[count].st_info) == ELFSTB_LOCAL)
@@ -284,7 +285,7 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
 
 	kernelDebug(debug_loader, "ELF program load address=%p", loadAddress);
 
-	execImage->entryPoint = header->e_entry;
+	execImage->entryPoint = (void *) header->e_entry;
 
 	kernelDebug(debug_loader, "ELF program entry point=%p",
 		execImage->entryPoint);
@@ -314,7 +315,8 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
 					return (status = ERR_INVALID);
 				}
 
-				execImage->virtualAddress = programHeader[count].p_vaddr;
+				execImage->virtualAddress = (void *)
+					programHeader[count].p_vaddr;
 
 				if (execImage->virtualAddress >=
 					(void *) KERNEL_VIRTUAL_ADDRESS)
@@ -379,14 +381,16 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
 		if (programHeader[count].p_type == ELFPT_LOAD)
 		{
 			void *srcAddr = (loadAddress + programHeader[count].p_offset);
-			void *destAddr = (imageMemory + (programHeader[count].p_vaddr -
-				execImage->virtualAddress));
+			void *destAddr = (imageMemory +
+				((void *) programHeader[count].p_vaddr -
+					execImage->virtualAddress));
 
 			kernelDebug(debug_loader, "ELF srcAddr=%p+0x%08x", loadAddress,
 				programHeader[count].p_offset);
 			kernelDebug(debug_loader, "ELF destAddr=%p+(%p-%p=0x%08x)",
-				imageMemory, programHeader[count].p_vaddr,
-				execImage->virtualAddress, (programHeader[count].p_vaddr -
+				imageMemory, (void *) programHeader[count].p_vaddr,
+				execImage->virtualAddress,
+				((void *) programHeader[count].p_vaddr -
 					execImage->virtualAddress));
 			kernelDebug(debug_loader, "ELF copy segment from %p->%p size %u "
 				"(%x)", srcAddr, destAddr, programHeader[count].p_filesz,
@@ -949,7 +953,7 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
 	int status = 0;
 	unsigned dataOffset = 0;
 	void *dataMem = NULL;
-	unsigned libraryDataPhysical = NULL;
+	unsigned libraryDataPhysical = 0;
 
 	kernelDebug(debug_loader, "ELF pull in library %s", library->name);
 

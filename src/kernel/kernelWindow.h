@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,6 +25,7 @@
 
 #include "kernelCharset.h"
 #include "kernelGraphic.h"
+#include "kernelLinkedList.h"
 #include "kernelMouse.h"
 #include "kernelText.h"
 #include "kernelVariableList.h"
@@ -345,6 +346,7 @@ typedef volatile struct {
 typedef volatile struct {
 	char *text;
 	int numItems;
+	int itemHeight;
 	int selectedItem;
 
 } kernelWindowRadioButton;
@@ -646,7 +648,7 @@ int kernelWindowRefresh(void);
 
 // Window shell functions
 int kernelWindowShell(const char *);
-void kernelWindowShellUpdateList(kernelWindow *[], int);
+void kernelWindowShellUpdateList(kernelLinkedList *);
 void kernelWindowShellRefresh(void);
 int kernelWindowShellTileBackground(const char *);
 int kernelWindowShellCenterBackground(const char *);

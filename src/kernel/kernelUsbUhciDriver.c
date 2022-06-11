@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -317,7 +317,8 @@ static int allocTransDescs(unsigned numDescs, unsigned *physical,
 
 	memSize = (numDescs * sizeof(uhciTransDesc));
 
-	status = kernelMemoryGetIo(memSize, MEMORY_PAGE_SIZE, &ioMem);
+	status = kernelMemoryGetIo(memSize, MEMORY_PAGE_SIZE,
+		0 /* not low memory */, "uhci tds", &ioMem);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Unable to get transfer descriptor memory");
@@ -943,7 +944,7 @@ static int allocUhciMemory(usbController *controller)
 	// the register.
 
 	status = kernelMemoryGetIo(UHCI_FRAMELIST_MEMSIZE, MEMORY_PAGE_SIZE,
-		&uhci->frameList);
+		0 /* not low memory */, "uhci framelist", &uhci->frameList);
 	if (status < 0)
 		goto err_out;
 
@@ -955,7 +956,7 @@ static int allocUhciMemory(usbController *controller)
 	// Allocate an array of UHCI_NUM_QUEUEHEADS queue heads, page-aligned.
 
 	status = kernelMemoryGetIo(UHCI_QUEUEHEADS_MEMSIZE, MEMORY_PAGE_SIZE,
-		&ioMem);
+		0 /* not low memory */, "uhci qhs", &ioMem);
 	if (status < 0)
 		goto err_out;
 
@@ -1390,7 +1391,7 @@ static int queue(usbController *controller, usbDevice *usbDev,
 
 				dataDesc = &descs[descCount++];
 
-				// Point the data descriptor's buffer to the relevent portion
+				// Point the data descriptor's buffer to the relevant portion
 				// of the transaction buffer
 				dataDesc->buffVirtual = buffer;
 				dataDesc->buffer =

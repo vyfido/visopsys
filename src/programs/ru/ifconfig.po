@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2016 J. Andrew McLaughlin
+# Copyright (C) 1998-2017 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ifconfig\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-06-30 02:02+0100\n"
+"POT-Creation-Date: 2017-05-29 02:02+0100\n"
 "PO-Revision-Date: 2015-05-08 02:14+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -18,52 +18,52 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
-#: ifconfig.c:54
+#: ifconfig.c:67
 msgid "Network Devices"
 msgstr "Сетевые устройства"
 
-#: ifconfig.c:55
+#: ifconfig.c:68
 msgid "Enabled at startup"
 msgstr "Включить при запуске"
 
-#: ifconfig.c:56
+#: ifconfig.c:69
 msgid "Host name"
 msgstr "Имя хоста"
 
-#: ifconfig.c:57
+#: ifconfig.c:70
 msgid "Domain name"
 msgstr "Доменное имя"
 
-#: ifconfig.c:58
+#: ifconfig.c:71
 msgid "OK"
 msgstr "ОК"
 
-#: ifconfig.c:59
+#: ifconfig.c:72
 msgid "Cancel"
 msgstr "Отмена"
 
-#: ifconfig.c:60
+#: ifconfig.c:73
 msgid "No supported network devices."
 msgstr "Нет поддерживаемых сетевых устройств"
 
-#: ifconfig.c:93
+#: ifconfig.c:106
 msgid "Error"
 msgstr "Ошибка"
 
-#: ifconfig.c:108
+#: ifconfig.c:121
 #, c-format
 msgid "Can't get info for device %s"
 msgstr "Не могу получить информацию об устройстве %s"
 
-#: ifconfig.c:115
+#: ifconfig.c:128
 msgid "Ethernet"
 msgstr "Ethernet"
 
-#: ifconfig.c:118
+#: ifconfig.c:131
 msgid "Unknown"
 msgstr "Неизвестно"
 
-#: ifconfig.c:123
+#: ifconfig.c:136
 #, c-format
 msgid ""
 "%s   Link encap:%s  HWaddr %02x:%02x:%02x:%02x:%02x:%02x\n"
@@ -73,64 +73,64 @@ msgid ""
 "       %s, %s collisions:%u txqueuelen:%u Interrupt:%d"
 msgstr ""
 
-#: ifconfig.c:142
+#: ifconfig.c:155
 msgid "LINK"
 msgstr "LINK"
 
-#: ifconfig.c:142
+#: ifconfig.c:155
 msgid "NOLINK"
 msgstr "NOLINK"
 
-#: ifconfig.c:143
+#: ifconfig.c:156
 msgid "UP"
 msgstr "UP"
 
-#: ifconfig.c:143
+#: ifconfig.c:156
 msgid "DOWN"
 msgstr "DOWN"
 
-#: ifconfig.c:201
+#: ifconfig.c:216
 #, c-format
 msgid "Networking is %s"
 msgstr "Сеть %s"
 
-#: ifconfig.c:202
+#: ifconfig.c:217
 msgid "enabled"
 msgstr "включено"
 
-#: ifconfig.c:202
+#: ifconfig.c:217
 msgid "disabled"
 msgstr "отключено"
 
-#: ifconfig.c:205
+#: ifconfig.c:220
 msgid "Disable"
 msgstr "Отключить"
 
-#: ifconfig.c:205 ifconfig.c:432
+#: ifconfig.c:220 ifconfig.c:451
 msgid "Enable"
 msgstr "Включить"
 
-#: ifconfig.c:342
+#: ifconfig.c:361
 msgid "Shutting down networking"
 msgstr "Остановка сети"
 
-#: ifconfig.c:343
+#: ifconfig.c:362
 msgid "Initializing networking"
 msgstr "Инициализайия сети"
 
-#: ifconfig.c:343
+#: ifconfig.c:362
 msgid "One moment please..."
 msgstr "Один момент..."
 
-#: ifconfig.c:427
+#: ifconfig.c:446
 msgid "Networking is disabled"
 msgstr "Сеть отключена"
 
-#: ifconfig.c:587
+#: ifconfig.c:617
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ifconfig.c:595
+#: ifconfig.c:625
 msgid "Can't get the count of network devices"
 msgstr "Не могу получить кол-во сетевых устройств"

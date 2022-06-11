@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -102,8 +102,10 @@ static int layout(kernelWindowComponent *containerComponent)
 	{
 		// Resize the title bar
 		if (window->titleBar->resize)
+		{
 			window->titleBar->resize(window->titleBar, clientAreaWidth,
 				window->titleBar->height);
+		}
 
 		window->titleBar->width = clientAreaWidth;
 
@@ -131,8 +133,10 @@ static int layout(kernelWindowComponent *containerComponent)
 
 		// Resize the menu bar
 		if (window->menuBar->resize)
+		{
 			window->menuBar->resize(window->menuBar, clientAreaWidth,
 				window->menuBar->height);
+		}
 
 		window->menuBar->width = clientAreaWidth;
 

@@ -1,6 +1,6 @@
 #
 # Visopsys
-# Copyright (C) 1998-2016 J. Andrew McLaughlin
+# Copyright (C) 1998-2017 J. Andrew McLaughlin
 #
 # Russian translation by Liss <liss8608@list.ru>
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: install\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-10-02 00:44+0100\n"
+"POT-Creation-Date: 2017-05-29 02:02+0100\n"
 "PO-Revision-Date: 2015-05-08 02:03+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
@@ -26,10 +26,10 @@ msgstr "Установка"
 #, fuzzy
 msgid ""
 "Visopsys Installer\n"
-"Copyright (C) 1998-2016 J. Andrew McLaughlin"
+"Copyright (C) 1998-2017 J. Andrew McLaughlin"
 msgstr ""
 "Visopsys Installer\n"
-"Copyright (C) 1998-2016 J. Andrew McLaughlin"
+"Copyright (C) 1998-2017 J. Andrew McLaughlin"
 
 #: install.c:66
 #, c-format
@@ -119,15 +119,15 @@ msgstr "Ошибка распределения памятти."
 msgid "Unable to get disk information."
 msgstr "Невозможно получить информацию о диске."
 
-#: install.c:321
+#: install.c:326
 msgid "Can't create window!"
 msgstr "Не могу создать окно!"
 
-#: install.c:421
+#: install.c:430
 msgid "Confirmation"
 msgstr "Подтверждение"
 
-#: install.c:425
+#: install.c:435
 #, c-format
 msgid ""
 "\n"
@@ -136,60 +136,60 @@ msgstr ""
 "\n"
 "%s (y/n): "
 
-#: install.c:434
+#: install.c:444
 msgid "Yes\n"
 msgstr "Да\n"
 
-#: install.c:440
+#: install.c:450
 msgid "No\n"
 msgstr "Нет\n"
 
-#: install.c:487
+#: install.c:499
 msgid "Choose Installation Disk"
 msgstr "Выберите диск для установки"
 
-#: install.c:502 install.c:1001
+#: install.c:514 install.c:1026
 msgid "OK"
 msgstr "ОК"
 
-#: install.c:513 install.c:1007
+#: install.c:525 install.c:1032
 msgid "Cancel"
 msgstr "Отмена"
 
-#: install.c:645
+#: install.c:662
 #, c-format
 msgid "Can't open source file \"%s\""
 msgstr "Не могу открыть исходный файл \"%s\""
 
-#: install.c:666 install.c:682
+#: install.c:683 install.c:699
 msgid "Default"
 msgstr "По умолчанию"
 
-#: install.c:666
+#: install.c:683
 msgid "FAT12"
 msgstr ""
 
-#: install.c:666
+#: install.c:683
 msgid "FAT16"
 msgstr ""
 
-#: install.c:666
+#: install.c:683
 msgid "FAT32"
 msgstr ""
 
-#: install.c:671
+#: install.c:688
 msgid "Choose Filesystem Type"
 msgstr "Выберите тип файловой системы"
 
-#: install.c:671
+#: install.c:688
 msgid "Supported types:"
 msgstr "Поддерживаемые типы:"
 
-#: install.c:675
+#: install.c:692
 msgid "Choose the filesystem type:"
 msgstr "Выберите тип ФС:"
 
-#: install.c:736
+#: install.c:758
 #, c-format
 msgid ""
 "The disk is mounted as %s.  It must be unmounted\n"
@@ -198,105 +198,105 @@ msgstr ""
 "Диск подключен как %s.  Он должен быть отключен\n"
 "перед тем как продолжить.  Отключить?"
 
-#: install.c:747
+#: install.c:768
 #, c-format
 msgid "Unable to unmount %s"
 msgstr "Невозможно отключить %s"
 
-#: install.c:764
+#: install.c:785
 msgid "Copying boot sector...  "
 msgstr "Копирование загрузочного сектора... "
 
-#: install.c:771
+#: install.c:792
 #, c-format
 msgid "Unable to determine the filesystem type on disk \"%s\""
 msgstr "Невозможно определить тип ФС на диске \"%s\""
 
-#: install.c:779
+#: install.c:800
 #, c-format
 msgid "Can't install a boot sector for filesystem type \"%s\""
 msgstr "Не могу установить загрузочный сектор для ФС \"%s\""
 
-#: install.c:792
+#: install.c:813
 #, c-format
 msgid "Unable to find the boot sector file \"%s\""
 msgstr "Невозможно найти файл загрузочного сектора \"%s\""
 
-#: install.c:806
+#: install.c:828
 #, c-format
 msgid "Error %d copying boot sector \"%s\" to disk %s"
 msgstr "Ошибка  %d копирования загрузочного сектора \"%s\" to disk %s"
 
-#: install.c:811 install.c:923 install.c:1352 install.c:1366 install.c:1437
+#: install.c:833 install.c:948 install.c:1388 install.c:1402 install.c:1473
 msgid "Done\n"
 msgstr "Готово\n"
 
-#: install.c:840
+#: install.c:862
 #, c-format
 msgid "Can't open install file \"%s\""
 msgstr "Не могу открыть файл установки \"%s\""
 
-#: install.c:844
+#: install.c:866
 #, c-format
 msgid "Copying %s files...  "
 msgstr "Копирование %s файлов...  "
 
-#: install.c:845
+#: install.c:867
 #, fuzzy
 msgid "basic"
 msgstr "Базовая"
 
-#: install.c:845
+#: install.c:867
 msgid "extra"
 msgstr ""
 
-#: install.c:874
+#: install.c:899
 #, c-format
 msgid "Missing file \"%s\""
 msgstr "Не найден файл \"%s\""
 
-#: install.c:949
+#: install.c:974
 msgid "Set Administrator Password"
 msgstr "Назначить пароль администратор"
 
-#: install.c:965
+#: install.c:990
 msgid "New password:"
 msgstr "Новый пароль:"
 
-#: install.c:978
+#: install.c:1003
 msgid "Confirm password:"
 msgstr "Подтвердите пароль:"
 
-#: install.c:990 install.c:1093
+#: install.c:1015 install.c:1119
 msgid "Passwords do not match"
 msgstr "Пароли не совпадают"
 
-#: install.c:1021 install.c:1036
+#: install.c:1046 install.c:1061
 msgid "No password set.  It will be blank."
 msgstr "Пароль не назначен. Он будет пустым."
 
-#: install.c:1086
+#: install.c:1112
 msgid "New password: "
 msgstr "Новый пароль:"
 
-#: install.c:1087
+#: install.c:1113
 msgid "Confirm password: "
 msgstr "Подтвердите пароль: "
 
-#: install.c:1115
+#: install.c:1143
 msgid "Unable to create the password file"
 msgstr "Невозможно создать файл паролей"
 
-#: install.c:1123
+#: install.c:1151
 msgid "Unable to set the \"admin\" password"
 msgstr "Невозможно назначить пароль для \"admin\""
 
-#: install.c:1172
+#: install.c:1200
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: install.c:1178
+#: install.c:1207
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")."
@@ -304,11 +304,11 @@ msgstr ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
 
-#: install.c:1185
+#: install.c:1215
 msgid "Can't determine the root disk."
 msgstr "Не могу определить корневой диск."
 
-#: install.c:1238
+#: install.c:1269
 #, c-format
 msgid ""
 "Disk %s is too small (%dK) to install Visopsys\n"
@@ -317,67 +317,67 @@ msgstr ""
 "Диск %s слишком мал (%dK) для установки Visopsys\n"
 "(%dK необходимо)"
 
-#: install.c:1286
+#: install.c:1319
 msgid "Please choose the install type:"
 msgstr "Выберите тип установки:"
 
-#: install.c:1287
+#: install.c:1320
 msgid "Basic"
 msgstr "Базовая"
 
-#: install.c:1287
+#: install.c:1320
 msgid "Full"
 msgstr "Полная"
 
-#: install.c:1303
+#: install.c:1337
 #, c-format
 msgid "Installing on disk %s.  Are you SURE?"
 msgstr "Устанавливаем на диск %s.  Уверены?"
 
-#: install.c:1323
+#: install.c:1359
 msgid "Formatting... "
 msgstr "Форматирование..."
 
-#: install.c:1327
+#: install.c:1363
 msgid "Formatting..."
 msgstr "Форматирование..."
 
-#: install.c:1332
+#: install.c:1368
 #, fuzzy
 msgid ""
 "\n"
 "Formatting...\n"
 msgstr "Форматирование..."
 
-#: install.c:1345
+#: install.c:1381
 msgid "Errors during format."
 msgstr "Ошибки в процессе форматирования."
 
-#: install.c:1350
+#: install.c:1386
 msgid "Error rescanning disk after format."
 msgstr "Ошибка сканирования диска после форматирования."
 
-#: install.c:1359
+#: install.c:1395
 msgid "Couldn't copy the boot sector."
 msgstr "Не могу скопировать загрузочный сектор."
 
-#: install.c:1362
+#: install.c:1398
 msgid "Mounting target disk...  "
 msgstr "Подключение целевого диска...  "
 
-#: install.c:1365
+#: install.c:1401
 msgid "Unable to mount the target disk."
 msgstr "Невозможно подключить целевой диск."
 
-#: install.c:1371
+#: install.c:1407
 msgid "Error rescanning disk after mount."
 msgstr "Ошибка сканирования диска после подключения."
 
-#: install.c:1380 install.c:1396 install.c:1436
+#: install.c:1416 install.c:1432 install.c:1472
 msgid "Unable to unmount the target disk."
 msgstr "Невозможно отключить целевой диск."
 
-#: install.c:1382
+#: install.c:1418
 #, c-format
 msgid ""
 "The filesystem on disk %s is too small (%lluK) for\n"
@@ -386,7 +386,7 @@ msgstr ""
 "ФС на диске %s крайне мала (%lluK) для\n"
 "выбранной установки Visopsys (%uK необходимо)."
 
-#: install.c:1389
+#: install.c:1425
 #, c-format
 msgid ""
 "There MAY not be enough free space on disk %s (%lluK) for the\n"
@@ -395,7 +395,7 @@ msgstr ""
 "Возможная нехватка места на диске %s (%lluK) для\n"
 "выбранной установки Visopsys (%uK необходимо).  Продолжить?"
 
-#: install.c:1405
+#: install.c:1441
 msgid ""
 "\n"
 "Installing...\n"
@@ -403,14 +403,14 @@ msgstr ""
 "\n"
 "Устанавливаем...\n"
 
-#: install.c:1434
+#: install.c:1470
 msgid "Unmounting target disk...  "
 msgstr "Отключение целевого диска... "
 
-#: install.c:1442
+#: install.c:1478
 msgid "Unable to copy files."
 msgstr "Невозможно скопировать файлы."
 
-#: install.c:1450
+#: install.c:1486
 msgid "Installation successful."
 msgstr "Установка успешно завершена."

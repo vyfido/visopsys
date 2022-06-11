@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,7 +34,7 @@ Usage:
 (Only available in graphics mode)
 
 Options:
--T              : Force text mode operation
+-T  : Force text mode operation
 
 </help>
 */
@@ -531,9 +531,8 @@ static int saveFile(void)
 		}
 
 		// Open the file (truncate if necessary)
-		status = fileStreamOpen(editFileName,
-			(OPENMODE_CREATE | OPENMODE_TRUNCATE | OPENMODE_READWRITE),
-			&tmpFileStream);
+		status = fileStreamOpen(editFileName, (OPENMODE_CREATE |
+			OPENMODE_TRUNCATE | OPENMODE_READWRITE), &tmpFileStream);
 		if (status < 0)
 			return (status);
 

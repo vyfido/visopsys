@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -71,8 +71,7 @@ static volatile struct {
 	kernelLinkedList menuBarCompsList;
 	kernelWindowComponent **icons;
 	int numIcons;
-	kernelWindow **windowList;
-	int numberWindows;
+	kernelLinkedList *windowList;
 	int refresh;
 
 } shellData;
@@ -123,8 +122,6 @@ static void menuEvent(kernelWindowComponent *component, windowEvent *event)
 				&shellData.menuItemsList, &iter);
 		}
 	}
-
-	return;
 }
 
 
@@ -135,7 +132,9 @@ static void iconEvent(kernelWindowComponent *component, windowEvent *event)
 	static int dragging = 0;
 
 	if (event->type & EVENT_MOUSE_DRAG)
+	{
 		dragging = 1;
+	}
 
 	else if (event->type & EVENT_MOUSE_LEFTUP)
 	{
@@ -160,8 +159,6 @@ static void iconEvent(kernelWindowComponent *component, windowEvent *event)
 			kernelError(kernel_error, "Unable to execute program %s",
 				iconComponent->command);
 	}
-
-	return;
 }
 
 
@@ -420,9 +417,10 @@ static int makeIcons(variableList *settings)
 	params.padLeft = 5;
 	params.padRight = 5;
 	params.padTop = 5;
-	params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
-		WINDOW_COMPFLAG_CUSTOMBACKGROUND | WINDOW_COMPFLAG_CANFOCUS |
-		WINDOW_COMPFLAG_FIXEDWIDTH | WINDOW_COMPFLAG_FIXEDHEIGHT);
+	params.flags = (WINDOW_COMPFLAG_CANDRAG |
+		WINDOW_COMPFLAG_CUSTOMFOREGROUND | WINDOW_COMPFLAG_CUSTOMBACKGROUND |
+		WINDOW_COMPFLAG_CANFOCUS | WINDOW_COMPFLAG_FIXEDWIDTH |
+		WINDOW_COMPFLAG_FIXEDHEIGHT);
 	memcpy(&params.foreground, &COLOR_WHITE, sizeof(color));
 	memcpy(&params.background, &windowVariables->color.desktop, sizeof(color));
 	params.orientationX = orient_center;
@@ -633,8 +631,6 @@ static void runPrograms(void)
 		kernelLoaderLoadAndExec(PATH_PROGRAMS "/keyboard -i",
 			shellData.privilege, 0);
 	}
-
-	return;
 }
 
 
@@ -648,7 +644,6 @@ static void scanMenuItemEvents(kernelLinkedList *list)
 	windowEvent event;
 
 	itemData = kernelLinkedListIterStart(list, &iter);
-
 	while (itemData)
 	{
 		component = itemData->itemComponent;
@@ -690,8 +685,6 @@ static void scanContainerEvents(kernelWindowContainer *container)
 		if (component->type == containerComponentType)
 			scanContainerEvents(component->data);
 	}
-
-	return;
 }
 
 
@@ -721,6 +714,7 @@ static void destroy(void)
 	{
 		kernelWindowComponentDestroy(itemData->itemComponent);
 		kernelFree(itemData);
+
 		itemData = kernelLinkedListIterNext((kernelLinkedList *)
 			&shellData.menuItemsList, &iter);
 	}
@@ -736,6 +730,7 @@ static void destroy(void)
 	{
 		kernelWindowComponentDestroy(itemData->itemComponent);
 		kernelFree(itemData);
+
 		itemData = kernelLinkedListIterNext((kernelLinkedList *)
 			&shellData.winMenuItemsList, &iter);
 	}
@@ -765,7 +760,8 @@ static void refresh(void)
 
 	variableList settings;
 	windowEvent event;
-	int count;
+	kernelWindow *listWindow = NULL;
+	kernelLinkedListItem *iter = NULL;
 
 	kernelDebug(debug_gui, "WindowShell refresh");
 
@@ -818,16 +814,20 @@ static void refresh(void)
 		memset(&event, 0, sizeof(windowEvent));
 		event.type = EVENT_WINDOW_REFRESH;
 
-		for (count = 0; count < shellData.numberWindows; count ++)
-			kernelWindowEventStreamWrite(
-				&shellData.windowList[count]->events, &event);
+		listWindow = kernelLinkedListIterStart(shellData.windowList, &iter);
+		while (listWindow)
+		{
+			kernelWindowEventStreamWrite(&listWindow->events, &event);
+
+			listWindow = kernelLinkedListIterNext(shellData.windowList, &iter);
+		}
 	}
 
 	// Let them update
 	kernelMultitaskerYield();
 
 	// Update the window menu
-	kernelWindowShellUpdateList(shellData.windowList, shellData.numberWindows);
+	kernelWindowShellUpdateList(shellData.windowList);
 
 	shellData.refresh = 0;
 }
@@ -922,8 +922,6 @@ static void windowMenuEvent(kernelWindowComponent *component,
 				&shellData.winMenuItemsList, &iter);
 		}
 	}
-
-	return;
 }
 
 
@@ -1004,7 +1002,7 @@ int kernelWindowShell(const char *user)
 }
 
 
-void kernelWindowShellUpdateList(kernelWindow *list[], int number)
+void kernelWindowShellUpdateList(kernelLinkedList *list)
 {
 	// When the list of open windows has changed, the window environment can
 	// call this function so we can update our taskbar.
@@ -1012,8 +1010,8 @@ void kernelWindowShellUpdateList(kernelWindow *list[], int number)
 	componentParameters params;
 	menuItemData *itemData = NULL;
 	kernelLinkedListItem *iter = NULL;
+	kernelWindow *listWindow = NULL;
 	process windowProcess;
-	int count;
 
 	// Check params
 	if (!list)
@@ -1026,7 +1024,6 @@ void kernelWindowShellUpdateList(kernelWindow *list[], int number)
 	kernelDebug(debug_gui, "WindowShell update window list");
 
 	shellData.windowList = list;
-	shellData.numberWindows = number;
 
 	if (shellData.windowMenu)
 	{
@@ -1052,63 +1049,65 @@ void kernelWindowShellUpdateList(kernelWindow *list[], int number)
 		memcpy(&params, (void *) &shellData.menuBar->params,
 			sizeof(componentParameters));
 
-		for (count = 0; count < shellData.numberWindows; count ++)
+		listWindow = kernelLinkedListIterStart(shellData.windowList, &iter);
+		while (listWindow)
 		{
 			// Skip windows we don't want to include
 
-			// Skip the root window
-			if (shellData.windowList[count] == shellData.rootWindow)
-				continue;
-
-			// Skip any temporary console window
-			if (!strcmp((char *) shellData.windowList[count]->title,
-				WINNAME_TEMPCONSOLE))
+			if (
+				// Skip the root window
+			 	(listWindow == shellData.rootWindow) ||
+				// Skip any temporary console window
+				!strcmp((char *) listWindow->title, WINNAME_TEMPCONSOLE) ||
+				// Skip any iconified windows
+				(listWindow->flags & WINFLAG_ICONIFIED) ||
+				// Skip child windows too
+				listWindow->parentWindow
+			)
 			{
+				listWindow = kernelLinkedListIterNext(shellData.windowList,
+					&iter);
 				continue;
 			}
-
-			// Skip any iconified windows
-			if (shellData.windowList[count]->flags & WINFLAG_ICONIFIED)
-				continue;
-
-			// Skip child windows too
-			if (shellData.windowList[count]->parentWindow)
-				continue;
 
 			itemData = kernelMalloc(sizeof(menuItemData));
 			if (!itemData)
 				return;
 
-			itemData->itemComponent = kernelWindowNewMenuItem(
-				shellData.windowMenu,
-				(char *) shellData.windowList[count]->title, &params);
-			itemData->window = shellData.windowList[count];
+			itemData->itemComponent =
+				kernelWindowNewMenuItem(shellData.windowMenu,
+					(char *) listWindow->title, &params);
+			itemData->window = listWindow;
 
 			kernelLinkedListAdd((kernelLinkedList *)
 				&shellData.winMenuItemsList, itemData);
 
 			kernelWindowRegisterEventHandler(itemData->itemComponent,
 				&windowMenuEvent);
+
+			listWindow = kernelLinkedListIterNext(shellData.windowList, &iter);
 		}
 	}
 
 	// If any windows' parent processes are no longer alive, make the window
 	// shell be its parent.
-	for (count = 0; count < shellData.numberWindows; count ++)
+	listWindow = kernelLinkedListIterStart(shellData.windowList, &iter);
+	while (listWindow)
 	{
-		if ((shellData.windowList[count] != shellData.rootWindow) &&
-			(kernelMultitaskerGetProcess(shellData.windowList[count]->
-				processId, &windowProcess) >= 0))
+		if ((listWindow != shellData.rootWindow) &&
+			(kernelMultitaskerGetProcess(listWindow->processId,
+				&windowProcess) >= 0))
 		{
 			if ((windowProcess.type != proc_thread) &&
 				!kernelMultitaskerProcessIsAlive(windowProcess.
 					parentProcessId))
 			{
-				kernelMultitaskerSetProcessParent(
-					shellData.windowList[count]->processId,
-						shellData.processId);
+				kernelMultitaskerSetProcessParent(listWindow->processId,
+					shellData.processId);
 			}
 		}
+
+		listWindow = kernelLinkedListIterNext(shellData.windowList, &iter);
 	}
 }
 
@@ -1353,7 +1352,7 @@ kernelWindowComponent *kernelWindowShellIconify(kernelWindow *window,
 	kernelWindowSetVisible(window, !iconify);
 
 	// Update the window menu
-	kernelWindowShellUpdateList(shellData.windowList, shellData.numberWindows);
+	kernelWindowShellUpdateList(shellData.windowList);
 
 	return (iconComponent);
 }

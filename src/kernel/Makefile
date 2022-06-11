@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2016 J. Andrew McLaughlin
+##  Copyright (C) 1998-2017 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -79,6 +79,7 @@ NAMES = kernelMain \
 	kernelMultitasker \
 	kernelNetwork \
 	kernelNetworkDevice \
+	kernelNetworkDhcp \
 	kernelNetworkStream \
 	kernelPage \
 	kernelPic \

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2016 J. Andrew McLaughlin
+//  Copyright (C) 1998-2017 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -33,6 +33,8 @@
 #include "kernelText.h"
 #include "kernelVariableList.h"
 #include <string.h>
+#include <time.h>
+#include <sys/osloader.h>
 #include <sys/processor.h>
 
 // This is the global 'errno' error status variable for the kernel
@@ -53,6 +55,14 @@ loaderInfoStruct *kernelOsLoaderInfo = &osLoaderInfo;
 static variableList variables;
 variableList *kernelVariables = &variables;
 
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+// Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 void kernelMain(unsigned kernelMemory, void *kernelStack,
 	unsigned kernelStackSize, loaderInfoStruct *info)
@@ -84,7 +94,7 @@ void kernelMain(unsigned kernelMemory, void *kernelStack,
 			kernelMultitaskerYield();
 
 		kernelTextPrint("Rebooting...");
-		kernelCpuSpinMs(1000); // Wait 1 second
+		kernelCpuSpinMs(MS_PER_SEC); // Wait 1 second
 		processorReboot();
 	}
 

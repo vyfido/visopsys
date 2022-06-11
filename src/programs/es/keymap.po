@@ -1,12 +1,12 @@
 # Visopsys
-# Copyright (C) 1998-2016 J. Andrew McLaughlin
+# Copyright (C) 1998-2017 J. Andrew McLaughlin
 #
 # Spanish Translation - 2013 - marianopbernacki@gmail.com
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2015-10-02 00:44+0100\n"
+"POT-Creation-Date: 2017-05-29 02:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -128,78 +128,73 @@ msgstr "Guardado"
 msgid "Map saved"
 msgstr "Mapa guardado"
 
-#: keymap.c:714
+#: keymap.c:715
 msgid "Select character"
 msgstr ""
 
-#: keymap.c:950
+#: keymap.c:957
 msgid "Change key settings"
 msgstr "Cambiar teclado"
 
-#: keymap.c:970
+#: keymap.c:981
 #, fuzzy, c-format
 msgid "Scan code: 0x%02x (%s)"
 msgstr "Codigo de hardware: %d (0x%02x)"
 
-#: keymap.c:979
+#: keymap.c:987
 msgid "Unicode"
 msgstr ""
 
-#: keymap.c:985
+#: keymap.c:995
 msgid "Normal"
 msgstr ""
 
-#: keymap.c:988
+#: keymap.c:998 keymap.c:1004
 #, fuzzy
 msgid "Shift"
 msgstr "Código para Shift:"
 
-#: keymap.c:991
+#: keymap.c:1001 keymap.c:1004
 msgid "AltGr"
 msgstr ""
 
-#: keymap.c:994
-#, fuzzy
-msgid "Shift-AltGr"
-msgstr "Código para Shift:"
-
-#: keymap.c:997
+#: keymap.c:1008
 msgid "Ctrl"
 msgstr ""
 
-#: keymap.c:1101
+#: keymap.c:1113
 msgid "OK"
 msgstr "OK"
 
-#: keymap.c:1106
+#: keymap.c:1118
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: keymap.c:1429
+#: keymap.c:1441
 msgid "1st row"
 msgstr ""
 
-#: keymap.c:1431
+#: keymap.c:1443
 msgid "2nd row"
 msgstr ""
 
-#: keymap.c:1433
+#: keymap.c:1445
 msgid "3rd row"
 msgstr ""
 
-#: keymap.c:1435
+#: keymap.c:1447
 msgid "4th row"
 msgstr ""
 
-#: keymap.c:1437
+#: keymap.c:1449
 msgid "5th row"
 msgstr ""
 
-#: keymap.c:1439
+#: keymap.c:1451
 msgid "6th row"
 msgstr ""
 
-#: keymap.c:1458
+#: keymap.c:1470
 #, c-format
 msgid ""
 "\n"
@@ -207,46 +202,50 @@ msgid ""
 "\n"
 msgstr ""
 
-#: keymap.c:1459
+#: keymap.c:1471
 #, fuzzy
 msgid "Regular map"
 msgstr "Codigo regular:"
 
-#: keymap.c:1461
+#: keymap.c:1473
 #, fuzzy
 msgid "Shift map"
 msgstr "Código para Shift:"
 
-#: keymap.c:1463
+#: keymap.c:1475
 msgid "Ctrl map"
 msgstr ""
 
-#: keymap.c:1465
+#: keymap.c:1477
 msgid "AltGr map"
 msgstr ""
 
-#: keymap.c:1467
+#: keymap.c:1479
 #, fuzzy
 msgid "Shift-AltGr map"
 msgstr "Código para Shift:"
 
-#: keymap.c:1503
+#: keymap.c:1515
 msgid "Missing filename argument for -s option\n"
 msgstr "Falta nombre de archivo para la opcion -s\n"
 
-#: keymap.c:1522
+#: keymap.c:1534
 #, c-format
 msgid "Missing parameter for %s option\n"
 msgstr "Falta un parametro para la opcion %s\n"
 
-#: keymap.c:1528
+#: keymap.c:1540
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr "Opcion desconocida '%c'\n"
 
-#: keymap.c:1633
+#: keymap.c:1645
 msgid " (current)"
 msgstr " (actual)"
+
+#, fuzzy
+#~ msgid "Shift-AltGr"
+#~ msgstr "Código para Shift:"
 
 #~ msgid "Backspace"
 #~ msgstr "Retroceso"
