@@ -102,7 +102,7 @@ static void errorDialogThread(int numberArgs, void *args[])
     {
       // Check for our OK button
       status = kernelWindowComponentEventGet((void *) okButton, &event);
-      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_UP)))
+      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
 	break;
 
       // Check for window close events

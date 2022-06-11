@@ -37,16 +37,26 @@ typedef struct {
 static int processId = 0;
 static int readOnly = 1;
 static int numberModes = 0;
+static int showingClock = 0;
 static videoMode currentMode;
 static videoMode videoModes[MAXVIDEOMODES];
 static char *modeStrings[MAXVIDEOMODES];
 static char stringData[MAXVIDEOMODES * 32];
 static objectKey window = NULL;
 static objectKey modeList = NULL;
-static objectKey wallpaperButton = NULL;
 static objectKey bootGraphicsCheckbox = NULL;
+static objectKey showClockCheckbox = NULL;
+static objectKey wallpaperButton = NULL;
+static objectKey colorsRadio = NULL;
+static objectKey canvas = NULL;
+static objectKey changeColorsButton = NULL;
 static objectKey okButton = NULL;
 static objectKey cancelButton = NULL;
+
+static int canvasWidth = 50;
+static color foreground = { 171, 93, 40 };
+static color background = { 171, 93, 40 };
+static color desktop = { 171, 93, 40 };
 
 
 static int getVideoModes(void)
@@ -77,26 +87,78 @@ static int getVideoModes(void)
 }
 
 
+static void drawColor(color *draw)
+{
+  // Draw the current color on the canvas
+
+  windowDrawParameters drawParams;
+
+  bzero(&drawParams, sizeof(windowDrawParameters));
+  drawParams.operation = draw_rect;
+  drawParams.mode = draw_normal;
+  drawParams.foreground.red = draw->red;
+  drawParams.foreground.green = draw->green;
+  drawParams.foreground.blue = draw->blue;
+  drawParams.xCoord1 = 0;
+  drawParams.yCoord1 = 0;
+  drawParams.width = canvasWidth;
+  drawParams.height = 50;
+  drawParams.thickness = 1;
+  drawParams.fill = 1;
+  windowComponentSetData(canvas, &drawParams, sizeof(windowDrawParameters));
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
   int mode = 0;
+  int clockSelected = 0;
+  variableList *list = NULL;
+  char programList[128];
   char string[160];
 
   // Check for the window being closed by a GUI event.
   if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-      ((key == cancelButton) && (event->type == EVENT_MOUSE_UP)))
+      ((key == cancelButton) && (event->type == EVENT_MOUSE_LEFTUP)))
     {
       windowGuiStop();
       windowDestroy(window);
       exit(0);
     }
 
-  if ((key == wallpaperButton) && (event->type == EVENT_MOUSE_UP))
+  if ((key == wallpaperButton) && (event->type == EVENT_MOUSE_LEFTUP))
     system("/programs/wallpaper");
 
-  if ((key == okButton) && (event->type == EVENT_MOUSE_UP))
+  if ((key == colorsRadio) || (key == changeColorsButton))
     {
-      // Does the user not want to boot in graphcis mode?
+      color *selectedColor = NULL;
+      int selected = windowComponentGetSelected(colorsRadio);
+
+      switch (selected)
+	{
+	case 0:
+	  selectedColor = &foreground;
+	  break;
+	case 1:
+	  selectedColor = &background;
+	  break;
+	case 2:
+	  selectedColor = &desktop;
+	  break;
+	}
+
+      if ((key == changeColorsButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	windowNewColorDialog(window, selectedColor);
+ 
+      if (((key == changeColorsButton) &&
+	   (event->type == EVENT_MOUSE_LEFTUP)) ||
+	  ((key == colorsRadio) && (event->type == EVENT_MOUSE_LEFTDOWN)))
+	drawColor(selectedColor);
+    }
+
+  if ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP))
+    {
+      // Does the user not want to boot in graphics mode?
       if (!windowComponentGetSelected(bootGraphicsCheckbox))
 	{
 	  // Try to create the /nograph file
@@ -104,6 +166,63 @@ static void eventHandler(objectKey key, windowEvent *event)
 	  fileOpen("/nograph", (OPENMODE_WRITE | OPENMODE_CREATE |
 				OPENMODE_TRUNCATE), &tmp);
 	  fileClose(&tmp);
+	}
+      
+      // Does the user want to show a clock on the desktop?
+      clockSelected = windowComponentGetSelected(showClockCheckbox);
+      if ((!showingClock && clockSelected) || (showingClock && !clockSelected))
+	{
+	  list = configurationReader("/system/windowmanager.conf");
+	  if (list != NULL)
+	    {
+	      programList[0] = '\0';
+	      variableListGet(list, "programs", programList, 128);
+	      
+	      if (!showingClock && clockSelected)
+		{
+		  // Add 'clock' to the 'programs=' variable
+		  if (programList[0] != '\0')
+		    strcat(programList, ",");
+		  strcat(programList, "clock");
+		  variableListSet(list, "programs", programList);
+
+		  // Add a variable for the clock
+		  variableListSet(list, "program.clock", "/programs/clock");
+
+		  // Run the clock program now.
+		  loaderLoadAndExec("/programs/clock",
+				    multitaskerGetProcessPrivilege(
+					   multitaskerGetCurrentProcessId()),
+				    0, NULL, 0);
+		}
+	      else
+		{
+		  // Remove 'clock' from the 'programs=' variable
+		  if (!strcmp(programList, "clock"))
+		    variableListUnset(list, "programs");
+		  else
+		    {
+		      char *tmpStr = strstr(programList, ",clock");
+		      if (tmpStr == NULL)
+			tmpStr = strstr(programList, "clock,");
+		      if (tmpStr != NULL)
+			{
+			  tmpStr[0] = '\0';
+			  strcpy(tmpStr, (tmpStr + 6));
+			  variableListSet(list, "programs", programList);
+			}
+		    }
+
+		  // Remove the  variable for the clock
+		  variableListUnset(list, "program.clock");
+
+		  // Try to kill any clock programs currently running
+		  multitaskerKillByName("clock", 0);
+		}
+
+	      configurationWriter("/system/windowmanager.conf", list);
+	      //free(list);
+	    }
 	}
 
       mode = windowComponentGetSelected(modeList);
@@ -124,6 +243,11 @@ static void eventHandler(objectKey key, windowEvent *event)
 	    }
 	}
 
+      // Set the colors
+      graphicSetColor("foreground", &foreground);
+      graphicSetColor("background", &background);
+      graphicSetColor("desktop", &desktop);
+
       windowGuiStop();
       windowDestroy(window);
       exit(0);
@@ -137,6 +261,9 @@ static void constructWindow(void)
   // command line.
 
   componentParameters params;
+  objectKey container = NULL;
+  variableList *list = NULL;
+  char programList[128];
   int count;
 
   // Create a new window, with small, arbitrary size and location
@@ -145,19 +272,24 @@ static void constructWindow(void)
     return;
 
   bzero(&params, sizeof(componentParameters));
-  params.gridWidth = 2;
+  params.gridWidth = 1;
   params.gridHeight = 1;
   params.padTop = 5;
   params.padLeft = 5;
-  params.padRight = 5;
-  params.orientationX = orient_center;
-  params.orientationY = orient_middle;
+  params.orientationX = orient_left;
+  params.orientationY = orient_top;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
 
+  // Make a container for the left hand side components
+  container = windowNewContainer(window, "leftContainer", &params);
+  
   // Make a list with all the available graphics modes
+  params.padTop = 0;
+  params.padLeft = 0;
+  params.orientationX = orient_center;
   modeList =
-    windowNewList(window, NULL, 5, 1, 0, modeStrings, numberModes, &params);
+    windowNewList(container, NULL, 5, 1, 0, modeStrings, numberModes, &params);
 
   // Select the current mode
   for (count = 0; count < numberModes; count ++)
@@ -171,37 +303,115 @@ static void constructWindow(void)
 
   // Make a checkbox for whether to boot in graphics mode
   params.gridY = 1;
+  params.padTop = 5;
+  params.orientationX = orient_left;
   bootGraphicsCheckbox =
-    windowNewCheckbox(window, NULL, "Boot in graphics mode", &params);
+    windowNewCheckbox(container, NULL, "Boot in graphics mode", &params);
   windowComponentSetSelected(bootGraphicsCheckbox, 1);
   if (readOnly)
     windowComponentSetEnabled(bootGraphicsCheckbox, 0);
 
-  // Create the background wallpaper button
+  // Make a checkbox for whether to show the clock on the desktop
   params.gridY = 2;
-  wallpaperButton = windowNewButton(window, "Change background wallpaper",
-				    NULL, &params);
+  showClockCheckbox =
+    windowNewCheckbox(container, NULL, "Show a clock on the desktop", &params);
+  // Are we currently set to show one?
+  list = configurationReader("/system/windowmanager.conf");
+  if (list != NULL)
+    {
+      if (!variableListGet(list, "programs", programList, 128))
+	if (strstr(programList, "clock"))
+	  showingClock = 1;
+      windowComponentSetSelected(showClockCheckbox, showingClock);
+      free(list);
+    }
+
+  // Make a container for the right hand side components
+  params.gridX = 1;
+  params.gridY = 0;
+  params.padTop = 5;
+  params.padLeft = 5;
+  params.padRight = 5;
+  container = windowNewContainer(window, "rightContainer", &params);
+
+  // Create the background wallpaper button
+  params.gridX = 0;
+  params.gridWidth = 2;
+  params.padTop = 0;
+  params.padLeft = 0;
+  params.padRight = 0;
+  wallpaperButton =
+    windowNewButton(container, "Background wallpaper", NULL, &params);
   windowRegisterEventHandler(wallpaperButton, &eventHandler);
 
-  // Create the OK button
-  params.gridY = 3;
+  params.gridY = 1;
   params.gridWidth = 1;
+  params.padTop = 5;
+  windowNewTextLabel(container, NULL, "Colors:", &params);
+
+  // Create the colors radio button
+  params.gridY = 2;
+  params.gridHeight = 2;
+  colorsRadio = windowNewRadioButton(container, NULL, 2, 1, (char *[])
+      { "Foreground", "Background", "Desktop" }, 3 , &params);
+  windowRegisterEventHandler(colorsRadio, &eventHandler);
+
+  // Create the change color button
+  params.gridX = 1;
+  params.gridY = 3;
+  params.gridHeight = 1;
+  params.padLeft = 5;
+  changeColorsButton = windowNewButton(container, "Change", NULL, &params);
+  windowRegisterEventHandler(changeColorsButton, &eventHandler);
+
+  // Get the current colors we're interested in
+  graphicGetColor("foreground", &foreground);
+  graphicGetColor("background", &background);
+  graphicGetColor("desktop", &desktop);
+
+  // The canvas to show the current color
+  params.gridY = 2;
+  params.hasBorder = 1;
+  //params.padBottom = 5;
+  canvasWidth = windowComponentGetWidth(changeColorsButton);
+  canvas = windowNewCanvas(container, canvasWidth, 50, &params);
+
+  // Make a container for the OK/Cancel buttons
+  params.gridX = 0;
+  params.gridY = 1;
+  params.gridWidth = 2;
+  params.padLeft = 5;
+  params.padRight = 5;
+  params.padTop = 5;
   params.padBottom = 5;
+  params.orientationX = orient_center;
+  params.hasBorder = 0;
+  container = windowNewContainer(window, "buttonContainer", &params);
+
+  // Create the OK button
+  params.gridY = 0;
+  params.gridWidth = 1;
+  params.padLeft = 0;
+  params.padTop = 0;
+  params.padBottom = 0;
   params.orientationX = orient_right;
-  okButton = windowNewButton(window, "OK", NULL, &params);
+  okButton = windowNewButton(container, "OK", NULL, &params);
   windowRegisterEventHandler(okButton, &eventHandler);
 
   // Create the Cancel button
   params.gridX = 1;
-  params.padLeft = 0;
+  params.padLeft = 5;
+  params.padRight = 0;
   params.orientationX = orient_left;
-  cancelButton = windowNewButton(window, "Cancel", NULL, &params);
+  cancelButton = windowNewButton(container, "Cancel", NULL, &params);
   windowRegisterEventHandler(cancelButton, &eventHandler);
 
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
 
   windowSetVisible(window, 1);
+
+  drawColor(&foreground);
 
   return;
 }

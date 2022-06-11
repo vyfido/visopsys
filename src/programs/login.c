@@ -151,7 +151,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 {
   static int stage = 0;
 
-  if (event->type == EVENT_MOUSE_UP)
+  if (event->type == EVENT_MOUSE_LEFTUP)
     {
       if (key == rebootButton)
 	shutdown(reboot, 0);

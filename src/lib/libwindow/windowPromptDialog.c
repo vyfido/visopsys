@@ -121,7 +121,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
       status = windowComponentEventGet(okButton, &event);
       if (status < 0)
 	break;
-      else if ((status > 0) && (event.type == EVENT_MOUSE_UP))
+      else if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	{
 	  status = windowComponentGetData(field, buffer, (rows * columns));
 	  if (status < 0)
@@ -132,7 +132,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
 
       // Check for the Cancel button
       status = windowComponentEventGet(cancelButton, &event);
-      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_UP)))
+      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
 	{
 	  status = 0;
 	  break;

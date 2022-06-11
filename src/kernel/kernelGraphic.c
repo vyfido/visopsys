@@ -30,9 +30,26 @@
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <sys/errors.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+// The global colors
+color kernelDefaultForeground = {
+  DEFAULT_FOREGROUND_BLUE,
+  DEFAULT_FOREGROUND_GREEN,
+  DEFAULT_FOREGROUND_RED
+};
+color kernelDefaultBackground = {
+  DEFAULT_BACKGROUND_BLUE,
+  DEFAULT_BACKGROUND_GREEN,
+  DEFAULT_BACKGROUND_RED
+};
+color kernelDefaultDesktop = {
+  DEFAULT_DESKTOP_BLUE,
+  DEFAULT_DESKTOP_GREEN,
+  DEFAULT_DESKTOP_RED
+};
 
 // This is data for a temporary console when we first arrive in a graphical
 // mode
@@ -41,9 +58,9 @@ static kernelGraphicBuffer tmpConsoleBuffer;
 static kernelTextArea tmpGraphicConsole = {
   0, 0, 80, 25, 0, 0, 0,
   (color) { 255, 255, 255 },
-  (color) { DEFAULT_BLUE,
-	    DEFAULT_GREEN,
-	    DEFAULT_RED },
+  (color) { DEFAULT_DESKTOP_BLUE,
+	    DEFAULT_DESKTOP_GREEN,
+	    DEFAULT_DESKTOP_RED },
   (void *) NULL, /* input stream */
   (void *) NULL, /* output stream */
   tmpConsoleData,
@@ -99,8 +116,7 @@ int kernelGraphicInitialize(void)
   kernelTextSwitchToGraphics(&tmpGraphicConsole);
 
   // Clear the screen with our default background color
-  systemAdapter->driver->driverClearScreen(&((color)
-  { DEFAULT_BLUE, DEFAULT_GREEN, DEFAULT_RED }));
+  systemAdapter->driver->driverClearScreen(&kernelDefaultDesktop);
 
   // Return success
   return (status = 0);
@@ -250,6 +266,75 @@ int kernelGraphicClearScreen(color *background)
 
   // Ok, now we can call the routine.
   status = systemAdapter->driver->driverClearScreen(background);
+  return (status);
+}
+
+
+int kernelGraphicGetColor(const char *colorName, color *getColor)
+{
+  // Given the color name, get it.
+
+  int status = 0;
+
+  if ((colorName == NULL) || (getColor == NULL))
+    return (status = ERR_NULLPARAMETER);
+
+  if (!strcmp(colorName, "foreground"))
+    kernelMemCopy(&kernelDefaultForeground, getColor, sizeof(color));
+  if (!strcmp(colorName, "background"))
+    kernelMemCopy(&kernelDefaultBackground, getColor, sizeof(color));
+  if (!strcmp(colorName, "desktop"))
+    kernelMemCopy(&kernelDefaultDesktop, getColor, sizeof(color));
+
+  return (status = 0);
+}
+
+
+int kernelGraphicSetColor(const char *colorName, color *setColor)
+{
+  // Given the color name, set it.
+
+  int status = 0;
+  char fullColorName[128];
+  char value[4];
+
+  // The kernel config file.
+  extern variableList *kernelVariables;
+
+  if ((colorName == NULL) || (setColor == NULL))
+    return (status = ERR_NULLPARAMETER);
+
+  // Try to set the variables
+
+  sprintf(fullColorName, "%s.color.red", colorName);
+  sprintf(value, "%d", setColor->red);
+  status = kernelVariableListSet(kernelVariables, fullColorName, value);
+  if (status < 0)
+    return (status);
+
+  sprintf(fullColorName, "%s.color.green", colorName);
+  sprintf(value, "%d", setColor->green);
+  status = kernelVariableListSet(kernelVariables, fullColorName, value);
+  if (status < 0)
+    return (status);
+
+  sprintf(fullColorName, "%s.color.blue", colorName);
+  sprintf(value, "%d", setColor->blue);
+  status = kernelVariableListSet(kernelVariables, fullColorName, value);
+  if (status < 0)
+    return (status);
+
+  // Set the current color values
+  if (!strcmp(colorName, "foreground"))
+    kernelMemCopy(setColor, &kernelDefaultForeground, sizeof(color));
+  else if (!strcmp(colorName, "background"))
+    kernelMemCopy(setColor, &kernelDefaultBackground, sizeof(color));
+  else if (!strcmp(colorName, "desktop"))
+    kernelMemCopy(setColor, &kernelDefaultDesktop, sizeof(color));
+
+  // Save the values
+  if (!(kernelFilesystemGet("/")->readOnly))
+    status = kernelConfigurationWriter(DEFAULT_KERNEL_CONFIG, kernelVariables);
   return (status);
 }
 
@@ -405,10 +490,9 @@ int kernelGraphicNewImage(image *blankImage, unsigned width, unsigned height)
   tmpBuffer.width = width;
   tmpBuffer.height = height;
   
-  // Clear our buffer with our grey color
-  kernelGraphicDrawRect(&tmpBuffer,
-  			&((color){ DEFAULT_GREY, DEFAULT_GREY, DEFAULT_GREY }),
-  			draw_normal, 0, 0, width, height, 1, 1);
+  // Clear our buffer with our background color
+  kernelGraphicDrawRect(&tmpBuffer, &kernelDefaultBackground, draw_normal,
+			0, 0, width, height, 1, 1);
   
   // Get an image of the correct size
   status = kernelGraphicGetImage(&tmpBuffer, blankImage, 0, 0, width, height);
@@ -624,8 +708,7 @@ void kernelGraphicDrawGradientBorder(kernelGraphicBuffer *buffer, int drawX,
 {
   // Draws a gradient border
 
-  int greyColor = 0;
-  color drawColor;
+  int drawRed = 0, drawGreen = 0, drawBlue = 0;
   int count;
 
   // These are the starting points of the 'inner' border lines
@@ -634,66 +717,71 @@ void kernelGraphicDrawGradientBorder(kernelGraphicBuffer *buffer, int drawX,
   int topY = (drawY + thickness);
   int bottomY = (drawY + height - thickness - 1);
 
+  if (mode == draw_reverse)
+    shadingIncrement *= -1;
+
   // The top and left
   for (count = thickness; count > 0; count --)
     {
-      if (mode == draw_normal)
-	{
-	  greyColor = (DEFAULT_GREY + (count * shadingIncrement));
-	  if (greyColor > 255)
-	    greyColor = 255;
-	}
-      else if (mode == draw_reverse)
-	{
-	  greyColor = (DEFAULT_GREY - (count * shadingIncrement));
-	  if (greyColor < 0)
-	    greyColor = 0;
-	}
+      drawRed =	(kernelDefaultBackground.red + (count * shadingIncrement));
+      if (drawRed > 255)
+	drawRed = 255;
+      if (drawRed < 0)
+	drawRed = 0;
 
-      drawColor.red = greyColor;
-      drawColor.green = greyColor;
-      drawColor.blue = greyColor;
+      drawGreen = (kernelDefaultBackground.green + (count * shadingIncrement));
+      if (drawGreen > 255)
+	drawGreen = 255;
+      if (drawGreen < 0)
+	drawGreen = 0;
+
+      drawBlue = (kernelDefaultBackground.blue + (count * shadingIncrement));
+      if (drawBlue > 255)
+	drawBlue = 255;
+      if (drawBlue < 0)
+	drawBlue = 0;
 
       // Top
-      kernelGraphicDrawLine(buffer, &drawColor, draw_normal, 
-			    (leftX - count), (topY - count),
+      kernelGraphicDrawLine(buffer, &((color){drawBlue, drawGreen, drawRed}),
+			    draw_normal, (leftX - count), (topY - count),
 			    (rightX + count), (topY - count));
       // Left
-      kernelGraphicDrawLine(buffer, &drawColor, draw_normal,
-			    (leftX - count), (topY - count), (leftX - count),
-			    (bottomY + count));
+      kernelGraphicDrawLine(buffer, &((color){drawBlue, drawGreen, drawRed}),
+			    draw_normal, (leftX - count), (topY - count),
+			    (leftX - count), (bottomY + count));
     }
+
+  shadingIncrement *= -1;
 
   // The bottom and right
   for (count = thickness; count > 0; count --)
     {
-      if (mode == draw_normal)
-	{
-	  greyColor = (DEFAULT_GREY - (count * shadingIncrement));
-	  if (greyColor < 0)
-	    greyColor = 0;
-	}
-      else if (mode == draw_reverse)
-	{
-	  greyColor = (DEFAULT_GREY + (count * shadingIncrement));
-	  if (greyColor > 255)
-	    greyColor = 255;
-	}
+      drawRed =	(kernelDefaultBackground.red + (count * shadingIncrement));
+      if (drawRed > 255)
+	drawRed = 255;
+      if (drawRed < 0)
+	drawRed = 0;
 
-      drawColor.red = greyColor;
-      drawColor.green = greyColor;
-      drawColor.blue = greyColor;
+      drawGreen = (kernelDefaultBackground.green + (count * shadingIncrement));
+      if (drawGreen > 255)
+	drawGreen = 255;
+      if (drawGreen < 0)
+	drawGreen = 0;
 
+      drawBlue = (kernelDefaultBackground.blue + (count * shadingIncrement));
+      if (drawBlue > 255)
+	drawBlue = 255;
+      if (drawBlue < 0)
+	drawBlue = 0;
+ 
       // Bottom
-      kernelGraphicDrawLine(buffer, &drawColor, draw_normal,
-			    (leftX - count), (bottomY + count),
+      kernelGraphicDrawLine(buffer, &((color){drawBlue, drawGreen, drawRed}),
+			    draw_normal, (leftX - count), (bottomY + count),
 			    (rightX + count), (bottomY + count));
       // Right
-      kernelGraphicDrawLine(buffer, &drawColor, draw_normal,
-			    (rightX + count), (topY - count),
+      kernelGraphicDrawLine(buffer, &((color){drawBlue, drawGreen, drawRed}),
+			    draw_normal, (rightX + count), (topY - count),
 			    (rightX + count), (bottomY + count));
-
-      greyColor += shadingIncrement;
     }
 
   return;

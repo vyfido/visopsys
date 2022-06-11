@@ -32,6 +32,7 @@
 #endif
 
 // Functions
+void bcopy(const void *, void *, size_t n);
 void bzero(void *, size_t);
 char *index(const char *, int);
 int memcmp(const void *, const void *, size_t);

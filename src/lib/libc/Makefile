@@ -25,8 +25,8 @@ CC		= gcc
 AR		= ar
 
 OPTS		= -nostdlib -nodefaultlibs -nostartfiles -nostdinc -O2 \
-		-mcpu=pentium -fno-strength-reduce -pipe -Wall \
-		-Wstrict-prototypes -Wmissing-prototypes \
+		-mcpu=pentium -fno-strength-reduce -fno-strict-aliasing \
+		-pipe -Wall -Wstrict-prototypes -Wmissing-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
 
 INCLUDES	= -I../../include
@@ -123,7 +123,8 @@ STDLIBOBJS	= obj/abort.o \
 		obj/utoa.o \
 		obj/xtoi.o
 
-STRINGOBJS	= obj/bzero.o \
+STRINGOBJS	= obj/bcopy.o \
+		obj/bzero.o \
 		obj/index.o \
 		obj/memcmp.o \
 		obj/memcpy.o \
@@ -438,6 +439,9 @@ obj/xtoi.o: xtoi.c ../../include/stdlib.h ${STDDEP}
 
 
 # String.h
+
+obj/bcopy.o: bcopy.c ../../include/string.h ${STDDEP}
+	${CC} ${OPTS} ${INCLUDES} -c bcopy.c -o $@
 
 obj/bzero.o: bzero.c ../../include/string.h ${STDDEP}
 	${CC} ${OPTS} ${INCLUDES} -c bzero.c -o $@

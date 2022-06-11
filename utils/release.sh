@@ -1,5 +1,5 @@
 #!/bin/sh
 
-# Echoes the release number of Visopsys to the stdout
-echo "0.4"
+# Echoes the release number of Visopsys
+echo "0.41"
 exit 0

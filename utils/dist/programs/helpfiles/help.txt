@@ -14,6 +14,7 @@ find              Traverse directory hierarchies
 format            Create new, empty filesystems
 imgboot		  The 'first boot' program that asks if you want to install
 install           Install Visopsys (must be user "admin")
+keymap            View or change the current keyboard mapping
 kill              Kill a running process
 login             Start a new login process
 logout (or exit)  End the current session
@@ -41,6 +42,8 @@ vsh               Start a new command shell
 
  -- Additional (graphics mode only) --
 
+clock             Show a simple clock in the corner of the screen.
+confedit          Edit Visopsys configuration files
 console	          Show the console window
 disprops	  View or change the display settings
 loadfont	  Load a new default font

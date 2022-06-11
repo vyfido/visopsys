@@ -143,7 +143,7 @@ static int rebootNow(void)
 static void eventHandler(objectKey key, windowEvent *event)
 {
   // Check for the 'Install' button
-  if ((key == installButton) && (event->type == EVENT_MOUSE_UP))
+  if ((key == installButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
       // Stop the GUI here and run the install program
       windowSetVisible(window, 0);
@@ -158,7 +158,7 @@ static void eventHandler(objectKey key, windowEvent *event)
     }
 
   // Check for the 'Run' button
-  else if ((key == runButton) && (event->type == EVENT_MOUSE_UP))
+  else if ((key == runButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
       // Stop the GUI here and run the login program
       loaderLoadAndExec(LOGINPROGRAM, 0, 2, (char *[]){"-f", "admin"}, 0);

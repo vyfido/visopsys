@@ -26,12 +26,16 @@
 #include "kernelFont.h"
 
 // Definitions
-#define MAX_GRAPHICBUFFER_UPDATES         128
-#define DEFAULT_RED                       40
-#define DEFAULT_GREEN                     93
-#define DEFAULT_BLUE                      171
-#define DEFAULT_GREY                      200
-#define DEFAULT_SPLASH                    "/system/visopsys.bmp"
+#define DEFAULT_FOREGROUND_RED    40
+#define DEFAULT_FOREGROUND_GREEN  93
+#define DEFAULT_FOREGROUND_BLUE   171
+#define DEFAULT_BACKGROUND_RED    200
+#define DEFAULT_BACKGROUND_GREEN  200
+#define DEFAULT_BACKGROUND_BLUE   200
+#define DEFAULT_DESKTOP_RED       40
+#define DEFAULT_DESKTOP_GREEN     93
+#define DEFAULT_DESKTOP_BLUE      171
+#define DEFAULT_SPLASH            "/system/visopsys.bmp"
 
 // Structure to represent a drawing area
 typedef volatile struct
@@ -85,7 +89,7 @@ typedef struct
 } kernelGraphicAdapter;
 
 // The default driver initialization
-int kernelLFBGraphicDriverInitialize(void);
+int kernelFramebufferGraphicDriverInitialize(void);
 
 // Functions exported by kernelGraphic.c
 int kernelGraphicRegisterDevice(kernelGraphicAdapter *);
@@ -98,6 +102,8 @@ unsigned kernelGraphicGetScreenWidth(void);
 unsigned kernelGraphicGetScreenHeight(void);
 unsigned kernelGraphicCalculateAreaBytes(unsigned, unsigned);
 int kernelGraphicClearScreen(color *);
+int kernelGraphicGetColor(const char *, color *);
+int kernelGraphicSetColor(const char *, color *);
 int kernelGraphicDrawPixel(kernelGraphicBuffer *, color *, drawMode, int, int);
 int kernelGraphicDrawLine(kernelGraphicBuffer *, color *, drawMode, int, int,
 			  int, int);

@@ -43,7 +43,7 @@ static int draw(void *componentData)
 			 component->yCoord, 0, 0, 0, 0);
 
   if (component->parameters.hasBorder)
-    component->drawBorder((void *) component);
+    component->drawBorder((void *) component, 1);
 
   return (0);
 }

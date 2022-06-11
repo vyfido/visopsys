@@ -82,33 +82,18 @@ static int draw(void *componentData)
   // Draw the label component
 
   int status = 0;
-  color foreground = { DEFAULT_BLUE, DEFAULT_GREEN, DEFAULT_RED };
-  color background = { DEFAULT_GREY, DEFAULT_GREY, DEFAULT_GREY };
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindow *window = (kernelWindow *) component->window;
   kernelWindowTextLabel *label = (kernelWindowTextLabel *) component->data;
   int count;
 
-  if (!component->parameters.useDefaultForeground)
-    {
-      // Use the user-supplied foreground color
-      foreground.red = component->parameters.foreground.red;
-      foreground.green = component->parameters.foreground.green;
-      foreground.blue = component->parameters.foreground.blue;
-    }
-  if (!component->parameters.useDefaultBackground)
-    {
-      // Use the user-supplied foreground color
-      background.red = component->parameters.background.red;
-      background.green = component->parameters.background.green;
-      background.blue = component->parameters.background.blue;
-    }
-
   char *tmp = label->text;
   for (count = 0; count < label->lines; count ++)
     {
       status =
-	kernelGraphicDrawText(&(window->buffer), &foreground, &background,
+	kernelGraphicDrawText(&(window->buffer),
+			      (color *) &(component->parameters.foreground),
+			      (color *) &(component->parameters.background),
 			      label->font, tmp, draw_normal,
 			      component->xCoord,
 			      (component->yCoord + (label->font->charHeight *
@@ -120,7 +105,7 @@ static int draw(void *componentData)
     }
 
   if (component->parameters.hasBorder)
-    component->drawBorder((void *) component);
+    component->drawBorder((void *) component, 1);
 
   return (status);
 }

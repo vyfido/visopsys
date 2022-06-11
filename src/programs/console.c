@@ -96,11 +96,14 @@ int main(int argc, char *argv[])
       return (status);
     }
 
-  // Make it visible
-  windowSetVisible(window, 1);
+  // Not resizable
+  windowSetResizable(window, 0);
 
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
+
+  // Make it visible
+  windowSetVisible(window, 1);
 
   // Run the GUI
   windowGuiRun();

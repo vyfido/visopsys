@@ -37,41 +37,27 @@ static int draw(void *componentData)
 {
   // Draw the button component
 
-  color foreground = { DEFAULT_BLUE, DEFAULT_GREEN, DEFAULT_RED };
-  color background = { DEFAULT_GREY, DEFAULT_GREY, DEFAULT_GREY };
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindowButton *button = (kernelWindowButton *) component->data;
   kernelGraphicBuffer *buffer = (kernelGraphicBuffer *)
     &(((kernelWindow *) component->window)->buffer);
 
-  if (!component->parameters.useDefaultForeground)
-    {
-      // Use user-supplied color
-      foreground.red = component->parameters.foreground.red;
-      foreground.green = component->parameters.foreground.green;
-      foreground.blue = component->parameters.foreground.blue;
-    }
-  if (!component->parameters.useDefaultBackground)
-    {
-      // Use user-supplied color
-      background.red = component->parameters.background.red;
-      background.green = component->parameters.background.green;
-      background.blue = component->parameters.background.blue;
-    }
-  
   // Draw the background of the button
-  kernelGraphicDrawRect(buffer, &background, draw_normal,
-			component->xCoord, component->yCoord,
+  kernelGraphicDrawRect(buffer, (color *) &(component->parameters.background),
+			draw_normal, component->xCoord, component->yCoord,
 			component->width, component->height, 1, 1);
 
   // If there is a label on the button, draw it
   if (button->label)
     {
-      kernelGraphicDrawText(buffer, &foreground, &background, labelFont,
-	    (const char *) button->label, draw_translucent,
+      kernelGraphicDrawText(buffer,
+			    (color *) &(component->parameters.foreground),
+			    (color *) &(component->parameters.background),
+			    labelFont, (const char *) button->label,
+			    draw_translucent,
 	    (component->xCoord + ((component->width -
-		   kernelFontGetPrintedWidth(labelFont,
-			     (const char *) button->label)) / 2)),
+				   kernelFontGetPrintedWidth(labelFont,
+				     (const char *) button->label)) / 2)),
 	    (component->yCoord + ((component->height -
 		   labelFont->charHeight) / 2)));
     }
@@ -96,15 +82,17 @@ static int draw(void *componentData)
     }
 
   if (component->flags & WINFLAG_HASFOCUS)
-    kernelGraphicDrawRect(buffer, &foreground, draw_normal,
-			  (component->xCoord + borderThickness),
+    kernelGraphicDrawRect(buffer,
+			  (color *) &(component->parameters.foreground),
+			  draw_normal, (component->xCoord + borderThickness),
 			  (component->yCoord + borderThickness),
 			  (component->width - (borderThickness * 2)),
 			  (component->height - (borderThickness * 2)),
 			  1, 0);
   else
-    kernelGraphicDrawRect(buffer, &background, draw_normal,
-			  (component->xCoord + borderThickness),
+    kernelGraphicDrawRect(buffer,
+			  (color *) &(component->parameters.background),
+			  draw_normal, (component->xCoord + borderThickness),
 			  (component->yCoord + borderThickness),
 			  (component->width - (borderThickness * 2)),
 			  (component->height - (borderThickness * 2)),
@@ -148,7 +136,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
 
   // Just take care of drawing any changes we need to do
   
-  if ((event->type & EVENT_MOUSE_UP) || (event->type & EVENT_MOUSE_DRAG))
+  if ((event->type == EVENT_MOUSE_LEFTUP) || (event->type == EVENT_MOUSE_DRAG))
     {
       kernelGraphicDrawGradientBorder(buffer, component->xCoord,
 				      component->yCoord, component->width,
@@ -156,7 +144,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
 				      borderShadingIncrement, draw_normal);
       button->state = 0;
     }
-  else if (event->type & EVENT_MOUSE_DOWN)
+  else if (event->type == EVENT_MOUSE_LEFTDOWN)
     {
       // Reverse the border (show 'clicked')
       kernelGraphicDrawGradientBorder(buffer, component->xCoord,
@@ -181,13 +169,13 @@ static int keyEvent(void *componentData, windowEvent *event)
   if ((event->type & EVENT_MASK_KEY) && (event->key == 10))
     {
       // If the button is not pushed, ignore this
-      if ((event->type & EVENT_KEY_UP) && !(button->state))
+      if ((event->type == EVENT_KEY_UP) && !(button->state))
 	return (status = 0);
 
-      if (event->type & EVENT_KEY_DOWN)
-	event->type = EVENT_MOUSE_DOWN;
-      if (event->type & EVENT_KEY_UP)
-	event->type = EVENT_MOUSE_UP;
+      if (event->type == EVENT_KEY_DOWN)
+	event->type = EVENT_MOUSE_LEFTDOWN;
+      if (event->type == EVENT_KEY_UP)
+	event->type = EVENT_MOUSE_LEFTUP;
 
       status = mouseEvent(componentData, event);
     }

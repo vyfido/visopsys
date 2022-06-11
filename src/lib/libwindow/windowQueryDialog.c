@@ -120,7 +120,7 @@ _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const ch
 	  status = 0;
 	  break;
 	}
-      else if ((status > 0) && (event.type == EVENT_MOUSE_UP))
+      else if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	{
 	  status = 1;
 	  break;
@@ -128,7 +128,7 @@ _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const ch
 
       // Check for our Cancel button
       status = windowComponentEventGet(cancelButton, &event);
-      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_UP)))
+      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
 	{
 	  status = 0;
 	  break;

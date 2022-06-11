@@ -129,7 +129,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	  status = 0;
 	  break;
 	}
-      else if ((status > 0) && (event.type == EVENT_MOUSE_UP))
+      else if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	{
 	  windowComponentGetData(textField, fileName, maxLength);
 	  status = 1;
@@ -138,7 +138,7 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 
       // Check for the Cancel button
       status = windowComponentEventGet(cancelButton, &event);
-      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_UP)))
+      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
 	{
 	  fileName[0] = '\0';
 	  status = 0;

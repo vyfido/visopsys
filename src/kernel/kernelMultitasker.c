@@ -72,17 +72,35 @@ extern int kernelProcessingInterrupt;
 
 static kernelProcess *getProcessById(int processId)
 {
-  // This routine is used to find a process' pointer based
-  // on the process Id.  Right now, it is nothing fancy -- it just
-  // searches through the list.  Maybe later it can be some kind
-  // of fancy sorting/searching procedure.  Returns NULL if the
-  // process doesn't exist
+  // This routine is used to find a process' pointer based on the process
+  // Id.  Nothing fancy -- it just searches through the list.  Maybe later
+  // it can be some kind of fancy sorting/searching procedure.  Returns NULL
+  // if the process doesn't exist
   
   kernelProcess *theProcess = NULL;
   int count;
 
   for (count = 0; count < numQueued; count ++)
     if (processQueue[count]->processId == processId)
+      {
+        theProcess = processQueue[count];
+        break;
+      }
+
+  // If we didn't find it, this will still be NULL
+  return (theProcess);
+}
+
+
+static kernelProcess *getProcessByName(const char *name)
+{
+  // As above, but searches by name
+  
+  kernelProcess *theProcess = NULL;
+  int count;
+
+  for (count = 0; count < numQueued; count ++)
+    if (!strcmp((char *) processQueue[count]->processName, name))
       {
         theProcess = processQueue[count];
         break;
@@ -2785,6 +2803,24 @@ int kernelMultitaskerKillProcess(int processId, int force)
 
   // Done.  Return success
   return (status = 0);
+}
+
+
+int kernelMultitaskerKillByName(const char *name, int force)
+{
+  // Try to kill all processes whose names match the one supplied
+  
+  int status = 0;
+  kernelProcess *killProcess = NULL;
+
+  // Make sure multitasking has been enabled
+  if (!multitaskingEnabled)
+    return (status = ERR_NOTINITIALIZED);
+
+  while ((killProcess = getProcessByName(name)))
+    status = kernelMultitaskerKillProcess(killProcess->processId, force);
+
+  return (status);
 }
 
 

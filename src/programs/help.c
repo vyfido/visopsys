@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/api.h>
 
 #define HELPFILES_DIR  "/programs/helpfiles"
 
@@ -31,6 +32,7 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   char command[MAX_PATH_NAME_LENGTH];
+  file tmpFile;
   int count;
 
   if (argc < 2)
@@ -41,6 +43,16 @@ int main(int argc, char *argv[])
     {
       for (count = 1; count < argc; count ++)
 	{
+	  // See if there is a help file for the argument
+	  sprintf(command, "%s/%s.txt", HELPFILES_DIR, argv[count]);
+	  status = fileFind(command, &tmpFile);
+	  if (status < 0)
+	    {
+	      // No help file
+	      printf("There is no help available for \"%s\"\n", argv[count]);
+	      return (status = ERR_NOSUCHFILE);
+	    }
+
 	  // For each argument, look for a help file whose name matches
 	  sprintf(command, "more %s/%s.txt", HELPFILES_DIR, argv[count]);
 

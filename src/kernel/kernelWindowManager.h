@@ -73,11 +73,6 @@ typedef enum {
 
 } kernelWindowObjectType;
 
-// Types of scroll bars
-typedef enum {
-  scrollbar_vertical, scrollbar_horizontal
-} scrollBarType;
-
 // Types of borders
 typedef enum {
   border_top, border_left, border_bottom, border_right
@@ -88,6 +83,7 @@ typedef volatile struct
 {
   kernelWindowObjectType type;
   void *window;
+  void *container;
   int xCoord;
   int yCoord;
   int level;
@@ -102,7 +98,7 @@ typedef volatile struct
   // Routines for managing this component.  These are set by the
   // kernelWindowComponentNew routine, for things that are common to all
   // components.
-  void (*drawBorder) (void *);
+  void (*drawBorder) (void *, int);
   void (*erase) (void *);
   int (*grey) (void *);
 
@@ -230,9 +226,7 @@ typedef volatile struct
 typedef volatile struct
 {
   scrollBarType type;
-  unsigned displayPercent;
-  unsigned positionPercent;
-  int sliderX;
+  scrollBarState state;
   int sliderY;
   unsigned sliderWidth;
   unsigned sliderHeight;
@@ -345,6 +339,23 @@ static inline int doLinesIntersect(int horizX1, int horizY, int horizX2,
     return (1);
 }
 
+static inline int isComponentVisible(kernelWindowComponent *component)
+{
+  // True if the component and all its upstream containers are visible
+  
+  kernelWindowComponent *container = component->container;
+
+  while (container)
+    {
+      if (!(container->flags & WINFLAG_VISIBLE))
+	return (0);
+      else
+	container = container->container;
+    }
+
+  return (1);
+}
+
 // Functions exported by kernelWindowManager.c
 int kernelWindowInitialize(void);
 int kernelWindowStart(void);
@@ -380,7 +391,6 @@ int kernelWindowCenterBackground(const char *);
 int kernelWindowScreenShot(image *);
 int kernelWindowSaveScreenShot(const char *);
 int kernelWindowSetTextOutput(kernelWindowComponent *);
-int kernelWindowShutdown(void);
 
 // Functions for managing components
 kernelWindowComponent *kernelWindowComponentNew(volatile void *,
@@ -419,7 +429,7 @@ kernelWindowComponent *kernelWindowNewImage(volatile void *, image *, drawMode,
 					    componentParameters *);
 kernelWindowComponent *kernelWindowNewList(volatile void *, kernelAsciiFont *,
 					   unsigned, unsigned, int,
-					   const char **, int,
+					   const char *[], int,
 					   componentParameters *);
 kernelWindowComponent *kernelWindowNewListItem(volatile void *,
 					       kernelAsciiFont *, const char *,
@@ -441,6 +451,7 @@ kernelWindowComponent *kernelWindowNewRadioButton(volatile void *,
 						  const char **, int,
 						  componentParameters *);
 kernelWindowComponent *kernelWindowNewScrollBar(volatile void *, scrollBarType,
+						unsigned, unsigned,
 						componentParameters *);
 kernelWindowComponent *kernelWindowNewTextArea(volatile void *, int, int,
 					       kernelAsciiFont *,

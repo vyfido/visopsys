@@ -48,6 +48,9 @@ static void messageBox(kernelAsciiFont *font, int numLines, char *message[])
   unsigned messageHeight, boxWidth, boxHeight, tmp;
   int count;
 
+  // The default desktop color
+  extern color kernelDefaultDesktop;
+
   for (count = 0; count < numLines; count ++)
     {
       tmp = kernelFontGetPrintedWidth(font, message[count]);
@@ -59,9 +62,8 @@ static void messageBox(kernelAsciiFont *font, int numLines, char *message[])
   boxHeight = (messageHeight + (font->charHeight * 2));
 
   // The box
-  kernelGraphicDrawRect(NULL, &((color)
-  { DEFAULT_BLUE, DEFAULT_GREEN, DEFAULT_RED }),
-			draw_normal, ((screenWidth - boxWidth) / 2),
+  kernelGraphicDrawRect(NULL, &kernelDefaultDesktop, draw_normal,
+			((screenWidth - boxWidth) / 2),
 			((screenHeight - boxHeight) / 2), boxWidth, boxHeight,
 			1, 1);
   // Nice white border
@@ -73,10 +75,10 @@ static void messageBox(kernelAsciiFont *font, int numLines, char *message[])
   // The message
   for (count = 0; count < numLines; count ++)
     {
-      kernelGraphicDrawText(NULL, &((color) { 255, 255, 255 }), &((color)
-      { DEFAULT_BLUE, DEFAULT_GREEN, DEFAULT_RED }), font, message[count],
-		    draw_normal, ((screenWidth -
-		   kernelFontGetPrintedWidth(font, message[count])) / 2),
+      kernelGraphicDrawText(NULL, &((color) { 255, 255, 255 }),
+			    &kernelDefaultDesktop, font, message[count],
+			    draw_normal, ((screenWidth -
+			kernelFontGetPrintedWidth(font, message[count])) / 2),
 			    (((screenHeight - messageHeight) / 2) +
 			     (font->charHeight * count)));
     }
@@ -180,16 +182,6 @@ int kernelShutdown(kernelShutdownType shutdownType, int force)
   kernelTextPrintLine("\n%s", SHUTDOWN_MSG1);
   if (shutdownType == halt)
     kernelTextPrintLine(SHUTDOWN_MSG2);
-
-  if (kernelGraphicsAreEnabled())
-    {
-      // Shut down the window manager
-      kernelLog("Stopping window manager");
-      status = kernelWindowShutdown();
-      if (status < 0)
-	// Not fatal by any means
-	kernelError(kernel_warn, "Unable to shut down the window manager");
-    }
 
   // Detach from our parent process, if applicable, so we won't get killed
   // when our parent gets killed

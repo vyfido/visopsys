@@ -42,8 +42,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 int main(int argc, char *argv[])
 {
   int status = 0;
-  char tmpFilename[128];
-  char filename[128];
+  char tmpFilename[MAX_PATH_NAME_LENGTH];
+  char filename[MAX_PATH_NAME_LENGTH];
   int processId = 0;
   componentParameters params;
   image showImage;
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
       return (status = errno);
     }
 
-  // We need our process ID to create the windows
+  // We need our process ID to create the window
   processId = multitaskerGetCurrentProcessId();
 
   if (argc < 2)

@@ -23,6 +23,7 @@
 // These are just kernelWindowTextArea that consist of a single line
 
 #include "kernelWindowManager.h"     // Our prototypes are here
+#include "kernelMiscFunctions.h"
 #include <string.h>
 
 static int (*saveFocus) (void *, int) = NULL;
@@ -55,7 +56,7 @@ static int keyEvent(void *componentData, windowEvent *event)
   kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
 
   // If it's a printable keystroke, make an asterisk
-  if (event->type & EVENT_KEY_DOWN)
+  if (event->type == EVENT_KEY_DOWN)
     {
       if (event->key == 8)
 	kernelTextStreamBackSpace(textArea->outputStream);
@@ -90,27 +91,32 @@ kernelWindowComponent *kernelWindowNewTextField(volatile void *parent,
 
   kernelWindowComponent *component = NULL;
   kernelWindowTextArea *textArea = NULL;
+  componentParameters newParams;
+  extern color kernelDefaultForeground;
 
-  component = kernelWindowNewTextArea(parent, columns, 1, font, params);
-  if (component == NULL)
-    return (component);
+  kernelMemCopy(params, &newParams, sizeof(componentParameters));
+  params = &newParams;
 
   // If the user wants the default colors, we change set them to the
   // default for a text field, since it's different from text areas
-  if (component->parameters.useDefaultForeground)
+  if (params->useDefaultForeground)
     {
-      component->parameters.foreground.red = DEFAULT_RED;
-      component->parameters.foreground.green = DEFAULT_GREEN;
-      component->parameters.foreground.blue = DEFAULT_BLUE;
-      component->parameters.useDefaultForeground = 0;
+      params->foreground.red = kernelDefaultForeground.red;
+      params->foreground.green = kernelDefaultForeground.green;
+      params->foreground.blue = kernelDefaultForeground.blue;
+      params->useDefaultForeground = 0;
     }
-  if (component->parameters.useDefaultBackground)
+  if (params->useDefaultBackground)
     {
-      component->parameters.background.red = 255;
-      component->parameters.background.green = 255;
-      component->parameters.background.blue = 255;
-      component->parameters.useDefaultBackground = 0;
+      params->background.red = 0xFF;
+      params->background.green = 0xFF;
+      params->background.blue = 0xFF;
+      params->useDefaultBackground = 0;
     }
+  
+  component = kernelWindowNewTextArea(parent, columns, 1, font, params);
+  if (component == NULL)
+    return (component);
 
   textArea = (kernelWindowTextArea *) component->data;
 

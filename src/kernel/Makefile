@@ -31,7 +31,7 @@ INCLUDE		= -I. -I../include
 WARN		= -Wall -Wmissing-prototypes -Wstrict-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
 OPT		= -O2 # -DDEBUG
-CODEGEN		= -mcpu=pentium -fno-strength-reduce
+CODEGEN		= -mcpu=pentium -fno-strength-reduce -fno-strict-aliasing
 CFLAGS		= -nostdinc -pipe ${OPT} ${CODEGEN} ${WARN} ${INCLUDE} -DKERNEL
 LINKOPTS	= -nostdlib -nodefaultlibs -nostartfiles -Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000
 

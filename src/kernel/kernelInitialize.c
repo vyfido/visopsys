@@ -37,6 +37,7 @@
 #include "kernelWindowManager.h"
 #include "kernelError.h"
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <sys/errors.h>
 
@@ -61,7 +62,17 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   char welcomeMessage[512];
   static char bootDisk[DISK_MAX_NAMELENGTH];
   kernelFilesystem *rootFilesystem = NULL;
+  char value[128];
+  char splashName[128];
   image splashImage;
+
+  // The kernel config file.  We read it later on in this function
+  extern variableList *kernelVariables;
+
+  // The default colors
+  extern color kernelDefaultForeground;
+  extern color kernelDefaultBackground;
+  extern color kernelDefaultDesktop;
 
   // Initialize the page manager
   status = kernelPageManagerInitialize(kernelMemory);
@@ -196,11 +207,77 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   // Are we in a graphics mode?
   graphics = kernelGraphicsAreEnabled();
 
+  // Read the kernel config file
+  kernelVariables = kernelConfigurationReader(DEFAULT_KERNEL_CONFIG);
+  if (kernelVariables != NULL)
+    {
+      // Get the keyboard mapping
+      kernelVariableListGet(kernelVariables, "keyboard.map", value, 128);
+      if (value[0] != '\0')
+	kernelKeyboardSetMap(value);
+
+      if (graphics)
+	{
+	  // Get the default color values, if they're set in this file
+	  kernelVariableListGet(kernelVariables, "foreground.color.red",
+				value, 128);
+	  if (value[0] != '\0')
+	    kernelDefaultForeground.red = atoi(value);
+	  kernelVariableListGet(kernelVariables, "foreground.color.green",
+				value, 128);
+	  if (value[0] != '\0')
+	    kernelDefaultForeground.green = atoi(value);
+	  kernelVariableListGet(kernelVariables, "foreground.color.blue",
+				value, 128);
+	  if (value[0] != '\0')
+	    kernelDefaultForeground.blue = atoi(value);
+
+
+          kernelVariableListGet(kernelVariables, "background.color.red",
+				value, 128);
+          if (value[0] != '\0')
+            kernelDefaultBackground.red = atoi(value);
+          kernelVariableListGet(kernelVariables, "background.color.green",
+                                value, 128);
+          if (value[0] != '\0')
+            kernelDefaultBackground.green = atoi(value);
+          kernelVariableListGet(kernelVariables, "background.color.blue",
+                                value, 128);
+          if (value[0] != '\0')
+            kernelDefaultBackground.blue = atoi(value);
+
+          kernelVariableListGet(kernelVariables, "desktop.color.red",
+				value, 128);
+          if (value[0] != '\0')
+            kernelDefaultDesktop.red = atoi(value);
+          kernelVariableListGet(kernelVariables, "desktop.color.green",
+                                value, 128);
+          if (value[0] != '\0')
+            kernelDefaultDesktop.green = atoi(value);
+          kernelVariableListGet(kernelVariables, "desktop.color.blue",
+                                value, 128);
+          if (value[0] != '\0')
+            kernelDefaultDesktop.blue = atoi(value);
+
+
+	  // Get the name of the splash image (used only if we are in
+	  // graphics mode)
+	  kernelVariableListGet(kernelVariables, "splash.image", value, 128);
+	  if (value[0] != '\0')
+	    strncpy(splashName, value, 128);
+	  else
+	    strcpy(splashName, DEFAULT_SPLASH);
+	}
+    }
+
   if (graphics)
     {
+      // Clear the screen with our default background color
+      kernelGraphicClearScreen(&kernelDefaultDesktop);
+
       // Try to load the default splash image to use when starting/restarting
       kernelMemClear(&splashImage, sizeof(image));
-      kernelImageLoadBmp(DEFAULT_SPLASH, &splashImage);
+      kernelImageLoadBmp(splashName, &splashImage);
       if (splashImage.data)
 	{
 	  // Loaded successfully.  Put it in the middle of the screen.
@@ -244,8 +321,7 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
 	}
 
       // Clear the screen with our default background color
-      kernelGraphicClearScreen(&((color){ DEFAULT_BLUE, DEFAULT_GREEN,
-					    DEFAULT_RED }));
+      kernelGraphicClearScreen(&kernelDefaultDesktop);
       if (splashImage.data)
 	kernelMemoryRelease(splashImage.data);
     }

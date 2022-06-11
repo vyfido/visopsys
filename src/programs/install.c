@@ -165,14 +165,14 @@ static void eventHandler(objectKey key, windowEvent *event)
 {
   // Check for the window being closed, or pressing of the 'Quit' button.
   if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-      ((key == quitButton) && (event->type == EVENT_MOUSE_UP)))
+      ((key == quitButton) && (event->type == EVENT_MOUSE_LEFTUP)))
     {
       windowGuiStop();
       quit(0, "Installation cancelled");
     }
 
   // Check for the 'Install' button
-  else if ((key == installButton) && (event->type == EVENT_MOUSE_UP))
+  else if ((key == installButton) && (event->type == EVENT_MOUSE_LEFTUP))
     // Stop the GUI here and the installation will commence
     windowGuiStop();
 }
@@ -263,13 +263,7 @@ static int yesOrNo(char *question)
       while(1)
 	{
 	  character = getchar();
-	  if (errno)
-	    {
-	      // Eek.  We can't get input.  Quit.
-	      textInputSetEcho(1);
-	      return (0);
-	    }
-      
+
 	  if ((character == 'y') || (character == 'Y'))
 	    {
 	      printf("Yes\n");
@@ -378,7 +372,8 @@ static int chooseDisk(void)
 	{
 	  // Check for our OK button
 	  status = windowComponentEventGet(okButton, &event);
-	  if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_UP)))
+	  if ((status < 0) || ((status > 0) &&
+	      (event.type == EVENT_MOUSE_LEFTUP)))
 	    {
 	      diskNumber = windowComponentGetSelected(diskList);
 	      break;
@@ -386,7 +381,8 @@ static int chooseDisk(void)
 
 	  // Check for our 'partition' button
 	  status = windowComponentEventGet(partButton, &event);
-	  if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_UP)))
+	  if ((status < 0) || ((status > 0) &&
+	      (event.type == EVENT_MOUSE_LEFTUP)))
 	    {
 	      // The user wants to repartition the disks.  Get rid of this
 	      // window, run the disk manager, and start again
@@ -401,7 +397,8 @@ static int chooseDisk(void)
 
 	  // Check for our Cancel button
 	  status = windowComponentEventGet(cancelButton, &event);
-	  if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_UP)))
+	  if ((status < 0) || ((status > 0) &&
+	      (event.type == EVENT_MOUSE_LEFTUP)))
 	    break;
 
 	  // Done
@@ -809,12 +806,13 @@ static void setAdminPassword(void)
 	  
 	  // Check for the OK button
 	  status = windowComponentEventGet(okButton, &event);
-	  if ((status > 0) && (event.type == EVENT_MOUSE_UP))
+	  if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	    break;
 	  
 	  // Check for the Cancel button
 	  status = windowComponentEventGet(cancelButton, &event);
-	  if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_UP)))
+	  if ((status < 0) || ((status > 0) &&
+	      (event.type == EVENT_MOUSE_LEFTUP)))
 	    {
 	      error("No password set.  It will be blank.");
 	      windowDestroy(dialogWindow);

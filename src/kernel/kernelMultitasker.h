@@ -157,6 +157,7 @@ void kernelMultitaskerWait(unsigned);
 int kernelMultitaskerBlock(int);
 int kernelMultitaskerDetach(void);
 int kernelMultitaskerKillProcess(int, int);
+int kernelMultitaskerKillByName(const char *, int);
 int kernelMultitaskerKillAll(void);
 int kernelMultitaskerTerminate(int);
 

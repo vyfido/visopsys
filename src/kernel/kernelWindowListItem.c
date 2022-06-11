@@ -36,72 +36,55 @@ static int draw(void *componentData)
   // Draw the component
 
   int status = 0;
-  color foreground = { DEFAULT_BLUE, DEFAULT_GREEN, DEFAULT_RED };
-  color background = { 0xFF, 0xFF, 0xFF };
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindow *window = (kernelWindow *) component->window;
   kernelWindowListItem *item = (kernelWindowListItem *) component->data;
   char *textBuffer = NULL;
 
-  if (!component->parameters.useDefaultForeground)
-    {
-      // Use the user-supplied foreground color
-      foreground.red = component->parameters.foreground.red;
-      foreground.green = component->parameters.foreground.green;
-      foreground.blue = component->parameters.foreground.blue;
-    }
-  if (!component->parameters.useDefaultBackground)
-    {
-      // Use the user-supplied foreground color
-      background.red = component->parameters.background.red;
-      background.green = component->parameters.background.green;
-      background.blue = component->parameters.background.blue;
-    }
-
   if (item->selected)
-    status = kernelGraphicDrawRect(&(window->buffer), &foreground,
+    status = kernelGraphicDrawRect(&(window->buffer), (color *)
+				   &(component->parameters.foreground),
 				   draw_normal, component->xCoord,
 				   component->yCoord, component->width,
 				   component->height, 1, 1);
   else
-    status = kernelGraphicDrawRect(&(window->buffer), &background,
+    status = kernelGraphicDrawRect(&(window->buffer), (color *)
+				   &(component->parameters.background),
 				   draw_normal, component->xCoord,
 				   component->yCoord, component->width,
 				   component->height, 1, 1);
-  
   if (status < 0)
     return (status);
 
-  if (kernelFontGetPrintedWidth(item->font, textBuffer) >= component->width)
-    {
-      textBuffer = kernelMalloc(strlen(item->text + 1));
-      if (textBuffer == NULL)
-	return (status = ERR_MEMORY);
-      strcpy(textBuffer, item->text);
+  textBuffer = kernelMalloc(strlen(item->text + 1));
+  if (textBuffer == NULL)
+    return (status = ERR_MEMORY);
+  strcpy(textBuffer, item->text);
       
-      // Don't draw text outside our component area
-      while ((kernelFontGetPrintedWidth(item->font, textBuffer) >=
-	      component->width) && strlen(textBuffer))
-	textBuffer[strlen(textBuffer) - 1] = '\0';
-    }
-  else
-    textBuffer = (char *) item->text;
+  // Don't draw text outside our component area
+  while ((kernelFontGetPrintedWidth(item->font, textBuffer) >=
+	  component->width) && strlen(textBuffer))
+    textBuffer[strlen(textBuffer) - 1] = '\0';
 
   if (item->selected)
-    status = kernelGraphicDrawText(&(window->buffer), &background,
-				   &foreground, item->font, textBuffer,
-				   draw_normal, (component->xCoord + 1),
-				   (component->yCoord + 1));
+    status =
+      kernelGraphicDrawText(&(window->buffer),
+			    (color *) &(component->parameters.background),
+			    (color *) &(component->parameters.foreground),
+			    item->font, textBuffer, draw_normal,
+			    (component->xCoord + 1), (component->yCoord + 1));
   else
-    status = kernelGraphicDrawText(&(window->buffer), &foreground,
-				   &background, item->font, textBuffer,
-				   draw_normal, (component->xCoord + 1),
-				   (component->yCoord + 1));
+    status =
+      kernelGraphicDrawText(&(window->buffer),
+			    (color *) &(component->parameters.foreground),
+			    (color *) &(component->parameters.background),
+			    item->font, textBuffer, draw_normal,
+			    (component->xCoord + 1), (component->yCoord + 1));
 
   kernelFree(textBuffer);
 
   if (component->parameters.hasBorder)
-    component->drawBorder((void *) component);
+    component->drawBorder((void *) component, 1);
 
   return (status);
 }
@@ -153,7 +136,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
   kernelWindow *window = (kernelWindow *) component->window;
   kernelWindowListItem *item = (kernelWindowListItem *) component->data;
 
-  if (event->type & EVENT_MOUSE_DOWN)
+  if (event->type == EVENT_MOUSE_LEFTDOWN)
     {
       if (item->selected)
 	item->selected = 0;
@@ -189,7 +172,7 @@ static int destroy(void *componentData)
   if (label)
     {
       if (label->text)
-	kernelFree((void *) label->text);
+      	kernelFree((void *) label->text);
       kernelFree((void *) label);
     }
 
@@ -226,6 +209,15 @@ kernelWindowComponent *kernelWindowNewListItem(volatile void *parent,
   if (component == NULL)
     return (component);
 
+  // If default colors were requested, override the standard background color
+  // with the one we prefer (white)
+  if (component->parameters.useDefaultBackground)
+    {
+      component->parameters.background.blue = 0xFF;
+      component->parameters.background.green = 0xFF;
+      component->parameters.background.red = 0xFF;
+    }
+
   if (labelFont == NULL)
     {
       // Try to load a nice-looking font
@@ -252,6 +244,7 @@ kernelWindowComponent *kernelWindowNewListItem(volatile void *parent,
       kernelFree((void *) component);
       return (component = NULL);
     }
+
   listItemComponent->text = kernelMalloc(strlen(text) + 1);
   if (listItemComponent->text == NULL)
     {

@@ -124,7 +124,7 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
     {
       // Check for our OK button
       status = windowComponentEventGet(okButton, &event);
-      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_UP)))
+      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
 	break;
 
       // Check for window close events

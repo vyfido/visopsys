@@ -27,6 +27,7 @@
 #include "kernelMalloc.h"
 #include "kernelLoader.h"
 #include "kernelMiscFunctions.h"
+#include "kernelKeyboard.h"
 #include "kernelProcessorX86.h"
 #include "kernelShutdown.h"
 #include "kernelError.h"
@@ -53,7 +54,7 @@ void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
   int status = 0;
   int pid = -1;
   loaderInfoStruct systemInfo;
-  char startProgram[128];
+  char value[128];
 
   visopsys_in_kernel = 1;
 
@@ -80,25 +81,23 @@ void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
       kernelProcessorReboot();
     }
 
-  kernelVariables = kernelConfigurationReader(DEFAULT_KERNEL_CONFIG);
   if (kernelVariables != NULL)
     {
       // Find out which initial program to launch
-      kernelVariableListGet(kernelVariables, "start.program", startProgram,
-			    128);
+      kernelVariableListGet(kernelVariables, "start.program", value, 128);
 
       // If the start program is our standard login program, use a custom
       // function to launch a login process 
-      if (strncmp(startProgram, DEFAULT_KERNEL_STARTPROGRAM, 128))
+      if (strncmp(value, DEFAULT_KERNEL_STARTPROGRAM, 128))
 	{
 	  // Try to load the login process
-	  pid = kernelLoaderLoadProgram(startProgram, PRIVILEGE_SUPERVISOR,
+	  pid = kernelLoaderLoadProgram(value, PRIVILEGE_SUPERVISOR,
 					0,     // no args
 					NULL); // no args
 	  if (pid < 0)
 	    // Don't fail, but make a warning message
 	    kernelError(kernel_warn, "Couldn't load start program \"%s\"",
-			startProgram);
+			value);
 	  else
 	    {
 	      // Attach the start program to the console text streams

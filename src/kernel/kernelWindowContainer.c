@@ -68,7 +68,7 @@ static int draw(void *componentData)
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
 
   if (component->parameters.hasBorder)
-    component->drawBorder((void *) component);
+    component->drawBorder((void *) component, 1);
 
   return (status);
 }
@@ -128,6 +128,8 @@ static int containerAdd(kernelWindowComponent *containerComponent,
 
   int status = 0;
   kernelWindowContainer *container = NULL;
+  extern color kernelDefaultForeground;
+  extern color kernelDefaultBackground;
 
   // Check params
   if ((containerComponent == NULL) || (component == NULL) || (params == NULL))
@@ -147,10 +149,26 @@ static int containerAdd(kernelWindowComponent *containerComponent,
 
   // Add it to the container
   container->components[container->numComponents++] = component;
+  component->container = (void *) containerComponent;
 
   // Copy the parameters into the component
   kernelMemCopy(params, (void *) &(component->parameters),
 		sizeof(componentParameters));
+
+  // If the default colors are requested, copy them into the component
+  // parameters
+  if (component->parameters.useDefaultForeground)
+    {
+      component->parameters.foreground.blue = kernelDefaultForeground.blue;
+      component->parameters.foreground.green = kernelDefaultForeground.green;
+      component->parameters.foreground.red = kernelDefaultForeground.red;
+    }
+  if (component->parameters.useDefaultBackground)
+    {
+      component->parameters.background.blue = kernelDefaultBackground.blue;
+      component->parameters.background.green = kernelDefaultBackground.green;
+      component->parameters.background.red = kernelDefaultBackground.red;
+    }
 
   return (status);
 }
@@ -186,6 +204,8 @@ static int containerRemove(kernelWindowComponent *containerComponent,
 	break;
       }
 
+  component->container = NULL;
+
   return (status = 0);
 }
 
@@ -197,9 +217,9 @@ static int containerLayout(kernelWindowComponent *containerComponent)
   int status = 0;
   kernelWindow *window = NULL;
   kernelWindowContainer *container = NULL;
-  unsigned columnWidth[WINDOW_MAX_COMPONENTS];
+  int columnWidth[WINDOW_MAX_COMPONENTS];
   unsigned columnStartX[WINDOW_MAX_COMPONENTS];
-  unsigned rowHeight[WINDOW_MAX_COMPONENTS];
+  int rowHeight[WINDOW_MAX_COMPONENTS];
   unsigned rowStartY[WINDOW_MAX_COMPONENTS];
   unsigned numColumns = 0, numRows = 0, totalWidth = 0, totalHeight = 0;
   kernelWindowComponent *component = NULL;
@@ -320,7 +340,7 @@ static int containerLayout(kernelWindowComponent *containerComponent)
 	for (count1 = 0; (count1 < column); count1 ++)
 	  columnStartX[column] += columnWidth[count1];
 
-	(int) columnWidth[column] += padWidth;
+	columnWidth[column] += padWidth;
       }
 
   // Set the starting Y coordinates of the rows
@@ -332,7 +352,7 @@ static int containerLayout(kernelWindowComponent *containerComponent)
 	for (count1 = 0; (count1 < row); count1 ++)
 	  rowStartY[row] += rowHeight[count1];
 
-	(int) rowHeight[row] += padHeight;
+	rowHeight[row] += padHeight;
       }
 
   // Loop through each component setting the sizes and coordinates
@@ -475,6 +495,9 @@ kernelWindowComponent *kernelWindowNewContainer(volatile void *parent,
   component->type = containerComponentType;
   component->flags |= WINFLAG_RESIZABLE;
   component->data = (void *) container;
+
+  // We don't want events going to container components by default
+  component->level = WINDOW_MAX_COMPONENTS;
   
   // The functions
   component->draw = &draw;

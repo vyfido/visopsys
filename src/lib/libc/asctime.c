@@ -22,9 +22,7 @@
 // This is the standard "asctime" function, as found in standard C libraries
 
 #include <time.h>
-#include <string.h>
-#include <stdlib.h>
-#include <errno.h>
+#include <stdio.h>
 
 
 char *asctime(const struct tm *timePtr)
@@ -54,36 +52,10 @@ char *asctime(const struct tm *timePtr)
   
   errno = 0;
 
-  // Get the day of the week
-  strncpy(timeString, weekDay[timePtr->tm_wday], 5);
-
-  // Month
-  strncat(timeString, month[timePtr->tm_mon], 4);
-
-  // Day of the month
-  itoa(timePtr->tm_mday, (timeString + strlen(timeString)));
-  strncat(timeString, " ", 1);
-
-  // Hour
-  if (timePtr->tm_hour < 10)
-    strncat(timeString, "0", 1);
-  itoa(timePtr->tm_hour, (timeString + strlen(timeString)));
-  strncat(timeString, ":", 1);
-
-  // Minute
-  if (timePtr->tm_min < 10)
-    strncat(timeString, "0", 1);
-  itoa(timePtr->tm_min, (timeString + strlen(timeString)));
-  strncat(timeString, ":", 1);
-
-  // Second
-  if (timePtr->tm_sec < 10)
-    strncat(timeString, "0", 1);
-  itoa(timePtr->tm_sec, (timeString + strlen(timeString)));
-  strncat(timeString, " ", 1);
-
-  // Year
-  itoa(timePtr->tm_year, (timeString + strlen(timeString)));
+  // Create the string
+  sprintf(timeString, "%s %s %d %02d:%02d:%02d %d", weekDay[timePtr->tm_wday],
+	  month[timePtr->tm_mon], timePtr->tm_mday, timePtr->tm_hour,
+	  timePtr->tm_min, timePtr->tm_sec, timePtr->tm_year);
 
   // Ok, return a pointer to timeString
   return (timeString);

@@ -37,7 +37,7 @@ static void *builtinDriverInits[] = {
   kernelPS2MouseDriverInitialize,
   kernelFloppyDriverInitialize,
   kernelIdeDriverInitialize,
-  kernelLFBGraphicDriverInitialize,
+  kernelFramebufferGraphicDriverInitialize,
   kernelFilesystemExtInitialize,
   kernelFilesystemFatInitialize,
   kernelFilesystemIsoInitialize,

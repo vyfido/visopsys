@@ -190,8 +190,9 @@ extern int visopsys_in_kernel;
 #define _fnum_multitaskerBlock                       6020
 #define _fnum_multitaskerDetach                      6021
 #define _fnum_multitaskerKillProcess                 6022
-#define _fnum_multitaskerTerminate                   6023
-#define _fnum_multitaskerDumpProcessList             6024
+#define _fnum_multitaskerKillByName                  6023
+#define _fnum_multitaskerTerminate                   6024
+#define _fnum_multitaskerDumpProcessList             6025
 
 // Loader functions.  All are in the 7000-7999 range.
 #define _fnum_loaderLoad                             7000
@@ -231,16 +232,18 @@ extern int visopsys_in_kernel;
 #define _fnum_graphicGetScreenHeight                 11005
 #define _fnum_graphicCalculateAreaBytes              11006
 #define _fnum_graphicClearScreen                     11007
-#define _fnum_graphicDrawPixel                       11008
-#define _fnum_graphicDrawLine                        11009
-#define _fnum_graphicDrawRect                        11010
-#define _fnum_graphicDrawOval                        11011
-#define _fnum_graphicDrawImage                       11012
-#define _fnum_graphicGetImage                        11013
-#define _fnum_graphicDrawText                        11014
-#define _fnum_graphicCopyArea                        11015
-#define _fnum_graphicClearArea                       11016
-#define _fnum_graphicRenderBuffer                    11017
+#define _fnum_graphicGetColor                        11008
+#define _fnum_graphicSetColor                        11009
+#define _fnum_graphicDrawPixel                       11010
+#define _fnum_graphicDrawLine                        11011
+#define _fnum_graphicDrawRect                        11012
+#define _fnum_graphicDrawOval                        11013
+#define _fnum_graphicDrawImage                       11014
+#define _fnum_graphicGetImage                        11015
+#define _fnum_graphicDrawText                        11016
+#define _fnum_graphicCopyArea                        11017
+#define _fnum_graphicClearArea                       11018
+#define _fnum_graphicRenderBuffer                    11019
 
 // Windowing system functions.  All are in the 12000-12999 range
 #define _fnum_windowLogin                            12000
@@ -298,9 +301,10 @@ extern int visopsys_in_kernel;
 #define _fnum_windowNewPasswordField                 12052
 #define _fnum_windowNewProgressBar                   12053
 #define _fnum_windowNewRadioButton                   12054
-#define _fnum_windowNewTextArea                      12055
-#define _fnum_windowNewTextField                     12056
-#define _fnum_windowNewTextLabel                     12057
+#define _fnum_windowNewScrollBar                     12055
+#define _fnum_windowNewTextArea                      12056
+#define _fnum_windowNewTextField                     12057
+#define _fnum_windowNewTextLabel                     12058
 
 // User functions.  All are in the 13000-13999 range
 #define _fnum_userAuthenticate                       13000
@@ -333,6 +337,8 @@ extern int visopsys_in_kernel;
 #define _fnum_variableListUnset                      99015
 #define _fnum_configurationReader                    99016
 #define _fnum_configurationWriter                    99017
+#define _fnum_keyboardGetMaps                        99018
+#define _fnum_keyboardSetMap                         99019
 
 
 // Utility macros for stack manipulation
@@ -1488,6 +1494,14 @@ _X_ static inline int multitaskerKillProcess(int pid, int force)
 		    (void *) force));
 }
 
+_X_ static inline int multitaskerKillByName(const char *name, int force)
+{
+  // Proto: int kernelMultitaskerKillByName(const char *name, int force)
+  // Desc : Like multitaskerKillProcess, except that it attempts to kill all instances of processes whose names match 'name'
+  return (sysCall_2(_fnum_multitaskerKillByName, (void *) name,
+		    (void *) force));
+}
+
 _X_ static inline int multitaskerTerminate(int code)
 {
   // Proto: int kernelMultitaskerTerminate(int);
@@ -1736,6 +1750,20 @@ _X_ static inline int graphicClearScreen(color *background)
   // Proto: int kernelGraphicClearScreen(color *);
   // Desc : Clear the screen to the background color 'background'.
   return (sysCall_1(_fnum_graphicClearScreen, background));
+}
+
+_X_ static inline int graphicGetColor(const char *colorName, color *getColor)
+{
+  // Proto: int kernelGraphicGetColor(const char *, color *);
+  // Desc : Get the system color 'colorName' and place its values in the color structure 'getColor'.  Examples of system color names include 'foreground', 'background', and 'desktop'.
+  return (sysCall_2(_fnum_graphicGetColor, (void *) colorName, getColor));
+}
+
+_X_ static inline int graphicSetColor(const char *colorName, color *setColor)
+{
+  // Proto: int kernelGraphicSetColor(const char *, color *);
+  // Desc : Set the system color 'colorName' to the values in the color structure 'getColor'.  Examples of system color names include 'foreground', 'background', and 'desktop'.
+  return (sysCall_2(_fnum_graphicSetColor, (void *) colorName, setColor));
 }
 
 _X_ static inline int graphicDrawPixel(objectKey buffer, color *foreground, drawMode mode, int xCoord, int yCoord)
@@ -2186,7 +2214,7 @@ _X_ static inline objectKey windowNewImage(objectKey parent, image *baseImage, d
 
 _X_ static inline objectKey windowNewList(objectKey parent, objectKey font, unsigned rows, unsigned columns, int multiple, char *items[], int numItems, componentParameters *params)
 {
-  // Proto: kernelWindowComponent *kernelWindowNewList(volatile void *, kernelAsciiFont *, unsigned, unsigned, int, const char **, int, componentParameters *);
+  // Proto: kernelWindowComponent *kernelWindowNewList(volatile void *, kernelAsciiFont *, unsigned, unsigned, int, const char *[], int, componentParameters *);
   // Desc : Get a new window list component to be placed inside the parent object 'parent', using the font 'font' and the component parameters 'params'.  'rows' and 'columns' specify the size of the list and layout of the list items, 'multiple' allows multiple selections if non-zero, and 'numItems' specifies the number of strings in the array 'items' (which is an array of strings to represent the list items)
   return ((objectKey) sysCall_8(_fnum_windowNewList, parent, font,
 				(void *) rows, (void *) columns,
@@ -2247,6 +2275,15 @@ _X_ static inline objectKey windowNewRadioButton(objectKey parent, objectKey fon
   return ((objectKey) sysCall_7(_fnum_windowNewRadioButton, parent, font,
 				(void *) rows, (void *) columns,
 				items, (void *) numItems, params));
+}
+
+_X_ static inline objectKey windowNewScrollBar(objectKey parent, scrollBarType type, unsigned width, unsigned height, componentParameters *params)
+{
+  // Proto: kernelWindowComponent *kernelWindowNewScrollBar(volatile void *, scrollBarType, unsigned, unsigned, componentParameters *);
+  // Desc : Get a new scroll bar component to be placed inside the parent object 'parent', with the scroll bar type 'type', and the given component parameters 'params'.
+  return ((objectKey) sysCall_5(_fnum_windowNewScrollBar, parent,
+				(void *) type, (void *) width, (void *) height,
+				params));
 }
 
 _X_ static inline objectKey windowNewTextArea(objectKey parent, int columns, int rows, objectKey font, componentParameters *params)
@@ -2484,6 +2521,20 @@ _X_ static inline int configurationWriter(const char *fileName, variableList *li
   // Proto: int kernelConfigurationWriter(const char *, variableList *);
   // Desc : Write the contents of the variable list 'list' to the configuration file 'fileName'.  Configuration files are simple properties files, consisting of lines of the format "variable=value".  If the configuration file already exists, the configuration writer will attempt to preserve comment lines (beginning with '#') and formatting whitespace.
   return (sysCall_2(_fnum_configurationWriter, (void *) fileName, list));
+}
+
+_X_ static inline int keyboardGetMaps(char *buffer, unsigned size)
+{
+  // Proto: int kernelKeyboardGetMaps(char *, unsigned);
+  // Desc : Get a listing of the names of all available keyboard mappings.  The buffer is filled up to 'size' bytes with descriptive names, such as "English (UK)".  Each string is NULL-terminated, and the return value of the call is the number of strings copied.  The first string returned is the current map.
+  return (sysCall_2(_fnum_keyboardGetMaps, buffer, (void *) size));
+}
+
+_X_ static inline int keyboardSetMap(const char *name)
+{
+  // Proto: int kernelKeyboardSetMap(const char *);
+  // Desc : Set the keyboard mapping to the supplied 'name'.  The normal procedure would be to first call the keyboardGetMaps() function, get the list of supported mappings, and then call this function with one of those names.  Only a name returned by the keyboardGetMaps function is valid in this scenario.
+  return (sysCall_1(_fnum_keyboardSetMap, (void *) name));
 }
 
 #define _API_H

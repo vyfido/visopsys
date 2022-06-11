@@ -40,8 +40,6 @@ static int draw(void *componentData)
 {
   // Draw the image component
 
-  color foreground = { 255, 255, 255 };
-  color background = { 0xAB, 0x5D, 0x28 };
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelGraphicBuffer *buffer =
     &(((kernelWindow *) component->window)->buffer);
@@ -54,29 +52,14 @@ static int draw(void *componentData)
 				     iconComponent->labelWidth) / 2);
   int labelY = (component->yCoord + iconComponent->iconImage.height + 3);
 
-  if (!component->parameters.useDefaultForeground)
-    {
-      // Use user-supplied colors
-      foreground.red = component->parameters.foreground.red;
-      foreground.green = component->parameters.foreground.green;
-      foreground.blue = component->parameters.foreground.blue;
-    }
-  if (!component->parameters.useDefaultBackground)
-    {
-      // Use user-supplied colors
-      background.red = component->parameters.background.red;
-      background.green = component->parameters.background.green;
-      background.blue = component->parameters.background.blue;
-    }
-
   // Draw the icon image
   kernelGraphicDrawImage(buffer, (image *) &(iconComponent->iconImage),
 			 draw_translucent, imageX, component->yCoord,
 			 0, 0, 0, 0);
 
   // Clear the text area
-  kernelGraphicClearArea(buffer, &background, labelX, labelY,
-			 (iconComponent->labelWidth + 2),
+  kernelGraphicClearArea(buffer, (color *) &(component->parameters.background),
+			 labelX, labelY, (iconComponent->labelWidth + 2),
 			 ((iconComponent->labelLines * defaultFont->charHeight)
 			  + 2));
 
@@ -88,13 +71,15 @@ static int draw(void *componentData)
       labelY = (component->yCoord + iconComponent->iconImage.height + 4 +
 		(defaultFont->charHeight * count));
       
-      kernelGraphicDrawText(buffer, &foreground, &background, defaultFont,
-			    (char *) iconComponent->label[count], draw_normal,
-			    labelX, labelY);
+      kernelGraphicDrawText(buffer,
+			    (color *) &(component->parameters.foreground),
+			    (color *) &(component->parameters.background),
+			    defaultFont, (char *) iconComponent->label[count],
+			    draw_normal, labelX, labelY);
     }
 
   if (component->parameters.hasBorder)
-    component->drawBorder((void *) component);
+    component->drawBorder((void *) component, 1);
 
   return (0);
 }
@@ -118,15 +103,14 @@ static int mouseEvent(void *componentData, windowEvent *event)
 
   if (dragging)
     {
-      if (event->type & EVENT_MOUSE_DRAG)
+      if (event->type == EVENT_MOUSE_DRAG)
 	{
 	  // The icon is still moving
 
 	  // Erase the xor'ed outline
-	  kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
-				draw_xor, (window->xCoord + component->xCoord),
-				(window->yCoord + component->yCoord),
-				component->width, component->height, 1, 0);
+	  kernelWindowRedrawArea((window->xCoord + component->xCoord),
+				 (window->yCoord + component->yCoord),
+				 component->width, component->height);	      
 	      
 	  // Set the new position
 	  component->xCoord += (event->xPosition - dragEvent.xPosition);
@@ -161,9 +145,6 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	  kernelWindowUpdateBuffer(&(window->buffer), component->xCoord,
 				   component->yCoord, component->width,
 				   component->height);
-	  
-	  // Redraw the mouse
-	  kernelMouseDraw();
 
 	  // If the new location intersects any other components of the
 	  // window, we need to focus the icon
@@ -171,11 +152,14 @@ static int mouseEvent(void *componentData, windowEvent *event)
 
 	  dragging = 0;
 	}
+	  
+      // Redraw the mouse
+      kernelMouseDraw();
 
       return (0);
     }
 
-  else if (event->type & EVENT_MOUSE_DRAG)
+  else if (event->type == EVENT_MOUSE_DRAG)
     {
       // The icon has started moving
 		  
@@ -202,14 +186,14 @@ static int mouseEvent(void *componentData, windowEvent *event)
     {
       // Just a click
 
-      if (event->type & EVENT_MOUSE_UP)
+      if (event->type == EVENT_MOUSE_LEFTUP)
 	{
 	  kernelGraphicDrawRect(buffer, &((color) { 255, 255, 255 }),
 				draw_xor, imageX, component->yCoord,
 				iconComponent->iconImage.width,
 				iconComponent->iconImage.height, 1, 1);
 	}
-      else if (event->type & EVENT_MOUSE_DOWN)
+      else if (event->type == EVENT_MOUSE_LEFTDOWN)
 	{
 	  // Show the icon being clicked
 	  kernelGraphicDrawRect(buffer, &((color) { 255, 255, 255 }),
@@ -273,6 +257,21 @@ kernelWindowComponent *kernelWindowNewIcon(volatile void *parent,
   component = kernelWindowComponentNew(parent, params);
   if (component == NULL)
     return (component);
+
+  // If default colors are requested, override the standard component colors
+  // with the ones we prefer
+  if (component->parameters.useDefaultForeground)
+    {
+      component->parameters.foreground.blue = 255;
+      component->parameters.foreground.green = 255;
+      component->parameters.foreground.red = 255;
+    }
+  if (component->parameters.useDefaultBackground)
+    {
+      component->parameters.background.blue = 0xAB;
+      component->parameters.background.green = 0x5D;
+      component->parameters.background.red = 0x28;
+    }
 
   // Copy all the relevant data into our memory
   iconComponent = kernelMalloc(sizeof(kernelWindowIcon));

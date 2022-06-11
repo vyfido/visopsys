@@ -45,19 +45,6 @@ static int draw(void *componentData)
   unsigned char *line = NULL;
   int rowCount;
 
-  if (!component->parameters.useDefaultForeground)
-    {
-      area->foreground.red = component->parameters.foreground.red;
-      area->foreground.green = component->parameters.foreground.green;
-      area->foreground.blue = component->parameters.foreground.blue;
-    }
-  if (!component->parameters.useDefaultBackground)
-    {
-      area->background.red = component->parameters.background.red;
-      area->background.green = component->parameters.background.green;
-      area->background.blue = component->parameters.background.blue;
-    }
-
   // Clear the area visually
   kernelGraphicClearArea(area->graphicBuffer, (color *) &(area->background),
 			 component->xCoord, component->yCoord,
@@ -86,7 +73,7 @@ static int draw(void *componentData)
 			    (component->flags & WINFLAG_HASFOCUS));
 
   if (component->parameters.hasBorder)
-    component->drawBorder((void *) component);
+    component->drawBorder((void *) component, 1);
 
   return (0);
 }
@@ -204,7 +191,7 @@ static int keyEvent(void *componentData, windowEvent *event)
   kernelTextInputStream *inputStream =
     (kernelTextInputStream *) area->inputStream;
 
-  if ((event->type & EVENT_KEY_DOWN) && inputStream && inputStream->s.append)
+  if ((event->type == EVENT_KEY_DOWN) && inputStream && inputStream->s.append)
     inputStream->s.append(area->inputStream, (char) event->key);
 
   return (0);
@@ -267,6 +254,15 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
   if (component == NULL)
     return (component);
 
+  // If the user wants the default colors, we change set them to the
+  // default for a text area
+  if (component->parameters.useDefaultForeground)
+    {
+      component->parameters.foreground.red = 0;
+      component->parameters.foreground.green = 0;
+      component->parameters.foreground.blue = 0;
+    }
+
   // If font is NULL, get the default font
   if (font == NULL)
     {
@@ -304,12 +300,12 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
   area->rows = rows;
   area->cursorColumn = 0;
   area->cursorRow = 0;
-  area->foreground.red = 0;
-  area->foreground.green = 0;
-  area->foreground.blue = 0;
-  area->background.red = DEFAULT_GREY;
-  area->background.green = DEFAULT_GREY;
-  area->background.blue = DEFAULT_GREY;
+  area->foreground.red = component->parameters.foreground.red;
+  area->foreground.green = component->parameters.foreground.green;
+  area->foreground.blue = component->parameters.foreground.blue;
+  area->background.red = component->parameters.background.red;
+  area->background.green = component->parameters.background.green;
+  area->background.blue = component->parameters.background.blue;
   area->inputStream = kernelMalloc(sizeof(kernelTextInputStream));
   kernelTextNewInputStream(area->inputStream);
   area->outputStream = kernelMalloc(sizeof(kernelTextOutputStream));
@@ -318,6 +314,7 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
   area->data = (unsigned char *) kernelMalloc(columns * rows);
   area->font = font;
   area->graphicBuffer = &(getWindow(parent)->buffer);
+
 
   component->data = (void *) area;
 

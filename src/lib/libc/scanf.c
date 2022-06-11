@@ -67,7 +67,7 @@ int scanf(const char *format, ...)
     return (matchItems = 0);
 
   // Replace the NULL
-  ((char *) format) = tmpChar;
+  ((char *) format)[count] = tmpChar;
 
   // Initialize the argument list
   va_start(list, format);

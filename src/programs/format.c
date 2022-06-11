@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
       strcpy(type, optarg);
     }
 
-  if (argc > 2)
+  if (argc > 1)
     {
       // The user can specify the disk name as an argument.  Try to see
       // whether they did so.

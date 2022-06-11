@@ -294,9 +294,11 @@ void kernelMouseMove(int xChange, int yChange)
   else if (mouseStatus.yPosition > (screenHeight - 3))
     mouseStatus.yPosition = (screenHeight - 3);
 
-  mouseStatus.eventMask = EVENT_MOUSE_MOVE;
+  
   if (mouseStatus.button1 || mouseStatus.button2 || mouseStatus.button3)
-    mouseStatus.eventMask |= EVENT_MOUSE_DRAG;
+    mouseStatus.eventMask = EVENT_MOUSE_DRAG;
+  else
+    mouseStatus.eventMask = EVENT_MOUSE_MOVE;
 
   draw();
 
@@ -319,21 +321,29 @@ void kernelMouseButtonChange(int buttonNumber, int status)
   if (!initialized)
     return;
 
-  if (status)
-    mouseStatus.eventMask = EVENT_MOUSE_DOWN;
-  else
-    mouseStatus.eventMask = EVENT_MOUSE_UP;
-
   switch (buttonNumber)
     {
     case 1:
       mouseStatus.button1 = status;
+      if (status)
+	mouseStatus.eventMask = EVENT_MOUSE_LEFTDOWN;
+      else
+	mouseStatus.eventMask = EVENT_MOUSE_LEFTUP;
       break;
     case 2:
       mouseStatus.button2 = status;
+      if (status)
+	mouseStatus.eventMask = EVENT_MOUSE_MIDDLEDOWN;
+      else
+	mouseStatus.eventMask = EVENT_MOUSE_MIDDLEUP;
       break;
     case 3:
       mouseStatus.button3 = status;
+      if (status)
+	mouseStatus.eventMask = EVENT_MOUSE_RIGHTDOWN;
+      else
+	mouseStatus.eventMask = EVENT_MOUSE_RIGHTUP;
+      break;
     }
 
   // Tell the window manager, if it cares

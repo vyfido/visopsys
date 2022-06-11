@@ -45,6 +45,79 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
 
+<p><font size="4">VERSION 0.41<br>
+</font>09/08/2004</p>
+<p><font size="4">Overview: This is primarily a bugfix release, with some added 
+features, including the ability to move partitions, a configuration editor, and 
+a keymap editor.&nbsp; There are also a number of small tweaks to graphical 
+components and GUI user settings.</font></p>
+<ul>
+  <li><font size="4">The disk manager can now move partitions in contiguous 
+  space (i.e. it can 'slide' them from side to side)</font></li>
+  <li><font size="4">Created a 'configuration editor' for editing configuration 
+  files</font></li>
+  <li><font size="4">Created a 'keymap editor' for choosing keyboard layout.</font></li>
+  <li><font size="4">In the Disk Manager, clicking on a colored slice in the 
+  canvas area now selects the partition</font></li>
+  <li><font size="4">Added a 'color chooser' window library dialog box</font></li>
+  <li><font size="4">The window shell thread now loads programs automatically 
+  based on things specified in the window manager config file.</font></li>
+  <li><font size="4">Added a pretty xterm font (modified from the xterm program 
+  under Linux).</font></li>
+  <li><font size="4">Made it possible to set the default foreground, background, 
+  and desktop colors for all graphics operations in the kernel.conf file.</font></li>
+  <li><font size="4">Added a 'show clock on desktop' checkbox to the display 
+  properties app with an accompanying clock app.</font></li>
+  <li><font size="4">Implemented right and middle mouse click events.</font></li>
+  <li><font size="4">The radio button GUI widget will now accept focus and allow 
+  keyboard control</font></li>
+  <li><font size="4">In the Disk Manager, when a new partition is created, it is 
+  now selected afterward.</font></li>
+  <li><font size="4">When copying disks in the disk manager, added a better 
+  prompt dialog to ask which disk to copy to, with a clickable list instead of a 
+  typing prompt, and it doesn't prompt about which disk to copy to if there's 
+  only one other choice</font></li>
+  <li><font size="4">Made the 'scroll bar' GUI widget available from user space</font></li>
+  <li><font size="4">Calling 'set selected' with GUI list widgets now scrolls 
+  the list if necessary so that the selected one is visible.</font></li>
+  <li><font size="4">The window manager no longer re-saves its config file at 
+  shutdown</font></li>
+  <li><font size="4">Added a 'cancel' button to the 'copy disk' dialog of the 
+  disk manager</font></li>
+  <li><font size="4">Mouse dragging events now filter down to the user space via 
+  the event stream.</font></li>
+  <li><font size="4">Added a 'kill by name' function to the multitasker.</font></li>
+  <li><font size="4">Added a 'focus' routine to the menu widget, so that when 
+  the menu will disappear itself if it loses the focus</font></li>
+  <li><font size="4">Made a more friendly error message for the help command 
+  when there is not a help file for the topic.</font></li>
+  <li><font size="4">Fixed: In 15-bit graphics modes, the colors were all wrong.</font></li>
+  <li><font size="4">Fixed: The window list component was not responding very 
+  accurately to movements of the vertical slider, the slider was picking up both 
+  up-and-down mouse clicks, and dragging wasn't all that perfect either.</font></li>
+  <li><font size="4">Fixed: It was possible to resize a window down to nothing 
+  (or less than nothing!!).</font></li>
+  <li><font size="4">Fixed: The mouse pointer was leaving tracers when dragging 
+  or resizing windows, or dragging icons</font></li>
+  <li><font size="4">Fixed: Compilation failed on SuSE 9, with gcc 3.3.3 and 
+  (more importantly) whatever GNU ld comes with it.</font></li>
+  <li><font size="4">Fixed: It wasn't possible to hide a GUI component if they 
+  had the focus.</font></li>
+  <li><font size="4">Fixed: The format command stopped accepting a lone disk 
+  name argument</font></li>
+  <li><font size="4">Fixed: The framebuffer graphic driver was not drawing any 
+  part of outlined rectangles if part of the rectangle was off the screen.</font></li>
+  <li><font size="4">Fixed: Resizing list components was not resizing the 
+  subcomponent list items</font></li>
+  <li><font size="4">Fixed: Multiple buttons inside a container component were 
+  not picking up window events.</font></li>
+  <li><font size="4">Fixed: The arial bold 10 font's equals ('=') sign was a 
+  plus ('+')</font></li>
+  <li><font size="4">Fixed: Pressing CTRL-ALT-DELETE in graphics mode produced a 
+  panic with 'can't yield() in interrupt handler'</font></li>
+</ul>
+<hr>
+
 <p><font size="4">VERSION 0.4<br>
 </font>19/07/2004</p>
 <p><font size="4">Overview: This release features a number of graphical 

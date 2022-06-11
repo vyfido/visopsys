@@ -24,6 +24,15 @@
 #include "kernelLock.h"
 #include <sys/stream.h>
 
+// A structure for holding keyboard key mappings
+typedef struct {
+  char name[32];
+  char regMap[86];
+  char shiftMap[86];
+  char controlMap[86];
+
+} kernelKeyMap;
+
 // A structure for holding pointers to the keyboard driver functions
 typedef struct
 {
@@ -37,6 +46,7 @@ typedef struct
 typedef struct
 {
   unsigned flags;
+  kernelKeyMap *keyMap;
   kernelKeyboardDriver *driver;
 
 } kernelKeyboard;
@@ -47,6 +57,8 @@ int kernelKeyboardDriverInitialize(void);
 // Functions exported by kernelKeyboard.c
 int kernelKeyboardRegisterDevice(kernelKeyboard *);
 int kernelKeyboardInitialize(void);
+int kernelKeyboardGetMaps(char *, unsigned);
+int kernelKeyboardSetMap(const char *);
 int kernelKeyboardSetStream(stream *);
 int kernelKeyboardReadData(void);
 int kernelKeyboardInput(int, int);

@@ -25,8 +25,8 @@ CC		= gcc
 AR		= ar
 
 OPTS		= -nostdlib -nodefaultlibs -nostartfiles -nostdinc -O2 \
-		-mcpu=pentium -fno-strength-reduce -pipe -Wall \
-		-Wstrict-prototypes -Wmissing-prototypes \
+		-mcpu=pentium -fno-strength-reduce -fno-strict-aliasing \
+		-pipe -Wall -Wstrict-prototypes -Wmissing-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
 
 INCLUDES	= -I../../include

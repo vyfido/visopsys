@@ -37,6 +37,7 @@
 #include "kernelRandom.h"
 #include "kernelUser.h"
 #include "kernelEncrypt.h"
+#include "kernelKeyboard.h"
 #include "kernelError.h"
 #include <sys/errors.h>
 
@@ -250,6 +251,8 @@ static kernelFunctionIndex multitaskerFunctionIndex[] = {
   { _fnum_multitaskerDetach, kernelMultitaskerDetach, 0, PRIVILEGE_USER },
   { _fnum_multitaskerKillProcess, kernelMultitaskerKillProcess,
     2, PRIVILEGE_USER },
+  { _fnum_multitaskerKillByName, kernelMultitaskerKillByName, 2,
+    PRIVILEGE_USER },
   { _fnum_multitaskerTerminate, kernelMultitaskerTerminate,
     1, PRIVILEGE_USER },
   { _fnum_multitaskerDumpProcessList, kernelMultitaskerDumpProcessList,
@@ -318,6 +321,8 @@ static kernelFunctionIndex graphicFunctionIndex[] = {
   { _fnum_graphicCalculateAreaBytes, kernelGraphicCalculateAreaBytes,
     2, PRIVILEGE_USER },
   { _fnum_graphicClearScreen, kernelGraphicClearScreen, 1, PRIVILEGE_USER },
+  { _fnum_graphicGetColor, kernelGraphicGetColor, 2, PRIVILEGE_SUPERVISOR },
+  { _fnum_graphicSetColor, kernelGraphicSetColor, 2, PRIVILEGE_SUPERVISOR },
   { _fnum_graphicDrawPixel, kernelGraphicDrawPixel, 5, PRIVILEGE_USER },
   { _fnum_graphicDrawLine, kernelGraphicDrawLine, 7, PRIVILEGE_USER },
   { _fnum_graphicDrawRect, kernelGraphicDrawRect, 9, PRIVILEGE_USER },
@@ -410,6 +415,7 @@ static kernelFunctionIndex windowFunctionIndex[] = {
     2, PRIVILEGE_USER },
   { _fnum_windowNewRadioButton, kernelWindowNewRadioButton,
     7, PRIVILEGE_USER },
+  { _fnum_windowNewScrollBar, kernelWindowNewScrollBar, 5, PRIVILEGE_USER },
   { _fnum_windowNewTextArea, kernelWindowNewTextArea, 5, PRIVILEGE_USER },
   { _fnum_windowNewTextField, kernelWindowNewTextField, 4, PRIVILEGE_USER },
   { _fnum_windowNewTextLabel, kernelWindowNewTextLabel, 4, PRIVILEGE_USER }
@@ -452,7 +458,9 @@ static kernelFunctionIndex miscFunctionIndex[] = {
   { _fnum_variableListSet, kernelVariableListSet, 3, PRIVILEGE_USER },
   { _fnum_variableListUnset, kernelVariableListUnset, 2, PRIVILEGE_USER },
   { _fnum_configurationReader, kernelConfigurationReader, 1, PRIVILEGE_USER },
-  { _fnum_configurationWriter, kernelConfigurationWriter, 2, PRIVILEGE_USER }
+  { _fnum_configurationWriter, kernelConfigurationWriter, 2, PRIVILEGE_USER },
+  { _fnum_keyboardGetMaps, kernelKeyboardGetMaps, 2, PRIVILEGE_USER },
+  { _fnum_keyboardSetMap, kernelKeyboardSetMap, 1, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex *functionIndex[] = {
@@ -509,13 +517,13 @@ static int processCall(unsigned *argList)
     functionEntry = &functionIndex[0][functionNumber % 1000];
   else
     functionEntry =
-      &functionIndex[(functionNumber / 1000)][functionNumber % 1000];
+      &functionIndex[functionNumber / 1000][functionNumber % 1000];
 
   // Is there such a function?
   if ((functionEntry == NULL) ||
       (functionEntry->functionNumber != functionNumber))
     {
-      kernelError(kernel_error, "No such API function %d %d", functionNumber);
+      kernelError(kernel_error, "No such API function %d", functionNumber);
       return (status = ERR_NOSUCHFUNCTION);
     }
 

@@ -44,7 +44,7 @@ static void eventHandler(objectKey key, windowEvent *event)
     }
 
   // Check for the reboot icon
-  if ((key == rebootIcon) && (event->type == EVENT_MOUSE_UP))
+  if ((key == rebootIcon) && (event->type == EVENT_MOUSE_LEFTUP))
     {
       windowGuiStop();
       windowDestroy(window);
@@ -53,7 +53,7 @@ static void eventHandler(objectKey key, windowEvent *event)
     }
 
   // Check for the shutdown icon
-  if ((key == shutdownIcon) && (event->type == EVENT_MOUSE_UP))
+  if ((key == shutdownIcon) && (event->type == EVENT_MOUSE_LEFTUP))
     {
       windowGuiStop();
       windowDestroy(window);

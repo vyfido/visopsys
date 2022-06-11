@@ -21,58 +21,27 @@
 
 // This code is for managing kernelWindowScrollBar objects.
 
-
 #include "kernelWindowManager.h"     // Our prototypes are here
 #include "kernelMalloc.h"
-#include "kernelMemoryManager.h"
 #include "kernelMiscFunctions.h"
-#include "kernelError.h"
-#include <string.h>
-
+#include <stdlib.h>
 
 static int borderThickness = 3;
 static int borderShadingIncrement = 15;
-
-
-static inline void calculatePositionPercent(kernelWindowComponent *
-					    componentData)
-{
-  // Based on the position of the slider, calculate the display percentage
-
-  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelWindowScrollBar *scrollBar = (kernelWindowScrollBar *) component->data;
-
-  int extraSpace =
-    ((component->height - (borderThickness * 2)) - scrollBar->sliderHeight);
-
-  if (extraSpace)
-    scrollBar->positionPercent = ((scrollBar->sliderY * 100) / extraSpace);
-  else
-    scrollBar->positionPercent = 0;
-}
 
 
 static int draw(void *componentData)
 {
   // Draw the scroll bar component
 
-  color background = { DEFAULT_GREY, DEFAULT_GREY, DEFAULT_GREY };
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindowScrollBar *scrollBar = (kernelWindowScrollBar *) component->data;
   kernelGraphicBuffer *buffer = (kernelGraphicBuffer *)
     &(((kernelWindow *) component->window)->buffer);
 
-  if (!component->parameters.useDefaultBackground)
-    {
-      // Use user-supplied color
-      background.red = component->parameters.background.red;
-      background.green = component->parameters.background.green;
-      background.blue = component->parameters.background.blue;
-    }
-
   // Draw the background of the scroll bar
-  kernelGraphicDrawRect(buffer, &background, draw_normal,
-			(component->xCoord + borderThickness),
+  kernelGraphicDrawRect(buffer, (color *) &(component->parameters.background),
+			draw_normal, (component->xCoord + borderThickness),
 			(component->yCoord + borderThickness),
 			(component->width - (borderThickness * 2)),
 			(component->height - (borderThickness * 2)),
@@ -87,19 +56,48 @@ static int draw(void *componentData)
   // Draw the slider
   scrollBar->sliderWidth = (component->width - (borderThickness * 2));
   scrollBar->sliderHeight = (((component->height - (borderThickness * 2)) *
-			      scrollBar->displayPercent) / 100);
-
-  scrollBar->sliderY =
-    (((component->height - (borderThickness * 2) -
-       scrollBar->sliderHeight) * scrollBar->positionPercent) / 100);
+			      scrollBar->state.displayPercent) / 100);
 
   kernelGraphicDrawGradientBorder(buffer,
-				  (component->xCoord + borderThickness +
-				   scrollBar->sliderX),
+				  (component->xCoord + borderThickness),
 				  (component->yCoord + borderThickness +
 				   scrollBar->sliderY), scrollBar->sliderWidth,
 				  scrollBar->sliderHeight, borderThickness,
 				  borderShadingIncrement, draw_normal);
+
+  return (0);
+}
+
+
+static int getData(void *componentData, void *buffer, unsigned size)
+{
+  // Gets the state of the scroll bar
+
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindowScrollBar *scrollBar = (kernelWindowScrollBar *) component->data;
+
+  kernelMemCopy((void *) &(scrollBar->state), buffer,
+		max(size, sizeof(scrollBarState)));
+
+  return (0);
+}
+
+
+static int setData(void *componentData, void *buffer, unsigned size)
+{
+  // Sets the state of the scroll bar
+
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindowScrollBar *scrollBar = (kernelWindowScrollBar *) component->data;
+
+  kernelMemCopy(buffer, (void *) &(scrollBar->state),
+		max(size, sizeof(scrollBarState)));
+
+  scrollBar->sliderHeight = (((component->height - (borderThickness * 2)) *
+			      scrollBar->state.displayPercent) / 100);
+  scrollBar->sliderY =
+    ((((component->height - (borderThickness * 2)) - scrollBar->sliderHeight) *
+      scrollBar->state.positionPercent) / 100);
 
   return (0);
 }
@@ -111,94 +109,79 @@ static int mouseEvent(void *componentData, windowEvent *event)
   kernelWindowScrollBar *scrollBar = (kernelWindowScrollBar *) component->data;
   kernelWindow *window = (kernelWindow *) component->window;
   kernelGraphicBuffer *buffer = &(window->buffer);
+  int eventY = 0;
   static int dragging = 0;
-  static windowEvent dragEvent;
-  int newY = 0;
+  static int dragY;
 
-  if ((event->xPosition >= (window->xCoord + component->xCoord +
-			    borderThickness + scrollBar->sliderX)) &&
-      (event->xPosition < (window->xCoord + component->xCoord +
-			   borderThickness + scrollBar->sliderX +
-			   scrollBar->sliderWidth)))
+  // Get X and Y coordinates relative to the component
+  eventY = (event->yPosition - (window->yCoord + component->yCoord +
+				borderThickness));
+
+  // Is the mouse event in the slider?
+  if ((eventY >= scrollBar->sliderY) &&
+      (eventY < (scrollBar->sliderY + scrollBar->sliderHeight)))
     {
-      // Is the mouse event in the slider?
-      if ((event->yPosition >= (window->yCoord + component->yCoord +
-				borderThickness + scrollBar->sliderY)) &&
-	  (event->yPosition < (window->yCoord +  component->yCoord +
-			       borderThickness + scrollBar->sliderY +
-			       scrollBar->sliderHeight)))
+      if (event->type == EVENT_MOUSE_DRAG)
 	{
 	  if (dragging)
-	    {
-	      if (event->type & EVENT_MOUSE_DRAG)
-		{
-		  // The scroll bar is still moving
-		  
-		  // Set the new position
-		  newY = (scrollBar->sliderY +
-			  (event->yPosition - dragEvent.yPosition));
-		  if ((newY >= 0) &&
-		      ((newY + scrollBar->sliderHeight) <=
-		       (component->height - (borderThickness * 2))))
-		    scrollBar->sliderY = newY;
+	    // The scroll bar is still moving.  Set the new position
+	    scrollBar->sliderY += (eventY - dragY);
 
-		  // Save a copy of the dragging event
-		  kernelMemCopy(event, &dragEvent, sizeof(windowEvent));
-		}
+	  else
+	    // The scroll bar has started moving
+	    dragging = 1;
 
-	      else
-		// The move is finished
-		dragging = 0;
-	    }
-
-	  else if (event->type & EVENT_MOUSE_DRAG)
-	    {
-	      // The scroll bar has started moving
-	  
-	      // Save a copy of the dragging event
-	      kernelMemCopy(event, &dragEvent, sizeof(windowEvent));
-	      dragging = 1;
-	    }
+	  // Save the current dragging Y coordinate 
+	  dragY = eventY;
 	}
 
-      // Not in the slider.  Is it in the space above or below it?
-      else if ((event->yPosition > (window->yCoord + component->yCoord +
-				    borderThickness)) &&
-	       (event->yPosition < (window->yCoord + component->yCoord +
-				    borderThickness + scrollBar->sliderY)))
-	{
-	  // It's above the slider
-	  scrollBar->sliderY -= scrollBar->sliderHeight;
-	  if (scrollBar->sliderY < 0)
-	    scrollBar->sliderY = 0;
-	}
-
-      else if ((event->yPosition > (window->yCoord + component->yCoord +
-				    borderThickness + scrollBar->sliderY +
-				    scrollBar->sliderHeight)) &&
-	       (event->yPosition < (window->yCoord + component->yCoord +
-				    component->height - borderThickness)))
-	{
-	  // It's below the slider
-	  scrollBar->sliderY += scrollBar->sliderHeight;
-	  if ((scrollBar->sliderY + scrollBar->sliderHeight) >
-	      (component->height - (borderThickness * 2)))
-	    scrollBar->sliderY = ((component->height - (borderThickness * 2)) -
-				  scrollBar->sliderHeight);
-	}
-
-
-      // Recalculate the position percentage
-      calculatePositionPercent(component);
-
-      if (component->draw)
-	component->draw((void *) component);
-      kernelWindowUpdateBuffer(buffer, component->xCoord, component->yCoord,
-			       component->width, component->height);
-
-      // Redraw the mouse
-      kernelMouseDraw();
+      else
+	// Not dragging.  Do nothing.
+	dragging = 0;
     }
+
+  // Not in the slider.  Is it in the space above it, or below it?
+
+  else if ((event->type == EVENT_MOUSE_LEFTDOWN) &&
+	   (eventY > 0) && (eventY < scrollBar->sliderY))
+    // It's above the slider
+    scrollBar->sliderY -= scrollBar->sliderHeight;
+      
+  else if ((event->type == EVENT_MOUSE_LEFTDOWN) &&
+	   (eventY > (scrollBar->sliderY +scrollBar->sliderHeight)) &&
+	   (eventY < (component->height - borderThickness)))
+    // It's below the slider
+    scrollBar->sliderY += scrollBar->sliderHeight;
+
+  else
+    // Do nothing.
+    return (0);
+
+  // Make sure the slider stays within the bounds
+  if (scrollBar->sliderY < 0)
+    scrollBar->sliderY = 0;
+  else if ((scrollBar->sliderY + scrollBar->sliderHeight) >=
+	   (component->height - (borderThickness * 2)))
+    scrollBar->sliderY = ((component->height - (borderThickness * 2)) -
+			  scrollBar->sliderHeight);
+
+  // Recalculate the position percentage
+  int extraSpace =
+    ((component->height - (borderThickness * 2)) - scrollBar->sliderHeight);
+  if (extraSpace)
+    scrollBar->state.positionPercent =
+      ((scrollBar->sliderY * 100) / extraSpace);
+  else
+    scrollBar->state.positionPercent = 0;
+  
+  if (component->draw)
+    component->draw((void *) component);
+  
+  kernelWindowUpdateBuffer(buffer, component->xCoord, component->yCoord,
+			   component->width, component->height);
+  
+  // Redraw the mouse
+  kernelMouseDraw();
 
   return (0);
 }
@@ -227,7 +210,8 @@ static int destroy(void *componentData)
 
 
 kernelWindowComponent *kernelWindowNewScrollBar(volatile void *parent,
-			scrollBarType type, componentParameters *params)
+			scrollBarType type, unsigned width, unsigned height,
+			componentParameters *params)
 {
   // Formats a kernelWindowComponent as a kernelWindowScrollBar
 
@@ -246,7 +230,6 @@ kernelWindowComponent *kernelWindowNewScrollBar(volatile void *parent,
   // Now populate it
   component->type = scrollBarComponentType;
   component->flags |= WINFLAG_RESIZABLE;
-  component->width = 20;
 
   scrollBar = kernelMalloc(sizeof(kernelWindowScrollBar));
   if (scrollBar == NULL)
@@ -256,13 +239,23 @@ kernelWindowComponent *kernelWindowNewScrollBar(volatile void *parent,
     }
 
   scrollBar->type = type;
-  scrollBar->displayPercent = 100;
-  scrollBar->positionPercent = 0;
+  scrollBar->state.displayPercent = 100;
+  scrollBar->state.positionPercent = 0;
   
+  component->width = width;
+  component->height = height;
+
+  if ((type == scrollbar_vertical) && !width)
+    component->width = 20;
+  if ((type == scrollbar_horizontal) && !height)
+    component->height = 20;
+
   component->data = (void *) scrollBar;
 
   // The functions
   component->draw = &draw;
+  component->getData = &getData;
+  component->setData = &setData;
   component->mouseEvent = &mouseEvent;
   component->destroy = &destroy;
 

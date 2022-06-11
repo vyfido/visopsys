@@ -1,0 +1,19 @@
+
+ -- keymap --
+
+View or change the current keyboard mapping
+
+Usage:
+  keymap [map name]
+
+The keymap program can be used to view the available keyboard mapping, or
+set the current map.  It works in both text and graphics modes:
+
+In text mode: If no map is specified on the command line, then all available
+mappings are listed, with the current one indicated at the top of the list.
+To change the map, the user must enter the new name in exactly the same
+format as shown by the command (with double quotes (") around it if it
+contains space characters).
+
+In graphics mode, the program is interactive and the user can choose a new
+mapping simply by clicking.

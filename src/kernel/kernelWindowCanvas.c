@@ -35,12 +35,11 @@ static int resize(void *componentData, unsigned width, unsigned height)
   int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindowCanvas *canvas = (kernelWindowCanvas *) component->data;
-  void *tmpData = NULL;
 
   // Free the old image data
   if (canvas->imageData.data)
     {
-      kernelFree(canvas->imageData.data);
+      kernelMemoryRelease(canvas->imageData.data);
       canvas->imageData.data = NULL;
     }
 
@@ -49,19 +48,7 @@ static int resize(void *componentData, unsigned width, unsigned height)
 				 height);
   if (status < 0)
     return (status);
-
-  // Get new system memory for the image data
-  tmpData = kernelMalloc(canvas->imageData.dataLength);
-  if (tmpData == NULL)
-    return (status = ERR_MEMORY);
-
-  // Copy the image data to our new memory
-  kernelMemCopy(canvas->imageData.data, tmpData, canvas->imageData.dataLength);
-
-  // Discard the old memory and set the pointer
-  kernelMemoryRelease(canvas->imageData.data);
-  canvas->imageData.data = tmpData;
-
+  
   return (status = 0);
 }
 
@@ -122,9 +109,10 @@ static int setData(void *componentData, void *data, unsigned size)
     }
 
   // Get the component's new image
-  status = kernelGraphicGetImage(buffer, (image *) &(canvas->imageData),
-				 component->xCoord, component->yCoord,
-				 component->width, component->height);
+  status =
+    kernelGraphicGetImage(buffer, (image *) &(canvas->imageData),
+			  component->xCoord, component->yCoord,
+			  component->width, component->height);
   
   kernelWindowUpdateBuffer(buffer, component->xCoord, component->yCoord,
 			   component->width, component->height);
@@ -175,7 +163,7 @@ kernelWindowComponent *kernelWindowNewCanvas(volatile void *parent,
       
   // Now override some bits
   component->type = canvasComponentType;
-      
+
   // The functions
   component->resize = &resize;
   component->setData = &setData;

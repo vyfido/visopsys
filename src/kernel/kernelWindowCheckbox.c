@@ -39,57 +39,44 @@ static int draw(void *componentData)
   // Draw the checkbox component
 
   int status = 0;
-  color foreground = { DEFAULT_BLUE, DEFAULT_GREEN, DEFAULT_RED };
-  color background = { DEFAULT_GREY, DEFAULT_GREY, DEFAULT_GREY };
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindow *window = (kernelWindow *) component->window;
+  kernelGraphicBuffer *buffer = &(window->buffer);
   kernelWindowCheckbox *checkbox = (kernelWindowCheckbox *) component->data;
   int yCoord = 0;
 
-  if (!component->parameters.useDefaultForeground)
-    {
-      // Use the user-supplied foreground color
-      foreground.red = component->parameters.foreground.red;
-      foreground.green = component->parameters.foreground.green;
-      foreground.blue = component->parameters.foreground.blue;
-    }
-  if (!component->parameters.useDefaultBackground)
-    {
-      // Use the user-supplied foreground color
-      background.red = component->parameters.background.red;
-      background.green = component->parameters.background.green;
-      background.blue = component->parameters.background.blue;
-    }
-
   yCoord = (component->yCoord + ((component->height - CHECKBOX_SIZE) / 2));
 
-  kernelGraphicDrawRect(&(window->buffer), &((color){255, 255, 255}),
-			draw_normal, (component->xCoord + 2), yCoord,
+  kernelGraphicDrawRect(buffer, &((color){255, 255, 255}),
+			draw_normal, component->xCoord, yCoord,
 			CHECKBOX_SIZE, CHECKBOX_SIZE, 1, 1);
-  kernelGraphicDrawRect(&(window->buffer), &foreground, draw_normal,
-			(component->xCoord + 2), yCoord, CHECKBOX_SIZE,
+  kernelGraphicDrawRect(&(window->buffer),
+			(color *) &(component->parameters.foreground),
+			draw_normal, component->xCoord, yCoord, CHECKBOX_SIZE,
 			CHECKBOX_SIZE, 1, 0);
 
   if (checkbox->selected)
     {
-      kernelGraphicDrawLine(&(window->buffer), &foreground, draw_normal,
-			    (component->xCoord + 2), yCoord,
-			    (component->xCoord + 2 + (CHECKBOX_SIZE - 1)),
+      kernelGraphicDrawLine(buffer,
+			    (color *) &(component->parameters.foreground),
+			    draw_normal, component->xCoord, yCoord,
+			    (component->xCoord + (CHECKBOX_SIZE - 1)),
 			    (yCoord + (CHECKBOX_SIZE - 1)));
-      kernelGraphicDrawLine(&(window->buffer), &foreground, draw_normal,
-			    (component->xCoord + 2),
+      kernelGraphicDrawLine(buffer,
+			    (color *) &(component->parameters.foreground),
+			    draw_normal, component->xCoord,
 			    (yCoord + (CHECKBOX_SIZE - 1)),
-			    (component->xCoord + 2 + (CHECKBOX_SIZE - 1)),
-			    yCoord);
+			    (component->xCoord + (CHECKBOX_SIZE - 1)), yCoord);
     }
 
-  kernelGraphicDrawText(&(window->buffer), &foreground, &background,
+  kernelGraphicDrawText(buffer, (color *) &(component->parameters.foreground),
+			(color *) &(component->parameters.background),
 			checkbox->font, checkbox->text, draw_normal,
-			(component->xCoord + CHECKBOX_SIZE + 5),
-			(component->yCoord + 2));
+			(component->xCoord + CHECKBOX_SIZE + 3),
+			(component->yCoord));
 
   if (component->parameters.hasBorder)
-    component->drawBorder((void *) component);
+    component->drawBorder((void *) component, 1);
   
   return (status = 0);
 }
@@ -99,21 +86,11 @@ static int focus(void *componentData, int focus)
 {
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindow *window = component->window;
-  kernelGraphicBuffer *buffer = &(window->buffer);
 
-  if (focus)
-    kernelGraphicDrawRect(buffer,
-			  (color *) &(component->parameters.foreground),
-			  draw_normal, component->xCoord, component->yCoord,
-			  component->width, component->height, 1, 0);
-  else
-    kernelGraphicDrawRect(buffer, (color *) &(window->background), draw_normal,
-			  component->xCoord, component->yCoord,
-			  component->width, component->height, 1, 0);
-
-  kernelWindowUpdateBuffer(buffer, component->xCoord, component->yCoord,
-			   component->width, component->height);
-  
+  component->drawBorder((void *) component, focus);
+  kernelWindowUpdateBuffer(&(window->buffer), (component->xCoord - 2),
+			   (component->yCoord - 2), (component->width + 4),
+			   (component->height + 4));
   return (0);
 }
 
@@ -154,7 +131,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
   int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   
-  if (event->type & EVENT_MOUSE_DOWN)
+  if (event->type == EVENT_MOUSE_LEFTDOWN)
     {
       if (((kernelWindowCheckbox *) component->data)->selected)
 	setSelected(componentData, 0);
@@ -174,7 +151,7 @@ static int keyEvent(void *componentData, windowEvent *event)
   int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
 
-  if ((event->type & EVENT_KEY_DOWN) && (event->key == 32))
+  if ((event->type == EVENT_KEY_DOWN) && (event->key == 32))
     {
       if (((kernelWindowCheckbox *) component->data)->selected)
 	setSelected(componentData, 0);
@@ -282,12 +259,12 @@ kernelWindowComponent *kernelWindowNewCheckbox(volatile void *parent,
   // The width of the checkbox is the width of the checkbox, plus a bit
   // of padding, plus the printed width of the text
   component->width =
-    (CHECKBOX_SIZE + 7 +
+    (CHECKBOX_SIZE + 3 +
      kernelFontGetPrintedWidth(checkbox->font, checkbox->text));
 
   // The height of the checkbox is the height of the font, or the height
   // of the checkbox, whichever is greater
-  component->height = (max(font->charHeight, CHECKBOX_SIZE) + 4);
+  component->height = max(font->charHeight, CHECKBOX_SIZE);
   
   component->data = (void *) checkbox;
 

@@ -1,3 +1,4 @@
+/system/haettenschweiler-bold-20.bmp
 /system/headers/
 /system/headers/assert.h
 /system/headers/ctype.h
@@ -42,3 +43,5 @@
 /system/libraries/libc.a
 /system/libraries/libvsh.a
 /system/libraries/libwindow.a
+/system/viner-bold-14.bmp
+/system/xterm-normal-10.bmp

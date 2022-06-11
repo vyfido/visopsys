@@ -41,21 +41,14 @@ static int draw(void *componentData)
 
   int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindowMenu *menu = (kernelWindowMenu *) component->data;
   kernelWindow *window = component->window;
   kernelGraphicBuffer *buffer = &(window->buffer);
-  color background = { DEFAULT_GREY, DEFAULT_GREY, DEFAULT_GREY };
-
-  if (!component->parameters.useDefaultBackground)
-    {
-      // Use user-supplied color
-      background.red = component->parameters.background.red;
-      background.green = component->parameters.background.green;
-      background.blue = component->parameters.background.blue;
-    }
+  int count;
 
   // Draw the background of the menu bar
-  kernelGraphicDrawRect(buffer, &background, draw_normal,
-			(component->xCoord + borderThickness),
+  kernelGraphicDrawRect(buffer, (color *) &(component->parameters.background),
+			draw_normal, (component->xCoord + borderThickness),
 			(component->yCoord + borderThickness),
 			(component->width - (borderThickness * 2)),
 			(component->height - (borderThickness * 2)), 1, 1);
@@ -64,6 +57,12 @@ static int draw(void *componentData)
 				  component->width, component->height,
 				  borderThickness, borderShadingIncrement,
 				  draw_normal);
+
+  // Draw all the menu items
+  for (count = 0; count < menu->numComponents; count ++)
+    if (menu->components[count]->draw)
+      menu->components[count]->draw((void *) menu->components[count]);
+
   return (status);
 }
 
@@ -101,11 +100,17 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	  kernelWindowEventStreamWrite(&(clickedItem->events), event);
 	}
 
-      // We don't want menu selections to be persistent (i.e. we don't want
-      // the same item to appear selected the next time the menu is visible)
-      // If the event was a mouse up, deselect the item
-      if ((event->type & EVENT_MOUSE_UP) && clickedItem->setSelected)
-	clickedItem->setSelected((void *) clickedItem, 0);
+      if (event->type == EVENT_MOUSE_LEFTUP)
+	{
+	  // We don't want menu selections to be persistent (i.e. we don't
+	  // want the same item to appear selected the next time the menu is
+	  // visible
+	  if (clickedItem->setSelected)
+	    clickedItem->setSelected((void *) clickedItem, 0);
+
+	  // Make the menu not visible
+	  kernelWindowComponentSetVisible(component, 0);
+	}
     }
 
   return (status);
@@ -132,9 +137,6 @@ static int containerLayout(kernelWindowComponent *containerComponent)
 	  kernelError(kernel_error, "Window component is not a menu item!");
 	  return (status = ERR_INVALID);
 	}
-
-      // Not visible initially
-      itemComponent->flags &= ~WINFLAG_VISIBLE;
 
       // Set almost all the parameters.  Really the only things we want
       // to preserve from the user are the color settings.
@@ -198,7 +200,6 @@ kernelWindowComponent *kernelWindowNewMenu(volatile void *parent,
   if (component == NULL)
     return (component);
 
-  //component->flags |= WINFLAG_CANFOCUS;
   component->width = 50;
   component->height = (borderThickness * 2);
   

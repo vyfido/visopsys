@@ -44,7 +44,8 @@ kernelWindowComponent *kernelWindowNewMenuItem(volatile void *parent,
   // Formats a kernelWindowComponent as a kernelWindowMenuItem
 
   kernelWindowComponent *component = NULL;
-  
+  extern color kernelDefaultBackground;
+ 
   if (menuItemFont == NULL)
     {
       // Try to load a nice-looking font
@@ -63,10 +64,9 @@ kernelWindowComponent *kernelWindowNewMenuItem(volatile void *parent,
     {
       // We use a different default background color than the window
       // list item component that the menu item is based upon
-      component->parameters.useDefaultBackground = 0;
-      component->parameters.background.red = DEFAULT_GREY;
-      component->parameters.background.green = DEFAULT_GREY;
-      component->parameters.background.blue = DEFAULT_GREY;
+      component->parameters.background.red = kernelDefaultBackground.red;
+      component->parameters.background.green = kernelDefaultBackground.green;
+      component->parameters.background.blue = kernelDefaultBackground.blue;
     }
 
   return (component);

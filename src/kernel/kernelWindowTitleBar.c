@@ -57,7 +57,7 @@ static void closeWindow(objectKey componentData, windowEvent *event)
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindow *window = (kernelWindow *) component->window;
 
-  if (event->type == EVENT_MOUSE_UP)
+  if (event->type == EVENT_MOUSE_LEFTUP)
     {
       // Transfer this event into the window's event stream
       event->type = EVENT_WINDOW_CLOSE;
@@ -155,10 +155,6 @@ static int draw(void *componentData)
   if (window->flags & WINFLAG_HASCLOSEBUTTON)
     titleBarComponent->closeButton->draw((void *)
 					 titleBarComponent->closeButton);
-
-  if (component->parameters.hasBorder)
-    component->drawBorder((void *) component);
-
   return (0);
 }
 
@@ -228,15 +224,20 @@ static int mouseEvent(void *componentData, windowEvent *event)
 
   if (dragging)
     {
-      if (event->type & EVENT_MOUSE_DRAG)
+      if (event->type == EVENT_MOUSE_DRAG)
 	{
 	  // The window is still moving
 
 	  // Erase the xor'ed outline
-	  kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
-				draw_xor, window->xCoord, window->yCoord,
-				window->buffer.width, window->buffer.height,
-				1, 0);
+	  kernelWindowRedrawArea(window->xCoord, window->yCoord,
+				 window->buffer.width, 1);
+	  kernelWindowRedrawArea(window->xCoord, window->yCoord, 1,
+				 window->buffer.height);
+	  kernelWindowRedrawArea((window->xCoord + window->buffer.width - 1),
+				 window->yCoord, 1, window->buffer.height);
+	  kernelWindowRedrawArea(window->xCoord,
+				 (window->yCoord + window->buffer.height - 1),
+				 window->buffer.width, 1);
 	      
 	  // Set the new position
 	  window->xCoord += (event->xPosition - dragEvent.xPosition);
@@ -276,12 +277,11 @@ static int mouseEvent(void *componentData, windowEvent *event)
 				    window->yCoord, 0, 0,
 				    window->buffer.width,
 				    window->buffer.height);
-	  
-	  // Redraw the mouse
-	  kernelMouseDraw();
-
 	  dragging = 0;
 	}
+
+      // Redraw the mouse
+      kernelMouseDraw();
 
       return (status = 0);
     }
@@ -299,7 +299,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
       return (status);
     }
   
-  else if (event->type & EVENT_MOUSE_DRAG)
+  else if (event->type == EVENT_MOUSE_DRAG)
     {
       if (window->flags & WINFLAG_MOVABLE)
 	{
@@ -365,6 +365,7 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
   kernelGraphicBuffer graphicBuffer;
   // We don't want to load images for the buttons every time
   static image closeImage;
+  extern color kernelDefaultBackground;
 
   bzero(&closeImage, sizeof(image));
   
@@ -419,8 +420,8 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
 						 graphicBuffer.height));
   if (graphicBuffer.data != NULL)
     {
-      kernelGraphicClearArea(&graphicBuffer, &((color)
-      { DEFAULT_GREY, DEFAULT_GREY, DEFAULT_GREY}), 0, 0, graphicBuffer.width,
+      kernelGraphicClearArea(&graphicBuffer, &kernelDefaultBackground,
+			     0, 0, graphicBuffer.width,
 			     graphicBuffer.height);
       kernelGraphicDrawLine(&graphicBuffer, &((color){0,0,0}), draw_normal,
 			    0, 0, (graphicBuffer.width - 1),

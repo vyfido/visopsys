@@ -66,9 +66,8 @@ static int setupElfExecutable(unsigned char **loadAddress)
   // Make sure there are 2 program header entries; 1 for code and 1 for data
   if (header->e_phnum != (Elf32_Half) 2)
     {
-      kernelError(kernel_error, "Invalid number of ELF program header "
+      kernelError(kernel_warn, "Invalid number of ELF program header "
 		  "entries (%d)", (int) header->e_phnum);
-      return (status = ERR_INVALID);
     }
 
   // Get the address of the program header

@@ -32,17 +32,21 @@
 #endif
 
 // Window events/masks
-#define EVENT_MOUSE_DOWN         0x0001
-#define EVENT_MOUSE_UP           0x0002
-#define EVENT_MOUSE_MOVE         0x0004
-#define EVENT_MOUSE_DRAG         0x0008
-#define EVENT_MASK_MOUSE         0x000F
-#define EVENT_KEY_DOWN           0x0010
-#define EVENT_KEY_UP             0x0020
-#define EVENT_MASK_KEY           0x00F0
-#define EVENT_WINDOW_CLOSE       0x0100
-#define EVENT_WINDOW_RESIZE      0x0200
-#define EVENT_MASK_WINDOW        0x0F00
+#define EVENT_MOUSE_LEFTDOWN     0x0001
+#define EVENT_MOUSE_LEFTUP       0x0002
+#define EVENT_MOUSE_MIDDLEDOWN   0x0004
+#define EVENT_MOUSE_MIDDLEUP     0x0008
+#define EVENT_MOUSE_RIGHTDOWN    0x0010
+#define EVENT_MOUSE_RIGHTUP      0x0020
+#define EVENT_MOUSE_MOVE         0x0040
+#define EVENT_MOUSE_DRAG         0x0080
+#define EVENT_MASK_MOUSE         0x00FF
+#define EVENT_KEY_DOWN           0x0100
+#define EVENT_KEY_UP             0x0200
+#define EVENT_MASK_KEY           0x0F00
+#define EVENT_WINDOW_CLOSE       0x1000
+#define EVENT_WINDOW_RESIZE      0x2000
+#define EVENT_MASK_WINDOW        0xF000
 
 // The maximum numbers of window things
 #define WINDOW_MAXWINDOWS        256
@@ -113,10 +117,12 @@ typedef struct {
 
 } windowEventStream;
 
+// Types of drawing operations
 typedef enum {
   draw_pixel, draw_line, draw_rect, draw_oval, draw_image, draw_text
 } drawOperation;
 
+// Parameters for any drawing operations
 typedef struct {
   drawOperation operation;
   drawMode mode;
@@ -135,12 +141,25 @@ typedef struct {
 
 } windowDrawParameters;
 
-int windowClearEventHandlers(void);
-int windowRegisterEventHandler(objectKey, void (*)(objectKey, windowEvent *));
-void windowGuiRun(void);
-void windowGuiThread(void);
-void windowGuiStop(void);
+// Types of scroll bars
+typedef enum {
+  scrollbar_vertical, scrollbar_horizontal
+} scrollBarType;
+
+// A structure for specifying display percentage and display position
+// in scroll bar components
+typedef struct {
+  unsigned displayPercent;
+  unsigned positionPercent;
+
+} scrollBarState;
+
 void windowCenterDialog(objectKey, objectKey);
+int windowClearEventHandlers(void);
+int windowNewColorDialog(objectKey, color *);
+void windowGuiRun(void);
+void windowGuiStop(void);
+void windowGuiThread(void);
 int windowNewErrorDialog(objectKey, const char *, const char *);
 int windowNewFileDialog(objectKey, const char *, const char *, char *,
 			unsigned);
@@ -148,6 +167,7 @@ int windowNewInfoDialog(objectKey, const char *, const char *);
 int windowNewPasswordDialog(objectKey, const char *, const char *, int, char *);int windowNewPromptDialog(objectKey, const char *, const char *, int, int,
 			  char *);
 int windowNewQueryDialog(objectKey, const char *, const char *);
+int windowRegisterEventHandler(objectKey, void (*)(objectKey, windowEvent *));
 
 #define _WINDOW_H
 #endif

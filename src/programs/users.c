@@ -30,8 +30,8 @@
 static int processId = 0;
 static int privilege = 0;
 static int readOnly = 1;
+static char *userBuffer = NULL;
 static char *userNames[64];
-static char userBuffer[1024];
 static int numUserNames = 0;
 static objectKey window = NULL;
 static objectKey userList = NULL;
@@ -63,11 +63,24 @@ static int getUserNames(void)
   char *bufferPointer = NULL;
   int count;
 
+  if (userBuffer)
+    free(userBuffer);
+
+  userBuffer = malloc(1024);
+  if (userBuffer == NULL)
+    {
+      error("Error getting buffer memory");
+      return (status = ERR_MEMORY);
+    }
+
   bzero(userBuffer, 1024);
 
   status = userGetNames(userBuffer, 1024);
   if (status < 0)
-    return (status);
+    {
+      error("Error getting user names");
+      return (status);
+    }
 
   numUserNames = status;
   bufferPointer = userBuffer;
@@ -214,7 +227,7 @@ static int setPasswordDialog(int userNumber)
   params.hasBorder = 0;
   params.useDefaultBackground = 1;
   noMatchLabel = windowNewTextLabel(dialogWindow, NULL, "Passwords do not "
-				    "match", &params);
+  				    "match", &params);
   windowComponentSetVisible(noMatchLabel, 0);
 
   // Create the OK button
@@ -240,12 +253,12 @@ static int setPasswordDialog(int userNumber)
       status = windowComponentEventGet(okButton, &event);
       if (status < 0)
 	goto out;
-      else if ((status > 0) && (event.type == EVENT_MOUSE_UP))
+      else if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
 	break;
 
       // Check for the Cancel button
       status = windowComponentEventGet(cancelButton, &event);
-      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_UP)))
+      if ((status < 0) || ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP)))
 	{
 	  windowDestroy(dialogWindow);
 	  return (status = ERR_NODATA);
@@ -278,9 +291,15 @@ static int setPasswordDialog(int userNumber)
 	      windowComponentGetData(passwordField1, newPassword, 16);
 	      windowComponentGetData(passwordField2, confirmPassword, 16);
 	      if (strncmp(newPassword, confirmPassword, 16))
-		windowComponentSetVisible(noMatchLabel, 1);
+		{
+		  windowComponentSetVisible(noMatchLabel, 1);
+		  windowComponentSetEnabled(okButton, 0);
+		}
 	      else
-		windowComponentSetVisible(noMatchLabel, 0);
+		{
+		  windowComponentSetVisible(noMatchLabel, 0);
+		  windowComponentSetEnabled(okButton, 1);
+		}
 	    }
 	}
 
@@ -294,9 +313,15 @@ static int setPasswordDialog(int userNumber)
 	      windowComponentGetData(passwordField1, newPassword, 16);
 	      windowComponentGetData(passwordField2, confirmPassword, 16);
 	      if (strncmp(newPassword, confirmPassword, 16))
-		windowComponentSetVisible(noMatchLabel, 1);
+		{
+		  windowComponentSetVisible(noMatchLabel, 1);
+		  windowComponentSetEnabled(okButton, 0);
+		}
 	      else
-		windowComponentSetVisible(noMatchLabel, 0);
+		{
+		  windowComponentSetVisible(noMatchLabel, 0);
+		  windowComponentSetEnabled(okButton, 1);
+		}
 	    }
 	}
 
@@ -358,10 +383,7 @@ static int addUser(const char *userName, const char *password)
   // Refresh our list of user names
   status = getUserNames();
   if (status < 0)
-    {
-      error("Error adding user");
-      return (status);
-    }
+    return (status);
 
   // Re-populate our list component
   status = windowComponentSetData(userList, userNames, numUserNames);
@@ -378,13 +400,6 @@ static int deleteUser(const char *userName)
 
   int status = 0;
 
-  // Don't try to delete the last user
-  if (numUserNames <= 1)
-    {
-      error("Can't delete the last user");
-      return (status = ERR_BOUNDS);
-    }
-
   // Tell the kernel to delete the user
   status = userDelete(userName);
   if (status < 0)
@@ -399,10 +414,7 @@ static int deleteUser(const char *userName)
   // Refresh our list of user names
   status = getUserNames();
   if (status < 0)
-    {
-      error("Error deleting user");
-      return (status);
-    }
+    return (status);
 
   // Re-populate our list component
   status = windowComponentSetData(userList, userNames, numUserNames);
@@ -424,7 +436,8 @@ static void eventHandler(objectKey key, windowEvent *event)
       windowGuiStop();
       exit(0);
     }
-  if ((key == addUserButton) && (event->type == EVENT_MOUSE_UP))
+
+  else if ((key == addUserButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
       if (windowNewPromptDialog(window, "Add User", "Enter the user name:",
 				1, 16, userName) > 0)
@@ -432,26 +445,34 @@ static void eventHandler(objectKey key, windowEvent *event)
 	  if (addUser(userName, "") < 0)
 	    return;
 	  setPasswordDialog(numUserNames - 1);
-	  windowNewInfoDialog(window, "Success", "User added");
 	}
     }
-  if ((key == deleteUserButton) && (event->type == EVENT_MOUSE_UP))
+
+  else if ((key == deleteUserButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
-      userNumber = windowComponentGetSelected(userList);  
-      if (userNumber < 0)
-	return;
-      char question[1024];
-      sprintf(question, "Delete user %s?", userNames[userNumber]);
-      if (windowNewQueryDialog(window, "Delete?", question))
-	deleteUser(userNames[userNumber]);
+      // Don't try to delete the last user
+      if (numUserNames > 1)
+	{
+	  userNumber = windowComponentGetSelected(userList);  
+	  if (userNumber < 0)
+	    return;
+
+	  char question[1024];
+	  sprintf(question, "Delete user %s?", userNames[userNumber]);
+	  if (windowNewQueryDialog(window, "Delete?", question))
+	    deleteUser(userNames[userNumber]);
+	}
+      else
+	error("Can't delete the last user");
     }
-  if ((key == setPasswordButton) && (event->type == EVENT_MOUSE_UP))
+
+  else if ((key == setPasswordButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
       userNumber = windowComponentGetSelected(userList);  
       if (userNumber < 0)
 	return;
-      if (!setPasswordDialog(userNumber))
-	windowNewInfoDialog(window, "Success", "Password set");
+
+      setPasswordDialog(userNumber);
     }
 }
 
@@ -463,7 +484,7 @@ static void constructWindow(void)
 
   componentParameters params;
 
-  // Create a new window, with small, arbitrary size and location
+  // Create a new window
   window = windowNew(processId, "User Manager");
   if (window == NULL)
     return;
@@ -482,8 +503,8 @@ static void constructWindow(void)
   params.gridY = 0;
   params.gridHeight = 3;
   params.padBottom = 5;
-  userList = windowNewList(window, NULL, 5, 1, 0, userNames, numUserNames,
-			   &params);
+  userList =
+    windowNewList(window, NULL, 5, 1, 0, userNames, numUserNames, &params);
 
   // Create an 'add user' button
   params.gridX = 1;

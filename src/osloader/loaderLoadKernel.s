@@ -117,8 +117,9 @@ getElfHeaderInfo:
 	cmp AX, 2
 	je .progHdr
 
-	;; The kernel image doesn't look the way we expected.  This program
-	;; isn't versatile enough to handle that yet.
+	;; The kernel image doesn't look the way we expected.  Newer versions
+	;; of GNU ld seem to create an extra, no-load, stack section.  Make
+	;; a warning but otherwise ignore it.
 	call loaderPrintNewline
 	call loaderPrintNewline
 	call loaderPrintNewline
@@ -128,11 +129,6 @@ getElfHeaderInfo:
 	mov SI, NUMSEGS
 	call loaderPrint
 	call loaderPrintNewline
-	mov SI, REINSTALL
-	call loaderPrint
-	call loaderPrintNewline
-	mov word [SS:(BP + 16)], -3
-	jmp .done
 
 	.progHdr:
 	;; That is all the information we get directly from the ELF header.

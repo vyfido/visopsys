@@ -34,6 +34,8 @@
 
 
 static int borderShadingIncrement = DEFAULT_SHADING_INCREMENT;
+static int newWindowX = 0;
+static int newWindowY = 0;
 static unsigned newWindowWidth = 0;
 static unsigned newWindowHeight = 0;
 
@@ -46,11 +48,13 @@ static void resizeWindow(void *componentData, windowEvent *event)
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindow *window = (kernelWindow *) component->window;
 
-  if (event->type & EVENT_WINDOW_RESIZE)
+  if (event->type == EVENT_WINDOW_RESIZE)
     {
+      window->xCoord = newWindowX;
+      window->yCoord = newWindowY;
+
       kernelWindowSetSize(window, newWindowWidth, newWindowHeight);
 
-      // Don't show it while it's being resized
       kernelWindowSetVisible(window, 1);
 	  
       // Redraw the mouse
@@ -123,90 +127,79 @@ static int mouseEvent(void *componentData, windowEvent *event)
   kernelWindowBorder *border = (kernelWindowBorder *) component->data;
   kernelWindow *window = (kernelWindow *) component->window;
   windowEvent resizeEvent;
+  int diff = 0;
+  int tmpWindowX = newWindowX;
+  int tmpWindowY = newWindowY;
+  int tmpWindowWidth = newWindowWidth;
+  int tmpWindowHeight = newWindowHeight;
   static int dragging = 0;
 
   if (dragging)
     {
-      if (event->type & EVENT_MOUSE_DRAG)
+      if (event->type == EVENT_MOUSE_DRAG)
 	{
 	  // The window is still being resized
 	  
 	  // Erase the xor'ed outline
-	  kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
-				draw_xor, window->xCoord, window->yCoord,
-				newWindowWidth, newWindowHeight, 1, 0);
+	  kernelWindowRedrawArea(newWindowX, newWindowY, newWindowWidth, 1);
+	  kernelWindowRedrawArea(newWindowX, newWindowY, 1, newWindowHeight);
+	  kernelWindowRedrawArea((newWindowX + newWindowWidth - 1),
+				 newWindowY, 1, newWindowHeight);
+	  kernelWindowRedrawArea(newWindowX,
+				 (newWindowY + newWindowHeight - 1),
+				 newWindowWidth, 1);
 
 	  // Set the new size
-	  if (border->type == border_top)
+	  if ((border->type == border_top) &&
+	      (event->yPosition < (newWindowY + newWindowHeight)))
 	    {
-	      if (event->yPosition < window->yCoord)
-		{
-		  int diff = (window->yCoord - event->yPosition);
-		  window->yCoord -= diff;
-		  newWindowHeight += diff;
-		}
-	      else if (event->yPosition > window->yCoord)
-		{
-		  int diff = (event->yPosition - window->yCoord);
-		  window->yCoord += diff;
-		  newWindowHeight -= diff;
-		}
+	      diff = (event->yPosition - newWindowY);
+	      tmpWindowY += diff;
+	      tmpWindowHeight -= diff;
 	    }
-	  else if (border->type == border_bottom)
+	  else if ((border->type == border_bottom) &&
+		   (event->yPosition > newWindowY))
 	    {
-	      if (event->yPosition < (window->yCoord +
-				      newWindowHeight))
-		{
-		  int diff = ((window->yCoord + newWindowHeight) -
-			      event->yPosition);
-		  newWindowHeight -= diff;
-		}
-	      else if (event->yPosition > (window->yCoord +
-					   newWindowHeight))
-		{
-		  int diff = (event->yPosition - (window->yCoord +
-						  newWindowHeight));
-		  newWindowHeight += diff;
-		}
+	      diff = (event->yPosition - (newWindowY + newWindowHeight));
+	      tmpWindowHeight += diff;
 	    }
-	  else if (border->type == border_left)
+	  else if ((border->type == border_left) &&
+		   (event->xPosition < (newWindowX + newWindowWidth)))
 	    {
-	      if (event->xPosition < window->xCoord)
-		{
-		  int diff = (window->xCoord - event->xPosition);
-		  window->xCoord -= diff;
-		  newWindowWidth += diff;
-		}
-	      else if (event->xPosition > window->xCoord)
-		{
-		  int diff = (event->xPosition - window->xCoord);
-		  window->xCoord += diff;
-		  newWindowWidth -= diff;
-		}
+	      diff = (event->xPosition - newWindowX);
+	      tmpWindowX += diff;
+	      tmpWindowWidth -= diff;
 	    }
-	  else if (border->type == border_right)
+	  else if ((border->type == border_right) &&
+		   (event->xPosition > newWindowX))
 	    {
-	      if (event->xPosition < (window->xCoord +
-				      newWindowWidth))
-		{
-		  int diff = ((window->xCoord + newWindowWidth) -
-			      event->xPosition);
-		  newWindowWidth -= diff;
-		}
-	      else if (event->xPosition > (window->xCoord +
-					   newWindowWidth))
-		{
-		  int diff = (event->xPosition - (window->xCoord +
-						  newWindowWidth));
-		  newWindowWidth += diff;
-		}
+	      diff = (event->xPosition - (newWindowX + newWindowWidth));
+	      tmpWindowWidth += diff;
+	    }
+
+	  // Don't resize below reasonable minimums
+	  if (tmpWindowWidth < (DEFAULT_TITLEBAR_HEIGHT * 4))
+	    newWindowWidth = (DEFAULT_TITLEBAR_HEIGHT * 4);
+	  else
+	    {
+	      newWindowX = tmpWindowX;
+	      newWindowWidth = tmpWindowWidth;
+	    }
+
+	  if (tmpWindowHeight <
+	      (DEFAULT_TITLEBAR_HEIGHT + (DEFAULT_BORDER_THICKNESS * 2)))
+	    newWindowHeight =
+	      (DEFAULT_TITLEBAR_HEIGHT + (DEFAULT_BORDER_THICKNESS * 2));
+	  else
+	    {
+	      newWindowY = tmpWindowY;
+	      newWindowHeight = tmpWindowHeight;
 	    }
 
 	  // Draw an xor'ed outline
 	  kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
-				draw_xor, window->xCoord, window->yCoord,
+				draw_xor, newWindowX, newWindowY,
 				newWindowWidth,	newWindowHeight, 1, 0);
-	  return (0);
 	}
       else
 	{
@@ -214,7 +207,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	  
 	  // Erase the xor'ed outline
 	  kernelGraphicDrawRect(NULL, &((color) { 255, 255, 255 }),
-				draw_xor, window->xCoord, window->yCoord,
+				draw_xor, newWindowX, newWindowY,
 				newWindowWidth, newWindowHeight, 1, 0);
 
 	  // Write a resize event to the component event stream
@@ -222,11 +215,10 @@ static int mouseEvent(void *componentData, windowEvent *event)
 	  kernelWindowEventStreamWrite(&(component->events), &resizeEvent);
 
 	  dragging = 0;
-	  return (0);
 	}
     }
 
-  else if ((event->type & EVENT_MOUSE_DRAG) &&
+  else if ((event->type == EVENT_MOUSE_DRAG) &&
 	   (window->flags & WINFLAG_RESIZABLE))
     {
       // Don't show it while it's being resized
@@ -238,11 +230,14 @@ static int mouseEvent(void *componentData, windowEvent *event)
 			    window->yCoord, window->buffer.width,
 			    window->buffer.height, 1, 0);
       
+      newWindowX = window->xCoord;
+      newWindowY = window->yCoord;
       newWindowWidth = window->buffer.width;
       newWindowHeight = window->buffer.height;
       dragging = 1;
     }
 
+  kernelMouseDraw();
   return (0);
 }
 
