@@ -25,11 +25,11 @@
 
 #include "kernelEnvironment.h"
 #include "kernelParameters.h"
-#include "kernelPageManager.h"
+#include "kernelPage.h"
 #include "kernelVariableList.h"
 #include "kernelMultitasker.h"
-#include "kernelMemoryManager.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMemory.h"
+#include "kernelMisc.h"
 #include "kernelError.h"
 
 

@@ -25,7 +25,7 @@
 #include "kernelPic.h"
 #include "kernelMultitasker.h"
 #include "kernelWindow.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include <string.h>
 #include <stdio.h>
 

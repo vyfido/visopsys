@@ -28,7 +28,7 @@
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
 #include "kernelSysTimer.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelLog.h"
 #include "kernelError.h"
 #include <stdio.h>
@@ -114,12 +114,12 @@ static inline unsigned getSectorNumber(extInternalData *extData,
 }
 
 
-static extInternalData *getExtData(kernelFilesystem *filesystem)
+static extInternalData *getExtData(kernelDisk *theDisk)
 {
   // This function reads the filesystem parameters from the superblock
 
   int status = 0;
-  extInternalData *extData = filesystem->filesystemData;
+  extInternalData *extData = theDisk->filesystem.filesystemData;
   kernelPhysicalDisk *physicalDisk = NULL;
   unsigned groupDescriptorBlocks = 0;
 
@@ -134,8 +134,7 @@ static extInternalData *getExtData(kernelFilesystem *filesystem)
     return (extData = NULL);
 
   // Read the superblock into our extInternalData buffer
-  status =
-    readSuperblock(filesystem->disk, (extSuperblock *) &(extData->superblock));
+  status = readSuperblock(theDisk, (extSuperblock *) &(extData->superblock));
   if (status < 0)
     {
       kernelFree((void *) extData);
@@ -147,7 +146,7 @@ static extInternalData *getExtData(kernelFilesystem *filesystem)
     kernelError(kernel_warn, "Inode size (%u) does not match structure "
                 "size (%u)", extData->superblock.inode_size, sizeof(extInode));
 
-  physicalDisk = filesystem->disk->physical;
+  physicalDisk = theDisk->physical;
 
   extData->blockSize = (1024 << extData->superblock.log_block_size);
 
@@ -162,7 +161,7 @@ static extInternalData *getExtData(kernelFilesystem *filesystem)
        extData->superblock.blocks_per_group) > 0));
 
   // Attach the disk structure to the extData structure
-  extData->disk = filesystem->disk;
+  extData->disk = theDisk;
 
   groupDescriptorBlocks =
     (((extData->numGroups * sizeof(extGroupDescriptor)) /
@@ -192,10 +191,15 @@ static extInternalData *getExtData(kernelFilesystem *filesystem)
     }
 
   // Attach our new FS data to the filesystem structure
-  filesystem->filesystemData = (void *) extData;
+  theDisk->filesystem.filesystemData = (void *) extData;
 
   // Specify the filesystem block size
-  filesystem->blockSize = extData->blockSize;
+  theDisk->filesystem.blockSize = extData->blockSize;
+
+  // 'minSectors' and 'maxSectors' are the same as the current sectors,
+  // since we don't yet support resizing.
+  theDisk->filesystem.minSectors = theDisk->numSectors;
+  theDisk->filesystem.maxSectors = theDisk->numSectors;
 
   return (extData);
 }
@@ -547,7 +551,7 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
       strncpy((char *) realEntry.name, (entry + 8), realEntry.name_len);
       realEntry.name[realEntry.name_len] = '\0';
 
-      fileEntry = kernelFileNewEntry(dirEntry->filesystem);
+      fileEntry = kernelFileNewEntry(dirEntry->disk);
       if (fileEntry == NULL)
 	{
 	  kernelFree(buffer);
@@ -625,15 +629,15 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 }
 
 
-static int readRootDir(extInternalData *extData, kernelFilesystem *filesystem)
+static int readRootDir(extInternalData *extData, kernelDisk *theDisk)
 {
   // This function reads the root directory (which uses a reserved inode
   // number) and attaches the root directory kernelFileEntry pointer to the
   // filesystem structure.
 
   int status = 0;
-  extInode *rootInode =
-    &(((extInodeData *) filesystem->filesystemRoot->driverData)->inode);
+  kernelFileEntry *rootEntry = theDisk->filesystem.filesystemRoot;
+  extInode *rootInode = &(((extInodeData *) rootEntry->driverData)->inode);
 
   if (rootInode == NULL)
     {
@@ -649,7 +653,7 @@ static int readRootDir(extInternalData *extData, kernelFilesystem *filesystem)
       return (status);
     }
 
-  return (status = scanDirectory(extData, filesystem->filesystemRoot));
+  return (status = scanDirectory(extData, rootEntry));
 }
 
 
@@ -737,17 +741,17 @@ static int isSuperGroup(int groupNumber)
 }
 
 
-static inline void setBitmap(unsigned char *bitmap, int index, int onOff)
+static inline void setBitmap(unsigned char *bitmap, int idx, int onOff)
 {
   if (onOff)
-    bitmap[index / 8] |= (0x01 << (index % 8));
+    bitmap[idx / 8] |= (0x01 << (idx % 8));
   else
-    bitmap[index / 8] &= ~(0x01 << (index % 8));
+    bitmap[idx / 8] &= ~(0x01 << (idx % 8));
 }
 
 
 static int format(kernelDisk *theDisk, const char *type, const char *label,
-		  int longFormat)
+		  int longFormat, progress *prog)
 {
   // This function does a basic format of an EXT2 filesystem.
 
@@ -777,7 +781,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       return (status = ERR_NULLPARAMETER);
     }
   // Keep the compiler happy about unused variables
-  if (longFormat) {}
+  if (longFormat && prog) {}
   
   if (strncasecmp(type, "ext", 3) ||
       ((strlen(type) > 3) && strcasecmp(type, "ext2")))
@@ -795,6 +799,9 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		  "%u (512 only)", physicalDisk->sectorSize);
       return (status = ERR_INVALID);
     }
+
+  if (prog)
+    strcpy(prog->statusMessage, "Calculating parameters");
 
   // Clear memory
   kernelMemClear(&superblock, sizeof(extSuperblock));
@@ -858,6 +865,9 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   if ((groupDescs == NULL) || (bitmaps == NULL) || (inodeTable == NULL))
     return (status = ERR_MEMORY);
 
+  if (prog)
+    strcpy(prog->statusMessage, "Creating group descriptors");
+
   // Create the group descriptors
   for (count1 = 0; count1 < blockGroups; count1 ++)
     {
@@ -905,6 +915,9 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       superblock.free_blocks_count += groupDescs[count1].free_blocks_count;
       superblock.free_inodes_count += groupDescs[count1].free_inodes_count;
     }
+
+  if (prog)
+    strcpy(prog->statusMessage, "Writing block groups");
 
   // Clear/write the blocks of all control sectors, block groups, etc
   for (count1 = 0; count1 < blockGroups; count1 ++)
@@ -999,10 +1012,16 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
       // Clear the inode table
       kernelDiskWriteSectors((char *) theDisk->name, CURRENTSECTOR,
 			     (inodeTableBlocks * sectsPerBlock), inodeTable);
+
+      if (prog)
+	prog->percentFinished = ((count1 * 100) / blockGroups);
     }
 
   kernelFree(groupDescs);
   kernelFree(bitmaps);
+
+  if (prog)
+    strcpy(prog->statusMessage, "Initializing inodes");
 
   // Create the root inode
   inodeTable[EXT_ROOT_INO - 1].i_mode =
@@ -1032,6 +1051,9 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
   kernelDiskWriteSectors((char *) theDisk->name,
 			 ((3 + groupDescBlocks) * sectsPerBlock),
 			 sectsPerBlock, inodeTable);
+
+  if (prog)
+    strcpy(prog->statusMessage, "Creating directories");
 
   // Create the root directory
 
@@ -1096,6 +1118,9 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
   strcpy((char *) theDisk->fsType, "ext2");
 
+  if (prog)
+    strcpy(prog->statusMessage, "Syncing disk");
+
   status = kernelDiskSyncDisk((char *) theDisk->name);
 
   kernelLog("Format: Type: %s  Total blocks: %u  Bytes per block: %u  "
@@ -1103,6 +1128,9 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	    theDisk->fsType, superblock.blocks_count, blockSize,
 	    (blockSize / physicalDisk->sectorSize),
 	    superblock.blocks_per_group, blockGroups);
+
+  if (prog)
+    prog->percentFinished = 100;
 
   return (status);
 }
@@ -1136,7 +1164,7 @@ static int clobber(kernelDisk *theDisk)
 }
 
 
-static int mount(kernelFilesystem *filesystem)
+static int mount(kernelDisk *theDisk)
 {
   // This function initializes the filesystem driver by gathering all of
   // the required information from the boot sector.  In addition, it
@@ -1149,25 +1177,25 @@ static int mount(kernelFilesystem *filesystem)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  // Make sure the filesystem isn't NULL
-  if (filesystem == NULL)
+  // Make sure the disk isn't NULL
+  if (theDisk == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem structure");
+      kernelError(kernel_error, "NULL disk structure");
       return (status = ERR_NULLPARAMETER);
     }
 
   // The filesystem data cannot exist
-  filesystem->filesystemData = NULL;
+  theDisk->filesystem.filesystemData = NULL;
 
   // Get the EXT data for the requested filesystem.  We don't need the info
   // right now -- we just want to collect it.
-  extData = getExtData(filesystem);
+  extData = getExtData(theDisk);
   if (extData == NULL)
     return (status = ERR_BADDATA);
 
   // Read the filesystem's root directory and attach it to the filesystem
   // structure
-  status = readRootDir(extData, filesystem);
+  status = readRootDir(extData, theDisk);
   if (status < 0)
     {
       kernelError(kernel_error, "Unable to read the filesystem's root "
@@ -1176,16 +1204,16 @@ static int mount(kernelFilesystem *filesystem)
     }
 
   // Set the proper filesystem type name on the disk structure
-  strcpy((char *) filesystem->disk->fsType, "ext2");
+  strcpy((char *) theDisk->fsType, "ext2");
 
   // Read-only for now
-  filesystem->readOnly = 1;
+  theDisk->filesystem.readOnly = 1;
 
   return (status = 0);
 }
 
 
-static int unmount(kernelFilesystem *filesystem)
+static int unmount(kernelDisk *theDisk)
 {
   // This function releases all of the stored information about a given
   // filesystem.
@@ -1197,14 +1225,14 @@ static int unmount(kernelFilesystem *filesystem)
     return (status = ERR_NOTINITIALIZED);
 
   // Check params
-  if (filesystem == NULL)
+  if (theDisk == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem structure");
+      kernelError(kernel_error, "NULL disk structure");
       return (status = ERR_NULLPARAMETER);
     }
 
   // Get the EXT data for the requested filesystem
-  extData = getExtData(filesystem);
+  extData = getExtData(theDisk);
   if (extData == NULL)
     return (status = ERR_BADDATA);
 
@@ -1213,13 +1241,13 @@ static int unmount(kernelFilesystem *filesystem)
   kernelFree((void *) extData);
   
   // Finally, remove the reference from the filesystem structure
-  filesystem->filesystemData = NULL;
+  theDisk->filesystem.filesystemData = NULL;
 
   return (status = 0);
 }
 
 
-static unsigned getFreeBytes(kernelFilesystem *filesystem)
+static unsigned getFreeBytes(kernelDisk *theDisk)
 {
   // This function returns the amount of free disk space, in bytes.
 
@@ -1229,14 +1257,14 @@ static unsigned getFreeBytes(kernelFilesystem *filesystem)
     return (0);
 
   // Check params
-  if (filesystem == NULL)
+  if (theDisk == NULL)
     {
-      kernelError(kernel_error, "NULL file entry");
+      kernelError(kernel_error, "NULL disk structure");
       return (0);
     }
 
   // Get the EXT data for the requested filesystem
-  extData = getExtData(filesystem);
+  extData = getExtData(theDisk);
   if (extData == NULL)
     return (0);
   
@@ -1275,9 +1303,9 @@ static int newEntry(kernelFileEntry *newEntry)
     }
 
   // Make sure there's an associated filesystem
-  if (newEntry->filesystem == NULL)
+  if (newEntry->disk == NULL)
     {
-      kernelError(kernel_error, "Entry has no associated filesystem");
+      kernelError(kernel_error, "Entry has no associated disk");
       return (status = ERR_NOCREATE);
     }
 
@@ -1379,7 +1407,7 @@ static int resolveLink(kernelFileEntry *linkEntry)
     }
 
   // Get the EXT data for the requested filesystem
-  extData = getExtData(linkEntry->filesystem);
+  extData = getExtData(linkEntry->disk);
   if (extData == NULL)
     return (0);
   
@@ -1439,8 +1467,8 @@ static int resolveLink(kernelFileEntry *linkEntry)
       if (fileName[0] != '/')
 	return (status = ERR_NOSUCHFILE); 
 
-      sprintf(tmpName, "%s/%s", ((kernelFilesystem *) linkEntry->filesystem)
-	      ->mountPoint, fileName);
+      sprintf(tmpName, "%s/%s", ((kernelDisk *) linkEntry->disk)->
+	      filesystem.mountPoint, fileName);
       kernelFileFixupPath(tmpName, fileName);
 
       // Try again
@@ -1477,7 +1505,7 @@ static int readFile(kernelFileEntry *theFile, unsigned blockNum,
     }
 
   // Get the EXT data for the requested filesystem
-  extData = getExtData(theFile->filesystem);
+  extData = getExtData(theFile->disk);
   if (extData == NULL)
     return (status = ERR_BADDATA);
  
@@ -1522,7 +1550,7 @@ static int readDir(kernelFileEntry *directory)
     }
 
   // Get the EXT data for the requested filesystem
-  extData = getExtData(directory->filesystem);
+  extData = getExtData(directory->disk);
   if (extData == NULL)
     return (status = ERR_BADDATA);
 
@@ -1531,7 +1559,6 @@ static int readDir(kernelFileEntry *directory)
 
 
 static kernelFilesystemDriver defaultExtDriver = {
-  Ext,   // FS type
   "ext", // Driver name
   detect,
   format,

@@ -76,9 +76,11 @@ int main(int argc, char *argv[])
   if (argc < 2)
     {
       // The user did not specify a file.  We will prompt them.
+
       status =
 	windowNewFileDialog(NULL, "Enter filename", "Please enter the "
-			    "background image\nfile name:", rawFileName,
+			    "background image\nfile name:",
+			    "/system/wallpaper", rawFileName,
 			    MAX_PATH_NAME_LENGTH);
       if (status != 1)
 	{

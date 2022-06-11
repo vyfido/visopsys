@@ -13,24 +13,27 @@
 <table border="0" cellpadding="0" cellspacing="0" width="93">
   <tr>
     <td width="99"><p align="center"><font color="#FFFFFF"><a href="../index.html">
-    <img src="../img/nav_buttons/home.gif" alt="Go back to the Visopsys Home Page." border="0" align="middle" width="53" height="25"></a><br>
+    <img src="../img/nav_buttons/home.gif" alt="Home" border="0" align="middle" width="53" height="25"></a><br>
     <br>
     <a href="../about/index.html">
-    <img src="../img/nav_buttons/about.gif" alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a></font><p align="center">
+    <img src="../img/nav_buttons/about.gif" alt="About" border="0" align="middle" width="60" height="25"></a></font><p align="center">
+    <a href="../about/news.html">
+    <img border="0" src="../img/nav_buttons/news.gif" alt="News" width="49" height="16"></a><br>
+    <br>
     <a href="../about/screenshots.html">
-    <img border="0" src="../img/nav_buttons/screenshots.gif" width="105" height="22"></a><font color="#FFFFFF"><br>
+    <img border="0" src="../img/nav_buttons/screenshots.gif" alt="Screenshots" width="105" height="22"></a><font color="#FFFFFF"><br>
     <br>
     <a href="../download/index.html">
-    <img src="../img/nav_buttons/download.gif" alt="Download Visopsys and associated files." border="0" align="middle" width="95" height="25"></a></font><br>
+    <img src="../img/nav_buttons/download.gif" alt="Download" border="0" align="middle" width="95" height="25"></a></font><br>
     <br>
     <a href="index.html">
-    <img src="../img/nav_buttons/developers.gif" border="0" alt="Resources for Visopsys development" align="middle" width="97" height="29"></a><br>
+    <img src="../img/nav_buttons/developers.gif" border="0" alt="Developers" align="middle" width="97" height="29"></a><br>
     <br>
     <a href="../osdev/index.html">
-    <img src="../img/nav_buttons/osdev.gif" border="0" alt="OS Development Resources" align="middle" width="64" height="25"></a><br>
+    <img src="../img/nav_buttons/osdev.gif" border="0" alt="OS Development" align="middle" width="64" height="25"></a><br>
     <br>
     <a href="../search.html">
-    <img src="../img/nav_buttons/search.gif" alt="Search the Visopsys Site" align="middle" border="0" width="63" height="24"></a></td>
+    <img src="../img/nav_buttons/search.gif" alt="Search" align="middle" border="0" width="63" height="24"></a></td>
   </tr>
 </table>
 </center></div>
@@ -43,8 +46,8 @@
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-developers.gif" border="0" align="middle" width="291" height="56"></p>
 
-<p><font size="4"><b>THE VISOPSYS KERNEL API (Version 0.5)<br>
-</b></font>(version 0.4 is <a href="kernel_API_0.4.html">here</a>)</p>
+<p><font size="4"><b>THE VISOPSYS KERNEL API (Version 0.6)<br>
+</b></font>(version 0.5 is <a href="kernel_API_0.5.html">here</a>)</p>
 <p><font size="4">All of the kernel's functions are defined in the file 
 /system/headers/sys/api.h. In future, this file may be split into smaller 
 chunks, by functional area. Data structures referred to in these function 
@@ -72,6 +75,7 @@ example, a 'disk' object is defined in /system/headers/sys/disk.h.</font></p>
 <a href="#graphics">Raw graphics functions</a><br>
 <a href="#window">Window manager functions</a><br>
 <a href="#user">User functions</a><br>
+<a href="#network">Network functions</a><br>
 <a href="#miscellaneous">Miscellaneous functions</a></font></p>
 <p>&nbsp;</p>
 <p></p>
@@ -185,6 +189,11 @@ example, a 'disk' object is defined in /system/headers/sys/disk.h.</font></p>
 </font></p>
 <blockquote>
   <p>Move the cursor right one column.  Doesn't affect any characters there.
+</p></blockquote>
+<p><font face="Courier New">void textScroll(int upDown)
+</font></p>
+<blockquote>
+  <p>Scroll the current text area up (-1) or down (+1)
 </p></blockquote>
 <p><font face="Courier New">int textGetNumColumns(void)
 </font></p>
@@ -335,9 +344,14 @@ example, a 'disk' object is defined in /system/headers/sys/disk.h.</font></p>
 </font></p>
 <blockquote>
   <p>Set echo on (1) or off (0) for the default input stream.  When on, any characters typed will be automatically printed to the text area.  When off, they won't.</p>
-  <p>&nbsp;</p></blockquote>
+  <p>&nbsp;</p></blockquote></p>
+
+<p></p>
+<p></p>
+<p></p>
 
 <p><b><font size="4"><a name="disk"></a>Disk functions</font></b></p>
+
 <p><font face="Courier New">int diskReadPartitions(void)
 </font></p>
 <blockquote>
@@ -363,15 +377,20 @@ example, a 'disk' object is defined in /system/headers/sys/disk.h.</font></p>
 <blockquote>
   <p>Get the number of physical disk devices recognized by the system
 </p></blockquote>
-<p><font face="Courier New">int diskGetInfo(disk *d)
+<p><font face="Courier New">int diskGet(const char *name, disk *userDisk)
 </font></p>
 <blockquote>
-  <p>Get information about the logical disk volume named by the disk structure's 'name' field and fill in the remainder of the disk structure d.
+  <p>Given a disk name string 'name', fill in the corresponding user space disk structure 'userDisk.
 </p></blockquote>
-<p><font face="Courier New">int diskGetPhysicalInfo(disk *d)
+<p><font face="Courier New">int diskGetAll(disk *userDiskArray, unsigned buffSize)
 </font></p>
 <blockquote>
-  <p>Get information about the physical disk device named by the disk structure's 'name' field and fill in the remainder of the disk structure d.
+  <p>Return user space disk structures in 'userDiskArray' for each logical disk, up to 'buffSize' bytes.
+</p></blockquote>
+<p><font face="Courier New">int diskGetAllPhysical(disk *userDiskArray, unsigned buffSize)
+</font></p>
+<blockquote>
+  <p>Return user space disk structures in 'userDiskArray' for each physical disk, up to 'buffSize' bytes.
 </p></blockquote>
 <p><font face="Courier New">int diskGetPartType(int code, partitionType *p)
 </font></p>
@@ -393,43 +412,43 @@ example, a 'disk' object is defined in /system/headers/sys/disk.h.</font></p>
 <blockquote>
   <p>Open (1) or close (0) the disk 'name'.  May require a unlocking the door first, see diskSetLockState().
 </p></blockquote>
+<p><font face="Courier New">int diskGetMediaState(const char *diskName)
+</font></p>
+<blockquote>
+  <p>Returns 1 if the removable disk 'diskName' is known to have media present.
+</p></blockquote>
 <p><font face="Courier New">int diskReadSectors(const char *name, unsigned sect, unsigned count, void *buf)
 </font></p>
 <blockquote>
-  <p>Read 'count' sectors from disk 'name', starting at (zero-based) logical sector number 'sect'.  Put the data in memory area 'buf'.
+  <p>Read 'count' sectors from disk 'name', starting at (zero-based) logical sector number 'sect'.  Put the data in memory area 'buf'.  This function requires supervisor privilege.
 </p></blockquote>
 <p><font face="Courier New">int diskWriteSectors(const char *name, unsigned sect, unsigned count, void *buf)
 </font></p>
 <blockquote>
-  <p>Write 'count' sectors to disk 'name', starting at (zero-based) logical sector number 'sect'.  Get the data from memory area 'buf'.
-</p></blockquote>
-<p><font face="Courier New">int diskReadAbsoluteSectors(const char *name, unsigned sect, unsigned count, void *buf)
-</font></p>
-<blockquote>
-  <p>Read 'count' sectors from disk 'name', starting at (zero-based) absolute sector number 'sect'.  Put the data in memory area 'buf'.  This function requires supervisor privilege and is used to read outside the logical confines of a volume, such as a hard disk partition.  Not very useful unless you know what you're doing.
-</p></blockquote>
-<p><font face="Courier New">int diskWriteAbsoluteSectors(const char *name, unsigned sect, unsigned count, void *buf)
-</font></p>
-<blockquote>
-  <p>Write 'count' sectors to disk 'name', starting at (zero-based) absolute sector number 'sect'.  Get the data from memory area 'buf'.  This function requires supervisor privilege and is used to write outside the logical confines of a volume, such as a hard disk partition.  Don't use this unless you know what you're doing.
-</p>
-  <p>&nbsp;</p></blockquote>
+  <p>Write 'count' sectors to disk 'name', starting at (zero-based) logical sector number 'sect'.  Get the data from memory area 'buf'.  This function requires supervisor privilege.</p>
+  <p>&nbsp;</p></blockquote></p>
 
 <p><b><font size="4"><a name="filesystem"></a>Filesystem functions</font></b></p>
-<p><font face="Courier New">int filesystemFormat(const char *disk, const char *type, const char *label, int longFormat)
+
+<p><font face="Courier New">int filesystemFormat(const char *theDisk, const char *type, const char *label, int longFormat, progress *prog)
 </font></p>
 <blockquote>
-  <p>Format the logical volume 'disk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported.  It is optional for filesystem drivers to implement this function.
+  <p>Format the logical volume 'theDisk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported, and progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
 </p></blockquote>
-<p><font face="Courier New">int filesystemCheck(const char *name, int force, int repair)
+<p><font face="Courier New">int filesystemClobber(const char *theDisk)
 </font></p>
 <blockquote>
-  <p>Check the filesystem on disk 'name'.  If 'force' is non-zero, the filesystem will be checked regardless of whether the filesystem driver thinks it needs to be.  If 'repair' is non-zero, the filesystem driver will attempt to repair any errors found.  If 'repair' is zero, a non-zero return value may indicate that errors were found.  If 'repair' is non-zero, a non-zero return value may indicate that errors were found but could not be fixed.  It is optional for filesystem drivers to implement this function.
+  <p>Clobber all known filesystem types on the logical volume 'theDisk'.  It is optional for filesystem drivers to implement this function.
 </p></blockquote>
-<p><font face="Courier New">int filesystemDefragment(const char *name)
+<p><font face="Courier New">int filesystemCheck(const char *name, int force, int repair, progress *prog)
 </font></p>
 <blockquote>
-  <p>Defragment the filesystem on disk 'name'.  It is optional for filesystem drivers to implement this function.
+  <p>Check the filesystem on disk 'name'.  If 'force' is non-zero, the filesystem will be checked regardless of whether the filesystem driver thinks it needs to be.  If 'repair' is non-zero, the filesystem driver will attempt to repair any errors found.  If 'repair' is zero, a non-zero return value may indicate that errors were found.  If 'repair' is non-zero, a non-zero return value may indicate that errors were found but could not be fixed.  Progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
+</p></blockquote>
+<p><font face="Courier New">int filesystemDefragment(const char *name, progress *prog)
+</font></p>
+<blockquote>
+  <p>Defragment the filesystem on disk 'name'.  Progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
 </p></blockquote>
 <p><font face="Courier New">int filesystemMount(const char *name, const char *mp)
 </font></p>
@@ -446,12 +465,11 @@ example, a 'disk' object is defined in /system/headers/sys/disk.h.</font></p>
 <blockquote>
   <p>Returns the amount of free space on the filesystem represented by the mount point 'fs'.
 </p></blockquote>
-<p><font face="Courier New">unsigned int filesystemGetBlockSize(const char *fs)
+<p><font face="Courier New">unsigned filesystemGetBlockSize(const char *fs)
 </font></p>
 <blockquote>
-  <p>Returns the block size (for example, 512 or 1024) of the filesystem represented by the mount point 'fs'.
-</p>
-  <p>&nbsp;</p></blockquote>
+  <p>Returns the block size (for example, 512 or 1024) of the filesystem represented by the mount point 'fs'.</p>
+  <p>&nbsp;</p></blockquote></p>
 <p><b><font size="4"><a name="file"></a>File functions</font></b></p>
 <p><font size="4">Note that in all of the functions of this section, any 
 reference to pathnames means absolute pathnames, from root. E.g. '/files/myfile', 
@@ -471,6 +489,11 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Given the file name 'path', return the user space structure for the logical disk that the file resides on.
+</p></blockquote>
+<p><font face="Courier New">int fileCount(const char *path)
+</font></p>
+<blockquote>
+  <p>Get the count of file entries from the directory referenced by 'path'.
 </p></blockquote>
 <p><font face="Courier New">int fileFirst(const char *path, file *f)
 </font></p>
@@ -497,7 +520,7 @@ ambiguous.</font></p>
 <blockquote>
   <p>Close the previously opened file 'f'.
 </p></blockquote>
-<p><font face="Courier New">int fileRead(file *f, unsigned int blocknum, unsigned int blocks, unsigned char *buff)
+<p><font face="Courier New">int fileRead(file *f, unsigned blocknum, unsigned blocks, unsigned char *buff)
 </font></p>
 <blockquote>
   <p>Read data from the previously opened file 'f'.  'f' should have been opened in a read or read/write mode.  Read 'blocks' blocks (see the filesystem functions for information about getting the block size of a given filesystem) and put them in buffer 'buff'.
@@ -511,6 +534,11 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Delete the file referenced by the pathname 'name'.
+</p></blockquote>
+<p><font face="Courier New">int fileDeleteRecursive(const char *name)
+</font></p>
+<blockquote>
+  <p>Recursively delete filesystem items, starting with the one referenced by the pathname 'name'.
 </p></blockquote>
 <p><font face="Courier New">int fileDeleteSecure(const char *name)
 </font></p>
@@ -562,17 +590,17 @@ ambiguous.</font></p>
 <blockquote>
   <p>Seek the filestream 'f' to the absolute position 'offset'
 </p></blockquote>
-<p><font face="Courier New">int fileStreamRead(fileStream *f, int bytes, char *buff)
+<p><font face="Courier New">int fileStreamRead(fileStream *f, unsigned bytes, char *buff)
 </font></p>
 <blockquote>
   <p>Read 'bytes' bytes from the filestream 'f' and put them into 'buff'.
 </p></blockquote>
-<p><font face="Courier New">int fileStreamReadLine(fileStream *f, int bytes, char *buff)
+<p><font face="Courier New">int fileStreamReadLine(fileStream *f, unsigned bytes, char *buff)
 </font></p>
 <blockquote>
   <p>Read a complete line of text from the filestream 'f', and put up to 'bytes' characters into 'buff'
 </p></blockquote>
-<p><font face="Courier New">int fileStreamWrite(fileStream *f, int bytes, char *buff)
+<p><font face="Courier New">int fileStreamWrite(fileStream *f, unsigned bytes, char *buff)
 </font></p>
 <blockquote>
   <p>Write 'bytes' bytes from the buffer 'buff' to the filestream 'f'.
@@ -597,14 +625,10 @@ ambiguous.</font></p>
 <blockquote>
   <p>[Flush and] close the filestream 'f'.
 </p>
-  <p>&nbsp;</p></blockquote>
+  <p>&nbsp;</p></blockquote></p>
 
 <p><b><font size="4"><a name="memory"></a>Memory functions</font></b></p>
-<p><font face="Courier New">void memoryPrintUsage(int kernel)
-</font></p>
-<blockquote>
-  <p>Prints the current memory usage statistics to the current output stream.  If non-zero, the flag 'kernel' will show usage of kernel dynamic memory as well.
-</p></blockquote>
+
 <p><font face="Courier New">void *memoryGet(unsigned size, const char *desc)
 </font></p>
 <blockquote>
@@ -629,19 +653,29 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Change the ownership of an allocated block of memory beginning at address 'addr'.  'opid' is the process ID of the currently owning process, and 'npid' is the process ID of the intended new owner.  'naddr' is filled with the new address of the memory (since it changes address spaces in the process).  Note that only a privileged process can change memory ownership.
+</p></blockquote>
+<p><font face="Courier New">int memoryGetStats(memoryStats *stats, int kernel)
+</font></p>
+<blockquote>
+  <p>Returns the current memory totals and usage values to the current output stream.  If non-zero, the flag 'kernel' will return kernel heap statistics instead of overall system statistics.
+</p></blockquote>
+<p><font face="Courier New">int memoryGetBlocks(memoryBlock *blocksArray, unsigned buffSize, int kernel)
+</font></p>
+<blockquote>
+  <p>Returns a copy of the array of used memory blocks in 'blocksArray', up to 'buffSize' bytes.  If non-zero, the flag 'kernel' will return kernel heap blocks instead of overall heap allocations.
 </p>
-  <p>&nbsp;</p></blockquote>
+  <p>&nbsp;</p></blockquote></p>
 <p><b><font size="4"><a name="multitasker"></a>Multitasker functions</font></b></p>
 
-<p><font face="Courier New">int multitaskerCreateProcess(void *addr, unsigned int size, const char *name, int numargs, void *args)
+<p><font face="Courier New">int multitaskerCreateProcess(const char *name, int privilege, processImage *execImage)
 </font></p>
 <blockquote>
-  <p>Create a new process.  The code should have been loaded at the address 'addr' and be of size 'size'.  'name' will be the new process' name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new process.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new process' process ID.  New processes are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState().
+  <p>Create a new process.  'name' will be the new process' name.  'privilege' is the privilege level.  'execImage' is a processImage structure that describes the loaded location of the file, the program's desired virtual address, entry point, size, etc.  If the value returned by the call is a positive integer, the call was successful and the value is the new process' process ID.  New processes are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState().
 </p></blockquote>
-<p><font face="Courier New">int multitaskerSpawn(void *addr, const char *name, int numargs, void *args)
+<p><font face="Courier New">int multitaskerSpawn(void *addr, const char *name, int numargs, void *args[])
 </font></p>
 <blockquote>
-  <p>Spawn a thread from the current process.  The starting point of the code (for example, a function address) should be specified as 'addr'.  'name' will be the new thread's name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new thread.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new thread's process ID.  New threads are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState().
+  <p>Spawn a thread from the current process.  The starting point of the code (for example, a function address) should be specified as 'addr'.  'name' will be the new thread's name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new thread.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new thread's process ID.  New threads are created and made runnable, so there is no need to change its state to activate it.
 </p></blockquote>
 <p><font face="Courier New">int multitaskerGetCurrentProcessId(void)
 </font></p>
@@ -668,6 +702,11 @@ ambiguous.</font></p>
 <blockquote>
   <p>Sets the state of the process referenced by process ID 'pid' to the new state 'state'.
 </p></blockquote>
+<p><font face="Courier New">int multitaskerProcessIsAlive(int pid)
+</font></p>
+<blockquote>
+  <p>Returns 1 if the process with the id 'pid' still exists and is in a 'runnable' (viable) state.  Returns 0 if the process does not exist or is in a 'finished' state.
+</p></blockquote>
 <p><font face="Courier New">int multitaskerSetProcessPriority(int pid, int priority)
 </font></p>
 <blockquote>
@@ -683,7 +722,7 @@ ambiguous.</font></p>
 <blockquote>
   <p>Returns the absolute pathname of the calling process' current directory.  Puts the value in the buffer 'buff' which is of size 'buffsz'.
 </p></blockquote>
-<p><font face="Courier New">int multitaskerSetCurrentDirectory(char *buff)
+<p><font face="Courier New">int multitaskerSetCurrentDirectory(const char *buff)
 </font></p>
 <blockquote>
   <p>Sets the current directory of the calling process to the absolute pathname 'buff'.
@@ -723,7 +762,7 @@ ambiguous.</font></p>
 <blockquote>
   <p>Yield the remainder of the current processor timeslice back to the multitasker's scheduler.  It's nice to do this when you are waiting for some event, so that your process is not 'hungry' (i.e. hogging processor cycles unnecessarily).
 </p></blockquote>
-<p><font face="Courier New">void multitaskerWait(unsigned int ticks)
+<p><font face="Courier New">void multitaskerWait(unsigned ticks)
 </font></p>
 <blockquote>
   <p>Yield the remainder of the current processor timeslice back to the multitasker's scheduler, and wait at least 'ticks' timer ticks before running the calling process again.  On the PC, one second is approximately 20 system timer ticks.
@@ -752,8 +791,23 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Terminate the calling process, returning the exit code 'code'
+</p></blockquote>
+<p><font face="Courier New">int multitaskerSignalSet(int processId, int sig, int on)
+</font></p>
+<blockquote>
+  <p>Set the current process' signal handling enabled (on) or disabled for the specified signal number 'sig'
+</p></blockquote>
+<p><font face="Courier New">int multitaskerSignal(int processId, int sig)
+</font></p>
+<blockquote>
+  <p>Send the requested signal 'sig' to the process 'processId'
+</p></blockquote>
+<p><font face="Courier New">int multitaskerSignalRead(int processId)
+</font></p>
+<blockquote>
+  <p>Returns the number code of the next pending signal for the current process, or 0 if no signals are pending.
 </p>
-  <p>&nbsp;</p></blockquote>
+  <p>&nbsp;</p></blockquote></p>
 
 <p><b><font size="4"><a name="loader"></a>Loader functions</font></b></p>
 
@@ -762,22 +816,42 @@ ambiguous.</font></p>
 <blockquote>
   <p>Load a file referenced by the pathname 'filename', and fill the file data structure 'theFile' with the details.  The pointer returned points to the resulting file data.
 </p></blockquote>
-<p><font face="Courier New">int loaderLoadProgram(const char *userProgram, int privilege, int argc, char *argv[])
+<p><font face="Courier New">objectKey loaderClassify(const char *fileName, void *fileData, int size, loaderFileClass *class)
 </font></p>
 <blockquote>
-  <p>Load the file referenced by the pathname 'userProgram' as a process with the privilege level 'privilege'.  Pass the arguments 'argc' and 'argv'.  If there are no arguments, these should be 0 and NULL, respectively.  If successful, the call's return value is the process ID of the new process.  The process is left in a stopped state and must be set to a running state explicitly using the multitasker function multitaskerSetProcessState() or the loader function loaderExecProgram().
+  <p>Given a file by the name 'fileName', the contents 'fileData', of size 'size', get the kernel loader's idea of the file type.  If successful, the return  value is non-NULL and the loaderFileClass structure 'class' is filled out with the known information.
+</p></blockquote>
+<p><font face="Courier New">objectKey loaderClassifyFile(const char *fileName, loaderFileClass *class)
+</font></p>
+<blockquote>
+  <p>Like loaderClassify(), except the first argument 'fileName' is a file name to classify.  Returns the kernel loader's idea of the file type.  If successful, the return value is non-NULL and the loaderFileClass structure 'class' is filled out with the known information.
+</p></blockquote>
+<p><font face="Courier New">loaderSymbolTable *loaderGetSymbols(const char *fileName, int dynamic)
+</font></p>
+<blockquote>
+  <p>Given a binary executable, library, or object file 'fileName' and a flag 'dynamic', return a loaderSymbolTable structure filled out with the loader symbols from the file.  If 'dynamic' is non-zero, only symbols used in dynamic linking will be returned (if the file is not a dynamic library or executable, NULL will be returned).  If 'dynamic' is zero, return all symbols found in the file.
+</p></blockquote>
+<p><font face="Courier New">int loaderLoadProgram(const char *command, int privilege)
+</font></p>
+<blockquote>
+  <p>Run 'command' as a process with the privilege level 'privilege'.  If successful, the call's return value is the process ID of the new process.  The process is left in a stopped state and must be set to a running state explicitly using the multitasker function multitaskerSetProcessState() or the loader function loaderExecProgram().
+</p></blockquote>
+<p><font face="Courier New">int loaderLoadLibrary(const char *libraryName)
+</font></p>
+<blockquote>
+  <p>This takes the name of a library file 'libraryName' to load and creates a shared library in the kernel.  This function is not especially useful to user programs, since normal shared library loading happens automatically as part of the 'loaderLoadProgram' process.
 </p></blockquote>
 <p><font face="Courier New">int loaderExecProgram(int processId, int block)
 </font></p>
 <blockquote>
   <p>Execute the process referenced by process ID 'processId'.  If 'block' is non-zero, the calling process will block until process 'pid' has terminated, and the return value of the call is the return value of process 'pid'.
 </p></blockquote>
-<p><font face="Courier New">int loaderLoadAndExec(const char *name, int privilege, int argc, char *argv[], int block)
+<p><font face="Courier New">int loaderLoadAndExec(const char *command, int privilege, int block)
 </font></p>
 <blockquote>
   <p>This function is just for convenience, and is an amalgamation of the loader functions loaderLoadProgram() and  loaderExecProgram().
 </p>
-  <p>&nbsp;</p></blockquote>
+  <p>&nbsp;</p></blockquote></p>
 
 <p><b><font size="4"><a name="rtc"></a>Real-time clock functions</font></b></p>
 
@@ -816,45 +890,45 @@ ambiguous.</font></p>
 <blockquote>
   <p>Get the current year value.
 </p></blockquote>
-<p><font face="Courier New">unsigned int rtcUptimeSeconds(void)
+<p><font face="Courier New">unsigned rtcUptimeSeconds(void)
 </font></p>
 <blockquote>
   <p>Get the number of seconds the system has been running.
 </p></blockquote>
-<p><font face="Courier New">int rtcDateTime(struct tm *time)
+<p><font face="Courier New">int rtcDateTime(struct tm *theTime)
 </font></p>
 <blockquote>
-  <p>Get the current data and time as a tm data structure in 'time'.
+  <p>Get the current data and time as a tm data structure in 'theTime'.
 </p>
-  <p>&nbsp;</p></blockquote>
+  <p>&nbsp;</p></blockquote></p>
 
 <p><b><font size="4"><a name="random"></a>Random number functions</font></b></p>
 
-<p><font face="Courier New">unsigned int randomUnformatted(void)
+<p><font face="Courier New">unsigned randomUnformatted(void)
 </font></p>
 <blockquote>
   <p>Get an unformatted random unsigned number.  Just any unsigned number.
 </p></blockquote>
-<p><font face="Courier New">unsigned int randomFormatted(unsigned int start, unsigned int end)
+<p><font face="Courier New">unsigned randomFormatted(unsigned start, unsigned end)
 </font></p>
 <blockquote>
   <p>Get a random unsigned number between the start value 'start' and the end value 'end', inclusive.
 </p></blockquote>
-<p><font face="Courier New">unsigned int randomSeededUnformatted(unsigned int seed)
+<p><font face="Courier New">unsigned randomSeededUnformatted(unsigned seed)
 </font></p>
 <blockquote>
   <p>Get an unformatted random unsigned number, using the random seed 'seed' instead of the kernel's default random seed.
 </p></blockquote>
-<p><font face="Courier New">unsigned int randomSeededFormatted(unsigned int seed, unsigned int start, unsigned int end)
+<p><font face="Courier New">unsigned randomSeededFormatted(unsigned seed, unsigned start, unsigned end)
 </font></p>
 <blockquote>
   <p>Get a random unsigned number between the start value 'start' and the end value 'end', inclusive, using the random seed 'seed' instead of the kernel's default random seed.
 </p>
-  <p>&nbsp;</p></blockquote>
+  <p>&nbsp;</p></blockquote></p>
 
 <p><b><font size="4"><a name="environment"></a>Environment functions</font></b></p>
 
-<p><font face="Courier New">int environmentGet(const char *var, char *buf, unsigned int bufsz)
+<p><font face="Courier New">int environmentGet(const char *var, char *buf, unsigned bufsz)
 </font></p>
 <blockquote>
   <p>Get the value of the environment variable named 'var', and put it into the buffer 'buf' of size 'bufsz' if successful.
@@ -874,15 +948,16 @@ ambiguous.</font></p>
 <blockquote>
   <p>Print a listing of all the currently set environment variables in the calling process' environment space to the current text output stream.
 </p>
-  <p>&nbsp;</p></blockquote>
+  <p>&nbsp;</p></blockquote></p>
 
 <p><b><font size="4"><a name="graphics"></a>Raw graphics functions</font></b></p>
+
 <p><font face="Courier New">int graphicsAreEnabled(void)
 </font></p>
 <blockquote>
   <p>Returns 1 if the kernel is operating in graphics mode.
 </p></blockquote>
-<p><font face="Courier New">int graphicGetModes(videoMode *buffer, int size)
+<p><font face="Courier New">int graphicGetModes(videoMode *buffer, unsigned size)
 </font></p>
 <blockquote>
   <p>Get up to 'size' bytes worth of videoMode structures in 'buffer' for the supported video modes of the current hardware.
@@ -977,13 +1052,14 @@ ambiguous.</font></p>
 <blockquote>
   <p>Draw the clip of the buffer 'buffer' onto the screen.  Draw it on the screen at starting X coordinate 'drawX' and starting Y coordinate 'drawY'.  The buffer clip is bounded by the starting X coordinate 'clipX', the starting Y coordinate 'clipY', the width 'clipWidth' and the height 'clipHeight'.  It is not legal for 'buffer' to be NULL in this case.
 </p>
-  <p>&nbsp;</p></blockquote>
+  <p>&nbsp;</p></blockquote></p>
 
 <p><b><font size="4"><a name="window"></a>Windowing system functions</font></b></p>
-<p><font face="Courier New">int windowLogin(const char *userName, const char *passwd)
+
+<p><font face="Courier New">int windowLogin(const char *userName)
 </font></p>
 <blockquote>
-  <p>Log the user into the window environment with 'userName' and 'passwd'.  The return value is the PID of the window shell for this session.
+  <p>Log the user into the window environment with 'userName'.  The return value is the PID of the window shell for this session.  The calling program must have supervisor privilege in order to use this function.
 </p></blockquote>
 <p><font face="Courier New">int windowLogout(void)
 </font></p>
@@ -1035,20 +1111,15 @@ ambiguous.</font></p>
 <blockquote>
   <p>Set the screen location of the window 'window' using the coordinate variables 'xCoord' and 'yCoord'.
 </p></blockquote>
-<p><font face="Courier New">int windowPack(objectKey window)
-</font></p>
-<blockquote>
-  <p>Pack and resize 'window' based on the sizes and parameters of the components it contains.
-</p></blockquote>
 <p><font face="Courier New">int windowCenter(objectKey window)
 </font></p>
 <blockquote>
   <p>Center 'window' on the screen.
 </p></blockquote>
-<p><font face="Courier New">void windowSnapIcons(objectKey window)
+<p><font face="Courier New">int windowSnapIcons(objectKey parent)
 </font></p>
 <blockquote>
-  <p>If 'window' has icon components inside it, this will snap them to a grid so that they fit inside the window.
+  <p>If 'container' (either a window or a windowContainer) has icon components inside it, this will snap them to a grid.
 </p></blockquote>
 <p><font face="Courier New">int windowSetHasBorder(objectKey window, int trueFalse)
 </font></p>
@@ -1069,11 +1140,6 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Tells the windowing system whether to allow 'window' to be resized by the user.
-</p></blockquote>
-<p><font face="Courier New">int windowSetPacked(objectKey window, int trueFalse)
-</font></p>
-<blockquote>
-  <p>Calling this function with 'trueFalse' set to 1 will set 'window's packed attribute.  Packed windows will automatically resize to the smallest appropriate size based on the sizes and parameters of the components it contains.
 </p></blockquote>
 <p><font face="Courier New">int windowSetHasMinimizeButton(objectKey window,
 </font></p>
@@ -1120,15 +1186,15 @@ ambiguous.</font></p>
 <blockquote>
   <p>Gets a pending window event, if any, applicable to component 'key', and puts the data into the windowEvent structure 'event'.  If an event was received, the function returns a positive, non-zero value (the actual value reflects the amount of raw data read from the component's event stream -- not particularly useful to an application).  If the return value is zero, no event was pending.
 </p></blockquote>
-<p><font face="Courier New">int windowTileBackground(const char *file)
+<p><font face="Courier New">int windowTileBackground(const char *theFile)
 </font></p>
 <blockquote>
-  <p>Load the image file specified by the pathname 'file', and if successful, tile the image on the background root window.
+  <p>Load the image file specified by the pathname 'theFile', and if successful, tile the image on the background root window.
 </p></blockquote>
-<p><font face="Courier New">int windowCenterBackground(const char *file)
+<p><font face="Courier New">int windowCenterBackground(const char *theFile)
 </font></p>
 <blockquote>
-  <p>Load the image file specified by the pathname 'file', and if successful, center the image on the background root window.
+  <p>Load the image file specified by the pathname 'theFile', and if successful, center the image on the background root window.
 </p></blockquote>
 <p><font face="Courier New">int windowScreenShot(image *saveImage)
 </font></p>
@@ -1195,10 +1261,10 @@ ambiguous.</font></p>
 <blockquote>
   <p>This is a generic call to set data in the window component 'component', up to 'size' bytes, in the buffer 'buffer'.  The size and type of data that a given component will use or accept is totally dependent upon the type and implementation of the component.
 </p></blockquote>
-<p><font face="Courier New">int windowComponentGetSelected(objectKey component)
+<p><font face="Courier New">int windowComponentGetSelected(objectKey component, int *selection)
 </font></p>
 <blockquote>
-  <p>This is a call to get the 'selected' value of the window component 'component'.  The type of value returned depends upon the type of component; a list component, for example, will return the 0-based number of its selected item.  On the other hand, a boolean component such as a checkbox will return 1 if it is currently selected.
+  <p>This is a call to get the 'selected' value of the window component 'component'.  The type of value returned depends upon the type of component; a list component, for example, will return the 0-based number(s) of its selected item(s).  On the other hand, a boolean component such as a checkbox will return 1 if it is currently selected.
 </p></blockquote>
 <p><font face="Courier New">int windowComponentSetSelected(objectKey component, int selected)
 </font></p>
@@ -1235,15 +1301,15 @@ ambiguous.</font></p>
 <blockquote>
   <p>Get a new image component to be placed inside the parent object 'parent', using the image data structure 'baseImage', and with the given component parameters 'params'.
 </p></blockquote>
-<p><font face="Courier New">objectKey windowNewList(objectKey parent, int rows, int columns, int multiple, char *items[], int numItems, componentParameters *params)
+<p><font face="Courier New">objectKey windowNewList(objectKey parent, windowListType type, int rows, int columns, int multiple, listItemParameters *items, int numItems, componentParameters *params)
 </font></p>
 <blockquote>
-  <p>Get a new window list component to be placed inside the parent object 'parent', using the component parameters 'params'.  'rows' and 'columns' specify the size of the list and layout of the list items, 'multiple' allows multiple selections if non-zero, and 'numItems' specifies the number of strings in the array 'items' (which is an array of strings to represent the list items)
+  <p>Get a new window list component to be placed inside the parent object 'parent', using the component parameters 'params'.  'type' specifies the type of list (see <sys/window.h> for possibilities), 'rows' and 'columns' specify the size of the list and layout of the list items, 'multiple' allows multiple selections if non-zero, and 'items' is an array of 'numItems' list item parameters.
 </p></blockquote>
-<p><font face="Courier New">objectKey windowNewListItem(objectKey parent, const char *text, componentParameters *params)
+<p><font face="Courier New">objectKey windowNewListItem(objectKey parent, listItemParameters *item, componentParameters *params)
 </font></p>
 <blockquote>
-  <p>Get a new list item component to be placed inside the parent object 'parent', using the string 'text', and the component parameters 'params'.
+  <p>Get a new list item component to be placed inside the parent object 'parent', using the list item parameters 'item', and the component parameters 'params'.
 </p></blockquote>
 <p><font face="Courier New">objectKey windowNewMenu(objectKey parent, const char *name, componentParameters *params)
 </font></p>
@@ -1294,10 +1360,16 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Get a new text labelComponent to be placed inside the parent object 'parent', with the given component parameters 'params', and using the text string 'text'.  If the params 'font' is NULL, the default font will be used.
+</p></blockquote>
+<p><font face="Courier New">void windowDebugLayout(objectKey window)
+</font></p>
+<blockquote>
+  <p>This function draws grid boxes around all the grid cells containing components (or parts thereof)
 </p>
-  <p>&nbsp;</p></blockquote>
+  <p>&nbsp;</p></blockquote></p>
 
 <p><b><font size="4"><a name="user"></a>User functions</font></b></p>
+
 <p><font face="Courier New">int userAuthenticate(const char *name, const char *password)
 </font></p>
 <blockquote>
@@ -1347,12 +1419,91 @@ ambiguous.</font></p>
 </font></p>
 <blockquote>
   <p>Set the login PID of user 'name' to 'pid'.  This is the process that gets killed when the user indicates that they want to logout.  In graphical mode this will typically be the PID of the window shell pid, and in text mode it will be the PID of the login VSH shell.
+</p></blockquote>
+<p><font face="Courier New">int userFileAdd(const char *passFile, const char *userName, const char *password)
+</font></p>
+<blockquote>
+  <p>Add a user to the designated password file, with the given name and password.  This can only be done by a privileged user.
+</p></blockquote>
+<p><font face="Courier New">int userFileDelete(const char *passFile, const char *userName)
+</font></p>
+<blockquote>
+  <p>Remove a user from the designated password file.  This can only be done by a privileged user
+</p></blockquote>
+<p><font face="Courier New">int userFileSetPassword(const char *passFile, const char *userName, const char *oldPass, const char *newPass)
+</font></p>
+<blockquote>
+  <p>Set the password of user 'userName' in the designated password file.  If the calling program is not supervisor privilege, the correct old password must be supplied in 'oldPass'.  The new password is supplied in 'newPass'.
+</p>
+  <p>&nbsp;</p></blockquote></p>
+
+<p><b><font size="4"><a name="network"></a>Network functions</font></b></p>
+
+<p><font face="Courier New">int networkDeviceGetCount(void)
+</font></p>
+<blockquote>
+  <p>Returns the count of network devices
+</p></blockquote>
+<p><font face="Courier New">int networkDeviceGet(const char *name, networkDevice *dev)
+</font></p>
+<blockquote>
+  <p>Returns the user-space portion of the requested (by 'name') network device in 'dev'.
+</p></blockquote>
+<p><font face="Courier New">int networkInitialized(void)
+</font></p>
+<blockquote>
+  <p>Returns 1 if networking is currently enabled.
+</p></blockquote>
+<p><font face="Courier New">int networkInitialize(void)
+</font></p>
+<blockquote>
+  <p>Initialize and start networking.
+</p></blockquote>
+<p><font face="Courier New">int networkShutdown(void)
+</font></p>
+<blockquote>
+  <p>Shut down networking.
+</p></blockquote>
+<p><font face="Courier New">objectKey networkOpen(int mode, networkAddress *address, networkFilter *filter)
+</font></p>
+<blockquote>
+  <p>Opens a connection for network communication.  The 'type' and 'mode' arguments describe the kind of connection to make (see possiblilities in the file <sys/network.h>.  If applicable, 'address' specifies the network address of the remote host to connect to.  If applicable, the 'localPort' and 'remotePort' arguments specify the TCP/UDP ports to use.
+</p></blockquote>
+<p><font face="Courier New">int networkClose(objectKey connection)
+</font></p>
+<blockquote>
+  <p>Close the specified, previously-opened network connection.
+</p></blockquote>
+<p><font face="Courier New">int networkCount(objectKey connection)
+</font></p>
+<blockquote>
+  <p>Given a network connection, return the number of bytes currently pending in the input stream
+</p></blockquote>
+<p><font face="Courier New">int networkRead(objectKey connection, unsigned char *buffer, unsigned bufferSize)
+</font></p>
+<blockquote>
+  <p>Given a network connection, a buffer, and a buffer size, read up to 'bufferSize' bytes (or the number of bytes available in the connection's input stream) and return the number read.  The connection must be initiated using the networkConnectionOpen() function.
+</p></blockquote>
+<p><font face="Courier New">int networkWrite(objectKey connection, unsigned char *buffer, unsigned bufferSize)
+</font></p>
+<blockquote>
+  <p>Given a network connection, a buffer, and a buffer size, write up to 'bufferSize' bytes from 'buffer' to the connection's output.  The connection must be initiated using the networkConnectionOpen() function.
+</p></blockquote>
+<p><font face="Courier New">int networkPing(objectKey connection, int seqNum, unsigned char *buffer, unsigned bufferSize)
+</font></p>
+<blockquote>
+  <p>Send an ICMP "echo request" packet to the host at the network address 'destAddress', with the (optional) sequence number 'seqNum'.  The 'buffer' and 'bufferSize' arguments point to the location of data to send in the ping packet.  The content of the data is mostly irrelevant, except that it can be checked to ensure the same data is returned by the ping reply from the remote host.
 </p>
   <p>&nbsp;</p></blockquote>
+</p>
+
+<sys/network.h>
+</p>
 
 <p><b><font size="4"><a name="miscellaneous"></a>Miscellaneous functions</font></b></p>
 
-  <p><font face="Courier New">int fontGetDefault(objectKey *pointer)
+  
+<p><font face="Courier New">int fontGetDefault(objectKey *pointer)
 </font></p>
 <blockquote>
   <p>Get an object key in 'pointer' to refer to the current default font.
@@ -1367,20 +1518,20 @@ ambiguous.</font></p>
 <blockquote>
   <p>Load the font from the font file 'filename', give it the font name 'fontname' for future reference, and return an object key for the font in 'pointer' if successful.  The integer 'fixedWidth' argument should be non-zero if you want each character of the font to have uniform width (i.e. an 'i' character will be padded with empty space so that it takes up the same width as, for example, a 'W' character).
 </p></blockquote>
-<p><font face="Courier New">unsigned fontGetPrintedWidth(objectKey font, const char *string)
+<p><font face="Courier New">int fontGetPrintedWidth(objectKey font, const char *string)
 </font></p>
 <blockquote>
   <p>Given the supplied string, return the screen width that the text will consume given the font 'font'.  Useful for placing text when using a variable-width font, but not very useful otherwise.
 </p></blockquote>
-<p><font face="Courier New">int imageLoadBmp(const char *filename, image *loadImage)
+<p><font face="Courier New">int imageLoad(const char *filename, int width, int height, image *loadImage)
 </font></p>
 <blockquote>
-  <p>Try to load the bitmap image file 'filename', and if successful, save the data in the image data structure 'loadImage'.
+  <p>Try to load the bitmap image file 'filename' (with the specified 'width' and 'height' if possible -- zeros indicate no preference), and if successful, save the data in the image data structure 'loadImage'.
 </p></blockquote>
-<p><font face="Courier New">int imageSaveBmp(const char *filename, image *saveImage)
+<p><font face="Courier New">int imageSave(const char *filename, int format, image *saveImage)
 </font></p>
 <blockquote>
-  <p>Save the image data structure 'saveImage' as a bitmap, to the file 'fileName'.
+  <p>Save the image data structure 'saveImage' using the image format 'format' to the file 'fileName'.  Image format codes are found in the file <sys/image.h>
 </p></blockquote>
 <p><font face="Courier New">int shutdown(int reboot, int nice)
 </font></p>
@@ -1412,10 +1563,15 @@ ambiguous.</font></p>
 <blockquote>
   <p>Verify that a lock on the lock structure 'verLock' is still valid.  This can be useful for retrying a lock attempt if a previous one failed; if the process that was previously holding the lock has failed, this will release the lock.
 </p></blockquote>
-<p><font face="Courier New">variableList *variableListCreate(unsigned maxVar, unsigned size, const char *desc)
+<p><font face="Courier New">int variableListCreate(variableList *list)
 </font></p>
 <blockquote>
-  <p>Get a new variable list structure with the maximum number of variables 'maxVar', the total data size 'size', and the description 'desc'.
+  <p>Set up a new variable list structure.
+</p></blockquote>
+<p><font face="Courier New">int variableListDestroy(variableList *list)
+</font></p>
+<blockquote>
+  <p>Deallocate a variable list structure previously allocated by a call to variableListCreate() or configurationReader()
 </p></blockquote>
 <p><font face="Courier New">int variableListGet(variableList *list, const char *var, char *buffer, unsigned buffSize)
 </font></p>
@@ -1432,10 +1588,10 @@ ambiguous.</font></p>
 <blockquote>
   <p>Remove the variable 'var' from the variable list 'list'.
 </p></blockquote>
-<p><font face="Courier New">variableList *configurationReader(const char *fileName)
+<p><font face="Courier New">int configurationReader(const char *fileName, variableList *list)
 </font></p>
 <blockquote>
-  <p>Read the contents of the configuration file 'fileName', and return the data in a variable list structure.  Configuration files are simple properties files, consisting of lines of the format "variable=value"
+  <p>Read the contents of the configuration file 'fileName', and return the data in the variable list structure 'list'.  Configuration files are simple properties files, consisting of lines of the format "variable=value"
 </p></blockquote>
 <p><font face="Courier New">int configurationWriter(const char *fileName, variableList *list)
 </font></p>
@@ -1452,35 +1608,67 @@ ambiguous.</font></p>
 <blockquote>
   <p>Set the keyboard mapping to the supplied 'name'.  The normal procedure would be to first call the keyboardGetMaps() function, get the list of supported mappings, and then call this function with one of those names.  Only a name returned by the keyboardGetMaps function is valid in this scenario.
 </p></blockquote>
+<p><font face="Courier New">int deviceTreeGetCount(void)
+</font></p>
+<blockquote>
+  <p>Returns the number of devices in the kernel's device tree.
+</p></blockquote>
+<p><font face="Courier New">int deviceTreeGetRoot(device *rootDev)
+</font></p>
+<blockquote>
+  <p>Returns the user-space portion of the device tree root device in the structure 'rootDev'.
+</p></blockquote>
+<p><font face="Courier New">int deviceTreeGetChild(device *parentDev, device *childDev)
+</font></p>
+<blockquote>
+  <p>Returns the user-space portion of the first child device of 'parentDev' in the structure 'childDev'.
+</p></blockquote>
+<p><font face="Courier New">int deviceTreeGetNext(device *siblingDev)
+</font></p>
+<blockquote>
+  <p>Returns the user-space portion of the next sibling device of the supplied device 'siblingDev' in the same data structure.
+</p></blockquote>
+<p><font face="Courier New">int mouseLoadPointer(const char *pointerName, const char *fileName)
+</font></p>
+<blockquote>
+  <p>Tells the mouse driver code to load the mouse pointer 'pointerName' from the file 'fileName'.
+</p></blockquote>
+<p><font face="Courier New">int mouseSwitchPointer(const char *pointerName)
+</font></p>
+<blockquote>
+  <p>Tells the mouse driver code to switch to the mouse pointer with the given name (as specified by the pointer name argument to mouseLoadPointer).</p>
+  <p>&nbsp;</p></blockquote>
 
-
+  
 <!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
 
 <blockquote>
   <blockquote>
     <p align="right"><font color="#FFFFFF"><a href="../index.html">
     <img
-    src="../img/nav_buttons/home.gif" alt="Go back to the Visopsys Home Page." border="0"
+    src="../img/nav_buttons/home.gif" alt="Home" border="0"
     align="middle" width="53" height="25"></a>&nbsp;&nbsp; <a href="../about/index.html">
     <img src="../img/nav_buttons/about.gif"
-    alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a>&nbsp;&nbsp; </font>
+    alt="About" border="0" align="middle" width="60" height="25"></a>&nbsp;&nbsp;
+    <a href="../about/news.html">
+    <img border="0" src="../img/nav_buttons/news.gif" align="middle" alt="News" width="49" height="16"></a>&nbsp;&nbsp; </font>
     <a href="../about/screenshots.html">
-    <img border="0" src="../img/nav_buttons/screenshots.gif" align="middle" width="105" height="22"></a>&nbsp;&nbsp; <font color="#FFFFFF"> <a href="../download/index.html">
+    <img border="0" src="../img/nav_buttons/screenshots.gif" align="middle" alt="Screenshots" width="105" height="22"></a>&nbsp;&nbsp; <font color="#FFFFFF"> <a href="../download/index.html">
     <img
-    src="../img/nav_buttons/download.gif" alt="Download Visopsys and associated files."
+    src="../img/nav_buttons/download.gif" alt="Download"
     border="0" align="middle" width="95" height="25"></a>&nbsp; </font>&nbsp;<a href="index.html"><img
-    src="../img/nav_buttons/developers.gif" alt="Resources for Visopsys development"
+    src="../img/nav_buttons/developers.gif" alt="Developers"
     border="0" align="middle" width="97" height="29"></a>&nbsp;&nbsp; <a href="../osdev/index.html">
     <img
-    src="../img/nav_buttons/osdev.gif" border="0" align="middle" width="64" height="25"></a>&nbsp;&nbsp; <a href="../search.html">
+    src="../img/nav_buttons/osdev.gif" border="0" align="middle" alt="OS Development" width="64" height="25"></a>&nbsp;&nbsp; <a href="../search.html">
     <img
-    src="../img/nav_buttons/search.gif" alt="Search the Visopsys Site" align="middle"
+    src="../img/nav_buttons/search.gif" alt="Search" align="middle"
     border="0" width="63" height="24"></a><font face="Times New Roman" color="#FFFFFF"><br>
-    This site is copyright © 1999-2005, J.
-    Andrew McLaughlin<br>
+    This site is copyright © 1999-2005, <a href="mailto:andy@visopsys.org">J.
+    Andrew (Andy) McLaughlin</a><br>
     Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
     Last updated on
-    March 22, 2005</font></p>
+    November 29, 2005</font></p>
   </blockquote>
 </blockquote>
 

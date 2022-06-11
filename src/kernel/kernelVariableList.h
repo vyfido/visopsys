@@ -32,6 +32,7 @@
 
 // Functions exported by kernelVariableList.c
 int kernelVariableListCreate(variableList *);
+int kernelVariableListDestroy(variableList *);
 int kernelVariableListGet(variableList *, const char *, char *, unsigned);
 int kernelVariableListSet(variableList *, const char *, const char *);
 int kernelVariableListUnset(variableList *, const char *);

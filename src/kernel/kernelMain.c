@@ -27,7 +27,7 @@
 #include "kernelLoader.h"
 #include "kernelSysTimer.h"
 #include "kernelProcessorX86.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelText.h"
 #include "kernelError.h"
 #include <string.h>

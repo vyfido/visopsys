@@ -23,10 +23,11 @@
 // filesystem (commonly found on Linux disks)
 
 #include "kernelFilesystemIso.h"
+#include "kernelFilesystem.h"
 #include "kernelFile.h"
 #include "kernelMalloc.h"
 #include "kernelSysTimer.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelError.h"
 #include <string.h>
 #include <stdlib.h>
@@ -161,12 +162,12 @@ static void readDirRecord(isoDirectoryRecord *record,
 }
 
 
-static isoInternalData *getIsoData(kernelFilesystem *filesystem)
+static isoInternalData *getIsoData(kernelDisk *theDisk)
 {
   // This function reads the filesystem parameters from the superblock
 
   int status = 0;
-  isoInternalData *isoData = filesystem->filesystemData;
+  isoInternalData *isoData = theDisk->filesystem.filesystemData;
 
   // Have we already read the parameters for this filesystem?
   if (isoData)
@@ -178,7 +179,7 @@ static isoInternalData *getIsoData(kernelFilesystem *filesystem)
     return (isoData = NULL);
 
   // Attach the disk structure to the isoData structure
-  isoData->disk = filesystem->disk;
+  isoData->disk = theDisk;
 
   // Read the superblock into our isoInternalData buffer
   status = readPrimaryVolDesc(isoData);
@@ -201,13 +202,19 @@ static isoInternalData *getIsoData(kernelFilesystem *filesystem)
 
   // Get the root directory record
   readDirRecord((isoDirectoryRecord *) &(isoData->volDesc.rootDirectoryRecord),
-		filesystem->filesystemRoot, isoData->volDesc.blockSize);
+		theDisk->filesystem.filesystemRoot,
+		isoData->volDesc.blockSize);
 
   // Attach our new FS data to the filesystem structure
-  filesystem->filesystemData = (void *) isoData;
+  theDisk->filesystem.filesystemData = (void *) isoData;
 
   // Specify the filesystem block size
-  filesystem->blockSize = isoData->volDesc.blockSize;
+  theDisk->filesystem.blockSize = isoData->volDesc.blockSize;
+
+  // 'minSectors' and 'maxSectors' are the same as the current sectors,
+  // since we don't support resizing.
+  theDisk->filesystem.minSectors = theDisk->numSectors;
+  theDisk->filesystem.maxSectors = theDisk->numSectors;
 
   return (isoData);
 }
@@ -289,7 +296,7 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 	    break;
 	}
 
-      fileEntry = kernelFileNewEntry(dirEntry->filesystem);
+      fileEntry = kernelFileNewEntry(dirEntry->disk);
       if ((fileEntry == NULL) || (fileEntry->driverData == NULL))
         {
           kernelError(kernel_error, "Unable to get new filesystem entry or "
@@ -367,11 +374,15 @@ static int detect(kernelDisk *theDisk)
 
   strcpy((char *) theDisk->fsType, "iso9660");
 
+  theDisk->filesystem.blockSize = isoData.volDesc.blockSize;
+  theDisk->filesystem.minSectors = 0;
+  theDisk->filesystem.maxSectors = 0;
+  
   return (status = 1);
 }
 
 
-static int mount(kernelFilesystem *filesystem)
+static int mount(kernelDisk *theDisk)
 {
   // This function initializes the filesystem driver by gathering all of
   // the required information from the boot sector.  In addition, it
@@ -381,24 +392,24 @@ static int mount(kernelFilesystem *filesystem)
   int status = 0;
   isoInternalData *isoData = NULL;
   
-  // Make sure the filesystem isn't NULL
-  if (filesystem == NULL)
+  // Check params
+  if (theDisk == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem structure");
+      kernelError(kernel_error, "NULL disk structure");
       return (status = ERR_NULLPARAMETER);
     }
 
   // The filesystem data cannot exist
-  filesystem->filesystemData = NULL;
+  theDisk->filesystem.filesystemData = NULL;
 
   // Get the ISO data for the requested filesystem.  We don't need the info
   // right now -- we just want to collect it.
-  isoData = getIsoData(filesystem);
+  isoData = getIsoData(theDisk);
   if (isoData == NULL)
     return (status = ERR_BADDATA);
 
   // Read the filesystem's root directory
-  status = scanDirectory(isoData, filesystem->filesystemRoot);
+  status = scanDirectory(isoData, theDisk->filesystem.filesystemRoot);
   if (status < 0)
     {
       kernelError(kernel_error, "Unable to read the filesystem's root "
@@ -407,16 +418,16 @@ static int mount(kernelFilesystem *filesystem)
     }
 
   // Set the proper filesystem type name on the disk structure
-  strcpy((char *) filesystem->disk->fsType, "iso9660");
+  strcpy((char *) theDisk->fsType, "iso9660");
 
   // Read-only
-  filesystem->readOnly = 1;
+  theDisk->filesystem.readOnly = 1;
 
   return (status = 0);
 }
 
 
-static int unmount(kernelFilesystem *filesystem)
+static int unmount(kernelDisk *theDisk)
 {
   // This function releases all of the stored information about a given
   // filesystem.
@@ -424,27 +435,27 @@ static int unmount(kernelFilesystem *filesystem)
   int status = 0;
   
   // Check params
-  if (filesystem == NULL)
+  if (theDisk == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem structure");
+      kernelError(kernel_error, "NULL disk structure");
       return (status = ERR_NULLPARAMETER);
     }
   
   // Free the filesystem data
-  if (filesystem->filesystemData)
-    status = kernelFree(filesystem->filesystemData);
+  if (theDisk->filesystem.filesystemData)
+    status = kernelFree(theDisk->filesystem.filesystemData);
 
   return (status);
 }
 
 
-static unsigned getFree(kernelFilesystem *filesystem)
+static unsigned getFree(kernelDisk *theDisk)
 {
   // This function returns the amount of free disk space, in bytes,
   // which is always zero.
 
   // This is unnecessary, but keeps the compiler happy
-  if (filesystem == NULL)
+  if (theDisk == NULL)
     return (0);
 
   return (0);
@@ -479,8 +490,8 @@ static int newEntry(kernelFileEntry *newEntry)
       return (status = ERR_ALREADY);
     }
 
-  // Make sure there's an associated filesystem
-  if (newEntry->filesystem == NULL)
+  // Make sure there's an associated disk
+  if (newEntry->disk == NULL)
     {
       kernelError(kernel_error, "Entry has no associated filesystem");
       return (status = ERR_NOCREATE);
@@ -606,7 +617,7 @@ static int readFile(kernelFileEntry *theFile, unsigned blockNum,
     }
 
   // Get the ISO data for the filesystem.
-  isoData = getIsoData(theFile->filesystem);
+  isoData = getIsoData(theFile->disk);
   if (isoData == NULL)
     return (status = ERR_BADDATA);
 
@@ -644,7 +655,7 @@ static int readDir(kernelFileEntry *directory)
     }
 
   // Get the ISO data for the filesystem.
-  isoData = getIsoData(directory->filesystem);
+  isoData = getIsoData(directory->disk);
   if (isoData == NULL)
     return (status = ERR_BADDATA);
 
@@ -653,7 +664,6 @@ static int readDir(kernelFileEntry *directory)
 
 
 static kernelFilesystemDriver defaultIsoDriver = {
-  Iso,   // FS type
   "iso", // Driver name
   detect,
   NULL,  // driverFormat

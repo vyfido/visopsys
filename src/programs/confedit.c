@@ -172,10 +172,6 @@ static void setVariableDialog(const char *variable)
   else
     {
       params.hasBorder = 1;
-      params.useDefaultBackground = 0;
-      params.background.red = 255;
-      params.background.green = 255;
-      params.background.blue = 255;
       variableField = windowNewTextField(dialogWindow, fieldWidth, &params);
     }
 
@@ -184,16 +180,11 @@ static void setVariableDialog(const char *variable)
   params.padRight = 0;
   params.orientationX = orient_right;
   params.hasBorder = 0;
-  params.useDefaultBackground = 1;
   windowNewTextLabel(dialogWindow, "value:", &params);
 
   params.gridX = 1;
   params.padRight = 5;
   params.hasBorder = 1;
-  params.useDefaultBackground = 0;
-  params.background.red = 255;
-  params.background.green = 255;
-  params.background.blue = 255;
   valueField = windowNewTextField(dialogWindow, fieldWidth, &params);
   if (variable)
     {
@@ -208,7 +199,6 @@ static void setVariableDialog(const char *variable)
   params.padRight = 0;
   params.orientationX = orient_right;
   params.hasBorder = 0;
-  params.useDefaultBackground = 1;
   params.fixedWidth = 1;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
 
@@ -452,12 +442,10 @@ int main(int argc, char *argv[])
   if (argc < 2)
     {
       // Start in the config dir by default
-      multitaskerSetCurrentDirectory("/system/config");
-
       status =
 	windowNewFileDialog(NULL, "Enter filename", "Please enter a "
-			    "configuration file to edit:", tmpFilename,
-			    MAX_PATH_NAME_LENGTH);
+			    "configuration file to edit:", "/system/config",
+			    tmpFilename, MAX_PATH_NAME_LENGTH);
       if (status != 1)
 	{
 	  windowGuiStop();
@@ -487,6 +475,8 @@ int main(int argc, char *argv[])
   windowGuiRun();
 
   windowDestroy(window);
+  
+  variableListDestroy(&list);
 
   // Done
   return (errno = 0);

@@ -1,5 +1,109 @@
 
 ---------------
+Version 0.6
+---------------
+
+  Overview: This release introduces a host of new functionality, including
+  a cleaned up desktop with icons for browsing the computer, file systems,
+  and administrative tasks, FAT defragmenting, ELF dynamic linking, a
+  built in chain-boot loader and simple MBR formatting, file browsing
+  widgets and dialogs, Windows .ico icon file support, a generic file
+  viewing program, Italian keyboard support, new icons and a new splash
+  screen.
+
+- Added a 'Computer' icon, equivalent to the one in Linux or 'My Computer'
+in Windows.  It shows the different disks, auto-mounts them (if applicable)
+when clicked, and launches a file browser.
+- Added a 'File Browser' icon.
+- Added an 'Administration' icon which brings up a window for various
+other programs that were previously on the default desktop.
+- The 'view' program is now a more generic program for default viewing of
+various sorts of files.
+- Added defragmenting capability to the FAT filesystem driver.
+- Implemented shared libraries and dynamically linked executables.  All
+included libraries and programs are now dynamic.
+- Implemented a simple, chain-loading MBR boot menu for loading from
+different partitions and operating systems.  The 'bootmenu' program lets
+the user edit the menu strings and set parameters.  Also accessible from
+the Disk Manager.  ** Note that this will NOT load any Linux installation
+that uses an initrd.
+- Implemented simple MBR code, so that for example the Disk Manager can
+be used to rescue a system from a deleted or corrupt GRUB installation.
+- Added Windows .ico icon file format support and converted many existing
+icons to that format.
+- Created file browsing widgets/dialogs.
+- There is a new splash screen image and a number of new icons.
+- Text areas now use white background and blue text as the default colours.
+- Added Davide Airaghi's Italian keyboard mapping.
+- Some preliminary networking support has been added, but for the moment it
+is disabled by default.  The only network device driver provided is for
+the "Lance" (AMD PC-NET) card, which can be simulated under VMWare.  In
+the 'Administration' window, there is now a 'Network' icon that proves
+access to a simple 'Network Devices' program which, for now, just shows
+devices, status, settings, dynamic (via DHCP) IP address, etc.  There is
+also a 'ping' command.
+- The new exception handler prints out more diagnostic information (exception
+type, and more)
+- There is now a vsh library function for a text mode progress bar.
+- The format program now shows a progress bar in text mode.
+- The Disk Manager will refuse outright, or warn/confirm before moving,
+formatting, or deleting mounted partitions. 
+- The 'disks' command now shows mount points.
+- Created an 'iconwin' program that uses config files to create custom
+windows with icons, and user-specified actions associated with them.
+- Added a /CREDITS.txt file for listing others' contributions.
+- There is now a /system/mouse/ directory for mouse pointer images, a
+/system/config/ directory for .conf files of all programs and the kernel,
+a /system/mount directory for automatic mounting, and a /system/wallpaper
+directory for background images.
+- Created a 'progress dialog' window library feature that utilizes
+the 'progress' structure and shows a progress bar and status messages.
+- The exception handler is no longer a standalone task, in order to do FPU
+state saves/restores without setting the CR0[TS] bit.
+- Handles exceptions generated when a process attempts to do floating point
+operations after a task switch.
+- The filesystem structure is now contained within the logical disk
+structure.
+- The user-space 'disk' object now indicates whether a partition is mounted,
+and if so, the mount point.
+- Exported a portion of the kernelDevice structure as a new 'device'
+structure, and created API functions to export the hardware device tree.
+- 'Atomized' some of the ASM macros in kernelProcessorX86.h so that they can
+be reused in other more complex macros
+- Added floorf(), sin(), cos(), and tan() functions to the C lib.
+- Added support for %b format specifiers in the _xpndfmt.c functions
+by adding another bogus C library routine (itob). 
+- File changes: Changed 'kernelMiscFunctions.*' to 'kernelMisc.*', and the
+kernelPageManager and kernelMemoryManager have had the 'Manager' bit taken
+out of their file/function names.
+- Added window library functions to clear an event handler and to get the
+window thread PID
+- Implemented a 'progress' data structure that can be passed to (for
+example) long filesystem operations such as format, check, resize.
+- The 'map to free' functionality of the paging code no longer, by default,
+allocates the first page in the address space.  This makes it easier to
+detect/guide against NULL pointer dereferences.
+- Got rid of the 'diskType' and 'mediaType' enums from the various
+disk structures, and instead use a set of logical flags to describe disks.
+- Removed the deprecated windowPack() and windowSetPacked() API functions.
+- Fixed: In the Disk Manager, cancelling a new partition creation at the
+label type stage caused 2 changes to show as pending. 
+- Fixed: The Disk Manager's partition reordering menu didn't display
+changes properly in text mode.  It worked but the changes weren't reflected
+in the menu.
+- Fixed: The lost+found directory created by the EXT2 formatting code was
+not readable when we mounted the filesystem.  Also, the permissions are now
+set to the same values as Linux mke2fs.
+- Fixed: Using the 'gcc version 3.4.2' and 'ld version 2.15.92.0.2' combo
+(Fedora Core 3), generated programs had a new, unexpected number (3) of
+ELF program header entries.
+- Fixed: Selecting partition/list types in the Disk Manager could crash
+the program.
+- Fixed: The Program Manager was associating some child threads with the
+wrong parents in the process list.
+
+
+---------------
 Version 0.58
 ---------------
 

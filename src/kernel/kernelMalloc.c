@@ -20,14 +20,14 @@
 //
 	
 // These routines comprise Visopsys' internal, kernel-only memory management
-// system.  It relies upon kernelMemoryManager, and does similar things,
+// system.  It relies upon the kernelMemory code, and does similar things,
 // but instead of whole memory pages, it allocates arbitrary-sized chunks.
 
 #include "kernelMalloc.h"
-#include "kernelMemoryManager.h"
+#include "kernelMemory.h"
 #include "kernelParameters.h"
 #include "kernelMultitasker.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelText.h"
 #include "kernelError.h"
 #include "kernelLock.h"

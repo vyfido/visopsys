@@ -193,7 +193,7 @@ static void eventHandler(objectKey key, windowEvent *event)
       if ((!showingClock && clockSelected) || (showingClock && !clockSelected))
 	{
 	  if (!readOnly)
-	    configurationReader("/system/windowmanager.conf", &list);
+	    configurationReader("/system/config/windowmanager.conf", &list);
 
 	  if (!showingClock && clockSelected)
 	    {
@@ -216,8 +216,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 	  if (list.memory)
 	    {
-	      configurationWriter("/system/windowmanager.conf", &list);
-	      free(list.memory);
+	      configurationWriter("/system/config/windowmanager.conf", &list);
+	      variableListDestroy(&list);
 	    }
 	}
 

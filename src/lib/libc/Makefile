@@ -12,8 +12,7 @@ AR		= ar
 LD		= ld
 CPU		= $(shell ../../../utils/cpu.sh)
 STDDEPS		= Makefile ../shared/*
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
-		-ffreestanding
+CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
 WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
 INCLUDE         = -nostdinc -I../../include
@@ -41,12 +40,19 @@ FCNTLNAMES	= open
 LOCALENAMES	= setlocale
 
 MATHNAMES	= ceil \
+		cos \
+		cosf \
 		fabs \
 		floor \
+		floorf \
 		fmod \
 		modf \
 		pow \
-		sqrt
+		sin \
+		sinf \
+		sqrt \
+		tan \
+		tanf
 
 MISCNAMES	= readline
 
@@ -84,6 +90,7 @@ STDLIBNAMES	= abort \
 		exit \
 		free \
 		itoa \
+		itob \
 		itox \
 		labs \
 		ldiv \
@@ -129,16 +136,20 @@ UNISTDNAMES	= close \
 
 ALLNAMES = ${CTYPENAMES} ${FCNTLNAMES} ${LOCALENAMES} ${MATHNAMES} ${MISCNAMES} ${SIGNALNAMES} ${STDIONAMES} ${STDLIBNAMES} ${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES}
 OBJDIR = obj
+PICOBJDIR = picobj
 OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${ALLNAMES}))
+PICOBJS = $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${ALLNAMES}))
 CRT0 = ${BUILDDIR}/crt0.o
 LIBRARY = ${BUILDDIR}/libc.a
+SONAME = libc.so
+SHAREDLIB = ${BUILDDIR}/${SONAME}
 
 # Targets
 
-all: target-dirs ${CRT0} ${LIBRARY}
+all: target-dirs ${CRT0} ${LIBRARY} ${SHAREDLIB}
 
 target-dirs:
-	mkdir -p ${OBJDIR} ${BUILDDIR}
+	mkdir -p ${OBJDIR} ${PICOBJDIR} ${BUILDDIR}
 
 ${CRT0}: crt0.c ${STDDEPS}
 	${CC} ${OPTS} -c $< -o $@
@@ -146,8 +157,14 @@ ${CRT0}: crt0.c ${STDDEPS}
 ${LIBRARY}: ${OBJS}
 	${AR} -rs $@ ${OBJS}
 
+${SHAREDLIB}: ${PICOBJS}
+	${LD} -shared -soname=${SONAME} ${PICOBJS} -o $@
+
 ${OBJDIR}/%.o: %.c ${STDDEPS}
 	${CC} ${CFLAGS} -c $< -o $@
 
+${PICOBJDIR}/%.o: %.c ${STDDEPS}
+	${CC} ${CFLAGS} -fpic -c $< -o $@
+
 clean:
-	rm -Rf *~ *.o core ${OBJDIR} ${CRT0} ${LIBRARY}
+	rm -Rf *~ *.o core ${OBJDIR} ${PICOBJDIR} ${CRT0} ${LIBRARY} ${SHAREDLIB}

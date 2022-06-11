@@ -24,8 +24,8 @@
 
 #include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
-#include "kernelMemoryManager.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMemory.h"
+#include "kernelMisc.h"
 #include "kernelError.h"
 #include <string.h>
 

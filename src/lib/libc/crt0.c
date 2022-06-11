@@ -38,8 +38,6 @@ int visopsys_in_kernel = 0;
 extern struct lconv _c_locale;
 struct lconv *_current_locale = &_c_locale;
 
-static int _exit_status = 0;
- 
 void _start(void);
 void _start(void)
 {
@@ -51,6 +49,8 @@ void _start(void)
 
   // NO AUTOMATIC (STACK) VARIABLE DECLARATIONS.
 
+  static int _exit_status = 0;
+ 
   // Our return address should be sitting near the current top of our stack
   // after any stack frame allocated by the compiler.  We don't want the
   // stack frame or return address (we never do a return), since we want to
@@ -65,9 +65,8 @@ void _start(void)
   //          to be erased.
 
   // Clear the stack frame
-  __asm__ __volatile__ ("movl %%ebp, %%esp" : : : "%esp");
-  // Clear the return address
-  __asm__ __volatile__ ("addl $4, %%esp" : : : "%esp");
+  __asm__ __volatile__ ("movl %%ebp, %%esp \n\t" \
+			"popl %%ebp" : : : "%esp");
 
   // Call the regular program.
   _exit_status = main();

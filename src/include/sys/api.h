@@ -49,6 +49,8 @@
 #include <sys/variable.h>
 #include <sys/stream.h>
 #include <sys/window.h>
+#include <sys/network.h>
+#include <sys/progress.h>
 
 // Included in the Visopsys standard library to prevent API calls from
 // within kernel code.
@@ -77,36 +79,37 @@ extern int visopsys_in_kernel;
 #define _fnum_textCursorDown                         1019
 #define _fnum_ternelTextCursorLeft                   1020
 #define _fnum_textCursorRight                        1021
-#define _fnum_textGetNumColumns                      1022
-#define _fnum_textGetNumRows                         1023
-#define _fnum_textGetColumn                          1024
-#define _fnum_textSetColumn                          1025
-#define _fnum_textGetRow                             1026
-#define _fnum_textSetRow                             1027
-#define _fnum_textSetCursor                          1028
-#define _fnum_textScreenClear                        1029
-#define _fnum_textScreenSave                         1030
-#define _fnum_textScreenRestore                      1031
-#define _fnum_textInputStreamCount                   1032
-#define _fnum_textInputCount                         1033
-#define _fnum_textInputStreamGetc                    1034
-#define _fnum_textInputGetc                          1035
-#define _fnum_textInputStreamReadN                   1036
-#define _fnum_textInputReadN                         1037
-#define _fnum_textInputStreamReadAll                 1038
-#define _fnum_textInputReadAll                       1039
-#define _fnum_textInputStreamAppend                  1040
-#define _fnum_textInputAppend                        1041
-#define _fnum_textInputStreamAppendN                 1042
-#define _fnum_textInputAppendN                       1043
-#define _fnum_textInputStreamRemove                  1044
-#define _fnum_textInputRemove                        1045
-#define _fnum_textInputStreamRemoveN                 1046
-#define _fnum_textInputRemoveN                       1047
-#define _fnum_textInputStreamRemoveAll               1048
-#define _fnum_textInputRemoveAll                     1049
-#define _fnum_textInputStreamSetEcho                 1050
-#define _fnum_textInputSetEcho                       1051
+#define _fnum_textScroll                             1022
+#define _fnum_textGetNumColumns                      1023
+#define _fnum_textGetNumRows                         1024
+#define _fnum_textGetColumn                          1025
+#define _fnum_textSetColumn                          1026
+#define _fnum_textGetRow                             1027
+#define _fnum_textSetRow                             1028
+#define _fnum_textSetCursor                          1029
+#define _fnum_textScreenClear                        1030
+#define _fnum_textScreenSave                         1031
+#define _fnum_textScreenRestore                      1032
+#define _fnum_textInputStreamCount                   1033
+#define _fnum_textInputCount                         1034
+#define _fnum_textInputStreamGetc                    1035
+#define _fnum_textInputGetc                          1036
+#define _fnum_textInputStreamReadN                   1037
+#define _fnum_textInputReadN                         1038
+#define _fnum_textInputStreamReadAll                 1039
+#define _fnum_textInputReadAll                       1040
+#define _fnum_textInputStreamAppend                  1041
+#define _fnum_textInputAppend                        1042
+#define _fnum_textInputStreamAppendN                 1043
+#define _fnum_textInputAppendN                       1044
+#define _fnum_textInputStreamRemove                  1045
+#define _fnum_textInputRemove                        1046
+#define _fnum_textInputStreamRemoveN                 1047
+#define _fnum_textInputRemoveN                       1048
+#define _fnum_textInputStreamRemoveAll               1049
+#define _fnum_textInputRemoveAll                     1050
+#define _fnum_textInputStreamSetEcho                 1051
+#define _fnum_textInputSetEcho                       1052
 
 // Disk functions.  All are in the 2000-2999 range.
 #define _fnum_diskReadPartitions                     2000
@@ -114,70 +117,67 @@ extern int visopsys_in_kernel;
 #define _fnum_diskGetBoot                            2002
 #define _fnum_diskGetCount                           2003
 #define _fnum_diskGetPhysicalCount                   2004
-#define _fnum_diskGetInfo                            2005
-#define _fnum_diskGetPhysicalInfo                    2006
-#define _fnum_diskGetPartType                        2007
-#define _fnum_diskGetPartTypes                       2008
-#define _fnum_diskSetLockState                       2009
-#define _fnum_diskSetDoorState                       2010
-#define _fnum_diskReadSectors                        2011
-#define _fnum_diskWriteSectors                       2012
-// DEPRECATED _fnum_diskReadAbsoluteSectors          2013
-// DEPRECATED _fnum_diskWriteAbsoluteSectors         2014
-#define _fnum_diskGet                                2015
-#define _fnum_diskGetAll                             2016
-#define _fnum_diskGetAllPhysical                     2017
+#define _fnum_diskGet                                2005
+#define _fnum_diskGetAll                             2006
+#define _fnum_diskGetAllPhysical                     2007
+#define _fnum_diskGetPartType                        2008
+#define _fnum_diskGetPartTypes                       2009
+#define _fnum_diskSetLockState                       2010
+#define _fnum_diskSetDoorState                       2011
+#define _fnum_diskGetMediaState                      2012
+#define _fnum_diskReadSectors                        2013
+#define _fnum_diskWriteSectors                       2014
 
 // Filesystem functions.  All are in the 3000-3999 range.
 #define _fnum_filesystemFormat                       3000
-#define _fnum_filesystemCheck                        3001
-#define _fnum_filesystemDefragment                   3002
-#define _fnum_filesystemMount                        3003
-#define _fnum_filesystemUnmount                      3004
-#define _fnum_filesystemGetFree                      3005
-#define _fnum_filesystemGetBlockSize                 3006
-#define _fnum_filesystemClobber                      3007
+#define _fnum_filesystemClobber                      3001
+#define _fnum_filesystemCheck                        3002
+#define _fnum_filesystemDefragment                   3003
+#define _fnum_filesystemMount                        3004
+#define _fnum_filesystemUnmount                      3005
+#define _fnum_filesystemGetFree                      3006
+#define _fnum_filesystemGetBlockSize                 3007
 
 // File functions.  All are in the 4000-4999 range.
 #define _fnum_fileFixupPath                          4000
 #define _fnum_fileSeparateLast                       4001
 #define _fnum_fileGetDisk                            4002
-#define _fnum_fileFirst                              4003
-#define _fnum_fileNext                               4004
-#define _fnum_fileFind                               4005
-#define _fnum_fileOpen                               4006
-#define _fnum_fileClose                              4007
-#define _fnum_fileRead                               4008
-#define _fnum_fileWrite                              4009
-#define _fnum_fileDelete                             4010
-#define _fnum_fileDeleteSecure                       4011
-#define _fnum_fileMakeDir                            4012
-#define _fnum_fileRemoveDir                          4013
-#define _fnum_fileCopy                               4014
-#define _fnum_fileCopyRecursive                      4015
-#define _fnum_fileMove                               4016
-#define _fnum_fileTimestamp                          4017
-#define _fnum_fileGetTemp                            4018
-#define _fnum_fileStreamOpen                         4019
-#define _fnum_fileStreamSeek                         4020
-#define _fnum_fileStreamRead                         4021
-#define _fnum_fileStreamReadLine                     4022
-#define _fnum_fileStreamWrite                        4023
-#define _fnum_fileStreamWriteStr                     4024
-#define _fnum_fileStreamWriteLine                    4025
-#define _fnum_fileStreamFlush                        4026
-#define _fnum_fileStreamClose                        4027
-#define _fnum_fileCount                              4028
+#define _fnum_fileCount                              4003
+#define _fnum_fileFirst                              4004
+#define _fnum_fileNext                               4005
+#define _fnum_fileFind                               4006
+#define _fnum_fileOpen                               4007
+#define _fnum_fileClose                              4008
+#define _fnum_fileRead                               4009
+#define _fnum_fileWrite                              4010
+#define _fnum_fileDelete                             4011
+#define _fnum_fileDeleteRecursive                    4012
+#define _fnum_fileDeleteSecure                       4013
+#define _fnum_fileMakeDir                            4014
+#define _fnum_fileRemoveDir                          4015
+#define _fnum_fileCopy                               4016
+#define _fnum_fileCopyRecursive                      4017
+#define _fnum_fileMove                               4018
+#define _fnum_fileTimestamp                          4019
+#define _fnum_fileGetTemp                            4020
+#define _fnum_fileStreamOpen                         4021
+#define _fnum_fileStreamSeek                         4022
+#define _fnum_fileStreamRead                         4023
+#define _fnum_fileStreamReadLine                     4024
+#define _fnum_fileStreamWrite                        4025
+#define _fnum_fileStreamWriteStr                     4026
+#define _fnum_fileStreamWriteLine                    4027
+#define _fnum_fileStreamFlush                        4028
+#define _fnum_fileStreamClose                        4029
 
 // Memory manager functions.  All are in the 5000-5999 range.
-// DEPRECATED _fnum_memoryPrintUsage                 5000
-#define _fnum_memoryGet                              5001
-#define _fnum_memoryGetPhysical                      5002
-#define _fnum_memoryRelease                          5003
-#define _fnum_memoryReleaseAllByProcId               5004
-#define _fnum_memoryChangeOwner                      5005
-#define _fnum_memoryGetStats                         5006
-#define _fnum_memoryGetBlocks                        5007
+#define _fnum_memoryGet                              5000
+#define _fnum_memoryGetPhysical                      5001
+#define _fnum_memoryRelease                          5002
+#define _fnum_memoryReleaseAllByProcId               5003
+#define _fnum_memoryChangeOwner                      5004
+#define _fnum_memoryGetStats                         5005
+#define _fnum_memoryGetBlocks                        5006
 
 // Multitasker functions.  All are in the 6000-6999 range.
 #define _fnum_multitaskerCreateProcess               6000
@@ -187,33 +187,37 @@ extern int visopsys_in_kernel;
 #define _fnum_multitaskerGetProcessByName            6004
 #define _fnum_multitaskerGetProcesses                6005
 #define _fnum_multitaskerSetProcessState             6006
-#define _fnum_multitaskerSetProcessPriority          6007
-#define _fnum_multitaskerGetProcessPrivilege         6008
-#define _fnum_multitaskerGetCurrentDirectory         6009
-#define _fnum_multitaskerSetCurrentDirectory         6010
-#define _fnum_multitaskerGetTextInput                6011
-#define _fnum_multitaskerSetTextInput                6012
-#define _fnum_multitaskerGetTextOutput               6013
-#define _fnum_multitaskerSetTextOutput               6014
-#define _fnum_multitaskerDuplicateIO                 6015
-#define _fnum_multitaskerGetProcessorTime            6016
-#define _fnum_multitaskerYield                       6017
-#define _fnum_multitaskerWait                        6018
-#define _fnum_multitaskerBlock                       6019
-#define _fnum_multitaskerDetach                      6020
-#define _fnum_multitaskerKillProcess                 6021
-#define _fnum_multitaskerKillByName                  6022
-#define _fnum_multitaskerTerminate                   6023
-#define _fnum_multitaskerProcessIsAlive              6024
+#define _fnum_multitaskerProcessIsAlive              6007
+#define _fnum_multitaskerSetProcessPriority          6008
+#define _fnum_multitaskerGetProcessPrivilege         6009
+#define _fnum_multitaskerGetCurrentDirectory         6010
+#define _fnum_multitaskerSetCurrentDirectory         6011
+#define _fnum_multitaskerGetTextInput                6012
+#define _fnum_multitaskerSetTextInput                6013
+#define _fnum_multitaskerGetTextOutput               6014
+#define _fnum_multitaskerSetTextOutput               6015
+#define _fnum_multitaskerDuplicateIO                 6016
+#define _fnum_multitaskerGetProcessorTime            6017
+#define _fnum_multitaskerYield                       6018
+#define _fnum_multitaskerWait                        6019
+#define _fnum_multitaskerBlock                       6020
+#define _fnum_multitaskerDetach                      6021
+#define _fnum_multitaskerKillProcess                 6022
+#define _fnum_multitaskerKillByName                  6023
+#define _fnum_multitaskerTerminate                   6024
 #define _fnum_multitaskerSignalSet                   6025
 #define _fnum_multitaskerSignal                      6026
 #define _fnum_multitaskerSignalRead                  6027
 
 // Loader functions.  All are in the 7000-7999 range.
 #define _fnum_loaderLoad                             7000
-#define _fnum_loaderLoadProgram                      7001
-#define _fnum_loaderExecProgram                      7002
-#define _fnum_loaderLoadAndExec                      7003
+#define _fnum_loaderClassify                         7001
+#define _fnum_loaderClassifyFile                     7002
+#define _fnum_loaderGetSymbols                       7003
+#define _fnum_loaderLoadProgram                      7004
+#define _fnum_loaderLoadLibrary                      7005
+#define _fnum_loaderExecProgram                      7006
+#define _fnum_loaderLoadAndExec                      7007
 
 // Real-time clock functions.  All are in the 8000-8999 range.
 #define _fnum_rtcReadSeconds                         8000
@@ -272,59 +276,57 @@ extern int visopsys_in_kernel;
 #define _fnum_windowSetSize                          12008
 #define _fnum_windowGetLocation                      12009
 #define _fnum_windowSetLocation                      12010
-// DEPRECATED _fnum_windowPack                       12011
-#define _fnum_windowCenter                           12012
-#define _fnum_windowSnapIcons                        12013
-#define _fnum_windowSetHasBorder                     12014
-#define _fnum_windowSetHasTitleBar                   12015
-#define _fnum_windowSetMovable                       12016
-#define _fnum_windowSetResizable                     12017
-// DEPRECATED _fnum_windowSetPacked                  12018
-#define _fnum_windowSetHasMinimizeButton             12019
-#define _fnum_windowSetHasCloseButton                12020
-#define _fnum_windowSetColors                        12021
-#define _fnum_windowSetVisible                       12022
-#define _fnum_windowSetMinimized                     12023 
-#define _fnum_windowAddConsoleTextArea               12024
-#define _fnum_windowRedrawArea                       12025
-#define _fnum_windowProcessEvent                     12026
-#define _fnum_windowComponentEventGet                12027
-#define _fnum_windowTileBackground                   12028
-#define _fnum_windowCenterBackground                 12029
-#define _fnum_windowScreenShot                       12030
-#define _fnum_windowSaveScreenShot                   12031
-#define _fnum_windowSetTextOutput                    12032
-#define _fnum_windowComponentSetVisible              12033
-#define _fnum_windowComponentSetEnabled              12034
-#define _fnum_windowComponentGetWidth                12035
-#define _fnum_windowComponentSetWidth                12036
-#define _fnum_windowComponentGetHeight               12037
-#define _fnum_windowComponentSetHeight               12038
-#define _fnum_windowComponentFocus                   12039
-#define _fnum_windowComponentDraw                    12040
-#define _fnum_windowComponentGetData                 12041
-#define _fnum_windowComponentSetData                 12042
-#define _fnum_windowComponentGetSelected             12043
-#define _fnum_windowComponentSetSelected             12044
-#define _fnum_windowNewButton                        12045
-#define _fnum_windowNewCanvas                        12046
-#define _fnum_windowNewCheckbox                      12047
-#define _fnum_windowNewContainer                     12048
-#define _fnum_windowNewIcon                          12049
-#define _fnum_windowNewImage                         12050
-#define _fnum_windowNewList                          12051
-#define _fnum_windowNewListItem                      12052
-#define _fnum_windowNewMenu                          12053
-#define _fnum_windowNewMenuBar                       12054
-#define _fnum_windowNewMenuItem                      12055
-#define _fnum_windowNewPasswordField                 12056
-#define _fnum_windowNewProgressBar                   12057
-#define _fnum_windowNewRadioButton                   12058
-#define _fnum_windowNewScrollBar                     12059
-#define _fnum_windowNewTextArea                      12060
-#define _fnum_windowNewTextField                     12061
-#define _fnum_windowNewTextLabel                     12062
-#define _fnum_windowDebugLayout                      12063
+#define _fnum_windowCenter                           12011
+#define _fnum_windowSnapIcons                        12012
+#define _fnum_windowSetHasBorder                     12013
+#define _fnum_windowSetHasTitleBar                   12014
+#define _fnum_windowSetMovable                       12015
+#define _fnum_windowSetResizable                     12016
+#define _fnum_windowSetHasMinimizeButton             12017
+#define _fnum_windowSetHasCloseButton                12018
+#define _fnum_windowSetColors                        12019
+#define _fnum_windowSetVisible                       12020
+#define _fnum_windowSetMinimized                     12021 
+#define _fnum_windowAddConsoleTextArea               12022
+#define _fnum_windowRedrawArea                       12023
+#define _fnum_windowProcessEvent                     12024
+#define _fnum_windowComponentEventGet                12025
+#define _fnum_windowTileBackground                   12026
+#define _fnum_windowCenterBackground                 12027
+#define _fnum_windowScreenShot                       12028
+#define _fnum_windowSaveScreenShot                   12029
+#define _fnum_windowSetTextOutput                    12030
+#define _fnum_windowComponentSetVisible              12031
+#define _fnum_windowComponentSetEnabled              12032
+#define _fnum_windowComponentGetWidth                12033
+#define _fnum_windowComponentSetWidth                12034
+#define _fnum_windowComponentGetHeight               12035
+#define _fnum_windowComponentSetHeight               12036
+#define _fnum_windowComponentFocus                   12037
+#define _fnum_windowComponentDraw                    12038
+#define _fnum_windowComponentGetData                 12039
+#define _fnum_windowComponentSetData                 12040
+#define _fnum_windowComponentGetSelected             12041
+#define _fnum_windowComponentSetSelected             12042
+#define _fnum_windowNewButton                        12043
+#define _fnum_windowNewCanvas                        12044
+#define _fnum_windowNewCheckbox                      12045
+#define _fnum_windowNewContainer                     12046
+#define _fnum_windowNewIcon                          12047
+#define _fnum_windowNewImage                         12048
+#define _fnum_windowNewList                          12049
+#define _fnum_windowNewListItem                      12050
+#define _fnum_windowNewMenu                          12051
+#define _fnum_windowNewMenuBar                       12052
+#define _fnum_windowNewMenuItem                      12053
+#define _fnum_windowNewPasswordField                 12054
+#define _fnum_windowNewProgressBar                   12055
+#define _fnum_windowNewRadioButton                   12056
+#define _fnum_windowNewScrollBar                     12057
+#define _fnum_windowNewTextArea                      12058
+#define _fnum_windowNewTextField                     12059
+#define _fnum_windowNewTextLabel                     12060
+#define _fnum_windowDebugLayout                      12061
 
 // User functions.  All are in the 13000-13999 range
 #define _fnum_userAuthenticate                       13000
@@ -341,6 +343,19 @@ extern int visopsys_in_kernel;
 #define _fnum_userFileDelete                         13011
 #define _fnum_userFileSetPassword                    13012
 
+// Network functions.  All are in the 14000-14999 range
+#define _fnum_networkDeviceGetCount                  14000
+#define _fnum_networkDeviceGet                       14001
+#define _fnum_networkInitialized                     14002
+#define _fnum_networkInitialize                      14003
+#define _fnum_networkShutdown                        14004
+#define _fnum_networkOpen                            14005
+#define _fnum_networkClose                           14006
+#define _fnum_networkCount                           14007
+#define _fnum_networkRead                            14008
+#define _fnum_networkWrite                           14009
+#define _fnum_networkPing                            14010
+
 // Miscellaneous functions.  All are in the 99000-99999 range
 #define _fnum_fontGetDefault                         99000
 #define _fnum_fontSetDefault                         99001
@@ -355,14 +370,20 @@ extern int visopsys_in_kernel;
 #define _fnum_lockRelease                            99010
 #define _fnum_lockVerify                             99011
 #define _fnum_variableListCreate                     99012
-#define _fnum_variableListGet                        99013
-#define _fnum_variableListSet                        99014
-#define _fnum_variableListUnset                      99015
-#define _fnum_configurationReader                    99016
-#define _fnum_configurationWriter                    99017
-#define _fnum_keyboardGetMaps                        99018
-#define _fnum_keyboardSetMap                         99019
-
+#define _fnum_variableListDestroy                    99013
+#define _fnum_variableListGet                        99014
+#define _fnum_variableListSet                        99015
+#define _fnum_variableListUnset                      99016
+#define _fnum_configurationReader                    99017
+#define _fnum_configurationWriter                    99018
+#define _fnum_keyboardGetMaps                        99019
+#define _fnum_keyboardSetMap                         99020
+#define _fnum_deviceTreeGetCount                     99021
+#define _fnum_deviceTreeGetRoot                      99022
+#define _fnum_deviceTreeGetChild                     99023
+#define _fnum_deviceTreeGetNext                      99024
+#define _fnum_mouseLoadPointer                       99025
+#define _fnum_mouseSwitchPointer                     99026
 
 // Utility macros for stack manipulation
 #define stackPush(value) \
@@ -722,6 +743,13 @@ _X_ static inline int textCursorRight(void)
   return (sysCall_0(_fnum_textCursorRight));
 }
 
+_X_ static inline void textScroll(int upDown)
+{
+  // Proto: void kernelTextScroll(int upDown)
+  // Desc : Scroll the current text area up (-1) or down (+1)
+  sysCall_1(_fnum_textScroll, (void *) upDown);
+}
+
 _X_ static inline int textGetNumColumns(void)
 {
   // Proto: int kernelTextGetNumColumns(void);
@@ -994,20 +1022,6 @@ _X_ static inline int diskGetAllPhysical(disk *userDiskArray, unsigned buffSize)
 		   (void *) buffSize));
 }
 
-_X_ static inline int diskGetInfo(disk *d)
-{
-  // Proto: int kernelDiskGetInfo(disk *);
-  // Desc : Get information about the logical disk volume named by the disk structure's 'name' field and fill in the remainder of the disk structure d.
-  return (sysCall_1(_fnum_diskGetInfo, d));
-}
-
-_X_ static inline int diskGetPhysicalInfo(disk *d)
-{
-  // Proto: int kernelDiskGetPhysicalInfo(disk *);
-  // Desc : Get information about the physical disk device named by the disk structure's 'name' field and fill in the remainder of the disk structure d.
-  return (sysCall_1(_fnum_diskGetPhysicalInfo, d));
-}
-
 _X_ static inline int diskGetPartType(int code, partitionType *p)
 {
   // Proto: int kernelDiskGetPartType(int, partitionType *);
@@ -1036,6 +1050,13 @@ _X_ static inline int diskSetDoorState(const char *name, int state)
   return (sysCall_2(_fnum_diskSetDoorState, (void *) name, (void *) state));
 }
 
+_X_ static inline int diskGetMediaState(const char *diskName)
+{
+  // Proto: int kernelDiskGetMediaState(const char *diskName)
+  // Desc : Returns 1 if the removable disk 'diskName' is known to have media present.
+  return (sysCall_1(_fnum_diskGetMediaState, (void *) diskName));
+}
+
 _X_ static inline int diskReadSectors(const char *name, unsigned sect, unsigned count, void *buf)
 {
   // Proto: int kernelDiskReadSectors(const char *, unsigned, unsigned, void *)
@@ -1052,33 +1073,17 @@ _X_ static inline int diskWriteSectors(const char *name, unsigned sect, unsigned
 		    (void *) count, buf));
 }
 
-_X_ static inline int diskReadAbsoluteSectors(const char *name, unsigned sect, unsigned count, void *buf)
-{
-  // Proto: int kernelDiskReadAbsoluteSectors(const char *, unsigned, unsigned, void *)
-  // Desc : *DEPRECATED*
-  return (sysCall_4(_fnum_diskReadSectors, (void *) name, (void *) sect,
-		    (void *) count, buf));
-}
-
-_X_ static inline int diskWriteAbsoluteSectors(const char *name, unsigned sect, unsigned count, void *buf)
-{
-  // Proto: int kernelDiskWriteAbsoluteSectors(const char *, unsigned, unsigned, void *)
-  // Desc : *DEPRECATED*
-  return (sysCall_4(_fnum_diskWriteSectors, (void *) name, (void *) sect,
-		    (void *) count, buf));
-}
-
 
 //
 // Filesystem functions
 //
 
-_X_ static inline int filesystemFormat(const char *theDisk, const char *type, const char *label, int longFormat)
+_X_ static inline int filesystemFormat(const char *theDisk, const char *type, const char *label, int longFormat, progress *prog)
 {
-  // Proto: int kernelFilesystemFormat(const char *, const char *, const char *, int);
-  // Desc : Format the logical volume 'theDisk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported.  It is optional for filesystem drivers to implement this function.
-  return (sysCall_4(_fnum_filesystemFormat, (void *) theDisk, (void *) type,
-		    (void *) label, (void *) longFormat));
+  // Proto: int kernelFilesystemFormat(const char *, const char *, const char *, int, progress *);
+  // Desc : Format the logical volume 'theDisk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported, and progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
+  return (sysCall_5(_fnum_filesystemFormat, (void *) theDisk, (void *) type,
+		    (void *) label, (void *) longFormat, prog));
 }
 
 _X_ static inline int filesystemClobber(const char *theDisk)
@@ -1088,19 +1093,19 @@ _X_ static inline int filesystemClobber(const char *theDisk)
   return (sysCall_1(_fnum_filesystemClobber, (void *) theDisk));
 }
 
-_X_ static inline int filesystemCheck(const char *name, int force, int repair)
+_X_ static inline int filesystemCheck(const char *name, int force, int repair, progress *prog)
 {
-  // Proto: int kernelFilesystemCheck(const char *, int, int)
-  // Desc : Check the filesystem on disk 'name'.  If 'force' is non-zero, the filesystem will be checked regardless of whether the filesystem driver thinks it needs to be.  If 'repair' is non-zero, the filesystem driver will attempt to repair any errors found.  If 'repair' is zero, a non-zero return value may indicate that errors were found.  If 'repair' is non-zero, a non-zero return value may indicate that errors were found but could not be fixed.  It is optional for filesystem drivers to implement this function.
-  return (sysCall_3(_fnum_filesystemCheck, (void *) name, (void *) force,
-		    (void *) repair));
+  // Proto: int kernelFilesystemCheck(const char *, int, int, progress *)
+  // Desc : Check the filesystem on disk 'name'.  If 'force' is non-zero, the filesystem will be checked regardless of whether the filesystem driver thinks it needs to be.  If 'repair' is non-zero, the filesystem driver will attempt to repair any errors found.  If 'repair' is zero, a non-zero return value may indicate that errors were found.  If 'repair' is non-zero, a non-zero return value may indicate that errors were found but could not be fixed.  Progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
+  return (sysCall_4(_fnum_filesystemCheck, (void *) name, (void *) force,
+		    (void *) repair, prog));
 }
 
-_X_ static inline int filesystemDefragment(const char *name)
+_X_ static inline int filesystemDefragment(const char *name, progress *prog)
 {
-  // Proto: int kernelFilesystemDefragment(const char *)
-  // Desc : Defragment the filesystem on disk 'name'.  It is optional for filesystem drivers to implement this function.
-  return (sysCall_1(_fnum_filesystemCheck, (void *) name));
+  // Proto: int kernelFilesystemDefragment(const char *, progress *)
+  // Desc : Defragment the filesystem on disk 'name'.  Progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
+  return (sysCall_2(_fnum_filesystemDefragment, (void *) name, prog));
 }
 
 _X_ static inline int filesystemMount(const char *name, const char *mp)
@@ -1222,6 +1227,13 @@ _X_ static inline int fileDelete(const char *name)
   // Proto: int kernelFileDelete(const char *);
   // Desc : Delete the file referenced by the pathname 'name'.
   return (sysCall_1(_fnum_fileDelete, (void *) name));
+}
+
+_X_ static inline int fileDeleteRecursive(const char *name)
+{
+  // Proto: int kernelFileDeleteRecursive(const char *);
+  // Desc : Recursively delete filesystem items, starting with the one referenced by the pathname 'name'.
+  return (sysCall_1(_fnum_fileDeleteRecursive, (void *) name));
 }
 
 _X_ static inline int fileDeleteSecure(const char *name)
@@ -1349,14 +1361,6 @@ _X_ static inline int fileStreamClose(fileStream *f)
 //
 // Memory functions
 //
-
-_X_ static inline void memoryPrintUsage(int kernel)
-{
-  // Proto: void kernelMemoryPrintUsage(int);
-  // Desc : *DEPRECATED*
-  kernel = 0;
-  return;
-}
 
 _X_ static inline void *memoryGet(unsigned size, const char *desc)
 {
@@ -1634,12 +1638,43 @@ _X_ static inline void *loaderLoad(const char *filename, file *theFile)
 			     (void *) theFile));
 }
 
+_X_ static inline objectKey loaderClassify(const char *fileName, void *fileData, int size, loaderFileClass *class)
+{
+  // Proto: kernelFileClass *kernelLoaderClassify(const char *, void *, int, loaderFileClass *);
+  // Desc : Given a file by the name 'fileName', the contents 'fileData', of size 'size', get the kernel loader's idea of the file type.  If successful, the return  value is non-NULL and the loaderFileClass structure 'class' is filled out with the known information.
+  return ((objectKey) sysCall_4(_fnum_loaderClassify, (char *) fileName,
+				fileData, (void *) size, class));
+}
+
+_X_ static inline objectKey loaderClassifyFile(const char *fileName, loaderFileClass *class)
+{
+  // Proto: kernelFileClass *kernelLoaderClassifyFile(const char *, loaderFileClass *);
+  // Desc : Like loaderClassify(), except the first argument 'fileName' is a file name to classify.  Returns the kernel loader's idea of the file type.  If successful, the return value is non-NULL and the loaderFileClass structure 'class' is filled out with the known information.
+  return ((objectKey) sysCall_2(_fnum_loaderClassifyFile, (void *) fileName,
+				class));
+}
+
+_X_ static inline loaderSymbolTable *loaderGetSymbols(const char *fileName, int dynamic)
+{
+  // Proto: loaderSymbolTable *kernelLoaderGetSymbols(const char *, int);
+  // Desc : Given a binary executable, library, or object file 'fileName' and a flag 'dynamic', return a loaderSymbolTable structure filled out with the loader symbols from the file.  If 'dynamic' is non-zero, only symbols used in dynamic linking will be returned (if the file is not a dynamic library or executable, NULL will be returned).  If 'dynamic' is zero, return all symbols found in the file.
+  return ((loaderSymbolTable *) sysCall_2(_fnum_loaderGetSymbols,
+				  (void *) fileName, (void *) dynamic));
+}
+
 _X_ static inline int loaderLoadProgram(const char *command, int privilege)
 {
   // Proto: int kernelLoaderLoadProgram(const char *, int);
   // Desc : Run 'command' as a process with the privilege level 'privilege'.  If successful, the call's return value is the process ID of the new process.  The process is left in a stopped state and must be set to a running state explicitly using the multitasker function multitaskerSetProcessState() or the loader function loaderExecProgram().
   return (sysCall_2(_fnum_loaderLoadProgram, (void *) command,
 		    (void *) privilege));
+}
+
+_X_ static inline int loaderLoadLibrary(const char *libraryName)
+{
+  // Proto: int kernelLoaderLoadLibrary(const char *);
+  // Desc : This takes the name of a library file 'libraryName' to load and creates a shared library in the kernel.  This function is not especially useful to user programs, since normal shared library loading happens automatically as part of the 'loaderLoadProgram' process.
+  return (sysCall_1(_fnum_loaderLoadLibrary, (void *) libraryName));
 }
 
 _X_ static inline int loaderExecProgram(int processId, int block)
@@ -2047,14 +2082,6 @@ _X_ static inline int windowSetLocation(objectKey window, int xCoord, int yCoord
 		    (void *) yCoord));
 }
 
-_X_ static inline int windowPack(objectKey window)
-{
-  // Proto: int kernelWindowPack(kernelWindow *);
-  // Desc : *DEPRECATED*
-  window = NULL;
-  return (0);
-}
-
 _X_ static inline int windowCenter(objectKey window)
 {
   // Proto: int kernelWindowCenter(kernelWindow *);
@@ -2095,15 +2122,6 @@ _X_ static inline int windowSetResizable(objectKey window, int trueFalse)
   // Proto: int kernelWindowSetResizable(kernelWindow *, int);
   // Desc : Tells the windowing system whether to allow 'window' to be resized by the user.
   return (sysCall_2(_fnum_windowSetResizable, window, (void *) trueFalse));
-}
-
-_X_ static inline int windowSetPacked(objectKey window, int trueFalse)
-{
-  // Proto: int kernelWindowSetPacked(kernelWindow *, int);
-  // Desc : *DEPRECATED*
-  window = 0;
-  trueFalse = 0;
-  return (0);
 }
 
 _X_ static inline int windowSetHasMinimizeButton(objectKey window,
@@ -2557,6 +2575,92 @@ _X_ static inline int userFileSetPassword(const char *passFile, const char *user
 
 
 //
+// Network functions
+//
+
+_X_ static inline int networkDeviceGetCount(void)
+{
+  // Proto: int kernelNetworkDeviceGetCount(void);
+  // Desc: Returns the count of network devices
+  return (sysCall_0(_fnum_networkDeviceGetCount));
+}
+
+_X_ static inline int networkDeviceGet(const char *name, networkDevice *dev)
+{
+  // Proto: int kernelNetworkDeviceGet(int, networkDevice *);
+  // Desc: Returns the user-space portion of the requested (by 'name') network device in 'dev'.
+  return (sysCall_2(_fnum_networkDeviceGet, (char *) name, dev));
+}
+
+_X_ static inline int networkInitialized(void)
+{
+  // Proto: int kernelNetworkInitialized(void);
+  // Desc: Returns 1 if networking is currently enabled.
+  return (sysCall_0(_fnum_networkInitialized));
+}
+
+_X_ static inline int networkInitialize(void)
+{
+  // Proto: int kernelNetworkInitialize(void);
+  // Desc: Initialize and start networking.
+  return (sysCall_0(_fnum_networkInitialize));
+}
+
+_X_ static inline int networkShutdown(void)
+{
+  // Proto: int kernelNetworkShutdown(void);
+  // Desc: Shut down networking.
+  return (sysCall_0(_fnum_networkShutdown));
+}
+
+_X_ static inline objectKey networkOpen(int mode, networkAddress *address, networkFilter *filter)
+{
+  // Proto: kernelNetworkConnection *kernelNetworkOpen(int, networkAddress *, networkFilter *);
+  // Desc: Opens a connection for network communication.  The 'type' and 'mode' arguments describe the kind of connection to make (see possiblilities in the file <sys/network.h>.  If applicable, 'address' specifies the network address of the remote host to connect to.  If applicable, the 'localPort' and 'remotePort' arguments specify the TCP/UDP ports to use.
+  return ((objectKey) sysCall_3(_fnum_networkOpen, (void *) mode, address,
+				filter));
+}
+
+_X_ static inline int networkClose(objectKey connection)
+{
+  // Proto: int kernelNetworkClose(kernelNetworkConnection *);
+  // Desc: Close the specified, previously-opened network connection.
+  return (sysCall_1(_fnum_networkClose, connection));
+}
+
+_X_ static inline int networkCount(objectKey connection)
+{
+  // Proto: int kernelNetworkCount(kernelNetworkConnection *connection);
+  // Desc: Given a network connection, return the number of bytes currently pending in the input stream
+  return (sysCall_1(_fnum_networkCount, connection));
+}
+
+_X_ static inline int networkRead(objectKey connection, unsigned char *buffer, unsigned bufferSize)
+{
+  // Proto: int kernelNetworkRead(kernelNetworkConnection *, unsigned char *, unsigned);
+  // Desc: Given a network connection, a buffer, and a buffer size, read up to 'bufferSize' bytes (or the number of bytes available in the connection's input stream) and return the number read.  The connection must be initiated using the networkConnectionOpen() function.
+  return (sysCall_3(_fnum_networkRead, connection, buffer,
+		    (void *) bufferSize));
+}
+
+_X_ static inline int networkWrite(objectKey connection, unsigned char *buffer, unsigned bufferSize)
+{
+  // Proto: int kernelNetworkWrite(kernelNetworkConnection *, unsigned char *, unsigned);
+  // Desc: Given a network connection, a buffer, and a buffer size, write up to 'bufferSize' bytes from 'buffer' to the connection's output.  The connection must be initiated using the networkConnectionOpen() function.
+  return (sysCall_3(_fnum_networkWrite, connection, buffer,
+		    (void *) bufferSize));
+}
+
+_X_ static inline int networkPing(objectKey connection, int seqNum, unsigned char *buffer, unsigned bufferSize)
+{
+  // Proto: int kernelNetworkPing(kernelNetworkConnection *, int, unsigned char *, unsigned);
+  // Desc: Send an ICMP "echo request" packet to the host at the network address 'destAddress', with the (optional) sequence number 'seqNum'.  The 'buffer' and 'bufferSize' arguments point to the location of data to send in the ping packet.  The content of the data is mostly irrelevant, except that it can be checked to ensure the same data is returned by the ping reply from the remote host.
+  return (sysCall_4(_fnum_networkPing, connection, (void *) seqNum, buffer,
+		    (void *) bufferSize));
+}
+
+
+//
 // Miscellaneous functions
 //
 
@@ -2654,6 +2758,13 @@ _X_ static inline int variableListCreate(variableList *list)
   return (sysCall_1(_fnum_variableListCreate, list));
 }
   
+_X_ static inline int variableListDestroy(variableList *list)
+{
+  // Proto: int kernelVariableListDestroy(variableList *);
+  // Desc : Deallocate a variable list structure previously allocated by a call to variableListCreate() or configurationReader()
+  return (sysCall_1(_fnum_variableListDestroy, list));
+}
+
 _X_ static inline int variableListGet(variableList *list, const char *var, char *buffer, unsigned buffSize)
 {
   // Proto: int kernelVariableListGet(variableList *, const char *, char *, unsigned);
@@ -2703,6 +2814,49 @@ _X_ static inline int keyboardSetMap(const char *name)
   // Proto: int kernelKeyboardSetMap(const char *);
   // Desc : Set the keyboard mapping to the supplied 'name'.  The normal procedure would be to first call the keyboardGetMaps() function, get the list of supported mappings, and then call this function with one of those names.  Only a name returned by the keyboardGetMaps function is valid in this scenario.
   return (sysCall_1(_fnum_keyboardSetMap, (void *) name));
+}
+
+_X_ static inline int deviceTreeGetCount(void)
+{
+  // Proto: int kernelDeviceTreeGetCount(void);
+  // Desc : Returns the number of devices in the kernel's device tree.
+  return (sysCall_0(_fnum_deviceTreeGetCount));
+}
+
+_X_ static inline int deviceTreeGetRoot(device *rootDev)
+{
+  // Proto: int kernelDeviceTreeGetRoot(device *);
+  // Desc : Returns the user-space portion of the device tree root device in the structure 'rootDev'.
+  return (sysCall_1(_fnum_deviceTreeGetRoot, rootDev));
+}
+
+_X_ static inline int deviceTreeGetChild(device *parentDev, device *childDev)
+{
+  // Proto: int kernelDeviceTreeGetChild(device *, device *);
+  // Desc : Returns the user-space portion of the first child device of 'parentDev' in the structure 'childDev'.
+  return (sysCall_2(_fnum_deviceTreeGetChild, parentDev, childDev));
+}
+
+_X_ static inline int deviceTreeGetNext(device *siblingDev)
+{
+  // Proto: int kernelDeviceTreeGetNext(device *);
+  // Desc : Returns the user-space portion of the next sibling device of the supplied device 'siblingDev' in the same data structure.
+  return (sysCall_1(_fnum_deviceTreeGetNext, siblingDev));
+}
+
+_X_ static inline int mouseLoadPointer(const char *pointerName, const char *fileName)
+{
+  // Proto: int kernelMouseLoadPointer(const char *, const char *)
+  // Desc : Tells the mouse driver code to load the mouse pointer 'pointerName' from the file 'fileName'.
+  return (sysCall_2(_fnum_mouseLoadPointer, (char *) pointerName,
+		    (char *) fileName));
+}
+
+_X_ static inline int mouseSwitchPointer(const char *pointerName)
+{
+  // Proto: int kernelMouseSwitchPointer(const char *)
+  // Desc : Tells the mouse driver code to switch to the mouse pointer with the given name (as specified by the pointer name argument to mouseLoadPointer).
+  return (sysCall_1(_fnum_mouseSwitchPointer, (char *) pointerName));
 }
 
 #define _API_H

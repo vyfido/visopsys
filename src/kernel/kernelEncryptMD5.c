@@ -25,7 +25,7 @@
 
 #include "kernelEncrypt.h"
 #include "kernelMalloc.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include <string.h>
 
 

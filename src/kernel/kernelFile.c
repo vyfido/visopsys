@@ -23,12 +23,14 @@
 // system tree.
 
 #include "kernelFile.h"
+#include "kernelFilesystem.h"
+#include "kernelDisk.h"
 #include "kernelMalloc.h"
 #include "kernelLock.h"
 #include "kernelSysTimer.h"
 #include "kernelRtc.h"
 #include "kernelMultitasker.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelError.h"
 #include <stdio.h>
 #include <string.h>
@@ -152,8 +154,8 @@ static inline void fileEntry2File(kernelFileEntry *fileEntry, file *theFile)
   theFile->type = fileEntry->type;
 
   strncpy(theFile->filesystem,
-	  (char *) ((kernelFilesystem *) fileEntry->filesystem)
-	  ->mountPoint, MAX_PATH_LENGTH);
+	  (char *) ((kernelDisk *) fileEntry->disk)->filesystem.mountPoint,
+	  MAX_PATH_LENGTH);
   theFile->filesystem[MAX_PATH_LENGTH - 1] = '\0';
 
   theFile->creationTime = fileEntry->creationTime;
@@ -164,8 +166,7 @@ static inline void fileEntry2File(kernelFileEntry *fileEntry, file *theFile)
   theFile->modifiedDate = fileEntry->modifiedDate;
   theFile->size = fileEntry->size;
   theFile->blocks = fileEntry->blocks;
-  theFile->blockSize = 
-    ((kernelFilesystem *) fileEntry->filesystem)->blockSize;
+  theFile->blockSize = ((kernelDisk *) fileEntry->disk)->filesystem.blockSize;
 
   return;
 }
@@ -331,7 +332,8 @@ static char *fixupPath(const char *originalPath, int absolute)
 
   if (absolute && !ISSEPARATOR(originalPath[0]))
     {
-      kernelError(kernel_error, "Path to fix is not an absolute pathname");
+      kernelError(kernel_error, "Path \"%s\" to fix is not an absolute "
+		  "pathname", originalPath);
       return (newPath = NULL);
     }
 
@@ -423,7 +425,7 @@ static kernelFileEntry *fileLookup(const char *fixedPath)
   int itemLength = 0;
   int caseInsensitive = 0;
   int found = 0;
-  kernelFilesystem *theFilesystem = NULL;
+  kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
   kernelFileEntry *listItem = NULL;
   int count;
@@ -463,7 +465,7 @@ static kernelFileEntry *fileLookup(const char *fixedPath)
 	return (listItem = NULL);
 
       caseInsensitive =
-	((kernelFilesystem *) listItem->filesystem)->caseInsensitive;
+	((kernelDisk *) listItem->disk)->filesystem.caseInsensitive;
 
       found = 0;
 
@@ -513,15 +515,15 @@ static kernelFileEntry *fileLookup(const char *fixedPath)
 	  
 	      // Get the filesystem based on the filesystem number in the
 	      // file entry structure
-	      theFilesystem = listItem->filesystem;
-	      if (theFilesystem == NULL)
+	      theDisk = listItem->disk;
+	      if (theDisk == NULL)
 		{
-		  kernelError(kernel_error, "Entry has a NULL filesystem "
-			      "pointer");
+		  kernelError(kernel_error, "Entry has a NULL disk pointer");
 		  return (listItem = NULL);
 		}
 
-	      theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+	      theDriver =
+		(kernelFilesystemDriver *) theDisk->filesystem.driver;
 
 	      // Increase the open count on the directory's entry while we're
 	      // reading it.  This will prevent the filesystem manager from
@@ -562,7 +564,7 @@ static int fileCreate(const char *path)
   int status = 0;
   char prefix[MAX_PATH_LENGTH];
   char name[MAX_NAME_LENGTH];
-  kernelFilesystem *theFilesystem = NULL;
+  kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
   kernelFileEntry *directory = NULL;
   kernelFileEntry *createItem = NULL;
@@ -603,25 +605,25 @@ static int fileCreate(const char *path)
     }
 
   // OK, the directory exists.  Get the filesystem of the parent directory.
-  theFilesystem = (kernelFilesystem *) directory->filesystem;
-  if (theFilesystem == NULL)
+  theDisk = (kernelDisk *) directory->disk;
+  if (theDisk == NULL)
     {
-      kernelError(kernel_error, "Unable to determine target filesystem");
+      kernelError(kernel_error, "Unable to determine target disk");
       return (status = ERR_BADDATA);
     }
 
   // Not allowed in read-only file system
-  if (theFilesystem->readOnly)
+  if (theDisk->filesystem.readOnly)
     {
       kernelError(kernel_error, "Filesystem is read-only");
       return (status = ERR_NOWRITE);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+  theDriver = (kernelFilesystemDriver *) theDisk->filesystem.driver;
 
   // We can create the file in the directory.
   // Get a free file entry structure.
-  createItem = kernelFileNewEntry(theFilesystem);
+  createItem = kernelFileNewEntry((void *) theDisk);
   if (createItem == NULL)
     return (status = ERR_NOFREE);
 
@@ -672,7 +674,7 @@ static int fileOpen(kernelFileEntry *openItem, int openMode)
   // arguments and returns the same status as the driver function.
 
   int status = 0;
-  kernelFilesystem *theFilesystem = NULL;
+  kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
   kernelFileEntry *directory = NULL;
   int deleteSecure = 0;
@@ -689,21 +691,21 @@ static int fileOpen(kernelFileEntry *openItem, int openMode)
   directory = (kernelFileEntry *) openItem->parentDirectory;
 
   // Get the filesystem that the file belongs to
-  theFilesystem = (kernelFilesystem *) openItem->filesystem;
-  if (theFilesystem == NULL)
+  theDisk = (kernelDisk *) openItem->disk;
+  if (theDisk == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem pointer");
+      kernelError(kernel_error, "NULL disk pointer");
       return (status = ERR_BADADDRESS);
     }
 
   // Not allowed in read-only file system
-  if ((openMode & OPENMODE_WRITE) && theFilesystem->readOnly)
+  if ((openMode & OPENMODE_WRITE) && theDisk->filesystem.readOnly)
     {
       kernelError(kernel_error, "Filesystem is read-only");
       return (status = ERR_NOWRITE);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+  theDriver = (kernelFilesystemDriver *) theDisk->filesystem.driver;
 
   // There are extra things we need to do if this will be a write operation
 
@@ -765,7 +767,7 @@ static int fileDelete(kernelFileEntry *theFile)
 
   int status = 0;
   kernelFileEntry *parentDir = NULL;
-  kernelFilesystem *theFilesystem = NULL;
+  kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
   int secureDelete = 0;
 
@@ -785,21 +787,21 @@ static int fileDelete(kernelFileEntry *theFile)
     secureDelete = 1;
 
   // Figure out which filesystem we're using
-  theFilesystem = (kernelFilesystem *) theFile->filesystem;
-  if (theFilesystem == NULL)
+  theDisk = (kernelDisk *) theFile->disk;
+  if (theDisk == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem pointer");
+      kernelError(kernel_error, "NULL disk pointer");
       return (status = ERR_BADADDRESS);
     }
 
   // Not allowed in read-only file system
-  if (theFilesystem->readOnly)
+  if (theDisk->filesystem.readOnly)
     {
       kernelError(kernel_error, "Filesystem is read-only");
       return (status = ERR_NOWRITE);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+  theDriver = (kernelFilesystemDriver *) theDisk->filesystem.driver;
 
   // If the filesystem driver has a 'delete' function, call it.
   if (theDriver->driverDeleteFile)
@@ -839,7 +841,7 @@ static int fileMakeDir(const char *path)
   int status = 0;
   char *prefix = NULL;
   char *name = NULL;
-  kernelFilesystem *theFilesystem = NULL;
+  kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
   kernelFileEntry *parent = NULL;
   kernelFileEntry *newDir = NULL;
@@ -886,26 +888,26 @@ static int fileMakeDir(const char *path)
     }
 
   // Figure out which filesystem we're using
-  theFilesystem = (kernelFilesystem *) parent->filesystem;
-  if (theFilesystem == NULL)
+  theDisk = (kernelDisk *) parent->disk;
+  if (theDisk == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem pointer");
+      kernelError(kernel_error, "NULL disk pointer");
       status = ERR_BADADDRESS;
       goto out;
     }
 
   // Not allowed in read-only file system
-  if (theFilesystem->readOnly)
+  if (theDisk->filesystem.readOnly)
     {
       kernelError(kernel_error, "Filesystem is read-only");
       status = ERR_NOWRITE;
       goto out;
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+  theDriver = (kernelFilesystemDriver *) theDisk->filesystem.driver;
 
   // Allocate a new file entry 
-  newDir = kernelFileNewEntry(theFilesystem);
+  newDir = kernelFileNewEntry((void *) theDisk);
   if (newDir == NULL)
     {
       status = ERR_NOFREE;
@@ -974,7 +976,7 @@ static int fileRemoveDir(kernelFileEntry *theDir)
 
   int status = 0;
   kernelFileEntry *parentDir = NULL;
-  kernelFilesystem *theFilesystem = NULL;
+  kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
 
   // Ok, do NOT remove the root directory
@@ -1003,21 +1005,21 @@ static int fileRemoveDir(kernelFileEntry *theDir)
   parentDir = theDir->parentDirectory;
 
   // Figure out which filesystem we're using
-  theFilesystem = (kernelFilesystem *) theDir->filesystem;
-  if (theFilesystem == NULL)
+  theDisk = (kernelDisk *) theDir->disk;
+  if (theDisk == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem pointer");
+      kernelError(kernel_error, "NULL disk pointer");
       return (status = ERR_BADADDRESS);
     }
 
   // Not allowed in read-only file system
-  if (theFilesystem->readOnly)
+  if (theDisk->filesystem.readOnly)
     {
       kernelError(kernel_error, "Filesystem is read-only");
       return (status = ERR_NOWRITE);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+  theDriver = (kernelFilesystemDriver *) theDisk->filesystem.driver;
 
   // If the filesystem driver has a 'remove dir' function, call it.
   if (theDriver->driverRemoveDir)
@@ -1212,7 +1214,7 @@ static int fileMove(kernelFileEntry *sourceItem, kernelFileEntry *destDir)
   // will be moved and renamed.  Returns 0 on success, negtive otherwise.
 
   int status = 0;
-  kernelFilesystem *theFilesystem = NULL;
+  kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
   kernelFileEntry *sourceDir = NULL;
 
@@ -1220,27 +1222,27 @@ static int fileMove(kernelFileEntry *sourceItem, kernelFileEntry *destDir)
   sourceDir = sourceItem->parentDirectory;
 
   // Get the filesystem we're using
-  theFilesystem = (kernelFilesystem *) sourceItem->filesystem;
-  if (theFilesystem == NULL)
+  theDisk = (kernelDisk *) sourceItem->disk;
+  if (theDisk == NULL)
     {
-      kernelError(kernel_error, "%s has a NULL source filesystem pointer",
+      kernelError(kernel_error, "%s has a NULL source disk pointer",
 		  sourceItem->name);
       return (status = ERR_BADADDRESS);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+  theDriver = (kernelFilesystemDriver *) theDisk->filesystem.driver;
 
   // Not allowed in read-only file system
-  if (theFilesystem->readOnly)
+  if (theDisk->filesystem.readOnly)
     {
       kernelError(kernel_error, "%s filesystem is read-only",
-		  theFilesystem->mountPoint);
+		  theDisk->filesystem.mountPoint);
       return (status = ERR_NOWRITE);
     }
 
   // Now check the filesystem of the destination directory.  Here's the
   // trick: moves can only occur within a single filesystem.
-  if ((kernelFilesystem *) destDir->filesystem != theFilesystem)
+  if ((kernelDisk *) destDir->disk != theDisk)
     {
       kernelError(kernel_error, "Can only move items within a single "
 		  "filesystem");
@@ -1349,19 +1351,20 @@ int kernelFileSetRoot(kernelFileEntry *rootDir)
 }
 
 
-kernelFileEntry *kernelFileNewEntry(kernelFilesystem *theFilesystem)
+kernelFileEntry *kernelFileNewEntry(void *diskPointer)
 {
   // This function will find an unused file entry and return it to the
   // calling function.
 
   int status = 0;
+  kernelDisk *theDisk = diskPointer;
   kernelFileEntry *theEntry = NULL;
   kernelFilesystemDriver *theDriver = NULL;
 
-  // Make sure the filesystem argument is not NULL
-  if (theFilesystem == NULL)
+  // Make sure the disk argument is not NULL
+  if (diskPointer == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem argument");
+      kernelError(kernel_error, "NULL disk argument");
       return (theEntry = NULL);
     }
 
@@ -1387,11 +1390,11 @@ kernelFileEntry *kernelFileNewEntry(kernelFilesystem *theFilesystem)
   // We need to call the appropriate filesystem so that it can attach
   // its private data structure to the file
 
-  // Make note of the assigned filesystem in the entry
-  theEntry->filesystem = (void *) theFilesystem;
+  // Make note of the assigned disk in the entry
+  theEntry->disk = (void *) theDisk;
 
   // Get a pointer to the filesystem driver
-  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+  theDriver = (kernelFilesystemDriver *) theDisk->filesystem.driver;
 
   // OK, we just have to call the filesystem driver function
   if (theDriver->driverNewEntry)
@@ -1410,7 +1413,7 @@ void kernelFileReleaseEntry(kernelFileEntry *theEntry)
   // This function takes a file entry to release, and puts it back
   // in the pool of free file entries.
 
-  kernelFilesystem *theFilesystem = NULL;
+  kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
 
   // Make sure the supplied entry is not NULL
@@ -1425,11 +1428,11 @@ void kernelFileReleaseEntry(kernelFileEntry *theEntry)
   if (theEntry->driverData)
     {
       // Get the filesystem pointer from the file entry structure
-      theFilesystem = theEntry->filesystem;
-      if (theFilesystem)
+      theDisk = theEntry->disk;
+      if (theDisk)
 	{
 	  // Get a pointer to the filesystem driver
-	  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+	  theDriver = (kernelFilesystemDriver *) theDisk->filesystem.driver;
 
 	  // OK, we just have to check on the filesystem driver function
 	  if (theDriver->driverInactiveEntry)
@@ -1736,8 +1739,8 @@ kernelFileEntry *kernelFileResolveLink(kernelFileEntry *entry)
 
   if ((entry->type == linkT) && (entry->contents == NULL))
     {
-      driver = (kernelFilesystemDriver *) ((kernelFilesystem *) entry
-					   ->filesystem)->driver;
+      driver = (kernelFilesystemDriver *)
+	((kernelDisk *) entry->disk)->filesystem.driver;
 
       if (driver->driverResolveLink)
         // Try to get the filesystem driver to resolve the link
@@ -1807,7 +1810,7 @@ int kernelFileMakeDotDirs(kernelFileEntry *parentDir, kernelFileEntry *dir)
       return (status = ERR_NULLPARAMETER);
     }
 
-  dotDir = kernelFileNewEntry(dir->filesystem);
+  dotDir = kernelFileNewEntry(dir->disk);
   if (dotDir == NULL)
     return (status = ERR_NOFREE);
 
@@ -1819,7 +1822,7 @@ int kernelFileMakeDotDirs(kernelFileEntry *parentDir, kernelFileEntry *dir)
 
   if (parentDir)
     {
-      dotDotDir = kernelFileNewEntry(dir->filesystem);
+      dotDotDir = kernelFileNewEntry(dir->disk);
 
       if (dotDotDir == NULL)
 	{
@@ -1903,16 +1906,16 @@ int kernelFileSetSize(kernelFileEntry *entry, unsigned newSize)
   // space in all of its blocks (they have no way to know otherwise).
 
   int status = 0;
-  kernelFilesystem *theFilesystem = NULL;
+  kernelDisk *theDisk = NULL;
 
   // Check parameters
   if (entry == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  theFilesystem = (kernelFilesystem *) entry->filesystem;
+  theDisk = (kernelDisk *) entry->disk;
 
   // Not allowed in read-only file system
-  if (theFilesystem->readOnly)
+  if (theDisk->filesystem.readOnly)
     {
       kernelError(kernel_error, "Filesystem is read-only");
       return (status = ERR_NOWRITE);
@@ -1923,13 +1926,13 @@ int kernelFileSetSize(kernelFileEntry *entry, unsigned newSize)
   // number of blocks that are allocated to this file.
   if (newSize || entry->blocks)
     {
-      if (newSize < ((entry->blocks - 1) * theFilesystem->blockSize))
+      if (newSize < ((entry->blocks - 1) * theDisk->filesystem.blockSize))
 	{
 	  kernelError(kernel_error, "New size for file %s is too small",
 		      entry->name);
 	  return (status = ERR_INVALID);
 	}
-      else if (newSize > (entry->blocks * theFilesystem->blockSize))
+      else if (newSize > (entry->blocks * theDisk->filesystem.blockSize))
 	{
 	  kernelError(kernel_error, "New size for file %s is too large",
 		      entry->name);
@@ -1941,14 +1944,14 @@ int kernelFileSetSize(kernelFileEntry *entry, unsigned newSize)
   // kernelFileEntry structure.
   
   entry->size = newSize;
-  entry->blocks = (entry->size / theFilesystem->blockSize);
-  if (entry->size % theFilesystem->blockSize)
+  entry->blocks = (entry->size / theDisk->filesystem.blockSize);
+  if (entry->size % theDisk->filesystem.blockSize)
     entry->blocks += 1;
 
-  if (((kernelFilesystemDriver *) theFilesystem->driver)
+  if (((kernelFilesystemDriver *) theDisk->filesystem.driver)
       ->driverWriteDir)
     {
-      status = ((kernelFilesystemDriver *) theFilesystem->driver)
+      status = ((kernelFilesystemDriver *) theDisk->filesystem.driver)
 	->driverWriteDir((kernelFileEntry *) entry->parentDirectory);
       if (status < 0)
 	return (status);
@@ -2092,8 +2095,6 @@ int kernelFileGetDisk(const char *path, disk *userDisk)
 
   int status = 0;
   kernelFileEntry *item = NULL;
-  kernelFilesystem *filesystem = NULL;
-  kernelDisk *logical = NULL;
 
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
@@ -2110,10 +2111,7 @@ int kernelFileGetDisk(const char *path, disk *userDisk)
     // There is no such item
     return (status = ERR_NOSUCHFILE);
 
-  filesystem = (kernelFilesystem *) item->filesystem;
-  logical = (kernelDisk *) filesystem->disk;
-
-  status = kernelDiskFromLogical(logical, userDisk);
+  status = kernelDiskFromLogical(item->disk, userDisk);
   return (status);
 }
 
@@ -2420,7 +2418,7 @@ int kernelFileRead(file *fileStructure, unsigned blockNum,
   // the driver function.
 
   int status = 0;
-  kernelFilesystem *theFilesystem = NULL;
+  kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
   
   if (!initialized)
@@ -2446,14 +2444,14 @@ int kernelFileRead(file *fileStructure, unsigned blockNum,
 
   // Get the filesystem based on the filesystem number in the
   // file structure
-  theFilesystem = ((kernelFileEntry *) fileStructure->handle)->filesystem;
-  if (theFilesystem == NULL)
+  theDisk = ((kernelFileEntry *) fileStructure->handle)->disk;
+  if (theDisk == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem pointer");
+      kernelError(kernel_error, "NULL disk pointer");
       return (status = ERR_BADADDRESS);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+  theDriver = (kernelFilesystemDriver *) theDisk->filesystem.driver;
 
   // OK, we just have to check on the filesystem driver function we want
   // to call
@@ -2486,7 +2484,7 @@ int kernelFileWrite(file *fileStructure, unsigned blockNum,
   // the driver function.
 
   int status = 0;
-  kernelFilesystem *theFilesystem = NULL;
+  kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
   
   if (!initialized)
@@ -2522,21 +2520,21 @@ int kernelFileWrite(file *fileStructure, unsigned blockNum,
 
   // Get the filesystem based on the filesystem number in the
   // file structure
-  theFilesystem = ((kernelFileEntry *) fileStructure->handle)->filesystem;
-  if (theFilesystem == NULL)
+  theDisk = ((kernelFileEntry *) fileStructure->handle)->disk;
+  if (theDisk == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem pointer");
+      kernelError(kernel_error, "NULL disk pointer");
       return (status = ERR_BADADDRESS);
     }
 
   // Not allowed in read-only file system
-  if (theFilesystem->readOnly)
+  if (theDisk->filesystem.readOnly)
     {
       kernelError(kernel_error, "Filesystem is read-only");
       return (status = ERR_NOWRITE);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+  theDriver = (kernelFilesystemDriver *) theDisk->filesystem.driver;
 
   // OK, we just have to check on the filesystem driver function we want
   // to call
@@ -3099,7 +3097,7 @@ int kernelFileTimestamp(const char *path)
   int status = 0;
   char *fileName = NULL;
   kernelFileEntry *theFile = NULL;
-  kernelFilesystem *theFilesystem = NULL;
+  kernelDisk *theDisk = NULL;
   kernelFilesystemDriver *theDriver = NULL;
 
   if (!initialized)
@@ -3139,21 +3137,21 @@ int kernelFileTimestamp(const char *path)
 
   // Now allow the underlying filesystem driver to do anything that's
   // specific to that filesystem type.
-  theFilesystem = (kernelFilesystem *) theFile->filesystem;
-  if (theFilesystem == NULL)
+  theDisk = (kernelDisk *) theFile->disk;
+  if (theDisk == NULL)
     {
-      kernelError(kernel_error, "NULL filesystem pointer");
+      kernelError(kernel_error, "NULL disk pointer");
       return (status = ERR_BADADDRESS);
     }
 
   // Not allowed in read-only file system
-  if (theFilesystem->readOnly)
+  if (theDisk->filesystem.readOnly)
     {
       kernelError(kernel_error, "Filesystem is read-only");
       return (status = ERR_NOWRITE);
     }
 
-  theDriver = (kernelFilesystemDriver *) theFilesystem->driver;
+  theDriver = (kernelFilesystemDriver *) theDisk->filesystem.driver;
 
   // Call the filesystem driver function, if it exists
   if (theDriver->driverTimestamp)
@@ -3194,7 +3192,7 @@ int kernelFileGetTemp(file *tmpFile)
     }
 
   if (!rootDirectory ||
-      ((kernelFilesystem *) rootDirectory->filesystem)->readOnly)
+      ((kernelDisk *) rootDirectory->disk)->filesystem.readOnly)
     {
       kernelError(kernel_error, "Filesystem is read-only");
       return (status = ERR_NOWRITE);

@@ -13,24 +13,27 @@ background="../img/background.jpg"><!--msnavigation--><table dir="ltr" border="0
 <table border="0" cellpadding="0" cellspacing="0" width="93">
   <tr>
     <td width="99"><p align="center"><font color="#FFFFFF"><a href="../index.html">
-    <img src="../img/nav_buttons/home.gif" alt="Go back to the Visopsys Home Page." border="0" align="middle" width="53" height="25"></a><br>
+    <img src="../img/nav_buttons/home.gif" alt="Home" border="0" align="middle" width="53" height="25"></a><br>
     <br>
     <a href="index.html">
-    <img src="../img/nav_buttons/about.gif" alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a></font><p align="center">
+    <img src="../img/nav_buttons/about.gif" alt="About" border="0" align="middle" width="60" height="25"></a></font><p align="center">
+    <a href="news.html">
+    <img border="0" src="../img/nav_buttons/news.gif" alt="News" width="49" height="16"></a><br>
+    <br>
     <a href="screenshots.html">
-    <img border="0" src="../img/nav_buttons/screenshots.gif" width="105" height="22"></a><font color="#FFFFFF"><br>
+    <img border="0" src="../img/nav_buttons/screenshots.gif" alt="Screenshots" width="105" height="22"></a><font color="#FFFFFF"><br>
     <br>
     <a href="../download/index.html">
-    <img src="../img/nav_buttons/download.gif" alt="Download Visopsys and associated files." border="0" align="middle" width="95" height="25"></a></font><br>
+    <img src="../img/nav_buttons/download.gif" alt="Download" border="0" align="middle" width="95" height="25"></a></font><br>
     <br>
     <a href="../developers/index.html">
-    <img src="../img/nav_buttons/developers.gif" border="0" alt="Resources for Visopsys development" align="middle" width="97" height="29"></a><br>
+    <img src="../img/nav_buttons/developers.gif" border="0" alt="Developers" align="middle" width="97" height="29"></a><br>
     <br>
     <a href="../osdev/index.html">
-    <img src="../img/nav_buttons/osdev.gif" border="0" alt="OS Development Resources" align="middle" width="64" height="25"></a><br>
+    <img src="../img/nav_buttons/osdev.gif" border="0" alt="OS Development" align="middle" width="64" height="25"></a><br>
     <br>
     <a href="../search.html">
-    <img src="../img/nav_buttons/search.gif" alt="Search the Visopsys Site" align="middle" border="0" width="63" height="24"></a></td>
+    <img src="../img/nav_buttons/search.gif" alt="Search" align="middle" border="0" width="63" height="24"></a></td>
   </tr>
 </table>
 </center></div>
@@ -49,39 +52,54 @@ border="0" width="291" height="56"></strong></font></p>
   <p align="left"><big><em>&quot;No matter how certain its eventual coming, an event whose
   exact time and form of arrival are unknown vanishes when we picture the future.&nbsp; We
   tend not to believe in the next big war or economic swing; we certainly don't believe in
-  the next big software revolution.&quot;</em>&nbsp; - David Gelernter</big><br>
-  </p>
+  the next big software revolution.&quot;</em>&nbsp; - David Gelernter<br>
+&nbsp;</big></p>
 </blockquote>
 
-<p align="left"><strong><big>INTRODUCTION</big></strong></p>
+<div align="center">
+  <center>
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111">
+    <tr>
+      <td align="left" valign="top">
+      <ul>
+        <li><strong><font size="4"><a href="#introduction">Introduction</a></font></strong></li>
+        <li><strong><font size="4"><a href="#goals">Goals</a></font></strong></li>
+        <li><strong><font size="4"><a href="#status">Status</a></font></strong></li>
+        <li><strong><font size="4"><a href="#applications">Applications</a></font></strong></li>
+      </ul>
+      </td>
+      <td align="left" valign="top">
+      <ul>
+        <li><strong><font size="4"><a href="#hardware">Hardware Support</a></font></strong></li>
+        <li><strong><font size="4"><a href="#development">Development 
+        Environment</a></font></strong></li>
+        <li><strong><font size="4"><a href="#acknowledgements">Acknowledgements</a></font></strong></li>
+      </ul>
+      </td>
+    </tr>
+  </table>
+  </center>
+</div>
+
+<p align="left"><strong><big><a name="introduction"></a>INTRODUCTION</big></strong></p>
 
 <p><big>Visopsys (<font color="#FFFF00">VIS</font>ual <font color="#FFFF00">OP</font>erating
 <font color="#FFFF00">SYS</font>tem) is an alternative operating system for 
-PC-compatible computers
-which is written &quot;from scratch&quot; and continually in development.&nbsp;  The source
+PC-compatible computers, written &quot;from scratch&quot;, and developed 
+primarily by a single hobbyist programmer since late 1997.</big></p>
+
+<p><big>Visopsys is free software and the source
 code is available under the terms of the <a href="gpl.html">GNU General Public License</a>.&nbsp; 
 The libraries and header files are licensed under the terms of the
 <a href="lgpl.html">GNU Lesser General Public License</a>.</big></p>
-
-<p><big>The overall goal of Visopsys is always to cherry-pick the best ideas 
-from other OSes, preferably contribute a few new ideas, and hopefully avoid 
-(re-) introducing some of the more annoying elements.</big></p>
-
-<p><font size="4">H</font><big>owever many ideas Visopsys borrows from other 
-operating environments, it is not a Windows or UNIX lookalike, nor a clone of 
-any other system.&nbsp; On the other hand, much of what you see in Visopsys will 
-be familiar.&nbsp; There are a number of command line programs that are 
-superficially UNIX- or DOS-like, so you shouldn't have too much trouble finding 
-your way around.&nbsp; It is compatible with existing filesystems, file formats, 
-protocols, and encryption algorithms (among other things).</big></p>
 
 <p><big>The bulk of Visopsys is a fully multitasking, 100% protected mode, 
 virtual-memory, massively-monolithic-style kernel.&nbsp; Added to this is a 
 bare-bones C library and a minimal suite of applications
 <font face="Times New Roman">—</font> together comprising a small but reasonably 
 functional operating system which can operate natively in either graphical or 
-text modes.&nbsp; It's been in continuous development for a number of years, 
-though realistically the target audience remains limited to operating system 
+text modes.&nbsp; Though it's been in continuous development for a number of years, 
+realistically the target audience remains limited to operating system 
 enthusiasts, students, and assorted other sensation seekers.&nbsp; The ISO and 
 floppy images available from the <a href="../download/index.html">download page</a> 
 can install the system, or operate in 'live demo' mode.<br>
@@ -95,46 +113,28 @@ Syllable</a>.&nbsp; On the other hand, it's still a one-person project.</big></p
 perspective — its primary selling point is a reasonably functional partition 
 management program (the 'Disk Manager') in the vein of
 <a href="http://www.powerquest.com/partitionmagic/">Symantec's Partition Magic</a>.&nbsp; 
-It can create, delete, and move partitions, and modify their attributes. It can 
+It can create, format, delete, and move partitions, and modify their attributes. It can 
 also copy hard disks, and has a simple and friendly graphical interface, but can 
-fit on a bootable floppy disk (or CD-ROM, if you're feeling naughty).</big></p>
+fit on a bootable floppy disk (or CD-ROM, if you're feeling naughty).<br>
+&nbsp;</big></p>
 
-<p><big>The Disk Manager does most of what you'd expect from your basic 'fdisk' 
-tool, whilst maintaining safety through MBR backups and 'undo' functionality.&nbsp; 
-The slightly more sophisticated features, such as copying disks and moving 
-partitions, are the beginnings of a project to create a free alternative to 
-certain proprietary tools such as Partition Magic,
-<a href="http://www.powerquest.com/driveimage">Drive Image</a>, and
-<a href="http://www.symantec.com/sabu/ghost/ghost_personal/">Norton Ghost</a>; 
-the same user-friendly GUI environment, yet still small enough to fit on a boot 
-floppy.&nbsp; What it currently lacks are easily accessible ways to error-check 
-and resize filesystems.<br>
-<br>
-A few other simple user applications are provided.&nbsp; These include a 
-'Program Manager'; a basic 'User Manager' for administering user accounts and 
-passwords; a 'Keyboard Mapping' program which provides a choice between 
-(currently) UK and US English keyboard layouts; a 'Display Properties' program 
-for setting graphical boot, screen resolution, colours, background, etc.; and a 
-'Configuration Editor' for modifying the system's configuration files (since 
-there isn't any kind of native text editor, yet!).&nbsp; Additionally there are 
-programs for installing Visopsys, viewing images, and making screen shots, as 
-well as a simple command line shell and associated programs for viewing memory 
-usage, managing processes, and plenty of other simple tasks.<br>
-<br>
-Hardware support is generally limited to devices that conform to popular 
-hardware interface standards, such as VESA, PS2, ATA/ATAPI (IDE), plus all of 
-the standard PC chipset components.&nbsp; Graphics are provided through the 
-(non-performant, but reasonably standard) VESA linear framebuffer interface.&nbsp; 
-At present there aren't any vendor-specific video drivers provided, though this 
-is not so much a design choice as it is the result of limited manpower and time.&nbsp; 
-Memory requirements are small: approximately 5 MB in text mode, and generally 
-less than 20MB in graphics mode depending on screen resolution, etc.<br>
-<br>
-Visopsys supports all variations of FAT filesystem (12, 16, 32/VFAT) as well as 
-read-only EXT2/3 and ISOFS.&nbsp; Upcoming features include support for SCSI, 
-serial mice, resizing filesystems, writable EXT2, and dynamic linking. Ports of 
-the Newlib C library, GNU Binutils and GCC are underway and will be available as 
-add-ons.</big></p>
+<p><b><font size="4"><a name="goals"></a>GOALS</font></b></p>
+
+<p><big>The primary goal of Visopsys is  to cherry-pick the best ideas 
+from other operating systems, preferably contribute a few new ideas, and hopefully avoid 
+(re-) introducing some of the more annoying elements.</big></p>
+
+<blockquote>
+
+<p><i><font size="4">However many ideas Visopsys borrows from other 
+products, it is not a Windows or UNIX lookalike, nor a clone of 
+any other system.&nbsp; On the other hand, much of what you see in Visopsys will 
+be familiar.&nbsp; There are a number of command line programs that are 
+superficially UNIX- or DOS-like, so you shouldn't have too much trouble finding 
+your way around.&nbsp; It is compatible with existing filesystems, file formats, 
+protocols, and encryption algorithms (among other things).</font></i></p>
+
+</blockquote>
 
 <p><big>Some of the higher-level conceptual goals are as follows:</big></p>
 
@@ -143,7 +143,7 @@ add-ons.</big></p>
 <ul>
   <li><big>The base-level graphics server (analogous to an 'X' server in Unix, 
   but not X) is integrated into the kernel.&nbsp; A default GUI environment runs 
-  &quot;straight out of the box&quot;, with no complicated setup procedure.</big></li>
+  &quot;straight out of the box&quot;, with no  setup procedure.</big></li>
   <li><font size="4">At a later stage, </font><big>a new metaphor for the GUI 
   environment.&nbsp; While not intended to be revolutionary, the planned 
   interface will eventually try to put a new spin on graphical shell design — 
@@ -179,10 +179,10 @@ to the greatest extent possible.&nbsp; It is not a goal for Visopsys to define n
   <li><big>Software development environment conventions</big></li>
   <li><big>Hardware interface standards (e.g. VESA)</big></li>
   <li><big>Some level of POSIX compliance, where possible, eventually.<br>
-    </big></li>
+&nbsp;</big></li>
 </ul>
 
-<p><strong><big>CURRENT DEVELOPMENT STATUS</big></strong></p>
+<p><strong><big><a name="status"></a>STATUS</big></strong></p>
 
 <p><big>Visopsys is starting to look and feel like a 'real' operating system.&nbsp; 
  
@@ -192,85 +192,64 @@ person, but it's getting there little by little.</big></p>
 <p><big>Coding work was begun as a part-time operation in late 1997.&nbsp; The 
 large majority of the code is written in C, with portions in x86 Assembly 
 Language.&nbsp; Following is a list of some of the implemented and unimplemented 
-functionality</big></p>
+functionality.</big></p>
 
-<p><font size="4">Implemented Features</font><big>: </big>
-
-<ul>
-  <li><big>Graphical User Interface (GUI)</big></li>
-  <li><big>Fully 32 bits, &quot;protected&quot; mode</big></li>
-  <li><a href="multitasker.html"><font size="4">Fully p</font><big>re-emptive multitasking and multi-threading</big></a></li>
-  <li><big>Virtual memory, and memory protection</big></li>
-  <li><a href="memory-management.html"><big>Flat linear memory management</big></a></li>
-  <li><big>Graceful processor fault and exception handling</big></li>
-  <li><big>Good random number capability</big></li>
-  <li><font size="4">Buffered, asynchronous disk I/O</font></li>
-  <li><big>ELF executable format</big></li>
-  <li><big>Filesystem support for:<br>
-    </big>12, 16, and 32-bit FAT filesystems (commonly used by DOS and Windows)<br>
+<div align="left">
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111">
+    <tr>
+      <td align="left" valign="top"><u><font size="4">Implemented Features</font></u><big><u>:</u></big></td>
+      <td align="left" valign="top"><big><u>Currently unimplemented:</u></big></td>
+      </tr>
+      <tr>
+        <td align="left" valign="top">
+        <ul>
+          <li><font size="4">Graphical User Interface (GUI)</font></li>
+          <li><font size="4">Fully 32 bits, &quot;protected&quot; mode</font></li>
+          <li><a href="multitasker.html"><font size="4">Fully pre-emptive multitasking and multi-threading</font></a></li>
+          <li><font size="4">Virtual memory, and memory protection</font></li>
+          <li><a href="memory-management.html"><font size="4">Flat linear memory management</font></a></li>
+          <li><font size="4">Graceful processor fault and exception handling</font></li>
+          <li><font size="4">Good random number capability</font></li>
+          <li><font size="4">Buffered, asynchronous disk I/O</font></li>
+          <li><font size="4">ELF executable format</font></li>
+          <li><font size="4">BMP and ICO image files</font></li>
+          <li><font size="4">Filesystem support for:<br>
+          </font>12, 16, and 32-bit FAT filesystems (commonly used by DOS and Windows)<br>
   Read-only Ext2/Ext3 filesystems (commonly used by Linux)<br>
     CD-ROM filesystems (ISO9660/Joliet)</li>
-  <li><big>Native command line shell</big></li>
-  <li><big>Small, native C library</big></li>
-  <li><font size="4">Native installer program</font></li>
-  <li><font size="4">Hard disk partitioning program (Disk Manager)</font></li>
-  <li><font size="4">Hardware d</font><big>evice support for:<br>
-    </big>Single    Pentium  (or better) processor<br>
-    <a href="memory-management.html">RAM above 64Mb</a><br>
-    Programmable Interrupt Controller (PIC)<br>
-    System timer chip<br>
-    Real-Time Clock (RTC) chip<br>
-    Keyboard controller<br>
-    Text console IO<br>
-    Direct Memory Access (DMA) controller<br>
-    Floppy disk drive<br>
-    IDE hard disk drive<br>
-    IDE CD-ROM<br>
-    VESA 2.0 or greater video card with LFB<br>
-    PS2 mouse</li>
-</ul>
-
-<p><big>Unimplemented: </big>
-
-<ul>
-  <li><a href="wrong.html#single-user"><big>Multi-user operation</big></a></li>
-  <li><big>Inter-Process Communications (IPC) facility</big></li>
-  <li><a href="wrong.html#ioprotection"><big>IO Protection</big></a></li>
-  <li><a href="wrong.html#float"><big>FPU state saves</big></a></li>
-  <li><big>Support for a.out and PE executable formats</big></li>
-  <li><big>Dynamic linking</big></li>
-  <li><big>Filesystem support for:<br>
-    </big>Writable Ext2/Ext3<br>
+          <li><font size="4">Native command line shell</font></li>
+          <li><font size="4">Small, native C library</font></li>
+          <li><font size="4">Native installer program</font></li>
+          <li><font size="4">Dynamic linking</font></li>
+          <li><font size="4">Hard disk partitioning program (Disk Manager)</font></li>
+        </ul>
+        </td>
+        <td align="left" valign="top">
+        <ul>
+  <li><a href="wrong.html#single-user"><font size="4">Multi-user operation</font></a></li>
+  <li><font size="4">Inter-Process Communications (IPC) facility</font></li>
+  <li><a href="wrong.html#ioprotection"><font size="4">IO Protection</font></a></li>
+  <li><a href="wrong.html#float"><font size="4">FPU state saves</font></a><font size="4"> (buggy)</font></li>
+  <li><font size="4">Most network functionality</font></li>
+  <li><font size="4">Filesystem support for:<br>
+    </font>Writable Ext2/Ext3<br>
     NTFS filesystems (commonly used by Windows NT/2000 and Linux)<br>
     (others, as demand dictates)</li>
-  <li><big>Device support for:<br>
-    </big>Multiple processors (multiprocessing)<br>
-    3DNow! and MMX processor extensions<br>
-    Plug and play<br>
-    PCI bus devices<br>
-  SCSI<br>
-    3D or accelerated graphics<br>
-    Serial ports (UART chip) and serial mice<br>
-    Modems<br>
-    Network  Cards<br>
-    Printers<br>
-    (many others)<br>
-  <br>
-  </li>
-</ul>
+          <li><font size="4">JPG image files</font></li>
+        </ul>
+        </td>
+      </tr>
+    </table>
+    </div>
 
-<p><strong><font size="4">DEVELOPER</font><big>S</big></strong></p>
-
-<p><big>It's a very small team: just
+<p><big>The primary developer of Visopsys is
 <a href="../andy/img/andy-nj.jpg">Andy McLaughlin</a>, a 32 year
 old programmer originally from </big><font size="4">Calgary, Canada</font><big>.&nbsp;
 A couple of years ago, I moved to London, UK, after a year in Boston and 2 years in San Jose, California. Like many other hobby OS writers, I build Visopsys in my
 spare time.</big></p>
 
 <p><big>I am not actively seeking other programmers to assist in the development 
-of Visopsys at this time, but I am open to considering the possibility if 
-talented programmers express interest. My main concern is that I want Visopsys 
-to be &quot;presentable&quot; before I even attempt to get anyone else excited about it.</big></p>
+of Visopsys at this time, but I do gladly accept code submissions and suggestions.</big></p>
 
 <p><big>An operating system kernel is a big enough challenge to be discouraging at times.&nbsp; 
 In comparison, the Pascal compiler I wrote over an eight month period is trivial.&nbsp; On the other hand, since I do everything by myself I am able to keep the
@@ -278,35 +257,154 @@ development on a unified path. The architecture that develops is — I hope — cons
 (for better or worse) and thus the end product reflects the vision of a single
 programmer.&nbsp; It can be argued that this is the good, old-fashioned way of producing
 software.<br>
-</big></p>
+&nbsp;</big></p>
 
-<p><big><a name="TEAM"></a><strong>DEVELOPMENT ENVIRONMENT</strong></big></p>
+<p><b><font size="4"><a name="applications"></a>APPLICATIONS</font></b></p>
 
-<p><big>Visopsys is still developed using Red Hat Linux 9, using the included GNU C compiler and  NASM assembler.<br>
-</big></p>
+<p><big>The included Disk Manager does most of what you'd expect from your basic 'fdisk' 
+tool, whilst maintaining safety through MBR backups and 'undo' functionality.&nbsp; 
+The slightly more sophisticated features, such as copying disks and moving 
+partitions, are the beginnings of a project to create a free alternative to 
+certain proprietary tools such as Partition Magic,
+<a href="http://www.powerquest.com/driveimage">Drive Image</a>, and
+<a href="http://www.symantec.com/sabu/ghost/ghost_personal/">Norton Ghost</a>; 
+the same user-friendly GUI environment, yet still small enough to fit on a boot 
+floppy.&nbsp; What it currently lacks are easily accessible ways to error-check 
+and resize filesystems.<br>
+<br>
+A few other simple user applications are provided.&nbsp; These include a 
+'Computer' browser; a 'File Browser'; a 'Program Manager'; a basic 'User Manager' for administering user accounts and 
+passwords; a 'Keyboard Mapping' program which provides a choice between 
+(currently) UK and US English keyboard layouts; a 'Display Properties' program 
+for setting graphical boot, screen resolution, colours, background, etc.; and a 
+'Configuration Editor' for modifying the system's configuration files (since 
+there isn't any kind of native text editor, yet!).&nbsp; Additionally there are 
+programs for installing Visopsys, viewing images, and making screen shots, as 
+well as a simple command line shell and associated programs for viewing memory 
+usage, managing processes, and plenty of other simple tasks.<br>
+&nbsp;</big></p>
 
-<p><big><a name="CREDIT"></a><strong>ACKNOWLEDGEMENTS</strong></big></p>
+<p><b><font size="4"><a name="hardware"></a>HARDWARE SUPPORT</font></b><big><b><br>
+</b>
+<br>
+Hardware support is generally limited to devices that conform to popular 
+hardware interface standards, such as VESA, PS2, ATA/ATAPI (IDE), plus all of 
+the standard PC chipset components.&nbsp; Graphics are provided through the 
+(non-performant, but reasonably standard) VESA linear framebuffer interface.&nbsp; 
+At present there aren't any vendor-specific video drivers provided, though this 
+is not so much a design choice as it is the result of limited manpower and time.&nbsp; 
+Memory requirements are small: approximately 5 MB in text mode, and generally 
+less than 20MB in graphics mode depending on screen resolution, etc.<br>
+<br>
+Visopsys supports all variations of FAT filesystem (12, 16, 32/VFAT) as well as 
+read-only EXT2/3 and ISOFS.&nbsp; Upcoming features include support for SATA, SCSI, 
+serial mice, resizing filesystems, and writable EXT2. Ports of 
+the Newlib C library, GNU Binutils and GCC  will be available in the future as 
+add-ons.</big></p>
+
+    <div align="left">
+      <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111">
+        <tr>
+          <td align="left" valign="top"><font size="4"><u>Supported hardware:</u></font></td>
+          <td align="left" valign="top"><font size="4"><u>Currently unsupported:</u></font></td>
+        </tr>
+        <tr>
+          <td align="left" valign="top">
+          <ul>
+            <li><font size="4">Single    Pentium  (or better) processor</font></li>
+            <li>
+    <a href="memory-management.html"><font size="4">RAM above 64Mb</font></a></li>
+            <li><font size="4">Programmable Interrupt Controller (PIC)</font></li>
+            <li><font size="4">System timer chip</font></li>
+            <li><font size="4">Real-Time Clock (RTC) chip</font></li>
+            <li><font size="4">Keyboard controller</font></li>
+            <li><font size="4">Text console IO</font></li>
+            <li><font size="4">Direct Memory Access (DMA) controller</font></li>
+            <li><font size="4">Floppy disk drive</font></li>
+            <li><font size="4">IDE hard disk drive</font></li>
+            <li><font size="4">IDE CD-ROM</font></li>
+            <li><font size="4">VESA 2.0 or greater video card with LFB</font></li>
+            <li><font size="4">PS2 mouse</font></li>
+            <li><font size="4">PCI bus devices</font></li>
+            <li><font size="4">Lance ethernet (AMD PC-NET) network  Cards</font></li>
+          </ul>
+          </td>
+          <td align="left" valign="top">
+          <ul>
+            <li><font size="4">Multiple processors (multiprocessing)</font></li>
+            <li><font size="4">3DNow! and MMX processor extensions</font></li>
+            <li><font size="4">Plug and play</font></li>
+            <li><font size="4">SCSI</font></li>
+            <li><font size="4">SATA</font></li>
+            <li><font size="4">USB (including USB mice and keyboards)</font></li>
+            <li><font size="4">3D or accelerated graphics</font></li>
+            <li><font size="4">Serial ports (UART chip) and serial mice</font></li>
+            <li><font size="4">Modems</font></li>
+            <li><font size="4">Other network  Cards</font></li>
+            <li><font size="4">Printers</font></li>
+            <li><font size="4">(many others)</font></li>
+          </ul>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+<p>&nbsp;</p>
+
+<p><big><a name="development"></a><strong>DEVELOPMENT ENVIRONMENT</strong></big></p>
+
+<p><big>Visopsys is still developed using SuSE Linux 9.3, using the included GNU C compiler and  
+the <a href="http://sourceforge.net/projects/nasm">NASM assembler</a>, available 
+at <a href="http://sourceforge.net">sourceforge.net</a>.<br>
+&nbsp;</big></p>
+
+<p><big><a name="acknowledgements"></a><strong>ACKNOWLEDGEMENTS</strong></big></p>
 
 <p><big>I'd like to thank the following individuals who contribute (with or without their
 knowledge) to the success of this project: </big>
 
-<ul>
-  <li><big>Graeme McLaughlin (<a href="mailto:graeme@cpsc.ucalgary.ca">graeme@cpsc.ucalgary.ca</a>) 
-  for patiently helping me test each version of Visopsys. Graeme is the #1 Alpha 
-  Tester.</big></li>
-  <li><font size="4">Thomas Kreitner for all his testing and interest, and for 
+    <ul>
+      <li><font size="4">Jonas Zaddach &lt;<a href="mailto:jonaszaddach@gmx.de">jonaszaddach@gmx.de</a>&gt; 
+  has made a number of contributions including early 'Lance' network driver 
+  support, the foundations for PCI support, and German keyboard layouts and 
+  'Alt-Gr' key support.</font></li>
+      <li><font size="4">Davide Airaghi &lt;<a href="mailto:davide.airaghi@gmail.com">davide.airaghi@gmail.com</a>&gt; 
+  provided some initial work on FPU state saves and an Italian keyboard mapping.</font></li>
+      <li><font size="4">Graeme McLaughlin (<a href="mailto:graememc@gmail.com">graememc@gmail.com</a>) 
+  for patiently helping me test many versions of Visopsys.</font></li>
+      <li><font size="4">Thomas Kreitner for all his testing and interest, and for 
   finding the weird bugs.&nbsp; Only an evil genius would discover some of these 
   things.</font></li>
-  <li><big>Katrin Becker (<a href="mailto:becker@cpsc.ucalgary.ca">becker@cpsc.ucalgary.ca</a>)
-    at the University of Calgary for helpful advice about free-list management in filesystems.&nbsp; I should have paid more attention in class. </big></li>
-  <li><big>John Fine (<a href="mailto:johnfine@erols.com">johnfine@erols.com</a>), Alexei A.
+      <li><font size="4">Some icons are adapted from the Noia icons for Windows 
+      XP v2.00 Copyright © 2002 Carles Carbonell Bernad<font face="Times New Roman">ó</font> 
+      (Carlitus) &lt;<a href="mailto:mail@carlitus.net">mail@carlitus.net</a>&gt;
+      <a href="http://www.carlitus.net">http://www.carlitus.net</a></font></li>
+      <li><font size="4">Folder icon adapted from Jakub 'jimmac' Steiner's &lt;<a href="mailto:jimmac@ximian.com">jimmac@ximian.com</a>&gt; 
+      &quot;Gorilla&quot; folder icon at <a href="http://jimmac.musichall.cz/icons.php">
+      http://jimmac.musichall.cz/icons.php</a></font></li>
+      <li><font size="4">Some of the descriptions in fcntl.h are Copyright © 
+      1997 The Open Group from
+      <a href="http://www.opennc.org/onlinepubs/7908799/xsh/fcntl.h.html">
+      http://www.opennc.org/onlinepubs/7908799/xsh/fcntl.h.html</a></font></li>
+      <li><font size="4">The values float.h are intelligent guesses based on 
+      reconciling the float.h files from Linux and Solaris on i386 machines, and 
+      based on the 'Standard C' specification Copyright © 1989-1996 P. J. 
+      Plauger and Jim Brodie.</font></li>
+      <li><font size="4">sqrt.c is Copyright © 1996-2004 Paul Hsieh. Paul's 
+      square root page is here:
+      <a href="http://www.azillionmonkeys.com/qed/sqroot.html">
+      http://www.azillionmonkeys.com/qed/sqroot.html</a></font></li>
+      <li><font size="4">Katrin Becker (<a href="mailto:becker@cpsc.ucalgary.ca">becker@cpsc.ucalgary.ca</a>)
+    at the University of Calgary for helpful advice about free-list management in filesystems.&nbsp; I should have paid more attention in class.
+  </font></li>
+      <li><font size="4">John Fine (<a href="mailto:johnfine@erols.com">johnfine@erols.com</a>), Alexei A.
     Founze <a href="mailto:alex.fru@mtu-net.ru">(alex.fru@mtu-net.ru</a>), and the rest of the
     regular contributors to the <a href="news:comp.lang.asm.x86">comp.lang.asm.x86</a> and <a
     href="news:alt.os.development">alt.os.development</a> newsgroups. Thanks for always taking
-    the time to help people.</big></li>
-  <li><big>Jerry Coffin (<a href="mailto:(jcoffin@taeus.com">jcoffin@taeus.com</a>) and Ratko
-    Tomic for posting information about alternate text mode video configurations.</big></li>
-</ul>
+    the time to help people.</font></li>
+      <li><font size="4">Jerry Coffin (<a href="mailto:(jcoffin@taeus.com">jcoffin@taeus.com</a>) and Ratko
+    Tomic for posting information about alternate text mode video configurations.</font></li>
+    </ul>
 
 <p><font size="4">Bibliography:</font></p>
 
@@ -325,10 +423,8 @@ knowledge) to the success of this project: </big>
   <a href="../osdev/index.html">&quot;OS Dev&quot; page</a> for links.</font></li>
 </ul>
 
-<p>&nbsp;</p>
-
-<p><big>Andy McLaughlin<br>
-03/03/2005</big></p>
+<p><big><a href="mailto:andy@visopsys.org">Andy McLaughlin</a><br>
+29/11/2005</big></p>
 
 <!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
 
@@ -336,27 +432,29 @@ knowledge) to the success of this project: </big>
   <blockquote>
     <p align="right"><font color="#FFFFFF"><a href="../index.html">
     <img
-    src="../img/nav_buttons/home.gif" alt="Go back to the Visopsys Home Page." border="0"
+    src="../img/nav_buttons/home.gif" alt="Home" border="0"
     align="middle" width="53" height="25"></a>&nbsp;&nbsp; <a href="index.html">
     <img src="../img/nav_buttons/about.gif"
-    alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a>&nbsp;&nbsp; </font>
+    alt="About" border="0" align="middle" width="60" height="25"></a>&nbsp;&nbsp;
+    <a href="news.html">
+    <img border="0" src="../img/nav_buttons/news.gif" align="middle" alt="News" width="49" height="16"></a>&nbsp;&nbsp; </font>
     <a href="screenshots.html">
-    <img border="0" src="../img/nav_buttons/screenshots.gif" align="middle" width="105" height="22"></a>&nbsp;&nbsp; <font color="#FFFFFF"> <a href="../download/index.html">
+    <img border="0" src="../img/nav_buttons/screenshots.gif" align="middle" alt="Screenshots" width="105" height="22"></a>&nbsp;&nbsp; <font color="#FFFFFF"> <a href="../download/index.html">
     <img
-    src="../img/nav_buttons/download.gif" alt="Download Visopsys and associated files."
+    src="../img/nav_buttons/download.gif" alt="Download"
     border="0" align="middle" width="95" height="25"></a>&nbsp; </font>&nbsp;<a href="../developers/index.html"><img
-    src="../img/nav_buttons/developers.gif" alt="Resources for Visopsys development"
+    src="../img/nav_buttons/developers.gif" alt="Developers"
     border="0" align="middle" width="97" height="29"></a>&nbsp;&nbsp; <a href="../osdev/index.html">
     <img
-    src="../img/nav_buttons/osdev.gif" border="0" align="middle" width="64" height="25"></a>&nbsp;&nbsp; <a href="../search.html">
+    src="../img/nav_buttons/osdev.gif" border="0" align="middle" alt="OS Development" width="64" height="25"></a>&nbsp;&nbsp; <a href="../search.html">
     <img
-    src="../img/nav_buttons/search.gif" alt="Search the Visopsys Site" align="middle"
+    src="../img/nav_buttons/search.gif" alt="Search" align="middle"
     border="0" width="63" height="24"></a><font face="Times New Roman" color="#FFFFFF"><br>
-    This site is copyright © 1999-2005, J.
-    Andrew McLaughlin<br>
+    This site is copyright © 1999-2005, <a href="mailto:andy@visopsys.org">J.
+    Andrew (Andy) McLaughlin</a><br>
     Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
     Last updated on
-    March 22, 2005</font></p>
+    November 29, 2005</font></p>
   </blockquote>
 </blockquote>
 

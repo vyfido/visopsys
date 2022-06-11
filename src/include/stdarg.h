@@ -31,11 +31,5 @@ typedef void * va_list;
 #define va_arg(list, type) *((type *)(list += sizeof(int)))
 #define va_end(list) (list = NULL)
 
-// Unimplemented routines
-int vprintf(const char *format, va_list ap);
-//int vfprintf(FILE *stream, const char *format, va_list ap);
-int vsprintf(char *str, const char *format, va_list ap);
-int vsnprintf(char *str, size_t size, const char *format, va_list ap);
-
 #define _STDARG_H
 #endif

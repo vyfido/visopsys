@@ -40,7 +40,7 @@
 #define KERNELPROCID 1
 
 // The kernel's settings file
-#define DEFAULT_KERNEL_CONFIG "/system/kernel.conf"
+#define DEFAULT_KERNEL_CONFIG "/system/config/kernel.conf"
 
 // Default PATH
 #define DEFAULT_PATH "/programs"

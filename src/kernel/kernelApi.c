@@ -27,8 +27,9 @@
 #include "kernelText.h"
 #include "kernelDisk.h"
 #include "kernelFile.h"
+#include "kernelFilesystem.h"
 #include "kernelFileStream.h"
-#include "kernelMemoryManager.h"
+#include "kernelMemory.h"
 #include "kernelMultitasker.h"
 #include "kernelLoader.h"
 #include "kernelRtc.h"
@@ -36,8 +37,10 @@
 #include "kernelEnvironment.h"
 #include "kernelWindow.h"
 #include "kernelUser.h"
+#include "kernelNetworkDevice.h"
+#include "kernelNetwork.h"
 #include "kernelShutdown.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelEncrypt.h"
 #include "kernelKeyboard.h"
 #include "kernelProcessorX86.h"
@@ -80,6 +83,7 @@ static kernelFunctionIndex textFunctionIndex[] = {
   { _fnum_textCursorDown, kernelTextCursorDown, 0, PRIVILEGE_USER },
   { _fnum_ternelTextCursorLeft, kernelTextCursorLeft, 0, PRIVILEGE_USER },
   { _fnum_textCursorRight, kernelTextCursorRight, 0, PRIVILEGE_USER },
+  { _fnum_textScroll, kernelTextScroll, 1, PRIVILEGE_USER },
   { _fnum_textGetNumColumns, kernelTextGetNumColumns, 0, PRIVILEGE_USER },
   { _fnum_textGetNumRows, kernelTextGetNumRows, 0, PRIVILEGE_USER },
   { _fnum_textGetColumn, kernelTextGetColumn, 0, PRIVILEGE_USER },
@@ -132,35 +136,33 @@ static kernelFunctionIndex diskFunctionIndex[] = {
   { _fnum_diskGetCount, kernelDiskGetCount, 0, PRIVILEGE_USER },
   { _fnum_diskGetPhysicalCount, kernelDiskGetPhysicalCount,
     0, PRIVILEGE_USER },
-  { _fnum_diskGetInfo, kernelDiskGetInfo, 1, PRIVILEGE_USER },
-  { _fnum_diskGetPhysicalInfo, kernelDiskGetPhysicalInfo, 1, PRIVILEGE_USER },
+  { _fnum_diskGet, kernelDiskGet, 2, PRIVILEGE_USER },
+  { _fnum_diskGetAll, kernelDiskGetAll, 2, PRIVILEGE_USER },
+  { _fnum_diskGetAllPhysical, kernelDiskGetAllPhysical, 2, PRIVILEGE_USER },
   { _fnum_diskGetPartType, kernelDiskGetPartType, 2, PRIVILEGE_USER },
   { _fnum_diskGetPartTypes, kernelDiskGetPartTypes, 0, PRIVILEGE_USER },
   { _fnum_diskSetLockState, kernelDiskSetLockState, 2, PRIVILEGE_USER },
   { _fnum_diskSetDoorState, kernelDiskSetDoorState, 2, PRIVILEGE_USER },
+  { _fnum_diskGetMediaState, kernelDiskGetMediaState, 1, PRIVILEGE_USER },
   { _fnum_diskReadSectors, kernelDiskReadSectors, 4, PRIVILEGE_SUPERVISOR },
-  { _fnum_diskWriteSectors, kernelDiskWriteSectors, 4, PRIVILEGE_SUPERVISOR },
-  { /* DEPRECATED kernelDiskReadAbsoluteSectors */ NULL, NULL, NULL, NULL },
-  { /* DEPRECATED kernelDiskWriteAbsoluteSectors */ NULL, NULL, NULL, NULL },
-  { _fnum_diskGet, kernelDiskGet, 2, PRIVILEGE_USER },
-  { _fnum_diskGetAll, kernelDiskGetAll, 2, PRIVILEGE_USER },
-  { _fnum_diskGetAllPhysical, kernelDiskGetAllPhysical, 2, PRIVILEGE_USER }
+  { _fnum_diskWriteSectors, kernelDiskWriteSectors, 4, PRIVILEGE_SUPERVISOR }
 };
 
 static kernelFunctionIndex filesystemFunctionIndex[] = {
 
   // Filesystem functions (3000-3999 range)
 
-  { _fnum_filesystemFormat, kernelFilesystemFormat, 4, PRIVILEGE_SUPERVISOR },
-  { _fnum_filesystemCheck, kernelFilesystemCheck,3, PRIVILEGE_USER },
+  { _fnum_filesystemFormat, kernelFilesystemFormat, 5, PRIVILEGE_SUPERVISOR },
+  { _fnum_filesystemClobber, kernelFilesystemClobber,
+    1, PRIVILEGE_SUPERVISOR },
+  { _fnum_filesystemCheck, kernelFilesystemCheck, 4, PRIVILEGE_USER },
   { _fnum_filesystemDefragment, kernelFilesystemDefragment,
-    1, PRIVILEGE_USER },
+    2, PRIVILEGE_SUPERVISOR },
   { _fnum_filesystemMount, kernelFilesystemMount, 2, PRIVILEGE_USER },
   { _fnum_filesystemUnmount, kernelFilesystemUnmount, 1, PRIVILEGE_USER },
   { _fnum_filesystemGetFree, kernelFilesystemGetFree, 1, PRIVILEGE_USER },
   { _fnum_filesystemGetBlockSize, kernelFilesystemGetBlockSize,
-    1, PRIVILEGE_USER },
-  { _fnum_filesystemClobber, kernelFilesystemClobber, 1, PRIVILEGE_SUPERVISOR }
+    1, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex fileFunctionIndex[] = {
@@ -170,6 +172,7 @@ static kernelFunctionIndex fileFunctionIndex[] = {
   { _fnum_fileFixupPath, kernelFileFixupPath, 2, PRIVILEGE_USER },
   { _fnum_fileSeparateLast, kernelFileSeparateLast, 3, PRIVILEGE_USER },
   { _fnum_fileGetDisk, kernelFileGetDisk, 2, PRIVILEGE_USER },
+  { _fnum_fileCount, kernelFileCount, 1, PRIVILEGE_USER },
   { _fnum_fileFirst, kernelFileFirst, 2, PRIVILEGE_USER },
   { _fnum_fileNext, kernelFileNext, 2, PRIVILEGE_USER },
   { _fnum_fileFind, kernelFileFind, 2, PRIVILEGE_USER },
@@ -178,6 +181,7 @@ static kernelFunctionIndex fileFunctionIndex[] = {
   { _fnum_fileRead, kernelFileRead, 4, PRIVILEGE_USER },
   { _fnum_fileWrite, kernelFileWrite, 4, PRIVILEGE_USER },
   { _fnum_fileDelete, kernelFileDelete, 1, PRIVILEGE_USER },
+  { _fnum_fileDeleteRecursive, kernelFileDeleteRecursive, 1, PRIVILEGE_USER },
   { _fnum_fileDeleteSecure, kernelFileDeleteSecure, 1, PRIVILEGE_USER },
   { _fnum_fileMakeDir, kernelFileMakeDir, 1, PRIVILEGE_USER },
   { _fnum_fileRemoveDir, kernelFileRemoveDir, 1, PRIVILEGE_USER },
@@ -194,15 +198,13 @@ static kernelFunctionIndex fileFunctionIndex[] = {
   { _fnum_fileStreamWriteStr, kernelFileStreamWriteStr, 2, PRIVILEGE_USER },
   { _fnum_fileStreamWriteLine, kernelFileStreamWriteLine, 2, PRIVILEGE_USER },
   { _fnum_fileStreamFlush, kernelFileStreamFlush, 1, PRIVILEGE_USER },
-  { _fnum_fileStreamClose, kernelFileStreamClose, 1, PRIVILEGE_USER },
-  { _fnum_fileCount, kernelFileCount, 1, PRIVILEGE_USER }
+  { _fnum_fileStreamClose, kernelFileStreamClose, 1, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex memoryFunctionIndex[] = {
 
   // Memory manager functions (5000-5999 range)
 
-  { /* DEPRECATED kernelMemoryPrintUsage */ NULL, NULL, NULL, NULL },
   { _fnum_memoryGet, kernelMemoryGet, 2, PRIVILEGE_USER },
   { _fnum_memoryGetPhysical, kernelMemoryGetPhysical,
     3, PRIVILEGE_SUPERVISOR },
@@ -232,6 +234,8 @@ static kernelFunctionIndex multitaskerFunctionIndex[] = {
     2, PRIVILEGE_USER },
   { _fnum_multitaskerSetProcessState, kernelMultitaskerSetProcessState,
     2, PRIVILEGE_USER },
+  { _fnum_multitaskerProcessIsAlive, kernelMultitaskerProcessIsAlive,
+    1, PRIVILEGE_USER },
   { _fnum_multitaskerSetProcessPriority, kernelMultitaskerSetProcessPriority,
     2, PRIVILEGE_USER },
   { _fnum_multitaskerGetProcessPrivilege, kernelMultitaskerGetProcessPrivilege,
@@ -262,8 +266,6 @@ static kernelFunctionIndex multitaskerFunctionIndex[] = {
     PRIVILEGE_USER },
   { _fnum_multitaskerTerminate, kernelMultitaskerTerminate,
     1, PRIVILEGE_USER },
-  { _fnum_multitaskerProcessIsAlive, kernelMultitaskerProcessIsAlive,
-    1, PRIVILEGE_USER },
   { _fnum_multitaskerSignalSet, kernelMultitaskerSignalSet,
     3, PRIVILEGE_USER },
   { _fnum_multitaskerSignal, kernelMultitaskerSignal, 2, PRIVILEGE_USER },
@@ -276,7 +278,11 @@ static kernelFunctionIndex loaderFunctionIndex[] = {
   // Loader functions (7000-7999 range)
 
   { _fnum_loaderLoad, kernelLoaderLoad, 2, PRIVILEGE_USER },
+  { _fnum_loaderClassify, kernelLoaderClassify, 4, PRIVILEGE_USER },
+  { _fnum_loaderClassifyFile, kernelLoaderClassifyFile, 2, PRIVILEGE_USER },
+  { _fnum_loaderGetSymbols, kernelLoaderGetSymbols, 2, PRIVILEGE_USER },
   { _fnum_loaderLoadProgram, kernelLoaderLoadProgram, 2, PRIVILEGE_USER },
+  { _fnum_loaderLoadLibrary, kernelLoaderLoadLibrary, 1, PRIVILEGE_USER },
   { _fnum_loaderExecProgram, kernelLoaderExecProgram, 2, PRIVILEGE_USER },
   { _fnum_loaderLoadAndExec, kernelLoaderLoadAndExec,  3, PRIVILEGE_USER }
 };
@@ -362,7 +368,6 @@ static kernelFunctionIndex windowFunctionIndex[] = {
   { _fnum_windowSetSize, kernelWindowSetSize, 3, PRIVILEGE_USER },
   { _fnum_windowGetLocation, kernelWindowGetLocation, 3, PRIVILEGE_USER },
   { _fnum_windowSetLocation, kernelWindowSetLocation, 3, PRIVILEGE_USER },
-  { /* DEPRECATED kernelWindowPack */ NULL, NULL, NULL, NULL },
   { _fnum_windowCenter, kernelWindowCenter, 1, PRIVILEGE_USER },
   { _fnum_windowSnapIcons, kernelWindowSnapIcons, 1, PRIVILEGE_USER },
   { _fnum_windowSetHasBorder, kernelWindowSetHasBorder, 2, PRIVILEGE_USER },
@@ -370,7 +375,6 @@ static kernelFunctionIndex windowFunctionIndex[] = {
     2, PRIVILEGE_USER },
   { _fnum_windowSetMovable, kernelWindowSetMovable, 2, PRIVILEGE_USER },
   { _fnum_windowSetResizable, kernelWindowSetResizable, 2, PRIVILEGE_USER },
-  { /* DEPRECATED kernelWindowSetPacked */ NULL, NULL, NULL, NULL },
   { _fnum_windowSetHasMinimizeButton, kernelWindowSetHasMinimizeButton,
     2, PRIVILEGE_USER },
   { _fnum_windowSetHasCloseButton, kernelWindowSetHasCloseButton,
@@ -458,6 +462,25 @@ static kernelFunctionIndex userFunctionIndex[] = {
   { _fnum_userFileSetPassword, kernelUserFileSetPassword, 4, PRIVILEGE_USER }
 };
 
+static kernelFunctionIndex networkFunctionIndex[] = {
+
+  // Network functions (14000-14999 range)
+
+  { _fnum_networkDeviceGetCount, kernelNetworkDeviceGetCount,
+    0, PRIVILEGE_USER },
+  { _fnum_networkDeviceGet, kernelNetworkDeviceGet, 2, PRIVILEGE_USER },
+  { _fnum_networkInitialized, kernelNetworkInitialized, 0, PRIVILEGE_USER },
+  { _fnum_networkInitialize, kernelNetworkInitialize,
+    0, PRIVILEGE_SUPERVISOR },
+  { _fnum_networkShutdown, kernelNetworkShutdown, 0, PRIVILEGE_SUPERVISOR },
+  { _fnum_networkOpen, kernelNetworkOpen, 3, PRIVILEGE_USER },
+  { _fnum_networkClose, kernelNetworkClose, 1, PRIVILEGE_USER },
+  { _fnum_networkCount, kernelNetworkCount, 1, PRIVILEGE_USER },
+  { _fnum_networkRead, kernelNetworkRead, 3, PRIVILEGE_USER },
+  { _fnum_networkWrite, kernelNetworkWrite, 3, PRIVILEGE_USER },
+  { _fnum_networkPing, kernelNetworkPing, 4, PRIVILEGE_USER }
+};
+
 static kernelFunctionIndex miscFunctionIndex[] = {
 
   // Miscellaneous functions (99000-99999 range)
@@ -475,13 +498,20 @@ static kernelFunctionIndex miscFunctionIndex[] = {
   { _fnum_lockRelease, kernelLockRelease, 1, PRIVILEGE_USER },
   { _fnum_lockVerify, kernelLockVerify, 1, PRIVILEGE_USER },
   { _fnum_variableListCreate, kernelVariableListCreate, 1, PRIVILEGE_USER },
+  { _fnum_variableListDestroy, kernelVariableListDestroy, 1, PRIVILEGE_USER },
   { _fnum_variableListGet, kernelVariableListGet, 4, PRIVILEGE_USER },
   { _fnum_variableListSet, kernelVariableListSet, 3, PRIVILEGE_USER },
   { _fnum_variableListUnset, kernelVariableListUnset, 2, PRIVILEGE_USER },
   { _fnum_configurationReader, kernelConfigurationReader, 2, PRIVILEGE_USER },
   { _fnum_configurationWriter, kernelConfigurationWriter, 2, PRIVILEGE_USER },
   { _fnum_keyboardGetMaps, kernelKeyboardGetMaps, 2, PRIVILEGE_USER },
-  { _fnum_keyboardSetMap, kernelKeyboardSetMap, 1, PRIVILEGE_USER }
+  { _fnum_keyboardSetMap, kernelKeyboardSetMap, 1, PRIVILEGE_USER },
+  { _fnum_deviceTreeGetCount, kernelDeviceTreeGetCount, 0, PRIVILEGE_USER },
+  { _fnum_deviceTreeGetRoot, kernelDeviceTreeGetRoot, 1, PRIVILEGE_USER },
+  { _fnum_deviceTreeGetChild, kernelDeviceTreeGetChild, 2, PRIVILEGE_USER },
+  { _fnum_deviceTreeGetNext, kernelDeviceTreeGetNext, 1, PRIVILEGE_USER },
+  { _fnum_mouseLoadPointer, kernelMouseLoadPointer, 2, PRIVILEGE_USER },
+  { _fnum_mouseSwitchPointer, kernelMouseSwitchPointer, 1, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex *functionIndex[] = {
@@ -498,7 +528,8 @@ static kernelFunctionIndex *functionIndex[] = {
   environmentFunctionIndex,
   graphicFunctionIndex,
   windowFunctionIndex,
-  userFunctionIndex
+  userFunctionIndex,
+  networkFunctionIndex
 };
 
 
@@ -655,6 +686,7 @@ int kernelApi(unsigned CS, unsigned argStart)
   status = processCall(argument);
 
   kernelProcessorApiExit(status);
+
   // Make the compiler happy -- never reached
   return (0);
 }

@@ -77,7 +77,9 @@ int main(int argc, char *argv[])
 
   printf("\nDisk  Partition");
   textSetColumn(31);
-  printf("Filesystem\n");
+  printf("Filesystem");
+  textSetColumn(43);
+  printf("Mount\n");
 
   for (count = 0; count < availableDisks; count ++)
     {
@@ -89,6 +91,11 @@ int main(int argc, char *argv[])
 	{
 	  textSetColumn(30);
 	  printf(" %s", diskInfo[count].fsType);
+	}
+      if (diskInfo[count].mounted)
+	{
+	  textSetColumn(43);
+	  printf("%s", diskInfo[count].mountPoint);
 	}
       printf("\n");
     }

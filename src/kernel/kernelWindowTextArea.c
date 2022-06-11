@@ -24,7 +24,7 @@
 
 #include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include <string.h>
 
 
@@ -350,11 +350,11 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
 
   // If the user wants the default colors, we change set them to the
   // default for a text area
-  if (component->parameters.useDefaultForeground)
+  if (component->parameters.useDefaultBackground)
     {
-      component->parameters.foreground.red = 0;
-      component->parameters.foreground.green = 0;
-      component->parameters.foreground.blue = 0;
+      component->parameters.background.blue = 0xFF;
+      component->parameters.background.green = 0xFF;
+      component->parameters.background.red = 0xFF;
     }
 
   // If font is NULL, get the default font

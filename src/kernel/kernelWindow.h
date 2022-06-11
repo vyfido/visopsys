@@ -33,13 +33,13 @@
 #define DEFAULT_TITLEBAR_HEIGHT           19
 #define DEFAULT_BORDER_THICKNESS          5
 #define DEFAULT_SHADING_INCREMENT         15
-#define DEFAULT_WINDOWMANAGER_CONFIG      "/system/windowmanager.conf"
+#define DEFAULT_WINDOWMANAGER_CONFIG      "/system/config/windowmanager.conf"
 #define DEFAULT_VARIABLEFONT_SMALL_FILE   "/system/fonts/arial-bold-10.bmp"
 #define DEFAULT_VARIABLEFONT_SMALL_NAME   "arial-bold-10"
 #define DEFAULT_VARIABLEFONT_MEDIUM_FILE  "/system/fonts/arial-bold-12.bmp"
 #define DEFAULT_VARIABLEFONT_MEDIUM_NAME  "arial-bold-12"
 #define DEFAULT_MOUSEPOINTER_DEFAULT      "/system/mouse.bmp"
-#define DEFAULT_MOUSEPOINTER_BUSY         "/system/mousebsy.bmp"
+#define DEFAULT_MOUSEPOINTER_BUSY         "/system/mouse/mousebsy.bmp"
 
 #define WINFLAG_VISIBLE                   0x1000
 #define WINFLAG_ENABLED                   0x0800

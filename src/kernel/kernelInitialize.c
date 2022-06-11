@@ -22,10 +22,11 @@
 #include "kernelInitialize.h"
 #include "kernelDisk.h"
 #include "kernelFile.h"
+#include "kernelFilesystem.h"
 #include "kernelImage.h"
-#include "kernelMiscFunctions.h"
-#include "kernelPageManager.h"
-#include "kernelMemoryManager.h"
+#include "kernelMisc.h"
+#include "kernelPage.h"
+#include "kernelMemory.h"
 #include "kernelText.h"
 #include "kernelLog.h"
 #include "kernelDescriptor.h"
@@ -34,6 +35,7 @@
 #include "kernelParameters.h"
 #include "kernelRandom.h"
 #include "kernelKeyboard.h"
+#include "kernelNetwork.h"
 #include "kernelUser.h"
 #include "kernelWindow.h"
 #include "kernelError.h"
@@ -60,11 +62,12 @@ int kernelInitialize(unsigned kernelMemory)
   int status;
   int graphics = 0;
   char welcomeMessage[512];
-  static char bootDisk[DISK_MAX_NAMELENGTH];
-  kernelFilesystem *rootFilesystem = NULL;
+  static char rootDiskName[DISK_MAX_NAMELENGTH];
+  kernelDisk *rootDisk = NULL;
   char value[128];
   char splashName[128];
   image splashImage;
+  int networking = 0;
   int count;
 
   // The kernel config file.  We read it later on in this function
@@ -76,7 +79,7 @@ int kernelInitialize(unsigned kernelMemory)
   extern color kernelDefaultDesktop;
 
   // Initialize the page manager
-  status = kernelPageManagerInitialize(kernelMemory);
+  status = kernelPageInitialize(kernelMemory);
   if (status < 0)
     return (status);
 
@@ -174,7 +177,7 @@ int kernelInitialize(unsigned kernelMemory)
     }
 
   // Get the name of the boot disk
-  status = kernelDiskGetBoot(bootDisk);
+  status = kernelDiskGetBoot(rootDiskName);
   if (status < 0)
     {
       kernelError(kernel_error, "Unable to determine boot device");
@@ -190,19 +193,19 @@ int kernelInitialize(unsigned kernelMemory)
     }
 
   // Mount the root filesystem.
-  status = kernelFilesystemMount(bootDisk, "/");
+  status = kernelFilesystemMount(rootDiskName, "/");
   if (status < 0)
     {
       // If it's a CD, it might be some other than cd0.  Our boot loader can't
       // distinguish which one it is.  Try other possibilities.
-      if (!strcmp(bootDisk, "cd0"))
+      if (!strcmp(rootDiskName, "cd0"))
 	{
 	  for (count = 1; count < MAXHARDDISKS; count ++)
 	    {
-	      sprintf(bootDisk, "cd%d", count);
-	      if (kernelGetDiskByName(bootDisk))
+	      sprintf(rootDiskName, "cd%d", count);
+	      if (kernelDiskGetByName(rootDiskName))
 		{
-		  status = kernelFilesystemMount(bootDisk, "/");
+		  status = kernelFilesystemMount(rootDiskName, "/");
 		  if (status == 0)
 		    break;
 		}
@@ -216,8 +219,8 @@ int kernelInitialize(unsigned kernelMemory)
 	}
     }
 
-  rootFilesystem = kernelFilesystemGet("/");
-  if (rootFilesystem == NULL)
+  rootDisk = kernelDiskGetByName(rootDiskName);
+  if (rootDisk == NULL)
     return (status = ERR_INVALID);
 
   // Are we in a graphics mode?
@@ -284,6 +287,10 @@ int kernelInitialize(unsigned kernelMemory)
 	  kernelVariableListGet(kernelVariables, "splash.image", splashName,
 				128);
 	}
+
+      kernelVariableListGet(kernelVariables, "network", value, 128);
+      if (!strncmp(value, "yes", 128))
+	networking = 1;
     }
 
   if (graphics)
@@ -308,7 +315,7 @@ int kernelInitialize(unsigned kernelMemory)
     }
 
   // If the filesystem is not read-only, open a kernel log file
-  if (!(rootFilesystem->readOnly))
+  if (!(rootDisk->filesystem.readOnly))
     {
       status = kernelLogSetFile(DEFAULT_LOGFILE);
       if (status < 0)
@@ -318,6 +325,17 @@ int kernelInitialize(unsigned kernelMemory)
 
   // Read the kernel's symbols from the kernel symbols file, if possible
   kernelReadSymbols(KERNEL_SYMBOLS_FILE);
+
+  // Initialize network functions?
+  if (networking)
+    {
+      status = kernelNetworkInitialize();
+      if (status < 0)
+	{
+	  kernelError(kernel_error, "Network initialization failed");
+	  return (status = ERR_NOTINITIALIZED);
+	}
+    }
 
   // Initialize user functions
   status = kernelUserInitialize();

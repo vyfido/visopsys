@@ -29,7 +29,7 @@
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
 #include "kernelLock.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelSysTimer.h"
 #include "kernelLog.h"
 #include "kernelError.h"
@@ -226,7 +226,7 @@ static unsigned countUncachedSectors(kernelPhysicalDisk *physicalDisk,
   // the first sector is cached, it will return 0.
   
   int status = 0;
-  unsigned index;
+  unsigned idx;
 
   status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
@@ -234,17 +234,17 @@ static unsigned countUncachedSectors(kernelPhysicalDisk *physicalDisk,
 
   // Loop through the cache until we find a sector number that is >=
   // startSector
-  for (index = 0; index < physicalDisk->cache.usedSectors; index++)
-    if (physicalDisk->cache.sectors[index]->number >= startSector)
+  for (idx = 0; idx < physicalDisk->cache.usedSectors; idx++)
+    if (physicalDisk->cache.sectors[idx]->number >= startSector)
       {
 	kernelLockRelease(&(physicalDisk->cache.cacheLock));
 
 	// The sector number of this sector determines the value we return.
-	if ((physicalDisk->cache.sectors[index]->number - startSector) >
+	if ((physicalDisk->cache.sectors[idx]->number - startSector) >
 	    sectorCount)
 	  return (sectorCount);
 	else
-	  return (physicalDisk->cache.sectors[index]->number - startSector);
+	  return (physicalDisk->cache.sectors[idx]->number - startSector);
       }
 
   // There were no sectors with a >= number.  Return sectorCount.
@@ -462,7 +462,7 @@ static int addCacheSectors(kernelPhysicalDisk *physicalDisk,
 
   int status = 0;
   kernelDiskCacheSector *cacheSector = NULL;
-  unsigned index, count;
+  unsigned idx, count;
 
   // Only cache what will fit
   if (sectorCount > physicalDisk->cache.numSectors)
@@ -504,25 +504,25 @@ static int addCacheSectors(kernelPhysicalDisk *physicalDisk,
       (physicalDisk->cache.sectors[physicalDisk->cache.usedSectors - 1]
        ->number < startSector))
     // Put these new ones at the end
-    index = physicalDisk->cache.usedSectors;
+    idx = physicalDisk->cache.usedSectors;
 
   else
     {
-      for (index = 0; index < physicalDisk->cache.usedSectors; index++)
-	if (physicalDisk->cache.sectors[index]->number >= startSector)
+      for (idx = 0; idx < physicalDisk->cache.usedSectors; idx++)
+	if (physicalDisk->cache.sectors[idx]->number >= startSector)
 	  {
 	    // We will have to shift all sectors starting from here to make
 	    // room for our new ones.
 
-	    count = (physicalDisk->cache.usedSectors - (index + 1));
+	    count = (physicalDisk->cache.usedSectors - (idx + 1));
 
 	    while(1)
 	      {
 		cacheSector =
-		  physicalDisk->cache.sectors[index + sectorCount + count];
-		physicalDisk->cache.sectors[index + sectorCount + count] =
-		  physicalDisk->cache.sectors[index + count];
-		physicalDisk->cache.sectors[index + count] = cacheSector;
+		  physicalDisk->cache.sectors[idx + sectorCount + count];
+		physicalDisk->cache.sectors[idx + sectorCount + count] =
+		  physicalDisk->cache.sectors[idx + count];
+		physicalDisk->cache.sectors[idx + count] = cacheSector;
 		if (count == 0)
 		  break;
 		count -= 1;
@@ -537,7 +537,7 @@ static int addCacheSectors(kernelPhysicalDisk *physicalDisk,
   
   for (count = 0; count < sectorCount; count ++)
     {
-      cacheSector = physicalDisk->cache.sectors[index + count];
+      cacheSector = physicalDisk->cache.sectors[idx + count];
 
       // Set the number
       cacheSector->number = (startSector + count);
@@ -569,24 +569,24 @@ static int getCachedSectors(kernelPhysicalDisk *physicalDisk,
   // pointer supplied and returns the number it copied.
 
   int status = 0;
-  unsigned index;
+  unsigned idx;
   int copied = 0;
   kernelDiskCacheSector *cacheSector = NULL;
 
   status = findCachedSector(physicalDisk, sectorNum);
   if (status < 0)
     return (copied = 0);
-  index = status;
+  idx = status;
 
   status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
   // We've found the starting sector.  Start copying data
-  for ( ; (index < physicalDisk->cache.usedSectors) &&
-	  (copied < sectorCount) ; index ++)
+  for ( ; (idx < physicalDisk->cache.usedSectors) &&
+	  (copied < sectorCount) ; idx ++)
     {
-      cacheSector = physicalDisk->cache.sectors[index];
+      cacheSector = physicalDisk->cache.sectors[idx];
       
       if (cacheSector->number != sectorNum)
 	break;
@@ -615,24 +615,24 @@ static int writeCachedSectors(kernelPhysicalDisk *physicalDisk,
   // the pointer supplied and returns the number it copied.
 
   int status = 0;
-  unsigned index;
+  unsigned idx;
   int copied = 0;
   kernelDiskCacheSector *cacheSector = NULL;
 
   status = findCachedSector(physicalDisk, sectorNum);
   if (status < 0)
     return (copied = 0);
-  index = status;
+  idx = status;
 
   status = kernelLockGet(&(physicalDisk->cache.cacheLock));
   if (status < 0)
     return (status);
 
   // We've found the starting sector.  Start copying data
-  for ( ; (index < physicalDisk->cache.usedSectors) &&
-	  (copied < sectorCount) ; index ++)
+  for ( ; (idx < physicalDisk->cache.usedSectors) &&
+	  (copied < sectorCount) ; idx ++)
     {
-      cacheSector = physicalDisk->cache.sectors[index];
+      cacheSector = physicalDisk->cache.sectors[idx];
       
       if (cacheSector->number != sectorNum)
 	break;
@@ -999,6 +999,7 @@ static int diskFromPhysical(kernelPhysicalDisk *physicalDisk, disk *userDisk)
   if ((physicalDisk == NULL) || (userDisk == NULL))
     return (status = ERR_NULLPARAMETER);
 
+  kernelMemClear(userDisk, sizeof(disk));
   strncpy(userDisk->name, (char *) physicalDisk->name, DISK_MAX_NAMELENGTH);
   userDisk->deviceNumber = physicalDisk->deviceNumber;
   userDisk->flags = physicalDisk->flags;
@@ -1011,6 +1012,59 @@ static int diskFromPhysical(kernelPhysicalDisk *physicalDisk, disk *userDisk)
   userDisk->sectorSize = physicalDisk->sectorSize;
 
   return (status = 0);
+}
+
+
+static int unmountAll(void)
+{
+  // This routine will unmount all mounted filesystems from the disks,
+  // including the root filesystem.
+
+  int status = 0;
+  kernelDisk *theDisk = NULL;
+  int errors = 0;
+  int count;
+
+  // We will loop through all of the mounted disks, unmounting each of them
+  // (except the root disk) until only root remains.  Finally, we unmount the
+  // root also.
+
+  for (count = 0; count < logicalDiskCounter; count ++)
+    {
+      theDisk = logicalDisks[count];
+
+      if (!theDisk->filesystem.mounted)
+	continue;
+
+      if (!strcmp((char *) theDisk->filesystem.mountPoint, "/"))
+	continue;
+
+      // Unmount this filesystem
+      status =
+	kernelFilesystemUnmount((char *) theDisk->filesystem.mountPoint);
+      if (status < 0)
+	{
+	  // Don't quit, just make an error message
+	  kernelError(kernel_warn, "Unable to unmount filesystem %s from "
+		      "disk %s", theDisk->filesystem.mountPoint,
+		      theDisk->name);
+	  errors++;
+	  continue;
+	}
+    }
+
+  // Now unmount the root filesystem
+  status = kernelFilesystemUnmount("/");
+  if (status < 0)
+    // Don't quit, just make an error message
+    errors++;
+
+  // If there were any errors, we should return an error code of some kind
+  if (errors)
+    return (status = ERR_INVALID);
+  else
+    // Return success
+    return (status = 0);
 }
 
 
@@ -1166,7 +1220,7 @@ int kernelDiskSyncDisk(const char *diskName)
   kernelDisk *theDisk = NULL;
   kernelPhysicalDisk *physicalDisk = NULL;
 
-  theDisk = kernelGetDiskByName(diskName);
+  theDisk = kernelDiskGetByName(diskName);
   if (theDisk == NULL)
     {
       kernelError(kernel_error, "No such disk \"%s\"", diskName);
@@ -1256,7 +1310,10 @@ int kernelDiskShutdown(void)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  // Synchronize all disks
+  // Unmount all the disks
+  unmountAll();
+
+  // Synchronize all the disks
   status = kernelDiskSync();
 
   for (count = 0; count < physicalDiskCounter; count ++)
@@ -1287,6 +1344,8 @@ int kernelDiskFromLogical(kernelDisk *logical, disk *userDisk)
   if ((logical == NULL) || (userDisk == NULL))
     return (status = ERR_NULLPARAMETER);
 
+  kernelMemClear(userDisk, sizeof(disk));
+
   physical = (kernelPhysicalDisk *) logical->physical;
 
   // Get the physical disk info
@@ -1306,13 +1365,22 @@ int kernelDiskFromLogical(kernelDisk *logical, disk *userDisk)
   userDisk->opFlags = logical->opFlags;
   userDisk->startSector = logical->startSector;
   userDisk->numSectors = logical->numSectors;
-  userDisk->readOnly = logical->readOnly;
+
+  // Filesystem-related
+  userDisk->blockSize = logical->filesystem.blockSize;
+  userDisk->minSectors = logical->filesystem.minSectors;
+  userDisk->maxSectors = logical->filesystem.maxSectors;
+  userDisk->mounted = logical->filesystem.mounted;
+  if (userDisk->mounted)
+    strncpy(userDisk->mountPoint, (char *) logical->filesystem.mountPoint,
+	    MAX_PATH_LENGTH);
+  userDisk->readOnly = logical->filesystem.readOnly;
 
   return (status = 0);
 }
 
 
-kernelDisk *kernelGetDiskByName(const char *name)
+kernelDisk *kernelDiskGetByName(const char *name)
 {
   // This routine takes the name of a logical disk and finds it in the
   // array, returning a pointer to the disk.  If the disk doesn't exist,
@@ -1342,6 +1410,41 @@ kernelDisk *kernelGetDiskByName(const char *name)
 }
 
 
+kernelDisk *kernelDiskGetByPath(const char *path)
+{
+  // This routine takes the name of a mount point and attempts to find a
+  // disk that is mounted there.  If no such disk exists, the function
+  // returns NULL
+
+  kernelDisk *theDisk = NULL;
+  int count;
+
+  if (!initialized)
+    return (theDisk = NULL);
+
+  // Check params
+  if (path == NULL)
+    {
+      kernelError(kernel_error, "Disk path is NULL");
+      return (theDisk = NULL);
+    }
+  
+  for (count = 0; count < logicalDiskCounter; count ++)
+    {
+      if (!logicalDisks[count]->filesystem.mounted)
+	continue;
+      
+      if (!strcmp(path, (char *) logicalDisks[count]->filesystem.mountPoint))
+	{
+	  theDisk = logicalDisks[count];
+	  break;
+	}
+    }
+
+  return (theDisk);
+}
+
+
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -1361,6 +1464,7 @@ int kernelDiskReadPartitions(void)
 
   int status = 0;
   kernelPhysicalDisk *physicalDisk = NULL;
+  int mounted = 0;
   kernelDisk *logicalDisk = NULL;
   unsigned char sectBuf[512];
   int partition = 0;
@@ -1370,14 +1474,37 @@ int kernelDiskReadPartitions(void)
   unsigned startSector = 0;
   unsigned char partTypeCode = 0;
   partitionType partType;
-  int count;
+  int count1, count2;
 
   logicalDiskCounter = 0;
 
   // Loop through all of the registered physical disks
-  for (count = 0; count < physicalDiskCounter; count ++)
+  for (count1 = 0; count1 < physicalDiskCounter; count1 ++)
     {
-      physicalDisk = physicalDisks[count];
+      physicalDisk = physicalDisks[count1];
+
+      // Make sure it has no mounted partitions.
+      mounted = 0;
+      for (count2 = 0; count2 < physicalDisk->numLogical; count2 ++)
+	if (physicalDisk->logical[count2].filesystem.mounted)
+	  {
+	    kernelError(kernel_error, "Logical disk %s is mounted.  Will not "
+			"rescan %s until reboot",
+			physicalDisk->logical[count2].name,
+			physicalDisk->name);
+	    mounted = 1;
+	    break;
+	  }
+
+      if (mounted)
+	{
+	  // It has mounted partitions.  Add the existing logical disks to our
+	  // array and continue to the next physical disk.
+	  for (count2 = 0; count2 < physicalDisk->numLogical; count2 ++)
+	    logicalDisks[logicalDiskCounter++] =
+	      &(physicalDisk->logical[count2]);
+	  continue;
+	}
 
       // Assume UNKNOWN (code 0) partition type for now.
       partType.code = 0;
@@ -1466,7 +1593,7 @@ int kernelDiskReadPartitions(void)
 		      kernelFilesystemScan(logicalDisk);
 
 		      kernelLog("Disk %s (hard disk %d, %s partition %d): %s",
-				logicalDisk->name, count,
+				logicalDisk->name, count1,
 				(logicalDisk->primary? "primary" : "logical"),
 				physicalDisk->numLogical, logicalDisk->fsType);
 
@@ -1634,7 +1761,7 @@ int kernelDiskGet(const char *diskName, disk *userDisk)
   // Find the disk structure.
 
   // Try for a logical disk first.
-  if ((logicalDisk = kernelGetDiskByName(diskName)))
+  if ((logicalDisk = kernelDiskGetByName(diskName)))
     return(kernelDiskFromLogical(logicalDisk, userDisk));
 
   // Try physical instead
@@ -1701,79 +1828,6 @@ int kernelDiskGetAllPhysical(disk *userDiskArray, unsigned buffSize)
     diskFromPhysical(physicalDisks[count], &userDiskArray[count]);
 
    return (status = 0);
-}
-
-
-int kernelDiskGetInfo(disk *array)
-{
-  // Fills a simplified disk info structure of all the logical disks
-
-  int status = 0;
-  int count;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check params
-  if (array == NULL)
-    return (status = ERR_NULLPARAMETER);
- 
-  // Loop through the disks, filling the array supplied
-  for (count = 0; count < logicalDiskCounter; count ++)
-    kernelDiskFromLogical(logicalDisks[count], &array[count]);
-
-  return (status = 0);
-}
-
-
-int kernelDiskFromPhysical(kernelPhysicalDisk *physicalDisk, disk *userDisk)
-{
-  // Takes our physical disk kernel structure and turns it into a user space
-  // 'disk' object
-
-  int status = 0;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check params
-  if ((physicalDisk == NULL) || (userDisk == NULL))
-    return (status = ERR_NULLPARAMETER);
-
-  strncpy(userDisk->name, (char *) physicalDisk->name, DISK_MAX_NAMELENGTH);
-  userDisk->deviceNumber = physicalDisk->deviceNumber;
-  userDisk->flags = physicalDisk->flags;
-  userDisk->readOnly = physicalDisk->readOnly;
-  userDisk->heads = physicalDisk->heads;
-  userDisk->cylinders = physicalDisk->cylinders;
-  userDisk->sectorsPerCylinder = physicalDisk->sectorsPerCylinder;
-  userDisk->startSector = 0;
-  userDisk->numSectors = physicalDisk->numSectors;
-  userDisk->sectorSize = physicalDisk->sectorSize;
-
-  return (status = 0);
-}
-
-
-int kernelDiskGetPhysicalInfo(disk *array)
-{
-  // Fills a simplified disk info structure of all the physical disks
-
-  int status = 0;
-  int count;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
-
-  // Check params
-  if (array == NULL)
-    return (status = ERR_NULLPARAMETER);
- 
-  // Loop through the physical disks, filling the array supplied
-  for (count = 0; count < physicalDiskCounter; count ++)
-    kernelDiskFromPhysical(physicalDisks[count], &array[count]);
-
-  return (status = 0);
 }
 
 
@@ -1923,6 +1977,45 @@ int kernelDiskSetDoorState(const char *diskName, int state)
 }
 
 
+int kernelDiskGetMediaState(const char *diskName)
+{
+  // This routine returns 1 if the requested disk has media present,
+  // 0 otherwise
+
+  kernelPhysicalDisk *physicalDisk = NULL;
+  void *buffer = NULL;
+
+  if (!initialized)
+    return (0);
+
+  // Check params
+  if (diskName == NULL)
+    return (0);
+
+  // Get the disk structure
+  physicalDisk = getPhysicalByName(diskName);
+  if (physicalDisk == NULL)
+    return (0);
+
+  // Make sure it's a removable disk
+  if (physicalDisk->flags & DISKFLAG_FIXED)
+    return (0);
+
+  // Reset the 'idle since' value
+  physicalDisk->idleSince = kernelSysTimerRead();
+
+  buffer = kernelMalloc(physicalDisk->sectorSize);
+  if (buffer == NULL)
+    return (0);
+
+  if (readWriteSectors(physicalDisk, 0, 1, buffer,
+		       (IOMODE_READ | IOMODE_NOCACHE)) < 0)
+    return (0);
+
+  return (1);  
+}
+
+
 int kernelDiskReadSectors(const char *diskName, unsigned logicalSector,
 			  unsigned numSectors, void *dataPointer)
 {
@@ -1946,7 +2039,7 @@ int kernelDiskReadSectors(const char *diskName, unsigned logicalSector,
   if (physicalDisk == NULL)
     {
       // Try logical
-      theDisk = kernelGetDiskByName(diskName);
+      theDisk = kernelDiskGetByName(diskName);
       if (theDisk == NULL)
 	// No such disk.
 	return (status = ERR_NOSUCHENTRY);
@@ -2016,7 +2109,7 @@ int kernelDiskWriteSectors(const char *diskName, unsigned logicalSector,
   if (physicalDisk == NULL)
     {
       // Try logical
-      theDisk = kernelGetDiskByName(diskName);
+      theDisk = kernelDiskGetByName(diskName);
       if (theDisk == NULL)
 	return (status = ERR_NOSUCHENTRY);
 

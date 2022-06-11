@@ -1,4 +1,4 @@
-THE VISOPSYS SHELL LIBRARY (Version 0.5)
+THE VISOPSYS SHELL LIBRARY (Version 0.6)
 
 
 The shell library is a small set of functions created for the Visopsys shell, /programs/vsh, and provided as a library for other programs to use. 
@@ -16,7 +16,7 @@ int vshCopyFile(const char *srcFile, const char *destFile)
 	Copy the file specified by the name 'srcFile' to the filename 'destFile'.  Both filenames must be absolute pathnames, beginning with '/'.
 
 
-int vshCursorMenu(const char *prompt, int numItems, char *items[],
+int vshCursorMenu(const char *prompt, int numItems, char *items[], int defaultSelection)
 
 	This will create a pretty cursor-changeable text menu with the supplied 'prompt' string at the stop.  Returns the integer (zero-based) selected item number, or else negative on error or no selection.
 
@@ -41,9 +41,14 @@ void vshMakeAbsolutePath(const char *orig, char *new)
 	Turns a filename, specified by 'orig', into an absolute pathname 'new'.  This basically just amounts to prepending the name of the current directory (plus a '/') to the supplied name.  'new' must be a buffer large enough to hold the entire filename.
 
 
-int vshParseCommand(char *commandLine, char *command, int *argc,
+int vshMoveFile(const char *srcFile, const char *destFile)
 
-	Attempts to take a raw 'commandLine' string and parse it into a command filename and arguments, suitable for passing to the kernel API functionn loaderLoadAndExec.  The commandLine string will be modified, with NULLs placed at the end of each argument.  'command' must be a buffer suitable for a full filename.  'argc' will receive the number of argument pointers placed in the 'argv' array.  Returns 0 on success, negative otherwise.
+	Move (rename) the file specified by the name 'srcFile' to the destination 'destFile'.  Both filenames must be absolute pathnames -- beginning with '/' -- and must be within the same filesystem.
+
+
+int vshParseCommand(char *commandLine, char *command, int *argCount, char *args[])
+
+	Attempts to take a raw 'commandLine' string and parse it into a command filename and arguments, suitable for passing to the kernel API functionn loaderLoadAndExec.  The commandLine string will be modified, with NULLs placed at the end of each argument.  'command' must be a buffer suitable for a full filename.  'argCount' will receive the number of argument pointers placed in the 'args' array.  Returns 0 on success, negative otherwise.
 
 
 void vshPasswordPrompt(const char *prompt, char *buffer)
@@ -51,19 +56,24 @@ void vshPasswordPrompt(const char *prompt, char *buffer)
 	Produces a text-mode prompt for the user to enter a password.  The prompt message is the first parameter, and a buffer to contain the result is the second parameter.
 
 
-void vshPrintDate(unsigned unformattedDate)
+void vshPrintDate(char *buffer, unsigned unformattedDate)
 
-	Print the packed date value, specified by the unsigned integer 'unformattedDate' -- such as that found in the file.modifiedDate field -- in a (for now, arbitrary) human-readable format.
-
-
-void vshPrintTime(unsigned unformattedTime)
-
-	Print the packed time value, specified by the unsigned integer 'unformattedTime' -- such as that found in the file.modifiedTime field -- in a (for now, arbitrary) human-readable format to standard output.
+	Print the packed date value, specified by the unsigned integer 'unformattedDate' -- such as that found in the file.modifiedDate field -- into 'buffer' in a (for now, arbitrary) human-readable format.
 
 
-int vshRenameFile(const char *srcFile, const char *destFile)
+void vshPrintTime(char *buffer, unsigned unformattedTime)
 
-	Rename (move) the file specified by the name 'srcFile' to the destination 'destFile'.  Both filenames must be absolute pathnames, beginning with '/'.
+	Print the packed time value, specified by the unsigned integer 'unformattedTime' -- such as that found in the file.modifiedTime field -- into 'buffer' in a (for now, arbitrary) human-readable format to standard output.
+
+
+int vshProgressBar(progress *tmpProg)
+
+	Given a progress structure 'tmpProg', make a text progress bar that monitors the structure and updates itself (in a non-blocking way).  After the operation has completed, vshProgressBarDestroy() should be called to shut down the thread.
+
+
+int vshProgressBarDestroy(progress *tmpProg)
+
+	Given a progress structure 'tmpProg', indicate 100%, shut down and deallocate anything associated with a previous call to vshProgressBar().
 
 
 int vshSearchPath(const char *orig, char *new)

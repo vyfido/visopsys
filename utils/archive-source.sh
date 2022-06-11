@@ -47,6 +47,7 @@ find "$DESTDIR" -name CVS -exec rm -R {} \; >& /dev/null
 # Other stuff
 rm -Rf "$DESTDIR"/work
 rm -f "$DESTDIR"/src/ISSUES.txt
+rm -Rf "$DESTDIR"/src/patches
 
 echo done
 echo -n "Archiving... "

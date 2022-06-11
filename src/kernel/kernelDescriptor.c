@@ -25,7 +25,7 @@
 #include "kernelDescriptor.h"
 #include "kernelParameters.h"
 #include "kernelApi.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelProcessorX86.h"
 #include "kernelError.h"
 #include <string.h>
@@ -68,11 +68,11 @@ int kernelDescriptorInitialize(void)
 
   // Initialize the Global Descriptor Table
   kernelMemClear((kernelDescriptor *) globalDescriptorTable,
-			(sizeof(kernelDescriptor) * GDT_SIZE));
+		 (sizeof(kernelDescriptor) * GDT_SIZE));
 
   // Initialize the Interrupt Descriptor Table
   kernelMemClear((kernelDescriptor *) interruptDescriptorTable,
-			(sizeof(kernelDescriptor) * IDT_SIZE));
+		 (sizeof(kernelDescriptor) * IDT_SIZE));
 
   // That's all we need to do for the IDT, however we need to do more
   // work for the GDT.  The IDT is mostly just filled once at startup,
@@ -86,7 +86,7 @@ int kernelDescriptorInitialize(void)
   // positions of these are fixed, so we don't use the request function
   // to get them; rather we install them manually
 
-  // Make the global code segment descriptor
+  // Make the global, privileged code segment descriptor
   status = kernelDescriptorSet(
 	       PRIV_CODE,             // Privileged code selector number
 	       0,                     // Starts at zero
@@ -102,7 +102,7 @@ int kernelDescriptorInitialize(void)
     // Something went wrong
     return (status);
 
-  // Make the global data segment descriptor
+  // Make the global, privileged data segment descriptor
   status = kernelDescriptorSet(
 	       PRIV_DATA,             // Privileged data selector number
 	       0,                     // Starts at zero
@@ -118,7 +118,7 @@ int kernelDescriptorInitialize(void)
     // Something went wrong
     return (status);
 
-  // Make the global stack segment descriptor
+  // Make the global, privileged stack segment descriptor
   status = kernelDescriptorSet(
 	       PRIV_STACK,            // Privileged stack selector number
 	       0,                     // Starts at zero
@@ -134,7 +134,7 @@ int kernelDescriptorInitialize(void)
     // Something went wrong
     return (status);
 
-  // Make the global code segment descriptor
+  // Make the global, user code segment descriptor
   status = kernelDescriptorSet(
 	       USER_CODE,             // User code selector number
 	       0,                     // Starts at zero
@@ -150,7 +150,7 @@ int kernelDescriptorInitialize(void)
     // Something went wrong
     return (status);
 
-  // Make the global data segment descriptor
+  // Make the global, user data segment descriptor
   status = kernelDescriptorSet(
 	       USER_DATA,             // Privileged data selector number
 	       0,                     // Starts at zero
@@ -166,7 +166,7 @@ int kernelDescriptorInitialize(void)
     // Something went wrong
     return (status);
 
-  // Make the global stack segment descriptor
+  // Make the global, user stack segment descriptor
   status = kernelDescriptorSet(
 	       USER_STACK,            // Privileged stack selector number
 	       0,                     // Starts at zero
@@ -223,7 +223,6 @@ int kernelDescriptorRequest(volatile kernelSelector *descNumPointer)
   int status = 0;
   kernelSelector newDescriptorNumber = 0;
 
-
   // Don't do anything unless we have been initialized first
   if (!initialized)
     // We have not been initialized
@@ -272,7 +271,6 @@ int kernelDescriptorRelease(kernelSelector selector)
 
   int status = 0;
 
-  
   // Don't do anything unless we have been initialized first
   if (!initialized)
     // We have not been initialized
@@ -305,7 +303,6 @@ int kernelDescriptorSetUnformatted(volatile kernelSelector selector,
 
   int status = 0;
   int entryNumber = 0;
-
 
   // Don't do anything unless we have been initialized first
   if (!initialized)
@@ -346,7 +343,6 @@ int kernelDescriptorSet(volatile kernelSelector selector,
 
   int status = 0;
   int entryNumber = 0;
-
 
   // Don't do anything unless we have been initialized first
   if (!initialized)
@@ -450,7 +446,6 @@ int kernelDescriptorGet(kernelSelector selector, kernelDescriptor *descriptor)
   int status = 0;
   int entryNumber = 0;
 
-
   // Don't do anything unless we have been initialized first
   if (!initialized)
     // We have not been initialized
@@ -488,7 +483,6 @@ int kernelDescriptorSetIDTInterruptGate(int number, void *address)
   // Routine (ISR) as the second.  Returns 0 on success, negative otherwise
 
   int status = 0;
-
 
   // Don't do anything unless we have been initialized first
   if (!initialized)
@@ -544,7 +538,6 @@ int kernelDescriptorSetIDTTaskGate(int number, kernelSelector selector)
   // Routine (ISR) as the second.  Returns 0 on success, negative otherwise
 
   int status = 0;
-
 
   // Don't do anything unless we have been initialized first
   if (!initialized)

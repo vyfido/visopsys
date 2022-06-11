@@ -72,6 +72,7 @@ int system(const char *);
 
 // Argh.  Isn't there a function that does these?  These are andy-special.
 void itoa(int, char *);
+void itob(int, char *);
 void itox(int, char *);
 int xtoi(const char *);
 void utoa(unsigned int, char *);

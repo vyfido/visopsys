@@ -25,7 +25,7 @@
 
 #include "kernelText.h"
 #include "kernelProcessorX86.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelMalloc.h"
 #include "kernelError.h"
 #include <string.h>
@@ -53,13 +53,13 @@ static void setCursor(kernelTextArea *area, int onOff)
 {
   // This sets the cursor on or off at the requested cursor position
 
-  int index = (TEXTAREA_CURSORPOS(area) * 2);
+  int idx = (TEXTAREA_CURSORPOS(area) * 2);
 
   if (onOff)
-    area->visibleData[index + 1] = ((area->foreground.blue & 0x0F) << 4) |
+    area->visibleData[idx + 1] = ((area->foreground.blue & 0x0F) << 4) |
       ((area->foreground.blue & 0xF0) >> 4);
   else
-    area->visibleData[index + 1] = area->foreground.blue;
+    area->visibleData[idx + 1] = area->foreground.blue;
 
   area->cursorState = onOff;
 

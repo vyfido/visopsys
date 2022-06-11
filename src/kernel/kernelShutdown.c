@@ -23,13 +23,14 @@
 // the kernel
 
 #include "kernelShutdown.h"
+#include "kernelNetwork.h"
 #include "kernelGraphic.h"
 #include "kernelWindow.h"
 #include "kernelMultitasker.h"
 #include "kernelLog.h"
 #include "kernelFilesystem.h"
 #include "kernelSysTimer.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelProcessorX86.h"
 #include "kernelError.h"
 #include <stdio.h>
@@ -178,6 +179,11 @@ int kernelShutdown(int reboot, int force)
   if (!reboot)
     kernelTextPrintLine(SHUTDOWN_MSG2);
 
+  // Stop networking
+  status = kernelNetworkShutdown();
+  if (status < 0)
+    kernelError(kernel_error, "Network shutdown failed");
+
   // Detach from our parent process, if applicable, so we won't get killed
   // when our parent gets killed
   kernelMultitaskerDetach();
@@ -225,17 +231,8 @@ int kernelShutdown(int reboot, int force)
   if (status < 0)
     kernelError(kernel_error, "The kernel logger could not be stopped.");
 
-
-  // Unmount all filesystems.
-  kernelLog("Unmounting filesystems");
-  status = kernelFilesystemUnmountAll();
-  if (status < 0)
-    kernelError(kernel_error, "The filesystems were not all unmounted "
-		"successfully");
-
-
-  // Synchronize/shut down the disks
-  kernelLog("Synchronizing disks");
+  // Unmount all filesystems and synchronize/shut down the disks
+  kernelLog("Unmounting filesystems, synchronizing disks");
   status = kernelDiskShutdown();
   if (status < 0)
     {

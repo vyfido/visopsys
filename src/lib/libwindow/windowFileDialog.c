@@ -27,6 +27,18 @@
 #include <sys/api.h>
 #include <sys/errors.h>
 
+static objectKey textField = NULL;
+
+
+static void doFileSelection(file *theFile, char *fullName,
+			    loaderFileClass *loaderClass)
+{
+  if (theFile && loaderClass)
+    {
+    }
+  windowComponentSetData(textField, fullName, (strlen(fullName) + 1));
+}
+
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
@@ -37,15 +49,16 @@
 /////////////////////////////////////////////////////////////////////////
 
 
-_X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const char *message, char *fileName, unsigned maxLength)
+_X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const char *message, const char *startDir, char *fileName, unsigned maxLength)
 {
-  // Desc: Create a 'file' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a file selection area, an 'OK' button and a 'CANCEL' button.  If the user presses OK or ENTER, the function returns the value 1 and copies the filename into the fileName buffer.  Otherwise it returns 0 and puts a NULL string into fileName.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
+  // Desc: Create a 'file' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  If 'startDir' is a non-NULL directory name, the dialog will initially display the contents of that directory.  The dialog will have a file selection area, an 'OK' button and a 'CANCEL' button.  If the user presses OK or ENTER, the function returns the value 1 and copies the filename into the fileName buffer.  Otherwise it returns 0 and puts a NULL string into fileName.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
   int status = 0;
   objectKey dialogWindow = NULL;
   componentParameters params;
+  char cwd[MAX_PATH_LENGTH];
   objectKey textLabel = NULL;
-  objectKey textField = NULL;
+  objectKey fileList = NULL;
   objectKey okButton = NULL;
   objectKey cancelButton = NULL;
   windowEvent event;
@@ -74,20 +87,29 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
   if (textLabel == NULL)
     return (status = ERR_NOCREATE);
 
+  if (startDir != NULL)
+    strncpy(cwd, startDir, MAX_PATH_LENGTH);
+  else
+    multitaskerGetCurrentDirectory(cwd, MAX_PATH_LENGTH);
+
   // Put a text field in the window for the user to type
   params.gridY = 1;
+  fileList = windowNewFileList(dialogWindow, windowlist_icononly, 3, 4,
+			       cwd, WINFILEBROWSE_CAN_CD, doFileSelection,
+			       &params);
+  if (fileList == NULL)
+    return (status = ERR_NOCREATE);
+
+  // Create the text field
+  params.gridY = 2;
   params.hasBorder = 1;
-  params.stickyFocus = 1;
-  params.useDefaultBackground = 0;
-  params.background.red = 255;
-  params.background.green = 255;
-  params.background.blue = 255;
   textField = windowNewTextField(dialogWindow, 30, &params);
   if (textField == NULL)
     return (status = ERR_NOCREATE);
-  
+  windowComponentSetData(textField, cwd, MAX_PATH_LENGTH);
+
   // Create the OK button
-  params.gridY = 2;
+  params.gridY = 3;
   params.gridWidth = 1;
   params.padLeft = 0;
   params.padRight = 5;
@@ -95,8 +117,6 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
   params.orientationX = orient_right;
   params.fixedWidth = 1;
   params.hasBorder = 0;
-  params.stickyFocus = 0;
-  params.useDefaultBackground = 1;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
   if (okButton == NULL)
     return (status = ERR_NOCREATE);
@@ -112,13 +132,16 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 
   if (parentWindow)
     windowCenterDialog(parentWindow, dialogWindow);
+  windowComponentFocus(fileList);
   windowSetVisible(dialogWindow, 1);
   
   while(1)
     {
-      // Check for the OK button
-      status = windowComponentEventGet(okButton, &event);
-      if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+      // Check for the OK button, or 'enter' in the text field
+      if (((windowComponentEventGet(okButton, &event) > 0) &&
+	   (event.type == EVENT_MOUSE_LEFTUP)) ||
+	  ((windowComponentEventGet(textField, &event) > 0) &&
+	   (event.type == EVENT_KEY_DOWN) && (event.key == 10)))
 	{
 	  windowComponentGetData(textField, fileName, maxLength);
 	  if (fileName[0] == '\0')
@@ -146,39 +169,11 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 	  break;
 	}
 
-      // Check for keyboard events 
-      status = windowComponentEventGet(textField, &event);
-      if (status < 0)
-	{
-	  fileName[0] = '\0';
-	  status = 0;
-	  break;
-	}
-      if (event.type == EVENT_KEY_DOWN)
-	{
-	  if (event.key == (unsigned char) 9)
-	    {
-	      // This is the TAB key.  Attempt to complete a filename.
-	      windowComponentGetData(textField, fileName, maxLength);
-	      vshCompleteFilename(fileName);
-	      windowComponentSetData(textField, fileName, maxLength);
-	    }
-	  
-	  else if (event.key == (unsigned char) 10)
-	    {
-	      windowComponentGetData(textField, fileName, maxLength);
-	      if (fileName[0] == '\0')
-		status = 0;
-	      else
-		status = 1;
-	      break;
-	    }
-	}
-
       // Done
       multitaskerYield();
     }
 
+  windowDestroyFileList(fileList);
   windowDestroy(dialogWindow);
 
   return (status);

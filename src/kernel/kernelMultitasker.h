@@ -36,6 +36,28 @@
 #define CPU_PERCENT_TIMESLICES    300
 #define PRIORITY_RATIO            3
 #define PRIORITY_DEFAULT          ((PRIORITY_LEVELS / 2) - 1)
+#define FPU_STATE_LEN             108
+
+// Exception vector numbers
+#define EXCEPTION_DIVBYZERO       0
+#define EXCEPTION_DEBUG           1
+#define EXCEPTION_NMI             2
+#define EXCEPTION_BREAK           3
+#define EXCEPTION_OVERFLOW        4
+#define EXCEPTION_BOUNDS          5
+#define EXCEPTION_OPCODE          6
+#define EXCEPTION_DEVNOTAVAIL     7
+#define EXCEPTION_DOUBLEFAULT     8
+#define EXCEPTION_COPROCOVER      9
+#define EXCEPTION_INVALIDTSS      10
+#define EXCEPTION_SEGNOTPRES      11
+#define EXCEPTION_STACK           12
+#define EXCEPTION_GENPROTECT      13
+#define EXCEPTION_PAGE            14
+#define EXCEPTION_RESERVED        15
+#define EXCEPTION_FLOAT           16
+#define EXCEPTION_ALIGNCHECK      17
+#define EXCEPTION_MACHCHECK       18
 
 // A structure representing x86 TSSes (Task State Sements)
 typedef volatile struct {
@@ -65,7 +87,7 @@ typedef volatile struct {
   unsigned GS;
   unsigned LDTSelector;
   unsigned IOMap;
-
+  
 } kernelTSS;
 
 // A structure for processes
@@ -99,7 +121,10 @@ typedef volatile struct {
   kernelTextOutputStream *textOutputStream;
   unsigned signalMask;
   stream signalStream;
-
+  int fpuInUse;
+  unsigned char fpuState[FPU_STATE_LEN];
+  int fpuStateValid;
+  
 } kernelProcess;
 
 // When in system calls, processes will be allowed to access information
@@ -109,7 +134,7 @@ extern kernelProcess *kernelCurrentProcess;
 // Functions exported by kernelMultitasker.c
 int kernelMultitaskerInitialize(void);
 int kernelMultitaskerShutdown(int);
-void kernelExceptionHandler(void);
+void kernelExceptionHandler(int, unsigned);
 void kernelMultitaskerDumpProcessList(void);
 int kernelMultitaskerGetCurrentProcessId(void);
 int kernelMultitaskerGetProcess(int, process *);

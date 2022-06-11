@@ -11,8 +11,7 @@ CC		= gcc
 AR		= ar
 CPU		= $(shell ../../../utils/cpu.sh)
 STDDEPS		= Makefile ../shared/*
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
-		-ffreestanding
+CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
 WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
 INCLUDE         = -nostdinc -I../../include
@@ -31,22 +30,30 @@ NAMES	= vshCompleteFilename \
 	vshPasswordPrompt \
 	vshPrintDate \
 	vshPrintTime \
-	vshRenameFile \
+	vshProgressBar \
+	vshMoveFile \
 	vshSearchPath
 
 OBJDIR = obj
 OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${NAMES}))
+PICOBJDIR = picobj
+PICOBJS = $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${NAMES}))
 LIBRARY = ${BUILDDIR}/libvsh.a
+SONAME = libvsh.so
+SHAREDLIB = ${BUILDDIR}/${SONAME}
 
 # Targets
 
-all: target-dirs ${LIBRARY}
+all: target-dirs ${LIBRARY} ${SHAREDLIB}
 
 target-dirs:
-	mkdir -p ${OBJDIR} ${BUILDDIR}
+	mkdir -p ${OBJDIR} ${PICOBJDIR} ${BUILDDIR}
 
 ${LIBRARY}: ${OBJS}
 	${AR} -rs ${LIBRARY} ${OBJS}
+
+${SHAREDLIB}: ${PICOBJS}
+	${LD} -shared -soname=${SONAME} ${PICOBJS} -o $@
 
 ${OBJDIR}/%.o: %.c ${STDDEPS}
 	${CC} ${OPTS} -c $< -o $@
@@ -55,4 +62,4 @@ ${PICOBJDIR}/%.o: %.c ${STDDEPS}
 	${CC} ${OPTS} -fpic -c $< -o $@
 
 clean:
-	rm -Rf *~ *.o core ${OBJDIR} ${LIBRARY}
+	rm -Rf *~ *.o core ${OBJDIR} ${PICOBJDIR} ${LIBRARY} ${SHAREDLIB}

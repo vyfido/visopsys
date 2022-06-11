@@ -28,7 +28,7 @@
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelError.h"
 #include <string.h>
 

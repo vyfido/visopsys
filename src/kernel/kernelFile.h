@@ -24,7 +24,8 @@
 
 #if !defined(_KERNELFILE_H)
 
-#include "kernelFilesystem.h"
+#include "kernelLock.h"
+#include <sys/disk.h>
 
 // Definitions
 #define MAX_BUFFERED_FILES 1024
@@ -33,10 +34,41 @@
 // The 'flags' values for the field in kernelFileEntry
 #define FLAG_SECUREDELETE 0x01
 
+// This structure defines a file or directory entry
+typedef volatile struct {
+  unsigned char name[MAX_NAME_LENGTH];
+  fileType type;
+  int flags;
+  unsigned creationTime;
+  unsigned creationDate;
+  unsigned accessedTime;
+  unsigned accessedDate;
+  unsigned modifiedTime;
+  unsigned modifiedDate;
+  unsigned size;
+  unsigned blocks;
+
+  // Misc
+  void *disk;           // parent filesystem
+  void *driverData;     // private fs-driver-specific data
+  int openCount;
+  lock lock;
+
+  // Linked-list stuff.
+  void *parentDirectory;
+  void *previousEntry;
+  void *nextEntry;
+  unsigned lastAccess;
+
+  // (The following additional stuff only applies to directories and links)
+  void *contents;
+
+} kernelFileEntry;
+
 // Functions exported by kernelFile.c
 int kernelFileInitialize(void);
 int kernelFileSetRoot(kernelFileEntry *);
-kernelFileEntry *kernelFileNewEntry(kernelFilesystem *);
+kernelFileEntry *kernelFileNewEntry(void *);
 void kernelFileReleaseEntry(kernelFileEntry *);
 int kernelFileInsertEntry(kernelFileEntry *, kernelFileEntry *);
 int kernelFileRemoveEntry(kernelFileEntry *);

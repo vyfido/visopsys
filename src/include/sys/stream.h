@@ -63,5 +63,7 @@ typedef struct {
 
 } fileStream;
 
+typedef volatile stream networkStream;
+
 #define _STREAM_H
 #endif

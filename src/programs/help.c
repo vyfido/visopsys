@@ -27,23 +27,32 @@
  -- List of commands (type 'help <command>' for specific help) --
 
 adduser           Add a user account to the system
+bootmenu          Install or edit the boot loader menu
 cat (or type)     Print a file's contents on the screen
 cd                Change the current directory
 cdrom             Control of the CD-ROM device, such as opening and closing
 chkdisk           Check a filesystem for errors
+copy-boot         Write a Visopsys boot sector
+copy-mbr          Write a Visopsys MBR sector
 cp (or copy)      Copy a file
 date              Show the date
+defrag            Defragment a filesystem
 disks             Show the disk volumes in the system
 fdisk             Manage hard disks (must be user "admin")
+file              Show the type of a file
 find              Traverse directory hierarchies
 format            Create new, empty filesystems
-imgboot           The 'first boot' program that asks if you want to install
+help              Show this summary of help entries
+ifconfig          Network device information and control
+imgboot           The program launched at first system boot
 install           Install Visopsys (must be user "admin")
 keymap            View or change the current keyboard mapping
 kill              Kill a running process
+ldd               Show information about a dynamic library file
 login             Start a new login process
 logout (or exit)  End the current session
 ls (or dir)       Show the files in a directory
+lsdev             Display devices
 md5               Calculate and print an md5 digest
 mem               Show system memory usage
 mkdir             Create one or more new directories
@@ -51,6 +60,7 @@ more              Display file's contents, one screenfull at a time
 mount             Mount a filesystem
 mv (or move)      Move a file (ren or rename have the same effect)
 passwd            Set the password on a user account
+ping              'Ping' a host on the network
 ps                Show list of current processes
 pwd               Show the current directory
 reboot            Exits to real mode and reboots the computer
@@ -67,14 +77,18 @@ vsh               Start a new command shell
 
  -- Additional (graphics mode only) --
 
-clock             Show a simple clock in the corner of the screen.
+clock             Show a simple clock in the corner of the screen
+computer          Navigate the resources of the computer
 confedit          Edit Visopsys configuration files
 console           Show the console window
 disprops          View or change the display settings
+filebrowse        Navigate the file system
+iconwin           A program for displaying custom icon windows
 loadfont          Load a new default font
+progman           View and manage programs and processes
 screenshot        Take a screenshot
 users             User manager for creating/deleting user accounts
-view              Show an image file in a new window
+view              Display a file in a new window
 wallpaper         Load a new background wallpaper image
 window            Open a new command window
 

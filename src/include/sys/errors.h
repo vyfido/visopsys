@@ -63,22 +63,23 @@
 #define ERR_RANGE          -29 // Result is out of the range of the math func
 #define ERR_CANCELLED      -30 // Operation was explicitly cancelled
 #define ERR_KILLED         -31 // Process or operation was unexpectedly killed
+#define ERR_NOMEDIA        -32 // A removable disk has no media present.
 
 // Things to do with files
-#define ERR_NOSUCHFILE     -32 // No such file
-#define ERR_NOSUCHDIR      -33 // No such directory
-#define ERR_NOTAFILE       -34 // The item is not a regular file
-#define ERR_NOTADIR        -35 // The item is not a directory
-#define ERR_NOWRITE        -36 // The item cannot be written
+#define ERR_NOSUCHFILE     -33 // No such file
+#define ERR_NOSUCHDIR      -34 // No such directory
+#define ERR_NOTAFILE       -35 // The item is not a regular file
+#define ERR_NOTADIR        -36 // The item is not a directory
+#define ERR_NOWRITE        -37 // The item cannot be written
 
 // Other things that don't exist
-#define ERR_NOSUCHUSER     -37 // The used ID is unknown
-#define ERR_NOSUCHPROCESS  -38 // The process in question does not exist
-#define ERR_NOSUCHDRIVER   -39 // There is no driver to perform an action
-#define ERR_NOSUCHFUNCTION -40 // The requested function does not exist
+#define ERR_NOSUCHUSER     -38 // The used ID is unknown
+#define ERR_NOSUCHPROCESS  -39 // The process in question does not exist
+#define ERR_NOSUCHDRIVER   -40 // There is no driver to perform an action
+#define ERR_NOSUCHFUNCTION -41 // The requested function does not exist
 
 // Oops, it's the kernel's fault...
-#define ERR_BUG            -41 // An internal bug has been detected   
+#define ERR_BUG            -42 // An internal bug has been detected   
 
 #define _ERRORS_H
 #endif

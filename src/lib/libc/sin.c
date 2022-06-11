@@ -22,11 +22,35 @@
 // This is the standard "sin" function, as found in standard C libraries
 
 #include <math.h>
-#include <errno.h>
 
 
-double sin(double theDouble)
+double sin(double radians)
 {
-  errno = ERR_NOTIMPLEMENTED;
-  return (theDouble);
+  // Returns the sine of x (x given in radians).  Adapted from an algorithm
+  // found at http://www.dontletgo.com/planets/math.html
+
+  double result = 0;
+  double sign = 0;
+  double x2nplus1 = 0;
+  double factorial = 0;
+  int n, count;
+
+  for (n = 0; n < 10; n++)
+    {
+      sign = 1.0;
+      for (count = 0; count < n; count ++)
+	sign *= (double) -1;
+
+      x2nplus1 = 1.0;
+      for (count = 0; count < ((2 * n) + 1); count ++)
+	x2nplus1 *= radians;
+
+      factorial = 1.0;
+      for (count = ((2 * n) + 1); count > 0; count --)
+	factorial *= (double) count;
+
+      result += (sign * (x2nplus1 / factorial));
+    }
+
+  return (result);
 }

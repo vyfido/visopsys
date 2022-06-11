@@ -27,7 +27,7 @@
 #include "kernelLock.h"
 #include "kernelMultitasker.h"
 #include "kernelProcessorX86.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelShutdown.h"
 #include "kernelError.h"
 #include <string.h>

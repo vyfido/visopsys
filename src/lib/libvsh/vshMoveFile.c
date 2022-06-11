@@ -26,9 +26,9 @@
 #include <sys/api.h>
 
 
-_X_ int vshRenameFile(const char *srcFile, const char *destFile)
+_X_ int vshMoveFile(const char *srcFile, const char *destFile)
 {
-  // Desc: Rename (move) the file specified by the name 'srcFile' to the destination 'destFile'.  Both filenames must be absolute pathnames -- beginning with '/' -- and must be within the same filesystem.
+  // Desc: Move (rename) the file specified by the name 'srcFile' to the destination 'destFile'.  Both filenames must be absolute pathnames -- beginning with '/' -- and must be within the same filesystem.
 
   int status = 0;
   

@@ -26,19 +26,22 @@
 
  -- view --
 
-View an image file.
+View a file.
 
 Usage:
-  view [image_file]
+  view [file]
 
 (Only available in graphics mode)
 
-This command will launch a window in which the requested image file is
-displayed.  If no image file name is supplied on the command line (or
-for example if the program is launched by clicking on its icon), the user
-will be prompted for the image to display.
+This command will launch a window in which the requested file is displayed.
+If no file name is supplied on the command line (or for example if the
+program is launched by clicking on its icon), the user will be prompted for
+the file to display.
 
-Currently, only (uncompressed) 8-bit and 24-bit bitmap formats are supported. 
+The currently-supported file formats are:
+
+- Images (currently only uncompressed, 8-bit and 24-bit bitmap images)
+- Text files
 
 </help>
 */
@@ -54,6 +57,67 @@ Currently, only (uncompressed) 8-bit and 24-bit bitmap formats are supported.
 static objectKey window = NULL;
 
 
+static void error(const char *format, ...)
+{
+  // Generic error message code for either text or graphics modes
+  
+  va_list list;
+  char output[MAXSTRINGLENGTH];
+  
+  va_start(list, format);
+  _expandFormatString(output, format, list);
+  va_end(list);
+
+  windowNewErrorDialog(NULL, "Error", output);
+}
+
+
+static int countTextLines(int columns, char *data, int size)
+{
+  // Count the lines of text
+  
+  int lines = 1;
+  int columnCount = 0;
+  int count;
+
+  for (count = 0; count < size; count ++)
+    {
+      if ((columnCount >= columns) || (data[count] == '\n'))
+	{
+	  lines += 1;
+	  columnCount = 0;
+	}
+
+      else if (data[count] == '\0')
+	break;
+
+      else
+	columnCount += 1;
+    }
+  
+  return (lines);
+}
+
+
+static void printTextLines(char *data, int size)
+{
+  // Cut the text data into lines and print them individually
+
+  char *linePtr = data;
+  int count;
+
+  for (count = 0; count < size; count ++)
+    if (data[count] == '\n')
+      data[count] = '\0';
+
+  while (linePtr < (data + size))
+    {
+      textPrintLine(linePtr);
+      linePtr += (strlen(linePtr) + 1);
+    }
+}
+
+
 static void eventHandler(objectKey key, windowEvent *event)
 {
   // This is just to handle a window shutdown event.
@@ -67,12 +131,13 @@ int main(int argc, char *argv[])
 {
   int status = 0;
   int processId = 0;
-  char *tmpFilename = NULL;
-  char *filename = NULL;
+  char *shortFileName = NULL;
+  char *fullFileName = NULL;
+  char *windowTitle = NULL;
+  file tmpFile;
+  loaderFileClass class;
   componentParameters params;
-  image showImage;
-  objectKey imageComponent = NULL;
-  char *tmpChar = NULL;
+  int count;
 
   // Only work in graphics mode
   if (!graphicsAreEnabled())
@@ -84,11 +149,12 @@ int main(int argc, char *argv[])
 
   processId = multitaskerGetCurrentProcessId();
 
-  tmpFilename = malloc(MAX_PATH_NAME_LENGTH);
-  filename = malloc(MAX_PATH_NAME_LENGTH);
-  tmpChar = malloc(MAX_PATH_NAME_LENGTH + 8);
+  shortFileName = malloc(MAX_PATH_NAME_LENGTH);
+  fullFileName = malloc(MAX_PATH_NAME_LENGTH);
+  windowTitle = malloc(MAX_PATH_NAME_LENGTH + 8);
 
-  if ((tmpFilename == NULL) || (filename == NULL) || (tmpChar == NULL))
+  if ((shortFileName == NULL) || (fullFileName == NULL) ||
+      (windowTitle == NULL))
     {
       status = ERR_MEMORY;
       perror(argv[0]);
@@ -97,9 +163,10 @@ int main(int argc, char *argv[])
 
   if (argc < 2)
     {
-      status = windowNewFileDialog(NULL, "Enter filename", "Please enter "
-				   "an image file to view:", tmpFilename,
-				   MAX_PATH_NAME_LENGTH);
+      status =
+	windowNewFileDialog(NULL, "Enter filename", "Please enter the name "
+			    "of the file to view:", NULL, shortFileName,
+			    MAX_PATH_NAME_LENGTH);
       if (status != 1)
 	{
 	  if (status != 0)
@@ -109,23 +176,24 @@ int main(int argc, char *argv[])
 	}
     }
   else
-    strcpy(tmpFilename, argv[argc - 1]);
+    strcpy(shortFileName, argv[argc - 1]);
 
   // Turn it into an absolute pathname
-  vshMakeAbsolutePath(tmpFilename, filename);
+  vshMakeAbsolutePath(shortFileName, fullFileName);
 
-  // Try to load the image file
-  status = imageLoad(filename, 0, 0, &showImage);
-  if (status < 0)
+  // Make sure the file exists
+  if (fileFind(fullFileName, &tmpFile) < 0)
     {
-      printf("Unable to load image \"%s\"\n", filename);
-      perror(argv[0]);
+      error("The file \"%s\" was not found", shortFileName);
       goto deallocate;
     }
-  
-  // Create a new window, with small, arbitrary size and location
-  sprintf(tmpChar, "View \"%s\"", tmpFilename);
-  window = windowNew(processId, tmpChar);
+
+  // Get the classification of the file.
+  if (loaderClassifyFile(fullFileName, &class) == NULL)
+    {
+      error("Unable to classify the file \"%s\"", shortFileName);
+      goto deallocate;
+    }
 
   bzero(&params, sizeof(componentParameters));
   params.gridWidth = 1;
@@ -134,7 +202,68 @@ int main(int argc, char *argv[])
   params.orientationY = orient_middle;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
-  imageComponent = windowNewImage(window, &showImage, draw_normal, &params);
+
+  // Create a new window, with small, arbitrary size and location
+  sprintf(windowTitle, "View \"%s\"", shortFileName);
+  window = windowNew(processId, windowTitle);
+
+  if (class.flags & LOADERFILECLASS_IMAGE)
+    {
+      image showImage;
+      objectKey imageComponent = NULL;
+
+      // Try to load the image file
+      status = imageLoad(fullFileName, 0, 0, &showImage);
+      if (status < 0)
+	{
+	  error("Unable to load the image \"%s\"\n", shortFileName);
+	  goto deallocate;
+	}
+  
+      imageComponent =
+	windowNewImage(window, &showImage, draw_normal, &params);
+    }
+
+  else if (class.flags & LOADERFILECLASS_TEXT)
+    {
+      // Try to load the text data
+
+      file showFile;
+      char *textData = NULL;
+      int rows = 25;
+      int textLines = 0;
+      objectKey textAreaComponent = NULL;
+
+      textData = loaderLoad(fullFileName, &showFile);
+      if (textData == NULL)
+	{
+	  error("Unable to load the file \"%s\"\n", shortFileName);
+	  goto deallocate;
+	}
+
+      textLines = countTextLines(80, textData, showFile.size);
+
+      if (fontLoad("/system/fonts/xterm-normal-10.bmp", "xterm-normal-10",
+		   &(params.font), 1) < 0)
+	{
+	  // Use the system font.  It can comfortably show more rows.
+	  params.font = NULL;
+	  rows = 40;
+	}
+
+      textAreaComponent =
+	windowNewTextArea(window, 80, rows, textLines, &params);
+
+      // Put the data into the component
+      windowSetTextOutput(textAreaComponent);
+      textSetCursor(0);
+      textInputSetEcho(0);
+      printTextLines(textData, showFile.size);
+      for (count = 0; count <= (textLines / rows); count ++)
+	textScroll(-1);
+
+      free(textData);
+    }
 
   // Go live.
   windowSetVisible(window, 1);
@@ -152,12 +281,12 @@ int main(int argc, char *argv[])
 
  deallocate:
   windowGuiStop();
-  if (tmpFilename)
-    free(tmpFilename);
-  if (filename)
-    free(filename);
-  if (tmpChar)
-    free(tmpChar);
+  if (shortFileName)
+    free(shortFileName);
+  if (fullFileName)
+    free(fullFileName);
+  if (windowTitle)
+    free(windowTitle);
 
   errno = status;
   return (status);

@@ -29,7 +29,7 @@
 #include "kernelSysTimer.h"
 #include "kernelMalloc.h"
 #include "kernelMain.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelLog.h"
 #include "kernelError.h"
 #include <stdio.h>
@@ -346,7 +346,7 @@ static int atapiStartStop(int driveNum, int state)
 	  disks[driveNum].sectorSize = 2048;
 	  kernelError(kernel_error, "No media in drive %s",
 		      disks[driveNum].name);
-	  return (status = ERR_NOSUCHENTRY);
+	  return (status = ERR_NOMEDIA);
 	}
 
       disks[driveNum].logical[0].numSectors = disks[driveNum].numSectors;
@@ -776,7 +776,9 @@ static void primaryIdeInterrupt(void)
   // received.  It's up to the other routines to do something useful with
   // the information.
 
-  kernelProcessorIsrEnter();
+  void *address = NULL;
+
+  kernelProcessorIsrEnter(address);
   kernelProcessingInterrupt = 1;
 
   controllers[0].interruptReceived = 1;
@@ -784,7 +786,7 @@ static void primaryIdeInterrupt(void)
   kernelPicEndOfInterrupt(INTERRUPT_NUM_PRIMARYIDE);
 
   kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
+  kernelProcessorIsrExit(address);
 }
 
 
@@ -796,9 +798,10 @@ static void secondaryIdeInterrupt(void)
   // received.  It's up to the other routines to do something useful with
   // the information.
 
+  void *address = NULL;
   unsigned char data;
 
-  kernelProcessorIsrEnter();
+  kernelProcessorIsrEnter(address);
 
   // This interrupt can sometimes occur frivolously from "noise"
   // on the interrupt request lines.  Before we do anything at all,
@@ -815,7 +818,7 @@ static void secondaryIdeInterrupt(void)
       kernelProcessingInterrupt = 0;
     }
   
-  kernelProcessorIsrExit();
+  kernelProcessorIsrExit(address);
 }
 
 

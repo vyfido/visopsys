@@ -24,8 +24,8 @@
 // variables, as well as the contents of configuration files, for example
 
 #include "kernelVariableList.h"
-#include "kernelMemoryManager.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMemory.h"
+#include "kernelMisc.h"
 #include "kernelLock.h"
 #include "kernelError.h"
 #include <string.h>
@@ -228,6 +228,7 @@ int kernelVariableListCreate(variableList *list)
 
   int status = 0;
 
+  // Check params
   if (list == NULL)
     {
       kernelError(kernel_error, "NULL variable list parameter");
@@ -257,6 +258,28 @@ int kernelVariableListCreate(variableList *list)
 
   // Return success
   return (status = 0);
+}
+
+
+int kernelVariableListDestroy(variableList *list)
+{
+  // Deallocates a variable list.
+
+  int status = 0;
+
+  // Check params
+  if (list == NULL)
+    {
+      kernelError(kernel_error, "NULL variable list parameter");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  if (list->memory)
+    status = kernelMemoryRelease(list->memory);
+
+  kernelMemClear(list, sizeof(variableList));
+
+  return (status);
 }
 
 

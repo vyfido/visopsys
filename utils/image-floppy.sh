@@ -17,13 +17,13 @@ while [ "$1" != "" ] ; do
     # the release number in the destination directory name.  Otherwise, we
     # assume an interim package and use the date instead
     if [ "$1" == "-r" ] ; then
-        # What is the current release version?
+	# What is the current release version?
 	RELEASE=`./release.sh`
 	echo " - doing RELEASE version $RELEASE"
     fi
 
     if [ "$1" == "-isoboot" ] ; then
-        # Only doing an ISO boot floppy (just the kernel and OS loader)
+	# Only doing an ISO boot floppy (just the kernel and OS loader)
 	ISOBOOT=-isoboot
 	echo " - doing ISO boot image"
     fi

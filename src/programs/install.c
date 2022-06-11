@@ -53,8 +53,6 @@ Options:
 #define MOUNTPOINT               "/tmp_install"
 #define BASICINSTALL             "/system/install-files.basic"
 #define FULLINSTALL              "/system/install-files.full"
-#define STATUSLENGTH             80
-#define TEXT_PROGRESSBAR_LENGTH  20
 
 typedef enum { install_basic, install_full } install_type;
 
@@ -69,11 +67,10 @@ static char *chooseVolumeString = "Please choose the volume on which to "
   "install:";
 static char *setPasswordString = "Please choose a password for the 'admin' "
                                  "account";
-static char statusLabelString[STATUSLENGTH];
 static install_type installType;
 static unsigned bytesToCopy = 0;
 static unsigned bytesCopied = 0;
-static int textProgressBarRow = 0;
+static progress prog;
 
 // GUI stuff
 static int graphics = 0;
@@ -244,7 +241,6 @@ static void constructWindow(void)
   params.gridWidth = 2;
   statusLabel = windowNewTextLabel(window, "", &params);
   windowComponentSetWidth(statusLabel, windowComponentGetWidth(textLabel));
-  bzero(statusLabelString, STATUSLENGTH);
 
   params.gridY = 4;
   progressBar = windowNewProgressBar(window, &params);
@@ -527,99 +523,23 @@ static void updateStatus(const char *message)
   
   int statusLength = 0;
 
-  if (graphics)
-    {
-      
-      if (strlen(statusLabelString) &&
-	  (statusLabelString[strlen(statusLabelString) - 1] != '\n'))
-	strcat(statusLabelString, message);
-      else
-	strcpy(statusLabelString, message);
-
-      statusLength = strlen(statusLabelString);
-      if (statusLength >= STATUSLENGTH)
-	{
-	  statusLength = (STATUSLENGTH - 1);
-	  statusLabelString[statusLength] = '\0';
-	}
-      if (statusLabelString[statusLength - 1] == '\n')
-	statusLength -= 1;
-
-      windowComponentSetData(statusLabel, statusLabelString, statusLength);
-    }
+  if (strlen(prog.statusMessage) &&
+      (prog.statusMessage[strlen(prog.statusMessage) - 1] != '\n'))
+    strcat(prog.statusMessage, message);
   else
-    printf(message);
-}
+    strcpy(prog.statusMessage, message);
 
+  statusLength = strlen(prog.statusMessage);
+  if (statusLength >= PROGRESS_MAX_MESSAGELEN)
+    {
+      statusLength = (PROGRESS_MAX_MESSAGELEN - 1);
+      prog.statusMessage[statusLength] = '\0';
+    }
+  if (prog.statusMessage[statusLength - 1] == '\n')
+    statusLength -= 1;
 
-static void makeTextProgressBar(void)
-{
-  // Make an initial text mode progress bar.
-
-  char row[TEXT_PROGRESSBAR_LENGTH + 3];
-  int count;
-
-  // Make the top row
-  row[0] = 218;
-  for (count = 1; count <= TEXT_PROGRESSBAR_LENGTH; count ++)
-    row[count] = 196;
-  row[count++] = 191;
-  row[TEXT_PROGRESSBAR_LENGTH + 2] = '\0';
-  printf("\n%s\n", row);
-
-  // Remember this row
-  textProgressBarRow = textGetRow();
-
-  // Middle row
-  row[0] = 179;
-  for (count = 1; count <= TEXT_PROGRESSBAR_LENGTH; count ++)
-    row[count] = ' ';
-  row[count++] = 179;
-  row[TEXT_PROGRESSBAR_LENGTH + 2] = '\0';
-  printf("%s\n", row);
-
-  // Bottom row
-  row[0] = 192;
-  for (count = 1; count <= TEXT_PROGRESSBAR_LENGTH; count ++)
-    row[count] = 196;
-  row[count++] = 217;
-  row[TEXT_PROGRESSBAR_LENGTH + 2] = '\0';
-  printf("%s\n\n", row);
-}
-
-
-static void setTextProgressBar(int percent)
-{
-  // Set the value of the text mode progress bar.
-
-  int tempColumn = textGetColumn();
-  int tempRow = textGetRow();
-  int progressChars = 0;
-  int column = 0;
-  char row[TEXT_PROGRESSBAR_LENGTH + 1];
-  int count;
-
-  progressChars = ((percent * TEXT_PROGRESSBAR_LENGTH) / 100);
-
-  textSetColumn(1);
-  textSetRow(textProgressBarRow);
-
-  for (count = 0; count < progressChars; count ++)
-    row[count] = 177;
-  row[count] = '\0';
-  printf("%s\n", row);
-
-  column = (TEXT_PROGRESSBAR_LENGTH / 2);
-  if (percent < 10)
-    column += 1;
-  else if (percent >= 100)
-    column -= 1;
-  textSetColumn(column);
-  printf("%d%%", percent);
-
-  // Back to where we were
-  textSetColumn(tempColumn);
-  textSetRow(tempRow);
+  if (graphics)
+    windowComponentSetData(statusLabel, prog.statusMessage, statusLength);
 }
 
 
@@ -763,7 +683,7 @@ static int copyFiles(const char *installFileName)
 	  if (graphics)
 	    windowComponentSetData(progressBar, (void *) percent, 1);
 	  else
-	    setTextProgressBar(percent);
+	    prog.percentFinished = percent;
 	}
     }
 
@@ -822,10 +742,6 @@ static void setAdminPassword(void)
       params.hasBorder = 1;
       params.padRight = 5;
       params.orientationX = orient_left;
-      params.useDefaultBackground = 0;
-      params.background.red = 255;
-      params.background.green = 255;
-      params.background.blue = 255;
       passwordField1 = windowNewPasswordField(dialogWindow, 17, &params);
       
       params.gridX = 0;
@@ -833,17 +749,12 @@ static void setAdminPassword(void)
       params.padRight = 0;
       params.orientationX = orient_right;
       params.hasBorder = 0;
-      params.useDefaultBackground = 1;
       label = windowNewTextLabel(dialogWindow, "Confirm password:", &params);
 
       params.gridX = 1;
       params.orientationX = orient_left;
       params.padRight = 5;
       params.hasBorder = 1;
-      params.useDefaultBackground = 0;
-      params.background.red = 255;
-      params.background.green = 255;
-      params.background.blue = 255;
       passwordField2 = windowNewPasswordField(dialogWindow, 17, &params);
 	  
       params.gridX = 0;
@@ -851,7 +762,6 @@ static void setAdminPassword(void)
       params.gridWidth = 2;
       params.orientationX = orient_center;
       params.hasBorder = 0;
-      params.useDefaultBackground = 1;
       noMatchLabel = windowNewTextLabel(dialogWindow, "Passwords do not "
 					"match", &params);
       windowComponentSetVisible(noMatchLabel, 0);
@@ -991,12 +901,13 @@ static void changeStartProgram(void)
 
   variableList kernelConf;
 
-  if (configurationReader(MOUNTPOINT "/system/kernel.conf", &kernelConf) < 0)
+  if (configurationReader(MOUNTPOINT "/system/config/kernel.conf",
+			  &kernelConf) < 0)
     return;
 
   variableListSet(&kernelConf, "start.program", "/programs/login");
-  configurationWriter(MOUNTPOINT "/system/kernel.conf", &kernelConf);
-  free(kernelConf.memory);
+  configurationWriter(MOUNTPOINT "/system/config/kernel.conf", &kernelConf);
+  variableListDestroy(&kernelConf);
 }
 
 
@@ -1009,8 +920,11 @@ int main(int argc, char *argv[])
   unsigned basicInstallSize = 0xFFFFFFFF;
   unsigned fullInstallSize = 0xFFFFFFFF;
   const char *message = NULL;
+  objectKey progressDialog = NULL;
   int selected = 0;
   int count;
+
+  bzero(&prog, sizeof(progress));
 
   processId = multitaskerGetCurrentProcessId();
 
@@ -1139,7 +1053,22 @@ int main(int argc, char *argv[])
   if (yesOrNo(tmpChar))
     {
       updateStatus("Formatting... ");
-      status = filesystemFormat(diskName, "fat", "Visopsys", 0);
+
+      if (graphics)
+	progressDialog = windowNewProgressDialog(NULL, "Formatting...", &prog);
+      else
+	{
+	  printf("\nFormatting...\n");
+	  vshProgressBar(&prog);
+	}
+
+      status = filesystemFormat(diskName, "fat", "Visopsys", 0, &prog);
+
+      if (graphics)
+	windowProgressDialogDestroy(progressDialog);
+      else
+	vshProgressBarDestroy(&prog);
+
       if (status < 0)
 	quit(status, "Errors during format.");
 
@@ -1149,6 +1078,7 @@ int main(int argc, char *argv[])
 	quit(status, "Error rescanning disk after format.");
 
       updateStatus("Done\n");
+      bzero(&prog, sizeof(progress));
     }
 
   // Copy the boot sector to the destination disk
@@ -1164,7 +1094,11 @@ int main(int argc, char *argv[])
   updateStatus("Done\n");
 
   if (!graphics)
-    makeTextProgressBar();
+    {
+      bzero(&prog, sizeof(progress));
+      printf("\nInstalling...\n");
+      vshProgressBar(&prog);
+    }
 
   bytesToCopy = basicInstallSize;
   if (installType == install_full)
@@ -1177,8 +1111,7 @@ int main(int argc, char *argv[])
     status = copyFiles(FULLINSTALL);
 
   if (!graphics)
-    // Make sure this shows 100%
-    setTextProgressBar(100);
+    vshProgressBarDestroy(&prog);
 
   if (status >= 0)
     {

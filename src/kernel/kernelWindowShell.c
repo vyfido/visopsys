@@ -24,9 +24,9 @@
 #include "kernelWindow.h"
 #include "kernelParameters.h"
 #include "kernelMultitasker.h"
-#include "kernelMemoryManager.h"
+#include "kernelMemory.h"
 #include "kernelMalloc.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelLoader.h"
 #include "kernelWindowEventStream.h"
 #include "kernelLog.h"
@@ -171,7 +171,7 @@ static void runPrograms(void)
 	}
     }
 
-  kernelMemoryRelease(settings.memory);
+  kernelVariableListDestroy(&settings);
 }
 
 

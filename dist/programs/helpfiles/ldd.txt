@@ -1,0 +1,14 @@
+
+ -- ldd --
+
+Show information about a dynamic library file.
+
+Usage:
+  ldd <file1> [file2] [...]
+
+This command is useful to software developers.  For each name listed after
+the command, representing a shared library file (usually ending with a .so
+extension), ldd will print a catalogue of information about the contents
+of the library.  Data symbols, functions, sections, and other items are
+shown, along with their bindings (such as 'local', 'global', or 'weak').
+

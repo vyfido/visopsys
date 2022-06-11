@@ -1,0 +1,34 @@
+
+	Visopsys
+	Copyright (C) 1998-2005 J. Andrew McLaughlin
+
+Unless otherwise stated, all aspects of Visopsys are created/authored by
+Andy McLaughlin.  Other contributions are as follows (please notify
+me <andy@visopsys.org> if I've missed anything):
+
+- Jonas Zaddach <jonaszaddach@gmx.de> has made a number of contributions
+including early 'Lance' network driver support, the foundations for PCI
+support, and German keyboard layouts and 'Alt-Gr' key support.  See the
+directories contrib/jonas-net, contrib/jonas-pci, and contrib/jonas-key.
+
+- Davide Airaghi <davide.airaghi@gmail.com> provided some initial work on
+FPU state saves and an Italian keyboard mapping.  See the directories
+contrib/davide-fpu and contrib/davide-key.
+
+- Some icons are adapted from the Noia icons for Windows XP v2.00 Copyright
+(C) 2002 Carles Carbonell Bernadó (Carlitus) <mail@carlitus.net>
+http://www.carlitus.net
+
+- Folder icon adapted from Jakub 'jimmac' Steiner's <jimmac@ximian.com>
+"Gorilla" folder icon at http://jimmac.musichall.cz/icons.php
+
+- Some of the descriptions in fcntl.h are Copyright (C) 1997 The Open Group
+from http://www.opennc.org/onlinepubs/7908799/xsh/fcntl.h.html  
+
+- The values float.h are intelligent guesses based on reconciling the float.h
+files from linux and solaris on i386 machines, and based on the 'Standard C'
+specification Copyright (C) 1989-1996 P.J. Plauger and Jim Brodie.
+
+- sqrt.c is Copyright (C) 1996-2004 Paul Hsieh.  Paul's square root page is
+here: http://www.azillionmonkeys.com/qed/sqroot.html
+

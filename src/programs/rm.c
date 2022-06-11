@@ -32,16 +32,20 @@ Synonym:
   del
 
 Usage:
-  rm <file1> [file2] [...]
+  rm [-R] <file1> [file2] [...]
 
-This command will remove one or more files.  It will not remove directories.
-To remove a directory, use the 'rmdir' command.
+This command will remove one or more files.  Normally it will not remove
+directories.  To remove a directory, use the 'rmdir' command.
+
+Options:
+-R              : Force recursive deletion, including directories.
 
 </help>
 */
 
 #include <stdio.h>
 #include <errno.h>
+#include <unistd.h>
 #include <sys/vsh.h>
 #include <sys/api.h>
 
@@ -49,7 +53,7 @@ To remove a directory, use the 'rmdir' command.
 static void usage(char *name)
 {
   printf("usage:\n");
-  printf("%s <file1> [file2] [...]\n", name);
+  printf("%s [-R] <file1> [file2] [...]\n", name);
   return;
 }
 
@@ -57,6 +61,8 @@ static void usage(char *name)
 int main(int argc, char *argv[])
 {
   int status = 0;
+  char opt;
+  int recurse = 0;
   char fileName[MAX_PATH_NAME_LENGTH];
   int count;
 
@@ -66,8 +72,20 @@ int main(int argc, char *argv[])
       return (status = ERR_ARGUMENTCOUNT);
     }
 
+  count = 1;
+
+  while (strchr("R", (opt = getopt(argc, argv, "R"))))
+    {
+      // Recurse?
+      if (opt == 'R')
+	{
+	  count += 1;
+	  recurse = 1;
+	}
+    }
+
   // Loop through all of our file name arguments
-  for (count = 1; count < argc; count ++)
+  for ( ; count < argc; count ++)
     {
       // Make sure the name isn't NULL
       if (argv[count] == NULL)
@@ -75,9 +93,12 @@ int main(int argc, char *argv[])
 
       // Make sure the directory name is complete
       vshMakeAbsolutePath(argv[count], fileName);
-
+      
       // Attempt to remove the file
-      status = fileDelete(fileName);
+      if (recurse)
+	status = fileDeleteRecursive(fileName);
+      else
+	status = fileDelete(fileName);
 
       if (status < 0)
 	{

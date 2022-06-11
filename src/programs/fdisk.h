@@ -96,6 +96,7 @@ typedef struct {
   int partition;
   char sliceName[6];
   char diskName[6];
+  unsigned opFlags;
   char fsType[FSTYPE_MAX_NAMELENGTH];
   void *extendedTable;
   char string[MAX_DESCSTRING_LENGTH];

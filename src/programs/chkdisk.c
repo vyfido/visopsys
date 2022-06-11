@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
   printf("\nVisopsys CHKDISK Utility\nCopyright (C) 1998-2005 J. Andrew "
 	 "McLaughlin\n\n");
 
-  status = filesystemCheck(diskName, force, repair);
+  status = filesystemCheck(diskName, force, repair, NULL);
   
   if ((status < 0) && !repair)
     {
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
 
 	  if ((yesNo == 'y') || (yesNo == 'Y'))
 	    // Force, repair
-	    status = filesystemCheck(diskName, force, 1 /*repair*/);
+	    status = filesystemCheck(diskName, force, 1 /*repair*/, NULL);
 	}
 
       if (status < 0)

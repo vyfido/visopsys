@@ -72,7 +72,8 @@ int main(int argc, char *argv[])
       // Prompt for a file name
       status =
 	windowNewFileDialog(NULL, "Enter filename", "Please enter the file "
-			    "name to use:", filename, MAX_PATH_NAME_LENGTH);
+			    "name to use:", NULL, filename,
+			    MAX_PATH_NAME_LENGTH);
 
       windowGuiStop();
 

@@ -88,7 +88,6 @@ typedef struct {
   char name[DISK_MAX_NAMELENGTH];
   int deviceNumber;
   int flags;
-  int readOnly;
   partitionType partType;
   char fsType[FSTYPE_MAX_NAMELENGTH];
   unsigned opFlags;
@@ -96,10 +95,18 @@ typedef struct {
   unsigned heads;
   unsigned cylinders;
   unsigned sectorsPerCylinder;
+  unsigned sectorSize;
 
   unsigned startSector;
   unsigned numSectors;
-  unsigned sectorSize;
+
+  // Filesystem related
+  unsigned blockSize;
+  unsigned minSectors;  // for
+  unsigned maxSectors;  // resize
+  int mounted;
+  char mountPoint[MAX_PATH_LENGTH];
+  int readOnly;
 
 } disk;
 

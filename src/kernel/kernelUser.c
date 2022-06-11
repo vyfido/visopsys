@@ -23,12 +23,13 @@
 
 #include "kernelUser.h"
 #include "kernelFile.h"
+#include "kernelDisk.h"
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
 #include "kernelVariableList.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelEncrypt.h"
-#include "kernelMemoryManager.h"
+#include "kernelMemory.h"
 #include "kernelError.h"
 #include <string.h>
 #include <stdio.h>
@@ -43,24 +44,24 @@ static int readPasswordFile(const char *fileName, variableList *userList)
   // Open and read the password file
 
   int status = 0;
-  file tmpFile;
+  kernelFileEntry *fileEntry = NULL;
   variableList tmpUserList;
   int count;
 
   if (!strcmp(fileName, USER_PASSWORDFILE))
     {
       // Check whether the password file exists
-      status = kernelFileFind(fileName, &tmpFile);
-      if (status < 0)
+      fileEntry = kernelFileLookup(fileName);
+      if (fileEntry == NULL)
 	{
 	  // Try to use the blank one instead
-	  status = kernelFileFind(USER_PASSWORDFILE ".blank", &tmpFile);
-	  if (status >= 0)
+	  fileEntry = kernelFileLookup(USER_PASSWORDFILE ".blank");
+	  if (fileEntry)
 	    {
 	      status = kernelConfigurationReader(USER_PASSWORDFILE ".blank",
 						 &tmpUserList);
 
-	      if(!kernelFilesystemGet("/")->readOnly)
+	      if(!((kernelDisk *) fileEntry->disk)->filesystem.readOnly)
 		// Try to make a copy for next time
 		kernelFileCopy(USER_PASSWORDFILE ".blank", fileName);
 	    }
@@ -88,7 +89,7 @@ static int readPasswordFile(const char *fileName, variableList *userList)
   status = kernelVariableListCreate(userList);
   if (status < 0)
     {
-      kernelMemoryRelease(tmpUserList.memory);
+      kernelVariableListDestroy(&tmpUserList);
       return (status);
     }
 
@@ -99,13 +100,13 @@ static int readPasswordFile(const char *fileName, variableList *userList)
 				     tmpUserList.values[count]);
       if (status < 0)
 	{
-	  kernelMemoryRelease(tmpUserList.memory);
-	  kernelMemoryRelease(userList->memory);
+	  kernelVariableListDestroy(&tmpUserList);
+	  kernelVariableListDestroy(userList);
 	  return (status);
 	}
     }
 
-  kernelMemoryRelease(tmpUserList.memory);
+  kernelVariableListDestroy(&tmpUserList);
   return (status = 0);
 }
 

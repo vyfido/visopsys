@@ -31,11 +31,49 @@ int kernelProcessingInterrupt = 0;
 static int initialized = 0;
 
 
+static inline void exHandlerX(int exceptionNum)
+{
+  unsigned stackAddress = 0;
+  unsigned exceptionAddress = 0;
+
+  kernelProcessorExceptionEnter(stackAddress, exceptionAddress);
+
+  kernelExceptionHandler(exceptionNum, exceptionAddress);
+
+  // If the exception is handled, then this code is reached and we return
+  // to the address of the exception.
+  kernelProcessorExceptionExit(stackAddress);
+}
+
+
+static void exHandler0(void) { exHandlerX(0); }
+static void exHandler1(void) { exHandlerX(1); }
+static void exHandler2(void) { exHandlerX(2); }
+static void exHandler3(void) { exHandlerX(3); }
+static void exHandler4(void) { exHandlerX(4); }
+static void exHandler5(void) { exHandlerX(5); }
+static void exHandler6(void) { exHandlerX(6); }
+static void exHandler7(void) { exHandlerX(7); }
+static void exHandler8(void) { exHandlerX(8); }
+static void exHandler9(void) { exHandlerX(9); }
+static void exHandler10(void) { exHandlerX(10); }
+static void exHandler11(void) { exHandlerX(11); }
+static void exHandler12(void) { exHandlerX(12); }
+static void exHandler13(void) { exHandlerX(13); }
+static void exHandler14(void) { exHandlerX(14); }
+static void exHandler15(void) { exHandlerX(15); }
+static void exHandler16(void) { exHandlerX(16); }
+static void exHandler17(void) { exHandlerX(17); }
+static void exHandler18(void) { exHandlerX(18); }
+
+
 static void intHandlerUnimp(void)
 {
   // This is the "unimplemented interrupt" handler
 
-  kernelProcessorIsrEnter();
+  void *address = NULL;
+
+  kernelProcessorIsrEnter(address);
   kernelProcessingInterrupt = 1;
 
   // Issue an end-of-interrupt (EOI) to the slave PIC
@@ -44,7 +82,7 @@ static void intHandlerUnimp(void)
   kernelProcessorOutPort8(0x20, 0x20);
 
   kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
+  kernelProcessorIsrExit(address);
 }
 
 
@@ -87,16 +125,26 @@ int kernelInterruptInitialize(void)
   int status = 0;
   int count;
     
-  // Set the kernel's exception handler code to handle exceptions as
-  // an interrupt handler until multitasking is enabled.  After that,
-  // exceptions will point to a task gate for the exception handler.
-  for (count = 0; count < 19; count ++)
-    {
-      status =
-	kernelDescriptorSetIDTInterruptGate(count, &kernelExceptionHandler);
-      if (status < 0) 
-	return (status);
-    }
+  // Set all the exception handlers
+  kernelDescriptorSetIDTInterruptGate(0, &exHandler0);
+  kernelDescriptorSetIDTInterruptGate(1, &exHandler1);
+  kernelDescriptorSetIDTInterruptGate(2, &exHandler2);
+  kernelDescriptorSetIDTInterruptGate(3, &exHandler3);
+  kernelDescriptorSetIDTInterruptGate(4, &exHandler4);
+  kernelDescriptorSetIDTInterruptGate(5, &exHandler5);
+  kernelDescriptorSetIDTInterruptGate(6, &exHandler6);
+  kernelDescriptorSetIDTInterruptGate(7, &exHandler7);
+  kernelDescriptorSetIDTInterruptGate(8, &exHandler8);
+  kernelDescriptorSetIDTInterruptGate(9, &exHandler9);
+  kernelDescriptorSetIDTInterruptGate(10, &exHandler10);
+  kernelDescriptorSetIDTInterruptGate(11, &exHandler11);
+  kernelDescriptorSetIDTInterruptGate(12, &exHandler12);
+  kernelDescriptorSetIDTInterruptGate(13, &exHandler13);
+  kernelDescriptorSetIDTInterruptGate(14, &exHandler14);
+  kernelDescriptorSetIDTInterruptGate(15, &exHandler15);
+  kernelDescriptorSetIDTInterruptGate(16, &exHandler16);
+  kernelDescriptorSetIDTInterruptGate(17, &exHandler17);
+  kernelDescriptorSetIDTInterruptGate(18, &exHandler18);
 
   // Initialize the rest of the table with the vector for the standard
   // "unimplemented" interrupt vector

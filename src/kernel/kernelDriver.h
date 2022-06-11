@@ -65,6 +65,7 @@ void kernelIdeDriverRegister(void *);
 void kernelFramebufferGraphicDriverRegister(void *);
 void kernelPS2MouseDriverRegister(void *);
 void kernelPciDriverRegister(void *);
+void kernelLanceDriverRegister(void *);
 
 #define _KERNELDRIVER_H
 #endif

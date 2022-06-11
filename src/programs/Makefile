@@ -12,40 +12,49 @@ LIBDIR=../../build/system/libraries
 CC		= gcc
 RELEASE		= $(shell ../../utils/release.sh)
 CPU		= $(shell ../../utils/cpu.sh)
-STDDEPS		= Makefile ${INCDIR}/*.h ${INCDIR}/sys/*.h
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
-		-ffreestanding
+STDDEPS		= Makefile ${INCDIR}/*.h ${INCDIR}/sys/*.h ${LIBDIR}/crt0.o
+CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
 WARN		= -Wall -W -Wshadow -Wmissing-prototypes -Wstrict-prototypes \
 		-Wmissing-declarations -Wredundant-decls -Werror
 INCLUDE         = -nostdinc -I${INCDIR}
 CFLAGS		= -pipe ${CODEGEN} ${WARN} ${INCLUDE}
-LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles -Wl,../../build/system/libraries/crt0.o,--warn-common,-X,--oformat,elf32-i386
+LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles -Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
 OPTS		= ${CFLAGS} ${LFLAGS}
 
 NAMES	= adduser \
+	bootmenu \
 	cat \
 	cdrom \
 	chkdisk \
 	clock \
+	computer \
 	confedit \
 	console \
 	copy-boot \
+	copy-mbr \
 	cp \
 	date \
+	defrag \
 	disks \
 	disprops \
 	fdisk \
+	file \
+	filebrowse \
 	find \
 	format \
 	help \
+	iconwin \
+	ifconfig \
 	imgboot \
 	install \
 	keymap \
 	kill \
+	ldd \
 	loadfont \
 	login \
 	logout \
 	ls \
+	lsdev \
 	md5 \
 	mem \
 	mkdir \
@@ -53,6 +62,7 @@ NAMES	= adduser \
 	mount \
 	mv \
 	passwd \
+	ping \
 	progman \
 	ps \
 	reboot \
@@ -62,6 +72,8 @@ NAMES	= adduser \
 	screenshot \
 	shutdown \
 	sync \
+	telnet \
+	test \
 	touch \
 	umount \
 	uname \

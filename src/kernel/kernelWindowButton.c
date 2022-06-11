@@ -23,14 +23,31 @@
 
 #include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
-#include "kernelMemoryManager.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMemory.h"
+#include "kernelMisc.h"
 #include "kernelError.h"
 #include <string.h>
 
 static int borderThickness = 3;
 static int borderShadingIncrement = 15;
 static kernelAsciiFont *labelFont = NULL;
+
+
+static void setText(kernelWindowComponent *component, char *label, int length)
+{
+  kernelWindowButton *button = (kernelWindowButton *) component->data;
+
+  strncpy((char *) button->label, label, length);
+  int tmp =
+    (kernelFontGetPrintedWidth(labelFont, (const char *) button->label) +
+     (borderThickness * 2) + 6);
+
+  if (tmp > component->width)
+    component->width = tmp;
+  tmp = (labelFont->charHeight + (borderThickness * 2) + 6);
+  if (tmp > component->height)
+    component->height = tmp;
+}
 
 
 static int draw(void *componentData)
@@ -128,6 +145,29 @@ static int focus(void *componentData, int focus)
 
   kernelWindowUpdateBuffer(buffer, component->xCoord, component->yCoord,
 			   component->width, component->height);
+  return (status);
+}
+
+
+static int setData(void *componentData, void *text, int length)
+{
+  // Set the button text
+  
+  int status = 0;
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindow *window = (kernelWindow *) component->window;
+
+  if (component->erase)
+    component->erase(componentData);
+
+  setText(component, text, length);
+
+  if (component->draw)
+    status = component->draw(componentData);
+
+  kernelWindowUpdateBuffer(&(window->buffer), component->xCoord,
+			   component->yCoord, component->width,
+			   component->height);
   return (status);
 }
 
@@ -325,6 +365,7 @@ kernelWindowComponent *kernelWindowNewButton(volatile void *parent,
   // The functions
   component->draw = &draw;
   component->focus = &focus;
+  component->setData = &setData;
   component->mouseEvent = &mouseEvent;
   component->keyEvent = &keyEvent;
   component->destroy = &destroy;

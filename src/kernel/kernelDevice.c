@@ -22,7 +22,7 @@
 #include "kernelDevice.h"
 #include "kernelMalloc.h"
 #include "kernelLog.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelError.h"
 #include "kernelText.h"
 #include <stdio.h>
@@ -87,6 +87,8 @@ static kernelDriver deviceDrivers[] = {
   // PS2 mouses use the keyboard controller.
   { DEVICECLASS_MOUSE, DEVICESUBCLASS_MOUSE_PS2,
     kernelPS2MouseDriverRegister, NULL, NULL                           },
+  { DEVICECLASS_NETWORK, DEVICESUBCLASS_NETWORK_ETHERNET,
+    kernelLanceDriverRegister, NULL, NULL                              },
   { 0, 0, NULL, NULL, NULL                                             }
 };
 

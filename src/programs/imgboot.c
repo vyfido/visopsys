@@ -22,6 +22,22 @@
 // This is a program to be launched first when booting from distribution
 // images, such as CD-ROM ISOs
 
+/* This is the text that appears when a user requests help about this program
+<help>
+
+ -- imgboot --
+
+The program launched at first system boot.
+
+Usage:
+  imgboot [-T]
+
+This program is the default 'first boot' program on Visopsys floppy or
+CD-ROM image files that asks if you want to 'install' or 'run now'.
+
+</help>
+*/
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -106,10 +122,19 @@ static void quit(int status, const char *message, ...)
 
 static int rebootNow(void)
 {
+  int response = 0;
   char character;
 
   if (graphics)
-    return (windowNewQueryDialog(window, "Reboot?", rebootQuestion));
+    {
+      response =
+	windowNewChoiceDialog(window, "Reboot?", rebootQuestion,
+			      (char *[]) { "Reboot", "Continue" }, 2, 0);
+      if (response == 0)
+	return (1);
+      else
+	return (0);
+    }
 
   else
     {
@@ -247,12 +272,12 @@ static void changeStartProgram(void)
 {
   variableList kernelConf;
 
-  if (configurationReader("/system/kernel.conf", &kernelConf) < 0)
+  if (configurationReader("/system/config/kernel.conf", &kernelConf) < 0)
     return;
 
   variableListSet(&kernelConf, "start.program", "/programs/login");
-  configurationWriter("/system/kernel.conf", &kernelConf);
-  free(kernelConf.memory);
+  configurationWriter("/system/config/kernel.conf", &kernelConf);
+  variableListDestroy(&kernelConf);
 }
 
 

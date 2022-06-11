@@ -186,13 +186,11 @@ static int chooseDisk(void)
       params.gridY = 2;
       params.gridWidth = 1;
       params.padBottom = 5;
-      params.padRight = 0;
       params.orientationX = orient_right;
+      params.fixedWidth = 1;
       okButton = windowNewButton(chooseWindow, "OK", NULL, &params);
 
       params.gridX = 1;
-      params.padRight = 5;
-      params.padLeft = 0;
       params.orientationX = orient_left;
       cancelButton = windowNewButton(chooseWindow, "Cancel", NULL, &params);
 
@@ -236,6 +234,78 @@ static int chooseDisk(void)
     }
 
   return (diskNumber);
+}
+
+
+static int mountedCheck(disk *theDisk)
+{
+  // If the disk is mounted, query whether to ignore, unmount, or cancel
+
+  int status = 0;
+  int choice = 0;
+  char tmpChar[160];
+  char character;
+
+  if (!(theDisk->mounted))
+    return (status = 0);
+
+  sprintf(tmpChar, "The disk is mounted as %s.  It is STRONGLY "
+	  "recommended\nthat you unmount before continuing",
+	  theDisk->mountPoint);
+
+  if (graphics)
+    choice =
+      windowNewChoiceDialog(NULL, "Disk is mounted", tmpChar,
+			    (char *[]) { "Ignore", "Unmount", "Cancel" },
+			    3, 1);
+  else
+    {
+      printf("\n%s (I)gnore/(U)nmount/(C)ancel?: ", tmpChar);
+      textInputSetEcho(0);
+
+      while(1)
+	{
+	  character = getchar();
+      
+	  if ((character == 'i') || (character == 'I'))
+	    {
+	      printf("Ignore\n");
+	      choice = 0;
+	      break;
+	    }
+	  else if ((character == 'u') || (character == 'U'))
+	    {
+	      printf("Unmount\n");
+	      choice = 1;
+	      break;
+	    }
+	  else if ((character == 'c') || (character == 'C'))
+	    {
+	      printf("Cancel\n");
+	      choice = 2;
+	      break;
+	    }
+	}
+
+      textInputSetEcho(1);
+    }
+
+  if ((choice < 0) || (choice == 2))
+    // Cancelled
+    return (status = ERR_CANCELLED);
+
+  else if (choice == 1)
+    {
+      // Try to unmount the filesystem
+      status = filesystemUnmount(theDisk->mountPoint);
+      if (status < 0)
+	{
+	  error("Unable to unmount %s", theDisk->mountPoint);
+	  return (status);
+	}
+    }
+  
+  return (status = 0);
 }
 
 
@@ -291,9 +361,10 @@ int main(int argc, char *argv[])
   int status = 0;
   char opt;
   int diskNumber = -1;
-  char *diskName = NULL;
   char rootDisk[DISK_MAX_NAMELENGTH];
   char type[16];
+  progress prog;
+  objectKey progressDialog = NULL;
   char tmpChar[240];
   int count;
 
@@ -336,7 +407,7 @@ int main(int argc, char *argv[])
   if (!graphics && !silentMode)
     // Print a message
     printf("\nVisopsys FORMAT Utility\nCopyright (C) 1998-2005 J. Andrew "
-	   "McLaughlin\n\n");
+	   "McLaughlin\n");
 
   if (argc > 1)
     {
@@ -371,10 +442,7 @@ int main(int argc, char *argv[])
 
       diskNumber = chooseDisk();
       if (diskNumber < 0)
-	{
-	  error("No disk selected.  Quitting.");
-	  return (errno = status = 0);
-	}
+	return (status = 0);
       
       sprintf(tmpChar, "Formatting disk %s as %s.  All data currenly on the "
 	      "disk will be lost.\nAre you sure?",
@@ -382,16 +450,19 @@ int main(int argc, char *argv[])
       if (!yesOrNo(tmpChar))
 	{
 	  printf("\nQuitting.\n");
-	  return (errno = status = 0);
+	  return (status = 0);
 	}
     }
   
-  diskName = diskInfo[diskNumber].name;
+  // Make sure it's not mounted
+  status = mountedCheck(&diskInfo[diskNumber]);
+  if (status < 0)
+    return (errno = status);
 
   // Get the root disk
   status = diskGetBoot(rootDisk);
   if (status >= 0)
-    if (!strcmp(rootDisk, diskName))
+    if (!strcmp(rootDisk, diskInfo[diskNumber].name))
       {
 	if (!silentMode)
 	  {
@@ -402,28 +473,41 @@ int main(int argc, char *argv[])
 	    if (!yesOrNo(tmpChar))
 	      {
 		printf("\nQuitting.\n");
-		return (errno = status = 0);
+		return (status = 0);
 	      }
 	  }
       }
 
-  status = filesystemFormat(diskName, type, "", 0);
-  if (status < 0)
-    return (errno = status);
+  bzero(&prog, sizeof(progress));
+  if (graphics)
+    progressDialog = windowNewProgressDialog(NULL, "Formatting...", &prog);
+  else
+    vshProgressBar(&prog);
 
-  // The kernel's format code creates a 'dummy' boot sector.  If we have
-  // a proper one stored in the /system/boot directory, copy it to the
-  // disk.
-  copyBootSector(&diskInfo[diskNumber], type);
+  status = filesystemFormat(diskInfo[diskNumber].name, type, "", 0, &prog);
 
-  if (!silentMode)
+  if (!graphics)
+    vshProgressBarDestroy(&prog);
+  
+  if (status >= 0)
     {
-      sprintf(tmpChar, "Format complete");
-      if (graphics)
-	windowNewInfoDialog(NULL, "Success", tmpChar);
-      else
-	printf("%s\n", tmpChar);
+      // The kernel's format code creates a 'dummy' boot sector.  If we have
+      // a proper one stored in the /system/boot directory, copy it to the
+      // disk.
+      copyBootSector(&diskInfo[diskNumber], type);
+
+      if (!silentMode)
+	{
+	  sprintf(tmpChar, "Format complete");
+	  if (graphics)
+	    windowNewInfoDialog(progressDialog, "Success", tmpChar);
+	  else
+	    printf("\n%s\n", tmpChar);
+	}
     }
 
-  return (errno = status = 0);
+  if (graphics)
+    windowProgressDialogDestroy(progressDialog);
+
+  return (errno = status);
 }

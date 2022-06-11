@@ -15,8 +15,7 @@ CC		= gcc
 RELEASE		= $(shell ../../utils/release.sh)
 CPU		= $(shell ../../utils/cpu.sh)
 STDDEPS		= Makefile *.h ${INCDIR}/sys/*.h ${INCDIR}/*.h ${LIBDIR}/libc.a
-CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing \
-		-ffreestanding
+CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
 WARN		= -Wall -W -Wshadow -Wcast-align -Wmissing-prototypes \
 		-Wstrict-prototypes -Wmissing-declarations -Wredundant-decls \
 		-Werror
@@ -45,6 +44,8 @@ NAMES =	kernelMain \
 	kernelGraphic \
 	kernelImage \
 	kernelImageBmp \
+	kernelImageIco \
+	kernelImageJpg \
 	kernelInitialize \
 	kernelInterrupt \
 	kernelKeyboard \
@@ -54,11 +55,14 @@ NAMES =	kernelMain \
 	kernelLock \
 	kernelLog \
 	kernelMalloc \
-	kernelMemoryManager \
+	kernelMemory \
 	kernelMouse \
-	kernelMiscFunctions \
+	kernelMisc \
 	kernelMultitasker \
-	kernelPageManager \
+	kernelNetwork \
+	kernelNetworkDevice \
+	kernelNetworkStream \
+	kernelPage \
 	kernelPic \
 	kernelRandom \
 	kernelRtc \
@@ -98,6 +102,7 @@ DRIVERNAMES = kernelDmaDriver \
 	kernelGraphicConsoleDriver \
 	kernelIdeDriver \
 	kernelKeyboardDriver \
+	kernelLanceDriver \
 	kernelPciDriver \
 	kernelPicDriver \
 	kernelPS2MouseDriver \
@@ -138,5 +143,5 @@ clean:
 obj/kernelApi.o: kernelApi.c ${STDDEPS}
 	${CC} ${CFLAGS} -Wno-strict-prototypes -c $< -o $@
 
-obj/kernelMiscFunctions.o: kernelMiscFunctions.c ${STDDEPS}
+obj/kernelMisc.o: kernelMisc.c ${STDDEPS}
 	${CC} ${CFLAGS} -D_KVERSION_=\"${RELEASE}\" -c $< -o $@

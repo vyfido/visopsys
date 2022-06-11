@@ -7,5 +7,5 @@
 ##
 
 # Just echoes the release number of Visopsys
-echo "0.58"
+echo "0.6"
 exit 0

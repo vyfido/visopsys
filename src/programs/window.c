@@ -66,6 +66,7 @@ int main(int argc, char *argv[])
   int status = 0;
   int myPrivilege = 0;
   componentParameters params;
+  int rows = 25;
   objectKey textArea = NULL;
 
   // Only work in graphics mode
@@ -96,16 +97,23 @@ int main(int argc, char *argv[])
   bzero(&params, sizeof(componentParameters));
   params.gridWidth = 1;
   params.gridHeight = 1;
-  params.padLeft = 5;
-  params.padRight = 5;
-  params.padTop = 5;
-  params.padBottom = 5;
+  params.padLeft = 1;
+  params.padRight = 1;
+  params.padTop = 1;
+  params.padBottom = 1;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
   params.stickyFocus = 1;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
-  textArea = windowNewTextArea(window, 80, 40, 200, &params);
+  if (fontLoad("/system/fonts/xterm-normal-10.bmp", "xterm-normal-10",
+	       &(params.font), 1) < 0)
+    {
+      params.font = NULL;
+      // The system font can comfortably show more rows
+      rows = 40;
+    }
+  textArea = windowNewTextArea(window, 80, rows, 200, &params);
 
   // Use the text area for all our input and output
   windowSetTextOutput(textArea);

@@ -25,6 +25,7 @@
 #if !defined(_WINDOW_H)
 
 #include <sys/image.h>
+#include <sys/progress.h>
 #include <sys/stream.h>
 
 #ifndef _X_
@@ -71,7 +72,7 @@
 #define INFOIMAGE_NAME           "/system/icons/infoicon.bmp"
 #define ERRORIMAGE_NAME          "/system/icons/bangicon.bmp"
 #define QUESTIMAGE_NAME          "/system/icons/questicon.bmp"
-#define WAITIMAGE_NAME           "/system/mousebsy.bmp"
+#define WAITIMAGE_NAME           "/system/mouse/mousebsy.bmp"
 
 // An "object key".  Really a pointer to an object in kernel memory, but
 // of course not usable by applications other than as a reference
@@ -180,6 +181,7 @@ typedef struct {
 void windowCenterDialog(objectKey, objectKey);
 int windowClearEventHandler(objectKey);
 int windowClearEventHandlers(void);
+int windowDestroyFileList(objectKey);
 void windowGuiRun(void);
 void windowGuiStop(void);
 int windowGuiThread(void);
@@ -189,15 +191,20 @@ int windowNewChoiceDialog(objectKey, const char *, const char *, char *[],
 			  int, int);
 int windowNewColorDialog(objectKey, color *);
 int windowNewErrorDialog(objectKey, const char *, const char *);
-int windowNewFileDialog(objectKey, const char *, const char *, char *,
-			unsigned);
+int windowNewFileDialog(objectKey, const char *, const char *, const char *,
+			char *, unsigned);
+objectKey windowNewFileList(objectKey, windowListType, int, int, const char *,
+			    int, void *, componentParameters *);
 int windowNewInfoDialog(objectKey, const char *, const char *);
 int windowNewPasswordDialog(objectKey, const char *, const char *, int,
 			    char *);
+objectKey windowNewProgressDialog(objectKey, const char *, progress *);
 int windowNewPromptDialog(objectKey, const char *, const char *, int, int,
 			  char *);
 int windowNewQueryDialog(objectKey, const char *, const char *);
+int windowProgressDialogDestroy(objectKey);
 int windowRegisterEventHandler(objectKey, void (*)(objectKey, windowEvent *));
+int windowUpdateFileList(objectKey, const char *);
 
 #define _WINDOW_H
 #endif

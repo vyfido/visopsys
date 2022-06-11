@@ -25,7 +25,7 @@
 #include "kernelWindow.h"
 #include "kernelWindowEventStream.h"
 #include "kernelParameters.h"
-#include "kernelMemoryManager.h"
+#include "kernelMemory.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
 #include "kernelLock.h"
@@ -33,7 +33,7 @@
 #include "kernelFilesystem.h"
 #include "kernelFileStream.h"
 #include "kernelUser.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelLog.h"
 #include "kernelError.h"
 #include <string.h>
@@ -1599,7 +1599,7 @@ static int windowStart(void)
   if ((kernelWindowEventStreamNew(&mouseEvents) < 0) ||
       (kernelWindowEventStreamNew(&keyEvents) < 0))
     {
-      kernelMemoryRelease(settings.memory);
+      kernelVariableListDestroy(&settings);
       return (status = ERR_NOTINITIALIZED);
     }
 
@@ -1610,7 +1610,7 @@ static int windowStart(void)
   rootWindow = kernelWindowMakeRoot(&settings);
   if (rootWindow == NULL)
     {
-      kernelMemoryRelease(settings.memory);
+      kernelVariableListDestroy(&settings);
       return (status = ERR_NOTINITIALIZED);
     }
 
@@ -1630,7 +1630,7 @@ static int windowStart(void)
     kernelLog("Updated window configuration");
 
   // Done
-  kernelMemoryRelease(settings.memory);
+  kernelVariableListDestroy(&settings);
   return (status = 0);
 }
 
@@ -2920,7 +2920,7 @@ int kernelWindowTileBackground(const char *filename)
     {
       kernelVariableListSet(&settings, "background.image", filename);
       kernelConfigurationWriter(DEFAULT_WINDOWMANAGER_CONFIG, &settings);
-      kernelMemoryRelease(settings.memory);
+      kernelVariableListDestroy(&settings);
     }
 
   return (status = 0);

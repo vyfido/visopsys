@@ -24,11 +24,11 @@
 
 #include "kernelLoader.h"
 #include "kernelFile.h"
-#include "kernelMemoryManager.h"
+#include "kernelMemory.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
-#include "kernelMiscFunctions.h"
-#include "kernelPageManager.h"
+#include "kernelMisc.h"
+#include "kernelPage.h"
 #include "kernelError.h"
 #include <string.h>
 #include <stdio.h>
@@ -41,6 +41,8 @@ static kernelFileClass *(*classRegFns[LOADER_NUM_FILECLASSES]) (void) = {
   kernelFileClassConfig,
   kernelFileClassText,
   kernelFileClassBmp,
+  kernelFileClassIco,
+  kernelFileClassJpg,
   kernelFileClassBoot,
   kernelFileClassElf,
   kernelFileClassBinary
@@ -48,6 +50,7 @@ static kernelFileClass *(*classRegFns[LOADER_NUM_FILECLASSES]) (void) = {
 kernelFileClass emptyFileClass = { FILECLASS_NAME_EMPTY, NULL, { } };
 static kernelFileClass *fileClassList[LOADER_NUM_FILECLASSES];
 static int numFileClasses = 0;
+static kernelDynamicLibrary *libraryList = NULL;
 
 
 static void parseCommand(char *commandLine, int *argc, char *argv[])
@@ -454,6 +457,23 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
       return (newProcId);
     }
 
+  if (class.flags & LOADERFILECLASS_DYNAMIC)
+    {
+      // It's a dynamically-linked program, so we need to link in the required
+      // libraries
+      if (fileClassDriver->executable.link)
+	{
+	  status = fileClassDriver->executable
+	    .link(newProcId, loadAddress, &execImage);
+	  if (status < 0)
+	    {
+	      kernelMemoryRelease(loadAddress);
+	      kernelMemoryRelease(execImage.code);
+	      return (status);
+	    }
+	}
+    }
+
   // Unmap the new process' image memory from this process' address space.
   status = kernelPageUnmap(kernelCurrentProcess->processId, execImage.code,
 			   execImage.imageSize);
@@ -466,6 +486,140 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
 
   // All set.  Return the process id.
   return (newProcId);
+}
+
+
+int kernelLoaderLoadLibrary(const char *libraryName)
+{
+  // This takes the name of a library to load and creates a shared library
+  // in the kernel.
+
+  int status = 0;
+  file theFile;
+  void *loadAddress = NULL;
+  kernelFileClass *fileClassDriver = NULL;
+  loaderFileClass class;
+  processImage libImage;
+  kernelDynamicLibrary *library = NULL;
+  char tmp[MAX_PATH_NAME_LENGTH];
+
+  // Check params
+  if (libraryName == NULL)
+    {
+      kernelError(kernel_error, "Library name to load is NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  kernelMemClear(&libImage, sizeof(processImage));
+
+  // Load the program code/data into memory
+  loadAddress = (unsigned char *) load(libraryName, &theFile, 1 /* kernel */);
+  if (loadAddress == NULL)
+    return (status = ERR_INVALID);
+
+  // Try to determine what kind of executable format we're dealing with.
+  fileClassDriver =
+    kernelLoaderClassify(libraryName, loadAddress, theFile.size, &class);
+  if (fileClassDriver == NULL)
+    {
+      kernelFree(loadAddress);
+      return (status = ERR_INVALID);
+    }
+
+  // Make sure it's a dynamic library
+  if (!(class.flags & LOADERFILECLASS_DYNAMIC) ||
+      !(class.flags & LOADERFILECLASS_LIB))
+    {
+      kernelError(kernel_error, "File \"%s\" is not a shared library",
+		  libraryName);
+      kernelFree(loadAddress);
+      return (status = ERR_PERMISSION);
+    }
+
+  // Get memory for our dynamic library
+  library = kernelMalloc(sizeof(kernelDynamicLibrary));
+  if (library == NULL)
+    {
+      kernelFree(loadAddress);
+      return (status = ERR_MEMORY);
+    }
+
+  // Just get the library name without the path, and set it as the default
+  // library name.  The file class driver can reset it to something else
+  // if desired.
+  status = kernelFileSeparateLast(libraryName, tmp, library->name);
+  if (status < 0)
+    strncpy(library->name, libraryName, MAX_NAME_LENGTH);
+
+  if (fileClassDriver->executable.layoutLibrary)
+    {
+      // Do our library layout
+      status = fileClassDriver->executable.layoutLibrary(loadAddress, library);
+      if (status < 0)
+	{
+	  kernelFree(loadAddress);
+	  kernelFree(library);
+	  return (status);
+	}
+    }
+
+  // Add it to our list of libraries
+  library->next = libraryList;
+  libraryList = library;
+
+  // Get rid of the old memory
+  kernelFree(loadAddress);
+
+  return (status = 0);
+}
+
+
+kernelDynamicLibrary *kernelLoaderGetLibrary(const char *libraryName)
+{
+  // Searches through our list of loaded dynamic libraries for the requested
+  // one, and returns it if found.  The name can be either a full pathname,
+  // or just a short one such as 'libc.so'.  If not found, calls the
+  // kernelLoaderLoadLibrary() function to try and load it, before searching
+  // the list again.
+
+  kernelDynamicLibrary *library = libraryList;
+  char shortName[MAX_NAME_LENGTH];
+  char tmp[MAX_PATH_NAME_LENGTH];
+  int count;
+
+  // Check params
+  if (libraryName == NULL)
+    {
+      kernelError(kernel_error, "Library name is NULL");
+      return (library = NULL);
+    }
+
+  // If the library name is fully-qualified, get the short version without
+  // the path.
+  if (kernelFileSeparateLast(libraryName, tmp, shortName) < 0)
+    strncpy(shortName, libraryName, MAX_NAME_LENGTH);
+
+  for (count = 0; count < 2; count ++)
+    {
+      while (library)
+	{
+	  if (!strncmp(shortName, library->name, MAX_NAME_LENGTH))
+	    return (library);
+	  else
+	    library = library->next;
+	}
+
+      // If we fall through, it wasn't found.  Try to load it.
+      sprintf(tmp, "/system/libraries/%s", shortName);
+      if (kernelLoaderLoadLibrary(tmp) < 0)
+	return (library = NULL);
+
+      // Loop again.
+      library = libraryList;
+    }
+
+  // If we fall through, we don't have the library.
+  return (library = NULL);
 }
 
 

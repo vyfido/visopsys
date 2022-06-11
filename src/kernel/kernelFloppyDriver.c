@@ -28,12 +28,12 @@
 #include "kernelProcessorX86.h"
 #include "kernelMain.h"
 #include "kernelParameters.h"
-#include "kernelMemoryManager.h"
-#include "kernelPageManager.h"
+#include "kernelMemory.h"
+#include "kernelPage.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
 #include "kernelSysTimer.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelError.h"
 #include <stdio.h>
 
@@ -387,6 +387,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
   unsigned doSectors = 0;
   unsigned xFerBytes = 0;
   unsigned char commandByte, tmp;
+  int retry = 0;
   int count;
 
   // Get a pointer to the requested disk
@@ -591,6 +592,13 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
       // clear, then the operation completed normally.
       if (statusRegister0 & 0xC0)
 	{
+	  // We have an error.  Retry up to twice.
+	  if (retry < 2)
+	    {
+	      retry += 1;
+	      continue;
+	    }
+
 	  // We have an error.  We have to try to determine the cause and set
 	  // the error message.  We'll call a routine which does all of this
 	  // for us.
@@ -608,6 +616,7 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
       logicalSector += doSectors;
       numSectors -= doSectors;
       buffer += (doSectors * theDisk->sectorSize);
+      retry = 0;
       
     } // Per-operation loop
   
@@ -616,12 +625,14 @@ static int readWriteSectors(unsigned driveNum, unsigned logicalSector,
 
   if (errorCode == FLOPPY_WRITEPROTECT)
     return (status = ERR_NOWRITE);
+
   else if (errorCode)
     {
       kernelError(kernel_error, "Read/write error: %s",
 		  errorMessages[errorCode]);
       return (status = ERR_IO);
     }
+
   else return (status = 0);
 }
 
@@ -633,7 +644,9 @@ static void floppyInterrupt(void)
   // interrupt to the PIC.  It's up to the other routines to do something
   // useful with the information.
 
-  kernelProcessorIsrEnter();
+  void *address = NULL;
+
+  kernelProcessorIsrEnter(address);
   kernelProcessingInterrupt = 1;
 
   // Check whether to do the "sense interrupt status" command.
@@ -657,7 +670,7 @@ static void floppyInterrupt(void)
   kernelPicEndOfInterrupt(INTERRUPT_NUM_FLOPPY);
 
   kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
+  kernelProcessorIsrExit(address);
 }
 
 

@@ -23,7 +23,7 @@
 // These are just kernelWindowTextArea that consist of a single line
 
 #include "kernelWindow.h"     // Our prototypes are here
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include <string.h>
 
 static int (*saveFocus) (void *, int) = NULL;
@@ -89,28 +89,10 @@ kernelWindowComponent *kernelWindowNewTextField(volatile void *parent,
   kernelWindowComponent *component = NULL;
   kernelTextArea *textArea = NULL;
   componentParameters newParams;
-  extern color kernelDefaultForeground;
 
   kernelMemCopy(params, &newParams, sizeof(componentParameters));
   params = &newParams;
 
-  // If the user wants the default colors, we change set them to the
-  // default for a text field, since it's different from text areas
-  if (params->useDefaultForeground)
-    {
-      params->foreground.red = kernelDefaultForeground.red;
-      params->foreground.green = kernelDefaultForeground.green;
-      params->foreground.blue = kernelDefaultForeground.blue;
-      params->useDefaultForeground = 0;
-    }
-  if (params->useDefaultBackground)
-    {
-      params->background.red = 0xFF;
-      params->background.green = 0xFF;
-      params->background.blue = 0xFF;
-      params->useDefaultBackground = 0;
-    }
-  
   component = kernelWindowNewTextArea(parent, columns, 1, 0, params);
   if (component == NULL)
     return (component);

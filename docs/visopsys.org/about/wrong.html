@@ -13,24 +13,27 @@
 <table border="0" cellpadding="0" cellspacing="0" width="93">
   <tr>
     <td width="99"><p align="center"><font color="#FFFFFF"><a href="../index.html">
-    <img src="../img/nav_buttons/home.gif" alt="Go back to the Visopsys Home Page." border="0" align="middle" width="53" height="25"></a><br>
+    <img src="../img/nav_buttons/home.gif" alt="Home" border="0" align="middle" width="53" height="25"></a><br>
     <br>
     <a href="index.html">
-    <img src="../img/nav_buttons/about.gif" alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a></font><p align="center">
+    <img src="../img/nav_buttons/about.gif" alt="About" border="0" align="middle" width="60" height="25"></a></font><p align="center">
+    <a href="news.html">
+    <img border="0" src="../img/nav_buttons/news.gif" alt="News" width="49" height="16"></a><br>
+    <br>
     <a href="screenshots.html">
-    <img border="0" src="../img/nav_buttons/screenshots.gif" width="105" height="22"></a><font color="#FFFFFF"><br>
+    <img border="0" src="../img/nav_buttons/screenshots.gif" alt="Screenshots" width="105" height="22"></a><font color="#FFFFFF"><br>
     <br>
     <a href="../download/index.html">
-    <img src="../img/nav_buttons/download.gif" alt="Download Visopsys and associated files." border="0" align="middle" width="95" height="25"></a></font><br>
+    <img src="../img/nav_buttons/download.gif" alt="Download" border="0" align="middle" width="95" height="25"></a></font><br>
     <br>
     <a href="../developers/index.html">
-    <img src="../img/nav_buttons/developers.gif" border="0" alt="Resources for Visopsys development" align="middle" width="97" height="29"></a><br>
+    <img src="../img/nav_buttons/developers.gif" border="0" alt="Developers" align="middle" width="97" height="29"></a><br>
     <br>
     <a href="../osdev/index.html">
-    <img src="../img/nav_buttons/osdev.gif" border="0" alt="OS Development Resources" align="middle" width="64" height="25"></a><br>
+    <img src="../img/nav_buttons/osdev.gif" border="0" alt="OS Development" align="middle" width="64" height="25"></a><br>
     <br>
     <a href="../search.html">
-    <img src="../img/nav_buttons/search.gif" alt="Search the Visopsys Site" align="middle" border="0" width="63" height="24"></a></td>
+    <img src="../img/nav_buttons/search.gif" alt="Search" align="middle" border="0" width="63" height="24"></a></td>
   </tr>
 </table>
 </center></div>
@@ -54,7 +57,7 @@ addressing them.</big>
 <ul>
   <li><a href="#ioprotection"><big>No I/O protection</big></a></li>
   <li><a href="#single-user"><big>Single-user mode only</big></a></li>
-  <li><a href="#float"><big>No state saves of FPU (Floating Point Unit)</big></a><br>
+  <li><a href="#float"><big>State saves of FPU (Floating Point Unit) are buggy</big></a><br>
   </li>
 </ul>
 
@@ -91,18 +94,15 @@ will more like appear in version 0.2.&nbsp; Networking support will be added for
 networking.</big><br>
 </p>
 
-<p><a name="float"></a><strong><big>VISOPSYS DOESN'T PRESERVE THE STATE OF THE FLOATING
-POINT MATH UNIT</big></strong></p>
+<p><a name="float"></a><strong><big>PRESERVING THE STATE OF THE FLOATING POINT 
+MATH UNIT IS BUGGY</big></strong></p>
 
 <p><big>In the course of its multitasking duties, Visopsys saves the states of processes
-when switching between them (for example at the end of a time slice, or after a <em>yield</em>
-request).&nbsp; However, this state save is incomplete in one respect: the FPU (Floating
-Point Unit).&nbsp; If two tasks are performing floating point math operations
-concurrently, it is possible or even likely that one will interfere with the other.</big></p>
+when switching between them (for example at the end of a time slice, or after a <em>yield</em> 
+request).&nbsp; The FPUstate is saved when a process is using the unit, however 
+floating point operations are still prone to crashes.</big></p>
 
-<p><big>This is planned to be rectified in the first maintenance release, version 0.1.1.</big></p>
-
-<p><big><big>&nbsp; </big></big>
+<p><big><big>&nbsp; </big></big></p>
 
 <!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
 
@@ -110,27 +110,29 @@ concurrently, it is possible or even likely that one will interfere with the oth
   <blockquote>
     <p align="right"><font color="#FFFFFF"><a href="../index.html">
     <img
-    src="../img/nav_buttons/home.gif" alt="Go back to the Visopsys Home Page." border="0"
+    src="../img/nav_buttons/home.gif" alt="Home" border="0"
     align="middle" width="53" height="25"></a>&nbsp;&nbsp; <a href="index.html">
     <img src="../img/nav_buttons/about.gif"
-    alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a>&nbsp;&nbsp; </font>
+    alt="About" border="0" align="middle" width="60" height="25"></a>&nbsp;&nbsp;
+    <a href="news.html">
+    <img border="0" src="../img/nav_buttons/news.gif" align="middle" alt="News" width="49" height="16"></a>&nbsp;&nbsp; </font>
     <a href="screenshots.html">
-    <img border="0" src="../img/nav_buttons/screenshots.gif" align="middle" width="105" height="22"></a>&nbsp;&nbsp; <font color="#FFFFFF"> <a href="../download/index.html">
+    <img border="0" src="../img/nav_buttons/screenshots.gif" align="middle" alt="Screenshots" width="105" height="22"></a>&nbsp;&nbsp; <font color="#FFFFFF"> <a href="../download/index.html">
     <img
-    src="../img/nav_buttons/download.gif" alt="Download Visopsys and associated files."
+    src="../img/nav_buttons/download.gif" alt="Download"
     border="0" align="middle" width="95" height="25"></a>&nbsp; </font>&nbsp;<a href="../developers/index.html"><img
-    src="../img/nav_buttons/developers.gif" alt="Resources for Visopsys development"
+    src="../img/nav_buttons/developers.gif" alt="Developers"
     border="0" align="middle" width="97" height="29"></a>&nbsp;&nbsp; <a href="../osdev/index.html">
     <img
-    src="../img/nav_buttons/osdev.gif" border="0" align="middle" width="64" height="25"></a>&nbsp;&nbsp; <a href="../search.html">
+    src="../img/nav_buttons/osdev.gif" border="0" align="middle" alt="OS Development" width="64" height="25"></a>&nbsp;&nbsp; <a href="../search.html">
     <img
-    src="../img/nav_buttons/search.gif" alt="Search the Visopsys Site" align="middle"
+    src="../img/nav_buttons/search.gif" alt="Search" align="middle"
     border="0" width="63" height="24"></a><font face="Times New Roman" color="#FFFFFF"><br>
-    This site is copyright © 1999-2005, J.
-    Andrew McLaughlin<br>
+    This site is copyright © 1999-2005, <a href="mailto:andy@visopsys.org">J.
+    Andrew (Andy) McLaughlin</a><br>
     Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
     Last updated on
-    March 22, 2005</font></p>
+    November 29, 2005</font></p>
   </blockquote>
 </blockquote>
 

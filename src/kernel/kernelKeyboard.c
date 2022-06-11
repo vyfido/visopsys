@@ -18,6 +18,8 @@
 //
 //  kernelKeyboard.c
 //
+//  German key mappings provided by Jonas Zaddach <jonaszaddach@gmx.de>
+//  Italian key mappings provided by Davide Airaghi <davide.airaghi@gmail.com>
 	
 // This is the master code that wraps around the keyboard driver
 // functionality
@@ -144,8 +146,44 @@ static kernelKeyMap DE_DE = {
   }
 };
 
+static kernelKeyMap IT_IT = {
+  "Italian (IT)",
+  // Regular map
+  { 27,'1','2','3','4','5','6','7','8','9','0','\'',141,8,9,'q',   // 00-0F
+    'w','e','r','t','y','u','i','o','p',138,'+',10,0,'a','s','d',  // 10-1F
+    'f','g','h','j','k','l',149,133,'\\',0,151,'z','x','c','v','b',// 20-2F
+    'n','m',',','.','-',0,'*',0,' ',0,0,0,0,0,0,0,                 // 30-3F
+    0,0,0,0,0,0,13,17,11,'-',18,'5',19,'+',0,20,                   // 40-4F
+    12,0,127,0,0,'<'                                               // 50-55
+  },
+  // Shift map
+  { 27,'!','"',156,'$','%','&','/','(',')','=','?','^',8,9,'Q',    // 00-0F
+    'W','E','R','T','Y','U','I','O','P',130,'*',10,0,'A','S','D',  // 10-1F 
+    'F','G','H','J','K','L',135,248,'|',0,245,'Z','X','C','V','B', // 20-2F
+    'N','M',';',':','_',0,'*',0,' ',0,0,0,0,0,0,0,        	   // 30-3F
+    0,0,0,0,0,0,'7','8','9','-','4','5','6','+','1','2',	   // 40-4F
+    '3','0','.',0,0,'>'               				   // 50-55
+  },
+  // Control map.  Default is regular map value.
+  { 27,'1','2','3','4','5','6','7','8','9','0','\'',141,8,9,'q',   // 00-0F
+    'w','e','r','t','y','u','i','o','p',138,'+',10,0,'a','s','d',  // 10-1F
+    'f','g','h','j','k','l',149,133,'\\',0,151,'z','x','c','v','b',// 20-2F
+    'n','m',',','.','-',0,'*',0,' ',0,0,0,0,0,0,0,                 // 30-3F
+    0,0,0,0,0,0,13,17,11,'-',18,'5',19,'+',0,20,                   // 40-4F
+    12,0,127,0,0,'<'                                               // 50-55
+  },
+  // Alt-Gr map.  Default is regular map value.
+  { 27,'1','2','3','4','5','6','{','[',']','}','`','~',8,9,'q',    // 00-0F
+    'w','e','r','t','y','u','i','o','p','[',']',10,0,'a','s','d',  // 10-1F
+    'f','g','h','j','k','l','@','#','\\',0,151,'z','x','c','v','b',// 20-2F
+    'n','m',',','.','-',0,'*',0,' ',0,0,0,0,0,0,0,                 // 30-3F
+    0,0,0,0,0,0,13,17,11,'-',18,'5',19,'+',0,20,                   // 40-4F
+    12,0,127,0,0,'<'                                               // 50-55
+  },
+};
+
 static kernelKeyMap *allMaps[] = {
-  &EN_US, &EN_UK, &DE_DE, NULL
+  &EN_US, &EN_UK, &DE_DE, &IT_IT, NULL
 };
 
 
@@ -154,7 +192,9 @@ static void keyboardInterrupt(void)
   // This is the keyboard interrupt handler.  It calls the keyboard driver
   // to actually read data from the device.
 
-  kernelProcessorIsrEnter();
+  void *address = NULL;
+
+  kernelProcessorIsrEnter(address);
   kernelProcessingInterrupt = 1;
 
   // Ok, now we can call the routine.
@@ -163,7 +203,7 @@ static void keyboardInterrupt(void)
 
   kernelPicEndOfInterrupt(INTERRUPT_NUM_KEYBOARD);
   kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
+  kernelProcessorIsrExit(address);
 }
 
 

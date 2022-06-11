@@ -75,8 +75,8 @@ int kernelImageLoad(const char *fileName, int reqWidth, int reqHeight,
 
   // Call the appropriate 'load' function
   if (fileClassDriver->image.load)
-    return (fileClassDriver->image.load(imageFileData, reqWidth, reqHeight,
-					loadImage));
+    return (fileClassDriver->image.load(imageFileData, theFile.size, reqWidth,
+					reqHeight, loadImage));
   else
     return (status = ERR_NOTIMPLEMENTED);
 }

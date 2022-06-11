@@ -29,6 +29,7 @@
 #define IMAGETYPE_COLOR 2
 
 #define IMAGEFORMAT_BMP 1
+#define IMAGEFORMAT_JPG 2
 
 #define MAXVIDEOMODES   20
 

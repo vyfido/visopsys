@@ -13,24 +13,27 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <table border="0" cellpadding="0" cellspacing="0" width="93">
   <tr>
     <td width="99"><p align="center"><font color="#FFFFFF"><a href="../index.html">
-    <img src="../img/nav_buttons/home.gif" alt="Go back to the Visopsys Home Page." border="0" align="middle" width="53" height="25"></a><br>
+    <img src="../img/nav_buttons/home.gif" alt="Home" border="0" align="middle" width="53" height="25"></a><br>
     <br>
     <a href="../about/index.html">
-    <img src="../img/nav_buttons/about.gif" alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a></font><p align="center">
+    <img src="../img/nav_buttons/about.gif" alt="About" border="0" align="middle" width="60" height="25"></a></font><p align="center">
+    <a href="../about/news.html">
+    <img border="0" src="../img/nav_buttons/news.gif" alt="News" width="49" height="16"></a><br>
+    <br>
     <a href="../about/screenshots.html">
-    <img border="0" src="../img/nav_buttons/screenshots.gif" width="105" height="22"></a><font color="#FFFFFF"><br>
+    <img border="0" src="../img/nav_buttons/screenshots.gif" alt="Screenshots" width="105" height="22"></a><font color="#FFFFFF"><br>
     <br>
     <a href="index.html">
-    <img src="../img/nav_buttons/download.gif" alt="Download Visopsys and associated files." border="0" align="middle" width="95" height="25"></a></font><br>
+    <img src="../img/nav_buttons/download.gif" alt="Download" border="0" align="middle" width="95" height="25"></a></font><br>
     <br>
     <a href="../developers/index.html">
-    <img src="../img/nav_buttons/developers.gif" border="0" alt="Resources for Visopsys development" align="middle" width="97" height="29"></a><br>
+    <img src="../img/nav_buttons/developers.gif" border="0" alt="Developers" align="middle" width="97" height="29"></a><br>
     <br>
     <a href="../osdev/index.html">
-    <img src="../img/nav_buttons/osdev.gif" border="0" alt="OS Development Resources" align="middle" width="64" height="25"></a><br>
+    <img src="../img/nav_buttons/osdev.gif" border="0" alt="OS Development" align="middle" width="64" height="25"></a><br>
     <br>
     <a href="../search.html">
-    <img src="../img/nav_buttons/search.gif" alt="Search the Visopsys Site" align="middle" border="0" width="63" height="24"></a></td>
+    <img src="../img/nav_buttons/search.gif" alt="Search" align="middle" border="0" width="63" height="24"></a></td>
   </tr>
 </table>
 </center></div>
@@ -42,6 +45,127 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <p align="center">
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
+
+<p><font size="4">VERSION 0.6<br>
+</font><font size="2">30/11/2005<br>
+</font><font size="4"><br>
+Overview: This release introduces a host of new functionality including a 
+cleaned up desktop with icons for browsing the computer, file systems, and 
+administrative tasks, FAT defragmenting, ELF dynamic linking, a built in 
+chain-boot loader and simple MBR formatting, file browsing widgets and dialogs, 
+Windows .ico icon file support, a generic file viewing program, Italian keyboard 
+support, new icons and a new splash screen.</font></p>
+<ul>
+  <li><font size="4">Added a 'Computer' icon, equivalent to the one in Linux or 
+  'My Computer' in Windows.&nbsp; It shows the different disks, auto-mounts them 
+  (if applicable) when clicked, and launches a file browser.</font></li>
+  <li><font size="4">Added a 'File Browser' icon.</font></li>
+  <li><font size="4">Added an 'Administration' icon which brings up a window for 
+  various other programs that were previously on the default desktop.</font></li>
+  <li><font size="4">The 'view' program is now a more generic program for 
+  default viewing of various sorts of files.</font></li>
+  <li><font size="4">Added defragmenting capability to the FAT filesystem 
+  driver.</font></li>
+  <li><font size="4">Implemented shared libraries and dynamically linked 
+  executables.&nbsp; All included libraries and programs are now dynamic.</font></li>
+  <li><font size="4">Implemented a simple, chain-loading MBR boot menu for 
+  loading from different partitions and operating systems.&nbsp; The 'bootmenu' 
+  program lets the user edit the menu strings and set parameters.&nbsp; Also 
+  accessible from the Disk Manager.&nbsp; ** Note that this will NOT load any 
+  Linux installation<br>
+  that uses an initrd.</font></li>
+  <li><font size="4">Implemented simple MBR code, so that for example the Disk 
+  Manager can be used to rescue a system from a deleted or corrupt GRUB 
+  installation.</font></li>
+  <li><font size="4">Added .ico icon file format support and converted many 
+  existing icons to that format.</font></li>
+  <li><font size="4">Created file browsing widgets/dialogs.</font></li>
+  <li><font size="4">There is a new splash screen image and a number of new 
+  icons.</font></li>
+  <li><font size="4">Text areas now use white background and blue text as the 
+  default colors.</font></li>
+  <li><font size="4">Added Davide Airaghi's Italian keyboard mapping.</font></li>
+  <li><font size="4">Some preliminary networking support has been added, but for 
+  the moment it is disabled by default.&nbsp; The only network device driver 
+  provided is for the &quot;Lance&quot; (AMD PC-NET) card, which can be simulated under 
+  VMWare.&nbsp; In the 'Administration' window, there is now a 'Network' icon 
+  that proves access to a simple 'Network Devices' program which, for now, just 
+  shows devices, status, settings, dynamic (via DHCP) IP address, etc.&nbsp; 
+  There is also a 'ping' command.</font></li>
+  <li><font size="4">The new exception handler prints out more diagnostic 
+  information (exception type, and more)</font></li>
+  <li><font size="4">There is now a vsh library function for a text mode 
+  progress bar.</font></li>
+  <li><font size="4">The format program now shows a progress bar in text mode.</font></li>
+  <li><font size="4">The Disk Manager will refuse outright, or warn/confirm 
+  before moving, formatting, or deleting mounted partitions. </font></li>
+  <li><font size="4">The 'disks' command now shows mount points.</font></li>
+  <li><font size="4">Created an 'iconwin' program that uses config files to 
+  create custom windows with icons, and user-specified actions associated with 
+  them.</font></li>
+  <li><font size="4">Added a /CREDITS.txt file for listing others' 
+  contributions.</font></li>
+  <li><font size="4">There is now a /system/mouse/ directory for mouse pointer 
+  images, a /system/config/ directory for .conf files of all programs and the 
+  kernel, a /system/mount directory for automatic mounting, and a 
+  /system/wallpaper directory for background images.</font></li>
+  <li><font size="4">Created a 'progress dialog' window library feature that 
+  utilizes the 'progress' structure and shows a progress bar and status 
+  messages.</font></li>
+  <li><font size="4">The exception handler is no longer a standalone task, in 
+  order to do FPU state saves/restores without setting the CR0[TS] bit.</font></li>
+  <li><font size="4">Handles exceptions generated when a process attempts to do 
+  floating point operations after a task switch.</font></li>
+  <li><font size="4">The filesystem structure is now contained within the logical 
+  disk structure.</font></li>
+  <li><font size="4">The user-space 'disk' object now indicates whether a 
+  partition is mounted, and if so, the mount point.</font></li>
+  <li><font size="4">Exported a portion of the kernelDevice structure as a new 
+  'device' structure, and created API functions to export the hardware device 
+  tree.</font></li>
+  <li><font size="4">'Atomized' some of the ASM macros in kernelProcessorX86.h 
+  so that they can be reused in other more complex macros</font></li>
+  <li><font size="4">Added floorf(), sin(), cos(), and tan() functions to the C 
+  lib.</font></li>
+  <li><font size="4">Added support for %b format specifiers in the _xpndfmt.c 
+  functions by adding another bogus C library routine (itob).</font></li>
+  <li><font size="4">File changes: Changed 'kernelMiscFunctions.*' to 'kernelMisc.*', 
+  and the kernelPageManager and kernelMemoryManager have had the 'Manager' bit 
+  taken out of their file/function names.</font></li>
+  <li><font size="4">Added window library functions to clear an event handler 
+  and to get the window thread PID</font></li>
+  <li><font size="4">Implemented a 'progress' data structure that can be passed 
+  to (for example) long filesystem operations such as format, check, resize.</font></li>
+  <li><font size="4">The 'map to free' functionality of the paging code no 
+  longer, by default, allocates the first page in the address space.&nbsp; This 
+  makes it easier to detect/guide against NULL pointer dereferences.</font></li>
+  <li><font size="4">Got rid of the 'diskType' and 'mediaType' enums from the 
+  various disk structures, and instead use a set of logical flags to describe 
+  disks.</font></li>
+  <li><font size="4">Removed the deprecated windowPack() and windowSetPacked() 
+  API functions.</font></li>
+  <li><font size="4">Fixed: In the Disk Manager, canceling a new partition 
+  creation at the label type stage caused 2 changes to show as pending.</font></li>
+  <li><font size="4">Fixed: The Disk Manager's partition reordering menu didn't 
+  display changes properly in text mode.&nbsp; It worked but the changes weren't 
+  reflected in the menu.</font></li>
+  <li><font size="4">Fixed: The lost+found directory created by the EXT2 
+  formatting code was not readable when we mounted the filesystem.&nbsp; Also, 
+  the permissions are now set to the same values as Linux mke2fs.</font></li>
+  <li><font size="4">Fixed: Using the 'gcc version 3.4.2' and 'ld version 
+  2.15.92.0.2' combo (Fedora Core 3), generated programs had a new, unexpected 
+  number (3) of ELF program header entries.</font></li>
+  <li><font size="4">Fixed: Selecting partition/list types in the Disk Manager 
+  could crash the program.</font></li>
+  <li><font size="4">Fixed: The Program Manager was associating some child 
+  threads with the wrong parents in the process list.</font></li>
+</ul>
+
+<font SIZE="2">
+
+<hr>
+
+</font>
 
 <p><font size="4">VERSION 0.58<br>
 </font><font size="2">03/10/2005</font></p>
@@ -134,9 +258,9 @@ back-ported from the 0.6 development branch.</font></p>
   the GUI thread process so that calling programs can monitor its survival.</font></li>
   <li><font size="4">Updated the help file documentation for the program files.</font></li>
   <li><font size="4">Fixed: If the user doesn't have administrator privileges, 
-  the 'disprops' program now greys out the list of screen resolutions because 
+  the 'disprops' program now grays out the list of screen resolutions because 
   the kernel won't allow it to be changed.&nbsp; Also, the API functions to 
-  get/set the window manager colours have been made into user-privilege 
+  get/set the window manager colors have been made into user-privilege 
   functions.</font></li>
   <li><font size="4">Fixed: After &quot;user authentication failed&quot;, the login 
   program stopped responding.</font></li>
@@ -205,7 +329,7 @@ from the 0.6 development branch.</font></p>
   more advantage of packed structures for better efficiency.</font></li>
   <li><font size="4">Fixed: The 'format' program was inadvertently ignoring the 
   '-t' filesystem type option.</font></li>
-  <li><font size="4">Fixed: If the default background colour was not used, the 
+  <li><font size="4">Fixed: If the default background color was not used, the 
   text area widget's scroll bar would use that background color rather than the 
   normal grey.</font></li>
   <li><font size="4">Un-exported the filesystem functions in the FAT, ISO, and 
@@ -219,7 +343,7 @@ from the 0.6 development branch.</font></p>
 <hr>
 
 <p><font size="4">VERSION 0.55<br>
-</font></font>18/05/2005</p>
+</font>18/05/2005</font></p>
 <p><font size="4">Overview: This is a maintenance and bugfix release, with some 
 additional capabilities including installation support for all FAT filesystems, 
 primitive PCI driver support, and a better organised device driver 
@@ -265,7 +389,7 @@ reimplemented and generally fixed.</font></p>
 <hr>
 
 <p><font size="4">VERSION 0.54<br>
-</font>22/03/2005</p>
+</font><font size="2">22/03/2005</font></p>
 <p><font size="4">Overview: This is a maintenance release, with numerous small 
 improvements and bug fixes including some general back-porting from the 0.6 
 development branch.&nbsp; In addition, IDE disk-to-disk operations have been 
@@ -327,7 +451,7 @@ efficiency in a performance-critical section of the multitasker.</font></p>
 <font SIZE="2"><hr></font>
 
 <p><font size="4">VERSION 0.53<br>
-</font>01/02/2005</p>
+</font><font size="2">01/02/2005</font></p>
 <p><font size="4">Overview: This is a maintenance release, with numerous small 
 improvements and bug fixes.&nbsp; A number of unnecessary files and programs 
 have been removed.</font></p>
@@ -379,7 +503,7 @@ have been removed.</font></p>
 <font SIZE="2"><hr></font>
 
 <p><font size="4">VERSION 0.52<br>
-</font>14/01/2005</p>
+</font><font size="2">14/01/2005</font></p>
 <p><font size="4">Overview: This is a maintenance and bugfix release, with some 
 additional features, such as improved disk-to-disk copies and partition table 
 reordering in the Disk Manager, and additional C library functions.</font></p>
@@ -426,7 +550,7 @@ reordering in the Disk Manager, and additional C library functions.</font></p>
 <font SIZE="2"><hr></font>
 
 <p><font size="4">VERSION 0.51<br>
-</font>30/12/2004</p>
+</font><font size="2">30/12/2004</font></p>
 <p><font size="4">Overview: This is a maintenance and bugfix release, with some 
 additional features, such as the Disk Manager's ability to fix small partition 
 table consistency errors.</font></p>
@@ -465,7 +589,7 @@ table consistency errors.</font></p>
 <hr>
 
 <p><font size="4">VERSION 0.5<br>
-</font>12/12/2004</p>
+</font><font size="2">12/12/2004</font></p>
 <p><font size="4">Overview: This release adds logical partition capabilities to 
 both the kernel and the Disk Manager (which has been substantially rewritten), 
 window minimizing, a GUI taskbar for managing windows, new icons and cleaner 
@@ -537,7 +661,7 @@ desktop layout, a 'Program Manager' application, and a temporary file interface
   <li><font size="4">Removed the exception handler's 'core dump' code, since it 
   wasn't all that useful without tracing/debugging facilities.</font></li>
   <li><font size="4">Clicking outside of all of a window's components now 
-  removes the focus from any focussed component.</font></li>
+  removes the focus from any focused component.</font></li>
   <li><font size="4">Fixed: The 'cdrom' program's help page claimed that it will 
   attempt to guess the name of the device is not specified, but that hadn't been 
   implemented. It always picked the first cdrom.</font></li>
@@ -597,17 +721,17 @@ desktop layout, a 'Program Manager' application, and a temporary file interface
 <hr>
 
 <p><font size="4">VERSION 0.42<br>
-</font>11/09/2004</p>
+</font><font size="2">11/09/2004</font></p>
 <p><font size="4">Overview: This is primarily a bugfix release, with some added 
 features including the ability to format partitions from the Disk Manager, plus 
-vertical scroll bars on text areas and visual reimplementation of &quot;greyed out&quot; 
+vertical scroll bars on text areas and visual reimplementation of &quot;grayed out&quot; 
 window components.</font></p>
 <ul>
   <li><font size="4">Enabled filesystem formatting functionality in the disk 
   manager.</font></li>
   <li><font size="4">Implemented vertical scroll bars and extended buffers on 
   window text area components</font></li>
-  <li><font size="4">Improved the 'greying out' functionality in the window 
+  <li><font size="4">Improved the 'graying out' functionality in the window 
   manager; it didn't look great with the default colors and looked positively 
   silly with some other color schemes.</font></li>
   <li><font size="4">Reimplemented the 'hidden' functionality of window text 
@@ -641,7 +765,7 @@ window components.</font></p>
   <li><font size="4">Moved the font argument from some window components into 
   the componentParameters structure</font></li>
   <li><font size="4">Fixed: Setting the widest item in a GUI menu to not enabled 
-  caused a bit of the menu border to get greyed out as well.</font></li>
+  caused a bit of the menu border to get grayed out as well.</font></li>
   <li><font size="4">Fixed: State changes in the disk manager's disk and 
   partition lists caused by key events were not being handled properly.</font></li>
   <li><font size="4">Fixed: In the User Manager, when adding a new user, if the 
@@ -658,7 +782,7 @@ window components.</font></p>
 <hr>
 
 <p><font size="4">VERSION 0.41<br>
-</font>09/08/2004</p>
+</font><font size="2">09/08/2004</font></p>
 <p><font size="4">Overview: This is primarily a bugfix release, with some added 
 features, including the ability to move partitions, a configuration editor, and 
 a keymap editor.&nbsp; There are also a number of small tweaks to graphical 
@@ -731,7 +855,7 @@ components and GUI user settings.</font></p>
 <hr>
 
 <p><font size="4">VERSION 0.4<br>
-</font>19/07/2004</p>
+</font><font size="2">19/07/2004</font></p>
 <p><font size="4">Overview: This release features a number of graphical 
 interface improvements, including several new GUI widgets and &quot;newbie&quot; usability 
 tweaks. The 'install' and 'disk manager' programs have been properly 
@@ -857,7 +981,7 @@ encryption.</font></p>
   manager.</font></li>
   <li><font size="4">Window buttons are now focusable and can handle various 
   keyboard events</font></li>
-  <li><font size="4">Implemented proper 'focussing' of window components</font></li>
+  <li><font size="4">Implemented proper 'focusing' of window components</font></li>
   <li><font size="4">Added a function for getting the contents of a text field 
   or text area component in the window manager</font></li>
   <li><font size="4">The window close button no longer uses the little 'X' image 
@@ -888,7 +1012,7 @@ encryption.</font></p>
   <li><font size="4">Fixed: There was trouble (triple-fault) drawing outline 
   (non-filled) rectangles in the framebuffer graphic driver, if they were 
   partially off the edges of the screen</font></li>
-  <li><font size="4">Fixed: The ELF loader was not allocting enough memory for 
+  <li><font size="4">Fixed: The ELF loader was not allocating enough memory for 
   the uninitialized data that executables might require.</font></li>
   <li><font size="4">Fixed: The free spaces calculation in the disk manager was 
   incorrect, particularly when there was only one partition that didn't start at 
@@ -914,7 +1038,7 @@ encryption.</font></p>
 <hr>
 
 <p><font size="4">VERSION 0.33<br>
-</font>11/01/2004</p>
+</font><font size="2">11/01/2004</font></p>
 <p><font size="4">Overview: This is primarily a bugfix release, with bootable 
 CD-ROM support added as a new feature.</font></p>
 <ul>
@@ -936,7 +1060,7 @@ CD-ROM support added as a new feature.</font></p>
 </ul>
 <hr>
 <p><font size="4">VERSION 0.32<br>
-</font>04/01/2004</p>
+</font><font size="2">04/01/2004</font></p>
 <p><font size="4">Overview: This is primarily a bugfix release, with CD-ROM and 
 ISO9660 filesystem support added as new (alpha) features.</font></p>
 <ul>
@@ -962,7 +1086,7 @@ booting from hard disks.</font></li>
 </ul>
 <hr>
 <p><font size="4">VERSION 0.31<br>
-</font>12/12/2003</p>
+</font><font size="2">12/12/2003</font></p>
 <p><font size="4">Overview: This is primarily a bugfix release, with EXT2 
 filesystem support added as a new (alpha) feature.</font></p>
 <ul>
@@ -981,7 +1105,7 @@ boundaries.</font></li>
 </ul>
 <hr>
 <p><font size="4">VERSION 0.3<br>
-</font>24/11/2003</p>
+</font><font size="2">24/11/2003</font></p>
 <p><font size="4">Overview: This release is very much an &quot;under the hood&quot; 
 release. The user interaction is similar to that of 0.2, but a great deal 
 of work has gone into improving the structure, performance, and 
@@ -995,7 +1119,8 @@ consistent.</font></p>
 blocking on them.</font></li>
   <li><font size="4">Fixed: Windows wasn't entirely happy with our FAT short 
   filename aliases.&nbsp; Complained about the format of the short name of &quot;/system/boot/bootsect.fatnoboot&quot;</font></li>
-  <li><font size="4">Changed the naming of the kernel window components (removed the'component' bit from the names)</font></li>
+  <li><font size="4">Changed the naming of the kernel window components (removed 
+  the 'component' bit from the names)</font></li>
   <li><font size="4">Fixed: File completions were completing things they 
   shouldn't; i.e. when you &quot;cd system; ls b[tab]&quot; it completed &quot;background&quot; but 
 there's a &quot;boot&quot; directory as well.</font></li>
@@ -1040,7 +1165,7 @@ and the other widgets got squashed together.</font></li>
 programs that use the GUI. When a user performs a GUI action, such as 
 clicking a button, the user application can now read that event from the 
 component.</font></li>
-  <li><font size="4">As a supplement to this, implmented user-mode library code 
+  <li><font size="4">As a supplement to this, implemented user-mode library code 
 for monitoring window component event queues. It includes a &quot;GUI run&quot; 
 function that signals the application is ready to begin monitoring its 
 widgets for events, after all its setup is done. The rest of the flow can 
@@ -1093,7 +1218,7 @@ no partition table on the hard disk</font></li>
   one instance of each driver of each known type </font></li>
   <li><font size="4">In the FAT filesystem driver, file names that start with 
   '.' were listed, but could not be created or accessed. This is fixed.</font></li>
-  <li><font size="4">Implmented FAT filesystem driver formatting functionality</font></li>
+  <li><font size="4">Implemented FAT filesystem driver formatting functionality</font></li>
   <li><font size="4">Improved the fdisk program so that it can do most common 
 operations</font></li>
   <li><font size="4">When there are no files in a directory, 'ls' no longer 
@@ -1160,7 +1285,7 @@ different from the previous algorithm)</font></li>
 </ul>
 <hr>
 <p><font size="4">VERSION 0.2<br>
-</font>03/06/2003</p>
+</font><font size="2">03/06/2003</font></p>
 <p><font size="4">Overview: This release was a huge leap ahead from version 0.1 
 (and it took a long time, too). This release added a basic GUI, 
 whereas version 0.1 was text-mode only. Really, the list of changes 
@@ -1215,7 +1340,7 @@ same disk.</font></li>
   <li><font size="4">Implemented multiple text output streams, with the text 
   input stream changing to the active window, so that we can have multiple 
 text windows open at the same time</font></li>
-  <li><font size="4">Implmented the FAT filesystem driver checking functionality 
+  <li><font size="4">Implemented the FAT filesystem driver checking functionality 
 [It's very primitive, but it does detect and fix some errors]</font></li>
   <li><font size="4">Moved the exception handler code into the multitasker. It 
   really needs to interact with the multitasker quite a bit.</font></li>
@@ -1242,7 +1367,7 @@ the active partition on hard disks</font></li>
 routine instead someday.</font></li>
   <li><font size="4">Fixed: The 'cp' command was crashing when copying files 
   involving the hard disk</font></li>
-  <li><font size="4">Implmented the 'write' function in the IDE disk driver. 
+  <li><font size="4">Implemented the 'write' function in the IDE disk driver. 
 Previously it was left out since the filesystem driver is still imperfect.</font></li>
   <li><font size="4">Fixed: Mounting hard disk partitions on my 30GB hard disk 
   was not working.&nbsp; LBA versus CHS issue</font></li>
@@ -1282,7 +1407,7 @@ abstraction layer initialization</font></li>
 </ul>
 <hr>
 <p><font size="4">VERSION 0.1<br>
-</font>02/08/2001</p>
+</font><font size="2">02/08/2001</font></p>
 <p><font size="4">Initial public release.</font></p>
 
 <p align="left">&nbsp;</p>
@@ -1295,27 +1420,29 @@ abstraction layer initialization</font></li>
   <blockquote>
     <p align="right"><font color="#FFFFFF"><a href="../index.html">
     <img
-    src="../img/nav_buttons/home.gif" alt="Go back to the Visopsys Home Page." border="0"
+    src="../img/nav_buttons/home.gif" alt="Home" border="0"
     align="middle" width="53" height="25"></a>&nbsp;&nbsp; <a href="../about/index.html">
     <img src="../img/nav_buttons/about.gif"
-    alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a>&nbsp;&nbsp; </font>
+    alt="About" border="0" align="middle" width="60" height="25"></a>&nbsp;&nbsp;
+    <a href="../about/news.html">
+    <img border="0" src="../img/nav_buttons/news.gif" align="middle" alt="News" width="49" height="16"></a>&nbsp;&nbsp; </font>
     <a href="../about/screenshots.html">
-    <img border="0" src="../img/nav_buttons/screenshots.gif" align="middle" width="105" height="22"></a>&nbsp;&nbsp; <font color="#FFFFFF"> <a href="index.html">
+    <img border="0" src="../img/nav_buttons/screenshots.gif" align="middle" alt="Screenshots" width="105" height="22"></a>&nbsp;&nbsp; <font color="#FFFFFF"> <a href="index.html">
     <img
-    src="../img/nav_buttons/download.gif" alt="Download Visopsys and associated files."
+    src="../img/nav_buttons/download.gif" alt="Download"
     border="0" align="middle" width="95" height="25"></a>&nbsp; </font>&nbsp;<a href="../developers/index.html"><img
-    src="../img/nav_buttons/developers.gif" alt="Resources for Visopsys development"
+    src="../img/nav_buttons/developers.gif" alt="Developers"
     border="0" align="middle" width="97" height="29"></a>&nbsp;&nbsp; <a href="../osdev/index.html">
     <img
-    src="../img/nav_buttons/osdev.gif" border="0" align="middle" width="64" height="25"></a>&nbsp;&nbsp; <a href="../search.html">
+    src="../img/nav_buttons/osdev.gif" border="0" align="middle" alt="OS Development" width="64" height="25"></a>&nbsp;&nbsp; <a href="../search.html">
     <img
-    src="../img/nav_buttons/search.gif" alt="Search the Visopsys Site" align="middle"
+    src="../img/nav_buttons/search.gif" alt="Search" align="middle"
     border="0" width="63" height="24"></a><font face="Times New Roman" color="#FFFFFF"><br>
-    This site is copyright © 1999-2005, J.
-    Andrew McLaughlin<br>
+    This site is copyright © 1999-2005, <a href="mailto:andy@visopsys.org">J.
+    Andrew (Andy) McLaughlin</a><br>
     Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
     Last updated on
-    March 22, 2005</font></p>
+    November 29, 2005</font></p>
   </blockquote>
 </blockquote>
 

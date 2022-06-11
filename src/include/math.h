@@ -38,12 +38,19 @@
 #define M_SQRT1_2   0.70710678118654752440 // 1/sqrt(2)
 
 double ceil(double);
+double cos(double);
+float cosf(float);
 double fabs(double);
 double floor(double);
+float floorf(float);
 double fmod(double, double);
-double modf(double x, double *);
+double modf(double, double *);
 double pow(double, double);
+double sin(double);
+float sinf(float);
 double sqrt(double);
+double tan(double);
+float tanf(float);
 
 #define _MATH_H
 #endif

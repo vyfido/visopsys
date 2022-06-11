@@ -22,11 +22,35 @@
 // This is the standard "cos" function, as found in standard C libraries
 
 #include <math.h>
-#include <errno.h>
 
 
-double cos(double theDouble)
+double cos(double radians)
 {
-  errno = ERR_NOTIMPLEMENTED;
-  return (theDouble);
+  // Returns the cosine of x (x given in radians).  Adapted from an algorithm
+  // found at http://www.dontletgo.com/planets/math.html
+
+  double result = 0;
+  double sign = 0;
+  double x2n = 0;
+  double factorial = 0;
+  int n, count;
+
+  for (n = 0; n < 10; n ++)
+    {
+      sign = 1.0;
+      for (count = 0; count < n; count ++)
+	sign *= (double) -1;
+
+      x2n = 1.0;
+      for (count = 0; count < (2 * n); count ++)
+	x2n *= radians;
+
+      factorial = 1.0;
+      for (count = (2 * n); count > 0; count --)
+	factorial *= (double) count;
+
+      result += (sign * (x2n / factorial));
+    }
+
+  return (result);
 }

@@ -25,6 +25,7 @@
 
 #if !defined(_KERNELDISK_H)
 
+#include "kernelFile.h"
 #include "kernelDevice.h"
 #include "kernelLock.h"
 #include <sys/disk.h>
@@ -83,7 +84,26 @@ typedef volatile struct {
   unsigned startSector;
   unsigned numSectors;
   int primary;
-  int readOnly;
+
+  // This part of the structure defines file systems
+  struct {
+    void *driver;
+
+    // These should always be set by the driver upon successful detection
+    unsigned blockSize;
+    unsigned minSectors;  // for
+    unsigned maxSectors;  // resize
+
+    // These are set when mounted.  Should be cleared during unmount.
+    int mounted;
+    char mountPoint[MAX_PATH_LENGTH];
+    kernelFileEntry *filesystemRoot;
+    int childMounts;
+    void *filesystemData;
+    int caseInsensitive;
+    int readOnly;
+
+  } filesystem;
 
 } kernelDisk;
 
@@ -134,7 +154,8 @@ int kernelDiskSyncDisk(const char *);
 int kernelDiskInvalidateCache(const char *);
 int kernelDiskShutdown(void);
 int kernelDiskFromLogical(kernelDisk *, disk *);
-kernelDisk *kernelGetDiskByName(const char *);
+kernelDisk *kernelDiskGetByName(const char *);
+kernelDisk *kernelDiskGetByPath(const char *);
 // More functions, but also exported to user space
 int kernelDiskReadPartitions(void);
 int kernelDiskSync(void);
@@ -144,13 +165,11 @@ int kernelDiskGetPhysicalCount(void);
 int kernelDiskGet(const char *, disk *);
 int kernelDiskGetAll(disk *, unsigned);
 int kernelDiskGetAllPhysical(disk *, unsigned);
-int kernelDiskGetInfo(disk *);
-int kernelDiskFromPhysical(kernelPhysicalDisk *, disk *);
-int kernelDiskGetPhysicalInfo(disk *);
 int kernelDiskGetPartType(int, partitionType *);
 partitionType *kernelDiskGetPartTypes(void);
 int kernelDiskSetLockState(const char *diskName, int state);
 int kernelDiskSetDoorState(const char *, int);
+int kernelDiskGetMediaState(const char *);
 int kernelDiskReadSectors(const char *, unsigned, unsigned, void *);
 int kernelDiskWriteSectors(const char *, unsigned, unsigned, void *);
 

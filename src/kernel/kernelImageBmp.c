@@ -26,10 +26,10 @@
 #include "kernelImage.h"
 #include "kernelImageBmp.h"
 #include "kernelLoader.h"
-#include "kernelMemoryManager.h"
+#include "kernelMemory.h"
 #include "kernelMalloc.h"
 #include "kernelFile.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelError.h"
 #include <string.h>
 #include <stdio.h>
@@ -41,6 +41,7 @@ static int detect(const char *fileName, void *dataPtr, int size,
   // This function returns 1 and fills the fileClass structure if the data
   // points to an BMP file.
 
+  // Check params
   if ((fileName == NULL) || (dataPtr == NULL) || !size || (class == NULL))
     return (0);
 
@@ -58,8 +59,8 @@ static int detect(const char *fileName, void *dataPtr, int size,
 }
 
 
-static int load(unsigned char *imageFileData, int reqWidth, int reqHeight,
-		image *loadImage)
+static int load(unsigned char *imageFileData, int dataLength, int reqWidth,
+		int reqHeight, image *loadImage)
 {
   // Loads a .bmp file and returns it as an image.  The memory for this and
   // its data must be freed by the caller.
@@ -79,6 +80,10 @@ static int load(unsigned char *imageFileData, int reqWidth, int reqHeight,
   unsigned char colorIndex = 0;
   pixel *imageData = NULL;
   int count;
+  
+  // Check params
+  if ((imageFileData == NULL) || !dataLength || loadImage == NULL)
+    return (status = ERR_NULLPARAMETER);
 
   // Point our header pointer at the start of the file
   header = (bmpHeader *) (imageFileData + 2);

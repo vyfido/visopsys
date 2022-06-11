@@ -1,4 +1,4 @@
-THE VISOPSYS KERNEL API (Version 0.5)
+THE VISOPSYS KERNEL API (Version 0.6)
 
 
 All of the kernel's functions are defined in the file /system/headers/sys/api.h. In future, this file may be split into smaller chunks, by functional area. Data structures referred to in these function definitions are found in header files in the /system/headers/sys directory. For example, a 'disk' object is defined in /system/headers/sys/disk.h.
@@ -136,6 +136,11 @@ int textCursorLeft(void)
 int textCursorRight(void)
 
 	Move the cursor right one column.  Doesn't affect any characters there.
+
+
+void textScroll(int upDown)
+
+	Scroll the current text area up (-1) or down (+1)
 
 
 int textGetNumColumns(void)
@@ -317,14 +322,19 @@ int diskGetPhysicalCount(void)
 	Get the number of physical disk devices recognized by the system
 
 
-int diskGetInfo(disk *d)
+int diskGet(const char *name, disk *userDisk)
 
-	Get information about the logical disk volume named by the disk structure's 'name' field and fill in the remainder of the disk structure d.
+	Given a disk name string 'name', fill in the corresponding user space disk structure 'userDisk.
 
 
-int diskGetPhysicalInfo(disk *d)
+int diskGetAll(disk *userDiskArray, unsigned buffSize)
 
-	Get information about the physical disk device named by the disk structure's 'name' field and fill in the remainder of the disk structure d.
+	Return user space disk structures in 'userDiskArray' for each logical disk, up to 'buffSize' bytes.
+
+
+int diskGetAllPhysical(disk *userDiskArray, unsigned buffSize)
+
+	Return user space disk structures in 'userDiskArray' for each physical disk, up to 'buffSize' bytes.
 
 
 int diskGetPartType(int code, partitionType *p)
@@ -347,43 +357,43 @@ int diskSetDoorState(const char *name, int state)
 	Open (1) or close (0) the disk 'name'.  May require a unlocking the door first, see diskSetLockState().
 
 
+int diskGetMediaState(const char *diskName)
+
+	Returns 1 if the removable disk 'diskName' is known to have media present.
+
+
 int diskReadSectors(const char *name, unsigned sect, unsigned count, void *buf)
 
-	Read 'count' sectors from disk 'name', starting at (zero-based) logical sector number 'sect'.  Put the data in memory area 'buf'.
+	Read 'count' sectors from disk 'name', starting at (zero-based) logical sector number 'sect'.  Put the data in memory area 'buf'.  This function requires supervisor privilege.
 
 
 int diskWriteSectors(const char *name, unsigned sect, unsigned count, void *buf)
 
-	Write 'count' sectors to disk 'name', starting at (zero-based) logical sector number 'sect'.  Get the data from memory area 'buf'.
-
-
-int diskReadAbsoluteSectors(const char *name, unsigned sect, unsigned count, void *buf)
-
-	Read 'count' sectors from disk 'name', starting at (zero-based) absolute sector number 'sect'.  Put the data in memory area 'buf'.  This function requires supervisor privilege and is used to read outside the logical confines of a volume, such as a hard disk partition.  Not very useful unless you know what you're doing.
-
-
-int diskWriteAbsoluteSectors(const char *name, unsigned sect, unsigned count, void *buf)
-
-	Write 'count' sectors to disk 'name', starting at (zero-based) absolute sector number 'sect'.  Get the data from memory area 'buf'.  This function requires supervisor privilege and is used to write outside the logical confines of a volume, such as a hard disk partition.  Don't use this unless you know what you're doing.
+	Write 'count' sectors to disk 'name', starting at (zero-based) logical sector number 'sect'.  Get the data from memory area 'buf'.  This function requires supervisor privilege.
 
 
 --------------------------------------
 Filesystem functions
 --------------------------------------
 
-int filesystemFormat(const char *disk, const char *type, const char *label, int longFormat)
+int filesystemFormat(const char *theDisk, const char *type, const char *label, int longFormat, progress *prog)
 
-	Format the logical volume 'disk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported.  It is optional for filesystem drivers to implement this function.
-
-
-int filesystemCheck(const char *name, int force, int repair)
-
-	Check the filesystem on disk 'name'.  If 'force' is non-zero, the filesystem will be checked regardless of whether the filesystem driver thinks it needs to be.  If 'repair' is non-zero, the filesystem driver will attempt to repair any errors found.  If 'repair' is zero, a non-zero return value may indicate that errors were found.  If 'repair' is non-zero, a non-zero return value may indicate that errors were found but could not be fixed.  It is optional for filesystem drivers to implement this function.
+	Format the logical volume 'theDisk', with a string 'type' representing the preferred filesystem type (for example, "fat", "fat16", "fat32, etc).  Label it with 'label'.  'longFormat' will do a sector-by-sector format, if supported, and progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
 
 
-int filesystemDefragment(const char *name)
+int filesystemClobber(const char *theDisk)
 
-	Defragment the filesystem on disk 'name'.  It is optional for filesystem drivers to implement this function.
+	Clobber all known filesystem types on the logical volume 'theDisk'.  It is optional for filesystem drivers to implement this function.
+
+
+int filesystemCheck(const char *name, int force, int repair, progress *prog)
+
+	Check the filesystem on disk 'name'.  If 'force' is non-zero, the filesystem will be checked regardless of whether the filesystem driver thinks it needs to be.  If 'repair' is non-zero, the filesystem driver will attempt to repair any errors found.  If 'repair' is zero, a non-zero return value may indicate that errors were found.  If 'repair' is non-zero, a non-zero return value may indicate that errors were found but could not be fixed.  Progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
+
+
+int filesystemDefragment(const char *name, progress *prog)
+
+	Defragment the filesystem on disk 'name'.  Progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
 
 
 int filesystemMount(const char *name, const char *mp)
@@ -401,7 +411,7 @@ int filesystemGetFree(const char *fs)
 	Returns the amount of free space on the filesystem represented by the mount point 'fs'.
 
 
-unsigned int filesystemGetBlockSize(const char *fs)
+unsigned filesystemGetBlockSize(const char *fs)
 
 	Returns the block size (for example, 512 or 1024) of the filesystem represented by the mount point 'fs'.
 
@@ -425,6 +435,11 @@ int fileSeparateLast(const char *origPath, char *pathName, char *fileName)
 int fileGetDisk(const char *path, disk *d)
 
 	Given the file name 'path', return the user space structure for the logical disk that the file resides on.
+
+
+int fileCount(const char *path)
+
+	Get the count of file entries from the directory referenced by 'path'.
 
 
 int fileFirst(const char *path, file *f)
@@ -452,7 +467,7 @@ int fileClose(file *f)
 	Close the previously opened file 'f'.
 
 
-int fileRead(file *f, unsigned int blocknum, unsigned int blocks, unsigned char *buff)
+int fileRead(file *f, unsigned blocknum, unsigned blocks, unsigned char *buff)
 
 	Read data from the previously opened file 'f'.  'f' should have been opened in a read or read/write mode.  Read 'blocks' blocks (see the filesystem functions for information about getting the block size of a given filesystem) and put them in buffer 'buff'.
 
@@ -465,6 +480,11 @@ int fileWrite(file *f, unsigned blocknum, unsigned blocks, unsigned char *buff)
 int fileDelete(const char *name)
 
 	Delete the file referenced by the pathname 'name'.
+
+
+int fileDeleteRecursive(const char *name)
+
+	Recursively delete filesystem items, starting with the one referenced by the pathname 'name'.
 
 
 int fileDeleteSecure(const char *name)
@@ -517,17 +537,17 @@ int fileStreamSeek(fileStream *f, int offset)
 	Seek the filestream 'f' to the absolute position 'offset'
 
 
-int fileStreamRead(fileStream *f, int bytes, char *buff)
+int fileStreamRead(fileStream *f, unsigned bytes, char *buff)
 
 	Read 'bytes' bytes from the filestream 'f' and put them into 'buff'.
 
 
-int fileStreamReadLine(fileStream *f, int bytes, char *buff)
+int fileStreamReadLine(fileStream *f, unsigned bytes, char *buff)
 
 	Read a complete line of text from the filestream 'f', and put up to 'bytes' characters into 'buff'
 
 
-int fileStreamWrite(fileStream *f, int bytes, char *buff)
+int fileStreamWrite(fileStream *f, unsigned bytes, char *buff)
 
 	Write 'bytes' bytes from the buffer 'buff' to the filestream 'f'.
 
@@ -556,11 +576,6 @@ int fileStreamClose(fileStream *f)
 Memory functions
 --------------------------------------
 
-void memoryPrintUsage(int kernel)
-
-	Prints the current memory usage statistics to the current output stream.  If non-zero, the flag 'kernel' will show usage of kernel dynamic memory as well.
-
-
 void *memoryGet(unsigned size, const char *desc)
 
 	Return a pointer to a new block of memory of size 'size' and (optional) physical alignment 'align', adding the (optional) description 'desc'.  If no specific alignment is required, use '0'.  Memory allocated using this function is automatically cleared (like 'calloc').
@@ -586,18 +601,28 @@ int memoryChangeOwner(int opid, int npid, void *addr, void **naddr)
 	Change the ownership of an allocated block of memory beginning at address 'addr'.  'opid' is the process ID of the currently owning process, and 'npid' is the process ID of the intended new owner.  'naddr' is filled with the new address of the memory (since it changes address spaces in the process).  Note that only a privileged process can change memory ownership.
 
 
+int memoryGetStats(memoryStats *stats, int kernel)
+
+	Returns the current memory totals and usage values to the current output stream.  If non-zero, the flag 'kernel' will return kernel heap statistics instead of overall system statistics.
+
+
+int memoryGetBlocks(memoryBlock *blocksArray, unsigned buffSize, int kernel)
+
+	Returns a copy of the array of used memory blocks in 'blocksArray', up to 'buffSize' bytes.  If non-zero, the flag 'kernel' will return kernel heap blocks instead of overall heap allocations.
+
+
 --------------------------------------
 Multitasker functions
 --------------------------------------
 
-int multitaskerCreateProcess(void *addr, unsigned int size, const char *name, int numargs, void *args)
+int multitaskerCreateProcess(const char *name, int privilege, processImage *execImage)
 
-	Create a new process.  The code should have been loaded at the address 'addr' and be of size 'size'.  'name' will be the new process' name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new process.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new process' process ID.  New processes are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState().
+	Create a new process.  'name' will be the new process' name.  'privilege' is the privilege level.  'execImage' is a processImage structure that describes the loaded location of the file, the program's desired virtual address, entry point, size, etc.  If the value returned by the call is a positive integer, the call was successful and the value is the new process' process ID.  New processes are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState().
 
 
-int multitaskerSpawn(void *addr, const char *name, int numargs, void *args)
+int multitaskerSpawn(void *addr, const char *name, int numargs, void *args[])
 
-	Spawn a thread from the current process.  The starting point of the code (for example, a function address) should be specified as 'addr'.  'name' will be the new thread's name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new thread.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new thread's process ID.  New threads are created and left in a stopped state, so if you want it to run you will need to set it to a running state ('ready', actually) using the function call multitaskerSetProcessState().
+	Spawn a thread from the current process.  The starting point of the code (for example, a function address) should be specified as 'addr'.  'name' will be the new thread's name.  'numargs' and 'args' will be passed as the "int argc, char *argv[]) parameters of the new thread.  If there are no arguments, these should be 0 and NULL, respectively.  If the value returned by the call is a positive integer, the call was successful and the value is the new thread's process ID.  New threads are created and made runnable, so there is no need to change its state to activate it.
 
 
 int multitaskerGetCurrentProcessId(void)
@@ -625,6 +650,11 @@ int multitaskerSetProcessState(int pid, int state)
 	Sets the state of the process referenced by process ID 'pid' to the new state 'state'.
 
 
+int multitaskerProcessIsAlive(int pid)
+
+	Returns 1 if the process with the id 'pid' still exists and is in a 'runnable' (viable) state.  Returns 0 if the process does not exist or is in a 'finished' state.
+
+
 int multitaskerSetProcessPriority(int pid, int priority)
 
 	Sets the priority of the process referenced by process ID 'pid' to 'priority'.
@@ -640,7 +670,7 @@ int multitaskerGetCurrentDirectory(char *buff, int buffsz)
 	Returns the absolute pathname of the calling process' current directory.  Puts the value in the buffer 'buff' which is of size 'buffsz'.
 
 
-int multitaskerSetCurrentDirectory(char *buff)
+int multitaskerSetCurrentDirectory(const char *buff)
 
 	Sets the current directory of the calling process to the absolute pathname 'buff'.
 
@@ -680,7 +710,7 @@ void multitaskerYield(void)
 	Yield the remainder of the current processor timeslice back to the multitasker's scheduler.  It's nice to do this when you are waiting for some event, so that your process is not 'hungry' (i.e. hogging processor cycles unnecessarily).
 
 
-void multitaskerWait(unsigned int ticks)
+void multitaskerWait(unsigned ticks)
 
 	Yield the remainder of the current processor timeslice back to the multitasker's scheduler, and wait at least 'ticks' timer ticks before running the calling process again.  On the PC, one second is approximately 20 system timer ticks.
 
@@ -710,6 +740,21 @@ int multitaskerTerminate(int code)
 	Terminate the calling process, returning the exit code 'code'
 
 
+int multitaskerSignalSet(int processId, int sig, int on)
+
+	Set the current process' signal handling enabled (on) or disabled for the specified signal number 'sig'
+
+
+int multitaskerSignal(int processId, int sig)
+
+	Send the requested signal 'sig' to the process 'processId'
+
+
+int multitaskerSignalRead(int processId)
+
+	Returns the number code of the next pending signal for the current process, or 0 if no signals are pending.
+
+
 --------------------------------------
 Loader functions
 --------------------------------------
@@ -719,9 +764,29 @@ void *loaderLoad(const char *filename, file *theFile)
 	Load a file referenced by the pathname 'filename', and fill the file data structure 'theFile' with the details.  The pointer returned points to the resulting file data.
 
 
-int loaderLoadProgram(const char *userProgram, int privilege, int argc, char *argv[])
+objectKey loaderClassify(const char *fileName, void *fileData, int size, loaderFileClass *class)
 
-	Load the file referenced by the pathname 'userProgram' as a process with the privilege level 'privilege'.  Pass the arguments 'argc' and 'argv'.  If there are no arguments, these should be 0 and NULL, respectively.  If successful, the call's return value is the process ID of the new process.  The process is left in a stopped state and must be set to a running state explicitly using the multitasker function multitaskerSetProcessState() or the loader function loaderExecProgram().
+	Given a file by the name 'fileName', the contents 'fileData', of size 'size', get the kernel loader's idea of the file type.  If successful, the return  value is non-NULL and the loaderFileClass structure 'class' is filled out with the known information.
+
+
+objectKey loaderClassifyFile(const char *fileName, loaderFileClass *class)
+
+	Like loaderClassify(), except the first argument 'fileName' is a file name to classify.  Returns the kernel loader's idea of the file type.  If successful, the return value is non-NULL and the loaderFileClass structure 'class' is filled out with the known information.
+
+
+loaderSymbolTable *loaderGetSymbols(const char *fileName, int dynamic)
+
+	Given a binary executable, library, or object file 'fileName' and a flag 'dynamic', return a loaderSymbolTable structure filled out with the loader symbols from the file.  If 'dynamic' is non-zero, only symbols used in dynamic linking will be returned (if the file is not a dynamic library or executable, NULL will be returned).  If 'dynamic' is zero, return all symbols found in the file.
+
+
+int loaderLoadProgram(const char *command, int privilege)
+
+	Run 'command' as a process with the privilege level 'privilege'.  If successful, the call's return value is the process ID of the new process.  The process is left in a stopped state and must be set to a running state explicitly using the multitasker function multitaskerSetProcessState() or the loader function loaderExecProgram().
+
+
+int loaderLoadLibrary(const char *libraryName)
+
+	This takes the name of a library file 'libraryName' to load and creates a shared library in the kernel.  This function is not especially useful to user programs, since normal shared library loading happens automatically as part of the 'loaderLoadProgram' process.
 
 
 int loaderExecProgram(int processId, int block)
@@ -729,7 +794,7 @@ int loaderExecProgram(int processId, int block)
 	Execute the process referenced by process ID 'processId'.  If 'block' is non-zero, the calling process will block until process 'pid' has terminated, and the return value of the call is the return value of process 'pid'.
 
 
-int loaderLoadAndExec(const char *name, int privilege, int argc, char *argv[], int block)
+int loaderLoadAndExec(const char *command, int privilege, int block)
 
 	This function is just for convenience, and is an amalgamation of the loader functions loaderLoadProgram() and  loaderExecProgram().
 
@@ -773,36 +838,36 @@ int rtcReadYear(void)
 	Get the current year value.
 
 
-unsigned int rtcUptimeSeconds(void)
+unsigned rtcUptimeSeconds(void)
 
 	Get the number of seconds the system has been running.
 
 
-int rtcDateTime(struct tm *time)
+int rtcDateTime(struct tm *theTime)
 
-	Get the current data and time as a tm data structure in 'time'.
+	Get the current data and time as a tm data structure in 'theTime'.
 
 
 --------------------------------------
 Random number functions
 --------------------------------------
 
-unsigned int randomUnformatted(void)
+unsigned randomUnformatted(void)
 
 	Get an unformatted random unsigned number.  Just any unsigned number.
 
 
-unsigned int randomFormatted(unsigned int start, unsigned int end)
+unsigned randomFormatted(unsigned start, unsigned end)
 
 	Get a random unsigned number between the start value 'start' and the end value 'end', inclusive.
 
 
-unsigned int randomSeededUnformatted(unsigned int seed)
+unsigned randomSeededUnformatted(unsigned seed)
 
 	Get an unformatted random unsigned number, using the random seed 'seed' instead of the kernel's default random seed.
 
 
-unsigned int randomSeededFormatted(unsigned int seed, unsigned int start, unsigned int end)
+unsigned randomSeededFormatted(unsigned seed, unsigned start, unsigned end)
 
 	Get a random unsigned number between the start value 'start' and the end value 'end', inclusive, using the random seed 'seed' instead of the kernel's default random seed.
 
@@ -811,7 +876,7 @@ unsigned int randomSeededFormatted(unsigned int seed, unsigned int start, unsign
 Environment functions
 --------------------------------------
 
-int environmentGet(const char *var, char *buf, unsigned int bufsz)
+int environmentGet(const char *var, char *buf, unsigned bufsz)
 
 	Get the value of the environment variable named 'var', and put it into the buffer 'buf' of size 'bufsz' if successful.
 
@@ -840,7 +905,7 @@ int graphicsAreEnabled(void)
 	Returns 1 if the kernel is operating in graphics mode.
 
 
-int graphicGetModes(videoMode *buffer, int size)
+int graphicGetModes(videoMode *buffer, unsigned size)
 
 	Get up to 'size' bytes worth of videoMode structures in 'buffer' for the supported video modes of the current hardware.
 
@@ -939,9 +1004,9 @@ int graphicRenderBuffer(objectKey buffer, int drawX, int drawY, int clipX, int c
 Windowing system functions
 --------------------------------------
 
-int windowLogin(const char *userName, const char *passwd)
+int windowLogin(const char *userName)
 
-	Log the user into the window environment with 'userName' and 'passwd'.  The return value is the PID of the window shell for this session.
+	Log the user into the window environment with 'userName'.  The return value is the PID of the window shell for this session.  The calling program must have supervisor privilege in order to use this function.
 
 
 int windowLogout(void)
@@ -994,19 +1059,14 @@ int windowSetLocation(objectKey window, int xCoord, int yCoord)
 	Set the screen location of the window 'window' using the coordinate variables 'xCoord' and 'yCoord'.
 
 
-int windowPack(objectKey window)
-
-	Pack and resize 'window' based on the sizes and parameters of the components it contains.
-
-
 int windowCenter(objectKey window)
 
 	Center 'window' on the screen.
 
 
-void windowSnapIcons(objectKey window)
+int windowSnapIcons(objectKey parent)
 
-	If 'window' has icon components inside it, this will snap them to a grid so that they fit inside the window.
+	If 'container' (either a window or a windowContainer) has icon components inside it, this will snap them to a grid.
 
 
 int windowSetHasBorder(objectKey window, int trueFalse)
@@ -1027,11 +1087,6 @@ int windowSetMovable(objectKey window, int trueFalse)
 int windowSetResizable(objectKey window, int trueFalse)
 
 	Tells the windowing system whether to allow 'window' to be resized by the user.
-
-
-int windowSetPacked(objectKey window, int trueFalse)
-
-	Calling this function with 'trueFalse' set to 1 will set 'window's packed attribute.  Packed windows will automatically resize to the smallest appropriate size based on the sizes and parameters of the components it contains.
 
 
 int windowSetHasMinimizeButton(objectKey window,
@@ -1079,14 +1134,14 @@ int windowComponentEventGet(objectKey key, windowEvent *event)
 	Gets a pending window event, if any, applicable to component 'key', and puts the data into the windowEvent structure 'event'.  If an event was received, the function returns a positive, non-zero value (the actual value reflects the amount of raw data read from the component's event stream -- not particularly useful to an application).  If the return value is zero, no event was pending.
 
 
-int windowTileBackground(const char *file)
+int windowTileBackground(const char *theFile)
 
-	Load the image file specified by the pathname 'file', and if successful, tile the image on the background root window.
+	Load the image file specified by the pathname 'theFile', and if successful, tile the image on the background root window.
 
 
-int windowCenterBackground(const char *file)
+int windowCenterBackground(const char *theFile)
 
-	Load the image file specified by the pathname 'file', and if successful, center the image on the background root window.
+	Load the image file specified by the pathname 'theFile', and if successful, center the image on the background root window.
 
 
 int windowScreenShot(image *saveImage)
@@ -1154,9 +1209,9 @@ int windowComponentSetData(objectKey component, void *buffer, int size)
 	This is a generic call to set data in the window component 'component', up to 'size' bytes, in the buffer 'buffer'.  The size and type of data that a given component will use or accept is totally dependent upon the type and implementation of the component.
 
 
-int windowComponentGetSelected(objectKey component)
+int windowComponentGetSelected(objectKey component, int *selection)
 
-	This is a call to get the 'selected' value of the window component 'component'.  The type of value returned depends upon the type of component; a list component, for example, will return the 0-based number of its selected item.  On the other hand, a boolean component such as a checkbox will return 1 if it is currently selected.
+	This is a call to get the 'selected' value of the window component 'component'.  The type of value returned depends upon the type of component; a list component, for example, will return the 0-based number(s) of its selected item(s).  On the other hand, a boolean component such as a checkbox will return 1 if it is currently selected.
 
 
 int windowComponentSetSelected(objectKey component, int selected)
@@ -1194,14 +1249,14 @@ objectKey windowNewImage(objectKey parent, image *baseImage, drawMode mode, comp
 	Get a new image component to be placed inside the parent object 'parent', using the image data structure 'baseImage', and with the given component parameters 'params'.
 
 
-objectKey windowNewList(objectKey parent, int rows, int columns, int multiple, char *items[], int numItems, componentParameters *params)
+objectKey windowNewList(objectKey parent, windowListType type, int rows, int columns, int multiple, listItemParameters *items, int numItems, componentParameters *params)
 
-	Get a new window list component to be placed inside the parent object 'parent', using the component parameters 'params'.  'rows' and 'columns' specify the size of the list and layout of the list items, 'multiple' allows multiple selections if non-zero, and 'numItems' specifies the number of strings in the array 'items' (which is an array of strings to represent the list items)
+	Get a new window list component to be placed inside the parent object 'parent', using the component parameters 'params'.  'type' specifies the type of list (see <sys/window.h> for possibilities), 'rows' and 'columns' specify the size of the list and layout of the list items, 'multiple' allows multiple selections if non-zero, and 'items' is an array of 'numItems' list item parameters.
 
 
-objectKey windowNewListItem(objectKey parent, const char *text, componentParameters *params)
+objectKey windowNewListItem(objectKey parent, listItemParameters *item, componentParameters *params)
 
-	Get a new list item component to be placed inside the parent object 'parent', using the string 'text', and the component parameters 'params'.
+	Get a new list item component to be placed inside the parent object 'parent', using the list item parameters 'item', and the component parameters 'params'.
 
 
 objectKey windowNewMenu(objectKey parent, const char *name, componentParameters *params)
@@ -1252,6 +1307,11 @@ objectKey windowNewTextField(objectKey parent, int columns, componentParameters 
 objectKey windowNewTextLabel(objectKey parent, const char *text, componentParameters *params)
 
 	Get a new text labelComponent to be placed inside the parent object 'parent', with the given component parameters 'params', and using the text string 'text'.  If the params 'font' is NULL, the default font will be used.
+
+
+void windowDebugLayout(objectKey window)
+
+	This function draws grid boxes around all the grid cells containing components (or parts thereof)
 
 
 --------------------------------------
@@ -1308,6 +1368,65 @@ int userSetPid(const char *name, int pid)
 	Set the login PID of user 'name' to 'pid'.  This is the process that gets killed when the user indicates that they want to logout.  In graphical mode this will typically be the PID of the window shell pid, and in text mode it will be the PID of the login VSH shell.
 
 
+int userFileAdd(const char *passFile, const char *userName, const char *password)
+
+	Add a user to the designated password file, with the given name and password.  This can only be done by a privileged user.
+
+
+int userFileDelete(const char *passFile, const char *userName)
+
+	Remove a user from the designated password file.  This can only be done by a privileged user
+
+
+int userFileSetPassword(const char *passFile, const char *userName, const char *oldPass, const char *newPass)
+
+	Set the password of user 'userName' in the designated password file.  If the calling program is not supervisor privilege, the correct old password must be supplied in 'oldPass'.  The new password is supplied in 'newPass'.
+
+
+--------------------------------------
+Network functions
+--------------------------------------
+
+int networkDeviceGetCount(void)
+
+	Returns the count of network devices
+
+
+int networkDeviceGet(const char *name, networkDevice *dev)
+
+	Returns the user-space portion of the requested (by 'name') network device in 'dev'.
+
+
+objectKey networkOpen(int mode, networkAddress *address, networkFilter *filter)
+
+	Opens a connection for network communication.  The 'type' and 'mode' arguments describe the kind of connection to make (see possiblilities in the file <sys/network.h>.  If applicable, 'address' specifies the network address of the remote host to connect to.  If applicable, the 'localPort' and 'remotePort' arguments specify the TCP/UDP ports to use.
+
+
+int networkClose(objectKey connection)
+
+	Close the specified, previously-opened network connection.
+
+
+int networkCount(objectKey connection)
+
+	Given a network connection, return the number of bytes currently pending in the input stream
+
+
+int networkRead(objectKey connection, unsigned char *buffer, unsigned bufferSize)
+
+	Given a network connection, a buffer, and a buffer size, read up to 'bufferSize' bytes (or the number of bytes available in the connection's input stream) and return the number read.  The connection must be initiated using the networkConnectionOpen() function.
+
+
+int networkWrite(objectKey connection, unsigned char *buffer, unsigned bufferSize)
+
+	Given a network connection, a buffer, and a buffer size, write up to 'bufferSize' bytes from 'buffer' to the connection's output.  The connection must be initiated using the networkConnectionOpen() function.
+
+
+int networkPing(objectKey connection, int seqNum, unsigned char *buffer, unsigned bufferSize)
+
+	Send an ICMP "echo request" packet to the host at the network address 'destAddress', with the (optional) sequence number 'seqNum'.  The 'buffer' and 'bufferSize' arguments point to the location of data to send in the ping packet.  The content of the data is mostly irrelevant, except that it can be checked to ensure the same data is returned by the ping reply from the remote host.
+
+
 --------------------------------------
 Miscellaneous functions
 --------------------------------------
@@ -1327,19 +1446,19 @@ int fontLoad(const char* filename, const char *fontname, objectKey *pointer, int
 	Load the font from the font file 'filename', give it the font name 'fontname' for future reference, and return an object key for the font in 'pointer' if successful.  The integer 'fixedWidth' argument should be non-zero if you want each character of the font to have uniform width (i.e. an 'i' character will be padded with empty space so that it takes up the same width as, for example, a 'W' character).
 
 
-unsigned fontGetPrintedWidth(objectKey font, const char *string)
+int fontGetPrintedWidth(objectKey font, const char *string)
 
 	Given the supplied string, return the screen width that the text will consume given the font 'font'.  Useful for placing text when using a variable-width font, but not very useful otherwise.
 
 
-int imageLoadBmp(const char *filename, image *loadImage)
+int imageLoad(const char *filename, int width, int height, image *loadImage)
 
-	Try to load the bitmap image file 'filename', and if successful, save the data in the image data structure 'loadImage'.
+	Try to load the bitmap image file 'filename' (with the specified 'width' and 'height' if possible -- zeros indicate no preference), and if successful, save the data in the image data structure 'loadImage'.
 
 
-int imageSaveBmp(const char *filename, image *saveImage)
+int imageSave(const char *filename, int format, image *saveImage)
 
-	Save the image data structure 'saveImage' as a bitmap, to the file 'fileName'.
+	Save the image data structure 'saveImage' using the image format 'format' to the file 'fileName'.  Image format codes are found in the file <sys/image.h>
 
 
 int shutdown(int reboot, int nice)
@@ -1372,9 +1491,9 @@ int lockVerify(lock *verLock)
 	Verify that a lock on the lock structure 'verLock' is still valid.  This can be useful for retrying a lock attempt if a previous one failed; if the process that was previously holding the lock has failed, this will release the lock.
 
 
-variableList *variableListCreate(unsigned maxVar, unsigned size, const char *desc)
+int variableListCreate(variableList *list)
 
-	Get a new variable list structure with the maximum number of variables 'maxVar', the total data size 'size', and the description 'desc'.
+	Set up a new variable list structure.
 
 
 int variableListGet(variableList *list, const char *var, char *buffer, unsigned buffSize)
@@ -1392,9 +1511,9 @@ int variableListUnset(variableList *list, const char *var)
 	Remove the variable 'var' from the variable list 'list'.
 
 
-variableList *configurationReader(const char *fileName)
+int configurationReader(const char *fileName, variableList *list)
 
-	Read the contents of the configuration file 'fileName', and return the data in a variable list structure.  Configuration files are simple properties files, consisting of lines of the format "variable=value"
+	Read the contents of the configuration file 'fileName', and return the data in the variable list structure 'list'.  Configuration files are simple properties files, consisting of lines of the format "variable=value"
 
 
 int configurationWriter(const char *fileName, variableList *list)
@@ -1410,3 +1529,33 @@ int keyboardGetMaps(char *buffer, unsigned size)
 int keyboardSetMap(const char *name)
 
 	Set the keyboard mapping to the supplied 'name'.  The normal procedure would be to first call the keyboardGetMaps() function, get the list of supported mappings, and then call this function with one of those names.  Only a name returned by the keyboardGetMaps function is valid in this scenario.
+
+
+int deviceTreeGetCount(void)
+
+	Returns the number of devices in the kernel's device tree.
+
+
+int deviceTreeGetRoot(device *rootDev)
+
+	Returns the user-space portion of the device tree root device in the structure 'rootDev'.
+
+
+int deviceTreeGetChild(device *parentDev, device *childDev)
+
+	Returns the user-space portion of the first child device of 'parentDev' in the structure 'childDev'.
+
+
+int deviceTreeGetNext(device *siblingDev)
+
+	Returns the user-space portion of the next sibling device of the supplied device 'siblingDev' in the same data structure.
+
+
+int mouseLoadPointer(const char *pointerName, const char *fileName)
+
+	Tells the mouse driver code to load the mouse pointer 'pointerName' from the file 'fileName'.
+
+
+int mouseSwitchPointer(const char *pointerName)
+
+	Tells the mouse driver code to switch to the mouse pointer with the given name (as specified by the pointer name argument to mouseLoadPointer).

@@ -23,11 +23,11 @@
 // -equipped graphics adapter
 
 #include "kernelGraphic.h"
-#include "kernelMemoryManager.h"
+#include "kernelMemory.h"
 #include "kernelMalloc.h"
 #include "kernelMain.h"
-#include "kernelMiscFunctions.h"
-#include "kernelPageManager.h"
+#include "kernelMisc.h"
+#include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelProcessorX86.h"
 #include "kernelError.h"

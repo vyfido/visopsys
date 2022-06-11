@@ -104,7 +104,7 @@ static int setMap(const char *mapName)
   // Change the mapping in the kernel config for the next reboot
   variableList kernelConf;
 
-  status = configurationReader("/system/kernel.conf", &kernelConf);
+  status = configurationReader("/system/config/kernel.conf", &kernelConf);
   if (status < 0)
     return (status);
 
@@ -113,8 +113,8 @@ static int setMap(const char *mapName)
     return (status);
 
   variableListSet(&kernelConf, "keyboard.map", mapName);
-  configurationWriter("/system/kernel.conf", &kernelConf);
-  free(kernelConf.memory);
+  configurationWriter("/system/config/kernel.conf", &kernelConf);
+  variableListDestroy(&kernelConf);
 
   return (status = 0);
 }

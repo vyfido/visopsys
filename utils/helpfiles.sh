@@ -6,32 +6,40 @@
 ##  helpfiles.sh
 ##
 
-CODEDIR=../src/programs
-TEXTDIR=../dist/programs/helpfiles
+# This is used against the program files listed in the install files
+# in order to harvest the help text into .txt files in the $TEXTDIR directory
+
+SRCDIR=../src
+DISTDIR=../dist
+TEXTDIR=$DISTDIR/programs/helpfiles
 TMPFILE=/tmp/help.tmp
+INST_FILES="$DISTDIR/system/install-files.basic $DISTDIR/system/install-files.full"
 
-# This is used against the .c files in the $CODEDIR directory in order
-# to harvest the help text into .txt files in the $TEXTDIR directory
+# Make sure each program listed in the install files has a help file
+for INSTFILE in $INST_FILES ; do
+	for FILE in /programs/help `cat $INSTFILE | grep ^/programs` ; do
+		if [ -f $SRCDIR$FILE.c ] ; then
 
-# Get all the names of the files
-CODEFILES=`(cd $CODEDIR ; find -name '*.c')`
-echo $CODEFILES
-CODEFILES=`echo $CODEFILES | sed -e 's/\.\///g' -e 's/\.c//g'`
+			NAME=`echo $FILE | sed -e 's/\/programs\///'`
 
-for FILE in $CODEFILES; do
-    # Get the help text from the file
-    sed -n '/<help>/,/<\/help>/p' $CODEDIR/$FILE.c | sed -e '/<help>/d' | sed -e '/<\/help>/d' > $TMPFILE
+			# Get the help text from the file
+			sed -n '/<help>/,/<\/help>/p' $SRCDIR$FILE.c | sed -e '/<help>/d' | sed -e '/<\/help>/d' > $TMPFILE
 
-    if [ -s $TMPFILE ] ; then
-	mv $TMPFILE $TEXTDIR/$FILE.txt
-    fi
+			if [ -s $TMPFILE ] ; then
+				mv $TMPFILE $TEXTDIR/$NAME.txt
+			fi
+
+			rm -f $TMPFILE
+
+			# Make sure it has a help file
+			if [ ! -f $TEXTDIR/$NAME.txt ] ; then
+				echo - $FILE does not have a help file
+
+			# Make sure it has an entry in the main help file
+			elif [ "`grep \"^$NAME \" $TEXTDIR/help.txt`" == "" ]
+			then
+				echo - $FILE does not have a help summary entry
+			fi
+		fi
+	done
 done
-
-# Notify about any files that don't have help text
-for FILE in $CODEFILES; do
-    if [ ! -f $TEXTDIR/$FILE.txt ] ; then
-	echo - $FILE does not have a help file
-    fi
-done
-
-rm -f $TMPFILE

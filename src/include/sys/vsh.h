@@ -23,6 +23,8 @@
 
 #if !defined(_VSH_H)
 
+#include <sys/progress.h>
+
 #ifndef _X_
 #define _X_
 #endif
@@ -35,11 +37,13 @@ int vshDeleteFile(const char *);
 int vshDumpFile(const char *);
 int vshFileList(const char *);
 void vshMakeAbsolutePath(const char *, char *);
+int vshMoveFile(const char *, const char *);
 int vshParseCommand(char *, char *, int *, char *[]);
 void vshPasswordPrompt(const char *, char *);
 void vshPrintDate(char *, unsigned);
 void vshPrintTime(char *, unsigned);
-int vshRenameFile(const char *, const char *);
+int vshProgressBar(progress *);
+int vshProgressBarDestroy(progress *);
 int vshSearchPath(const char *, char *);
 
 #define _VSH_H

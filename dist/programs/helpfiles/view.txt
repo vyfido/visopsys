@@ -1,17 +1,20 @@
 
  -- view --
 
-View an image file.
+View a file.
 
 Usage:
-  view [image_file]
+  view [file]
 
 (Only available in graphics mode)
 
-This command will launch a window in which the requested image file is
-displayed.  If no image file name is supplied on the command line (or
-for example if the program is launched by clicking on its icon), the user
-will be prompted for the image to display.
+This command will launch a window in which the requested file is displayed.
+If no file name is supplied on the command line (or for example if the
+program is launched by clicking on its icon), the user will be prompted for
+the file to display.
 
-Currently, only (uncompressed) 8-bit and 24-bit bitmap formats are supported. 
+The currently-supported file formats are:
+
+- Images (currently only uncompressed, 8-bit and 24-bit bitmap images)
+- Text files
 

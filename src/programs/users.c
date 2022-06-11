@@ -185,10 +185,6 @@ static int setPasswordDialog(int userNumber)
       params.orientationX = orient_left;
       params.padRight = 5;
       params.hasBorder = 1;
-      params.useDefaultBackground = 0;
-      params.background.red = 255;
-      params.background.green = 255;
-      params.background.blue = 255;
       oldPasswordField = windowNewPasswordField(dialogWindow, 17, &params);
     }
 
@@ -198,17 +194,12 @@ static int setPasswordDialog(int userNumber)
   params.padRight = 0;
   params.orientationX = orient_right;
   params.hasBorder = 0;
-  params.useDefaultBackground = 1;
   label = windowNewTextLabel(dialogWindow, "New password:", &params);
 
   params.gridX = 1;
   params.hasBorder = 1;
   params.padRight = 5;
   params.orientationX = orient_left;
-  params.useDefaultBackground = 0;
-  params.background.red = 255;
-  params.background.green = 255;
-  params.background.blue = 255;
   passwordField1 = windowNewPasswordField(dialogWindow, 17, &params);
 
   params.gridX = 0;
@@ -216,17 +207,12 @@ static int setPasswordDialog(int userNumber)
   params.padRight = 0;
   params.orientationX = orient_right;
   params.hasBorder = 0;
-  params.useDefaultBackground = 1;
   label = windowNewTextLabel(dialogWindow, "Confirm password:", &params);
 
   params.gridX = 1;
   params.orientationX = orient_left;
   params.padRight = 5;
   params.hasBorder = 1;
-  params.useDefaultBackground = 0;
-  params.background.red = 255;
-  params.background.green = 255;
-  params.background.blue = 255;
   passwordField2 = windowNewPasswordField(dialogWindow, 17, &params);
 
   params.gridX = 0;
@@ -234,7 +220,6 @@ static int setPasswordDialog(int userNumber)
   params.gridWidth = 2;
   params.orientationX = orient_center;
   params.hasBorder = 0;
-  params.useDefaultBackground = 1;
   noMatchLabel = windowNewTextLabel(dialogWindow, "Passwords do not "
   				    "match", &params);
   windowComponentSetVisible(noMatchLabel, 0);

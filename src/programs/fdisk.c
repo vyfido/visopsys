@@ -96,9 +96,12 @@ static objectKey menuRestoreBackup = NULL;
 static objectKey menuQuit = NULL;
 static objectKey menuCopyDisk = NULL;
 static objectKey menuPartOrder = NULL;
+static objectKey menuSimpleMbr = NULL;
+static objectKey menuBootMenu = NULL;
 static objectKey menuSetActive = NULL;
 static objectKey menuDelete = NULL;
 static objectKey menuFormat = NULL;
+static objectKey menuDefrag = NULL;
 static objectKey menuHide = NULL;
 static objectKey menuInfo = NULL;
 static objectKey menuListTypes = NULL;
@@ -111,7 +114,7 @@ static objectKey canvas = NULL;
 static objectKey sliceList = NULL;
 static objectKey writeButton = NULL;
 static objectKey undoButton = NULL;
-static objectKey copyDiskButton = NULL;
+static objectKey defragButton = NULL;
 static objectKey setActiveButton = NULL;
 static objectKey deleteButton = NULL;
 static objectKey deleteAllButton = NULL;
@@ -579,7 +582,7 @@ static void makeEmptySlice(slice *emptySlice, unsigned startCylinder,
 }
 
 
-static int getFsType(slice *entry)
+static int getFsInfo(slice *entry)
 {
   int status = 0;
   disk tmpDisk;
@@ -587,6 +590,8 @@ static int getFsType(slice *entry)
   status = diskGet(entry->diskName, &tmpDisk);
   if (status < 0)
     return (status);
+
+  entry->opFlags = tmpDisk.opFlags;
 
   if (strcmp(tmpDisk.fsType, "unknown"))
     strncpy(entry->fsType, tmpDisk.fsType, FSTYPE_MAX_NAMELENGTH);
@@ -659,7 +664,7 @@ static void makeSliceList(void)
 
       // Now add a slice for the current partition
       memcpy(&slices[numberSlices], &partition, sizeof(slice));
-      getFsType(&slices[numberSlices]);
+      getFsInfo(&slices[numberSlices]);
       makeSliceString(&slices[numberSlices]);
       numberSlices += 1;
     }
@@ -1739,6 +1744,7 @@ static void display(void)
   int slc = 0;
   int foregroundColor = textGetForeground();
   int backgroundColor = textGetBackground();
+  int isDefrag = 0;
   int isHide = 0;
   int isMove = 0;
   int count;
@@ -1762,6 +1768,9 @@ static void display(void)
 	{
 	  // It's a partition
 
+	  if (slices[selectedSlice].opFlags & FS_OP_DEFRAG)
+	    isDefrag = 1;
+
 	  if (PARTITION_TYPEID_IS_HIDEABLE(slices[selectedSlice].typeId) ||
 	      PARTITION_TYPEID_IS_HIDDEN(slices[selectedSlice].typeId))
 	    isHide = 1;
@@ -1775,10 +1784,12 @@ static void display(void)
 	  windowComponentSetEnabled(menuDelete, 1);
 	  windowComponentSetEnabled(formatButton, 1);
 	  windowComponentSetEnabled(menuFormat, 1);
+	  windowComponentSetEnabled(defragButton, isDefrag);
+	  windowComponentSetEnabled(menuDefrag, isDefrag);
 	  windowComponentSetEnabled(hideButton, isHide);
 	  windowComponentSetEnabled(menuHide, isHide);
 	  windowComponentSetEnabled(moveButton, isMove);
-	  windowComponentSetEnabled(menuMove,isMove);
+	  windowComponentSetEnabled(menuMove, isMove);
 	  windowComponentSetEnabled(newButton, 0);
 	  windowComponentSetEnabled(menuNew, 0);
 	  windowComponentSetEnabled(setTypeButton, 1);
@@ -1793,6 +1804,8 @@ static void display(void)
 	  windowComponentSetEnabled(menuDelete, 0);
 	  windowComponentSetEnabled(formatButton, 0);
 	  windowComponentSetEnabled(menuFormat, 0);
+	  windowComponentSetEnabled(defragButton, 0);
+	  windowComponentSetEnabled(menuDefrag, 0);
 	  windowComponentSetEnabled(hideButton, 0);
 	  windowComponentSetEnabled(menuHide, 0);
 	  windowComponentSetEnabled(moveButton, 0);
@@ -1922,6 +1935,83 @@ static void delete(int partition)
 }
 
 
+static int mountedCheck(slice *entry)
+{
+  // If the slice is mounted, query whether to ignore, unmount, or cancel
+
+  int status = 0;
+  int choice = 0;
+  char tmpChar[160];
+  disk tmpDisk;
+  char character;
+
+  status = diskGet(entry->diskName, &tmpDisk);
+  if (status < 0)
+    return (status);
+
+  if (!tmpDisk.mounted)
+    return (status = 0);
+
+  sprintf(tmpChar, "The partition is mounted as %s.  It is STRONGLY "
+	  "recommended\nthat you unmount before continuing",
+	  tmpDisk.mountPoint);
+
+  if (graphics)
+    choice =
+      windowNewChoiceDialog(window, "Partition is mounted", tmpChar,
+			    (char *[]) { "Ignore", "Unmount", "Cancel" },
+			    3, 1);
+  else
+    {
+      printf("\n%s (I)gnore/(U)nmount/(C)ancel?: ", tmpChar);
+      textInputSetEcho(0);
+
+      while(1)
+	{
+	  character = getchar();
+      
+	  if ((character == 'i') || (character == 'I'))
+	    {
+	      printf("Ignore\n");
+	      choice = 0;
+	      break;
+	    }
+	  else if ((character == 'u') || (character == 'U'))
+	    {
+	      printf("Unmount\n");
+	      choice = 1;
+	      break;
+	    }
+	  else if ((character == 'c') || (character == 'C'))
+	    {
+	      printf("Cancel\n");
+	      choice = 2;
+	      break;
+	    }
+	}
+
+      textInputSetEcho(1);
+    }
+
+  if ((choice < 0) || (choice == 2))
+    // Cancelled
+    return (status = ERR_CANCELLED);
+
+  else if (choice == 1)
+    {
+      // Try to unmount the filesystem
+      status = filesystemUnmount(tmpDisk.mountPoint);
+      if (status < 0)
+	{
+	  error("Unable to unmount %s", tmpDisk.mountPoint);
+	  return (status);
+	}
+    }
+  
+  return (status = 0);
+}
+
+
 static void format(slice *formatSlice)
 {
   // Prompt, and format partition
@@ -1943,6 +2033,10 @@ static void format(slice *formatSlice)
 	    "you write your other changes to disk before continuing.");
       return;
     }
+
+  status = mountedCheck(formatSlice);
+  if (status < 0)
+    return;
 
   if (graphics)
     {
@@ -2064,6 +2158,71 @@ static void format(slice *formatSlice)
 }
 
 
+static void defragment(slice *formatSlice)
+{
+  // Prompt, and defragment partition
+
+  int status = 0;
+  progress prog;
+  objectKey progressDialog = NULL;
+  char tmpChar[160];
+
+  if (changesPending)
+    {
+      error("A partition defragmentation cannot be undone, and it is "
+	    "required\nthat you write your other changes to disk before "
+	    "continuing.");
+      return;
+    }
+
+  sprintf(tmpChar, "Defragment partition %s?\n(This change cannot be "
+	  "undone)", formatSlice->sliceName);
+
+  if (!yesOrNo(tmpChar))
+    return;
+
+  status = mountedCheck(formatSlice);
+  if (status < 0)
+    return;
+
+  // Do the defrag
+
+  bzero(&prog, sizeof(progress));
+  if (graphics)
+    progressDialog =
+      windowNewProgressDialog(window, "Defragmenting...", &prog);
+  else
+    vshProgressBar(&prog);
+
+  status = filesystemDefragment(formatSlice->diskName, &prog);
+
+  if (graphics)
+    windowProgressDialogDestroy(progressDialog);
+  else
+    vshProgressBarDestroy(&prog);
+
+  if (status < 0)
+    error("Error during defragmentation");
+
+  else
+    {
+      sprintf(tmpChar, "Defragmentation complete");
+      if (graphics)
+	windowNewInfoDialog(window, "Success", tmpChar);
+      else
+	{
+	  printf("%s\n", tmpChar);
+	  pause();
+	}
+    }
+
+  // Regenerate the slice list
+  makeSliceList();
+
+  return;
+}
+
+
 static void hide(int partition)
 {
   slice entry;
@@ -2117,14 +2276,12 @@ static void info(int sliceNumber)
 
 static void listTypes(void)
 {
-  int status = 0;
   partitionType *types;
   int numberTypes = 0;
-  objectKey typesWindow = NULL;
+  objectKey typesDialog = NULL;
   componentParameters params;
   objectKey textArea = NULL;
   objectKey oldOutput = NULL;
-  objectKey dismissButton = NULL;
   windowEvent event;
   int count;
 
@@ -2138,41 +2295,35 @@ static void listTypes(void)
   if (graphics)
     {
       // Create a new window, not a modal dialog
-      typesWindow = windowNewDialog(window, PARTTYPES);
-      if (typesWindow != NULL)
+      typesDialog = windowNewDialog(window, PARTTYPES);
+      if (typesDialog == NULL)
 	{
-	  bzero(&params, sizeof(componentParameters));
-	  params.gridWidth = 1;
-	  params.gridHeight = 1;
-	  params.padTop = 5;
-	  params.padLeft = 5;
-	  params.padRight = 5;
-	  params.orientationX = orient_center;
-	  params.orientationY = orient_middle;
-	  params.useDefaultForeground = 1;
-	  params.useDefaultBackground = 1;
-
-	  // Make a text area for our info
-	  textArea =
-	    windowNewTextArea(typesWindow, 60, ((numberTypes / 2) + 2), 0,
-	  		      &params);
-
-	  // Make a dismiss button
-	  params.gridY = 1;
-	  params.padBottom = 5;
-	  params.fixedWidth = 1;
-	  dismissButton =
-	    windowNewButton(typesWindow, "Dismiss", NULL, &params);
-	  windowComponentFocus(dismissButton);
-
-	  // Save old text output and set the text output to our new area
-	  oldOutput = multitaskerGetTextOutput();
-	  windowSetTextOutput(textArea);
-
-	  windowSetHasCloseButton(typesWindow, 0);
-	  windowCenterDialog(window, typesWindow);
-	  windowSetVisible(typesWindow, 1);
+	  error("Can't create dialog window");
+	  return;
 	}
+
+      bzero(&params, sizeof(componentParameters));
+      params.gridWidth = 1;
+      params.gridHeight = 1;
+      params.padTop = 5;
+      params.padBottom = 5;
+      params.padLeft = 5;
+      params.padRight = 5;
+      params.orientationX = orient_center;
+      params.orientationY = orient_middle;
+      params.useDefaultForeground = 1;
+      params.useDefaultBackground = 1;
+
+      // Make a text area for our info
+      textArea = windowNewTextArea(typesDialog, 60, ((numberTypes / 2) + 2), 0,
+				   &params);
+
+      // Save old text output and set the text output to our new area
+      oldOutput = multitaskerGetTextOutput();
+      windowSetTextOutput(textArea);
+
+      windowCenterDialog(window, typesDialog);
+      windowSetVisible(typesDialog, 1);
     }
 
   else
@@ -2197,12 +2348,15 @@ static void listTypes(void)
 
       while(1)
 	{
-	  // Check for the dismiss button
-	  status = windowComponentEventGet(dismissButton, &event);
-	  if ((status > 0) && (event.type == EVENT_MOUSE_LEFTUP))
+	  // Check for window close
+	  if ((windowComponentEventGet(typesDialog, &event) > 0) &&
+	      (event.type & EVENT_WINDOW_CLOSE))
 	    break;
+
+	  multitaskerYield();
 	}
-      windowDestroy(typesWindow);
+
+      windowDestroy(typesDialog);
     }
 
   else
@@ -2387,6 +2541,10 @@ static int move(int sliceId)
       error("No empty space on either side!");
       return (status = ERR_INVALID);
     }
+
+  status = mountedCheck(&entry);
+  if (status < 0)
+    return (status);
 
   // Figure out the ranges of cylinders we can move to in both directions
   if ((sliceNumber > 0) && !(slices[sliceNumber - 1].typeId))
@@ -4000,10 +4158,14 @@ static void changePartitionOrder(void)
 		  // Move up
 		  swapEntries(orderSlices[selected],
 			      orderSlices[selected - 1]);
-		  windowComponentSetSelected(orderList, (selected - 1));
-		  windowComponentSetData(orderList, orderListParams,
-					 numOrderSlices);
+		  strncpy(orderListParams[selected].text,
+			  orderSlices[selected]->string,
+			  WINDOW_MAX_LABEL_LENGTH);
+		  strncpy(orderListParams[selected - 1].text,
+			  orderSlices[selected - 1]->string,
+			  WINDOW_MAX_LABEL_LENGTH);
 		  selected -= 1;
+
 		}
 	      continue;
 
@@ -4013,9 +4175,12 @@ static void changePartitionOrder(void)
 		  // Move down
 		  swapEntries(orderSlices[selected],
 			      orderSlices[selected + 1]);
-		  windowComponentSetSelected(orderList, (selected + 1));
-		  windowComponentSetData(orderList, orderListParams,
-					 numOrderSlices);
+		  strncpy(orderListParams[selected].text,
+			  orderSlices[selected]->string,
+			  WINDOW_MAX_LABEL_LENGTH);
+		  strncpy(orderListParams[selected + 1].text,
+			  orderSlices[selected + 1]->string,
+			  WINDOW_MAX_LABEL_LENGTH);
 		  selected += 1;
 		}
 	      continue;
@@ -4031,6 +4196,65 @@ static void changePartitionOrder(void)
 	    }
 	}
     }
+}
+
+
+static int writeSimpleMbr(void)
+{
+  // Put simple MBR code into the main partition table.
+
+  int status = 0;
+  fileStream mbrFile;
+
+  if (!yesOrNo("After you write changes, the \"active\" partition will\n"
+	       "always boot automatically.  Proceed?"))
+    return (status = 0);
+
+  // Read the MBR file
+  bzero(&mbrFile, sizeof(fileStream));
+  status = fileStreamOpen(SIMPLE_MBR_FILE, OPENMODE_READ, &mbrFile);
+  if (status < 0)
+    {
+      error("Can't locate simple MBR file %s", SIMPLE_MBR_FILE);
+      return (status);
+    }
+
+  // Read bytes 0-445 into the main table
+  status = fileStreamRead(&mbrFile, 446, mainTable->sectorData);
+  if (status < 0)
+    {
+      error("Can't read simple MBR file %s", SIMPLE_MBR_FILE);
+      return (status);
+    }
+
+  changesPending += 1;
+
+  return (status = 0);
+}
+
+
+static int mbrBootMenu(void)
+{
+  // Call the 'bootmenu' program to install a boot menu
+
+  int status = 0;
+  char command[80];
+
+  if (changesPending)
+    {
+      error("This operation cannot be undone, and it is required that\n"
+	    "you write your other changes to disk before continuing.");
+      return (status = ERR_BUSY);
+    }
+
+  sprintf(command, "/programs/bootmenu %s", selectedDisk->name);
+
+  status = system(command);
+  if (status < 0)
+    error("Error %d running bootmenu command", status);
+
+  // Need to re-read the partition table
+  return (selectDisk(selectedDisk));
 }
 
 
@@ -4148,8 +4372,7 @@ static void eventHandler(objectKey key, windowEvent *event)
   else if ((key == menuRestoreBackup) && (event->type & EVENT_SELECTION))
     restoreBackup();
 
-  else if (((key == copyDiskButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
-	   ((key == menuCopyDisk) && (event->type & EVENT_SELECTION)))
+  else if ((key == menuCopyDisk) && (event->type & EVENT_SELECTION))
     {
       if (copyDisk() < 0)
 	error("Disk copy failed.");
@@ -4157,6 +4380,12 @@ static void eventHandler(objectKey key, windowEvent *event)
 
   else if ((key == menuPartOrder) && (event->type & EVENT_SELECTION))
     changePartitionOrder();
+
+  else if ((key == menuSimpleMbr) && (event->type & EVENT_SELECTION))
+    writeSimpleMbr();
+
+  else if ((key == menuBootMenu) && (event->type & EVENT_SELECTION))
+    mbrBootMenu();
 
   else if (((key == setActiveButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
 	   ((key == menuSetActive) && (event->type & EVENT_SELECTION)))
@@ -4175,6 +4404,10 @@ static void eventHandler(objectKey key, windowEvent *event)
   else if (((key == formatButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
 	   ((key == menuFormat) && (event->type & EVENT_SELECTION)))
     format(&slices[selectedSlice]);
+
+  else if (((key == defragButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
+	   ((key == menuDefrag) && (event->type & EVENT_SELECTION)))
+    defragment(&slices[selectedSlice]);
 
   else if (((key == hideButton) && (event->type == EVENT_MOUSE_LEFTUP)) ||
 	   ((key == menuHide) && (event->type & EVENT_SELECTION)))
@@ -4266,6 +4499,10 @@ static void constructWindow(void)
   windowRegisterEventHandler(menuCopyDisk, &eventHandler);
   menuPartOrder = windowNewMenuItem(menu2, "Partition order", &params);
   windowRegisterEventHandler(menuPartOrder, &eventHandler);
+  menuSimpleMbr = windowNewMenuItem(menu2, "Write basic MBR", &params);
+  windowRegisterEventHandler(menuSimpleMbr, &eventHandler);
+  menuBootMenu = windowNewMenuItem(menu2, "MBR boot menu", &params);
+  windowRegisterEventHandler(menuBootMenu, &eventHandler);
 
   // Create the top 'partition' menu
   objectKey menu3 = windowNewMenu(menuBar, "Partition", &params);
@@ -4275,6 +4512,8 @@ static void constructWindow(void)
   windowRegisterEventHandler(menuDelete, &eventHandler);
   menuFormat = windowNewMenuItem(menu3, "Format", &params);
   windowRegisterEventHandler(menuFormat, &eventHandler);
+  menuDefrag = windowNewMenuItem(menu3, "Defragment", &params);
+  windowRegisterEventHandler(menuDefrag, &eventHandler);
   menuHide = windowNewMenuItem(menu3, "Hide/Unhide", &params);
   windowRegisterEventHandler(menuHide, &eventHandler);
   menuInfo = windowNewMenuItem(menu3, "Info", &params);
@@ -4370,8 +4609,8 @@ static void constructWindow(void)
       windowRegisterEventHandler(moveButton, &eventHandler);
 
       params.gridX = 3;
-      copyDiskButton = windowNewButton(container, "Copy disk", NULL, &params);
-      windowRegisterEventHandler(copyDiskButton, &eventHandler);
+      defragButton = windowNewButton(container, "Defragment", NULL, &params);
+      windowRegisterEventHandler(defragButton, &eventHandler);
 
       params.gridX = 4;
       formatButton = windowNewButton(container, "Format", NULL, &params);
@@ -4424,6 +4663,7 @@ static int textMenu(void)
   int status = 0;
   char optionString[80];
   int isPartition = 0;
+  int isDefrag = 0;
   int isHide = 0;
   int isMove = 0;
 
@@ -4434,12 +4674,16 @@ static int textMenu(void)
       display();
 
       isPartition = 0;
+      isDefrag = 0;
       isHide = 0;
       isMove = 0;
 
       if (slices[selectedSlice].typeId)
 	{
 	  isPartition = 1;
+
+	  if (slices[selectedSlice].opFlags & FS_OP_DEFRAG)
+	    isDefrag = 1;
 
 	  if (PARTITION_TYPEID_IS_HIDEABLE(slices[selectedSlice].typeId) ||
 	      PARTITION_TYPEID_IS_HIDDEN(slices[selectedSlice].typeId))
@@ -4450,12 +4694,13 @@ static int textMenu(void)
 	}
 
       // Print out the menu choices
-      printf("\n%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+      printf("\n%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	     (isPartition? "[A] Set active\n" : ""),
 	     (numberDataPartitions? "[B] Partition order\n" : ""),
 	     "[C] Copy disk\n",
 	     (isPartition? "[D] Delete\n" : ""),
 	     (isPartition? "[F] Format\n" : ""),
+	     (isDefrag? "[G] Defragment\n" : ""),
 	     (isHide? "[H] Hide/Unhide\n" : ""),
 	     "[I] Info\n",
 	     "[L] List types\n",
@@ -4467,7 +4712,9 @@ static int textMenu(void)
 	     "[S] Select disk\n",
 	     (isPartition? "[T] Set type\n" : ""),
 	     (changesPending? "[U] Undo\n" : ""),
-	     (changesPending? "[W] Write changes\n" : ""));
+	     (changesPending? "[W] Write changes\n" : ""),
+	     "[X] Write basic MBR\n",
+	     "[Y] MBR boot menu\n");
 
       if (changesPending)
 	printf("  -== %d changes pending ==-\n", changesPending);
@@ -4475,11 +4722,12 @@ static int textMenu(void)
 
       // Construct the string of allowable options, corresponding to what is
       // shown above.
-      sprintf(optionString, "%s%sCc%s%s%sIiLl%s%s%sQq%sSs%s%s%s",
+      sprintf(optionString, "%s%sCc%s%s%s%sIiLl%s%s%sQq%sSs%s%s%sXxYy",
 	      (isPartition? "Aa" : ""),
 	      (numberDataPartitions? "Bb" : ""),
 	      (isPartition? "Dd" : ""),
 	      (isPartition? "Ff" : ""),
+	      (isDefrag? "Gg" : ""),
 	      (isPartition? "Hh" : ""),
 	      (isMove? "Mm" : ""),
 	      (!isPartition? "Nn" : ""),
@@ -4528,6 +4776,11 @@ static int textMenu(void)
 	case 'f':
 	case 'F':
 	  format(&slices[selectedSlice]);
+	  continue;
+
+	case 'g':
+	case 'G':
+	  defragment(&slices[selectedSlice]);
 	  continue;
 
 	case 'h':
@@ -4597,6 +4850,16 @@ static int textMenu(void)
 	  writeChanges(1);
 	  continue;
 	  
+	case 'x':
+	case 'X':
+	  writeSimpleMbr();
+	  continue;
+
+	case 'y':
+	case 'Y':
+	  mbrBootMenu();
+	  continue;
+
 	default:
 	  continue;
 	}

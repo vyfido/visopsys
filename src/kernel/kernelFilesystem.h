@@ -22,78 +22,27 @@
 #if !defined(_KERNELFILESYSTEM_H)
 
 #include "kernelDisk.h"
-#include "kernelLock.h"
 #include <sys/file.h>
+#include <sys/progress.h>
 
 // Definitions
 #define MAX_FILESYSTEMS 32
 #define MAX_FS_NAME_LENGTH 64
 
-// This structure defines a file or directory entry
-typedef volatile struct {
-  unsigned char name[MAX_NAME_LENGTH];
-  fileType type;
-  int flags;
-  unsigned creationTime;
-  unsigned creationDate;
-  unsigned accessedTime;
-  unsigned accessedDate;
-  unsigned modifiedTime;
-  unsigned modifiedDate;
-  unsigned size;
-  unsigned blocks;
-
-  // Misc
-  void *filesystem;     // parent filesystem
-  void *driverData;     // private fs-driver-specific data
-  int openCount;
-  lock lock;
-
-  // Linked-list stuff.
-  void *parentDirectory;
-  void *previousEntry;
-  void *nextEntry;
-  unsigned lastAccess;
-
-  // (The following additional stuff only applies to directories and links)
-  void *contents;
-
-} kernelFileEntry;
-
-// This is an enumeration that lists the names of the known types of 
-// filesystems.
-typedef enum {
-  unknown, Ext, Fat, Iso
-} kernelFileSysTypeEnum;
-
-// This is the structure that is used to define file systems
-typedef volatile struct {
-  const char *description;
-  char mountPoint[MAX_FS_NAME_LENGTH];
-  const kernelDisk *disk;
-  void *driver;
-  kernelFileEntry *filesystemRoot;
-  unsigned blockSize;
-  int caseInsensitive;
-  int readOnly;
-  void *filesystemData;
-
-} kernelFilesystem;
-
 // This is the structure that is used to define a file system
 // driver
 typedef struct {
-  kernelFileSysTypeEnum driverType;
   char *driverTypeName;
   int (*driverDetect) (kernelDisk *);
-  int (*driverFormat) (kernelDisk *, const char *, const char *, int);
+  int (*driverFormat) (kernelDisk *, const char *, const char *, int,
+		       progress *);
   int (*driverClobber) (kernelDisk *);
-  int (*driverCheck) (kernelFilesystem *, int, int);
-  int (*driverDefragment) (kernelFilesystem *);
-  int (*driverResize) (kernelDisk *, diskResizeParameters *);
-  int (*driverMount) (kernelFilesystem *);
-  int (*driverUnmount) (kernelFilesystem *);
-  unsigned (*driverGetFree) (kernelFilesystem *);
+  int (*driverCheck) (kernelDisk *, int, int, progress *);
+  int (*driverDefragment) (kernelDisk *, progress *);
+  int (*driverResize) (kernelDisk *, diskResizeParameters *, progress *);
+  int (*driverMount) (kernelDisk *);
+  int (*driverUnmount) (kernelDisk *);
+  unsigned (*driverGetFree) (kernelDisk *);
   int (*driverNewEntry) (kernelFileEntry *);
   int (*driverInactiveEntry) (kernelFileEntry *);
   int (*driverResolveLink) (kernelFileEntry *);
@@ -119,14 +68,14 @@ int kernelFilesystemIsoInitialize(void);
 
 // Functions exported by kernelFilesystem.c
 int kernelFilesystemScan(kernelDisk *);
-int kernelFilesystemFormat(const char *, const char *, const char *, int);
+int kernelFilesystemFormat(const char *, const char *, const char *, int,
+			   progress *);
 int kernelFilesystemClobber(const char *);
-int kernelFilesystemDefragment(const char *);
+int kernelFilesystemDefragment(const char *, progress *);
 int kernelFilesystemMount(const char *, const char *);
 int kernelFilesystemUnmount(const char *);
-int kernelFilesystemCheck(const char *, int, int);
-int kernelFilesystemUnmountAll(void);
-kernelFilesystem *kernelFilesystemGet(char *);
+int kernelFilesystemCheck(const char *, int, int, progress *);
+kernelDisk *kernelFilesystemGet(char *);
 unsigned kernelFilesystemGetFree(const char *);
 unsigned kernelFilesystemGetBlockSize(const char *);
 

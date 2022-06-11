@@ -62,7 +62,10 @@ static void guiRun(void)
 
 	  // Any events pending?
 	  if (key && (windowComponentEventGet(key, &event) > 0))
-	    callBacks[count].function((objectKey) key, &event);
+	    {
+	      if (callBacks[count].function)
+		callBacks[count].function((objectKey) key, &event);
+	    }
 	}
 
       // Done
@@ -119,11 +122,13 @@ _X_ int windowRegisterEventHandler(objectKey key, void (*function)(objectKey, wi
 	  errno = ERR_MEMORY;
 	  return (status = errno);
 	}
+
+      numCallBacks = 0;
     }
 
   callBacks[numCallBacks].key = key;
   callBacks[numCallBacks].function = function;
-  numCallBacks++;
+  numCallBacks += 1;
 
   return (status = 0);
 }
@@ -192,10 +197,9 @@ _X_ void windowGuiStop(void)
   run = 0;
   
   if (guiThreadPid && (multitaskerGetCurrentProcessId() != guiThreadPid))
-    {
-      multitaskerKillProcess(guiThreadPid, 0);
-      guiThreadPid = 0;
-    }
+    multitaskerKillProcess(guiThreadPid, 0);
+
+  guiThreadPid = 0;
   
   return;
 }

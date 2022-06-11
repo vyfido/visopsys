@@ -249,7 +249,7 @@ static void interpretCommand(char *commandLine)
 	  vshMakeAbsolutePath(args[1], fileName1);
 	  vshMakeAbsolutePath(args[2], fileName2);
 
-	  status = vshRenameFile(fileName1, fileName2);
+	  status = vshMoveFile(fileName1, fileName2);
 	  if (status < 0)
 	    perror(args[0]);
 	}

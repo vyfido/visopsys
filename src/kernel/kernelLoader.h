@@ -42,9 +42,11 @@
 
 #define FILECLASS_NAME_ELF      "ELF"
 #define FILECLASS_NAME_BMP      "bitmap"
+#define FILECLASS_NAME_ICO      "icon"
+#define FILECLASS_NAME_JPG      "JPEG"
 #define FILECLASS_NAME_CONFIG   "configuration"
 #define FILECLASS_NAME_BOOT     "boot"
-#define LOADER_NUM_FILECLASSES  6
+#define LOADER_NUM_FILECLASSES  8
 
 // A generic structure to represent a relocation entry
 typedef struct {
@@ -93,7 +95,7 @@ typedef struct {
       int (*link)(int, void *, processImage *);
     } executable;
     struct {
-      int (*load)(unsigned char *, int, int, image *);
+      int (*load)(unsigned char *, int, int, int, image *);
       int (*save)(const char *, image *);
     } image;
   };
@@ -108,12 +110,16 @@ kernelFileClass *kernelLoaderClassify(const char *, void *, int,
 kernelFileClass *kernelLoaderClassifyFile(const char *, loaderFileClass *);
 loaderSymbolTable *kernelLoaderGetSymbols(const char *, int);
 int kernelLoaderLoadProgram(const char *, int);
+int kernelLoaderLoadLibrary(const char *);
+kernelDynamicLibrary *kernelLoaderGetLibrary(const char *);
 int kernelLoaderExecProgram(int, int);
 int kernelLoaderLoadAndExec(const char *, int, int);
 
 // These are format-specific file class functions
 kernelFileClass *kernelFileClassElf(void);
 kernelFileClass *kernelFileClassBmp(void);
+kernelFileClass *kernelFileClassIco(void);
+kernelFileClass *kernelFileClassJpg(void);
 kernelFileClass *kernelFileClassConfig(void);
 kernelFileClass *kernelFileClassBoot(void);
 kernelFileClass *kernelFileClassText(void);

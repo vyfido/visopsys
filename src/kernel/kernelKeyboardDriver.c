@@ -26,12 +26,12 @@
 #include "kernelProcessorX86.h"
 #include "kernelMultitasker.h"
 #include "kernelMalloc.h"
-#include "kernelPageManager.h"
+#include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelWindow.h"
 #include "kernelShutdown.h"
 #include "kernelFile.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelError.h"
 #include <string.h>
 #include <stdio.h>

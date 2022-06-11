@@ -74,7 +74,7 @@
 			"lcall *(%%esp) \n\t" \
 			"addl $8, %%esp \n\t" \
 			"popfl"               \
-			: : "a" (selector));
+			: : "a" (selector))
 
 #define kernelProcessorSetGDT(ptr, size)      \
   __asm__ __volatile__ ("pushfl \n\t"         \
@@ -84,7 +84,7 @@
 			"lgdt (%%esp) \n\t"   \
 			"addl $6, %%esp \n\t" \
 			"popfl"               \
-			: : "r" (ptr), "a" (size));
+			: : "r" (ptr), "a" (size))
 
 #define kernelProcessorSetIDT(ptr, size)      \
   __asm__ __volatile__ ("pushfl \n\t"         \
@@ -94,11 +94,19 @@
 			"lidt (%%esp) \n\t"   \
 			"addl $6, %%esp \n\t" \
 			"popfl"               \
-			: : "r" (ptr), "a" (size));
+			: : "r" (ptr), "a" (size))
 
-#define kernelProcessorClearAddressCache(address) \
-  __asm__ __volatile__ ("invlpg %0"               \
-                        : : "m" (*((char *)(address))))
+#define kernelProcessorClearAddressCache(addr) \
+  __asm__ __volatile__ ("invlpg %0"            \
+                        : : "m" (*((char *)(addr))))
+
+#define kernelProcessorGetCR0(variable)  \
+  __asm__ __volatile__ ("movl %%cr0, %0" \
+                        : "=r" (variable))
+
+#define kernelProcessorSetCR0(variable)  \
+  __asm__ __volatile__ ("movl %0, %%cr0" \
+                        : : "r" (variable))
 
 #define kernelProcessorGetCR3(variable)  \
   __asm__ __volatile__ ("movl %%cr3, %0" \
@@ -107,10 +115,6 @@
 #define kernelProcessorSetCR3(variable)  \
   __asm__ __volatile__ ("movl %0, %%cr3" \
                         : : "r" (variable))
-
-#define kernelProcessorGetESP(variable)  \
-  __asm__ __volatile__ ("movl %%esp, %0" \
-                        : "=r" (variable))
 
 #define kernelProcessorIntReturn() __asm__ __volatile__ ("iret")
 
@@ -231,8 +235,8 @@
 #define kernelProcessorDisableInts() __asm__ __volatile__ ("cli")
 
 #define kernelProcessorSuspendInts(variable) do { \
-  kernelProcessorIntStatus(variable);        \
-  kernelProcessorDisableInts();              \
+  kernelProcessorIntStatus(variable);             \
+  kernelProcessorDisableInts();                   \
 } while (0)
 
 #define kernelProcessorRestoreInts(variable) do { \
@@ -240,31 +244,66 @@
     kernelProcessorEnableInts();                  \
 } while (0)
 
-#define kernelProcessorIsrEnter()              \
-  __asm__ __volatile__ ("movl %ebp, %esp \n\t" \
-			"pushal \n\t"          \
-			"pushfl \n\t"          \
-			"cli")
+#define kernelProcessorPushRegs() __asm__ __volatile__ ("pushal" : : : "%esp")
 
-#define kernelProcessorIsrExit()               \
-  __asm__ __volatile__ ("movl %ebp, %esp \n\t" \
-			"subl $36, %esp \n\t"  \
-			"popfl \n\t"           \
-			"popal \n\t"           \
-			"popl %ebp \n\t"       \
-			"iret")
+#define kernelProcessorPopRegs() __asm__ __volatile__ ("popal" : : : "%esp")
 
-#define kernelProcessorApiEnter()              \
-  __asm__ __volatile__ ("movl %ebp, %esp \n\t" \
-			"pushal")
+#define kernelProcessorPushFlags() __asm__ __volatile__ ("pushfl" : : : "%esp")
 
-#define kernelProcessorApiExit(code)             \
+#define kernelProcessorPopFlags() __asm__ __volatile__ ("popfl" : : : "%esp")
+
+#define kernelProcessorPopFrame()                \
   __asm__ __volatile__ ("movl %%ebp, %%esp \n\t" \
-			"subl $32, %%esp \n\t"   \
-			"popal \n\t"             \
-			"popl %%ebp \n\t"        \
-			"movl %0, %%eax \n\t"    \
-			"lret" : : "m" (code));
+			"popl %%ebp" : : : "%esp")
+
+#define kernelProcessorGetStackPointer(addr) \
+  __asm__ __volatile__ ("movl %%esp, %0" : "=r" (addr))
+
+#define kernelProcessorSetStackPointer(addr) \
+  __asm__ __volatile__ ("movl %0, %%esp" : : "r" (addr) : "%esp")
+
+#define kernelProcessorIsrEnter(addr) do { \
+  kernelProcessorDisableInts();            \
+  kernelProcessorPushRegs();               \
+  kernelProcessorPushFlags();              \
+  kernelProcessorGetStackPointer(addr);    \
+} while (0)  
+
+#define kernelProcessorIsrExit(addr) do { \
+  kernelProcessorSetStackPointer(addr);   \
+  kernelProcessorPopFlags();              \
+  kernelProcessorPopRegs();               \
+  kernelProcessorPopFrame();              \
+  kernelProcessorEnableInts();            \
+  kernelProcessorIntReturn();             \
+} while (0)
+
+#define kernelProcessorExceptionEnter(stAddr, exAddr) do {    \
+  __asm__ __volatile__ ("movl 4(%%ebp), %0" : "=r" (exAddr)); \
+  kernelProcessorPushRegs();                                  \
+  kernelProcessorGetStackPointer(stAddr);                     \
+} while (0)  
+
+#define kernelProcessorExceptionExit(stAddr) do { \
+  kernelProcessorSetStackPointer(stAddr);         \
+  kernelProcessorPopRegs();                       \
+  kernelProcessorPopFrame();                      \
+  kernelProcessorIntReturn();                     \
+} while (0)
+
+#define kernelProcessorApiEnter() do {      \
+  __asm__ __volatile__ ("movl %ebp, %esp"); \
+  kernelProcessorPushRegs();                \
+} while (0)
+
+#define kernelProcessorApiExit(code) do {                \
+  __asm__ __volatile__ ("movl %%ebp, %%esp \n\t"         \
+			"subl $32, %%esp" : : : "%esp"); \
+  kernelProcessorPopRegs();                              \
+  __asm__ __volatile__ ("popl %%ebp \n\t"                \
+			"movl %0, %%eax \n\t"            \
+			"lret" : : "m" (code) : "%esp"); \
+} while (0)
 
 #define kernelProcessorDelay()                 \
   __asm__ __volatile__ ("pushal \n\t"          \
@@ -274,6 +313,24 @@
 			"inb %dx, %al \n\t"    \
 			"inb %dx, %al \n\t"    \
 			"popal")
+
+#define kernelProcessorClearTaskSwitched() __asm__ __volatile__ ("clts")
+
+#define kernelProcessorFpuInit()     \
+  __asm__ __volatile__ ("clts \n\t"  \
+			"fninit")    \
+
+#define kernelProcessorFpuStateSave(addr) \
+  __asm__ __volatile__ ("clts \n\t"       \
+			"fnsave %0" : : "m" (*(addr)))
+
+#define kernelProcessorFpuStateRestore(addr) \
+  __asm__ __volatile__ ("clts \n\t"          \
+			"frstor %0" : : "m" (*(addr)))
+
+#define kernelProcessorGetFpuStatus(code) \
+  __asm__ __volatile__ ("clts \n\t"       \
+			"fnstsw %0" : "=a" (code))
 
 static inline unsigned short kernelProcessorSwap16(unsigned short variable)
 {

@@ -40,7 +40,9 @@ static void timerInterrupt(void)
   // This is the system timer interrupt handler.  It calls the timer driver
   // to actually read data from the device.
 
-  kernelProcessorIsrEnter();
+  void *address = NULL;
+
+  kernelProcessorIsrEnter(address);
   kernelProcessingInterrupt = 1;
 
   // Ok, now we can call the routine.
@@ -50,7 +52,7 @@ static void timerInterrupt(void)
   kernelPicEndOfInterrupt(INTERRUPT_NUM_SYSTIMER);
 
   kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
+  kernelProcessorIsrExit(address);
 }
 
 

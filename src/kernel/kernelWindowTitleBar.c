@@ -24,9 +24,9 @@
 #include "kernelWindow.h"     // Our prototypes are here
 #include "kernelWindowEventStream.h"
 #include "kernelMalloc.h"
-#include "kernelMemoryManager.h"
+#include "kernelMemory.h"
 #include "kernelMultitasker.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include <string.h>
 
 static kernelAsciiFont *titleBarFont = NULL;
@@ -494,7 +494,7 @@ static int destroy(void *componentData)
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindow *window = component->window;
 
-  if (0)//(component->data)
+  if (component->data)
     {
       if (window->titleBar == component)
 	window->titleBar = NULL;

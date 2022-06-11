@@ -24,7 +24,7 @@
 
 #include "kernelWindowEventStream.h"
 #include "kernelStream.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelError.h"
 #include <string.h>
 #include <sys/window.h>

@@ -23,7 +23,7 @@
 // using the kernelGraphic functions.
 
 #include "kernelWindow.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelMalloc.h"
 #include "kernelError.h"
 #include <stdlib.h>

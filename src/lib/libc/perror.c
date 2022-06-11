@@ -135,6 +135,9 @@ void perror(const char *prefix)
     case ERR_KILLED:
       stringToPrint = "Process killed";
       break;
+    case ERR_NOMEDIA:
+      stringToPrint = "No media present";
+      break;
     case ERR_NOSUCHFILE:
       stringToPrint = "No such file.";
       break;

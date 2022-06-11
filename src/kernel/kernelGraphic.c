@@ -26,9 +26,10 @@
 #include "kernelParameters.h"
 #include "kernelText.h"
 #include "kernelFile.h"
+#include "kernelDisk.h"
 #include "kernelMalloc.h"
-#include "kernelMemoryManager.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMemory.h"
+#include "kernelMisc.h"
 #include "kernelError.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -302,6 +303,7 @@ int kernelGraphicSetColor(const char *colorName, color *setColor)
   // Given the color name, set it.
 
   int status = 0;
+  kernelFileEntry *fileEntry = NULL;
   char fullColorName[128];
   char value[4];
 
@@ -340,8 +342,11 @@ int kernelGraphicSetColor(const char *colorName, color *setColor)
     kernelMemCopy(setColor, &kernelDefaultDesktop, sizeof(color));
 
   // Save the values
-  if (!(kernelFilesystemGet("/")->readOnly))
+  fileEntry = kernelFileLookup(DEFAULT_KERNEL_CONFIG);
+  if (fileEntry && fileEntry->disk &&
+      !((kernelDisk *) fileEntry->disk)->filesystem.readOnly)
     status = kernelConfigurationWriter(DEFAULT_KERNEL_CONFIG, kernelVariables);
+
   return (status);
 }
 
@@ -664,7 +669,7 @@ int kernelGraphicDrawText(kernelGraphicBuffer *buffer, color *foreground,
 
   int status = 0;
   int length = 0;
-  int index = 0;
+  int idx = 0;
   int count;
 
   // Make sure we've been initialized
@@ -688,18 +693,18 @@ int kernelGraphicDrawText(kernelGraphicBuffer *buffer, color *foreground,
   // Loop through the string
   for (count = 0; count < length; count ++)
     {
-      index = (int) text[count] - 32;
+      idx = (int) text[count] - 32;
 
-      if ((index < 0) || (index >= ASCII_PRINTABLES))
+      if ((idx < 0) || (idx >= ASCII_PRINTABLES))
 	// Not printable.  Print a space, which is index zero.
-	index = 0;
+	idx = 0;
       
       // Call the driver routine to draw the character
       status =
-	ops->driverDrawMonoImage(buffer, &(font->chars[index]), mode,
+	ops->driverDrawMonoImage(buffer, &(font->chars[idx]), mode,
 				 foreground, background, xCoord, yCoord);
 
-      xCoord += font->chars[index].width;
+      xCoord += font->chars[idx].width;
     }
 
   return (status = 0);

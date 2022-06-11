@@ -129,10 +129,6 @@ static int setData(void *componentData, void *text, int length)
   if (component->erase)
     component->erase(componentData);
 
-  kernelWindowUpdateBuffer(&(window->buffer), component->xCoord,
-			   component->yCoord, component->width,
-			   component->height);
-
   status = setText(componentData, text, length);
   if (status < 0)
     return (status);

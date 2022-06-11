@@ -143,6 +143,17 @@ int _expandFormatString(char *output, const char *format, va_list list)
 	  outCount = strlen(output);
 	  break;
 
+	case 'b':
+	  if (fieldWidth)
+	    {
+	      digits = numDigits((unsigned) argument, 2);
+	      while (digits++ < fieldWidth)
+		output[outCount++] = (zeroPad? '0' : ' ');
+	    }
+	  itob((int) argument, (output + outCount));
+	  outCount = strlen(output);
+	  break;
+
 	case 'c':
 	  // A character.
 	  output[outCount++] = (char) ((unsigned int) argument);

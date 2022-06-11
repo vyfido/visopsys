@@ -91,8 +91,7 @@ static void error(const char *format, ...)
 static void sortChildren(process *tmpProcessArray, int tmpNumProcesses)
 {
   // (Recursively) sort any children of the last process in the process list
-  // from the temporary list into our regular list.  Skip threads if
-  // applicable.
+  // from the temporary list into our regular list.
 
   process *parent = NULL;
   int count;
@@ -103,49 +102,20 @@ static void sortChildren(process *tmpProcessArray, int tmpNumProcesses)
 
   parent = &processes[numProcesses - 1];
 
-  if (showThreads)
-    // Do threads first
-    for (count = 0; count < tmpNumProcesses; count ++)
-      {
-	// Did we process this one already?
-	if (tmpProcessArray[count].processName[0] == '\0')
-	  continue;
-	
-	if ((tmpProcessArray[count].type == proc_thread) &&
-	    (tmpProcessArray[count].parentProcessId == parent->processId))
-	  {
-	    // Copy this thread into the regular array
-	    memcpy(&processes[numProcesses++], &tmpProcessArray[count],
-		   sizeof(process));
-	    bzero(&tmpProcessArray[count], sizeof(process));
-	    
-	    // Now sort any children, grandchildren, etc., behind it.
-	    sortChildren(tmpProcessArray, tmpNumProcesses);
-	  }
-      }
-
   for (count = 0; count < tmpNumProcesses; count ++)
     {
-      // Did we process this one already?
-      if (tmpProcessArray[count].processName[0] == '\0')
+      if ((tmpProcessArray[count].processName[0] == '\0') ||
+	  (tmpProcessArray[count].type != proc_thread) ||
+	  (tmpProcessArray[count].parentProcessId != parent->processId))
 	continue;
-
-      if (!showThreads && (tmpProcessArray[count].type == proc_thread))
-	{
-	  bzero(&tmpProcessArray[count], sizeof(process));
-	  continue;
-	}
-
-      if (tmpProcessArray[count].parentProcessId == parent->processId)
-	{
-	  // Copy this process into the regular array
-	  memcpy(&processes[numProcesses++], &tmpProcessArray[count],
-		 sizeof(process));
-	  bzero(&tmpProcessArray[count], sizeof(process));
-
-	  // Now sort any children, grandchildren, etc., behind it.
-	  sortChildren(tmpProcessArray, tmpNumProcesses);
-	}
+      
+      // Copy this thread into the regular array
+      memcpy(&processes[numProcesses++], &tmpProcessArray[count],
+	     sizeof(process));
+      tmpProcessArray[count].processName[0] = '\0';
+	    
+      // Now sort any children behind it.
+      sortChildren(tmpProcessArray, tmpNumProcesses);
     }
 }
 
@@ -225,23 +195,18 @@ static int getUpdate(void)
 
   for (count = 0; count < tmpNumProcesses; count ++)
     {
-      // Did we process this one already?
-      if (tmpProcessArray[count].processName[0] == '\0')
+      if ((tmpProcessArray[count].processName[0] == '\0') ||
+	  (tmpProcessArray[count].type == proc_thread))
 	continue;
-
-      if (!showThreads && (tmpProcessArray[count].type == proc_thread))
-	{
-	  bzero(&tmpProcessArray[count], sizeof(process));
-	  continue;
-	}
 
       // Copy this process into the regular array
       memcpy(&processes[numProcesses++], &tmpProcessArray[count],
 	     sizeof(process));
-      bzero(&tmpProcessArray[count], sizeof(process));
+      tmpProcessArray[count].processName[0] = '\0';
 
-      // Now sort any children, grandchildren, etc., behind it.
-      sortChildren(tmpProcessArray, tmpNumProcesses);
+      if (showThreads)
+	// Now sort any children, grandchildren, etc., behind it.
+	sortChildren(tmpProcessArray, tmpNumProcesses);
     }
 
   free(tmpProcessArray);
@@ -303,7 +268,7 @@ static int getUpdate(void)
 }
 
 
-static int runProgram(void)
+static void runProgram(void)
 {
   // Prompts the user for a program to run.
 
@@ -316,17 +281,21 @@ static int runProgram(void)
   int count;
 
   status =
-    windowNewFileDialog(window, "Enter command", "Please enter a command to "
-			"run:", commandLine, MAX_PATH_NAME_LENGTH);
+    windowNewFileDialog(NULL, "Enter command", "Please enter a command to "
+			"run:", "/programs", commandLine,
+			MAX_PATH_NAME_LENGTH);
   if (status != 1)
-    return (status);
+    goto out;
 
   // Turn the command line into a program and args
   status = vshParseCommand(commandLine, command, &argc, argv);
   if (status < 0)
-    return (status);
+    goto out;
   if (command[0] == '\0')
-    return (status = ERR_NOSUCHFILE);
+    {
+      status = ERR_NOSUCHFILE;
+      goto out;
+    }
 
   // Got an executable command.  Execute it.
 
@@ -338,7 +307,12 @@ static int runProgram(void)
       strcat(fullCommand, " ");
     }
 
-  return (status = loaderLoadAndExec(fullCommand, privilege, 0));
+  status = loaderLoadAndExec(fullCommand, privilege, 0);
+
+ out:
+  if (status < 0)
+    error("Unable to execute program");
+  multitaskerTerminate(status);
 }
 
 
@@ -437,8 +411,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 
       if ((key == runProgramButton) && (event->type == EVENT_MOUSE_LEFTUP))
 	{
-	  if (runProgram() < 0)
-	    error("Unable to execute program");
+	  if (multitaskerSpawn(&runProgram, "run program", 0, NULL) < 0)
+	    error("Unable to launch file dialog");
 	}
 
       else if ((key == setPriorityButton) &&

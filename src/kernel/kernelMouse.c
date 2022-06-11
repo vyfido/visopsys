@@ -93,7 +93,9 @@ static void mouseInterrupt(void)
   // This is the mouse interrupt handler.  It calls the mouse driver
   // to actually read data from the device.
 
-  kernelProcessorIsrEnter();
+  void *address = NULL;
+
+  kernelProcessorIsrEnter(address);
   kernelProcessingInterrupt = 1;
 
   // Ok, now we can call the routine.
@@ -102,7 +104,7 @@ static void mouseInterrupt(void)
 
   kernelPicEndOfInterrupt(INTERRUPT_NUM_MOUSE);
   kernelProcessingInterrupt = 0;
-  kernelProcessorIsrExit();
+  kernelProcessorIsrExit(address);
 }
 
 

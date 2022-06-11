@@ -24,33 +24,36 @@
 
 #include "kernelMultitasker.h"
 #include "kernelParameters.h"
-#include "kernelMemoryManager.h"
+#include "kernelMemory.h"
 #include "kernelMalloc.h"
 #include "kernelFile.h"
 #include "kernelMain.h"
-#include "kernelPageManager.h"
+#include "kernelPage.h"
 #include "kernelProcessorX86.h"
 #include "kernelPic.h"
 #include "kernelSysTimer.h"
 #include "kernelEnvironment.h"
 #include "kernelShutdown.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelInterrupt.h"
+#include "kernelNetwork.h"
 #include "kernelLog.h"
 #include "kernelError.h"
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
 
-
+#define PROC_KILLABLE(proc) ((proc != kernelProc) &&        \
+                             (proc != idleProc) &&          \
+                             (proc != kernelCurrentProcess))
+  
 // Global multitasker stuff
 static int multitaskingEnabled = 0;
 static volatile int processIdCounter = KERNELPROCID;
 static kernelProcess *kernelProc = NULL;
 static kernelProcess *idleProc = NULL;
-static kernelProcess *exceptionProc = NULL;
-static kernelProcess *deadProcess;
 static volatile int schedulerSwitchedByCall = 0;
+static int fpuProcess = 0;
 
 // We allow the pointer to the current process to be exported, so that
 // when a process uses system calls, there is an easy way for the
@@ -70,11 +73,35 @@ static void (*oldSysTimerHandler)(void) = NULL;
 static volatile unsigned schedulerTimeslices = 0;
 static volatile unsigned schedulerTime = 0;
 
-#define PROC_KILLABLE(proc) ((proc != kernelProc) &&        \
-                             (proc != exceptionProc) &&     \
-                             (proc != idleProc) &&          \
-                             (proc != kernelCurrentProcess))
-  
+// An array of exception types.  The selectors are initialized later.
+struct {
+  int index;
+  kernelSelector tssSelector;
+  const char *a;
+  const char *name;
+  int (*handler) (void);
+} exceptionVector[19] = {
+  { EXCEPTION_DIVBYZERO, 0, "a", "divide-by-zero", NULL },
+  { EXCEPTION_DEBUG, 0, "a", "debug", NULL },
+  { EXCEPTION_NMI, 0, "a", "non-maskable interrupt (NMI)", NULL },
+  { EXCEPTION_BREAK, 0, "a", "breakpoint", NULL },
+  { EXCEPTION_OVERFLOW, 0, "a", "overflow", NULL },
+  { EXCEPTION_BOUNDS, 0, "a", "out-of-bounds", NULL },
+  { EXCEPTION_OPCODE, 0, "an", "invalid opcode", NULL },
+  { EXCEPTION_DEVNOTAVAIL, 0, "a", "device not available", NULL },
+  { EXCEPTION_DOUBLEFAULT, 0, "a", "double-fault", NULL },
+  { EXCEPTION_COPROCOVER, 0, "a", "co-processor segment overrun", NULL },
+  { EXCEPTION_INVALIDTSS, 0, "an", "invalid TSS", NULL },
+  { EXCEPTION_SEGNOTPRES, 0, "a", "segment not present", NULL },
+  { EXCEPTION_STACK, 0, "a", "stack", NULL },
+  { EXCEPTION_GENPROTECT, 0, "a", "general protection", NULL },
+  { EXCEPTION_PAGE, 0, "a", "page fault", NULL },
+  { EXCEPTION_RESERVED, 0, "a", "\"reserved\"", NULL },
+  { EXCEPTION_FLOAT, 0, "a", "floating point", NULL },
+  { EXCEPTION_ALIGNCHECK, 0, "an", "alignment check", NULL },
+  { EXCEPTION_MACHCHECK, 0, "a", "machine check", NULL }
+};
+
 
 static kernelProcess *getProcessById(int processId)
 {
@@ -148,7 +175,9 @@ static inline int releaseProcess(kernelProcess *killProcess)
   // returns 0 on success, negative otherwise
 
   int status = 0;
+
   status = kernelFree((void *) killProcess);
+
   return (status);
 }
 
@@ -629,6 +658,11 @@ static int deleteProcess(kernelProcess *killProcess)
 	}
     }
 
+  // Try to close all network connections owned by this process
+  status = kernelNetworkCloseAll(killProcess->processId);
+  if (status < 0)
+    kernelError(kernel_warn, "Can't release network connections");
+
   // If the process has a signal stream, destroy it
   if (killProcess->signalStream.buffer)
     kernelStreamDestroy((stream *) &(killProcess->signalStream));
@@ -660,78 +694,6 @@ static int deleteProcess(kernelProcess *killProcess)
     {
       kernelError(kernel_error, "Can't release process structure");
       return (status);
-    }
-
-  return (status = 0);
-}
-
-
-static int exceptionThreadInitialize(void)
-{
-  // This function will initialize the kernel's exception handler thread.  
-  // It should be called after multitasking has been initialized.  
-
-  int status = 0;
-  int procId = 0;
-  int count;
-
-  // One of the first things the kernel does at startup time is to install 
-  // a simple set of interrupt handlers, including ones for handling 
-  // processor exceptions.  We want to replace those with a set of task
-  // gates, so that a context switch will occur -- giving control to the
-  // exception handler thread.
-
-  // OK, we will now create the kernel's exception handler thread.
-
-  procId = kernelMultitaskerSpawn(&kernelExceptionHandler, "exception thread",
-				  0, NULL);
-  if (procId < 0)
-    {
-      kernelError(kernel_error, "Unable to create the kernel's exception "
-		  "thread");
-      return (procId);
-    }
-
-  exceptionProc = getProcessById(procId);
-  if (exceptionProc == NULL)
-    {
-      kernelError(kernel_error, "Unable to create the kernel's exception "
-		  "thread");
-      return (procId);
-    }
-
-  // Set the process state to sleep
-  exceptionProc->state = proc_sleeping;
-
-  status = kernelDescriptorSet(
-	       exceptionProc->tssSelector, // TSS selector
-	       &(exceptionProc->taskStateSegment), // Starts at...
-	       sizeof(kernelTSS),      // Maximum size of a TSS selector
-	       1,                      // Present in memory
-	       PRIVILEGE_SUPERVISOR,   // Highest privilege level
-	       0,                      // TSS's are system segs
-	       0x9,                    // TSS, 32-bit, non-busy
-	       0,                      // 0 for SMALL size granularity
-	       0);                     // Must be 0 in TSS
-  if (status < 0)
-    // Something went wrong
-    return (status);
-
-  // Interrupts should always be disabled for this task 
-  exceptionProc->taskStateSegment.EFLAGS = 0x00000002;
-
-  // Set up interrupt task gates to send all the exceptions to this new
-  // thread
-  for (count = 0; count < 19; count ++)
-    {
-      status =
-	kernelDescriptorSetIDTTaskGate(count, exceptionProc->tssSelector);
-      if (status < 0)
-	{
-	  kernelError(kernel_error, "Unable to set interrupt task gate for "
-		      "exception %d", count);
-	  return (status);
-	}
     }
 
   return (status = 0);
@@ -780,40 +742,6 @@ static int spawnIdleThread(void)
 }
 
 
-static int schedulerShutdown(void)
-{
-  // This function will perform all of the necessary shutdown to stop
-  // the sheduler and return control to the kernel's main task.
-  // This will probably only be useful at system shutdown time.
-
-  // NOTE that this function should NEVER be called directly.  If this
-  // advice is ignored, you have no assurance that things will occur
-  // the way you might expect them to.  To shut down the scheduler,
-  // set the variable schedulerStop to a nonzero value.  The scheduler
-  // will then invoke this function when it's ready.
-
-  int status = 0;
-
-  // Restore the normal operation of the system timer 0, which is
-  // mode 3, initial count of 0
-  status = kernelSysTimerSetupTimer(0, 3, 0);
-  if (status < 0)
-    kernelError(kernel_warn, "Could not restore system timer");
-
-  // Remove the task gate that we were using to capture the timer
-  // interrupt.  Replace it with the old default timer interrupt handler
-  kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, oldSysTimerHandler);
-
-  // Give exclusive control to the current task
-  schedulerProc->taskStateSegment.oldTSS = kernelCurrentProcess->tssSelector;
-  // Do an interrupt return.
-  kernelProcessorIntReturn();
-
-  // We should never get here
-  return (status = 0);
-}
-
-
 static int markTaskBusy(int tssSelector, int busy)
 {
   // This function gets the requested TSS selector from the GDT and
@@ -846,6 +774,39 @@ static int markTaskBusy(int tssSelector, int busy)
     return (status);
 
   // Return success
+  return (status = 0);
+}
+
+
+static int schedulerShutdown(void)
+{
+  // This function will perform all of the necessary shutdown to stop
+  // the sheduler and return control to the kernel's main task.
+  // This will probably only be useful at system shutdown time.
+
+  // NOTE that this function should NEVER be called directly.  If this
+  // advice is ignored, you have no assurance that things will occur
+  // the way you might expect them to.  To shut down the scheduler,
+  // set the variable schedulerStop to a nonzero value.  The scheduler
+  // will then invoke this function when it's ready.
+
+  int status = 0;
+
+  // Restore the normal operation of the system timer 0, which is
+  // mode 3, initial count of 0
+  status = kernelSysTimerSetupTimer(0, 3, 0);
+  if (status < 0)
+    kernelError(kernel_warn, "Could not restore system timer");
+
+  // Remove the task gate that we were using to capture the timer
+  // interrupt.  Replace it with the old default timer interrupt handler
+  kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, oldSysTimerHandler);
+
+  // Give exclusive control to the current task
+  markTaskBusy(kernelCurrentProcess->tssSelector, 0);
+  kernelProcessorFarCall(kernelCurrentProcess->tssSelector);
+
+  // We should never get here
   return (status = 0);
 }
 
@@ -995,6 +956,13 @@ static int scheduler(void)
 
 	  // Add the last timeslice to the process' CPU time
 	  previousProcess->cpuTime += timeUsed;
+
+	  if (previousProcess->fpuInUse)
+	    {
+	      // Save FPU state
+	      kernelProcessorFpuStateSave(previousProcess->fpuState);
+	      previousProcess->fpuStateValid = 1;
+	    }
 	}
 
       // Increment the counts of scheduler time slices and scheduler time
@@ -1153,23 +1121,6 @@ static int scheduler(void)
       // currently selected process.
       kernelCurrentProcess = nextProcess;
 
-      // Make sure the exception handler process is ready to go
-      if (exceptionProc)
-	{
-	  status = kernelDescriptorSet(
-		   exceptionProc->tssSelector, // TSS selector
-		   &(exceptionProc->taskStateSegment), // Starts at...
-		   sizeof(kernelTSS),      // Maximum size of a TSS selector
-		   1,                      // Present in memory
-		   0,                      // Highest privilege level
-		   0,                      // TSS's are system segs
-		   0x9,                    // TSS, 32-bit, non-busy
-		   0,                      // 0 for SMALL size granularity
-		   0);                     // Must be 0 in TSS
-	  exceptionProc->taskStateSegment.EIP = (unsigned)
-	    &kernelExceptionHandler;
-	}
-
       // Set the system timer 0 to interrupt this task after a known
       // period of time (mode 0)
       status = kernelSysTimerSetupTimer(0, 0, TIME_SLICE_LENGTH);
@@ -1185,29 +1136,15 @@ static int scheduler(void)
 
       // In the final part, we do the actual context switch.
 
-      // Move the selected task's selector into the link field
-      schedulerProc->taskStateSegment.oldTSS = nextProcess->tssSelector;
-
-      markTaskBusy(nextProcess->tssSelector, 1);
-      nextProcess->taskStateSegment.EFLAGS &= ~0x4000;
-
-      // int flags = 0, taskreg = 0;
-      // kernelProcessorGetFlags(flags);
-      // kernelProcessorGetTaskReg(taskreg);
-      // kernelTextPrintLine("Flags: 0x%x Task reg: 0x%x\n"
-      // 			  "Flags: 0x%x EIP: 0x%x Task "
-      // 			  "reg: 0x%x", flags, taskreg,
-      // 			  nextProcess->taskStateSegment.EFLAGS,
-      // 			  nextProcess->taskStateSegment.EIP,
-      // 			  //nextProcess->taskStateSegment.ESP,
-      // 			  nextProcess->tssSelector);
-
       // Acknowledge the timer interrupt if one occurred
       if (!schedulerSwitchedByCall)
 	kernelPicEndOfInterrupt(INTERRUPT_NUM_SYSTIMER);
 
       // Reset the "switched by call" flag
       schedulerSwitchedByCall = 0;
+
+      // Move the selected task's selector into the link field
+      schedulerProc->taskStateSegment.oldTSS = nextProcess->tssSelector;
 
       // Return to the task.  Do an interrupt return.
       kernelProcessorIntReturn();
@@ -1284,7 +1221,7 @@ static int schedulerInitialize(void)
   // Make sure the scheduler is set to "run"
   schedulerStop = 0;
 
-  // Set the "switched by call" flag
+  // Clear the "switched by call" flag
   schedulerSwitchedByCall = 0;
 
   // Make note that the multitasker has been enabled.  We do it a little
@@ -1304,9 +1241,9 @@ static int schedulerInitialize(void)
   if (oldSysTimerHandler == NULL)
     return (status = ERR_NOTINITIALIZED);
 
-  // Install a task gate for the interrupt, which will
-  // be the scheduler's timer interrupt.  After this point, our
-  // new scheduler task will run with every clock tick
+  // Install a task gate for the interrupt, which will be the scheduler's
+  // timer interrupt.  After this point, our new scheduler task will run
+  // with every clock tick
   status = kernelDescriptorSetIDTTaskGate((0x20 + INTERRUPT_NUM_SYSTIMER), 
 	 				  schedulerProc->tssSelector);
   if (status < 0)
@@ -1458,6 +1395,47 @@ static void kernelProcess2Process(kernelProcess *kernProcess,
 }
 
 
+static int fpuExceptionHandler(void)
+{
+  // This function gets called when a EXCEPTION_DEVNOTAVAIL (7) exception
+  // occurs.  It can happen under two circumstances:
+  // CR0[EM] is set: No FPU is present.  We can implement emulation here
+  //     later in this case, if we want.
+  // CR0[TS] and CR0[MP] are set: A task switch has occurred since the
+  //     last FP operation, and we need to restore the state.
+
+  int status = 0;
+
+  if (fpuProcess == kernelCurrentProcess->processId)
+    // This process was the last to use the FPU.  Just clear the task
+    // switched bit
+    kernelProcessorClearTaskSwitched();
+
+  else
+    {
+      // Some other process has been using the FPU, or it has not been
+      // used at all.  Figure out whether we should restore the state
+      // or else initialize the FPU for this process.
+
+      if (kernelCurrentProcess->fpuStateValid)
+	// Restore the FPU state
+	kernelProcessorFpuStateRestore(kernelCurrentProcess->fpuState);
+
+      else
+	{
+	  // The process has not previously used the FPU.  Initialize it
+	  // and remember that from now on we have to save FPU state.
+	  kernelProcessorFpuInit();
+	  kernelCurrentProcess->fpuInUse = 1;
+	}
+
+      fpuProcess = kernelCurrentProcess->processId;
+    }
+
+  return (status = 0);
+}
+
+
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -1472,6 +1450,7 @@ int kernelMultitaskerInitialize(void)
   // This function intializes the kernel's multitasker.
 
   int status = 0;
+  unsigned cr0 = 0;
   int count;
   
   // Make sure multitasking is NOT enabled already
@@ -1482,7 +1461,15 @@ int kernelMultitaskerInitialize(void)
   for (count = 0; count < MAX_PROCESSES; count ++)
     processQueue[count] = NULL;
   numQueued = 0;
- 
+
+  // Initialize the CPU for floating point operation.  We set
+  // CR0[EM]=0 (no emulation)
+  // CR0[MP]=1 (math present)
+  // CR0[NE]=1 (floating point errors cause exceptions)
+  kernelProcessorGetCR0(cr0);
+  cr0 = ((cr0 & ~0x04UL) | 0x22);
+  kernelProcessorSetCR0(cr0);
+
   // We need to create the kernel's own process.  
   status = createKernelProcess();
   // Make sure it was successful
@@ -1501,11 +1488,8 @@ int kernelMultitaskerInitialize(void)
   if (status < 0)
     return (status);
 
-  // Start the exception handler thread.
-  status = exceptionThreadInitialize();
-  // Make sure it was successful
-  if (status < 0)
-    return (status);
+  // Set up any specific exception handlers.
+  exceptionVector[EXCEPTION_DEVNOTAVAIL].handler = fpuExceptionHandler;
 
   // Log a boot message
   kernelLog("Multitasking started");
@@ -1555,139 +1539,114 @@ int kernelMultitaskerShutdown(int nice)
 }
 
 
-void kernelExceptionHandler(void)
+void kernelExceptionHandler(int exceptionNum, unsigned address)
 {
-  // This code sleeps until woken up by an exception.  Before multitasking
-  // starts it is referenced by an interrupt gate.  Afterward, it has its
-  // TSS referenced by a task gate descriptor in the IDT.
+  // This code sleeps until woken up by an exception.
 
-  char tmpMsg[256];
-  void *stackMemory = NULL;
+  char message[256];
+  char *symbolName = NULL;
   int count;
+
   extern kernelSymbol *kernelSymbols;
   extern int kernelNumberSymbols;
 
-  while(1)
+  // We got an exception.
+  
+  // If there's a handler for this exception type, call it
+  if (exceptionVector[exceptionNum].handler != NULL)
     {
-      // We got an exception.
+      if (exceptionVector[exceptionNum].handler() >= 0)
+	// The exception was handled.  Return to the task.
+	return;
+    }
 
-      deadProcess = kernelCurrentProcess;
-      deadProcess->state = proc_stopped;
+  kernelCurrentProcess->state = proc_stopped;
 
-      kernelCurrentProcess = exceptionProc;
+  // If the fault occurred while we were processing an interrupt,
+  // we should tell the PIC that the interrupt service routine is
+  // finished.  It's not really fair to kill a process because an
+  // interrupt handler is screwy, but that's what we have to do for
+  // the time being.
+  if (kernelProcessingInterrupt)
+    kernelPicEndOfInterrupt(0xFF);
 
-      // Don't get into a loop.
-      if (exceptionProc->state != proc_sleeping)
-	kernelPanic("Double-fault while processing exception");
+  if (kernelCurrentProcess == NULL)
+    // We have to make an error here.  We can't return to the program
+    // that caused the exception, and we can't tell the multitasker
+    // to kill it.  We'd better make a kernel panic.
+    kernelPanic("Exception handler unable to determine current process");
+  else if (!multitaskingEnabled || (kernelCurrentProcess == kernelProc))
+    sprintf(message, "The kernel has experienced %s %s exception",
+	    exceptionVector[exceptionNum].a,
+	    exceptionVector[exceptionNum].name);
+  else
+    sprintf(message, "Process \"%s\" caused %s %s exception",
+	    kernelCurrentProcess->processName, exceptionVector[exceptionNum].a,
+	    exceptionVector[exceptionNum].name);
 
-      exceptionProc->state = proc_running;
-
-      // If the fault occurred while we were processing an interrupt,
-      // we should tell the PIC that the interrupt service routine is
-      // finished.  It's not really fair to kill a process because an
-      // interrupt handler is screwy, but that's what we have to do for
-      // the time being.
-      if (kernelProcessingInterrupt)
-	kernelPicEndOfInterrupt(0xFF);
-
-      if (!multitaskingEnabled || (deadProcess == kernelProc))
-	strcpy(tmpMsg, "The kernel has experienced a fatal exception");
-      // Get the dead process
-      else if (deadProcess == NULL)
-	// We have to make an error here.  We can't return to the program
-	// that caused the exception, and we can't tell the multitasker
-	// to kill it.  We'd better make a kernel panic.
-	kernelPanic("Exception handler unable to determine current process");
-      else
-	sprintf(tmpMsg, "Process \"%s\" caused a fatal exception",
-		deadProcess->processName);
-
-      if (multitaskingEnabled)
+  if (multitaskingEnabled)
+    {
+      if (address >= KERNEL_VIRTUAL_ADDRESS)
 	{
-	  if (deadProcess->taskStateSegment.EIP >= KERNEL_VIRTUAL_ADDRESS)
+	  if (kernelSymbols)
 	    {
-	      char *symbolName = NULL;
-
-	      if (kernelSymbols)
+	      // Find roughly the kernel function where the exception
+	      // happened
+	      for (count = 0; count < kernelNumberSymbols; count ++)
 		{
-		  // Find roughly the kernel function where the exception
-		  // happened
-		  for (count = 0; count < kernelNumberSymbols; count ++)
+		  if ((address >= kernelSymbols[count].address) &&
+		      (address <  kernelSymbols[count + 1].address))
 		    {
-		      if ((deadProcess->taskStateSegment.EIP >=
-			   kernelSymbols[count].address) &&
-			  (deadProcess->taskStateSegment.EIP <
-			   kernelSymbols[count + 1].address))
-			{
-			  symbolName = kernelSymbols[count].symbol;
-			  break;
-			}
+		      symbolName = kernelSymbols[count].symbol;
+		      break;
 		    }
 		}
-
-	      if (symbolName)
-		sprintf(tmpMsg, "%s in function %s", tmpMsg, symbolName);
-	      else
-		sprintf(tmpMsg, "%s at kernel address %08x", tmpMsg,
-			deadProcess->taskStateSegment.EIP);
 	    }
+
+	  if (symbolName)
+	    sprintf((message + strlen(message)), " in function %s (%08x)",
+		    symbolName, address);
 	  else
-	    sprintf(tmpMsg, "%s at application address %08x", tmpMsg,
-		    deadProcess->taskStateSegment.EIP);
+	    sprintf((message + strlen(message)), " at kernel address %08x",
+		    address);
 	}
-
-      if (kernelProcessingInterrupt)
-	sprintf(tmpMsg, "%s while processing interrupt %d", tmpMsg,
-		kernelPicGetActive());
-
-      if (!multitaskingEnabled || (deadProcess == kernelProc))
-	// If it's the kernel, we're finished
-	kernelPanic(tmpMsg);
       else
-	{
-	  kernelError(kernel_error, tmpMsg);
-	  if (kernelGraphicsAreEnabled())
-	    kernelErrorDialog("Application Exception", tmpMsg);
-	}
-
-      // If the process was in kernel code, and we are not processing an
-      // interrupt, take ownership of the process' stack memory and do a
-      // stack trace
-      if (!kernelProcessingInterrupt &&
-	  (deadProcess->taskStateSegment.EIP >= KERNEL_VIRTUAL_ADDRESS))
-	{
-	  kernelMemoryChangeOwner(deadProcess->processId,
-				  exceptionProc->processId, 1,
-				  deadProcess->userStack, &stackMemory);
-
-	  // If possible, we will do a stack memory dump to disk.  Don't try
-	  // this if we were servicing an interrupt when we faulted
-	  if (stackMemory)
-	    {
-	      kernelStackTrace((stackMemory +
-				((void *) deadProcess->taskStateSegment.ESP -
-				 deadProcess->userStack)),
-			       (stackMemory + deadProcess->userStackSize -
-				sizeof(void *)));
-
-	      // Release the stack memory
-	      kernelMemoryRelease(stackMemory);
-	    }
-	}
-
-      // The scheduler may now dismantle the process
-      deadProcess->state = proc_finished;
-
-      kernelProcessingInterrupt = 0;
-
-      // Make sure that when we return, we return to the scheduler
-      exceptionProc->taskStateSegment.oldTSS = schedulerProc->tssSelector;
-
-      // Mark the process as finished and yield the timeslice back to the
-      // scheduler.  The scheduler will take care of dismantling the process
-      exceptionProc->state = proc_sleeping;
-      kernelMultitaskerYield();
+	sprintf((message + strlen(message)), " at application address %08x",
+		address);
     }
+
+  if (kernelProcessingInterrupt)
+    sprintf((message + strlen(message)), " while processing interrupt %d",
+	    kernelPicGetActive());
+
+  if (!multitaskingEnabled || (kernelCurrentProcess == kernelProc))
+    // If it's the kernel, we're finished
+    kernelPanic(message);
+
+  else
+    {
+      kernelError(kernel_error, message);
+      if (kernelGraphicsAreEnabled())
+	kernelErrorDialog("Application Exception", message);
+    }
+
+  /*
+  // If the process was in kernel code do a stack trace
+  if (!kernelProcessingInterrupt && (address >= KERNEL_VIRTUAL_ADDRESS))
+    kernelStackTrace((kernelCurrentProcess->userStack +
+		      ((void *) kernelCurrentProcess->taskStateSegment.ESP -
+		       kernelCurrentProcess->userStack)),
+		     (kernelCurrentProcess->userStack +
+		      kernelCurrentProcess->userStackSize - sizeof(void *)));
+  */
+
+  // The scheduler may now dismantle the process
+  kernelCurrentProcess->state = proc_finished;
+
+  kernelProcessingInterrupt = 0;
+
+  // Yield control.
+  kernelMultitaskerYield();
 }
 
 
@@ -2708,14 +2667,6 @@ int kernelMultitaskerKillProcess(int processId, int force)
     {
       kernelError(kernel_error, "It's not possible to kill the kernel "
 		  "process");
-      return (status = ERR_INVALID);
-    }
-
-  // You can't kill the exception handler thread on purpose
-  if (killProcess == exceptionProc)
-    {
-      kernelError(kernel_error, "It's not possible to kill the exception "
-		  "thread");
       return (status = ERR_INVALID);
     }
 

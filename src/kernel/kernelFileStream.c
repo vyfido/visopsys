@@ -26,7 +26,7 @@
 #include "kernelFileStream.h"
 #include "kernelFile.h"
 #include "kernelStream.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelError.h"
 #include <string.h>
 #include <stdlib.h>

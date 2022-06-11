@@ -8,7 +8,7 @@
 BUILDDIR=../../../build/programs/mines
 
 CC		= gcc
-CPU		= $(shell ../../utils/cpu.sh)
+CPU		= $(shell ../../../utils/cpu.sh)
 STDDEPS		= Makefile*
 CODEGEN		= -O2 ${CPU} -fno-strength-reduce -fno-strict-aliasing
 WARN		= -Wall -Wshadow -Wmissing-prototypes -Wstrict-prototypes \

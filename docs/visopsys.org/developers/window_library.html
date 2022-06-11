@@ -13,24 +13,27 @@
 <table border="0" cellpadding="0" cellspacing="0" width="93">
   <tr>
     <td width="99"><p align="center"><font color="#FFFFFF"><a href="../index.html">
-    <img src="../img/nav_buttons/home.gif" alt="Go back to the Visopsys Home Page." border="0" align="middle" width="53" height="25"></a><br>
+    <img src="../img/nav_buttons/home.gif" alt="Home" border="0" align="middle" width="53" height="25"></a><br>
     <br>
     <a href="../about/index.html">
-    <img src="../img/nav_buttons/about.gif" alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a></font><p align="center">
+    <img src="../img/nav_buttons/about.gif" alt="About" border="0" align="middle" width="60" height="25"></a></font><p align="center">
+    <a href="../about/news.html">
+    <img border="0" src="../img/nav_buttons/news.gif" alt="News" width="49" height="16"></a><br>
+    <br>
     <a href="../about/screenshots.html">
-    <img border="0" src="../img/nav_buttons/screenshots.gif" width="105" height="22"></a><font color="#FFFFFF"><br>
+    <img border="0" src="../img/nav_buttons/screenshots.gif" alt="Screenshots" width="105" height="22"></a><font color="#FFFFFF"><br>
     <br>
     <a href="../download/index.html">
-    <img src="../img/nav_buttons/download.gif" alt="Download Visopsys and associated files." border="0" align="middle" width="95" height="25"></a></font><br>
+    <img src="../img/nav_buttons/download.gif" alt="Download" border="0" align="middle" width="95" height="25"></a></font><br>
     <br>
     <a href="index.html">
-    <img src="../img/nav_buttons/developers.gif" border="0" alt="Resources for Visopsys development" align="middle" width="97" height="29"></a><br>
+    <img src="../img/nav_buttons/developers.gif" border="0" alt="Developers" align="middle" width="97" height="29"></a><br>
     <br>
     <a href="../osdev/index.html">
-    <img src="../img/nav_buttons/osdev.gif" border="0" alt="OS Development Resources" align="middle" width="64" height="25"></a><br>
+    <img src="../img/nav_buttons/osdev.gif" border="0" alt="OS Development" align="middle" width="64" height="25"></a><br>
     <br>
     <a href="../search.html">
-    <img src="../img/nav_buttons/search.gif" alt="Search the Visopsys Site" align="middle" border="0" width="63" height="24"></a></td>
+    <img src="../img/nav_buttons/search.gif" alt="Search" align="middle" border="0" width="63" height="24"></a></td>
   </tr>
 </table>
 </center></div>
@@ -43,8 +46,8 @@
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-developers.gif" border="0" align="middle" width="291" height="56"></p>
 
-<p><b><font size="4">THE VISOPSYS WINDOW LIBRARY (Version 0.5)<br>
-</font></b>(version 0.4 is <a href="window_library_0.4.html">here</a>)</p>
+<p><b><font size="4">THE VISOPSYS WINDOW LIBRARY (Version 0.6)<br>
+</font></b>(version 0.5 is <a href="window_library_0.5.html">here</a>)</p>
 <p><font size="4">The window library is a set of functions to aid GUI 
 development on the Visopsys platform. At present the list of functions is small, 
 but it does provide very useful functionality. This includes an interface for 
@@ -55,7 +58,7 @@ and the code is contained in libwindow.a (link with '-lwindow').</font></p>
 
 <p>&nbsp;</p>
 
-<p><p><font face="Courier New">objectKey windowNewBannerDialog(objectKey parentWindow, const char *title, const char *message)
+<p><font face="Courier New">objectKey windowNewBannerDialog(objectKey parentWindow, const char *title, const char *message)
 </font></p>
 <blockquote>
   <p>Create a 'banner' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  This is the very simplest kind of dialog; it just contains the supplied message with no acknowledgement mechanism for the user.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a non-blocking call that returns the object key of the dialog window.  The caller must destroy the window when finished with it.
@@ -65,15 +68,35 @@ and the code is contained in libwindow.a (link with '-lwindow').</font></p>
 <blockquote>
   <p>Center a dialog window.  The first object key is the parent window, and the second is the dialog window.  This function can be used to center a regular window on the screen if the first objectKey argument is NULL.
 </p></blockquote>
+<p><font face="Courier New">int windowNewChoiceDialog(objectKey parentWindow, const char *title, const char *message, char *choiceStrings[], int numChoices, int defaultChoice)
+</font></p>
+<blockquote>
+  <p>Create a 'choice' dialog box, with the parent window 'parentWindow', the given titlebar text and main message, and 'numChoices' choices, as specified by the 'choiceStrings'.  'default' is the default focussed selection.  The dialog will have a button for each choice.  If the user chooses one of the choices, the function returns the 0-based index of the choice.  Otherwise it returns negative.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
+</p></blockquote>
 <p><font face="Courier New">int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
 </font></p>
 <blockquote>
   <p>Create an 'color chooser' dialog box, with the parent window 'parentWindow', and a pointer to the color structure 'pickedColor'.  Currently the window consists of red/green/blue sliders and a canvas displaying the current color.  The initial color displayed will be whatever is supplied in 'pickedColor'.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 </p></blockquote>
-<p><font face="Courier New">int windowNewFileDialog(objectKey parentWindow, const char *title, const char *message, char *fileName, unsigned maxLength)
+<p><font face="Courier New">int windowNewFileDialog(objectKey parentWindow, const char *title, const char *message, const char *startDir, char *fileName, unsigned maxLength)
 </font></p>
 <blockquote>
-  <p>Create a 'file' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a file selection area, an 'OK' button and a 'CANCEL' button.  If the user presses OK or ENTER, the function returns the value 1 and copies the filename into the fileName buffer.  Otherwise it returns 0 and puts a NULL string into fileName.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
+  <p>Create a 'file' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  If 'startDir' is a non-NULL directory name, the dialog will initially display the contents of that directory.  The dialog will have a file selection area, an 'OK' button and a 'CANCEL' button.  If the user presses OK or ENTER, the function returns the value 1 and copies the filename into the fileName buffer.  Otherwise it returns 0 and puts a NULL string into fileName.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
+</p></blockquote>
+<p><font face="Courier New">objectKey windowNewFileList(objectKey parent, windowListType type, int rows, int columns, const char *directory, int flags, void *callback, componentParameters *params)
+</font></p>
+<blockquote>
+  <p>Create a new file list widget with the parent window 'parent', the window list type 'type' (windowlist_textonly or windowlist_icononly is currently supported), of height 'rows' and width 'columns', the name of the starting location 'directory', flags (such as WINFILEBROWSE_CAN_CD or WINFILEBROWSE_CAN_DEL -- see sys/window.h), a function 'callback' for when the status changes, and component parameters 'params'.
+</p></blockquote>
+<p><font face="Courier New">int windowUpdateFileList(objectKey fileList, const char *directory)
+</font></p>
+<blockquote>
+  <p>Update the supplied file list 'fileList', with the location 'directory'.  This is useful for changing the current directory, for example.
+</p></blockquote>
+<p><font face="Courier New">int windowDestroyFileList(objectKey fileList)
+</font></p>
+<blockquote>
+  <p>Clear the event handler for the file list widget 'fileList', and destroy and deallocate the widget.
 </p></blockquote>
 <p><font face="Courier New">int windowClearEventHandlers(void)
 </font></p>
@@ -85,20 +108,30 @@ and the code is contained in libwindow.a (link with '-lwindow').</font></p>
 <blockquote>
   <p>Register a callback function as an event handler for the GUI object 'key'.  The GUI object can be a window component, or a window for example.  GUI components are typically the target of mouse click or key press events, whereas windows typically receive 'close window' events.  For example, if you create a button component in a window, you should call windowRegisterEventHandler() to receive a callback when the button is pushed by a user.  You can use the same callback function for all your objects if you wish -- the objectKey of the target component can always be found in the windowEvent passed to your callback function.  It is necessary to use one of the 'run' functions, below, such as windowGuiRun() or windowGuiThread() in order to receive the callbacks.
 </p></blockquote>
+<p><font face="Courier New">int windowClearEventHandler(objectKey key)
+</font></p>
+<blockquote>
+  <p>Remove a callback event handler registered with the windowRegisterEventHandler() function.
+</p></blockquote>
 <p><font face="Courier New">void windowGuiRun(void)
 </font></p>
 <blockquote>
   <p>Run the GUI windowEvent polling as a blocking call.  In other words, use this function when your program has completed its setup code, and simply needs to watch for GUI events such as mouse clicks, key presses, and window closures.  If your program needs to do other processing (independently of windowEvents) you should use the windowGuiThread() function instead.
 </p></blockquote>
-<p><font face="Courier New">void windowGuiThread(void)
+<p><font face="Courier New">int windowGuiThread(void)
 </font></p>
 <blockquote>
   <p>Run the GUI windowEvent polling as a non-blocking call.  In other words, this function will launch a separate thread to monitor for GUI events and return control to your program.  Your program can then continue execution -- independent of GUI windowEvents.  If your program doesn't need to do any processing after setting up all its window components and event callbacks, use the windowGuiRun() function instead.
 </p></blockquote>
+<p><font face="Courier New">int windowGuiThreadPid(void)
+</font></p>
+<blockquote>
+  <p>Returns the current GUI thread PID, if applicable, or else 0.
+</p></blockquote>
 <p><font face="Courier New">void windowGuiStop(void)
 </font></p>
 <blockquote>
-  <p>Stop GUI event polling which has been started by a previous call to one of the 'run' functions, such as windowGuiRun() or windowGuiThread().  Note that calling this function clears all callbacks registered with the windowRegisterEventHandler() function, so if you want to resume GUI execution you will need to re-register them.
+  <p>Stop GUI event polling which has been started by a previous call to one of the 'run' functions, such as windowGuiRun() or windowGuiThread().
 </p></blockquote>
 <p><font face="Courier New">int windowNewInfoDialog(objectKey parentWindow, const char *title, const char *message)
 </font></p>
@@ -110,6 +143,16 @@ and the code is contained in libwindow.a (link with '-lwindow').</font></p>
 <blockquote>
   <p>Create an 'error' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a single 'OK' button for the user to acknowledge.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 </p></blockquote>
+<p><font face="Courier New">objectKey windowNewProgressDialog(objectKey parentWindow, const char *title, progress *tmpProg)
+</font></p>
+<blockquote>
+  <p>Create a 'progress' dialog box, with the parent window 'parentWindow', and the given titlebar text and progress structure.  The dialog creates a thread which monitors the progress structure for changes, and updates the progress bar and status message appropriately.  If the operation is interruptible, it will show a 'CANCEL' button.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a non-blocking call that returns immediately (but the dialog box itself is 'modal').  A call to this function should eventually be followed by a call to windowProgressDialogDestroy() in order to destroy and deallocate the window.
+</p></blockquote>
+<p><font face="Courier New">int windowProgressDialogDestroy(objectKey window)
+</font></p>
+<blockquote>
+  <p>Given the objectKey for a progress dialog 'window' previously returned by windowNewProgressDialog(), destroy and deallocate the window.
+</p></blockquote>
 <p><font face="Courier New">int windowNewPromptDialog(objectKey parentWindow, const char *title, const char *message, int rows, int columns, char *buffer)
 </font></p>
 <blockquote>
@@ -118,40 +161,44 @@ and the code is contained in libwindow.a (link with '-lwindow').</font></p>
 <p><font face="Courier New">int windowNewPasswordDialog(objectKey parentWindow, const char *title, const char *message, int columns, char *buffer)
 </font></p>
 <blockquote>
-  <p>Create an 'password' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a single password field.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
+  <p>Create a 'password' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have a single password field.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 </p></blockquote>
 <p><font face="Courier New">int windowNewQueryDialog(objectKey parentWindow, const char *title, const char *message)
 </font></p>
 <blockquote>
   <p>Create a 'query' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have an 'OK' button and a 'CANCEL' button.  If the user presses OK, the function returns the value 1.  Otherwise it returns 0.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
-</p></blockquote>
+</p>
+  <p>&nbsp;</p></blockquote>
+
 <!--msnavigation--></td></tr><!--msnavigation--></table><!--msnavigation--><table border="0" cellpadding="0" cellspacing="0" width="100%"><tr><td>
 
 <blockquote>
   <blockquote>
     <p align="right"><font color="#FFFFFF"><a href="../index.html">
     <img
-    src="../img/nav_buttons/home.gif" alt="Go back to the Visopsys Home Page." border="0"
+    src="../img/nav_buttons/home.gif" alt="Home" border="0"
     align="middle" width="53" height="25"></a>&nbsp;&nbsp; <a href="../about/index.html">
     <img src="../img/nav_buttons/about.gif"
-    alt="What is Visopsys?" border="0" align="middle" width="60" height="25"></a>&nbsp;&nbsp; </font>
+    alt="About" border="0" align="middle" width="60" height="25"></a>&nbsp;&nbsp;
+    <a href="../about/news.html">
+    <img border="0" src="../img/nav_buttons/news.gif" align="middle" alt="News" width="49" height="16"></a>&nbsp;&nbsp; </font>
     <a href="../about/screenshots.html">
-    <img border="0" src="../img/nav_buttons/screenshots.gif" align="middle" width="105" height="22"></a>&nbsp;&nbsp; <font color="#FFFFFF"> <a href="../download/index.html">
+    <img border="0" src="../img/nav_buttons/screenshots.gif" align="middle" alt="Screenshots" width="105" height="22"></a>&nbsp;&nbsp; <font color="#FFFFFF"> <a href="../download/index.html">
     <img
-    src="../img/nav_buttons/download.gif" alt="Download Visopsys and associated files."
+    src="../img/nav_buttons/download.gif" alt="Download"
     border="0" align="middle" width="95" height="25"></a>&nbsp; </font>&nbsp;<a href="index.html"><img
-    src="../img/nav_buttons/developers.gif" alt="Resources for Visopsys development"
+    src="../img/nav_buttons/developers.gif" alt="Developers"
     border="0" align="middle" width="97" height="29"></a>&nbsp;&nbsp; <a href="../osdev/index.html">
     <img
-    src="../img/nav_buttons/osdev.gif" border="0" align="middle" width="64" height="25"></a>&nbsp;&nbsp; <a href="../search.html">
+    src="../img/nav_buttons/osdev.gif" border="0" align="middle" alt="OS Development" width="64" height="25"></a>&nbsp;&nbsp; <a href="../search.html">
     <img
-    src="../img/nav_buttons/search.gif" alt="Search the Visopsys Site" align="middle"
+    src="../img/nav_buttons/search.gif" alt="Search" align="middle"
     border="0" width="63" height="24"></a><font face="Times New Roman" color="#FFFFFF"><br>
-    This site is copyright © 1999-2005, J.
-    Andrew McLaughlin<br>
+    This site is copyright © 1999-2005, <a href="mailto:andy@visopsys.org">J.
+    Andrew (Andy) McLaughlin</a><br>
     Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin<br>
     Last updated on
-    March 22, 2005</font></p>
+    November 29, 2005</font></p>
   </blockquote>
 </blockquote>
 

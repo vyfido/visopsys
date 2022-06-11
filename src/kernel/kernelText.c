@@ -22,11 +22,11 @@
 #include "kernelText.h"
 #include "kernelKeyboard.h"
 #include "kernelParameters.h"
-#include "kernelPageManager.h"
+#include "kernelPage.h"
 #include "kernelMultitasker.h"
 #include "kernelMalloc.h"
 #include "kernelWindow.h"
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include "kernelError.h"
 #include <stdio.h>
 #include <string.h>

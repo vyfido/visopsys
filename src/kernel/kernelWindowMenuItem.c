@@ -23,7 +23,7 @@
 // selectable items that occur inside of kernelWindowMenu components.
 
 #include "kernelWindow.h"     // Our prototypes are here
-#include "kernelMiscFunctions.h"
+#include "kernelMisc.h"
 #include <string.h>
 
 static kernelAsciiFont *menuItemFont = NULL;

@@ -22,11 +22,10 @@
 // This is the standard "tan" function, as found in standard C libraries
 
 #include <math.h>
-#include <errno.h>
 
 
-double tan(double theDouble)
+double tan(double radians)
 {
-  errno = ERR_NOTIMPLEMENTED;
-  return (theDouble);
+  // Returns the tan of x (x given in radians).
+  return (sin(radians) / cos(radians));
 }

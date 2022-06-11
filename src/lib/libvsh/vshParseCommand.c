@@ -27,8 +27,7 @@
 #include <sys/api.h>
 
 
-_X_ int vshParseCommand(char *commandLine, char *command, int *argCount,
-			char *args[])
+_X_ int vshParseCommand(char *commandLine, char *command, int *argCount, char *args[])
 {
   // Desc: Attempts to take a raw 'commandLine' string and parse it into a command filename and arguments, suitable for passing to the kernel API functionn loaderLoadAndExec.  The commandLine string will be modified, with NULLs placed at the end of each argument.  'command' must be a buffer suitable for a full filename.  'argCount' will receive the number of argument pointers placed in the 'args' array.  Returns 0 on success, negative otherwise.
 
