@@ -1,0 +1,9 @@
+
+ -- store --
+
+Run a software store (server) for other Visopsys systems to connect and
+download, install, and update software.
+
+Usage:
+  store
+

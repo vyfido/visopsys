@@ -27,10 +27,45 @@
 #include <stdlib.h>
 #include <sys/ascii.h>
 #include <sys/gzip.h>
+#include <sys/install.h>
 #include <sys/keyboard.h>
 #include <sys/msdos.h>
 #include <sys/png.h>
 #include <sys/tar.h>
+
+
+static int utf8Detect(const char *fileName, void *dataPtr, unsigned size,
+	loaderFileClass *class)
+{
+	// Detect whether we think this is a UTF-8 text file
+
+	char *data = dataPtr;
+	int bytes = 0;
+	unsigned count;
+
+	// Check params
+	if (!fileName || !dataPtr || !size || !class)
+		return (0);
+
+	// Loop through the supplied data.  If it's all valid UTF-8, say yes
+	for (count = 0; count < size; count ++)
+	{
+		bytes = mbtowc(NULL, (data + count), (size - count));
+		if (bytes <= 0)
+		{
+			// No
+			return (0);
+		}
+
+		count += (bytes - 1);
+	}
+
+	// We will call this a UTF-8 text file
+	sprintf(class->name, "%s %s", FILECLASS_NAME_TEXT, FILECLASS_NAME_DATA);
+	class->type = (LOADERFILECLASS_TEXT | LOADERFILECLASS_DATA);
+	class->subType = LOADERFILESUBCLASS_UTF8;
+	return (1);
+}
 
 
 static int textDetect(const char *fileName, void *dataPtr, unsigned size,
@@ -69,6 +104,10 @@ static int textDetect(const char *fileName, void *dataPtr, unsigned size,
 	}
 	else
 	{
+		// Is it UTF-8 text?
+		if (utf8Detect(fileName, dataPtr, size, class))
+			return (1);
+
 		// No
 		return (0);
 	}
@@ -596,6 +635,38 @@ static int tarDetect(const char *fileName, void *dataPtr, unsigned size,
 }
 
 
+static int vspDetect(const char *fileName, void *dataPtr, unsigned size,
+	loaderFileClass *class)
+{
+	// Must have the signature '0x5053562E' at the beginning
+
+	unsigned *sig = dataPtr;
+
+	// Check params
+	if (!fileName || !dataPtr || !class)
+		return (0);
+
+	// Make sure there's enough data here for our detection
+	if (size < sizeof(INSTALL_PACKAGE_MAGIC))
+		return (0);
+
+	if (*sig == INSTALL_PACKAGE_MAGIC)
+	{
+		// We will call this a VSP software package file
+		sprintf(class->name, "%s %s", FILECLASS_NAME_VSP,
+			FILECLASS_NAME_INSTALL);
+		class->type = (LOADERFILECLASS_BIN | LOADERFILECLASS_INSTALL);
+		class->subType = LOADERFILESUBCLASS_VSP;
+		return (1);
+	}
+	else
+	{
+		// No
+		return (0);
+	}
+}
+
+
 static int pcfDetect(const char *fileName, void *dataPtr, unsigned size,
 	loaderFileClass *class)
 {
@@ -882,6 +953,13 @@ kernelFileClass tarFileClass = {
 	{ }
 };
 
+// Visopsys install packages.
+kernelFileClass vspFileClass = {
+	FILECLASS_NAME_VSP,
+	&vspDetect,
+	{ }
+};
+
 // PCF font files.
 kernelFileClass pcfFileClass = {
 	FILECLASS_NAME_PCF,
@@ -907,6 +985,13 @@ kernelFileClass configFileClass = {
 kernelFileClass htmlFileClass = {
 	FILECLASS_NAME_HTML,
 	&htmlDetect,
+	{ }
+};
+
+// UTF-8 text files
+kernelFileClass utf8FileClass = {
+	FILECLASS_NAME_UTF8,
+	&utf8Detect,
 	{ }
 };
 
@@ -1053,6 +1138,14 @@ kernelFileClass *kernelFileClassTar(void)
 }
 
 
+kernelFileClass *kernelFileClassVsp(void)
+{
+	// The loader will call this function so that we can return a structure
+	// for managing Visopsys installer packages
+	return (&vspFileClass);
+}
+
+
 kernelFileClass *kernelFileClassPcf(void)
 {
 	// The loader will call this function so that we can return a structure
@@ -1080,6 +1173,14 @@ kernelFileClass *kernelFileClassHtml(void)
 	// The loader will call this function so that we can return a structure
 	// for managing HTML files
 	return (&htmlFileClass);
+}
+
+
+kernelFileClass *kernelFileClassUtf8(void)
+{
+	// The loader will call this function so that we can return a structure
+	// for managing UTF-8 files
+	return (&utf8FileClass);
 }
 
 

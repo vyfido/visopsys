@@ -19,7 +19,7 @@
 //  login.c
 //
 
-// This is the current login process for Visopsys.
+// This is the current login process for Visopsys
 
 /* This is the text that appears when a user requests help about this program
 <help>
@@ -74,7 +74,7 @@ Options:
 	"You will not be able to alter settings, or generally\nchange anything.")
 #define MAX_LOGIN_LENGTH	64
 
-// The following are only used if we are running a graphics mode login window.
+// The following are only used if we are running a graphics mode login window
 static int graphics = 0;
 static int readOnly = 1;
 static image splashImage;
@@ -259,7 +259,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 static void constructWindow(int myProcessId)
 {
 	// If we are in graphics mode, make a window rather than operating on the
-	// command line.
+	// command line
 
 	color background = { COLOR_DEFAULT_DESKTOP_BLUE,
 		COLOR_DEFAULT_DESKTOP_GREEN, COLOR_DEFAULT_DESKTOP_RED };
@@ -267,7 +267,7 @@ static void constructWindow(int myProcessId)
 	componentParameters params;
 
 	// This function can be called multiple times.  Clear any event handlers
-	// from previous calls
+	// from previous calls.
 	windowClearEventHandlers();
 
 	// Create a new window
@@ -297,8 +297,10 @@ static void constructWindow(int myProcessId)
 		imageLoad(splashName, 0, 0, &splashImage);
 
 	if (splashImage.data)
+	{
 		// Create an image component from it, and add it to the window
 		windowNewImage(window, &splashImage, draw_normal, &params);
+	}
 
 	// Put text labels in the window to prompt the user
 	params.gridY += 1;
@@ -383,8 +385,8 @@ static void getLogin(void)
 				}
 				else
 				{
-					// The user hit 'enter' without typing anything.
-					// Make a new prompt
+					// The user hit 'enter' without typing anything.  Make a
+					// new prompt.
 					if (!graphics)
 						printPrompt();
 
@@ -421,11 +423,11 @@ int main(int argc, char *argv[])
 	int shellPid = 0;
 	disk sysDisk;
 
-	// Default language, character set, etc.
+	// Default language, character set, etc
 	setDefaults();
 
 	// A lot of what we do is different depending on whether we're in graphics
-	// mode or not.
+	// mode or not
 	graphics = graphicsAreEnabled();
 
 	if (graphics)
@@ -469,7 +471,7 @@ skipOpts:
 	// Outer loop, from which we never exit
 	while (1)
 	{
-		// Default language, character set, etc.
+		// Default language, character set, etc
 		setDefaults();
 
 		if (graphics)
@@ -560,12 +562,12 @@ skipOpts:
 			// Run the text shell and block on it
 			loaderExecProgram(shellPid, 1 /* block */);
 
-			// If we return to here, the login session is over. Log the user
+			// If we return to here, the login session is over.  Log the user
 			// out of the system.
 			userLogout(login);
 		}
 	}
 
-	// This function never returns under normal conditions.
+	// This function never returns under normal conditions
 }
 

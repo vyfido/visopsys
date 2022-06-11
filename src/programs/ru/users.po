@@ -8,31 +8,31 @@ msgid ""
 msgstr ""
 "Project-Id-Version: users\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-08 02:44+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
 #: users.c:64
 msgid "User Manager"
-msgstr "º’›’‘÷’‡ ﬂﬁ€Ï◊ﬁ“–‚’€’Ÿ"
+msgstr "–ú–µ–Ω–µ–¥–∂–µ—Ä –ø–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª–µ–π"
 
 #: users.c:65 users.c:692
 msgid "Add User"
-msgstr "¥ﬁ—–“ÿ‚Ï ﬂﬁ€Ï◊ﬁ“–‚’€Ô"
+msgstr "–î–æ–±–∞–≤–∏—Ç—å –ø–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª—è"
 
 #: users.c:66
 msgid "Delete User"
-msgstr "√‘–€ÿ‚Ï ﬂﬁ€Ï◊ﬁ“–‚’€Ô"
+msgstr "–£–¥–∞–ª–∏—Ç—å –ø–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª—è"
 
 #: users.c:67
 msgid "Set Password"
-msgstr "Ω–◊›–Áÿ‚Ï ﬂ–‡ﬁ€Ï"
+msgstr "–ù–∞–∑–Ω–∞—á–∏—Ç—å –ø–∞—Ä–æ–ª—å"
 
 #: users.c:68
 msgid "Set Language"
@@ -40,32 +40,32 @@ msgstr ""
 
 #: users.c:96
 msgid "Error"
-msgstr "æËÿ—⁄–"
+msgstr "–û—à–∏–±–∫–∞"
 
 #: users.c:114
 msgid "Error getting user names"
-msgstr "æËÿ—⁄– ﬂ‡ÿ ﬂﬁ€„Á’›ÿÿ ÿ‹’› ﬂﬁ€Ï◊ﬁ“–‚’€’Ÿ"
+msgstr "–û—à–∏–±–∫–∞ –ø—Ä–∏ –ø–æ–ª—É—á–µ–Ω–∏–∏ –∏–º–µ–Ω –ø–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª–µ–π"
 
 #: users.c:190
 #, c-format
 msgid "User name: %s"
-msgstr "∏‹Ô ﬂﬁ€Ï◊ﬁ“–‚’€Ô: %s"
+msgstr "–ò–º—è –ø–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª—è: %s"
 
 #: users.c:203
 msgid "Old password:"
-msgstr "¡‚–‡ÎŸ ﬂ–‡ﬁ€Ï"
+msgstr "–°—Ç–∞—Ä—ã–π –ø–∞—Ä–æ–ª—å"
 
 #: users.c:217
 msgid "New password:"
-msgstr "Ωﬁ“ÎŸ ﬂ–‡ﬁ€Ï:"
+msgstr "–ù–æ–≤—ã–π –ø–∞—Ä–æ–ª—å:"
 
 #: users.c:234
 msgid "Confirm password:"
-msgstr "øﬁ‘‚“’‡‘ÿ‚’ ﬂ–‡ﬁ€Ï:"
+msgstr "–ü–æ–¥—Ç–≤–µ—Ä–¥–∏—Ç–µ –ø–∞—Ä–æ–ª—å:"
 
 #: users.c:248 users.c:424
 msgid "Passwords do not match"
-msgstr "ø–‡ﬁ€ÿ ›’ ·ﬁ“ﬂ–‘–Ó‚"
+msgstr "–ü–∞—Ä–æ–ª–∏ –Ω–µ —Å–æ–≤–ø–∞–¥–∞—é—Ç"
 
 #: users.c:252
 msgid "Password should be longer"
@@ -73,28 +73,28 @@ msgstr ""
 
 #: users.c:264
 msgid "OK"
-msgstr "æ∫"
+msgstr "–û–ö"
 
 #: users.c:269
 msgid "Cancel"
-msgstr "æ‚‹’›–"
+msgstr "–û—Ç–º–µ–Ω–∞"
 
 #: users.c:418 users.c:520
 msgid "Permission denied"
-msgstr "¥ﬁ·‚„ﬂ ◊–ﬂ‡’È’›"
+msgstr "–î–æ—Å—Ç—É–ø –∑–∞–ø—Ä–µ—â–µ–Ω"
 
 #: users.c:420
 msgid "Error setting password"
-msgstr "æËÿ—⁄– ﬂ‡ÿ ›–◊›–Á’›ÿÿ ﬂ–‡ﬁ€Ô"
+msgstr "–û—à–∏–±–∫–∞ –ø—Ä–∏ –Ω–∞–∑–Ω–∞—á–µ–Ω–∏–∏ –ø–∞—Ä–æ–ª—è"
 
 #: users.c:470
 #, c-format
 msgid "User \"%s\" already exists."
-msgstr "øﬁ€Ï◊ﬁ“–‚’€Ï \"%s\" „÷’ ·„È’·‚“„’‚."
+msgstr "–ü–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª—å \"%s\" —É–∂–µ —Å—É—â–µ—Å—Ç–≤—É–µ—Ç."
 
 #: users.c:478
 msgid "Error adding user"
-msgstr "æËÿ—⁄– ﬂ‡ÿ ‘ﬁ—–“€’›ÿÿ ﬂﬁ€Ï◊ﬁ“–‚’€Ô"
+msgstr "–û—à–∏–±–∫–∞ –ø—Ä–∏ –¥–æ–±–∞–≤–ª–µ–Ω–∏–∏ –ø–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª—è"
 
 #: users.c:488
 msgid "Warning: couldn't create user directory"
@@ -102,24 +102,24 @@ msgstr ""
 
 #: users.c:522
 msgid "Error deleting user"
-msgstr "æËÿ—⁄– ﬂ‡ÿ „‘–€’›ÿÿ ﬂﬁ€Ï◊ﬁ“–‚’€Ô"
+msgstr "–û—à–∏–±–∫–∞ –ø—Ä–∏ —É–¥–∞–ª–µ–Ω–∏–∏ –ø–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª—è"
 
 #: users.c:693
 msgid "Enter the user name:"
-msgstr "≤“’‘ÿ‚’ ÿ‹Ô ﬂﬁ€Ï◊ﬁ“–‚’€Ô:"
+msgstr "–í–≤–µ–¥–∏—Ç–µ –∏–º—è –ø–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª—è:"
 
 #: users.c:712
 #, c-format
 msgid "Delete user %s?"
-msgstr "√‘–€ÿ‚Ï ﬂﬁ€Ï◊ﬁ“–‚’€Ô %s?"
+msgstr "–£–¥–∞–ª–∏—Ç—å –ø–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª—è %s?"
 
 #: users.c:714
 msgid "Delete?"
-msgstr "√‘–€ÿ‚Ï?"
+msgstr "–£–¥–∞–ª–∏—Ç—å?"
 
 #: users.c:719
 msgid "Can't delete the last user"
-msgstr "Ω’ ‹ﬁ”„ „‘–€ÿ‚Ï ﬂﬁ·€’‘›’”ﬁ ﬂﬁ€Ï◊ﬁ“–‚’€Ô"
+msgstr "–ù–µ –º–æ–≥—É —É–¥–∞–ª–∏—Ç—å –ø–æ—Å–ª–µ–¥–Ω–µ–≥–æ –ø–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª—è"
 
 #: users.c:746
 msgid "Couldn't save the language choice"
@@ -132,7 +132,7 @@ msgid ""
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 "\n"
-"∫ﬁ‹–›‘– \"%s\" ‡–—ﬁ‚–’‚ ‚ﬁ€Ï⁄ﬁ “ ”‡–‰ÿÁ’·⁄ﬁ‹ ‡’÷ÿ‹’\n"
+"–ö–æ–º–∞–Ω–¥–∞ \"%s\" —Ä–∞–±–æ—Ç–∞–µ—Ç —Ç–æ–ª—å–∫–æ –≤ –≥—Ä–∞—Ñ–∏—á–µ—Å–∫–æ–º —Ä–µ–∂–∏–º–µ\n"
 
 #: users.c:860
 #, c-format
@@ -142,17 +142,17 @@ msgstr ""
 #: users.c:876
 #, fuzzy
 msgid "Couldn't determine the current user"
-msgstr "Ω’ ‹ﬁ”„ „‘–€ÿ‚Ï ﬂﬁ·€’‘›’”ﬁ ﬂﬁ€Ï◊ﬁ“–‚’€Ô"
+msgstr "–ù–µ –º–æ–≥—É —É–¥–∞–ª–∏—Ç—å –ø–æ—Å–ª–µ–¥–Ω–µ–≥–æ –ø–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª—è"
 
 #: users.c:904
 #, c-format
 msgid "No such user \"%s\""
-msgstr "Ω’‚ ‚–⁄ﬁ”ﬁ ﬂﬁ€Ï◊ﬁ“–‚’€Ô \"%s\""
+msgstr "–ù–µ—Ç —Ç–∞–∫–æ–≥–æ –ø–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª—è \"%s\""
 
 #: users.c:909
 msgid "Done"
-msgstr "≥ﬁ‚ﬁ“ﬁ"
+msgstr "–ì–æ—Ç–æ–≤–æ"
 
 #: users.c:909
 msgid "Password set"
-msgstr "ø–‡ﬁ€Ï ›–◊›–Á’›"
+msgstr "–ü–∞—Ä–æ–ª—å –Ω–∞–∑–Ω–∞—á–µ–Ω"

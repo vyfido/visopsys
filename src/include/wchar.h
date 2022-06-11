@@ -24,9 +24,17 @@
 #ifndef _WCHAR_H
 #define _WCHAR_H
 
+#include <stddef.h>
+
 #define WCHAR_MAX	UINT_MAX
 #define WCHAR_MIN	0
 #define WEOF		0xFFFFFFFFU
+
+wint_t getwchar(void);
+wint_t putwchar(wchar_t);
+int wcscmp(const wchar_t *, const wchar_t *);
+wchar_t *wcscpy(wchar_t *, const wchar_t *);
+size_t wcslen(const wchar_t *);
 
 #endif
 

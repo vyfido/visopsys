@@ -128,7 +128,7 @@ static int ntfs_device_visopsys_open(struct ntfs_device *dev, int flags)
 
   // Make sure it's a logical disk (a partition, that is) rather than a
   // physical one
-  if ((fd->disk.type & DISKTYPE_LOGICALPHYSICAL) != DISKTYPE_LOGICAL)
+  if ((fd->disk.type & DISKTYPE_PHYSLOG_MASK) != DISKTYPE_LOGICAL)
     {
       ntfs_log_trace("Can't open physical disks\n");
       status = ERR_NOTIMPLEMENTED;

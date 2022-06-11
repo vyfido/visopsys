@@ -36,6 +36,7 @@ _X_ int vshPageBuffer(const char *buffer, unsigned len, const char *prompt)
 	// Desc: Print the contents of the buffer to standard output, one screenfull at a time.  'prompt' is shown when pausing at the end of a screenfull; if NULL, the default "--More--(%d%%)" is used.  To page forward to the next screenfull, press the [SPACE] key.  To quit, press the [Q] key.  To advance by a single line, press any other key.
 
 	int status = 0;
+	int graphics = graphicsAreEnabled();
 	int screenColumns = 0;
 	int screenRows = 0;
 	int charEntered = 0;
@@ -43,6 +44,7 @@ _X_ int vshPageBuffer(const char *buffer, unsigned len, const char *prompt)
 	int cursorPos1, cursorPos2;
 	textAttrs attrs;
 	char more[32];
+	int consumed = 0;
 	unsigned count1;
 	int count2;
 
@@ -135,7 +137,17 @@ _X_ int vshPageBuffer(const char *buffer, unsigned len, const char *prompt)
 
 		else
 		{
-			textPutc(buffer[count1]);
+			if (graphics)
+			{
+				consumed = textPutMbc(buffer + count1);
+				if (consumed > 1)
+					count1 += (consumed - 1);
+			}
+			else
+			{
+				textPutc(buffer[count1]);
+			}
+
 			charsSoFar += 1;
 		}
 	}

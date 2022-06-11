@@ -1,0 +1,46 @@
+//
+//  Visopsys
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//
+//  This library is free software; you can redistribute it and/or modify it
+//  under the terms of the GNU Lesser General Public License as published by
+//  the Free Software Foundation; either version 2.1 of the License, or (at
+//  your option) any later version.
+//
+//  This library is distributed in the hope that it will be useful, but
+//  WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+//  General Public License for more details.
+//
+//  You should have received a copy of the GNU Lesser General Public License
+//  along with this library; if not, write to the Free Software Foundation,
+//  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+//
+//  streambuf
+//
+
+// This is the Visopsys version of the standard C++ header file streambuf
+
+#ifndef _STREAMBUF_HPP
+#define _STREAMBUF_HPP
+
+#include <string>
+
+namespace std {
+
+	template <class charT, class traits = char_traits<charT> >
+  	class basic_streambuf
+	{
+		public:
+			typedef charT						char_type;
+			typedef traits						traits_type;
+			typedef typename traits::int_type	int_type;
+			typedef typename traits::pos_type	pos_type;
+			typedef typename traits::off_type	off_type;
+	};
+
+	typedef basic_streambuf<char> streambuf;
+}
+
+#endif
+

@@ -1,4 +1,4 @@
-THE VISOPSYS WINDOW LIBRARY (Version 0.85)
+THE VISOPSYS WINDOW LIBRARY (Version 0.9)
 
 The window library is a set of functions to aid GUI development on the
 Visopsys platform. At present the list of functions is small, but it does

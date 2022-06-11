@@ -9,25 +9,25 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: bootmenu.c:61
 msgid "Boot Menu Installer"
-msgstr "Installationsprogramm im Boot-Menü"
+msgstr "Installationsprogramm im Boot-MenÃ¼"
 
 #: bootmenu.c:66
 msgid ""
 "Visopsys Boot Menu Installer\n"
 "Copyright (C) 1998-2020 J. Andrew McLaughlin"
 msgstr ""
-"Visopsys Installationsprogramm für das Boot-Menü\n"
+"Visopsys Installationsprogramm fÃ¼r das Boot-MenÃ¼\n"
 "Copyright (C) 1998-2020 J. Andrew McLaughlin"
 
 #: bootmenu.c:68
@@ -35,7 +35,7 @@ msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
 msgstr ""
-"Um diesen Befehl auszuführen müssen Sie spezielle Rechte besitzen.\n"
+"Um diesen Befehl auszufÃ¼hren mÃ¼ssen Sie spezielle Rechte besitzen.\n"
 "(Versuchen Sie sich als \"admin\" anzumelden)"
 
 #: bootmenu.c:70
@@ -44,7 +44,7 @@ msgstr "Partitionen auf der Disk:"
 
 #: bootmenu.c:71
 msgid "Chain-loadable entries for the boot menu:"
-msgstr "Nacheinander ladefähige Einträge für das Boot-Menü:"
+msgstr "Nacheinander ladefÃ¤hige EintrÃ¤ge fÃ¼r das Boot-MenÃ¼:"
 
 #: bootmenu.c:72
 msgid "Edit"
@@ -56,7 +56,7 @@ msgstr "Standard"
 
 #: bootmenu.c:74
 msgid "Delete"
-msgstr "Löschen"
+msgstr "LÃ¶schen"
 
 #: bootmenu.c:75
 msgid "Automatically boot default selection after (seconds)"
@@ -72,7 +72,7 @@ msgstr "Abbrechen"
 
 #: bootmenu.c:79
 msgid "Boot menu written."
-msgstr "Boot-Menü wurde geschrieben."
+msgstr "Boot-MenÃ¼ wurde geschrieben."
 
 #: bootmenu.c:120
 #, c-format
@@ -104,7 +104,7 @@ msgstr ""
 
 #: bootmenu.c:363
 msgid "Can't get memory for the logical disk list"
-msgstr "Es konnte kein Speicher für die Liste gewiesen werden"
+msgstr "Es konnte kein Speicher fÃ¼r die Liste gewiesen werden"
 
 #: bootmenu.c:370
 msgid "Can't get the logical disk list"
@@ -113,7 +113,7 @@ msgstr "Es konnte keine Liste von Disks gefunden werden"
 #: bootmenu.c:401
 #, c-format
 msgid "Can't open %s file"
-msgstr "Datei %s konnte nicht geöffnet werden"
+msgstr "Datei %s konnte nicht geÃ¶ffnet werden"
 
 #: bootmenu.c:408
 msgid "Can't get buffer memory"
@@ -136,7 +136,7 @@ msgstr ""
 "Disk %s\n"
 "  Name: %s\n"
 "  Dateisystem: %s\n"
-"  Nacheinander ladefähig: %s\n"
+"  Nacheinander ladefÃ¤hig: %s\n"
 "\n"
 
 #: bootmenu.c:487
@@ -149,7 +149,7 @@ msgstr "nein"
 
 #: bootmenu.c:697
 msgid "Can't write boot menu"
-msgstr "Boot-Menü konnte nicht geschrieben werden"
+msgstr "Boot-MenÃ¼ konnte nicht geschrieben werden"
 
 #: bootmenu.c:709
 #, c-format
@@ -182,7 +182,7 @@ msgstr "\"%s\" [Dateisystem: %s]"
 #: bootmenu.c:857
 msgid "There are no chain-loadable operating systems on this disk."
 msgstr ""
-"Auf der Disk existieren keine nacheinander ladefähigen Betriebssysteme."
+"Auf der Disk existieren keine nacheinander ladefÃ¤higen Betriebssysteme."
 
 #: bootmenu.c:901
 msgid ""
@@ -191,13 +191,13 @@ msgid ""
 "   'd' delete, Enter to accept, 'Q' to quit]"
 msgstr ""
 "\n"
-"  [Bewegen Sie den Cursor nach oben/unten für die Auswahl,\n"
-"   \"e\" zum bearbeiten, \"*\" für den Standard\n"
-"   \"d\" zum löschen, \"Enter\" zum annehmen, \"q\" zum abbrechen]"
+"  [Bewegen Sie den Cursor nach oben/unten fÃ¼r die Auswahl,\n"
+"   \"e\" zum bearbeiten, \"*\" fÃ¼r den Standard\n"
+"   \"d\" zum lÃ¶schen, \"Enter\" zum annehmen, \"q\" zum abbrechen]"
 
 #: bootmenu.c:968
 msgid "Can't write boot menu or MBR"
-msgstr "Boot-Menü oder MBR konnte nicht geschrieben werden"
+msgstr "Boot-MenÃ¼ oder MBR konnte nicht geschrieben werden"
 
 #: bootmenu.c:976
 msgid "Done"

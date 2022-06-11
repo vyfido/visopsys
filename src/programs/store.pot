@@ -1,0 +1,171 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2020-04-14 01:39+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: store.c:78
+msgid "Shutting down"
+msgstr ""
+
+#: store.c:113 store.c:136 store.c:183 store.c:496
+msgid "I/O error"
+msgstr ""
+
+#: store.c:119 store.c:142
+msgid "Invalid request"
+msgstr ""
+
+#: store.c:151
+msgid "Request length"
+msgstr ""
+
+#: store.c:157 store.c:277 store.c:359 store.c:369 store.c:452 store.c:762
+msgid "Memory error"
+msgstr ""
+
+#: store.c:188
+msgid "Request version"
+msgstr ""
+
+#: store.c:190
+msgid "Request"
+msgstr ""
+
+#: store.c:201
+#, c-format
+msgid "Send %u bytes\n"
+msgstr ""
+
+#: store.c:255
+msgid "Opened directory"
+msgstr ""
+
+#: store.c:263
+msgid "Error reading directory"
+msgstr ""
+
+#: store.c:306
+msgid "Sending package list for"
+msgstr ""
+
+#: store.c:324
+msgid "Error opening"
+msgstr ""
+
+#: store.c:329
+msgid "Reading"
+msgstr ""
+
+#: store.c:335
+msgid "Skipping"
+msgstr ""
+
+#: store.c:378
+msgid "Reading more"
+msgstr ""
+
+#: store.c:386
+msgid "Error reading"
+msgstr ""
+
+#: store.c:393
+msgid "Added"
+msgstr ""
+
+#: store.c:402 store.c:577
+msgid "Sending reply"
+msgstr ""
+
+#: store.c:462
+msgid "Couldn't open"
+msgstr ""
+
+#: store.c:518
+msgid "Request download of"
+msgstr ""
+
+#: store.c:519
+msgid "for"
+msgstr ""
+
+#: store.c:532
+msgid "No matching package found"
+msgstr ""
+
+#: store.c:539
+msgid "Error getting info for"
+msgstr ""
+
+#: store.c:565
+msgid "Found package file"
+msgstr ""
+
+#: store.c:573
+msgid "Couldn't stat()"
+msgstr ""
+
+#: store.c:620
+msgid "Unknown address family"
+msgstr ""
+
+#: store.c:625
+msgid "Connection from"
+msgstr ""
+
+#: store.c:647
+msgid "Unknown request"
+msgstr ""
+
+#: store.c:657
+msgid "Error handling request"
+msgstr ""
+
+#: store.c:662
+msgid "disconnecting"
+msgstr ""
+
+#: store.c:684
+msgid "Visopsys store"
+msgstr ""
+
+#: store.c:691
+msgid "Error setting signal handler"
+msgstr ""
+
+#: store.c:706
+msgid "Failed to get host info"
+msgstr ""
+
+#: store.c:720
+msgid "Couldn't open socket"
+msgstr ""
+
+#: store.c:730
+msgid "Couldn't bind to port"
+msgstr ""
+
+#: store.c:739
+msgid "Couldn't listen for connections"
+msgstr ""
+
+#: store.c:743
+msgid "Waiting for connections on port"
+msgstr ""
+
+#: store.c:754
+msgid "Connection attempt failed"
+msgstr ""

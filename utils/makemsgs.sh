@@ -6,8 +6,8 @@
 ##  makemsgs.sh
 ##
 
-# Given the name of a directory that corresponds with a language code,
-# and containing message files named using the standard [package].po, invoke
+# Given the name of a directory that corresponds with a language code, and
+# containing message files named using the standard [package].po, invoke
 # msgfmt to compile them into binary message object files in the destination
 # directory
 

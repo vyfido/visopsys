@@ -8,19 +8,19 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ramdisk\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-08-13 22:22+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.6.4\n"
 
 #: ramdisk.c:76
 msgid "usage:\n"
-msgstr "ÿ·ﬂﬁ€Ï◊ﬁ“–›ÿ’:\n"
+msgstr "–∏—Å–ø–æ–ª—å–∑–æ–≤–∞–Ω–∏–µ:\n"
 
 #: ramdisk.c:77
 #, c-format
@@ -28,29 +28,29 @@ msgid ""
 "%s <create> <bytes>[unit]\n"
 "-or-\n"
 msgstr ""
-"%s <create> <—–Ÿ‚>[unit]\n"
+"%s <create> <–±–∞–π—Ç>[unit]\n"
 "-or-\n"
 
 #: ramdisk.c:78
 #, c-format
 msgid "%s <destroy> <name>\n"
-msgstr "%s <destroy> <ÿ‹Ô>\n"
+msgstr "%s <destroy> <–∏–º—è>\n"
 
 #: ramdisk.c:169
 msgid "Error creating RAM disk\n"
-msgstr "æËÿ—⁄– ·ﬁ◊‘–›ÿÔ RAM ‘ÿ·⁄–\n"
+msgstr "–û—à–∏–±–∫–∞ —Å–æ–∑–¥–∞–Ω–∏—è RAM –¥–∏—Å–∫–∞\n"
 
 #: ramdisk.c:174
 #, c-format
 msgid "Created RAM disk %s size %u\n"
-msgstr "¡ﬁ◊‘–› RAM ‘ÿ·⁄ %s ﬁ—Í’‹ﬁ‹ %u\n"
+msgstr "–°–æ–∑–¥–∞–Ω RAM –¥–∏—Å–∫ %s –æ–±—ä–µ–º–æ–º %u\n"
 
 #: ramdisk.c:184
 #, c-format
 msgid "Error destroying RAM disk %s\n"
-msgstr "æËÿ—⁄– „›ÿÁ‚ﬁ÷’›ÿÔ RAM ‘ÿ·⁄– %s\n"
+msgstr "–û—à–∏–±–∫–∞ —É–Ω–∏—á—Ç–æ–∂–µ–Ω–∏—è RAM –¥–∏—Å–∫–∞ %s\n"
 
 #: ramdisk.c:189
 #, c-format
 msgid "Destroyed RAM disk %s\n"
-msgstr "√›ÿÁ‚ﬁ‘’› RAM ‘ÿ·⁄ %s\n"
+msgstr "–£–Ω–∏—á—Ç–æ–¥–µ–Ω RAM –¥–∏—Å–∫ %s\n"

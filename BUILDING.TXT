@@ -1,12 +1,12 @@
 BUILDING VISOPSYS
 
-Visopsys is developed using Linux (current versions are Mint 18 and CentOs
+Visopsys is developed using Linux (current versions are Mint 18.3 and CentOS
 6).  To build Visopsys you will need the following tools:
 
 - The GNU C Compiler (gcc) able to build 32-bit (with -m32).  The most recent
   version tested with Visopsys is 5.4.0.
 
-- A "make" utility of some kind.  I use GNU Make version 3.81.
+- A "make" utility of some kind.  I use GNU Make version 4.1.
 
 - The Netwide Assembler (NASM).  The most recent version tested with Visopsys
   is 2.11.08.  (Available at http://nasm.us)
@@ -20,10 +20,9 @@ build this code.
 Once you have the requisite tools listed above, you build by simply executing
 a 'make' or 'make debug' command in the top-level directory.
 
-After you've built the system, you might want to use it.  If this is the case,
-you can install it using the install.sh script in the utils directory.
-The script takes the name of a device or partition as its argument.  For
-example, change to the utils directory and do:
+After you've built the system, you can install it using the install.sh script
+in the utils directory.  The script takes the name of a device or partition as
+its argument.  For example, change to the utils directory and do:
 
 	./install.sh -basic /dev/fd0
 
@@ -56,7 +55,7 @@ and do:
 Good luck, and let me know if there's any help I can offer.
 
 Andy McLaughlin <andy@visopsys.org>
-30/10/2016
+16/04/2020
 
 Note:
 

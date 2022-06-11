@@ -1,0 +1,12 @@
+
+ -- sha256sum --
+
+Calculate and print one or more SHA256 digests.  SHA256 is a one-way hashing
+algorithm which can be used to calculate checksums or hash passwords.
+
+Usage:
+  sha256sum <file1> [file2] [...]
+
+This command will print one line of SHA256 digest for each file parameter
+supplied.
+

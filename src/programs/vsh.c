@@ -49,11 +49,13 @@ Options:
 #include <errno.h>
 #include <libgen.h>
 #include <libintl.h>
+#include <limits.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
 #include <sys/api.h>
 #include <sys/ascii.h>
 #include <sys/env.h>
@@ -373,8 +375,9 @@ static void simpleShell(void)
 	char *commandHistory[COMMANDHISTORY];
 	int currentCommand = 0;
 	int selectedCommand = 0;
-	unsigned char bufferCharacter;
-	static int currentCharacter = 0;
+	unsigned bufferCharacter;
+	int currentColumn = 0;
+	int commandLen = 0;
 	char *tmp;
 	int count;
 
@@ -397,9 +400,9 @@ static void simpleShell(void)
 		if (textInputCount() <= 0)
 			promptCatchup = 0;
 
-		bufferCharacter = getchar();
+		bufferCharacter = getwchar();
 
-		// These numbers are ASCII codes.  Some are Visopsys specific ASCII
+		// These numbers are unicode values.  Some are Visopsys specific ASCII
 		// codes that make use of 'unused' spots.  Specifically the DC1-DC4
 		// codes are used for cursor control
 
@@ -429,7 +432,7 @@ static void simpleShell(void)
 			}
 
 			// Delete the previous command from the command line
-			for (count = currentCharacter; count > 0; count --)
+			for (count = currentColumn; count > 0; count --)
 				textBackSpace();
 
 			// Copy the contents of the selected command into the current
@@ -439,9 +442,10 @@ static void simpleShell(void)
 			// Print result to the screen
 			printf("%s", commandBuffer);
 
-			// Correct currentCharacter length so that it's as if we've typed
-			// it ourselves.
-			currentCharacter = strlen(commandBuffer);
+			// Correct currentColumn and commandLen so that it's as if we've
+			// typed it ourselves
+			currentColumn = mbslen(commandBuffer);
+			commandLen = strlen(commandBuffer);
 		}
 
 		else if (bufferCharacter == ASCII_CRSRDOWN)
@@ -460,11 +464,11 @@ static void simpleShell(void)
 				!currentCommand))
 			{
 				selectedCommand = currentCommand;
-				commandBuffer[0] = '\0';
+				commandBuffer[commandLen = 0] = '\0';
 				// Delete the previous command from the command line
-				for (count = currentCharacter; count > 0; count --)
+				for (count = currentColumn; count > 0; count --)
 					textBackSpace();
-				currentCharacter = 0;
+				currentColumn = 0;
 				continue;
 			}
 
@@ -487,7 +491,7 @@ static void simpleShell(void)
 			}
 
 			// Delete the previous command from the command line
-			for (count = currentCharacter; count > 0; count --)
+			for (count = currentColumn; count > 0; count --)
 				textBackSpace();
 
 			// Copy the contents of the selected command into the current
@@ -497,9 +501,10 @@ static void simpleShell(void)
 			// Print result to the screen
 			printf("%s", commandBuffer);
 
-			// Correct currentCharacter length so that it's as if we've typed
-			// it ourselves.
-			currentCharacter = strlen(commandBuffer);
+			// Correct currentColumn and commandLen so that it's as if we've
+			// typed it ourselves
+			currentColumn = mbslen(commandBuffer);
+			commandLen = strlen(commandBuffer);
 		}
 
 		/*
@@ -526,11 +531,16 @@ static void simpleShell(void)
 		else if (bufferCharacter == ASCII_BACKSPACE)
 		{
 			// This is the BACKSPACE key
-			if (currentCharacter > 0)
+			if (currentColumn > 0)
 			{
 				// Move the current character back by 1
-				currentCharacter--;
-				commandBuffer[currentCharacter] = '\0';
+				currentColumn -= 1;
+				while (mblen(commandBuffer + (commandLen - 1),
+					MB_CUR_MAX) < 0)
+				{
+					commandLen -= 1;
+				}
+				commandBuffer[--commandLen] = '\0';
 
 				if (promptCatchup)
 					textBackSpace();
@@ -547,7 +557,7 @@ static void simpleShell(void)
 			// This is the TAB key.  Attempt to complete a filename
 
 			// Get rid of any tab characters printed on the screen
-			textSetColumn(currentCharacter);
+			textSetColumn(currentColumn);
 
 			for (count = (strlen(commandBuffer)); count >= 0; count --)
 			{
@@ -581,9 +591,10 @@ static void simpleShell(void)
 			showPrompt();
 			printf("%s", commandBuffer);
 
-			// Correct currentCharacter length so that it's as if we've typed
-			// it ourselves.
-			currentCharacter = strlen(commandBuffer);
+			// Correct currentColumn and commandLen so that it's as if we've
+			// typed it ourselves
+			currentColumn = mbslen(commandBuffer);
+			commandLen = strlen(commandBuffer);
 		}
 
 		else if (bufferCharacter == ASCII_ENTER)
@@ -591,13 +602,13 @@ static void simpleShell(void)
 			// This is the ENTER key
 
 			// Put a null in at the end of the command buffer
-			commandBuffer[currentCharacter] = '\0';
+			commandBuffer[commandLen] = '\0';
 
 			if (promptCatchup)
 				printf("\n");
 
 			// Now we interpret the command
-			if (currentCharacter > 0)
+			if (commandLen > 0)
 			{
 				if (!strcmp(commandBuffer, "logout") ||
 					!strcmp(commandBuffer, "exit"))
@@ -644,10 +655,10 @@ static void simpleShell(void)
 				}
 			}
 
-			// Set the current character to 0
-			currentCharacter = 0;
+			// Set the column and command length to 0
+			currentColumn = commandLen = 0;
 			selectedCommand = currentCommand;
-			memset(commandBuffer, 0, MAXSTRINGLENGTH);
+			memset(commandBuffer, 0, (MAXSTRINGLENGTH + 1));
 
 			// Show a new prompt
 			showPrompt();
@@ -670,35 +681,37 @@ static void simpleShell(void)
 			// Something with no special meaning
 
 			// Don't go beyond the maximum line length
-			if (currentCharacter >= (MAXSTRINGLENGTH - 2))
+			if (commandLen >= (MAXSTRINGLENGTH - MB_LEN_MAX))
 			{
 				if (promptCatchup)
 					textBackSpace();
 				continue;
 			}
 
-			if (currentCharacter)
+			if (commandLen)
 			{
 				// Make sure there's whitespace around special symbols
 				if (bufferCharacter == '&')
 				{
-					if (commandBuffer[currentCharacter - 1] != ' ')
-						commandBuffer[currentCharacter++] = ' ';
+					if (commandBuffer[commandLen - 1] != ' ')
+						commandBuffer[commandLen++] = ' ';
 				}
-				else if (commandBuffer[currentCharacter - 1] == '&')
+				else if (commandBuffer[commandLen - 1] == '&')
 				{
 					if (bufferCharacter != ' ')
-						commandBuffer[currentCharacter++] = ' ';
+						commandBuffer[commandLen++] = ' ';
 				}
 			}
 
-			// Add the current character to the command buffer and
-			// increment the current character count
-			commandBuffer[currentCharacter++] = bufferCharacter;
-			commandBuffer[currentCharacter] = '\0';
+			// Add the current wide character to the command buffer (as a
+			// multibyte character) and increment the current character count
+			currentColumn += 1;
+			commandLen += wctomb((commandBuffer + commandLen),
+				bufferCharacter);
+			commandBuffer[commandLen] = '\0';
 
 			if (promptCatchup)
-				putchar(bufferCharacter);
+				putwchar(bufferCharacter);
 		}
 	}
 

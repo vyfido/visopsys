@@ -6,13 +6,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: kernelFilesystemFat.c:3068
@@ -39,20 +39,20 @@ msgstr "Chequeando limites"
 
 #: kernelFilesystemFat.c:4544
 msgid "Error getting resizing constraints"
-msgstr "Error al buscar los límites de cambio de tamaño"
+msgstr "Error al buscar los lÃ­mites de cambio de tamaÃ±o"
 
 #: kernelFilesystemFat.c:4551
 #, c-format
 msgid "Filesystem cannot resize to %llu blocks (minimum is %llu)"
 msgstr ""
-"El sistema de archivos no puede cambiar su tamaño a %llu bloques.(El minimo "
+"El sistema de archivos no puede cambiar su tamaÃ±o a %llu bloques.(El minimo "
 "es %llu)"
 
 #: kernelFilesystemFat.c:4554
 #, c-format
 msgid "Filesystem cannot resize to %llu blocks (maximum is %llu)"
 msgstr ""
-"El sistema de archivos no puede cambiar su tamaño a %llu bloques.(El maximo "
+"El sistema de archivos no puede cambiar su tamaÃ±o a %llu bloques.(El maximo "
 "es %llu)"
 
 #: kernelFilesystemFat.c:4571 kernelFilesystemFat.c:4627
@@ -64,7 +64,6 @@ msgid "Unable to create the free cluster bitmap"
 msgstr ""
 
 #: kernelFilesystemFat.c:4611
-#, fuzzy
 msgid "Defragmenting"
 msgstr "Defragmentando"
 
@@ -73,9 +72,9 @@ msgid "Error defragmenting filesystem"
 msgstr "Error al defragmentar"
 
 #: kernelFilesystemFat.c:4649
-#, fuzzy, c-format
+#, c-format
 msgid "Data exists outside the new size (%llu >= %llu)"
-msgstr "Aún existe informacion fuera del nuevo tamaño (%llu >= %llu)"
+msgstr "AÃºn existe informacion fuera del nuevo tamaÃ±o (%llu >= %llu)"
 
 #: kernelFilesystemFat.c:4677
 msgid "Error moving data"

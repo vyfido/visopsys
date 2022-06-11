@@ -8,23 +8,23 @@ msgid ""
 msgstr ""
 "Project-Id-Version: snake\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-08-13 22:04+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.6.4\n"
 
 #: snake.c:49
 msgid "Snake"
-msgstr "∑‹’Ÿ⁄–"
+msgstr "–ó–º–µ–π–∫–∞"
 
 #: snake.c:50
 msgid "Use cursor keys to change direction"
-msgstr "∏·ﬂﬁ€Ï◊„Ÿ‚’ ·‚‡’€⁄ÿ Á‚ﬁ—Î ÿ◊‹’›ÿ‚Ï ›–ﬂ‡–“€’›ÿ’ ‘“ÿ÷’›ÿÔ"
+msgstr "–ò—Å–ø–æ–ª—å–∑—É–π—Ç–µ —Å—Ç—Ä–µ–ª–∫–∏ —á—Ç–æ–±—ã –∏–∑–º–µ–Ω–∏—Ç—å –Ω–∞–ø—Ä–∞–≤–ª–µ–Ω–∏–µ –¥–≤–∏–∂–µ–Ω–∏—è"
 
 #: snake.c:952
 #, c-format
@@ -38,16 +38,16 @@ msgid ""
 "Score %d.\n"
 msgstr ""
 "%s\n"
-"æÁ⁄ﬁ“ %d.\n"
+"–û—á–∫–æ–≤ %d.\n"
 
 #: snake.c:977
 msgid "You WIN!"
-msgstr "øﬁ—’‘–!"
+msgstr "–ü–æ–±–µ–¥–∞!"
 
 #: snake.c:977
 msgid "Dead."
-msgstr "¬‡„ﬂÿ⁄."
+msgstr "–¢—Ä—É–ø–∏–∫."
 
 #: snake.c:982
 msgid "Game over"
-msgstr "∏”‡– ﬁ⁄ﬁ›Á’›–"
+msgstr "–ò–≥—Ä–∞ –æ–∫–æ–Ω—á–µ–Ω–∞"

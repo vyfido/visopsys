@@ -60,14 +60,17 @@ size_t mbstowcs(wchar_t *dest, const char *src, size_t n)
 	int maxBytes = (n * MB_CUR_MAX);
 	size_t count;
 
-	for (count = 0; count < n; count ++)
+	for (count = 0; (!dest || (count < n)); count ++)
 	{
-		numBytes = mbtowc(dest, src, maxBytes);
+		if (dest)
+			numBytes = mbtowc(dest, src, maxBytes);
+		else
+			numBytes = mblen(src, maxBytes);
 
 		if (numBytes < 0)
 			return (-1);
 
-		if (*dest == (wchar_t) NULL)
+		if (*src == '\0')
 			return (count);
 
 		dest += 1;

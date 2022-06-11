@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:39+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -57,27 +57,27 @@ msgstr ""
 msgid "  Quitting."
 msgstr ""
 
-#: filesys.c:144
+#: filesys.c:145
 msgid "No disks to work with."
 msgstr ""
 
-#: filesys.c:149
+#: filesys.c:151
 msgid "Memory allocation error."
 msgstr ""
 
-#: filesys.c:154
+#: filesys.c:157
 msgid "Unable to get disk information."
 msgstr ""
 
-#: filesys.c:175
+#: filesys.c:182
 msgid "Can't read/create the mount configuration"
 msgstr ""
 
-#: filesys.c:187
+#: filesys.c:197
 msgid "Can't write the mount configuration"
 msgstr ""
 
-#: filesys.c:479
+#: filesys.c:491
 #, c-format
 msgid ""
 "\n"

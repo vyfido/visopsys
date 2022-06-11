@@ -29,12 +29,12 @@
 char *asctime(const struct tm *timePtr)
 {
 	// From the linux man page about this function:
-	// The asctime() function converts the broken-down time value
-	// timeptr into a string with the  same  format  as  ctime().
-	// The  return  value points to a statically allocated string
-	// which might be overwritten by subsequent calls to  any  of
-	// the date and time functions.
-
+	//
+	// The asctime() function converts the broken-down time value timeptr into
+	// a string with the same format as ctime().  The return value points to a
+	// statically allocated string which might be overwritten by subsequent
+	// calls to any of the date and time functions.
+	//
 	// ctime() time format:
 	// "Wed Jun 30 21:49:08 1993"
 

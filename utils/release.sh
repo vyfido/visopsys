@@ -7,6 +7,6 @@
 ##
 
 # Outputs the release number
-echo "0.85"
+echo "0.9"
 exit 0
 

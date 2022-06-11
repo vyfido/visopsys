@@ -22,9 +22,10 @@
 // This is the standard "wctomb" function, as found in standard C libraries
 
 #include <stdlib.h>
+#include <sys/utf.h>
 
 
-int wctomb(char *string, wchar_t wc)
+int wctomb(char *s, wchar_t wc)
 {
 	// Here's how the Linux man page describes this function:
 	//
@@ -41,45 +42,18 @@ int wctomb(char *string, wchar_t wc)
 	//
 	// We're going to attempt to support UTF-8 as our multibyte standard.
 
-	int numBytes = 1;
+	int numBytes = 0;
 
-	if (!string)
-		// Stateless.
+	if (!s)
+		// Stateless
 		return (0);
 
-	if (wc > 0x0010FFFF)
+	numBytes = utf8CodeWidth(wc);
+	if (!numBytes)
 		// Too large
 		return (-1);
 
-	if (wc > 0x7F)
-		numBytes += 1;
-	if (wc > 0x7FF)
-		numBytes += 1;
-	if (wc > 0xFFFF)
-		numBytes += 1;
-
-	if (numBytes == 1)
-	{
-		string[0] = (wc & 0x7F);
-	}
-	else if (numBytes == 2)
-	{
-		string[0] = (0xC0 | ((wc & 0x07D0) >> 6));
-		string[1] = (0x80 | (wc & 0x003F));
-	}
-	else if (numBytes == 3)
-	{
-		string[0] = (0xE0 | ((wc & 0xF000) >> 12));
-		string[1] = (0x80 | ((wc & 0x0FD0) >> 6));
-		string[2] = (0x80 | (wc & 0x003F));
-	}
-	else if (numBytes == 4)
-	{
-		string[0] = (0xF0 | ((wc & 0x001D0000) >> 18));
-		string[1] = (0x80 | ((wc & 0x0003F000) >> 12));
-		string[2] = (0x80 | ((wc & 0x00000FD0) >> 6));
-		string[3] = (0x80 | (wc & 0x0000003F));
-	}
+	unicodeToUtf8Char(wc, (unsigned char *) s, sizeof(wchar_t) /* assumed */);
 
 	return (numBytes);
 }

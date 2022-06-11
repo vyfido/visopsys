@@ -6,8 +6,8 @@
 ##  helpfiles.sh
 ##
 
-# This is used against the program files listed in the install files
-# in order to harvest the help text into .txt files in the $TEXTDIR directory
+# This is used against the program files listed in the install files in order
+# to harvest the help text into .txt files in the $TEXTDIR directory
 
 SRCDIRS="../src/programs ../src/programs/fdisk"
 DISTDIR=../dist
@@ -40,8 +40,7 @@ for INSTFILE in $INST_FILES ; do
 				if [ ! -f $TEXTDIR/$NAME.txt ] ; then
 					echo - $FILE does not have a help file
 
-				# Make sure it has an entry in the main help
-				# file
+				# Make sure it has an entry in the main help file
 				elif [ "`grep \"^$NAME \" $TEXTDIR/help.txt`" = "" ]
 				then
 					echo - $FILE does not have a help summary entry

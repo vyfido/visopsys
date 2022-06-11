@@ -41,6 +41,7 @@ Usage:
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/env.h>
+#include <sys/font.h>
 #include <sys/window.h>
 
 #define _(string) gettext(string)
@@ -87,11 +88,10 @@ static char number_text[256];
 
 static void update_calculator_display(double number)
 {
-	int x;
+	int x = 0;
 
 	if (current_display_base == 10)
 	{
-
 		if (calc_float > 0)
 		{
 			_lnum2str(number, number_text, current_display_base, 1);
@@ -102,7 +102,7 @@ static void update_calculator_display(double number)
 		{
 			_dbl2str(number, number_text, 3);
 
-			for (x = strlen(number_text) - 1;number_text[x] == '0'; x--);
+			for (x = strlen(number_text) - 1; number_text[x] == '0'; x--);
 
 			if (number_text[x] == '.')
 				number_text[x] = '\0';
@@ -134,9 +134,9 @@ static void reset_calculator(void)
 
 static void switch_number_base(int new_base)
 {
-	int x;
+	int x = 0;
 
-	for (x = 0; x < 16; x++)
+	for (x = 0; x < 16; x ++)
 		windowComponentSetEnabled(calculatorButtons[x], x < new_base);
 
 	current_display_base = new_base;
@@ -145,18 +145,19 @@ static void switch_number_base(int new_base)
 	{
 		case 8:
 			strcpy(number_text, "oct");
-		break;
+			break;
 
 		case 10:
 			strcpy(number_text, "dec");
-		break;
+			break;
 
 		case 16:
 			strcpy(number_text, "hex");
-		break;
+			break;
 
 		default:
 			sprintf(number_text, "B%02d", current_display_base);
+			break;
 	}
 
 	windowComponentSetData(modeButton, number_text, 3, 1 /* redraw */);
@@ -186,9 +187,9 @@ static void refreshWindow(void)
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
-	int x;
+	int x = 0;
 
-	for (x = 0; x < 16; x++)
+	for (x = 0; x < 16; x ++)
 	{
 		if (key == calculatorButtons[x] && (event->type ==
 			WINDOW_EVENT_MOUSE_LEFTUP))
@@ -220,7 +221,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 	}
 
-	for (x = 0; x < 7; x++)
+	for (x = 0; x < 7; x ++)
 	{
 		if (key == opButton[x] && (event->type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
@@ -361,7 +362,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		double factx;
 		double factresult = 1;
 
-		for (factx = 0; factx <= fact; factx++)
+		for (factx = 0; factx <= fact; factx ++)
 		{
 			if (!factx)
 				factresult = 1;
@@ -373,7 +374,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		update_calculator_display((number_field = calc_result = factresult));
 	}
 
-	// Check for window events.
+	// Check for window events
 	else if (key == window)
 	{
 		// Check for window refresh
@@ -392,139 +393,156 @@ static void eventHandler(objectKey key, windowEvent *event)
 
 static void create_window(void)
 {
-	int x, y;
-
-	componentParameters cparam;
+	int x = 0, y = 0;
+	objectKey container = NULL;
+	componentParameters params;
 
 	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
 
-	memset(&cparam, 0, sizeof(componentParameters));
+	memset(&params, 0, sizeof(componentParameters));
+	params.gridWidth = 1;
+	params.gridHeight = 1;
+	params.orientationX = orient_center;
+	params.orientationY = orient_middle;
+	container = windowNewContainer(window, "resultContainer", &params);
 
-	cparam.gridWidth = 4;
-	cparam.gridHeight = 1;
-	cparam.orientationX = orient_left;
-	cparam.orientationY = orient_top;
+	params.padLeft = 5;
+	params.padRight = 5;
+	params.padTop = 5;
+	params.padBottom = 5;
+	windowNewDivider(container, divider_horizontal, &params);
 
-	result_label = windowNewTextLabel(window, "0", &cparam);
+	params.gridY += 1;
+	params.flags = COMP_PARAMS_FLAG_HASBORDER;
+	params.font = fontGet(FONT_FAMILY_LIBMONO, FONT_STYLEFLAG_BOLD, 10, NULL);
+	result_label = windowNewTextLabel(container, "888888888888888888888888888"
+		"88888", &params);
 
-	memset(&cparam, 0, sizeof(componentParameters));
+	params.gridY += 1;
+	params.flags = 0;
+	windowNewDivider(container, divider_horizontal, &params);
 
-	for (y = 0, x = 7; y < 3; y++)
+	params.gridY += 1;
+	container = windowNewContainer(window, "buttonContainer", &params);
+
+	memset(&params, 0, sizeof(componentParameters));
+	params.gridWidth = 1;
+	params.gridHeight = 1;
+	params.padLeft = params.padRight = params.padTop = params.padBottom = 2;
+	params.orientationX = orient_left;
+	params.orientationY = orient_top;
+	params.font = fontGet(FONT_FAMILY_LIBMONO, FONT_STYLEFLAG_BOLD, 10, NULL);
+
+	for (y = 0, x = 7; y < 3; y ++)
 	{
 		int o = x;
 
-		cparam.gridY = y+1;
-		cparam.gridWidth = 1;
-		cparam.gridHeight = 1;
-		cparam.padLeft = 0;
-		cparam.padRight = 0;
-		cparam.padTop = 0;
-		cparam.padBottom = 0;
-		cparam.flags = 0;
-		cparam.orientationX = orient_left;
-		cparam.orientationY = orient_top;
+		params.gridY = y;
 
-		for (; x < (o + 3); x++)
+		for ( ; x < (o + 3); x ++)
 		{
-			//printf("x = %d, y = %d\n", x, y);
-
-			cparam.gridX = x - o;
-			buttonName[0] = x + '0';
+			params.gridX = (x - o);
+			buttonName[0] = (x + '0');
 			buttonName[1] = '\0';
-			calculatorButtons[x] =
-				windowNewButton(window, buttonName, NULL, &cparam);
+			calculatorButtons[x] = windowNewButton(container, buttonName,
+				NULL, &params);
 		}
-		x = o - 3;
+
+		x = (o - 3);
 	}
 
-	cparam.gridX = 4;
-	cparam.gridY = 1;
+	params.gridX = 4;
+	params.gridY = 0;
+	calculatorButtons[10] = windowNewButton(container, "A", NULL, &params);
 
-	calculatorButtons[10] = windowNewButton(window, "A", NULL, &cparam);
-	cparam.gridY++;
+	params.gridY += 1;
+	calculatorButtons[11] =	windowNewButton(container, "B", NULL, &params);
 
-	calculatorButtons[11] =	windowNewButton(window, "B", NULL, &cparam);
-	cparam.gridY++;
+	params.gridY += 1;
+	calculatorButtons[12] =	windowNewButton(container, "C", NULL, &params);
 
-	calculatorButtons[12] =	windowNewButton(window, "C", NULL, &cparam);
-	cparam.gridY++;
+	params.gridY += 1;
+	calculatorButtons[13] =	windowNewButton(container, "D", NULL, &params);
 
-	calculatorButtons[13] =	windowNewButton(window, "D", NULL, &cparam);
-	cparam.gridY++;
+	params.gridY += 1;
+	calculatorButtons[14] =	windowNewButton(container, "E", NULL, &params);
 
-	calculatorButtons[14] =	windowNewButton(window, "E", NULL, &cparam);
-	cparam.gridY++;
+	params.gridY += 1;
+	calculatorButtons[15] =	windowNewButton(container, "F", NULL, &params);
 
-	calculatorButtons[15] =	windowNewButton(window, "F", NULL, &cparam);
+	params.gridX = 0;
+	params.gridY = 3;
+	calculatorButtons[0] = windowNewButton(container, "0", NULL, &params);
 
-	cparam.gridX = 0;
-	cparam.gridY = 4;
-	calculatorButtons[0] = windowNewButton(window, "0", NULL, &cparam);
+	params.gridX += 1;
+	opButton[calc_op_result] = windowNewButton(container, "=", NULL, &params);
 
-	cparam.gridX++;
-	opButton[calc_op_result] = windowNewButton(window, "=", NULL, &cparam);
+	params.gridX += 1;
+	plminButton = windowNewButton(container, "+/-", NULL, &params);
+	windowRegisterEventHandler(plminButton, eventHandler);
 
-	cparam.gridX++;
-	plminButton = windowNewButton(window, "+/-", NULL, &cparam);
+	params.gridX = 3;
+	params.gridY = 0;
+	opButton[calc_op_divide] = windowNewButton(container, "/", NULL, &params);
 
-	cparam.gridX = 3;
-	cparam.gridY = 1;
-	opButton[calc_op_divide] = windowNewButton(window, "/", NULL, &cparam);
-	cparam.gridY++;
-	opButton[calc_op_multiply] = windowNewButton(window, "*", NULL, &cparam);
-	cparam.gridY++;
-	opButton[calc_op_subtract] = windowNewButton(window, "-", NULL, &cparam);
-	cparam.gridY++;
-	opButton[calc_op_add] = windowNewButton(window, "+", NULL, &cparam);
-	cparam.gridY++;
-	opButton[calc_op_module]  = windowNewButton(window, "MOD", NULL, &cparam);
+	params.gridY += 1;
+	opButton[calc_op_multiply] = windowNewButton(container, "*", NULL,
+		&params);
 
-	cparam.gridX = 0;
-	cparam.gridY = 5;
+	params.gridY += 1;
+	opButton[calc_op_subtract] = windowNewButton(container, "-", NULL,
+		&params);
 
-	ceButton = windowNewButton(window, "CE", NULL, &cparam);
+	params.gridY += 1;
+	opButton[calc_op_add] = windowNewButton(container, "+", NULL, &params);
 
-	cparam.gridX++;
+	params.gridY += 1;
+	opButton[calc_op_module]  = windowNewButton(container, "MOD", NULL,
+		&params);
 
-	acButton = windowNewButton(window, "AC", NULL, &cparam);
+	params.gridX = 0;
+	params.gridY = 4;
+	ceButton = windowNewButton(container, "CE", NULL, &params);
+	windowRegisterEventHandler(ceButton, eventHandler);
 
-	cparam.gridX++;
+	params.gridX += 1;
+	acButton = windowNewButton(container, "AC", NULL, &params);
+	windowRegisterEventHandler(acButton, eventHandler);
 
-	modeButton = windowNewButton(window, "dec", NULL, &cparam);
+	params.gridX += 1;
+	modeButton = windowNewButton(container, "dec", NULL, &params);
+	windowRegisterEventHandler(modeButton, eventHandler);
+
 	modeButton_pos = 0;
 	switch_number_base(modeButton_modes[modeButton_pos]);
 
-	cparam.gridX = 0;
-	cparam.gridY = 6;
+	params.gridX = 0;
+	params.gridY = 5;
+	floatButton = windowNewButton(container, ".", NULL, &params);
+	windowRegisterEventHandler(floatButton, eventHandler);
 
-	floatButton = windowNewButton(window, ".", NULL, &cparam);
+	params.gridX += 1;
+	sqrtButton = windowNewButton(container, "sqrt", NULL, &params);
+	windowRegisterEventHandler(sqrtButton, eventHandler);
 
-	cparam.gridX++;
-	sqrtButton = windowNewButton(window, "sqrt", NULL, &cparam);
+	params.gridX += 1;
+	opButton[calc_op_pow] = windowNewButton(container, "pow", NULL, &params);
 
-	cparam.gridX++;
-	opButton[calc_op_pow] = windowNewButton(window, "pow", NULL, &cparam);
+	params.gridX += 1;
+	factButton = windowNewButton(container, "n!", NULL, &params);
+	windowRegisterEventHandler(factButton, eventHandler);
 
-	cparam.gridX++;
-	factButton = windowNewButton(window, "n!", NULL, &cparam);
+	for (x = 0; x < 7; x ++)
+		windowRegisterEventHandler(opButton[x], eventHandler);
 
-	windowSetVisible(window, 1);
+	for (x = 0; x < 16; x ++)
+		windowRegisterEventHandler(calculatorButtons[x], eventHandler);
 
 	windowRegisterEventHandler(window, eventHandler);
 
-	for (x = 0; x < 7; x++)
-		windowRegisterEventHandler(opButton[x], eventHandler);
+	windowSetVisible(window, 1);
 
-	for (x = 0; x < 16; x++)
-		windowRegisterEventHandler(calculatorButtons[x], eventHandler);
-
-	windowRegisterEventHandler(plminButton, eventHandler);
-	windowRegisterEventHandler(acButton, eventHandler);
-	windowRegisterEventHandler(ceButton, eventHandler);
-	windowRegisterEventHandler(modeButton, eventHandler);
-	windowRegisterEventHandler(floatButton, eventHandler);
-	windowRegisterEventHandler(sqrtButton, eventHandler);
-	windowRegisterEventHandler(factButton, eventHandler);
+	windowComponentSetData(result_label, "0", 1, 1 /* redraw */);
 }
 
 
@@ -547,6 +565,6 @@ int main(int argc, char *argv[])
 	windowGuiRun();
 	windowDestroy(window);
 
-	return 0;
+	return (0);
 }
 

@@ -19,7 +19,7 @@
 //  filesys.c
 //
 
-// This is a program for editing the mount.conf file in a user-friendly way.
+// This is a program for editing the mount.conf file in a user-friendly way
 
 /* This is the text that appears when a user requests help about this program
 <help>
@@ -140,8 +140,10 @@ static void getDiskList(void)
 	// Call the kernel to give us the number of available disks
 	numberDisks = diskGetCount();
 	if (numberDisks <= 0)
+	{
 		// No disks
 		quit(status, "%s", _("No disks to work with."));
+	}
 
 	diskInfo = malloc(numberDisks * sizeof(disk));
 	diskListParams = malloc(numberDisks * sizeof(listItemParameters));
@@ -150,13 +152,17 @@ static void getDiskList(void)
 
 	status = diskGetAll(diskInfo, (DISK_MAXDEVICES * sizeof(disk)));
 	if (status < 0)
-		// Eek.  Problem getting disk info
+	{
+		// Eek.  Problem getting disk info.
 		quit(status, "%s", _("Unable to get disk information."));
+	}
 
 	memset(diskListParams, 0, (numberDisks * sizeof(listItemParameters)));
 	for (count = 0; count < numberDisks; count ++)
+	{
 		snprintf(diskListParams[count].text, WINDOW_MAX_LABEL_LENGTH,
 			"%s  [ %s ]", diskInfo[count].name, diskInfo[count].partType);
+	}
 }
 
 
@@ -172,7 +178,10 @@ static void getMountConfig(void)
 		// for it.
 		status = variableListCreate(&mountConfig);
 		if (status < 0)
-			quit(status, "%s", _("Can't read/create the mount configuration"));
+		{
+			quit(status, "%s", _("Can't read/create the mount "
+				"configuration"));
+		}
 	}
 }
 
@@ -184,7 +193,9 @@ static int saveMountConfig(void)
 	// Try writing the mount configuration file
 	status = configWrite(DISK_MOUNT_CONFIG, &mountConfig);
 	if (status < 0)
+	{
 		error("%s", _("Can't write the mount configuration"));
+	}
 	else
 	{
 		changesPending = 0;
@@ -314,12 +325,14 @@ static void eventHandler(objectKey key, windowEvent *event)
 	int selected = 0;
 	char mountPoint[MAX_PATH_LENGTH + 1];
 
-	// Check for window events.
+	// Check for window events
 	if (key == window)
 	{
 		// Check for window refresh
 		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
+		{
 			refreshWindow();
+		}
 
 		// Check for the window being closed
 		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
@@ -422,7 +435,7 @@ static void constructWindow(void)
 	params.padTop = 5;
 	mountPointLabel = windowNewTextLabel(window, MOUNT_POINT, &params);
 
-	// Make a text field for the mount point.
+	// Make a text field for the mount point
 	params.gridY += 1;
 	params.padTop = 10;
 	mountPointField = windowNewTextField(window, 30, &params);
@@ -430,7 +443,7 @@ static void constructWindow(void)
 	if (privilege || readOnly)
 		windowComponentSetEnabled(mountPointField, 0);
 
-	// Make a checkbox for automounting.
+	// Make a checkbox for automounting
 	params.gridY += 1;
 	params.padTop = 5;
 	autoMountCheckbox = windowNewCheckbox(window, MOUNT_AUTOMATICALLY,
@@ -442,6 +455,7 @@ static void constructWindow(void)
 	// Make 'save', and 'quit' buttons
 	params.gridY += 1;
 	params.gridWidth = 1;
+	params.padLeft = params.padRight = 2;
 	params.padBottom = 5;
 	params.orientationX = orient_right;
 	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
@@ -460,8 +474,6 @@ static void constructWindow(void)
 	// Make the window visible
 	windowRegisterEventHandler(window, &eventHandler);
 	windowSetVisible(window, 1);
-
-	return;
 }
 
 

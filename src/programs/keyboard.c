@@ -19,7 +19,7 @@
 //  keyboard.c
 //
 
-// This is a program for displaying a virtual keyboard.
+// This is a program for displaying a virtual keyboard
 
 /* This is the text that appears when a user requests help about this program
 <help>
@@ -42,6 +42,7 @@ The -i flag means run in an 'iconified' mode.
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/api.h>
+#include <sys/color.h>
 #include <sys/env.h>
 #include <sys/window.h>
 
@@ -103,7 +104,7 @@ static void refreshWindow(void)
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
-	// Check for window events.
+	// Check for window events
 	if (key == window)
 	{
 		// Check for window refresh
@@ -152,10 +153,8 @@ static void handleMenuEvents(windowMenuContents *contents)
 static int constructWindow(void)
 {
 	// If we are in graphics mode, make a window rather than operating on the
-	// command line.
+	// command line
 
-	color foreground = { 255, 255, 255 };
-	color background = { 230, 60, 35 };
 	componentParameters params;
 	windowInfo winInfo;
 	image img;
@@ -166,7 +165,6 @@ static int constructWindow(void)
 		return (ERR_NOCREATE);
 
 	windowSetHasTitleBar(window, 0);
-	windowSetBackgroundColor(window, &background);
 
 	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
@@ -177,10 +175,6 @@ static int constructWindow(void)
 	params.padBottom = 5;
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
-	params.flags = (COMP_PARAMS_FLAG_CUSTOMFOREGROUND |
-		COMP_PARAMS_FLAG_CUSTOMBACKGROUND);
-	memcpy(&params.foreground, &foreground, sizeof(color));
-	memcpy(&params.background, &background, sizeof(color));
 
 	// Create the virtual keyboard.  80% width, and 30% height.  Connect the
 	// keyboard's callback function directly to the kernel API function for
@@ -210,7 +204,7 @@ static int constructWindow(void)
 	// We don't want the keyboard window to focus
 	windowSetFocusable(window, 0);
 
-	// Set up our taskbar icon and iconify, if applicable.
+	// Set up our taskbar icon and iconify, if applicable
 	memset(&img, 0, sizeof(image));
 	if (imageLoad(PATH_SYSTEM_ICONS "/keyboard.ico", 24, 24, &img) >= 0)
 	{

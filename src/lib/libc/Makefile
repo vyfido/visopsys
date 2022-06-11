@@ -86,6 +86,9 @@ NETNAMES = \
 	accept \
 	bind \
 	connect \
+	freeaddrinfo \
+	gai_strerror \
+	getaddrinfo \
 	getprotobyname \
 	getprotobynumber \
 	getservbyname \
@@ -156,6 +159,7 @@ STDLIBNAMES = \
 	getenv \
 	labs \
 	malloc \
+	mblen \
 	mbstowcs \
 	mbtowc \
 	mkdtemp \
@@ -166,6 +170,7 @@ STDLIBNAMES = \
 	setenv \
 	srand \
 	system \
+	wcstombs \
 	wctomb
 
 STRINGNAMES = \
@@ -173,6 +178,7 @@ STRINGNAMES = \
 	bzero \
 	ffs \
 	fls \
+	mbslen \
 	memcmp \
 	memcpy \
 	memmove \
@@ -221,7 +227,15 @@ UNISTDNAMES = \
 	unlink \
 	write
 
-MISCNAMES = _data \
+WCHARNAMES = \
+	getwchar \
+	putwchar \
+	wcscmp \
+	wcscpy \
+	wcslen
+
+MISCNAMES = \
+	_data \
 	readline \
 	sched_yield \
 	uname
@@ -229,7 +243,7 @@ MISCNAMES = _data \
 ALLNAMES = ${CDEFNAMES} ${CTYPENAMES} ${DIRENTNAMES} ${FCNTLNAMES} \
 	${LIBGENNAMES} ${LOCALENAMES} ${MATHNAMES} ${NETNAMES} ${SIGNALNAMES} \
 	${STATNAMES} ${STDIONAMES} ${STDLIBNAMES} ${STRINGNAMES} ${TIMENAMES} \
-	${UNISTDNAMES} ${MISCNAMES}
+	${UNISTDNAMES} ${WCHARNAMES} ${MISCNAMES}
 
 OBJDIR = obj
 PICOBJDIR = picobj

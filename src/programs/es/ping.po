@@ -6,13 +6,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: ping.c:66
@@ -24,13 +24,13 @@ msgid "Error"
 msgstr "Error"
 
 #: ping.c:108
-#, c-format
+#, fuzzy, c-format
 msgid ""
 "usage:\n"
 "%s [-T] <address | hostname>"
 msgstr ""
 "Uso:\n"
-"%s [-T] <direccion | host>"
+"%s [-T] <direccion | host>\n"
 
 #: ping.c:181
 #, c-format
@@ -41,53 +41,53 @@ msgstr "%d bytes desde %d.%d.%d.%d: icmp_seq=%d ttl=%d tiempo=%llu ms\n"
 msgid "Stop"
 msgstr "Detener"
 
-#: ping.c:349
+#: ping.c:354
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ping.c:358
+#: ping.c:363
 msgid "Networking is not currently enabled"
-msgstr "La red no est· habilitada"
+msgstr "La red no est√° habilitada"
 
-#: ping.c:371
+#: ping.c:376
 msgid "Enter Address"
 msgstr "Direccion"
 
-#: ping.c:372
+#: ping.c:377
 msgid "Enter the network address to ping:"
 msgstr "Ingrese la direccion de red:"
 
-#: ping.c:393
+#: ping.c:398
 msgid "Couldn't determine destination address"
 msgstr ""
 
-#: ping.c:409
+#: ping.c:414
 msgid "Error opening network connection"
 msgstr "Error al abrir conexion de red"
 
-#: ping.c:413
+#: ping.c:418
 #, c-format
 msgid "Ping %d.%d.%d.%d %d(%d) bytes of data"
 msgstr "Ping %d.%d.%d.%d %d(%d) bytes de datos"
 
-#: ping.c:427
+#: ping.c:432
 msgid "Error setting signal handler"
-msgstr "Error preparando el seÒalero"
+msgstr "Error preparando el se√±alero"
 
-#: ping.c:440
+#: ping.c:445
 msgid "Error starting response thread"
 msgstr "Error al iniciar hilo de respuesta"
 
-#: ping.c:448 ping.c:460
+#: ping.c:453 ping.c:465
 msgid "Memory allocation error"
 msgstr "Error al reservar memoria"
 
-#: ping.c:474
+#: ping.c:479
 msgid "Error pinging host"
 msgstr "Error al hacer ping al host"
 
-#: ping.c:492
+#: ping.c:497
 #, c-format
 msgid ""
 "\n"
@@ -96,14 +96,14 @@ msgstr ""
 "\n"
 "--- %d.%d.%d.%d estadisticas de ping ---\n"
 
-#: ping.c:494
+#: ping.c:499
 #, c-format
 msgid "%d packets transmitted, %d received, %d%% packet loss, time %llums\n"
 msgstr ""
 "%d paquetes transmitidos, %d recibidos, %d%% paquetes perdidos, tiempo "
 "%llums\n"
 
-#: ping.c:498
+#: ping.c:503
 #, c-format
 msgid "rtt min/avg/max = %llu/%llu/%llu ms\n"
 msgstr ""

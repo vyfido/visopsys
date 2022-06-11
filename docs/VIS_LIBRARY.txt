@@ -1,4 +1,4 @@
-THE VISOPSYS LIBRARY (Version 0.85)
+THE VISOPSYS LIBRARY (Version 0.9)
 
 The Visopsys library is a small set of general utility functions, often
 written to serve the needs of the Visopsys kernel, but which can also be used

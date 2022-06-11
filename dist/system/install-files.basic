@@ -12,6 +12,7 @@
 /programs/copy-boot
 /programs/copy-mbr
 /programs/cp
+/programs/deskwin
 /programs/disks
 /programs/disprops
 /programs/edit
@@ -80,6 +81,7 @@
 /system/icons/shutdown.ico
 /system/icons/text.ico
 /system/icons/usbthumb.ico
+/system/install/
 /system/install-files.basic
 /system/libraries/
 /system/libraries/libc.so

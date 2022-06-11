@@ -19,15 +19,17 @@
 //  windowKeyboard.c
 //
 
-// This contains functions for user programs to operate GUI components.
+// This contains functions for user programs to operate GUI components
 
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/api.h>
 #include <sys/charset.h>
+#include <sys/color.h>
 #include <sys/font.h>
 #include <sys/keyboard.h>
 #include <sys/window.h>
@@ -77,8 +79,8 @@ static keyScan scans[][WINDOW_KEYBOARD_MAX_ROWKEYS] = {
 	{ keyCapsLock, keyC1, keyC2, keyC3, keyC4, keyC5, keyC6, keyC7, keyC8,
 		keyC9, keyC10, keyC11, keyC12, keyEnter },
 	// Bottom letter row (ZXCV...) ROW4
-	{ keyLShift, keyB0, keyB1, keyB2, keyB3, keyB4, keyB5, keyB6, keyB7, keyB8,
-		keyB9, keyB10, keyRShift, keyUpArrow },
+	{ keyLShift, keyB0, keyB1, keyB2, keyB3, keyB4, keyB5, keyB6, keyB7,
+		keyB8, keyB9, keyB10, keyRShift, keyUpArrow },
 	// Bottom spacebar row ROW5
 	{ keyLCtrl, keyA0, keyLAlt, keySpaceBar, keyA2, keyA3, keyA4, keyRCtrl,
 		keyLeftArrow, keyDownArrow, keyRightArrow }
@@ -175,7 +177,7 @@ static objectKey pickFont(int maxHeight)
 	for (count = 0; tryFonts[count].family; count ++)
 	{
 		tmpFont = fontGet(tryFonts[count].family, tryFonts[count].flags,
-			tryFonts[count].points, NULL);
+			tryFonts[count].points, NULL /* charSet */);
 
 		if (!tmpFont)
 			continue;
@@ -208,7 +210,7 @@ static void makeRow(windowKeyboard *keyboard, int rowCount, int yCoord,
 	// How many total keys in this row
 	keyboard->rows[rowCount].numKeys = rowKeys[rowCount];
 
-	// Calculate the standard key width.
+	// Calculate the standard key width
 	stdKeyWidth = ((keyboard->width - 2) / 18);
 
 	// Calculate the number of standard inter-key gaps
@@ -271,16 +273,22 @@ static void makeRow(windowKeyboard *keyboard, int rowCount, int yCoord,
 		xCoord += (key->width + 1);
 
 		if (!rowCount && (!keyCount || (keyCount == 4) || (keyCount == 8)))
+		{
 			// Extra gaps in top function key row
 			xCoord += topGapWidth;
+		}
 
 		if (keyCount == (p0RowKeys[rowCount] - 1))
+		{
 			// Gap for 2nd panel
 			xCoord = (keyboard->width - ((stdKeyWidth * 3) + 3));
+		}
 
 		if (scan == keyRShift)
+		{
 			// Key-sized gap beween right-shift and up-arrow
 			xCoord += (stdKeyWidth + 1);
+		}
 	}
 }
 
@@ -385,9 +393,11 @@ static void drawHorizArrow(windowKeyboard *keyboard, windowKey *key, int left,
 		params.yCoord1 -= (totalHeight / 2);
 
 		if (tail)
+		{
 			// Tail (for ENTER key)
 			windowComponentSetData(keyboard->canvas, &params, 1,
 				1 /* redraw */);
+		}
 
 		// If there's also a right arrow, prepare to draw it underneath
 		params.yCoord1 = params.yCoord2 = ((key->yCoord + 3) + totalHeight);
@@ -447,7 +457,7 @@ static void drawShiftArrow(windowKeyboard *keyboard, windowKey *key)
 	memcpy(&params.foreground, &keyboard->foreground, sizeof(color));
 
 	// Draw clockwise from the top.  First the right down-slope of the arrow
-	// head
+	// head.
 	params.xCoord1 = ((key->xCoord + 3) + (totalWidth / 2));
 	params.yCoord1 = (key->yCoord + 3);
 	params.xCoord2 = (params.xCoord1 + (totalWidth / 2));
@@ -727,14 +737,15 @@ static unsigned getKeyChar(windowKeyboard *keyboard, keyScan scan)
 		unicode = keyboard->map.regMap[scan];
 	}
 
-	return (charsetFromUnicode(keyboard->charsetName, unicode));
+	return (unicode);
 }
 
 
 static void drawKeyMapping(windowKeyboard *keyboard, windowKey *key,
 	int clear)
 {
-	char keyChar[2];
+	int bytes = 0;
+	char keyChar[MB_LEN_MAX + 1];
 	windowDrawParameters params;
 
 	// Clear our drawing parameters
@@ -760,15 +771,19 @@ static void drawKeyMapping(windowKeyboard *keyboard, windowKey *key,
 			0 /* no redraw */);
 	}
 
-	params.operation = draw_text;
-	params.font = keyboard->font;
-	memcpy(&params.background, &params.foreground, sizeof(color));
-	memcpy(&params.foreground, &keyboard->foreground, sizeof(color));
+	bytes = wctomb(keyChar, getKeyChar(keyboard, key->scan));
+	if (bytes >= 1)
+	{
+		keyChar[bytes] = '\0';
 
-	sprintf(keyChar, "%c", getKeyChar(keyboard, key->scan));
-	params.data = keyChar;
+		params.operation = draw_text;
+		params.font = keyboard->font;
+		memcpy(&params.background, &params.foreground, sizeof(color));
+		memcpy(&params.foreground, &keyboard->foreground, sizeof(color));
+		params.data = keyChar;
 
-	windowComponentSetData(keyboard->canvas, &params, 1, 1 /* redraw */);
+		windowComponentSetData(keyboard->canvas, &params, 1, 1 /* redraw */);
+	}
 }
 
 
@@ -787,7 +802,7 @@ static void drawKey(windowKeyboard *keyboard, windowKey *key)
 	params.width = key->width;
 	params.height = key->height;
 	params.thickness = 1;
-	memcpy(&params.foreground, &keyboard->foreground, sizeof(color));
+	COLOR_COPY(&params.foreground, &keyboard->foreground);
 	windowComponentSetData(keyboard->canvas, &params, 1, 0 /* no redraw */);
 
 	// Draw a slightly darker, inner body for the key
@@ -796,10 +811,8 @@ static void drawKey(windowKeyboard *keyboard, windowKey *key)
 	params.width -= 2;
 	params.height -= 2;
 	params.fill = 1;
-	memcpy(&params.foreground, &keyboard->background, sizeof(color));
-	params.foreground.red = ((params.foreground.red * 8) / 10);
-	params.foreground.green = ((params.foreground.green * 8) / 10);
-	params.foreground.blue = ((params.foreground.blue * 8) / 10);
+	COLOR_ADJUST(&params.foreground, &keyboard->background, 8,
+		10 /* 8/10ths */)
 	windowComponentSetData(keyboard->canvas, &params, 1, 0 /* no redraw */);
 
 	if (isPictureKey(key->scan))
@@ -816,8 +829,8 @@ static void drawKey(windowKeyboard *keyboard, windowKey *key)
 			params.yCoord1 += 1;
 			params.font = keyboard->smallFont;
 			params.data = (char *) key->string1;
-			memcpy(&params.background, &params.foreground, sizeof(color));
-			memcpy(&params.foreground, &keyboard->foreground, sizeof(color));
+			COLOR_COPY(&params.background, &params.foreground);
+			COLOR_COPY(&params.foreground, &keyboard->foreground);
 
 			windowComponentSetData(keyboard->canvas, &params, 1,
 				1 /* redraw */);
@@ -853,7 +866,7 @@ static void draw(windowKeyboard *keyboard)
 	params.height = keyboard->height;
 	params.thickness = 1;
 	params.fill = 1;
-	memcpy(&params.foreground, &keyboard->background, sizeof(color));
+	COLOR_COPY(&params.foreground, &keyboard->background);
 	windowComponentSetData(keyboard->canvas, &params, 1, 1 /* redraw */);
 
 	// Draw the keys
@@ -923,7 +936,7 @@ static void togglePressed(windowKeyboard *keyboard, windowKey *key)
 	params.height = (key->height - 2);
 	params.thickness = 1;
 	params.fill = 1;
-	memcpy(&params.foreground, &keyboard->foreground, sizeof(color));
+	COLOR_COPY(&params.foreground, &keyboard->foreground);
 
 	windowComponentSetData(keyboard->canvas, &params, 1, 1 /* redraw */);
 }
@@ -1143,7 +1156,7 @@ _X_ windowKeyboard *windowNewKeyboard(objectKey parent, int width, int height, v
 	int status = 0;
 	windowKeyboard *keyboard = NULL;
 	int keyHeight = 0;
-	color foreground = { 255, 255, 255 };
+	color foreground = COLOR_WHITE;
 
 	if (!libwindow_initialized)
 		libwindowInitialize();
@@ -1187,8 +1200,7 @@ _X_ windowKeyboard *windowNewKeyboard(objectKey parent, int width, int height, v
 	if (configGet(PATH_SYSTEM_CONFIG "/charset.conf", keyboard->map.language,
 		keyboard->charsetName, CHARSET_NAME_LEN) < 0)
 	{
-		strncpy(keyboard->charsetName, CHARSET_NAME_ISO_8859_15,
-			CHARSET_NAME_LEN);
+		strncpy(keyboard->charsetName, CHARSET_NAME_UTF8, CHARSET_NAME_LEN);
 	}
 
 	keyboard->width = width;
@@ -1196,19 +1208,29 @@ _X_ windowKeyboard *windowNewKeyboard(objectKey parent, int width, int height, v
 
 	// Was a foreground color specified?
 	if (params->flags & COMP_PARAMS_FLAG_CUSTOMFOREGROUND)
+	{
 		// Use the one we were given
-		memcpy(&keyboard->foreground, &params->foreground, sizeof(color));
+		COLOR_COPY(&keyboard->foreground, &params->foreground);
+	}
 	else
+	{
 		// Use our default
-		keyboard->foreground = foreground;
+		COLOR_COPY(&keyboard->foreground, &foreground);
+	}
 
 	// Was a background color specified?
 	if (params->flags & COMP_PARAMS_FLAG_CUSTOMBACKGROUND)
+	{
 		// Use the one we were given
-		memcpy(&keyboard->background, &params->background, sizeof(color));
+		COLOR_COPY(&keyboard->background, &params->background);
+	}
 	else
-		// Use the desktop color
-		windowGetColor(COLOR_SETTING_DESKTOP, &keyboard->background);
+	{
+		// Use a slightly darker version of the background color
+		windowGetColor(COLOR_SETTING_BACKGROUND, &keyboard->background);
+		COLOR_ADJUST(&keyboard->background, &keyboard->background, 3,
+			5 /* 3/5ths */);
+	}
 
 	// Try to load an appropriate fonts
 	keyHeight = getKeyHeight(keyboard);

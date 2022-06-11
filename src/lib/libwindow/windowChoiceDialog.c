@@ -19,7 +19,7 @@
 //  windowChoiceDialog.c
 //
 
-// This contains functions for user programs to operate GUI components.
+// This contains functions for user programs to operate GUI components
 
 #include <string.h>
 #include <sys/api.h>
@@ -63,7 +63,7 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 	if (numChoices > 16)
 		return (status = ERR_BOUNDS);
 
-	// Create the dialog.  Arbitrary size and coordinates
+	// Create the dialog.  Arbitrary size and coordinates.
 	if (parentWindow)
 		dialogWindow = windowNewDialog(parentWindow, title);
 	else
@@ -90,8 +90,7 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 		goto out;
 	}
 
-	params.padLeft = 0;
-	params.padTop = 0;
+	params.padLeft = params.padTop = 0;
 	params.orientationX = orient_right;
 	params.orientationY = orient_top;
 	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
@@ -107,7 +106,7 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 	}
 
 	// Create the label
-	params.gridX++;
+	params.gridX += 1;
 	params.padRight = 0;
 	params.orientationX = orient_left;
 	if (!windowNewTextLabel(container, message, &params))
@@ -118,7 +117,7 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 
 	// Create the container for the buttons
 	params.gridX = 0;
-	params.gridY++;
+	params.gridY += 1;
 	params.gridWidth = 2;
 	params.padBottom = 0;
 	params.orientationX = orient_center;
@@ -132,8 +131,7 @@ _X_ int windowNewChoiceDialog(objectKey parentWindow, const char *title, const c
 
 	// Create the buttons
 	params.gridWidth = 1;
-	params.padLeft = 2;
-	params.padRight = 2;
+	params.padLeft = params.padRight = 2;
 	params.padBottom = 0;
 	for (count = 0; count < numChoices; count ++)
 	{

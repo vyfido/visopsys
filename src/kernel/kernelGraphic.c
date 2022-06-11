@@ -36,6 +36,7 @@
 #include "kernelParameters.h"
 #include "kernelText.h"
 #include "kernelWindow.h"
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/color.h>
@@ -178,7 +179,8 @@ int kernelGraphicInitialize(kernelDevice *dev)
 
 	// Get a temporary text area for console output, and use the graphic
 	// screen as a temporary output
-	tmpConsole = kernelTextAreaNew(80, 50, 1, TEXT_DEFAULT_SCROLLBACKLINES);
+	tmpConsole = kernelTextAreaNew(80, 50, MB_LEN_MAX,
+		TEXT_DEFAULT_SCROLLBACKLINES);
 	if (!tmpConsole)
 		// Better not try to print any error messages...
 		return (status = ERR_NOTINITIALIZED);
@@ -617,8 +619,10 @@ int kernelGraphicDrawText(graphicBuffer *buffer, color *foreground,
 	// coordinates, with the supplied foreground and background colors.
 
 	int status = 0;
+	int printed = 0;
 	int length = 0;
 	unsigned unicode = 0;
+	int multiByte = 0;
 	int count1, count2;
 
 	// Make sure we've been initialized
@@ -651,6 +655,14 @@ int kernelGraphicDrawText(graphicBuffer *buffer, color *foreground,
 		{
 			unicode = text[count1];
 		}
+		else if (!strcmp(charSet, CHARSET_NAME_UTF8))
+		{
+			multiByte = mbtowc(&unicode, (text + count1), (length - count1));
+			if (multiByte < 0)
+				continue;
+			else if (multiByte > 1)
+				count1 += (multiByte - 1);
+		}
 		else
 		{
 			unicode = kernelCharsetToUnicode(charSet, (unsigned char)
@@ -669,6 +681,7 @@ int kernelGraphicDrawText(graphicBuffer *buffer, color *foreground,
 						background, xCoord, yCoord);
 
 					xCoord += font->glyphs[count2].img.width;
+					printed += 1;
 				}
 
 				break;
@@ -676,7 +689,7 @@ int kernelGraphicDrawText(graphicBuffer *buffer, color *foreground,
 		}
 	}
 
-	return (status = 0);
+	return (printed);
 }
 
 

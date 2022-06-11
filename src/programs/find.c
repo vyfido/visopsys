@@ -124,10 +124,14 @@ int main(int argc, char *argv[])
 	}
 
 	if (argc == 1)
+	{
 		// No args.  Assume current directory.
 		strcpy(fileName, ".");
+	}
 	else
+	{
 		strcpy(fileName, argv[1]);
+	}
 
 	// Remove any trailing separators
 	lastChar = (strlen(fileName) - 1);

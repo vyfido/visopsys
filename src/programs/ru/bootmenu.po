@@ -8,19 +8,19 @@ msgid ""
 msgstr ""
 "Project-Id-Version: bootmenu\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-08 00:54+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
 #: bootmenu.c:61
 msgid "Boot Menu Installer"
-msgstr "ГбвРЭЮТйШЪ ЧРУагЧЮзЭЮУЮ ЬХЭо"
+msgstr "РЈСЃС‚Р°РЅРѕРІС‰РёРє Р·Р°РіСЂСѓР·РѕС‡РЅРѕРіРѕ РјРµРЅСЋ"
 
 #: bootmenu.c:66
 msgid ""
@@ -40,39 +40,39 @@ msgstr ""
 
 #: bootmenu.c:70
 msgid "Partitions on the disk:"
-msgstr "АРЧФХЫл ЭР ФШбЪХ:"
+msgstr "Р Р°Р·РґРµР»С‹ РЅР° РґРёСЃРєРµ:"
 
 #: bootmenu.c:71
 msgid "Chain-loadable entries for the boot menu:"
-msgstr "ІвЮаШзЭЮ-ЧРУагЦРХЬлХ нЫХЬХЭвл ФЫп ЧРУагЧЮзЭЮУЮ ЬХЭо:"
+msgstr "Р’С‚РѕСЂРёС‡РЅРѕ-Р·Р°РіСЂСѓР¶Р°РµРјС‹Рµ СЌР»РµРјРµРЅС‚С‹ РґР»СЏ Р·Р°РіСЂСѓР·РѕС‡РЅРѕРіРѕ РјРµРЅСЋ:"
 
 #: bootmenu.c:72
 msgid "Edit"
-msgstr "їаРТЪР"
+msgstr "РџСЂР°РІРєР°"
 
 #: bootmenu.c:73
 msgid "Default"
-msgstr "їЮ гЬЮЫзРЭШо"
+msgstr "РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ"
 
 #: bootmenu.c:74
 msgid "Delete"
-msgstr "ГФРЫШвм"
+msgstr "РЈРґР°Р»РёС‚СЊ"
 
 #: bootmenu.c:75
 msgid "Automatically boot default selection after (seconds)"
-msgstr "°ТвЮЬРвШзХбЪРп ЧРУагЧЪР ТлСаРЭЭЮУЮ нЫХЬХЭвР зХаХЧ (бХЪгЭФ)"
+msgstr "РђРІС‚РѕРјР°С‚РёС‡РµСЃРєР°СЏ Р·Р°РіСЂСѓР·РєР° РІС‹Р±СЂР°РЅРЅРѕРіРѕ СЌР»РµРјРµРЅС‚Р° С‡РµСЂРµР· (СЃРµРєСѓРЅРґ)"
 
 #: bootmenu.c:77
 msgid "OK"
-msgstr "ѕє"
+msgstr "РћРљ"
 
 #: bootmenu.c:78
 msgid "Cancel"
-msgstr "ѕвЬХЭР"
+msgstr "РћС‚РјРµРЅР°"
 
 #: bootmenu.c:79
 msgid "Boot menu written."
-msgstr "·РУагЧЮзЭЮХ ЬХЭо ЧРЯШбРЭЮ"
+msgstr "Р—Р°РіСЂСѓР·РѕС‡РЅРѕРµ РјРµРЅСЋ Р·Р°РїРёСЃР°РЅРѕ"
 
 #: bootmenu.c:120
 #, c-format
@@ -80,16 +80,16 @@ msgid ""
 "usage:\n"
 "%s <disk name>\n"
 msgstr ""
-"ШбЯЮЫмЧЮТРЭШХ:\n"
-"%s <ШЬп_ФШбЪР>\n"
+"РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРµ:\n"
+"%s <РёРјСЏ_РґРёСЃРєР°>\n"
 
 #: bootmenu.c:137
 msgid "Error"
-msgstr "ѕиШСЪР"
+msgstr "РћС€РёР±РєР°"
 
 #: bootmenu.c:212
 msgid "Edit entry label"
-msgstr "АХФРЪвШаЮТРвм ЬХвЪг нЫХЬХЭвР"
+msgstr "Р РµРґР°РєС‚РёСЂРѕРІР°С‚СЊ РјРµС‚РєСѓ СЌР»РµРјРµРЅС‚Р°"
 
 #: bootmenu.c:284
 #, c-format
@@ -98,33 +98,31 @@ msgid ""
 " [%s]\n"
 " ["
 msgstr ""
-"ІТХФШвХ ЭЮТго ЬХвЪг (ЬРЪб. бШЬТЮЫЮТ %d):\n"
+"Р’РІРµРґРёС‚Рµ РЅРѕРІСѓСЋ РјРµС‚РєСѓ (РјР°РєСЃ. СЃРёРјРІРѕР»РѕРІ %d):\n"
 " [%s]\n"
 " ["
 
 #: bootmenu.c:363
 msgid "Can't get memory for the logical disk list"
-msgstr "ЅХ ЬЮУг ЯЮЫгзШвм ЯРЬпвм ФЫп бЯШбЪР ЫЮУШзХбЪШе ФШбЪЮТ"
+msgstr "РќРµ РјРѕРіСѓ РїРѕР»СѓС‡РёС‚СЊ РїР°РјСЏС‚СЊ РґР»СЏ СЃРїРёСЃРєР° Р»РѕРіРёС‡РµСЃРєРёС… РґРёСЃРєРѕРІ"
 
 #: bootmenu.c:370
-#, fuzzy
 msgid "Can't get the logical disk list"
-msgstr "ЅХ ЬЮУг ЯЮЫгзШвм бЯШбЮЪ ЫЮУШзХбЪШе ФШбЪЮТ\n"
+msgstr "РќРµ РјРѕРіСѓ РїРѕР»СѓС‡РёС‚СЊ СЃРїРёСЃРѕРє Р»РѕРіРёС‡РµСЃРєРёС… РґРёСЃРєРѕРІ"
 
 #: bootmenu.c:401
-#, fuzzy, c-format
+#, c-format
 msgid "Can't open %s file"
-msgstr "ЅХ ЬЮУг ЮвЪалвм дРЩЫ %s\n"
+msgstr "РќРµ РјРѕРіСѓ РѕС‚РєСЂС‹С‚СЊ С„Р°Р№Р» %s"
 
 #: bootmenu.c:408
-#, fuzzy
 msgid "Can't get buffer memory"
-msgstr "ЅХ ЬЮУг ЯЮЫгзШвм СгдХа ЯРЬпвШ\n"
+msgstr "РќРµ РјРѕРіСѓ РїРѕР»СѓС‡РёС‚СЊ Р±СѓС„РµСЂ РїР°РјСЏС‚Рё"
 
 #: bootmenu.c:415
-#, fuzzy, c-format
+#, c-format
 msgid "Can't read %s file"
-msgstr "ЅХ ЬЮУг ЯаЮзШвРвм дРЩЫ %s\n"
+msgstr "РќРµ РјРѕРіСѓ РїСЂРѕС‡РёС‚Р°С‚СЊ С„Р°Р№Р» %s"
 
 #: bootmenu.c:484
 #, c-format
@@ -135,52 +133,51 @@ msgid ""
 "  Chain-loadable: %s\n"
 "\n"
 msgstr ""
-"ґШбЪ %s\n"
-"  јХвЪР: %s\n"
-"  ДРЩЫЮТРп бШбвХЬп: %s\n"
+"Р”РёСЃРє %s\n"
+"  РњРµС‚РєР°: %s\n"
+"  Р¤Р°Р№Р»РѕРІР°СЏ СЃРёСЃС‚РµРјСЏ: %s\n"
 "  Chain-loadable: %s\n"
 "\n"
 
 #: bootmenu.c:487
 msgid "yes"
-msgstr "ФР"
+msgstr "РґР°"
 
 #: bootmenu.c:487
 msgid "no"
-msgstr "ЭХв"
+msgstr "РЅРµС‚"
 
 #: bootmenu.c:697
-#, fuzzy
 msgid "Can't write boot menu"
-msgstr "ЅХ ЬЮУг ЧРЯШбРвм ЧРУагЧЮзЭЮХ ЬХЭо\n"
+msgstr "РќРµ РјРѕРіСѓ Р·Р°РїРёСЃР°С‚СЊ Р·Р°РіСЂСѓР·РѕС‡РЅРѕРµ РјРµРЅСЋ"
 
 #: bootmenu.c:709
-#, fuzzy, c-format
+#, c-format
 msgid "Can't write MBR %s to %s"
-msgstr "ЅХ ЬЮУг ЧРЯШбРвм MBR %s ЭР %s\n"
+msgstr "РќРµ РјРѕРіСѓ Р·Р°РїРёСЃР°С‚СЊ MBR %s РЅР° %s"
 
 #: bootmenu.c:749
 msgid "Permission Denied"
-msgstr "ґЮбвгЯ ЧРЯаХйХЭ"
+msgstr "Р”РѕСЃС‚СѓРї Р·Р°РїСЂРµС‰РµРЅ"
 
 #: bootmenu.c:760
-#, fuzzy, c-format
+#, c-format
 msgid "Can't get disk %s"
-msgstr "ЅХ ЬЮУг ЯЮЫгзШвм ФШбЪ\n"
+msgstr "РќРµ РјРѕРіСѓ РїРѕР»СѓС‡РёС‚СЊ РґРёСЃРє %s"
 
 #: bootmenu.c:769
-#, fuzzy, c-format
+#, c-format
 msgid "Disk %s is not a physical hard disk device"
-msgstr "ґШбЪ  %s ЭХ дШЧШзХбЪШЩ ЭЮбШвХЫм\n"
+msgstr "Р”РёСЃРє %s РЅРµ С„РёР·РёС‡РµСЃРєРёР№ РЅРѕСЃРёС‚РµР»СЊ"
 
 #: bootmenu.c:777
 msgid "Can't get the list of logical disks"
-msgstr "ЅХ ЬЮУг ЯЮЫгзШвм бЯШбЮЪ ЫЮУШзХбЪШе ФШбЪЮТ"
+msgstr "РќРµ РјРѕРіСѓ РїРѕР»СѓС‡РёС‚СЊ СЃРїРёСЃРѕРє Р»РѕРіРёС‡РµСЃРєРёС… РґРёСЃРєРѕРІ"
 
 #: bootmenu.c:832
 #, c-format
 msgid "\"%s\" [Filesystem: %s]"
-msgstr "\"%s\" [дРЩЫЮТРп бШбвХЬР: %s]"
+msgstr "\"%s\" [С„Р°Р№Р»РѕРІР°СЏ СЃРёСЃС‚РµРјР°: %s]"
 
 #: bootmenu.c:857
 msgid "There are no chain-loadable operating systems on this disk."
@@ -193,14 +190,13 @@ msgid ""
 "   'd' delete, Enter to accept, 'Q' to quit]"
 msgstr ""
 "\n"
-"  [ІлСЮа - бваХЫЪШ ТТХае/ТЭШЧ, 'e' - аХФРЪвШаЮТРвм, '*' - ЯЮ гЬЮЫзРЭШо\n"
-"   'd' - гФРЫШвм, Enter - ЯаШЭпвм, 'Q' - ТлеЮФ]"
+"  [Р’С‹Р±РѕСЂ - СЃС‚СЂРµР»РєРё РІРІРµСЂС…/РІРЅРёР·, 'e' - СЂРµРґР°РєС‚РёСЂРѕРІР°С‚СЊ, '*' - РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ\n"
+"   'd' - СѓРґР°Р»РёС‚СЊ, Enter - РїСЂРёРЅСЏС‚СЊ, 'Q' - РІС‹С…РѕРґ]"
 
 #: bootmenu.c:968
-#, fuzzy
 msgid "Can't write boot menu or MBR"
-msgstr "ЅХ ЬЮУг ЧРЯШбРвм ЬХЭо ШЫШ MBR\n"
+msgstr "РќРµ РјРѕРіСѓ Р·Р°РїРёСЃР°С‚СЊ РјРµРЅСЋ РёР»Рё MBR"
 
 #: bootmenu.c:976
 msgid "Done"
-msgstr "іЮвЮТЮ"
+msgstr "Р“РѕС‚РѕРІРѕ"

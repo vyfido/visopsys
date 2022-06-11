@@ -29,11 +29,13 @@
 #include "kernelNetworkArp.h"
 #include "kernelNetworkDevice.h"
 #include "kernelNetworkDhcp.h"
+#include "kernelNetworkDns.h"
 #include "kernelNetworkEthernet.h"
 #include "kernelNetworkIcmp.h"
 #include "kernelNetworkIp4.h"
 #include "kernelNetworkLoopDriver.h"
 #include "kernelNetworkStream.h"
+#include "kernelNetworkTcp.h"
 #include "kernelNetworkUdp.h"
 #include "kernelRtc.h"
 #include <stdlib.h>
@@ -184,8 +186,10 @@ static void networkThread(void)
 				status = kernelNetworkPacketStreamRead(&netDev->inputStream,
 					&packet);
 				if (status < 0)
+				{
 					// Try the next device
 					break;
+				}
 
 				kernelDebug(debug_net, "NET thread read a packet");
 
@@ -232,9 +236,18 @@ static void networkThread(void)
 					kernelDebug(debug_net, "NET thread found a suitable "
 						"connection");
 
+					if (packet->transProtocol == NETWORK_TRANSPROTOCOL_TCP)
+					{
+						status = kernelNetworkTcpProcessPacket(connection,
+							packet, 0 /* not reprocessing */);
+						if (status < 0)
+							goto nextConnection;
+					}
+
 					// Deliver the data to the connection
 					kernelNetworkDeliverData(connection, packet);
 
+				nextConnection:
 					// Continue for other connections that match
 					connection = findMatchFilter(&netDev->connections,
 						&iter, packet);
@@ -250,8 +263,10 @@ static void networkThread(void)
 				status = kernelNetworkPacketStreamRead(&netDev->outputStream,
 					&packet);
 				if (status < 0)
+				{
 					// Try the next device
 					break;
+				}
 
 				// Send it
 
@@ -267,6 +282,25 @@ static void networkThread(void)
 			}
 
 			// Do any additional time-based processing
+
+			iter = NULL;
+			connection = linkedListIterStart((linkedList *)
+				&netDev->connections, &iter);
+
+			while (connection)
+			{
+				if ((connection->filter.flags &
+						NETWORK_FILTERFLAG_TRANSPROTOCOL) &&
+					(connection->filter.transProtocol ==
+						NETWORK_TRANSPROTOCOL_TCP))
+				{
+					//kernelDebug(debug_net, "NET thread TCP thread call");
+					kernelNetworkTcpThreadCall(connection);
+				}
+
+				connection = linkedListIterNext((linkedList *)
+					&netDev->connections, &iter);
+			}
 		}
 
 		// Finished for this time slice
@@ -499,8 +533,10 @@ int kernelNetworkInitialize(void)
 	int deviceCount, count;
 
 	if (initialized)
+	{
 		// Nothing to do.  No error.
 		return (status = 0);
+	}
 
 	hostName = kernelMalloc(NETWORK_MAX_HOSTNAMELENGTH + 1);
 	if (!hostName)
@@ -609,15 +645,6 @@ kernelNetworkConnection *kernelNetworkConnectionOpen(
 		}
 	}
 
-	if ((filter->flags & NETWORK_FILTERFLAG_TRANSPROTOCOL) &&
-		(filter->transProtocol == NETWORK_TRANSPROTOCOL_TCP))
-	{
-		// Not currently supported
-		kernelError(kernel_error, "TCP connections are currently "
-			"unsupported");
-		return (connection = NULL);
-	}
-
 	// Allocate memory for the connection structure
 	connection = kernelMalloc(sizeof(kernelNetworkConnection));
 	if (!connection)
@@ -659,6 +686,8 @@ kernelNetworkConnection *kernelNetworkConnectionOpen(
 
 		if (filter->localPort <= 0)
 		{
+			if (connection->inputStream.buffer)
+				kernelStreamDestroy(&connection->inputStream);
 			kernelFree((void *) connection);
 			return (connection = NULL);
 		}
@@ -676,10 +705,40 @@ kernelNetworkConnection *kernelNetworkConnectionOpen(
 			((unsigned long) connection & 0xFFFF);
 	}
 
+	if ((connection->filter.flags & NETWORK_FILTERFLAG_TRANSPROTOCOL) &&
+		(connection->filter.transProtocol == NETWORK_TRANSPROTOCOL_TCP))
+	{
+		if (mode & NETWORK_MODE_LISTEN)
+		{
+			// Listening connection
+			connection->tcp.state = tcp_listen;
+		}
+		else
+		{
+			// Closed connection
+			connection->tcp.state = tcp_closed;
+		}
+	}
+
 	// Add the connection to the device's list
 	connection->netDev = netDev;
 	linkedListAddBack((linkedList *) &netDev->connections, (void *)
 		connection);
+
+	// The connection now officially exists.  kernelNetworkConnectionClose()
+	// should be used to cancel it.
+
+	// If we are initiating a TCP connection, connect to the destination host
+	if ((connection->filter.flags & NETWORK_FILTERFLAG_TRANSPROTOCOL) &&
+		(connection->filter.transProtocol == NETWORK_TRANSPROTOCOL_TCP) &&
+		!(mode & NETWORK_MODE_LISTEN))
+	{
+		if (kernelNetworkTcpOpenConnection(connection) < 0)
+		{
+			kernelNetworkConnectionClose(connection, 0 /* not polite */);
+			return (connection = NULL);
+		}
+	}
 
 	return (connection);
 }
@@ -697,6 +756,12 @@ int kernelNetworkConnectionClose(kernelNetworkConnection *connection,
 
 	if (polite)
 	{
+		// If this is a TCP connection, close it with the destination host
+		if ((connection->filter.flags & NETWORK_FILTERFLAG_TRANSPROTOCOL) &&
+			(connection->filter.transProtocol == NETWORK_TRANSPROTOCOL_TCP))
+		{
+			kernelNetworkTcpCloseConnection(connection);
+		}
 	}
 
 	// If there's an input stream, deallocate it
@@ -833,6 +898,11 @@ int kernelNetworkSetupReceivedPacket(kernelNetworkPacket *packet)
 		case NETWORK_TRANSPROTOCOL_ICMP:
 			kernelDebug(debug_net, "NET setup received ICMP packet");
 			status = kernelNetworkIcmpSetupReceivedPacket(packet);
+			break;
+
+		case NETWORK_TRANSPROTOCOL_TCP:
+			kernelDebug(debug_net, "NET setup received TCP packet");
+			status = kernelNetworkTcpSetupReceivedPacket(packet);
 			break;
 
 		case NETWORK_TRANSPROTOCOL_UDP:
@@ -976,6 +1046,7 @@ int kernelNetworkSetupSendPacket(kernelNetworkConnection *connection,
 	switch (packet->transProtocol)
 	{
 		case NETWORK_TRANSPROTOCOL_ICMP:
+		case NETWORK_TRANSPROTOCOL_TCP:
 		case NETWORK_TRANSPROTOCOL_UDP:
 			packet->netProtocol = NETWORK_NETPROTOCOL_IP4;
 			kernelNetworkIp4PrependHeader(packet);
@@ -994,6 +1065,10 @@ int kernelNetworkSetupSendPacket(kernelNetworkConnection *connection,
 	// Prepend the transport protocol header, if applicable
 	switch (packet->transProtocol)
 	{
+		case NETWORK_TRANSPROTOCOL_TCP:
+			kernelNetworkTcpPrependHeader(packet);
+			break;
+
 		case NETWORK_TRANSPROTOCOL_UDP:
 			kernelNetworkUdpPrependHeader(packet);
 			break;
@@ -1004,7 +1079,7 @@ int kernelNetworkSetupSendPacket(kernelNetworkConnection *connection,
 
 
 void kernelNetworkFinalizeSendPacket(kernelNetworkConnection *connection,
-	kernelNetworkPacket *packet)
+	kernelNetworkPacket *packet, int retransmit, int last)
 {
 	// This does any required finalizing and checksumming of a packet before
 	// it is to be sent
@@ -1020,6 +1095,11 @@ void kernelNetworkFinalizeSendPacket(kernelNetworkConnection *connection,
 
 	switch (packet->transProtocol)
 	{
+		case NETWORK_TRANSPROTOCOL_TCP:
+			kernelNetworkTcpFinalizeSendPacket(connection, packet, retransmit,
+				last);
+			break;
+
 		case NETWORK_TRANSPROTOCOL_UDP:
 			kernelNetworkUdpFinalizeSendPacket(packet);
 			break;
@@ -1074,8 +1154,10 @@ int kernelNetworkSendData(kernelNetworkConnection *connection,
 	int count;
 
 	if (!bufferSize)
+	{
 		// Nothing to do, we guess.  Should be an error, we suppose.
 		return (status = ERR_NODATA);
+	}
 
 	// Loop for each packet while there's still data in the buffer
 	for (count = 0; bufferSize > 0; count ++)
@@ -1103,8 +1185,16 @@ int kernelNetworkSendData(kernelNetworkConnection *connection,
 
 		packet->length = (packet->dataOffset + packet->dataLength);
 
+		// This is probably in the wrong place.  It does TCP state checking
+		// and updating, and adding to the retransmit queue. That code could
+		// possibly move to kernelNetworkTcpFinalizeSendPacket().
+		if (packet->transProtocol == NETWORK_TRANSPROTOCOL_TCP)
+			kernelNetworkTcpSendState(connection, packet);
+
 		// Finalize checksums, etc
-		kernelNetworkFinalizeSendPacket(connection, packet);
+		kernelNetworkFinalizeSendPacket(connection, packet,
+			0 /* not a re-transmit */, (packet->dataLength >=
+			bufferSize) /* last packet? */);
 
 		// Make the packet length even
 		if (packet->length % 2)
@@ -1161,8 +1251,10 @@ int kernelNetworkEnable(void)
 	}
 
 	if (enabled)
+	{
 		// Nothing to do.  No error.
 		return (status = 0);
+	}
 
 	if (kernelVariables)
 	{
@@ -1215,8 +1307,10 @@ int kernelNetworkDisable(void)
 	int count;
 
 	if (!enabled)
+	{
 		// Nothing to do.  No error.
 		return (status = 0);
+	}
 
 	// Close all connections
 	for (count = 0; count < numDevices; count ++)
@@ -1226,7 +1320,7 @@ int kernelNetworkDisable(void)
 
 		while (connection)
 		{
-			kernelNetworkClose(connection);
+			kernelNetworkConnectionClose(connection, 0 /* not polite */);
 
 			connection = linkedListIterNext((linkedList *)
 				&devices[count]->connections, &iter);
@@ -1312,8 +1406,21 @@ int kernelNetworkAlive(kernelNetworkConnection *connection)
 	}
 
 	if (!connectionExists(connection))
+	{
 		// No longer exists
 		return (0);
+	}
+
+	// Does the transport protocol indicate whether the connection is alive?
+	if ((connection->filter.flags & NETWORK_FILTERFLAG_TRANSPROTOCOL) &&
+		(connection->filter.transProtocol == NETWORK_TRANSPROTOCOL_TCP))
+	{
+		if ((connection->tcp.state == tcp_closed) ||
+			(connection->tcp.state > tcp_established))
+		{
+			return (0);
+		}
+	}
 
 	return (1);
 }
@@ -1465,7 +1572,7 @@ int kernelNetworkConnectionGetAll(networkConnection *userConnArray,
 					connection->netDev->device.name,
 					NETWORK_DEVICE_MAX_NAMELENGTH);
 			}
-			userConn->tcpState = tcp_closed;
+			userConn->tcpState = connection->tcp.state;
 
 			if (++connCount >= doConns)
 				return (status = 0);
@@ -1680,6 +1787,7 @@ int kernelNetworkGetHostName(char *buffer, int bufferSize)
 		return (status = ERR_NULLPARAMETER);
 
 	strncpy(buffer, hostName, min(bufferSize, NETWORK_MAX_HOSTNAMELENGTH));
+
 	return (status = 0);
 }
 
@@ -1701,6 +1809,7 @@ int kernelNetworkSetHostName(const char *buffer, int bufferSize)
 		return (status = ERR_NULLPARAMETER);
 
 	strncpy(hostName, buffer, min(bufferSize, NETWORK_MAX_HOSTNAMELENGTH));
+
 	return (status = 0);
 }
 
@@ -1723,6 +1832,7 @@ int kernelNetworkGetDomainName(char *buffer, int bufferSize)
 
 	strncpy(buffer, domainName, min(bufferSize,
 		NETWORK_MAX_DOMAINNAMELENGTH));
+
 	return (status = 0);
 }
 
@@ -1747,5 +1857,103 @@ int kernelNetworkSetDomainName(const char *buffer, int bufferSize)
 		NETWORK_MAX_DOMAINNAMELENGTH));
 
 	return (status = 0);
+}
+
+
+int kernelNetworkLookupNameAddress(const char *name, networkAddress *address,
+	int *addressType)
+{
+	// Generic name service call (queries DNS) to look up an address for a
+	// hostname
+
+	int status = 0;
+	int count;
+
+	if (!enabled)
+	{
+		kernelError(kernel_error, "Networking is not enabled");
+		return (status = ERR_NOTINITIALIZED);
+	}
+
+	// Make sure the network thread is running
+	checkSpawnNetworkThread();
+
+	// Check params.  addressType may be NULL.
+	if (!name || !address)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	// Try any device that's running, not loopback, and has a DNS address set
+	for (count = 0; count < numDevices; count ++)
+	{
+		if ((devices[count]->device.flags & NETWORK_DEVICEFLAG_RUNNING) &&
+			(devices[count]->device.linkProtocol !=
+				NETWORK_LINKPROTOCOL_LOOP) &&
+			!networkAddressEmpty(&devices[count]->device.dnsAddress,
+				sizeof(networkAddress)))
+		{
+			status = kernelNetworkDnsQueryNameAddress(devices[count], name,
+				address, addressType);
+			if (status >= 0)
+			{
+				// Success
+				return (status);
+			}
+		}
+	}
+
+	// Not found
+	return (status = ERR_HOSTUNKNOWN);
+}
+
+
+int kernelNetworkLookupAddressName(const networkAddress *address, char *name,
+	unsigned nameLen)
+{
+	// Reverse name service call (queries DNS) to look up a hostname for an
+	// address
+
+	int status = 0;
+	int count;
+
+	if (!enabled)
+	{
+		kernelError(kernel_error, "Networking is not enabled");
+		return (status = ERR_NOTINITIALIZED);
+	}
+
+	// Make sure the network thread is running
+	checkSpawnNetworkThread();
+
+	// Check params
+	if (!address || !name || !nameLen)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	// Try any device that's running, not loopback, and has a DNS address set
+	for (count = 0; count < numDevices; count ++)
+	{
+		if ((devices[count]->device.flags & NETWORK_DEVICEFLAG_RUNNING) &&
+			(devices[count]->device.linkProtocol !=
+				NETWORK_LINKPROTOCOL_LOOP) &&
+			!networkAddressEmpty(&devices[count]->device.dnsAddress,
+				sizeof(networkAddress)))
+		{
+			status = kernelNetworkDnsQueryAddressName(devices[count], address,
+				name, nameLen);
+			if (status >= 0)
+			{
+				// Success
+				return (status);
+			}
+		}
+	}
+
+	// Not found
+	return (status = ERR_HOSTUNKNOWN);
 }
 

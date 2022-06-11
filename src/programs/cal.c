@@ -48,6 +48,7 @@ Options:
 #include <unistd.h>
 #include <sys/api.h>
 #include <sys/env.h>
+#include <sys/font.h>
 
 #define _(string) gettext(string)
 #define gettext_noop(string) (string)
@@ -93,14 +94,14 @@ static int dayOfWeek = 0;
 
 // For graphics mode
 static objectKey window = NULL;
-static objectKey plusMonthButton  = NULL;
-static objectKey minusMonthButton = NULL;
-static objectKey plusYearButton  = NULL;
-static objectKey minusYearButton = NULL;
 static objectKey monthLabel = NULL;
 static objectKey yearLabel = NULL;
 static objectKey calList = NULL;
 static listItemParameters *calListParams = NULL;
+static objectKey minusMonthButton = NULL;
+static objectKey plusMonthButton  = NULL;
+static objectKey minusYearButton = NULL;
+static objectKey plusYearButton  = NULL;
 
 
 static int leapYear(int y)
@@ -159,8 +160,6 @@ static void textCalendar(void)
 
 	if (dayOfWeek != 6)
 		printf("\n");
-
-	return;
 }
 
 
@@ -170,11 +169,11 @@ static void initCalListParams(void)
 	int firstDay = rtcDayOfWeek(1, month, year);
 	int count;
 
-	for (count = 0; count < 49; count++)
-		sprintf(calListParams[count].text, "  ");
-
 	for (count = 0; count < 7; count++)
 		sprintf(calListParams[count].text, "%s", _(weekDay[count]));
+
+	for (count = 7; count < 49; count++)
+		sprintf(calListParams[count].text, "  ");
 
 	for (count = 1; count <= days; count++)
 		sprintf(calListParams[count + 6 + firstDay].text, "%2i", count);
@@ -183,15 +182,74 @@ static void initCalListParams(void)
 
 static void getUpdate(void)
 {
-	char yearString[5];
+	char monthYearString[32];
 
 	initCalListParams();
 
-	itoa(year, yearString);
+	// Set the month and year labels
+
+	snprintf(monthYearString, sizeof(monthYearString), "%s",
+		_(monthName[month - 1]));
+
+	windowComponentSetData(monthLabel, monthYearString,
+		strlen(monthYearString), 1 /* redraw */);
+
+	snprintf(monthYearString, sizeof(monthYearString), "%d", year);
+
+	windowComponentSetData(yearLabel, monthYearString,
+		strlen(monthYearString), 1 /* redraw */);
+
+	// Set the calendar contents
+
+	windowComponentSetSelected(calList, -1);
+
 	windowComponentSetData(calList, calListParams, 49, 1 /* redraw */);
-	windowComponentSetData(monthLabel, _(monthName[month - 1]), 10,
-		1 /* redraw */);
-	windowComponentSetData(yearLabel, yearString, 4, 1 /* redraw */);
+
+	if ((month == rtcReadMonth()) && (year == rtcReadYear()))
+	{
+		windowComponentSetSelected(calList, (6 + rtcDayOfWeek(1, month,
+			year) + date));
+	}
+
+	// Set the plus-minus month buttons
+
+	if (month > 1)
+	{
+		snprintf(monthYearString, sizeof(monthYearString), "<< %s",
+			_(monthName[month - 2]));
+	}
+	else
+	{
+		snprintf(monthYearString, sizeof(monthYearString), "<< %s",
+			_(monthName[11]));
+	}
+
+	windowComponentSetData(minusMonthButton, monthYearString,
+		strlen(monthYearString), 1 /* redraw */);
+
+	if (month < 12)
+	{
+		snprintf(monthYearString, sizeof(monthYearString), "%s >>",
+			_(monthName[month]));
+	}
+	else
+	{
+		snprintf(monthYearString, sizeof(monthYearString), "%s >>",
+			_(monthName[0]));
+	}
+
+	windowComponentSetData(plusMonthButton, monthYearString,
+		strlen(monthYearString), 1 /* redraw */);
+
+	// Set the plus-minus year buttons
+
+	sprintf(monthYearString, "<< %d", (year - 1));
+	windowComponentSetData(minusYearButton, monthYearString,
+		strlen(monthYearString), 1 /* redraw */);
+
+	sprintf(monthYearString, "%d >>", (year + 1));
+	windowComponentSetData(plusYearButton, monthYearString,
+		strlen(monthYearString), 1 /* redraw */);
 }
 
 
@@ -221,7 +279,7 @@ static void refreshWindow(void)
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
-	// Check for window events.
+	// Check for window events
 	if (key == window)
 	{
 		// Check for window refresh
@@ -236,16 +294,31 @@ static void eventHandler(objectKey key, windowEvent *event)
 	else if (event->type == WINDOW_EVENT_MOUSE_LEFTUP)
 	{
 		if (key == minusMonthButton)
-			month = ((month > 1)? (month - 1) : 12);
-
+		{
+			month -= 1;
+			if (month < 1)
+			{
+				month = 12;
+				year -= 1;
+			}
+		}
 		else if (key == plusMonthButton)
-			month = ((month < 12)? (month + 1) : 1);
-
+		{
+			month += 1;
+			if (month > 12)
+			{
+				month = 1;
+				year += 1;
+			}
+		}
 		else if (key == minusYearButton)
+		{
 			year = ((year >= 1900)? (year - 1) : 1900);
-
+		}
 		else if (key == plusYearButton)
+		{
 			year = ((year <= 3000)? (year + 1) : 3000);
+		}
 
 		if ((key == minusMonthButton) || (key == plusMonthButton) ||
 			(key == minusYearButton) || (key == plusYearButton))
@@ -253,8 +326,6 @@ static void eventHandler(objectKey key, windowEvent *event)
 			getUpdate();
 		}
 	}
-
-	return;
 }
 
 
@@ -262,7 +333,6 @@ static void constructWindow(void)
 {
 	objectKey container = NULL;
 	componentParameters params;
-	struct tm theTime;
 
 	window = windowNew(multitaskerGetCurrentProcessId(), WINDOW_TITLE);
 	if (!window)
@@ -271,63 +341,82 @@ static void constructWindow(void)
 	memset(&params, 0, sizeof(componentParameters));
 	params.gridWidth = 1;
 	params.gridHeight = 1;
-	params.orientationX = orient_center;
+	params.padTop = params.padLeft = params.padRight = 5;
+	params.orientationX = orient_left;
 	params.orientationY = orient_middle;
-	params.flags = COMP_PARAMS_FLAG_FIXEDWIDTH;
+	params.font = fontGet(FONT_FAMILY_ARIAL, FONT_STYLEFLAG_BOLD, 20,
+		NULL /* charSet */);
+	monthLabel = windowNewTextLabel(window, "", &params);
 
-	params.padLeft = params.padTop = params.padRight = 5;
-	container = windowNewContainer(window, "container", &params);
+	params.gridX += 1;
+	params.orientationX = orient_right;
+	yearLabel = windowNewTextLabel(window, "", &params);
 
-	params.padLeft = params.padTop = params.padRight = 0;
-	minusMonthButton = windowNewButton(container, "<", NULL, &params);
+	params.gridWidth = 2;
+	params.gridX = 0;
+	params.gridY += 1;
+	params.padLeft = params.padRight = 5;
+	params.orientationX = orient_center;
+	params.flags = (COMP_PARAMS_FLAG_FIXEDWIDTH |
+		COMP_PARAMS_FLAG_NOSCROLLBARS);
+	initCalListParams();
+	calList = windowNewList(window, windowlist_textonly, 7 /* rows */,
+		7 /* columns */, 0 /* selectMultiple */, calListParams,
+		49 /* numItems */, &params);
+
+	params.gridY += 1;
+	params.padBottom = 5;
+	params.font = NULL;
+	params.flags = 0;
+	container = windowNewContainer(window, "buttonContainer", &params);
+
+	params.gridWidth = 1;
+	params.gridX = params.gridY = 0;
+	params.padTop = params.padBottom = params.padLeft = 0;
+	params.padRight = 3;
+	params.orientationX = orient_right;
+	params.font = fontGet(FONT_FAMILY_LIBMONO, FONT_STYLEFLAG_BOLD, 8,
+		NULL /* charSet */);
+	minusMonthButton = windowNewButton(container, "<< XXXXXXXXX", NULL,
+		&params);
 	windowRegisterEventHandler(minusMonthButton, &eventHandler);
 
 	params.gridX += 1;
-	params.padLeft = 5;
-	plusMonthButton = windowNewButton(container, ">", NULL, &params);
+	params.padLeft = 3;
+	params.padRight = 5;
+	params.orientationX = orient_left;
+	plusMonthButton = windowNewButton(container, "XXXXXXXXX >>", NULL,
+		&params);
 	windowRegisterEventHandler(plusMonthButton, &eventHandler);
 
 	params.gridX += 1;
-	monthLabel = windowNewTextLabel(container, "XXXXXXXXX", &params);
-	windowComponentSetWidth(monthLabel, 80);
-
-	params.gridX += 1;
-	yearLabel = windowNewTextLabel(container, "XXXX", &params);
-
-	params.gridX += 1;
-	minusYearButton = windowNewButton(container, "<", NULL, &params);
+	params.padLeft = 5;
+	params.padRight = 3;
+	params.orientationX = orient_right;
+	minusYearButton = windowNewButton(container, "<< XXXX", NULL, &params);
 	windowRegisterEventHandler(minusYearButton, &eventHandler);
 
 	params.gridX += 1;
-	plusYearButton = windowNewButton(container, ">", NULL, &params);
+	params.padLeft = 3;
+	params.padRight = 0;
+	params.orientationX = orient_left;
+	plusYearButton = windowNewButton(container, "XXXX >>", NULL, &params);
 	windowRegisterEventHandler(plusYearButton, &eventHandler);
 
-	params.gridX = 0;
-	params.gridY += 1;
-	params.padLeft = params.padTop = params.padRight = params.padBottom = 5;
-	initCalListParams();
-	calList = windowNewList(window, windowlist_textonly, 7, 7, 0,
-		calListParams, 49, &params);
 	getUpdate();
-
-	memset(&theTime, 0, sizeof(struct tm));
-	rtcDateTime(&theTime);
-	windowComponentSetSelected(calList, rtcDayOfWeek(1, month, year) + 6 +
-		theTime.tm_mday);
+	windowComponentSetSelected(calList, (6 + rtcDayOfWeek(1, month, year) +
+		date));
 	windowComponentFocus(calList);
 	windowRegisterEventHandler(window, &eventHandler);
 
 	// Make the window visible
-	windowSetResizable(window, 0);
 	windowSetVisible(window, 1);
-
-	return;
 }
 
 
 static void graphCalendar(void)
 {
-	calListParams = malloc(49 * sizeof(listItemParameters));
+	calListParams = calloc(49, sizeof(listItemParameters));
 	if (!calListParams)
 		exit(ERR_MEMORY);
 
@@ -335,8 +424,6 @@ static void graphCalendar(void)
 	windowGuiRun();
 	windowDestroy(window);
 	free(calListParams);
-
-	return;
 }
 
 

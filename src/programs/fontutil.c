@@ -790,7 +790,7 @@ static int import(const char *dirName, const char *vbfFileName)
 	}
 	else
 	{
-		strncpy(vbfHeader.charSet, CHARSET_NAME_ASCII, VBF_CHARSET_LEN);
+		strncpy(vbfHeader.charSet, CHARSET_NAME_UTF8, VBF_CHARSET_LEN);
 	}
 
 	// Loop through all of the files in the directory, trying to load them as
@@ -1663,10 +1663,8 @@ static int getGlyphListParams(void)
 
 	for (count = 0; count < selectedFont->header.numGlyphs; count ++)
 	{
-		sprintf(glyphListParams[count].text, "%04x\n%d",
-			selectedFont->codes[count],
-			charsetFromUnicode(selectedFont->header.charSet,
-				selectedFont->codes[count]));
+		sprintf(glyphListParams[count].text, "%04x",
+			selectedFont->codes[count]);
 
 		status = bitmap2Image(count, &selectedFont->header, selectedFont->data,
 			&glyphListParams[count].iconImage);

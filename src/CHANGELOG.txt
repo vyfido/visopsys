@@ -1,4 +1,100 @@
 --------------
+ Version 0.9   16/04/2020
+--------------
+
+  Overview: This major release offers a subtly updated look, enhanced
+  networking capabilities and associated programs, Unicode support, a software
+  packaging/download/install/uninstall infrastructure with an online 'store',
+  a user space window shell, VMware mouse integration, HTTP, XML, and HTML
+  libraries, some C++ and POSIX threads (pthreads) support, 'pipes' for
+  interprocess communication, and additional hashing algorithms.
+
+- Added TCP networking.
+- Added a DNS client.
+- Networking is now enabled by default at boot time.
+- Network-based programs have moved into separate sub-groupings in the
+'Programs' and 'Administration' windows.
+- Added a Packet Sniffer ('netsniff') program, for inspecting incoming and
+outgoing network packets.
+- Added a Network Connections ('netstat') program to show the current network
+connections and TCP state, if applicable.
+- Added a basic Telnet client program and protocol libarary; mostly for TCP
+testing and validation, although the protocol has other uses.
+- Added wide-character and multibyte character (UTF-8) support throughout the
+OS - to the fonts and charsets, the GUI, the C library, etc.  It has replaced
+the ISO-based internationalization schemes.  Although some knowledge of ISO
+codepages was kept, things have been more-or-less entirely switched over to
+Unicode.
+- Implemented a software packaging/installation scheme.
+- Implemented a software/update store server to run at visopsys.org, with an
+initial, trivial 'hello world' software package available for 0.9.
+- Added a 'Software' program to connect to the software store at visopsys.org,
+which can show lists of available and installed packages, and install and
+uninstall them.
+- Converted the existing window shell to a user space program, keeping the
+existing kernel-based one as a thing for 'basic' installs.  The intention is
+to create an entirely new window shell in a future release, and have the user
+be able to choose.
+- Added VMware mouse integration, so that a Visopsys guest coordinates with
+the host to automatically grab or ungrab the mouse cursor as it enters or
+leaves the window.  Requires the option to be enabled in VMware.
+- Added a basic HTTP library, with URL parsing and HTTP 'get', and the header
+files <sys/url.h> and <sys/http.h>.
+- Added a simple XML parsing library.
+- Added a simple HTML parsing library.
+- Added basic C++ runtime support (no RTTI or exceptions), and partial string,
+memory, and iostream implementations.
+- Added the beginnings of a POSIX Threads (pthreads) library (libpthread) with
+some basic wrapper functions around Visopsys kernel threading, for software
+portability.
+- Added a 'pipes' implementation for inter-process communication, as a thin
+wrapper around the kernel's generic 'streams' functionality, available to user
+programs.
+- Added a SHA1 hashing implementation to the kernel, and command-line programs
+sha1pass (hashes string parameters) and sha1sum (hashes files) that use it.
+- Added a SHA256 hashing implementation to the kernel, and upgraded user
+password hashing from MD5 to SHA256.  Also added command-line programs
+sha256pass (hashes string parameters) and sha256sum (hashes files) that use
+it.
+- The OS installer now asks the user to choose a physical disk first, and then
+shows the exising logical disks, offering to change and add partitions, etc.
+- Added a simple 'wget' program to test the new HTTP library.  For the time
+being, it only downloads individual files, and not anything referenced by
+them.
+- Added a 'host' program - similar to the Linux/UNIX one, for network name and
+address lookups.  Command-line only for now.
+- Added a computer chip icon, 'chip.ico'.  To start with, the Computer Browser
+will use it for RAM disks.
+- Added partial implementation of the standard C library function
+getaddrinfo() and its companions freeaddrinfo() and gai_strerror().
+- Added the wide-character standard C library functions getwchar(), mblen(),
+mbslen(), putwchar(), wcscmp(), wcscpy(), wcslen(), and wcstombs().
+- Removed the kernelWindowShellTileBackground() and
+kernelWindowShellCenterBackground() (windowShellTileBackground() and
+windowShellCenterBackground() in user space, respectively) functions in favour
+of kernelWindowShellChangeBackground() (windowShellChangeBackground() in user
+space), which simply notifies the window shell of a change, so that it can go
+and read the appropriate configuration files.
+- Added COLOR_COPY() and COLOR_ADJUST() macros in <sys/color.h> for doing a
+quick copy, and copy-brightness-adjusted, respectively, of color structures.
+- Did some tidy-up of the translated .po files - mostly updating c-format
+strings' parameters, punctuation, and newlines.
+- Removed the 'Del' glyph 127 from the font maps.
+- Updated the api2txt.sh and api2html.sh utils scripts to filter out the _U_
+for unused parameters.
+- Added a check-pots.sh utils script for reporting any programs that don't
+have .pot translation files.
+- Fixed: The Computer Browser program could show mismatches between disks and
+icons, if it didn't have an icon for a particular hardware type (specifically,
+RAM disks).  Made it more robust, with a default icon.
+- Fixed: The Disk Manager's creation and resize dialogs were full-screen, and
+looked all messed up.
+- Fixed: The Calendar program was selecting the wrong day of the month in
+graphics mode, and selecting a day of the month in non-current months and
+years.
+- Fixed: Several of the programs didn't have .pot translation files.
+
+--------------
  Version 0.85   21/01/2020
 --------------
 
@@ -1753,7 +1849,7 @@ requesting the user to enter a number value, and providing a graphical
 slider widged for setting the value with the mouse.
 - The boot menu installer program 'bootmenu' now checks for previous
 installations and remembers the old entries.
-- The 'imgboot' program now checks for the presense of the 'install'
+- The 'imgboot' program now checks for the presence of the 'install'
 program before querying about whether to install.
 - The 'iconwin' program now skips any entry whose icon is missing.
 - Reduced the padding values of the text area in the 'lsdev' (Devices)

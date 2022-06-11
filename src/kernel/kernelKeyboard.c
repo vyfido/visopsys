@@ -25,7 +25,6 @@
 // functionality
 
 #include "kernelError.h"
-#include "kernelCharset.h"
 #include "kernelFile.h"
 #include "kernelFileStream.h"
 #include "kernelKeyboard.h"
@@ -199,7 +198,6 @@ static keyMap defMap = {
 static kernelKeyboard *keyboards[MAX_KEYBOARDS];
 static int numKeyboards = 0;
 static keyMap *currentMap = NULL;
-static char currentCharset[CHARSET_NAME_LEN + 1] = CHARSET_NAME_ISO_8859_15;
 static kernelKeyboard *virtual = NULL;
 
 // A buffer for input data waiting to be processed
@@ -277,7 +275,7 @@ static void keyboardThread(void)
 {
 	// Check for keyboard input, and pass events to the window manager
 
-	unsigned char ascii = 0;
+	unsigned unicode = 0;
 	windowEvent event;
 	int count;
 
@@ -464,13 +462,12 @@ static void keyboardThread(void)
 				}
 			}
 
-			// Get the ASCII value of this keypress, if any
+			// Get the unicode value of this keypress, if any
 
 			if (buffer[count].keyboard->state.shiftState &
 				KEYBOARD_CONTROL_PRESSED)
 			{
-				ascii =	kernelCharsetFromUnicode(currentCharset,
-					currentMap->controlMap[buffer[count].scanCode]);
+				unicode = currentMap->controlMap[buffer[count].scanCode];
 			}
 
 			else if (buffer[count].keyboard->state.shiftState &
@@ -479,40 +476,37 @@ static void keyboardThread(void)
 				if (buffer[count].keyboard->state.shiftState &
 					KEYBOARD_SHIFT_PRESSED)
 				{
-					ascii = kernelCharsetFromUnicode(currentCharset,
-						currentMap->shiftAltGrMap[buffer[count].scanCode]);
+					unicode =
+						currentMap->shiftAltGrMap[buffer[count].scanCode];
 				}
 				else
 				{
-					ascii = kernelCharsetFromUnicode(currentCharset,
-						currentMap->altGrMap[buffer[count].scanCode]);
+					unicode = currentMap->altGrMap[buffer[count].scanCode];
 				}
 			}
 
 			else if (buffer[count].keyboard->state.shiftState &
 				KEYBOARD_SHIFT_PRESSED)
 			{
-				ascii =	kernelCharsetFromUnicode(currentCharset,
-					currentMap->shiftMap[buffer[count].scanCode]);
+				unicode = currentMap->shiftMap[buffer[count].scanCode];
 
 				// Check for Caps Lock
 				if ((buffer[count].keyboard->state.toggleState &
-					KEYBOARD_CAPS_LOCK_ACTIVE) && isalpha(ascii))
+					KEYBOARD_CAPS_LOCK_ACTIVE) && isalpha(unicode))
 				{
-					ascii = tolower(ascii);
+					unicode = tolower(unicode);
 				}
 			}
 
 			else
 			{
-				ascii =	kernelCharsetFromUnicode(currentCharset,
-					currentMap->regMap[buffer[count].scanCode]);
+				unicode = currentMap->regMap[buffer[count].scanCode];
 
 				// Check for Caps Lock
 				if ((buffer[count].keyboard->state.toggleState &
-					KEYBOARD_CAPS_LOCK_ACTIVE) && isalpha(ascii))
+					KEYBOARD_CAPS_LOCK_ACTIVE) && isalpha(unicode))
 				{
-					ascii = toupper(ascii);
+					unicode = toupper(unicode);
 				}
 
 				// Check for Num Lock
@@ -522,47 +516,47 @@ static void keyboardThread(void)
 					switch (buffer[count].scanCode)
 					{
 						case keyZero:
-							ascii = '0';
+							unicode = '0';
 							break;
 
 						case keyPeriod:
-							ascii = '.';
+							unicode = '.';
 							break;
 
 						case keyOne:
-							ascii = '1';
+							unicode = '1';
 							break;
 
 						case keyTwo:
-							ascii = '2';
+							unicode = '2';
 							break;
 
 						case keyThree:
-							ascii = '3';
+							unicode = '3';
 							break;
 
 						case keyFour:
-							ascii = '4';
+							unicode = '4';
 							break;
 
 						case keyFive:
-							ascii = '5';
+							unicode = '5';
 							break;
 
 						case keySix:
-							ascii = '6';
+							unicode = '6';
 							break;
 
 						case keySeven:
-							ascii = '7';
+							unicode = '7';
 							break;
 
 						case keyEight:
-							ascii = '8';
+							unicode = '8';
 							break;
 
 						case keyNine:
-							ascii = '9';
+							unicode = '9';
 							break;
 
 						default:
@@ -576,17 +570,17 @@ static void keyboardThread(void)
 				// Fill out our event
 				event.type = buffer[count].eventType;
 				event.key.scan = buffer[count].scanCode;
-				event.key.ascii = ascii;
+				event.key.unicode = unicode;
 
 				// Notify the window manager of the event
 				kernelWindowProcessEvent(&event);
 			}
-			else if (ascii)
+			else if (unicode)
 			{
 				if (consoleStream &&
 					(buffer[count].eventType == WINDOW_EVENT_KEY_DOWN))
 				{
-					consoleStream->append(consoleStream, ascii);
+					consoleStream->append(consoleStream, unicode);
 				}
 			}
 		}
@@ -707,7 +701,6 @@ int kernelKeyboardSetMap(const char *fileName)
 
 	int status = 0;
 	fileStream theFile;
-	char charsetName[CHARSET_NAME_LEN + 1];
 
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
@@ -730,16 +723,6 @@ int kernelKeyboardSetMap(const char *fileName)
 		(char *) currentMap);
 
 	kernelFileStreamClose(&theFile);
-
-	// If the read was successful, try to set an appropriate character set
-	if (status >= 0)
-	{
-		if (kernelConfigGet(PATH_SYSTEM_CONFIG "/charset.conf",
-			currentMap->language, charsetName, CHARSET_NAME_LEN) >= 0)
-		{
-			strncpy(currentCharset, charsetName, CHARSET_NAME_LEN);
-		}
-	}
 
 	return (status);
 }

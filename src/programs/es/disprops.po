@@ -6,23 +6,23 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-01-22 18:08-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
 #: disprops.c:57
 msgid "Display Settings"
-msgstr "ConfiguraciÛn de Escritorio"
+msgstr "Configuraci√≥n de Escritorio"
 
 #: disprops.c:58
 msgid "Screen resolution:"
-msgstr "ResoluciÛn de pantalla:"
+msgstr "Resoluci√≥n de pantalla:"
 
 #: disprops.c:59
 msgid "Colors:"
@@ -46,7 +46,7 @@ msgstr "Cambiar"
 
 #: disprops.c:64
 msgid "Background wallpaper:"
-msgstr "Im·gen de fondo:"
+msgstr "Im√°gen de fondo:"
 
 #: disprops.c:65
 msgid "Choose"
@@ -54,15 +54,15 @@ msgstr "Seleccionar"
 
 #: disprops.c:66
 msgid "Use background wallpaper"
-msgstr "Usar im·gen de fondo"
+msgstr "Usar im√°gen de fondo"
 
 #: disprops.c:67
 msgid "Miscellaneous:"
-msgstr "Miscell·neas:"
+msgstr "Miscell√°neas:"
 
 #: disprops.c:68
 msgid "Boot in graphics mode"
-msgstr "Iniciar en modo gr·fico"
+msgstr "Iniciar en modo gr√°fico"
 
 #: disprops.c:69
 msgid "Show a clock on the desktop"
@@ -81,33 +81,33 @@ msgstr "Cancelar"
 msgid " %d x %d, %d bit "
 msgstr " %d x %d, %d Bit "
 
-#: disprops.c:691
+#: disprops.c:698
 #, c-format
 msgid ""
 "The resolution has been changed to %dx%d, %dbpp\n"
 "This will take effect after you reboot."
 msgstr ""
-"La resoluciÛn se cambiÛ a %dx%d, %dbpp\n"
-"Los cambios se aplicar·n despuÈs de reiniciar el equipo."
+"La resoluci√≥n se cambi√≥ a %dx%d, %dbpp\n"
+"Los cambios se aplicar√°n despu√©s de reiniciar el equipo."
 
-#: disprops.c:695
+#: disprops.c:702
 msgid "Changed"
 msgstr "Cambiado"
 
-#: disprops.c:699
+#: disprops.c:706
 #, c-format
 msgid "Error %d setting mode"
 msgstr "Error %d al configuar modo"
 
-#: disprops.c:700
+#: disprops.c:707
 msgid "Error"
 msgstr "Error"
 
-#: disprops.c:980
+#: disprops.c:981
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 "\n"
-"El comando \"%s\" funciona solamente en modo gr·fico\n"
+"El comando \"%s\" funciona solamente en modo gr√°fico\n"

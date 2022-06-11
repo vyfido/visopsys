@@ -7,15 +7,16 @@
 ##
 
 # This is run against the C library's kernel API code, as well as the VSH
-# and window library code, to generate a simple formatted TEXT listing of
-# the function declarations with their descriptions
+# library, Visopsys library, and window library, to generate a simple
+# formatted TEXT listing of the function declarations with their descriptions
 
 if [ $# -ne 1 ] ; then
 	echo "Usage: $0 <filename>"
 	exit 1
 fi
 
-sed -n -e 's/[ 	]*_X_[ ]*//p' -e '/[ ]*\/\/[ ]*Desc[ ]*: /a\
+sed -n -e 's/[ ]*_U_[ ]*//g ; s/[ 	]*_X_[ ]*//p' \
+	-e '/[ ]*\/\/[ ]*Desc[ ]*: /a\
 \
 ' -e 's/[ ]*\/\/[ ]*Desc[ ]*: /\n	/p' $1
 

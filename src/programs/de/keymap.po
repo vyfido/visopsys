@@ -8,58 +8,57 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: keymap.c:90
+#: keymap.c:93
 msgid "Keyboard Map"
 msgstr "Tastaturbelegung"
 
-#: keymap.c:91
+#: keymap.c:94
 msgid "Current:"
 msgstr "Aktuell:"
 
-#: keymap.c:92
+#: keymap.c:95
 msgid "Name:"
 msgstr "Name:"
 
-#: keymap.c:93
-#, fuzzy
+#: keymap.c:96
 msgid "Language:"
-msgstr "Benutzung:\n"
+msgstr "Benutzung:"
 
-#: keymap.c:94
+#: keymap.c:97
 msgid "Save"
 msgstr "Speichern"
 
-#: keymap.c:95
+#: keymap.c:98
 msgid "Set as default"
 msgstr "Als Standard definieren"
 
-#: keymap.c:96
+#: keymap.c:99
 msgid "Close"
-msgstr "Schließen"
+msgstr "SchlieÃŸen"
 
-#: keymap.c:148
+#: keymap.c:151
 msgid "usage:\n"
 msgstr "Benutzung:\n"
 
-#: keymap.c:149
-#, fuzzy, c-format
+#: keymap.c:152
+#, c-format
 msgid "%s [-T] [-p] [-s file_name] [map_name]\n"
-msgstr "%s [-T] [-s file_name] [map_name]\n"
+msgstr "%s [-T] [-p] [-s file_name] [map_name]\n"
 
-#: keymap.c:166
+#: keymap.c:169
 msgid "Error"
 msgstr "Fehler"
 
-#: keymap.c:168
+#: keymap.c:171
 #, c-format
 msgid ""
 "\n"
@@ -72,35 +71,35 @@ msgstr ""
 "Fehler: %s\n"
 "\n"
 
-#: keymap.c:182 keymap.c:416
+#: keymap.c:185 keymap.c:419
 #, c-format
 msgid "Couldn't open file %s"
-msgstr "Datei %s kann nicht geöffnet werden"
+msgstr "Datei %s kann nicht geÃ¶ffnet werden"
 
-#: keymap.c:192
+#: keymap.c:195
 #, c-format
 msgid "Couldn't read file %s"
 msgstr "Datei %s kann nicht gelesen werden"
 
-#: keymap.c:282 keymap.c:334
+#: keymap.c:285 keymap.c:337
 #, c-format
 msgid "Couldn't find keyboard map %s"
 msgstr "Tastaturbelegung %s kann nicht gefunden werden"
 
-#: keymap.c:289
+#: keymap.c:292
 #, c-format
 msgid "Couldn't set keyboard map to %s"
 msgstr "Tastaturbelegung konnte nicht auf %s umgestellt werden"
 
-#: keymap.c:296
+#: keymap.c:299
 msgid "Couldn't get current keyboard map"
 msgstr "Derzeitige Tastaturbelegung kann nicht geladen werden"
 
-#: keymap.c:309
+#: keymap.c:312
 msgid "Couldn't write keyboard map setting"
 msgstr "Einstellung der Tastaturbelegung kann nicht geschrieben werden"
 
-#: keymap.c:400
+#: keymap.c:403
 #, c-format
 msgid ""
 "Can't write %s:\n"
@@ -109,94 +108,89 @@ msgstr ""
 "%s kann nicht geschrieben werden:\n"
 "Das Dateisystem kann nur gelesen werden"
 
-#: keymap.c:426
+#: keymap.c:429
 #, c-format
 msgid "Couldn't write file %s"
 msgstr "Datei %s kann nicht geschrieben werden"
 
-#: keymap.c:654
+#: keymap.c:657
 msgid "Save as"
 msgstr "Speichern unter"
 
-#: keymap.c:655
+#: keymap.c:658
 msgid "Choose the output file:"
-msgstr "Wählen Sie die auszugebende Datei:"
+msgstr "WÃ¤hlen Sie die auszugebende Datei:"
 
-#: keymap.c:688
+#: keymap.c:691
 msgid "Saved"
 msgstr "Gespeichert"
 
-#: keymap.c:688
+#: keymap.c:691
 msgid "Map saved"
 msgstr "Tastaturbelegung gespeichert"
 
-#: keymap.c:729
-msgid "Select character"
-msgstr ""
-
-#: keymap.c:971
+#: keymap.c:766
 msgid "Change key settings"
-msgstr "Tastatureinstellungen ändern"
+msgstr "Tastatureinstellungen Ã¤ndern"
 
-#: keymap.c:995
-#, fuzzy, c-format
+#: keymap.c:790
+#, c-format
 msgid "Scan code: 0x%02x (%s)"
-msgstr "Scan-Code: %d (0x%02x)"
+msgstr "Scan-Code: 0x%02x (%s)"
 
-#: keymap.c:1001
+#: keymap.c:796
 msgid "Unicode"
 msgstr ""
 
-#: keymap.c:1009
+#: keymap.c:804
 msgid "Normal"
-msgstr ""
+msgstr "Normaler"
 
-#: keymap.c:1012 keymap.c:1018
-#, fuzzy
+#: keymap.c:807 keymap.c:813
 msgid "Shift"
-msgstr "Code für Umschalten:"
+msgstr "Umschalten"
 
-#: keymap.c:1015 keymap.c:1018
+#: keymap.c:810 keymap.c:813
 msgid "AltGr"
-msgstr ""
+msgstr "ALT GR"
 
-#: keymap.c:1022
+#: keymap.c:817
 msgid "Ctrl"
-msgstr ""
+msgstr "STRG"
 
-#: keymap.c:1127
+#: keymap.c:937
 msgid "OK"
 msgstr "OK"
 
-#: keymap.c:1132
+#: keymap.c:942
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: keymap.c:1468
+#: keymap.c:1243
 msgid "1st row"
 msgstr ""
 
-#: keymap.c:1470
+#: keymap.c:1245
 msgid "2nd row"
 msgstr ""
 
-#: keymap.c:1472
+#: keymap.c:1247
 msgid "3rd row"
 msgstr ""
 
-#: keymap.c:1474
+#: keymap.c:1249
 msgid "4th row"
 msgstr ""
 
-#: keymap.c:1476
+#: keymap.c:1251
 msgid "5th row"
 msgstr ""
 
-#: keymap.c:1478
+#: keymap.c:1253
 msgid "6th row"
 msgstr ""
 
-#: keymap.c:1497
+#: keymap.c:1263
 #, c-format
 msgid ""
 "\n"
@@ -204,50 +198,50 @@ msgid ""
 "\n"
 msgstr ""
 
-#: keymap.c:1498
+#: keymap.c:1264
 #, fuzzy
 msgid "Regular map"
-msgstr "Normaler Code:"
+msgstr "Normaler Code"
 
-#: keymap.c:1500
+#: keymap.c:1266
 #, fuzzy
 msgid "Shift map"
-msgstr "Code für Umschalten:"
+msgstr "Code fÃ¼r Umschalten"
 
-#: keymap.c:1502
+#: keymap.c:1268
 msgid "Ctrl map"
-msgstr ""
+msgstr "Code fÃ¼r STRG"
 
-#: keymap.c:1504
+#: keymap.c:1270
 msgid "AltGr map"
-msgstr ""
+msgstr "Code fÃ¼r ALT GR"
 
-#: keymap.c:1506
+#: keymap.c:1272
 #, fuzzy
 msgid "Shift-AltGr map"
-msgstr "Code für Umschalten:"
+msgstr "Code fÃ¼r ALT GR Umschalten"
 
-#: keymap.c:1542
+#: keymap.c:1308
 msgid "Missing filename argument for -s option\n"
-msgstr "Fehlendes Argument beim Dateinamen für die Option -s\n"
+msgstr "Fehlendes Argument beim Dateinamen fÃ¼r die Option -s\n"
 
-#: keymap.c:1561
+#: keymap.c:1327
 #, c-format
 msgid "Missing parameter for %s option\n"
-msgstr "Fehlender Parameter für die Option %s\n"
+msgstr "Fehlender Parameter fÃ¼r die Option %s\n"
 
-#: keymap.c:1567
+#: keymap.c:1333
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr "Unbekannte Option '%c'\n"
 
-#: keymap.c:1672
+#: keymap.c:1438
 msgid " (current)"
 msgstr " (aktuell)"
 
 #, fuzzy
 #~ msgid "Shift-AltGr"
-#~ msgstr "Code für Umschalten:"
+#~ msgstr "Code fÃ¼r Umschalten:"
 
 #~ msgid "Backspace"
 #~ msgstr "Backspace"
@@ -265,13 +259,13 @@ msgstr " (aktuell)"
 #~ msgstr "Normaler Code:"
 
 #~ msgid "Shift code:"
-#~ msgstr "Code für Umschalten:"
+#~ msgstr "Code fÃ¼r Umschalten:"
 
 #~ msgid "Alt Gr code:"
-#~ msgstr "Code für ALT GR:"
+#~ msgstr "Code fÃ¼r ALT GR:"
 
 #~ msgid "Ctrl code:"
-#~ msgstr "Code für STRG:"
+#~ msgstr "Code fÃ¼r STRG:"
 
 #~ msgid "Esc"
 #~ msgstr "Escape"

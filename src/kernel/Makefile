@@ -44,6 +44,8 @@ NAMES = \
 	kernelDma \
 	kernelDriver \
 	kernelCryptHashMd5 \
+	kernelCryptHashSha1 \
+	kernelCryptHashSha256 \
 	kernelEnvironment \
 	kernelError \
 	kernelFile \
@@ -82,13 +84,16 @@ NAMES = \
 	kernelNetworkArp \
 	kernelNetworkDevice \
 	kernelNetworkDhcp \
+	kernelNetworkDns \
 	kernelNetworkEthernet \
 	kernelNetworkIcmp \
 	kernelNetworkIp4 \
 	kernelNetworkStream \
+	kernelNetworkTcp \
 	kernelNetworkUdp \
 	kernelPage \
 	kernelPic \
+	kernelPipe \
 	kernelPower \
 	kernelRandom \
 	kernelRtc \
@@ -98,6 +103,7 @@ NAMES = \
 	kernelText \
 	kernelTouch \
 	kernelUser \
+	kernelVmware \
 	kernelWindow \
 	kernelWindowBorder \
 	kernelWindowButton \

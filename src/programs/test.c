@@ -43,6 +43,194 @@ static char failMsg[MAXFAILMSG];
 	snprintf(failMsg, MAXFAILMSG, message, ##arg)
 
 
+static volatile struct {
+	int numItems;
+	int itemSize;
+	objectKey pipe;
+	int bufferItems;
+	unsigned char *inBuffer;
+
+} pipeData;
+
+
+static int pipeReaderThread(void)
+{
+	int status = 0;
+	int opItems = 0;
+	int count;
+
+	// Read data from the pipe
+	for (count = 0; count < pipeData.bufferItems; )
+	{
+		opItems = min((int) randomFormatted(1, (pipeData.numItems / 10)),
+			(pipeData.bufferItems - count));
+
+		status = pipeRead(pipeData.pipe, opItems, (pipeData.inBuffer +
+			(count * pipeData.itemSize)));
+		if (status < 0)
+		{
+			FAILMSG("Error reading %d items, itemSize=%d", opItems,
+				pipeData.itemSize);
+			goto out;
+		}
+
+		if (!status)
+			multitaskerYield();
+
+		count += status;
+	}
+
+	status = 0;
+
+out:
+	exit(status);
+}
+
+
+static int pipes(void)
+{
+	// Tests the kernel's pipes functionality
+
+	// Number of pipe elements, sizes, buffer wraps
+	#define PIPE_ITEMS		50
+	#define PIPE_MAXITEM	12
+	#define PIPE_WRAPS		10
+
+	int status = 0;
+	int itemSize = 0;
+	int bufferSize = 0;
+	unsigned char *outBuffer = NULL;
+	int procId = 0;
+	int opItems = 0;
+	int count;
+
+	for (itemSize = 1; itemSize <= PIPE_MAXITEM; itemSize ++)
+	{
+		memset((void *) &pipeData, 0, sizeof(pipeData));
+
+		pipeData.numItems = PIPE_ITEMS;
+		pipeData.itemSize = itemSize;
+
+		pipeData.pipe = pipeNew(pipeData.numItems, pipeData.itemSize);
+		if (!pipeData.pipe)
+		{
+			FAILMSG("Error getting new pipe for %d items, itemSize=%d",
+				pipeData.numItems, pipeData.itemSize);
+			status = ERR_NOCREATE;
+			goto out;
+		}
+
+		pipeData.bufferItems = (pipeData.numItems * PIPE_WRAPS);
+		bufferSize = (pipeData.bufferItems * pipeData.itemSize);
+
+		outBuffer = malloc(bufferSize);
+		if (!outBuffer)
+		{
+			FAILMSG("Error getting memory");
+			status = ERR_MEMORY;
+			goto out;
+		}
+
+		pipeData.inBuffer = malloc(bufferSize);
+		if (!pipeData.inBuffer)
+		{
+			FAILMSG("Error getting memory");
+			status = ERR_MEMORY;
+			goto out;
+		}
+
+		// Fill outBuffer with random data
+		for (count = 0; count < bufferSize; count ++)
+			outBuffer[count] = randomFormatted(0, 255);
+
+		// Spawn the pipe reader thread
+		procId = multitaskerSpawn(&pipeReaderThread, "pipe reader thread",
+			0 /* no args */, NULL /* no args */, 0 /* don't run */);
+		if (procId < 0)
+		{
+			FAILMSG("Couldn't spawn pipe reader thread");
+			status = procId;
+			goto out;
+		}
+
+		// Allow the pipe reader thread to access the pipe
+		status = pipeSetReader(pipeData.pipe, procId);
+		if (status < 0)
+		{
+			FAILMSG("Couldn't grant permission to pipe reader thread");
+			goto out;
+		}
+
+		// Start the reader thread reading
+		multitaskerSetProcessState(procId, proc_ready);
+
+		// Write data to the pipe
+		for (count = 0; count < pipeData.bufferItems; )
+		{
+			opItems = min((int) randomFormatted(1, (pipeData.numItems / 10)),
+				(pipeData.bufferItems - count));
+
+			status = pipeWrite(pipeData.pipe, opItems, (outBuffer + (count *
+				pipeData.itemSize)));
+			if (status < 0)
+			{
+				FAILMSG("Error writing %d items, itemSize=%d", opItems,
+					pipeData.itemSize);
+				goto out;
+			}
+
+			multitaskerYield();
+
+			count += opItems;
+		}
+
+		if (multitaskerProcessIsAlive(procId))
+		{
+			// Wait until the reader thread exits
+			status = multitaskerBlock(procId);
+			if (status < 0)
+			{
+				FAILMSG("Pipe reader thread failed");
+				goto out;
+			}
+		}
+
+		// Verify that the buffers match
+		if (memcmp(pipeData.inBuffer, outBuffer, bufferSize))
+		{
+			FAILMSG("Buffers do not match for %d items, itemSize=%d",
+				pipeData.numItems, pipeData.itemSize);
+			status = ERR_BADDATA;
+			goto out;
+		}
+
+		status = pipeDestroy(pipeData.pipe);
+		if (status < 0)
+		{
+			FAILMSG("Error destroying pipe for %d items, itemSize=%d",
+				pipeData.numItems, pipeData.itemSize);
+			goto out;
+		}
+
+		free(pipeData.inBuffer); pipeData.inBuffer = NULL;
+		free(outBuffer); outBuffer = NULL;
+	}
+
+	status = 0;
+
+out:
+	if (multitaskerProcessIsAlive(procId))
+		multitaskerKillProcess(procId);
+
+	if (pipeData.inBuffer)
+		free(pipeData.inBuffer);
+	if (outBuffer)
+		free(outBuffer);
+
+	return (status);
+}
+
+
 static int format_strings(void)
 {
 	// Tests the C library's handling of printf/scanf -style format strings
@@ -2065,6 +2253,7 @@ struct {
 
 } functions[] = {
 	// function			name				run graphics
+	{ pipes,			"pipes",			0,  0 },
 	{ format_strings,	"format strings",	0,  0 },
 	{ exceptions,		"exceptions",		0,  0 },
 	{ text_output,		"text output",		0,  0 },

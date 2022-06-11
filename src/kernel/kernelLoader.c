@@ -57,6 +57,7 @@ static kernelFileClass *(*classRegFns[])(void) = {
 	kernelFileClassGzip,
 	kernelFileClassAr,
 	kernelFileClassTar,
+	kernelFileClassVsp,
 	kernelFileClassPcf,
 	kernelFileClassTtf,
 	kernelFileClassVbf,
@@ -65,6 +66,7 @@ static kernelFileClass *(*classRegFns[])(void) = {
 	// Text formats
 	kernelFileClassConfig,
 	kernelFileClassHtml,
+	kernelFileClassUtf8,
 	// Generic text and binary
 	kernelFileClassText,
 	kernelFileClassBinary

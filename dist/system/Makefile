@@ -15,6 +15,7 @@ all:
 	${MAKE} -C config
 	${MAKE} -C fonts
 	${MAKE} -C icons
+	${MAKE} -C install
 	${MAKE} -C keymaps
 	${MAKE} -C locale
 	${MAKE} -C mouse
@@ -25,6 +26,7 @@ clean:
 	${MAKE} -C config clean
 	${MAKE} -C fonts clean
 	${MAKE} -C icons clean
+	${MAKE} -C install clean
 	${MAKE} -C keymaps clean
 	${MAKE} -C locale clean
 	${MAKE} -C mouse clean

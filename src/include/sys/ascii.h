@@ -76,7 +76,7 @@
 #define ASCII_HOME			ASCII_ETB	// Ctrl-W
 
 #define ASCII_CHARS			255
-#define ASCII_PRINTABLES	((ASCII_DEL - ASCII_SPACE) + 1)	// 96
+#define ASCII_PRINTABLES	(ASCII_DEL - ASCII_SPACE)	// 95
 
 /*
                                ASCII CODES

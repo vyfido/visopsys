@@ -45,17 +45,6 @@ Example:
 </help>
 */
 
-#ifdef PORTABLE
-	#define _GNU_SOURCE
-	#define _(string)	string
-	#define OSLOADER	"../build/vloader"
-#else
-	#include <sys/api.h>
-	#include <sys/env.h>
-	#define _(string)	gettext(string)
-	#define OSLOADER	"/vloader"
-#endif
-
 #include <errno.h>
 #include <fcntl.h>
 #include <libintl.h>
@@ -67,6 +56,17 @@ Example:
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
+
+#ifdef PORTABLE
+	#define _GNU_SOURCE
+	#define OSLOADER	"../build/vloader"
+#else
+	#include <sys/api.h>
+	#include <sys/env.h>
+	#define OSLOADER	"/vloader"
+#endif
+
+#define _(string)		gettext(string)
 
 #define FAT12_SIG		"FAT12   "
 #define FAT16_SIG		"FAT16   "

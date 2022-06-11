@@ -1,0 +1,19 @@
+# Example software package manifest
+name=foo
+desc=Foo Package!
+arch=x86
+version=0.82.0
+depend=bar|>=|4.51
+depend=baz|=|0.82
+obsolete=foo|<=|0.82.0
+
+preexec=programs/cal
+postexec=/foo/fooman
+
+/foo/
+/foo/bar/
+programs/adduser=/foo/foouser
+programs/archman=/foo/fooman
+programs/date=/foo/bar/date
+programs/bootmenu
+programs/cal=/temp/cal

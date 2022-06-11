@@ -54,7 +54,8 @@ char *getenv(const char *);
 long int labs(long int);
 void *_malloc(size_t, const char *);
 #define malloc(size) _malloc(size, __FUNCTION__)
-size_t mbstowcs(wchar_t *dest, const char *src, size_t n);
+int mblen(const char *, size_t);
+size_t mbstowcs(wchar_t *, const char *, size_t);
 int mbtowc(wchar_t *, const char *, size_t);
 char *mkdtemp(char *);
 int mkstemp(char *);
@@ -67,6 +68,7 @@ int setenv(const char *, const char *, int);
 void srand(unsigned int);
 #define srandom(arg) srand(arg)
 int system(const char *);
+size_t wcstombs(char *, const wchar_t *, size_t);
 int wctomb(char *, wchar_t);
 
 // Not sure where else to put these

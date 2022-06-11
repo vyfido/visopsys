@@ -31,8 +31,17 @@
 #define NETWORK_PACKETS_PER_STREAM			256
 #define NETWORK_DATASTREAM_LENGTH			1048576
 
-// Number of ARP items cached per network device.
+// Number of ARP items cached per network device
 #define NETWORK_ARPCACHE_SIZE				64
+
+// Maximum size of the TCP wait and re-transmission queues.  Probably should
+// be configurable settings.
+#define NETWORK_TCP_MAX_WAITQUEUE			64
+#define NETWORK_TCP_MAX_RETRANSQUEUE		64
+
+// TCP timeouts and retries.  Probably should be configurable settings.
+#define NETWORK_TCP_SYN_TIMEOUT_MS			5000
+#define NETWORK_TCP_SYN_RETRIES				5
 
 // A structure to describe and point to sections inside a buffer of packet
 // data
@@ -77,7 +86,7 @@ typedef struct {
 
 } kernelArpCacheItem;
 
-// This represents a queue of network packets as a stream.
+// This represents a queue of network packets as a stream
 typedef stream kernelNetworkPacketStream;
 
 typedef struct {
@@ -107,7 +116,7 @@ typedef volatile struct {
 	linkedList inputHooks;
 	linkedList outputHooks;
 
-	// Driver-specific private data.
+	// Driver-specific private data
 	void *data;
 
 } kernelNetworkDevice;
@@ -117,8 +126,37 @@ typedef volatile struct {
 
 } kernelNetworkIpState;
 
+typedef struct {
+	unsigned sequence;
+	unsigned dataLen;
+	kernelNetworkPacket *packet;
+	int reTransmitted;
+
+} kernelNetworkTcpQueuePacket;
+
+typedef volatile struct {
+	// We probably need a lock on this state
+	spinLock lock;
+	networkTcpState state;
+	unsigned timeWaitTime;
+	unsigned sendInit;
+	unsigned sendUnAcked;
+	unsigned sendNext;
+	unsigned recvInit;
+	unsigned recvAcked;
+	unsigned recvLast;
+	unsigned recvWindow;
+	kernelNetworkTcpQueuePacket waitQueue[NETWORK_TCP_MAX_WAITQUEUE];
+	int waitQueueLen;
+	kernelNetworkTcpQueuePacket retransQueue[NETWORK_TCP_MAX_RETRANSQUEUE];
+	int retransQueueLen;
+	unsigned roundTripTime;
+	unsigned backoff;
+
+} kernelNetworkTcpState;
+
 // This structure holds everything that's needed to keep track of a network
-// connection, and a stream for received data.
+// connection, and a stream for received data
 typedef volatile struct {
 	int processId;
 	int mode;
@@ -127,6 +165,7 @@ typedef volatile struct {
 	networkStream inputStream;
 	kernelNetworkDevice *netDev;
 	kernelNetworkIpState ip;
+	kernelNetworkTcpState tcp;
 
 } kernelNetworkConnection;
 
@@ -146,7 +185,7 @@ void kernelNetworkDeliverData(kernelNetworkConnection *,
 int kernelNetworkSetupSendPacket(kernelNetworkConnection *,
 	kernelNetworkPacket *);
 void kernelNetworkFinalizeSendPacket(kernelNetworkConnection *,
-	kernelNetworkPacket *);
+	kernelNetworkPacket *, int, int);
 int kernelNetworkSendPacket(kernelNetworkDevice *, kernelNetworkPacket *,
 	int);
 int kernelNetworkSendData(kernelNetworkConnection *, unsigned char *,
@@ -171,6 +210,8 @@ int kernelNetworkGetHostName(char *, int);
 int kernelNetworkSetHostName(const char *, int);
 int kernelNetworkGetDomainName(char *, int);
 int kernelNetworkSetDomainName(const char *, int);
+int kernelNetworkLookupNameAddress(const char *, networkAddress *, int *);
+int kernelNetworkLookupAddressName(const networkAddress *, char *, unsigned);
 
 #endif
 

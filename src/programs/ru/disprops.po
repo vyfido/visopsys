@@ -8,108 +8,108 @@ msgid ""
 msgstr ""
 "Project-Id-Version: disprops\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-08 02:40+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
 #: disprops.c:57
 msgid "Display Settings"
-msgstr "ø–‡–‹’‚‡Î ‘ÿ·ﬂ€’Ô"
+msgstr "–ü–∞—Ä–∞–º–µ—Ç—Ä—ã –¥–∏—Å–ø–ª–µ—è"
 
 #: disprops.c:58
 msgid "Screen resolution:"
-msgstr "¿–◊‡’Ë’›ÿ’ Ì⁄‡–›–:"
+msgstr "–†–∞–∑—Ä–µ—à–µ–Ω–∏–µ —ç–∫—Ä–∞–Ω–∞:"
 
 #: disprops.c:59
 msgid "Colors:"
-msgstr "∆“’‚–:"
+msgstr "–¶–≤–µ—Ç–∞:"
 
 #: disprops.c:60
 msgid "Foreground"
-msgstr "ø’‡’‘›ÿ⁄"
+msgstr "–ü–µ—Ä–µ–¥–Ω–∏–∫"
 
 #: disprops.c:61
 msgid "Background"
-msgstr "ƒﬁ›"
+msgstr "–§–æ–Ω"
 
 #: disprops.c:62
 msgid "Desktop"
-msgstr "¿–—ﬁÁÿŸ ·‚ﬁ€"
+msgstr "–†–∞–±–æ—á–∏–π —Å—Ç–æ–ª"
 
 #: disprops.c:63
 msgid "Change"
-msgstr "∏◊‹’›ÿ‚Ï"
+msgstr "–ò–∑–º–µ–Ω–∏—Ç—å"
 
 #: disprops.c:64
 msgid "Background wallpaper:"
-msgstr "æ—ﬁÿ:"
+msgstr "–û–±–æ–∏:"
 
 #: disprops.c:65
 msgid "Choose"
-msgstr "≤Î—‡–‚Ï"
+msgstr "–í—ã–±—Ä–∞—Ç—å"
 
 #: disprops.c:66
 msgid "Use background wallpaper"
-msgstr "∏·ﬂﬁ€Ï◊ﬁ“–‚Ï ﬁ—ﬁÿ"
+msgstr "–ò—Å–ø–æ–ª—å–∑–æ–≤–∞—Ç—å –æ–±–æ–∏"
 
 #: disprops.c:67
 msgid "Miscellaneous:"
-msgstr "¿–◊›ﬁ’:"
+msgstr "–†–∞–∑–Ω–æ–µ:"
 
 #: disprops.c:68
 msgid "Boot in graphics mode"
-msgstr "∑–”‡„÷–‚Ï “ ”‡–‰ÿÁ’·⁄ﬁ‹ ‡’÷ÿ‹’"
+msgstr "–ó–∞–≥—Ä—É–∂–∞—Ç—å –≤ –≥—Ä–∞—Ñ–∏—á–µ—Å–∫–æ–º —Ä–µ–∂–∏–º–µ"
 
 #: disprops.c:69
 msgid "Show a clock on the desktop"
-msgstr "øﬁ⁄–◊Î“–‚Ï Á–·Î ›– ‡–—ﬁÁ’‹ ·‚ﬁ€’"
+msgstr "–ü–æ–∫–∞–∑—ã–≤–∞—Ç—å —á–∞—Å—ã –Ω–∞ —Ä–∞–±–æ—á–µ–º —Å—Ç–æ–ª–µ"
 
 #: disprops.c:70
 msgid "OK"
-msgstr "æ∫"
+msgstr "–û–ö"
 
 #: disprops.c:71
 msgid "Cancel"
-msgstr "æ‚‹’›–"
+msgstr "–û—Ç–º–µ–Ω–∞"
 
 #: disprops.c:219
 #, c-format
 msgid " %d x %d, %d bit "
 msgstr " %d x %d, %d bit "
 
-#: disprops.c:691
+#: disprops.c:698
 #, c-format
 msgid ""
 "The resolution has been changed to %dx%d, %dbpp\n"
 "This will take effect after you reboot."
 msgstr ""
-"¿–◊‡’Ë’›ÿ’ ÿ◊‹’›’›ﬁ ›– %dx%d, %dbpp\n"
-"∏◊‹’›’›ÿÔ “·‚„ﬂÔ‚ “ ·ÿ€„ ﬂﬁ·€’ ﬂ’‡’◊–”‡„◊⁄ÿ."
+"–†–∞–∑—Ä–µ—à–µ–Ω–∏–µ –∏–∑–º–µ–Ω–µ–Ω–æ –Ω–∞ %dx%d, %dbpp\n"
+"–ò–∑–º–µ–Ω–µ–Ω–∏—è –≤—Å—Ç—É–ø—è—Ç –≤ —Å–∏–ª—É –ø–æ—Å–ª–µ –ø–µ—Ä–µ–∑–∞–≥—Ä—É–∑–∫–∏."
 
-#: disprops.c:695
+#: disprops.c:702
 msgid "Changed"
-msgstr "∏◊‹’›’›ﬁ"
+msgstr "–ò–∑–º–µ–Ω–µ–Ω–æ"
 
-#: disprops.c:699
+#: disprops.c:706
 #, c-format
 msgid "Error %d setting mode"
-msgstr "æËÿ—⁄– %d ›–◊›–Á’›ÿÔ ‡’÷ÿ‹–"
+msgstr "–û—à–∏–±–∫–∞ %d –Ω–∞–∑–Ω–∞—á–µ–Ω–∏—è —Ä–µ–∂–∏–º–∞"
 
-#: disprops.c:700
+#: disprops.c:707
 msgid "Error"
-msgstr "æËÿ—⁄–"
+msgstr "–û—à–∏–±–∫–∞"
 
-#: disprops.c:980
+#: disprops.c:981
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 "\n"
-"∫ﬁ‹–›‘–  \"%s\" ‡–—ﬁ‚–’‚ ‚ﬁ€Ï⁄ﬁ “ ”‡–‰ÿÁ’·⁄ﬁ‹ ‡’÷ÿ‹’\n"
+"–ö–æ–º–∞–Ω–¥–∞  \"%s\" —Ä–∞–±–æ—Ç–∞–µ—Ç —Ç–æ–ª—å–∫–æ –≤ –≥—Ä–∞—Ñ–∏—á–µ—Å–∫–æ–º —Ä–µ–∂–∏–º–µ\n"

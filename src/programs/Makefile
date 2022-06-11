@@ -9,16 +9,18 @@ ROOT = ../..
 BUILDDIR = ${ROOT}/build/programs
 INCDIR = ../include
 LIBDIR = ${ROOT}/build/system/libraries
+UTILSDIR = ${ROOT}/utils
 
 include ${ROOT}/Makefile.include
 
 STDDEPS = ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h \
-	${INCDIR}/sys/*.h ${LIBDIR}/crt0.o
+	${INCDIR}/sys/*.h ${INCDIR}/c++/* ${LIBDIR}/crt0.o
 INCLUDE = -nostdinc -I${INCDIR} -I${INCDIR}/c++
 CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
 C++FLAGS = ${OPT} ${ARCH} ${C++CODEGEN} ${C++WARN} ${INCLUDE} ${DEBUG}
 LFLAGS = -L${LIBDIR} -nostdlib \
 	-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
+RELEASE = $(shell ${UTILSDIR}/release.sh)
 
 ifdef DEBUG
 	override DEBUG = -DDEBUG
@@ -46,6 +48,7 @@ CNAMES = \
 	date \
 	defrag \
 	deluser \
+	deskwin \
 	disks \
 	disprops \
 	domainname \
@@ -58,6 +61,7 @@ CNAMES = \
 	format \
 	help \
 	hexdump \
+	host \
 	hostname \
 	iconwin \
 	ifconfig \
@@ -78,6 +82,8 @@ CNAMES = \
 	more \
 	mount \
 	mv \
+	netsniff \
+	netstat \
 	nm \
 	passwd \
 	ping \
@@ -89,8 +95,14 @@ CNAMES = \
 	rm \
 	rmdir \
 	screenshot \
+	sha1pass \
+	sha1sum \
+	sha256pass \
+	sha256sum \
 	shutdown \
 	snake \
+	software \
+	store \
 	sync \
 	sysdiag \
 	tar \
@@ -104,7 +116,10 @@ CNAMES = \
 	users \
 	view \
 	vsh \
+	vspinst \
+	vspmake \
 	wallpaper \
+	wget \
 	who \
 	zip
 
@@ -151,14 +166,35 @@ ${BUILDDIR}/copy-boot: copy-boot.c ${STDDEPS}
 ${BUILDDIR}/format: format.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lvis -lintl -ldl -lvsh -lc -o $@
 
+${BUILDDIR}/software: software.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} $< -linstall -lcompress -lwindow -lvis -lintl -lvsh -lc -lgcc -o $@
+
+${BUILDDIR}/store: store.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} -D_VERSION_=\"${RELEASE}\" $< -linstall -lcompress -lpthread -lintl -lc -o $@
+
 ${BUILDDIR}/tar: tar.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -lgcc -o $@
+
+${BUILDDIR}/telnet: telnet.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} $< -ltelnet -lwindow -lvis -lintl -lc -lgcc -o $@
 
 ${BUILDDIR}/test: test.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lvis -lintl -ldl -lc -lgcc -o $@
 
 ${BUILDDIR}/unzip: unzip.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -lgcc -o $@
+
+${BUILDDIR}/view: view.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} $< -lhtml -lxml -lwindow -lvis -lintl -lc -lgcc -o $@
+
+${BUILDDIR}/vspinst: vspinst.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} $< -linstall -lcompress -lintl -lc -lgcc -o $@
+
+${BUILDDIR}/vspmake: vspmake.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} $< -linstall -lcompress -lintl -lc -lgcc -o $@
+
+${BUILDDIR}/wget: wget.c ${STDDEPS}
+	${CC} ${CFLAGS} ${LFLAGS} $< -lhttp -lvis -lintl -lvsh -lc -o $@
 
 ${BUILDDIR}/zip: zip.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -lgcc -o $@

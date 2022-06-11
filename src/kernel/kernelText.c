@@ -76,7 +76,7 @@ static kernelTextArea consoleArea = {
 static int initialized = 0;
 
 
-static int currentInputIntercept(stream *theStream, unsigned char byte)
+static int currentInputIntercept(stream *theStream, unsigned unicode)
 {
 	// This function allows us to intercept special-case characters coming
 	// into the console input stream
@@ -91,7 +91,7 @@ static int currentInputIntercept(stream *theStream, unsigned char byte)
 	// Check for a few special scenarios
 
 	// Check for CTRL-C
-	if (byte == ASCII_ETX)
+	if (unicode == ASCII_ETX)
 	{
 		// Show that something happened
 		kernelTextStreamPrintLine(currentOutput, "^C");
@@ -103,13 +103,13 @@ static int currentInputIntercept(stream *theStream, unsigned char byte)
 	}
 
 	// Check for PAGE UP
-	else if (byte == ASCII_PAGEUP)
+	else if (unicode == ASCII_PAGEUP)
 	{
 		kernelTextStreamScroll(currentOutput, -1);
 	}
 
 	// Check for PAGE DOWN
-	else if (byte == ASCII_PAGEDOWN)
+	else if (unicode == ASCII_PAGEDOWN)
 	{
 		kernelTextStreamScroll(currentOutput, 1);
 	}
@@ -117,20 +117,20 @@ static int currentInputIntercept(stream *theStream, unsigned char byte)
 	else if (currentInput->attrs.echo)
 	{
 		// Check for BACKSPACE
-		if (byte == ASCII_BACKSPACE)
+		if (unicode == ASCII_BACKSPACE)
 			kernelTextStreamBackSpace(currentOutput);
 
 		// Check for TAB
-		else if (byte == ASCII_TAB)
+		else if (unicode == ASCII_TAB)
 			kernelTextStreamTab(currentOutput);
 
 		// Check for ENTER
-		else if (byte == ASCII_ENTER)
+		else if (unicode == ASCII_ENTER)
 			kernelTextStreamNewline(currentOutput);
 
-		else if (byte >= ASCII_SPACE)
+		else if (unicode >= ASCII_SPACE)
 			// Echo the character
-			kernelTextStreamPutc(currentOutput, byte);
+			kernelTextStreamPutc(currentOutput, unicode);
 	}
 
 	// The keyboard driver tries to append everything to the original text
@@ -139,9 +139,28 @@ static int currentInputIntercept(stream *theStream, unsigned char byte)
 	// us by our caller.
 
 	// Call the original stream append function
-	status = currentInput->s.intercept(&currentInput->s, byte);
+	status = currentInput->s.intercept(&currentInput->s, unicode);
 
 	return (status);
+}
+
+
+static int initTextInputStream(kernelTextInputStream *newStream)
+{
+	int status = 0;
+
+	// Initialize the stream
+	status = kernelStreamNew(&newStream->s, TEXT_STREAMSIZE, itemsize_dword);
+	if (status < 0)
+		return (status);
+
+	// We want to be able to intercept things as they're put into the input
+	// stream, so we can catch keyboard interrupts and such
+	newStream->s.intercept = newStream->s.append;
+	newStream->s.append = (int (*)(stream *, ...)) &currentInputIntercept;
+	newStream->attrs.echo = 1;
+
+	return (status = 0);
 }
 
 
@@ -225,17 +244,9 @@ int kernelTextInitialize(int columns, int rows)
 	consoleArea.outputStream = consoleOutput;
 
 	// Set up our console input stream
-	status = kernelStreamNew(&consoleInput->s, TEXT_STREAMSIZE,
-		itemsize_byte);
+	status = initTextInputStream(consoleInput);
 	if (status < 0)
 		return (status);
-
-	// We want to be able to intercept things as they're put into the console
-	// input stream as they're placed there, so we can catch keyboard
-	// interrupts and such.  Remember the original append function though
-	consoleInput->s.intercept = consoleInput->s.append;
-	consoleInput->s.append = (int (*)(stream *, ...)) &currentInputIntercept;
-	consoleInput->attrs.echo = 1;
 
 	consoleArea.inputStream = consoleInput;
 
@@ -385,24 +396,30 @@ int kernelTextAreaResize(kernelTextArea *area, int columns, int rows)
 	if (diffRows >= 0)
 	{
 		diffVisibleRows = min(diffRows, area->scrollBackLines);
+
 		for (rowCount = 0; rowCount < area->maxBufferLines; rowCount ++)
 		{
-			strncpy((char *)(newBufferData + ((diffVisibleRows + rowCount) *
-				columns)), (char *)(area->bufferData + (rowCount *
-				area->columns)), copyColumns);
+			memcpy((char *)(newBufferData + ((diffVisibleRows + rowCount) *
+				(columns * area->bytesPerChar))), (char *)(area->bufferData +
+				(rowCount * area->columns * area->bytesPerChar)),
+				(copyColumns * area->bytesPerChar));
 		}
+
 		area->cursorRow += diffVisibleRows;
 		area->scrollBackLines -= diffVisibleRows;
 	}
 	else
 	{
 		diffVisibleRows = min(-diffRows, area->scrollBackLines);
+
 		for (rowCount = 0; rowCount < newBufferLines; rowCount ++)
 		{
-			strncpy((char *)(newBufferData + (rowCount * columns)),
-				(char *)(area->bufferData + ((diffVisibleRows + rowCount) *
-				area->columns)), copyColumns);
+			memcpy((char *)(newBufferData + (rowCount * columns *
+				area->bytesPerChar)), (char *)(area->bufferData +
+				((diffVisibleRows + rowCount) * (area->columns *
+				area->bytesPerChar))), (copyColumns * area->bytesPerChar));
 		}
+
 		if (area->cursorRow >= (area->rows - 1))
 		{
 			area->scrollBackLines += min(-diffRows, ((newBufferLines - rows) -
@@ -608,23 +625,13 @@ int kernelTextNewInputStream(kernelTextInputStream *newStream)
 	if (!newStream)
 		return (status = ERR_NULLPARAMETER);
 
-	status = kernelStreamNew(&newStream->s, TEXT_STREAMSIZE, itemsize_byte);
-	if (status < 0)
-		return (status);
-
-	// We want to be able to intercept things as they're put into the input
-	// stream, so we can catch keyboard interrupts and such
-	newStream->s.intercept = newStream->s.append;
-	newStream->s.append = (int (*)(stream *, ...)) &currentInputIntercept;
-	newStream->attrs.echo = 1;
-
-	return (status = 0);
+	return (status = initTextInputStream(newStream));
 }
 
 
 int kernelTextNewOutputStream(kernelTextOutputStream *newStream)
 {
-	// Create a new kernelTextOutputStream.
+	// Create a new kernelTextOutputStream
 
 	// Don't do anything unless we've been initialized
 	if (!initialized)
@@ -757,10 +764,12 @@ int kernelTextSetBackground(color *background)
 }
 
 
-int kernelTextStreamPutc(kernelTextOutputStream *outputStream, int ascii)
+int kernelTextStreamPutc(kernelTextOutputStream *outputStream,
+	unsigned unicode)
 {
 	int status = 0;
-	char theChar[2];
+	int bytes = 0;
+	char theChar[MB_LEN_MAX + 1];
 
 	// Don't do anything unless we've been initialized
 	if (!initialized)
@@ -773,8 +782,11 @@ int kernelTextStreamPutc(kernelTextOutputStream *outputStream, int ascii)
 	if (!outputStream->outputDriver || !outputStream->outputDriver->print)
 		return (status = ERR_NOSUCHFUNCTION);
 
-	theChar[0] = ascii;
-	theChar[1] = '\0';
+	bytes = wctomb(theChar, unicode);
+	if (bytes < 1)
+		return (status = ERR_NODATA);
+
+	theChar[bytes] = '\0';
 
 	// Call the text stream output driver function with the character we were
 	// passed
@@ -783,7 +795,7 @@ int kernelTextStreamPutc(kernelTextOutputStream *outputStream, int ascii)
 }
 
 
-int kernelTextPutc(int ascii)
+int kernelTextPutc(unsigned unicode)
 {
 	// Determines the current target of character output, then makes calls to
 	// output the character.  Returns 0 if successful, negative otherwise.
@@ -793,7 +805,60 @@ int kernelTextPutc(int ascii)
 	// Get the text output stream for the current process
 	outputStream = kernelMultitaskerGetTextOutput();
 
-	return (kernelTextStreamPutc(outputStream, ascii));
+	return (kernelTextStreamPutc(outputStream, unicode));
+}
+
+
+int kernelTextStreamPutMbc(kernelTextOutputStream *outputStream,
+	const char *output)
+{
+	int status = 0;
+	int bytes = 0;
+	char theChar[MB_LEN_MAX + 1];
+	int count;
+
+	// Don't do anything unless we've been initialized
+	if (!initialized)
+		return (status = ERR_NOTINITIALIZED);
+
+	// Check params
+	if (!outputStream || !output)
+		return (status = ERR_NULLPARAMETER);
+
+	if (!outputStream->outputDriver || !outputStream->outputDriver->print)
+		return (status = ERR_NOSUCHFUNCTION);
+
+	bytes = mblen(output, strnlen(output, MB_LEN_MAX));
+	if (bytes < 1)
+		return (status = ERR_NODATA);
+
+	for (count = 0; count < bytes; count ++)
+		theChar[count] = output[count];
+	theChar[bytes] = '\0';
+
+	// Call the text stream output driver function with the character we were
+	// passed
+	status = outputStream->outputDriver->print(outputStream->textArea,
+		theChar, NULL);
+	if (status < 0)
+		return (status);
+
+	return (bytes);
+}
+
+
+int kernelTextPutMbc(const char *output)
+{
+	// Determines the current target of character output, then makes calls to
+	// output the (possibly wide) character.  If successful, returns the
+	// number of bytes consumed from 'output', negative otherwise.
+
+	kernelTextOutputStream *outputStream = NULL;
+
+	// Get the text output stream for the current process
+	outputStream = kernelMultitaskerGetTextOutput();
+
+	return (kernelTextStreamPutMbc(outputStream, output));
 }
 
 
@@ -1755,9 +1820,10 @@ int kernelTextInputCount(void)
 
 
 int kernelTextInputStreamGetc(kernelTextInputStream *inputStream,
-	char *returnChar)
+	unsigned *returnChar)
 {
-	// Returns a single character from the keyboard buffer
+	// Removes and returns a single (possibly wide) character from the input
+	// stream
 
 	int status = 0;
 
@@ -1788,17 +1854,17 @@ int kernelTextInputStreamGetc(kernelTextInputStream *inputStream,
 }
 
 
-int kernelTextInputGetc(char *returnChar)
+int kernelTextInputGetc(unsigned *returnChar)
 {
 	return (kernelTextInputStreamGetc(NULL, returnChar));
 }
 
 
 int kernelTextInputStreamReadN(kernelTextInputStream *inputStream,
-	int numberRequested, char *returnChars)
+	int numberRequested, unsigned *returnChars)
 {
-	// Gets the requested number of characters from the keyboard buffer,
-	// and puts them in the string supplied.
+	// Removes (up to) the requested number of (possibly wide) characters from
+	// the input stream, and puts them in the supplied buffer
 
 	int status = 0;
 
@@ -1826,17 +1892,17 @@ int kernelTextInputStreamReadN(kernelTextInputStream *inputStream,
 }
 
 
-int kernelTextInputReadN(int numberRequested, char *returnChars)
+int kernelTextInputReadN(int numberRequested, unsigned *returnChars)
 {
 	return (kernelTextInputStreamReadN(NULL, numberRequested, returnChars));
 }
 
 
 int kernelTextInputStreamReadAll(kernelTextInputStream *inputStream,
-	char *returnChars)
+	unsigned *returnChars)
 {
-	// Takes a pointer to an initialized character array, and fills it with
-	// all of the characters present in the buffer.
+	// Removes all of the (possibly wide) characters from the input stream,
+	// and puts them in the supplied buffer
 
 	int status = 0;
 
@@ -1865,15 +1931,17 @@ int kernelTextInputStreamReadAll(kernelTextInputStream *inputStream,
 }
 
 
-int kernelTextInputReadAll(char *returnChars)
+int kernelTextInputReadAll(unsigned *returnChars)
 {
 	return (kernelTextInputStreamReadAll(NULL, returnChars));
 }
 
 
-int kernelTextInputStreamAppend(kernelTextInputStream *inputStream, int ascii)
+int kernelTextInputStreamAppend(kernelTextInputStream *inputStream,
+	unsigned unicode)
 {
-	// Adds a single character to the text input stream.
+	// Appends a single (possibly wide) character to the end of the text input
+	// stream
 
 	int status = 0;
 
@@ -1889,23 +1957,24 @@ int kernelTextInputStreamAppend(kernelTextInputStream *inputStream, int ascii)
 	}
 
 	// Call the 'append' function for this stream
-	status = inputStream->s.append(&inputStream->s, (unsigned char) ascii);
+	status = inputStream->s.append(&inputStream->s, unicode);
 
 	// Return the status from the call
 	return (status);
 }
 
 
-int kernelTextInputAppend(int ascii)
+int kernelTextInputAppend(unsigned unicode)
 {
-	return (kernelTextInputStreamAppend(NULL, ascii));
+	return (kernelTextInputStreamAppend(NULL, unicode));
 }
 
 
 int kernelTextInputStreamAppendN(kernelTextInputStream *inputStream,
-	int numberRequested, char *addCharacters)
+	int numberRequested, unsigned *addCharacters)
 {
-	// Adds the requested number of characters to the text input stream.
+	// Appends the requested number of (possibly wide) characters to the text
+	// input stream
 
 	int status = 0;
 
@@ -1933,7 +2002,7 @@ int kernelTextInputStreamAppendN(kernelTextInputStream *inputStream,
 }
 
 
-int kernelTextInputAppendN(int numberRequested, char *addCharacters)
+int kernelTextInputAppendN(int numberRequested, unsigned *addCharacters)
 {
 	return (kernelTextInputStreamAppendN(NULL, numberRequested,
 		addCharacters));

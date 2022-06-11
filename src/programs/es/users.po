@@ -7,13 +7,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-01-22 04:44-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
@@ -27,11 +27,11 @@ msgstr "Neuer Benutzer"
 
 #: users.c:66
 msgid "Delete User"
-msgstr "Benutzer löschen"
+msgstr "Benutzer lÃ¶schen"
 
 #: users.c:67
 msgid "Set Password"
-msgstr "Configuar contraseña"
+msgstr "Configuar contraseÃ±a"
 
 #: users.c:68
 msgid "Set Language"
@@ -52,19 +52,19 @@ msgstr "Nombre de usuario: %s"
 
 #: users.c:203
 msgid "Old password:"
-msgstr "Contraseña anterior:"
+msgstr "ContraseÃ±a anterior:"
 
 #: users.c:217
 msgid "New password:"
-msgstr "Nueva contraseña:"
+msgstr "Nueva contraseÃ±a:"
 
 #: users.c:234
 msgid "Confirm password:"
-msgstr "Passwortbestätigung:"
+msgstr "PasswortbestÃ¤tigung:"
 
 #: users.c:248 users.c:424
 msgid "Passwords do not match"
-msgstr "Contraseñas desiguales"
+msgstr "ContraseÃ±as desiguales"
 
 #: users.c:252
 msgid "Password should be longer"
@@ -84,7 +84,7 @@ msgstr "Permiso denegado"
 
 #: users.c:420
 msgid "Error setting password"
-msgstr "Error al configurar la contraseña"
+msgstr "Error al configurar la contraseÃ±a"
 
 #: users.c:470
 #, c-format
@@ -110,15 +110,15 @@ msgstr "Ingrese el nombre de usuario:"
 #: users.c:712
 #, c-format
 msgid "Delete user %s?"
-msgstr "Benutzer %s löschen?"
+msgstr "Benutzer %s lÃ¶schen?"
 
 #: users.c:714
 msgid "Delete?"
-msgstr "Löschen?"
+msgstr "LÃ¶schen?"
 
 #: users.c:719
 msgid "Can't delete the last user"
-msgstr "Der letzte Benutzer kann nicht gelöscht werden"
+msgstr "Der letzte Benutzer kann nicht gelÃ¶scht werden"
 
 #: users.c:746
 msgid "Couldn't save the language choice"
@@ -131,7 +131,7 @@ msgid ""
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 "\n"
-"El comando \"%s\" funciona solamente en modo gráfico\n"
+"El comando \"%s\" funciona solamente en modo grÃ¡fico\n"
 
 #: users.c:860
 #, c-format
@@ -141,7 +141,7 @@ msgstr ""
 #: users.c:876
 #, fuzzy
 msgid "Couldn't determine the current user"
-msgstr "Der letzte Benutzer kann nicht gelöscht werden"
+msgstr "Der letzte Benutzer kann nicht gelÃ¶scht werden"
 
 #: users.c:904
 #, c-format
@@ -154,4 +154,4 @@ msgstr "Listo"
 
 #: users.c:909
 msgid "Password set"
-msgstr "Contraseña configurada"
+msgstr "ContraseÃ±a configurada"

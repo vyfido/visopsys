@@ -1,0 +1,16 @@
+
+ -- netstat --
+
+Prints information about all current network connections.
+
+Usage:
+  netstat [-T]
+
+This command will show information about the system's network connections.
+
+In graphics mode, the program is interactive and the user can view network
+connection status and perform tasks visually.
+
+Options:
+-T  : Force text mode operation
+

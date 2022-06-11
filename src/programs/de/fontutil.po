@@ -7,13 +7,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2013-11-02 13:22-0400\n"
-"Last-Translator: Jens León Wagner <nikski280@gmail.com>\n"
+"Last-Translator: Jens LeÃ³n Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.7\n"
 
@@ -26,9 +26,9 @@ msgid "usage:\n"
 msgstr "Benutzung:\n"
 
 #: fontutil.c:127
-#, fuzzy, c-format
+#, c-format
 msgid "  %s [options] [VBF_file]\n"
-msgstr "  %s [optionen] <VBF_datei>\n"
+msgstr "  %s [optionen] [VBF_datei]\n"
 
 #: fontutil.c:128
 #, c-format
@@ -153,7 +153,7 @@ msgstr ""
 msgid "Glyph %d does not exist in font file"
 msgstr ""
 
-#: fontutil.c:664 fontutil.c:1702
+#: fontutil.c:664 fontutil.c:1700
 #, c-format
 msgid "Can't open %s for reading"
 msgstr ""
@@ -274,82 +274,82 @@ msgstr ""
 msgid "Can't write destination file %s"
 msgstr ""
 
-#: fontutil.c:1823
+#: fontutil.c:1821
 #, c-format
 msgid "Can't open %s for writing"
 msgstr ""
 
-#: fontutil.c:1933
+#: fontutil.c:1931
 msgid "No supported font files found"
 msgstr ""
 
-#: fontutil.c:1992
+#: fontutil.c:1990
 msgid "Save"
 msgstr ""
 
-#: fontutil.c:2037
+#: fontutil.c:2035
 msgid "Couldn't get working memory"
 msgstr ""
 
-#: fontutil.c:2056 fontutil.c:2254
+#: fontutil.c:2054 fontutil.c:2252
 #, c-format
 msgid "Missing parameter for %s option"
 msgstr ""
 
-#: fontutil.c:2062 fontutil.c:2260
+#: fontutil.c:2060 fontutil.c:2258
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: fontutil.c:2091
+#: fontutil.c:2089
 msgid "Missing code argument for '-a' option"
 msgstr ""
 
-#: fontutil.c:2104
+#: fontutil.c:2102
 msgid "Missing charset argument for '-c' option"
 msgstr ""
 
-#: fontutil.c:2126
+#: fontutil.c:2124
 msgid "Missing image filename argument for '-e' option"
 msgstr ""
 
-#: fontutil.c:2139
+#: fontutil.c:2137
 msgid "Missing filename argument for '-f' option"
 msgstr ""
 
-#: fontutil.c:2151
+#: fontutil.c:2149
 msgid "Missing image filename argument for '-i' option"
 msgstr ""
 
-#: fontutil.c:2164
+#: fontutil.c:2162
 msgid "Missing family name argument for '-n' option"
 msgstr ""
 
-#: fontutil.c:2179
+#: fontutil.c:2177
 msgid "Missing points argument for '-p' option"
 msgstr ""
 
-#: fontutil.c:2193
+#: fontutil.c:2191
 msgid "Missing code argument for '-r' option"
 msgstr ""
 
-#: fontutil.c:2206
+#: fontutil.c:2204
 msgid "Missing style argument for '-s' option"
 msgstr ""
 
-#: fontutil.c:2225
+#: fontutil.c:2223
 #, c-format
 msgid "Unknown style argument %s"
 msgstr ""
 
-#: fontutil.c:2244
+#: fontutil.c:2242
 msgid "Missing filename argument for '-x' option"
 msgstr ""
 
-#: fontutil.c:2291
+#: fontutil.c:2289
 msgid "Missing image file (-f) argument to add (-a) operation"
 msgstr ""
 
-#: fontutil.c:2305
+#: fontutil.c:2303
 msgid "No operation specified"
 msgstr ""

@@ -8,13 +8,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: filebrowse.c:61
@@ -37,16 +37,16 @@ msgstr "Ansicht"
 msgid "Refresh"
 msgstr "Aktualisieren"
 
-#: filebrowse.c:126
+#: filebrowse.c:127
 msgid "Error"
 msgstr "Fehler"
 
-#: filebrowse.c:276
+#: filebrowse.c:283
 #, c-format
 msgid "Couldn't execute command \"%s\""
 msgstr ""
 
-#: filebrowse.c:474
+#: filebrowse.c:481
 #, c-format
 msgid ""
 "\n"
@@ -55,15 +55,15 @@ msgstr ""
 "\n"
 "Der Befehl \"%s\" funktioniert nur im Grafik-Modus\n"
 
-#: filebrowse.c:488
+#: filebrowse.c:495
 msgid "Memory allocation error"
 msgstr "Fehler bei der Speicherverteilung"
 
-#: filebrowse.c:503
+#: filebrowse.c:510
 #, c-format
 msgid "Can't change to directory \"%s\""
 msgstr "Es konnte nicht ins Verzeichnis \"%s\" gewechselt werden"
 
-#: filebrowse.c:510
+#: filebrowse.c:517
 msgid "Can't determine current directory"
 msgstr "Das aktuelle Verzeichnis kann nicht bestimmt werden"

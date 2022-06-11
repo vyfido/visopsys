@@ -137,8 +137,7 @@ static unsigned char glyphs[ASCII_PRINTABLES][8] = {
 	{ 24, 32, 32, 96, 32, 32, 24, 0 },			// {
 	{ 16, 16, 16, 16, 16, 16, 16, 0 },			// |
 	{ 48, 8, 8, 12, 8, 8, 48, 0 },				// }
-	{ 64, 168, 168, 16, 0, 0, 0, 0 },			// ~
-	{ 0, 0, 0, 0, 0, 0, 0, 0 }					// DEL
+	{ 64, 168, 168, 16, 0, 0, 0, 0 }			// ~
 };
 
 static kernelFont *systemFont = NULL;
@@ -502,9 +501,7 @@ kernelFont *kernelFontGet(const char *family, unsigned flags, int points,
 			// We don't have this charset yet
 			kernelDebug(debug_font, "Charset not yet loaded");
 
-			// Try to load it
-
-			// The basic ASCII version should already be present
+			// Try to find it
 			status = search(family, flags, points, charSet, fileName);
 			if (status < 0)
 			{
@@ -526,25 +523,14 @@ kernelFont *kernelFontGet(const char *family, unsigned flags, int points,
 		// We don't have this font yet
 		kernelDebug(debug_font, "Font not yet loaded");
 
-		// Search for the basic ASCII version first.
-		status = search(family, flags, points, CHARSET_NAME_ASCII, fileName);
-		if (status < 0)
-			// Not found, or load error
-			goto out;
-
-		// We have the ASCII version.  Try to load it.
-		font = load(NULL, fileName, (flags & FONT_STYLEFLAG_FIXED));
-		if (!font)
-			goto out;
-
-		// Now search for the extended version with the selected charset
+		// Try to find it
 		status = search(family, flags, points, charSet, fileName);
 		if (status < 0)
 			// Not found, or load error
 			goto out;
 
-		// We have the extended version.  Try to load it.
-		load(font, fileName, (flags & FONT_STYLEFLAG_FIXED));
+		// Try to load it
+		font = load(font, fileName, (flags & FONT_STYLEFLAG_FIXED));
 	}
 
 out:
@@ -567,6 +553,7 @@ int kernelFontGetPrintedWidth(kernelFont *font, const char *charSet,
 	int printedWidth = 0;
 	int length = 0;
 	unsigned unicode = 0;
+	int multiByte = 0;
 	int count1, count2;
 
 	// Make sure we've been initialized
@@ -590,6 +577,15 @@ int kernelFontGetPrintedWidth(kernelFont *font, const char *charSet,
 		if ((unsigned char) string[count1] < CHARSET_IDENT_CODES)
 		{
 			unicode = string[count1];
+		}
+		else if (!strcmp(charSet, CHARSET_NAME_UTF8))
+		{
+			multiByte = mbtowc(&unicode, (string + count1), (length -
+				count1));
+			if (multiByte < 0)
+				continue;
+			else if (multiByte > 1)
+				count1 += (multiByte - 1);
 		}
 		else
 		{

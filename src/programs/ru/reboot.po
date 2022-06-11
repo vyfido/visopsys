@@ -8,13 +8,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: reboot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2017-05-29 01:25+0100\n"
 "PO-Revision-Date: 2014-08-13 22:19+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.6.4\n"
 
@@ -24,7 +24,7 @@ msgid ""
 "Ejecting, please wait... "
 msgstr ""
 "\n"
-"∏◊“€’Á’›ÿ’, ﬂﬁ‘ﬁ÷‘ÿ‚’... "
+"–ò–∑–≤–ª–µ—á–µ–Ω–∏–µ, –ø–æ–¥–æ–∂–¥–∏—Ç–µ... "
 
 #: reboot.c:68
 msgid ""
@@ -34,7 +34,7 @@ msgid ""
 msgstr ""
 "\n"
 "\n"
-"Ω’“ﬁ◊‹ﬁ÷›ﬁ ﬁ‚⁄‡Î‚Ï ‘“’‡Ê„ „·‚‡ﬁŸ·‚“–\n"
+"–ù–µ–≤–æ–∑–º–æ–∂–Ω–æ –æ—Ç–∫—Ä—ã—Ç—å –¥–≤–µ—Ä—Ü—É —É—Å—Ç—Ä–æ–π—Å—Ç–≤–∞\n"
 
 #: reboot.c:78
 msgid ""
@@ -44,7 +44,7 @@ msgid ""
 msgstr ""
 "\n"
 "\n"
-"øﬁÂﬁ÷’, ›’ „‘–’‚·Ô ÿ◊“€’ÁÏ.  øﬁﬂ‡ﬁ—„Ÿ‚’ ·’ŸÁ–· ›–÷–‚Ï ⁄›ﬁ⁄„ \"∏◊“€’ÁÏ\".\n"
+"–ü–æ—Ö–æ–∂–µ, –Ω–µ —É–¥–∞–µ—Ç—Å—è –∏–∑–≤–ª–µ—á—å.  –ü–æ–ø—Ä–æ–±—É–π—Ç–µ —Å–µ–π—á–∞—Å –Ω–∞–∂–∞—Ç—å –∫–Ω–æ–∫—É \"–ò–∑–≤–ª–µ—á—å\".\n"
 
 #: reboot.c:115
 #, c-format
@@ -54,4 +54,4 @@ msgstr ""
 #: reboot.c:131
 #, c-format
 msgid "Use \"%s -f\" to force.\n"
-msgstr "∏·ﬂﬁ€Ï◊„Ÿ‚’ \"%s -f\" ‘€Ô ﬂ‡ÿ›„‘ÿ‚’€Ï›ﬁŸ ﬂ’‡’◊–”‡„◊⁄ÿ.\n"
+msgstr "–ò—Å–ø–æ–ª—å–∑—É–π—Ç–µ \"%s -f\" –¥–ª—è –ø—Ä–∏–Ω—É–¥–∏—Ç–µ–ª—å–Ω–æ–π –ø–µ—Ä–µ–∑–∞–≥—Ä—É–∑–∫–∏.\n"

@@ -17,9 +17,9 @@ echo ""
 echo "Making Visopsys USB IMAGE file"
 
 while [ "$1" != "" ] ; do
-	# Are we doing a release version?  If the argument is "-r" then we use
-	# the release number in the destination directory name.  Otherwise, we
-	# assume an interim package and use the date instead
+	# Are we doing a release version?  If the argument is "-r" then we use the
+	# release number in the destination directory name.  Otherwise, we assume
+	# an interim package and use the date instead.
 	if [ "$1" = "-r" ] ; then
 		# What is the current release version?
 		RELEASE=`./release.sh`
@@ -52,11 +52,11 @@ rm -f $IMAGEFILE
 cp $BLANKUSB "$IMAGEFILE".gz
 gunzip "$IMAGEFILE".gz
 
-# Determine the starting offset of the first partition in the image.
+# Determine the starting offset of the first partition in the image
 # Assumptions:
 #  1. We are installing in the first partition
 #  2. The first partition has been made active
-#  3. The image was created using 512-byte sectors.
+#  3. The image was created using 512-byte sectors
 STARTSEC=$(/sbin/fdisk -lu -b512 $IMAGEFILE 2> /dev/null | \
 	grep ^"$IMAGEFILE"1 | tr -s ' ' | cut -d' ' -f3)
 STARTOFF=$(($STARTSEC * 512))

@@ -1,0 +1,234 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2020-04-14 01:39+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: software.c:75
+msgid "Software"
+msgstr ""
+
+#: software.c:76
+msgid "Available packages"
+msgstr ""
+
+#: software.c:77
+msgid "Installed packages"
+msgstr ""
+
+#: software.c:78
+msgid "[no packages]                   "
+msgstr ""
+
+#: software.c:79
+msgid "Package name:"
+msgstr ""
+
+#: software.c:80
+msgid "Version:"
+msgstr ""
+
+#: software.c:81
+msgid "Architecture:"
+msgstr ""
+
+#: software.c:82
+msgid "Description:"
+msgstr ""
+
+#: software.c:83 software.c:1349 software.c:1368
+msgid "Install"
+msgstr ""
+
+#: software.c:84
+msgid "Uninstall"
+msgstr ""
+
+#: software.c:137
+msgid "Error"
+msgstr ""
+
+#: software.c:145
+#, c-format
+msgid ""
+"usage:\n"
+"%s [-T] [-l] [-q] [-i name | file]"
+msgstr ""
+
+#: software.c:165 software.c:167
+msgid "Info"
+msgstr ""
+
+#: software.c:200
+msgid "Failed to lookup store host info"
+msgstr ""
+
+#: software.c:222
+#, c-format
+msgid "Trying %s:%d..."
+msgstr ""
+
+#: software.c:231
+msgid "Couldn't open socket"
+msgstr ""
+
+#: software.c:240
+msgid "Couldn't connect"
+msgstr ""
+
+#: software.c:246
+#, c-format
+msgid "Connected to %s (%s) port %u\n"
+msgstr ""
+
+#: software.c:299 software.c:309 software.c:420 software.c:798
+msgid "Memory error"
+msgstr ""
+
+#: software.c:320
+msgid "Temp file error"
+msgstr ""
+
+#: software.c:360 software.c:391 software.c:403 software.c:442
+msgid "I/O error"
+msgstr ""
+
+#: software.c:450
+msgid "Reply version"
+msgstr ""
+
+#: software.c:451
+msgid "not supported"
+msgstr ""
+
+#: software.c:475
+msgid "Closing connection"
+msgstr ""
+
+#: software.c:532
+msgid "Couldn't get package list"
+msgstr ""
+
+#: software.c:543 software.c:948
+msgid "Error parsing package list"
+msgstr ""
+
+#: software.c:563
+msgid "No matching package found"
+msgstr ""
+
+#: software.c:594
+msgid "Requesting download of"
+msgstr ""
+
+#: software.c:595 software.c:606
+msgid "for"
+msgstr ""
+
+#: software.c:605
+msgid "Downloading"
+msgstr ""
+
+#: software.c:643
+msgid "Couldn't get package info from"
+msgstr ""
+
+#: software.c:654
+msgid "Couldn't get package info for"
+msgstr ""
+
+#: software.c:661 software.c:683
+msgid "Installing"
+msgstr ""
+
+#: software.c:675
+msgid "Couldn't download"
+msgstr ""
+
+#: software.c:694
+msgid "Couldn't process"
+msgstr ""
+
+#: software.c:702
+msgid "Installation check failed for"
+msgstr ""
+
+#: software.c:710
+msgid "Couldn't extract"
+msgstr ""
+
+#: software.c:718
+msgid "Error installing"
+msgstr ""
+
+#: software.c:758 software.c:767
+msgid "Uninstalling"
+msgstr ""
+
+#: software.c:773
+msgid "Error uninstalling"
+msgstr ""
+
+#: software.c:858
+msgid "Couldn't get installed package list"
+msgstr ""
+
+#: software.c:872 software.c:939
+msgid "total packages"
+msgstr ""
+
+#: software.c:934
+msgid "Couldn't get available package list"
+msgstr ""
+
+#: software.c:1343
+msgid ""
+"A newer version of this program is available.\n"
+"Install it now?"
+msgstr ""
+
+#: software.c:1348
+msgid "New Version"
+msgstr ""
+
+#: software.c:1349 software.c:1374
+msgid "Cancel"
+msgstr ""
+
+#: software.c:1359
+#, c-format
+msgid ""
+"\n"
+"%s (I)nstall/(C)ancel?: "
+msgstr ""
+
+#: software.c:1453
+msgid "Missing name argument for '-i' option"
+msgstr ""
+
+#: software.c:1474
+#, c-format
+msgid "Missing parameter for %s option"
+msgstr ""
+
+#: software.c:1484
+#, c-format
+msgid "Unknown option '%c'"
+msgstr ""
+
+#: software.c:1496
+msgid "Couldn't get OS version"
+msgstr ""

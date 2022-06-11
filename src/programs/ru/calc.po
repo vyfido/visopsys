@@ -8,41 +8,41 @@ msgid ""
 msgstr ""
 "Project-Id-Version: calculator\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-08 00:54+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
-#: calc.c:48
+#: calc.c:49
 msgid "Calculator"
-msgstr "∫–€Ï⁄„€Ô‚ﬁ‡"
-
-#: calc.c:235 calc.c:259
-msgid "Division by zero"
-msgstr "¥’€’›ÿ’ ›– ›ﬁ€Ï"
+msgstr "–ö–∞–ª—å–∫—É–ª—è—Ç–æ—Ä"
 
 #: calc.c:236 calc.c:260
+msgid "Division by zero"
+msgstr "–î–µ–ª–µ–Ω–∏–µ –Ω–∞ –Ω–æ–ª—å"
+
+#: calc.c:237 calc.c:261
 msgid "Error: division by zero!"
-msgstr "æËÿ—⁄–: ‘’€’›ÿ’ ›– ›ﬁ€Ï!"
+msgstr "–û—à–∏–±–∫–∞: –¥–µ–ª–µ–Ω–∏–µ –Ω–∞ –Ω–æ–ª—å!"
 
-#: calc.c:347 calc.c:355
+#: calc.c:348 calc.c:356
 msgid "Invalid number"
-msgstr "Ω’“’‡›ﬁ’ Áÿ·€ﬁ"
+msgstr "–ù–µ–≤–µ—Ä–Ω–æ–µ —á–∏—Å–ª–æ"
 
-#: calc.c:348
+#: calc.c:349
 msgid "Negative number!"
-msgstr "æ‚‡ÿÊ–‚’€Ï›ﬁ’ Áÿ·€ﬁ!"
+msgstr "–û—Ç—Ä–∏—Ü–∞—Ç–µ–ª—å–Ω–æ–µ —á–∏—Å–ª–æ!"
 
-#: calc.c:356
+#: calc.c:357
 msgid "Number is not integer!"
-msgstr "«ÿ·€ﬁ ›’ Ê’€ﬁ’!"
+msgstr "–ß–∏—Å–ª–æ –Ω–µ —Ü–µ–ª–æ–µ!"
 
-#: calc.c:539
+#: calc.c:557
 #, c-format
 msgid ""
 "\n"

@@ -1,0 +1,75 @@
+//
+//  Visopsys
+//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//
+//  This library is free software; you can redistribute it and/or modify it
+//  under the terms of the GNU Lesser General Public License as published by
+//  the Free Software Foundation; either version 2.1 of the License, or (at
+//  your option) any later version.
+//
+//  This library is distributed in the hope that it will be useful, but
+//  WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+//  General Public License for more details.
+//
+//  You should have received a copy of the GNU Lesser General Public License
+//  along with this library; if not, write to the Free Software Foundation,
+//  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+//
+//  memory
+//
+
+// This is the Visopsys version of the standard C++ header file memory
+
+#ifndef _MEMORY_HPP
+#define _MEMORY_HPP
+
+#include <cstddef>
+
+namespace std {
+
+	template <class T> class allocator;
+
+	template <>
+	class allocator<void>
+	{
+		public:
+			typedef void		value_type;
+			typedef void*		pointer;
+			typedef const void*	const_pointer;
+	};
+
+	template <class T>
+	class allocator
+	{
+		public:
+			typedef T			value_type;
+			typedef T*			pointer;
+			typedef T&			reference;
+			typedef const T*	const_pointer;
+			typedef const T&	const_reference;
+			typedef size_t		size_type;
+			typedef ptrdiff_t	difference_type;
+
+			template <class U>
+			struct rebind {
+				typedef allocator<U> other;
+			};
+
+			// Const/dest
+			allocator() throw();
+			allocator(const allocator&) throw();
+			~allocator() throw();
+
+			// Member functions
+			pointer address(reference) const;
+			const_pointer address(const_reference) const;
+			pointer allocate(size_type,
+				allocator<void>::const_pointer hint = 0) const;
+			void deallocate(pointer, size_type) const;
+			size_type max_size() const throw();
+	};
+}
+
+#endif
+

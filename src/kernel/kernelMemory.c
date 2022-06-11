@@ -391,10 +391,10 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 
 	// Calculate the amount of total memory we're managing.  First, count
 	// 1024 kilobytes for standard and high memory (first "megabyte")
-	totalMemory = (1024 * 1024);
+	totalMemory = 0x100000;
 
 	// Add all the extended memory
-	totalMemory += (kernelOsLoaderInfo->extendedMemory * 1024);
+	totalMemory += (kernelOsLoaderInfo->extendedMemory << 10);
 
 	// Make sure that totalMemory is rounded down to a multiple of
 	// MEMORY_BLOCK_SIZE.

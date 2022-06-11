@@ -51,6 +51,7 @@ Options:
 #include <sys/api.h>
 #include <sys/env.h>
 #include <sys/font.h>
+#include <sys/image.h>
 #include <sys/kernconf.h>
 #include <sys/keyboard.h>
 #include <sys/lang.h>
@@ -333,8 +334,10 @@ static void refreshWindow(void)
 	if (langButton)
 	{
 		// Refresh the 'language' button
+
 		if (flagImage.data)
 			imageFree(&flagImage);
+
 		if (loadFlagImage(getenv(ENV_LANG), &flagImage) >= 0)
 		{
 			windowComponentSetData(langButton, &flagImage, sizeof(image),

@@ -8,21 +8,21 @@ msgid ""
 msgstr ""
 "Project-Id-Version: rmdir\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-08-13 22:13+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.6.4\n"
 
 #: rmdir.c:53
 msgid "usage:\n"
-msgstr "ÿ·ﬂﬁ€Ï◊ﬁ“–›ÿ’:\n"
+msgstr "–∏—Å–ø–æ–ª—å–∑–æ–≤–∞–Ω–∏–µ:\n"
 
 #: rmdir.c:54
 #, c-format
 msgid "%s <directory1> [directory2] [...]\n"
-msgstr "%s <⁄–‚–€ﬁ”1> [⁄–‚–€ﬁ”2] [...]\n"
+msgstr "%s <–∫–∞—Ç–∞–ª–æ–≥1> [–∫–∞—Ç–∞–ª–æ–≥2] [...]\n"

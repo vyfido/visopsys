@@ -1,0 +1,11 @@
+
+ -- telnet --
+
+Connect to a remote host using the telnet protocol.
+
+Usage:
+  telnet [-T] <address | hostname>
+
+Options:
+-T  : Force text mode operation
+

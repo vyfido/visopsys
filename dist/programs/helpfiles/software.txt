@@ -1,0 +1,17 @@
+
+ -- software --
+
+Connect to a software store to download, install, and update software.
+
+Usage:
+  software [-T] [-l] [-q] [-i name | file]
+
+If no options are specified, a list of available packages will be
+displayed.
+
+Options:
+-i <name | file>  : Install a package from the store by name, or from a file
+-l                : List installed packages
+-q                : Query available packages from the store
+-T                : Force text mode operation
+

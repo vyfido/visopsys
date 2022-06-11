@@ -25,10 +25,12 @@
 #ifndef _TEXT_H
 #define _TEXT_H
 
+#include <stddef.h>
 #include <sys/color.h>
+#include <sys/memory.h>
 
 // Definitions
-#define TEXT_STREAMSIZE					32768
+#define TEXT_STREAMSIZE					(MEMORY_BLOCK_SIZE / sizeof(wchar_t))
 #define TEXT_DEFAULT_TAB				8
 #define TEXT_DEFAULT_SCROLLBACKLINES	256
 

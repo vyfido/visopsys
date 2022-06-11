@@ -47,16 +47,20 @@ char *strtok(char *string, const char *delim)
 	}
 
 	if (!delim)
+	{
 		// We need delimiters
 		return (saveptr = NULL);
+	}
 
-	// Skip any leading delimiter characters.
+	// Skip any leading delimiter characters
 	while (saveptr[0] && strchr(delim, saveptr[0]))
 		saveptr += 1;
 
 	if (!saveptr[0])
+	{
 		// Nothing left
 		return (saveptr = NULL);
+	}
 
 	// Remember the start of the token.  This will be our return value.
 	token = saveptr;

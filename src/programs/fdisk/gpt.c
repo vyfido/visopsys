@@ -19,7 +19,7 @@
 //  gpt.c
 //
 
-// This code does operations specific to GPT-labelled disks.
+// This code does operations specific to GPT-labelled disks
 
 #include "fdisk.h"
 #include "gpt.h"
@@ -58,7 +58,7 @@ static unsigned headerChecksum(gptHeader *header)
 
 static gptHeader *readHeader(const disk *theDisk)
 {
-	// Return a malloc-ed buffer containing the GPT header.
+	// Return a malloc-ed buffer containing the GPT header
 
 	int status = 0;
 	gptHeader *header = NULL;
@@ -91,8 +91,10 @@ static gptHeader *readHeader(const disk *theDisk)
 	// Check the header checksum.  For the moment we only warn if it's not
 	// correct.  Later we should be trying the backup header.
 	if (headerChecksum(header) != header->headerCRC32)
+	{
 		error(_("GPT header checksum mismatch (%x != %x)"),
 			headerChecksum(header), header->headerCRC32);
+	}
 
 	return (header);
 }
@@ -101,7 +103,7 @@ static gptHeader *readHeader(const disk *theDisk)
 static int writeHeader(const disk *theDisk, gptHeader *header)
 {
 	// Given a file descriptor for the open disk and a GPT header structure,
-	// write the header to disk.
+	// write the header to disk
 
 	int status = 0;
 	gptHeader headerCopy;
@@ -146,7 +148,7 @@ static unsigned entriesChecksum(gptEntry *entries, unsigned bytes)
 
 static gptEntry *readEntries(const disk *theDisk, gptHeader *header)
 {
-	// Given a GPT header, return a malloc-ed array of partition entries.
+	// Given a GPT header, return a malloc-ed array of partition entries
 
 	int status = 0;
 	gptEntry *entries = NULL;
@@ -186,7 +188,7 @@ static gptEntry *readEntries(const disk *theDisk, gptHeader *header)
 static int writeEntries(const disk *theDisk, gptHeader *header,
 	gptEntry *entries)
 {
-	// Given a GPT header and entries, write the partition entries to disk.
+	// Given a GPT header and entries, write the partition entries to disk
 
 	int status = 0;
 
@@ -237,7 +239,7 @@ static inline int isEntryUsed(guid *g)
 
 static int detect(const disk *theDisk)
 {
-	// Checks for the presense of a GPT disk label.
+	// Checks for the presence of a GPT disk label
 
 	int isGpt = 0;
 	unsigned char *sectorData = NULL;
@@ -247,10 +249,12 @@ static int detect(const disk *theDisk)
 	int count;
 
 	// A GPT disk must have a "guard" MS-DOS table, so a call to the MS-DOS
-	// detect() function must succeed first.
+	// detect() function must succeed first
 	if (getLabelMsdos()->detect(theDisk) != 1)
+	{
 		// Not a GPT label
 		return (isGpt = 0);
+	}
 
 	// Make sure it has the GPT protective partition
 	sectorData = malloc(theDisk->sectorSize);
@@ -287,7 +291,7 @@ static int detect(const disk *theDisk)
 	header = readHeader(theDisk);
 	if (header)
 	{
-		// Call this a GPT label.
+		// Call this a GPT label
 		free(header);
 		isGpt = 1;
 	}
@@ -298,7 +302,7 @@ static int detect(const disk *theDisk)
 
 static int create(const disk *theDisk)
 {
-	// Creates a GPT disk label.
+	// Creates a GPT disk label
 
 	int status = 0;
 	gptHeader header;
@@ -386,7 +390,7 @@ out:
 
 static int readTable(const disk *theDisk, rawSlice *slices, int *numSlices)
 {
-	// Read the partition table.
+	// Read the partition table
 
 	int status = 0;
 	gptHeader *header = NULL;
@@ -419,16 +423,16 @@ static int readTable(const disk *theDisk, rawSlice *slices, int *numSlices)
 			slices[*numSlices].type = partition_primary;
 			slices[*numSlices].tag = 1;
 
-			// The logical (LBA) start sector and number of sectors.
+			// The logical (LBA) start sector and number of sectors
 			slices[*numSlices].startSector = entries[count].startingLBA;
 			slices[*numSlices].numSectors =
 				((entries[count].endingLBA - entries[count].startingLBA) + 1);
 
-			// The partition type GUID.
+			// The partition type GUID
 			memcpy(&slices[*numSlices].typeGuid, &entries[count].typeGuid,
 				sizeof(guid));
 
-			// The partition GUID.
+			// The partition GUID
 			memcpy(&slices[*numSlices].partGuid, &entries[count].partGuid,
 				sizeof(guid));
 
@@ -447,7 +451,7 @@ static int readTable(const disk *theDisk, rawSlice *slices, int *numSlices)
 
 static int writeTable(const disk *theDisk, rawSlice *slices, int numSlices)
 {
-	// Write the partition table.
+	// Write the partition table
 
 	int status = 0;
 	gptHeader *header = NULL;
@@ -476,7 +480,7 @@ static int writeTable(const disk *theDisk, rawSlice *slices, int numSlices)
 		{
 			// Assign the data fields in the appropriate slice
 
-			// The GPT partition type GUID.
+			// The GPT partition type GUID
 			memcpy(&entries[numEntries].typeGuid, &slices[count].typeGuid,
 				sizeof(guid));
 
@@ -487,7 +491,7 @@ static int writeTable(const disk *theDisk, rawSlice *slices, int numSlices)
 			memcpy(&entries[numEntries].partGuid, &slices[count].partGuid,
 				sizeof(guid));
 
-			// The logical (LBA) start sector and end sectors.
+			// The logical (LBA) start sector and end sectors
 			entries[numEntries].startingLBA = slices[count].startSector;
 			entries[numEntries].endingLBA = (slices[count].startSector +
 				slices[count].numSectors - 1);
@@ -536,7 +540,7 @@ static sliceType canCreateSlice(slice *slices __attribute__((unused)),
 	int sliceNumber __attribute__((unused)))
 {
 	// This will return a sliceType enumeration if, given a slice number
-	// representing free space, a partition can be created there.
+	// representing free space, a partition can be created there
 
 	// With GPT, as long as the empty space is >= the first usable LBA, and
 	// <= the last usable LBA, then a primary partition (the only type we do)
@@ -573,8 +577,10 @@ static int getTypes(listItemParameters **typeListParams)
 	}
 
 	for (count = 0; count < numberTypes; count ++)
+	{
 		strncpy((*typeListParams)[count].text, types[count].description,
 			WINDOW_MAX_LABEL_LENGTH);
+	}
 
 out:
 	memoryRelease(types);
@@ -585,7 +591,7 @@ out:
 static int setType(slice *slc, int typeNum)
 {
 	// Given a slice and the number of a type (returned in the list by the
-	// function getTypes()), set the type.
+	// function getTypes()), set the type
 
 	int status = 0;
 	gptPartType *types = NULL;
@@ -626,7 +632,7 @@ diskLabel gptLabel = {
 
 diskLabel *getLabelGpt(void)
 {
-	// Called at initialization, returns a pointer to the disk label structure.
+	// Called at initialization, returns a pointer to the disk label structure
 	return (&gptLabel);
 }
 

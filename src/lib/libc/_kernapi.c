@@ -151,11 +151,18 @@ _X_ int textSetBackground(color *background)
 	return (_syscall(_fnum_textSetBackground, &background));
 }
 
-_X_ int textPutc(int ascii)
+_X_ int textPutc(unsigned unicode)
 {
-	// Proto: int kernelTextPutc(int);
+	// Proto: int kernelTextPutc(unsigned);
 	// Desc : Print a single character
-	return (_syscall(_fnum_textPutc, &ascii));
+	return (_syscall(_fnum_textPutc, &unicode));
+}
+
+_X_ int textPutMbc(const char *str)
+{
+	// Proto: int kernelTextPutMbc(const char *);
+	// Desc : Print a single (possibly wide) character from the beginning of 'str'.  If successful, returns the number of bytes consumed from 'str', negative otherwise.
+	return (_syscall(_fnum_textPutMbc, &str));
 }
 
 _X_ int textPrint(const char *str)
@@ -326,73 +333,73 @@ _X_ int textInputCount(void)
 	return (_syscall(_fnum_textInputCount, NULL));
 }
 
-_X_ int textInputStreamGetc(objectKey strm, char *cp _U_)
+_X_ int textInputStreamGetc(objectKey strm, unsigned *cp _U_)
 {
-	// Proto: int kernelTextInputStreamGetc(kernelTextInputStream *, char *);
-	// Desc : Get one character from the specified input stream (as an integer value).
+	// Proto: int kernelTextInputStreamGetc(kernelTextInputStream *, unsigned *);
+	// Desc : Removes and returns a single (possibly wide) character from the specified input stream
 	return (_syscall(_fnum_textInputStreamGetc, &strm));
 }
 
-_X_ int textInputGetc(char *cp)
+_X_ int textInputGetc(unsigned *cp)
 {
-	// Proto: char kernelTextInputGetc(void);
-	// Desc : Get one character from the default input stream (as an integer value).
+	// Proto: char kernelTextInputGetc(unsigned *);
+	// Desc : Removes and returns a single (possibly wide) character from the default input stream
 	return (_syscall(_fnum_textInputGetc, &cp));
 }
 
-_X_ int textInputStreamReadN(objectKey strm, int num _U_, char *buff _U_)
+_X_ int textInputStreamReadN(objectKey strm, int num _U_, unsigned *buff _U_)
 {
-	// Proto: int kernelTextInputStreamReadN(kernelTextInputStream *, int, char *);
-	// Desc : Read up to 'num' characters from the specified input stream into 'buff'
+	// Proto: int kernelTextInputStreamReadN(kernelTextInputStream *, int, unsigned *);
+	// Desc : Removes up to 'num' (possibly wide) characters from the specified input stream, and puts them in the supplied buffer 'buff'.
 	return (_syscall(_fnum_textInputStreamReadN, &strm));
 }
 
-_X_ int textInputReadN(int num, char *buff _U_)
+_X_ int textInputReadN(int num, unsigned *buff _U_)
 {
-	// Proto: int kernelTextInputReadN(int, char *);
-	// Desc : Read up to 'num' characters from the default input stream into 'buff'
+	// Proto: int kernelTextInputReadN(int, unsigned *);
+	// Desc : Removes up to 'num' (possibly wide) characters from the default input stream, and puts them in the supplied buffer 'buff'.
 	return (_syscall(_fnum_textInputReadN, &num));
 }
 
-_X_ int textInputStreamReadAll(objectKey strm, char *buff _U_)
+_X_ int textInputStreamReadAll(objectKey strm, unsigned *buff _U_)
 {
-	// Proto: int kernelTextInputStreamReadAll(kernelTextInputStream *, char *);
-	// Desc : Read all of the characters from the specified input stream into 'buff'
+	// Proto: int kernelTextInputStreamReadAll(kernelTextInputStream *, unsigned *);
+	// Desc : Removes all of the (possibly wide) characters from the specified input stream, and puts them in the buffer 'buff'.
 	return (_syscall(_fnum_textInputStreamReadAll, &strm));
 }
 
-_X_ int textInputReadAll(char *buff)
+_X_ int textInputReadAll(unsigned *buff)
 {
-	// Proto: int kernelTextInputReadAll(char *);
-	// Desc : Read all of the characters from the default input stream into 'buff'
+	// Proto: int kernelTextInputReadAll(unsigned *);
+	// Desc : Removes all of the (possibly wide) characters from the default input stream, and puts them in the buffer 'buff'.
 	return (_syscall(_fnum_textInputReadAll, &buff));
 }
 
-_X_ int textInputStreamAppend(objectKey strm, int ascii _U_)
+_X_ int textInputStreamAppend(objectKey strm, unsigned unicode _U_)
 {
-	// Proto: int kernelTextInputStreamAppend(kernelTextInputStream *, int);
-	// Desc : Append a character (as an integer value) to the end of the specified input stream.
+	// Proto: int kernelTextInputStreamAppend(kernelTextInputStream *, unsigned);
+	// Desc : Appends a single (possibly wide) character to the end of the specified input stream.
 	return (_syscall(_fnum_textInputStreamAppend, &strm));
 }
 
-_X_ int textInputAppend(int ascii)
+_X_ int textInputAppend(unsigned unicode)
 {
-	// Proto: int kernelTextInputAppend(int);
-	// Desc : Append a character (as an integer value) to the end of the default input stream.
-	return (_syscall(_fnum_textInputAppend, &ascii));
+	// Proto: int kernelTextInputAppend(unsigned);
+	// Desc : Appends a single (possibly wide) character to the end of the default input stream.
+	return (_syscall(_fnum_textInputAppend, &unicode));
 }
 
-_X_ int textInputStreamAppendN(objectKey strm, int num _U_, char *str _U_)
+_X_ int textInputStreamAppendN(objectKey strm, int num _U_, unsigned *str _U_)
 {
-	// Proto: int kernelTextInputStreamAppendN(kernelTextInputStream *, int, char *);
-	// Desc : Append 'num' characters to the end of the specified input stream from 'str'
+	// Proto: int kernelTextInputStreamAppendN(kernelTextInputStream *, int, unsigned *);
+	// Desc : Appends the requested number of (possibly wide) characters to the end of the the specified input stream.
 	return (_syscall(_fnum_textInputStreamAppendN, &strm));
 }
 
-_X_ int textInputAppendN(int num, char *str _U_)
+_X_ int textInputAppendN(int num, unsigned *str _U_)
 {
-	// Proto: int kernelTextInputAppendN(int, char *);
-	// Desc : Append 'num' characters to the end of the default input stream from 'str'
+	// Proto: int kernelTextInputAppendN(int, unsigned *);
+	// Desc : Appends the requested number of (possibly wide) characters to the end of the default input stream.
 	return (_syscall(_fnum_textInputAppendN, &num));
 }
 
@@ -1864,18 +1871,11 @@ _X_ int windowSetBackgroundImage(objectKey window, image *img _U_)
 	return (_syscall(_fnum_windowSetBackgroundImage, &window));
 }
 
-_X_ int windowShellTileBackground(const char *theFile)
+_X_ int windowShellChangeBackground(void)
 {
-	// Proto: int kernelWindowShellTileBackground(const char *);
-	// Desc : Load the image file specified by the pathname 'theFile', and if successful, tile the image on the background root window.
-	return (_syscall(_fnum_windowShellTileBackground, &theFile));
-}
-
-_X_ int windowShellCenterBackground(const char *theFile)
-{
-	// Proto: int kernelWindowShellCenterBackground(const char *);
-	// Desc : Load the image file specified by the pathname 'theFile', and if successful, center the image on the background root window.
-	return (_syscall(_fnum_windowShellCenterBackground, &theFile));
+	// Proto: int kernelWindowShellChangeBackground(void);
+	// Desc : Notifies the window shell that the desktop background image has changed.  The 'DESKVAR_BACKGROUND_IMAGE' (see <sys/deskconf.h>) variable should first be changed in the appropriate desktop config file(s) 'PATH_SYSTEM_CONFIG "/" DESKTOP_CONFIG' and/or 'PATH_USERS_CONFIG "/" DESKTOP_CONFIG' (see <sys/paths.h> and <sys/deskconf.h>) before calling this function.
+	return (_syscall(_fnum_windowShellChangeBackground, NULL));
 }
 
 _X_ objectKey windowShellNewTaskbarIcon(image *img)
@@ -2470,6 +2470,20 @@ _X_ int networkSetDomainName(const char *buffer, int bufferSize _U_)
 	return (_syscall(_fnum_networkSetDomainName, &buffer));
 }
 
+_X_ int networkLookupNameAddress(const char *name, networkAddress *address _U_, int *addressType _U_)
+{
+	// Proto: int kernelNetworkLookupNameAddress(const char *, networkAddress *, int *);
+	// Desc: Attempts to look up (resolve) a network hostname 'name', and return the corresponding address in the supplied networkAddress 'address' (and type, if 'addressType' is non-NULL).  For IP networking, this uses DNS queries.
+	return (_syscall(_fnum_networkLookupNameAddress, &name));
+}
+
+_X_ int networkLookupAddressName(const networkAddress *address, char *name _U_, unsigned nameLen _U_)
+{
+	// Proto: int kernelNetworkLookupAddressName(const networkAddress *, char *, unsigned);
+	// Desc: Attempts a reverse look up of a network address 'address', and return up to 'nameLen' bytes of the corresponding hostname in 'name'.  For IP networking, this uses DNS queries.
+	return (_syscall(_fnum_networkLookupAddressName, &address));
+}
+
 _X_ int networkDeviceEnable(const char *name)
 {
 	// Proto: int kernelNetworkDeviceEnable(const char *);
@@ -2521,6 +2535,60 @@ _X_ unsigned networkDeviceSniff(objectKey hook, unsigned char *buffer _U_, unsig
 
 
 //
+// Inter-process communication functions
+//
+
+_X_ objectKey pipeNew(unsigned num, unsigned size _U_)
+{
+	// Proto: kernelPipe *kernelPipeNew(unsigned, unsigned);
+	// Desc: Initializes and returns an objectKey for a new pipe, with 'num' elements of 'size' bytes each.
+	return ((objectKey)(long) _syscall(_fnum_pipeNew, &num));
+}
+
+_X_ int pipeDestroy(objectKey pipe)
+{
+	// Proto: int kernelPipeDestroy(kernelPipe *);
+	// Desc: Destroys a pipe previously allocated with pipeNew().
+	return (_syscall(_fnum_pipeDestroy, &pipe));
+}
+
+_X_ int pipeSetReader(objectKey pipe, int pid _U_)
+{
+	// Proto: int kernelPipeSetReader(kernelPipe *, int);
+	// Desc: Set the process ID 'pid' of the process that is allowed to read from the pipe.
+	return (_syscall(_fnum_pipeSetReader, &pipe));
+}
+
+_X_ int pipeSetWriter(objectKey pipe, int pid _U_)
+{
+	// Proto: int kernelPipeSetWriter(kernelPipe *, int);
+	// Desc: Set the process ID 'pid' of the process that is allowed to write to the pipe.
+	return (_syscall(_fnum_pipeSetWriter, &pipe));
+}
+
+_X_ int pipeClear(objectKey pipe)
+{
+	// Proto: int kernelPipeClear(kernelPipe *);
+	// Desc: Clear (discard) all data from the pipe.
+	return (_syscall(_fnum_pipeClear, &pipe));
+}
+
+_X_ int pipeRead(objectKey pipe, unsigned num _U_, void *buffer _U_)
+{
+	// Proto: int kernelPipeRead(kernelPipe *, unsigned, void *);
+	// Desc: Read 'num' elements of data from the pipe into 'buffer'.
+	return (_syscall(_fnum_pipeRead, &pipe));
+}
+
+_X_ int pipeWrite(objectKey pipe, unsigned num _U_, void *buffer _U_)
+{
+	// Proto: int kernelPipeWrite(kernelPipe *, unsigned, void *);
+	// Desc: Write 'num' elements of data from 'buffer' into the pipe.
+	return (_syscall(_fnum_pipeWrite, &pipe));
+}
+
+
+//
 // Miscellaneous functions
 //
 
@@ -2550,6 +2618,34 @@ _X_ int cryptHashMd5(const unsigned char *in, unsigned len _U_, unsigned char *o
 	// Proto: int kernelCryptHashMd5(const unsigned char *, unsigned len, unsigned char *);
 	// Desc : Given the input data 'in' and length 'len', return the numerical message digest in the buffer 'out'.
 	return (_syscall(_fnum_cryptHashMd5, &in));
+}
+
+_X_ int cryptHashSha1(const unsigned char *in, unsigned len _U_, unsigned char *out _U_, int finalize _U_, unsigned total _U_)
+{
+	// Proto: kernelCryptHashSha1(const unsigned char *, unsigned, unsigned char *);
+	// Desc : Given the input data 'in' and length 'len', return the numerical message digest in the buffer 'out'.  If more data is to be hashed with a call to cryptHashSha1Cont(), then 'len' must be a multiple of 512 bits (64 bytes).  Otherwise (i.e. this is the end of the data) then 'finalize' must be non-zero, and the number of input bytes of the entire input must be supplied in 'total'.
+	return (_syscall(_fnum_cryptHashSha1, &in));
+}
+
+_X_ int cryptHashSha1Cont(const unsigned char *in, unsigned len _U_, unsigned char *out _U_, int finalize _U_, unsigned total _U_)
+{
+	// Proto: kernelCryptHashSha1Cont(const unsigned char *, unsigned, unsigned char *);
+	// Desc : Given the input data 'in' and length 'len', and a starting hash value in 'out' (obtained from a previous call) return the numerical message digest in the buffer 'out'.  If more data is to be hashed with further calls to this function, then 'len' must be a multiple of 512 bits (64 bytes).  Otherwise (i.e. this is the end of the data) then 'finalize' must be non-zero, and the number of input bytes of the entire input must be supplied in 'total'.
+	return (_syscall(_fnum_cryptHashSha1Cont, &in));
+}
+
+_X_ int cryptHashSha256(const unsigned char *in, unsigned len _U_, unsigned char *out _U_, int finalize _U_, unsigned total _U_)
+{
+	// Proto: kernelCryptHashSha256(const unsigned char *, unsigned, unsigned char *);
+	// Desc : Given the input data 'in' and length 'len', return the numerical message digest in the buffer 'out'.  If more data is to be hashed with a call to cryptHashSha256Cont(), then 'len' must be a multiple of 512 bits (64 bytes).  Otherwise (i.e. this is the end of the data) then 'finalize' must be non-zero, and the number of input bytes of the entire input must be supplied in 'total'.
+	return (_syscall(_fnum_cryptHashSha256, &in));
+}
+
+_X_ int cryptHashSha256Cont(const unsigned char *in, unsigned len _U_, unsigned char *out _U_, int finalize _U_, unsigned total _U_)
+{
+	// Proto: kernelCryptHashSha256Cont(const unsigned char *, unsigned, unsigned char *);
+	// Desc : Given the input data 'in' and length 'len', and a starting hash value in 'out' (obtained from a previous call) return the numerical message digest in the buffer 'out'.  If more data is to be hashed with further calls to this function, then 'len' must be a multiple of 512 bits (64 bytes).  Otherwise (i.e. this is the end of the data) then 'finalize' must be non-zero, and the number of input bytes of the entire input must be supplied in 'total'.
+	return (_syscall(_fnum_cryptHashSha256Cont, &in));
 }
 
 _X_ int lockGet(spinLock *lock)

@@ -31,7 +31,7 @@ int getchar(void)
 	// getchar() is equivalent to getc(stdin).
 
 	int status = 0;
-	char c = '\0';
+	unsigned c = 0;
 
 	if (visopsys_in_kernel)
 	{

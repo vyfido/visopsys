@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:39+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,92 +17,92 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: edit.c:62
+#: edit.c:63
 msgid "Edit"
 msgstr ""
 
-#: edit.c:63
+#: edit.c:64
 msgid "File"
 msgstr ""
 
-#: edit.c:64
+#: edit.c:65
 msgid "Open"
 msgstr ""
 
-#: edit.c:65
+#: edit.c:66
 msgid "Save"
 msgstr ""
 
-#: edit.c:66
+#: edit.c:67
 msgid "Quit"
 msgstr ""
 
-#: edit.c:67
+#: edit.c:68
 msgid "Untitled"
 msgstr ""
 
-#: edit.c:68
+#: edit.c:69
 msgid "Please enter the name of the file to edit:"
 msgstr ""
 
-#: edit.c:69
+#: edit.c:70
 msgid "File has been modified.  Discard changes?"
 msgstr ""
 
-#: edit.c:153
+#: edit.c:154
 msgid "Error"
 msgstr ""
 
-#: edit.c:365 edit.c:371
+#: edit.c:368 edit.c:374
 msgid " (modified)"
 msgstr ""
 
-#: edit.c:484
+#: edit.c:487
 msgid "Discard changes?"
 msgstr ""
 
-#: edit.c:485
+#: edit.c:488
 msgid "Discard"
 msgstr ""
 
-#: edit.c:485
+#: edit.c:488
 msgid "Cancel"
 msgstr ""
 
-#: edit.c:517
+#: edit.c:520
 msgid "Enter filename"
 msgstr ""
 
-#: edit.c:738 edit.c:1619
+#: edit.c:741 edit.c:1625
 msgid "Couldn't create file in a read-only filesystem"
 msgstr ""
 
-#: edit.c:740 edit.c:1621
+#: edit.c:743 edit.c:1627
 #, c-format
 msgid "Error %d loading file"
 msgstr ""
 
-#: edit.c:855
+#: edit.c:858
 msgid "Unable to launch file dialog"
 msgstr ""
 
-#: edit.c:870
+#: edit.c:873
 msgid "Couldn't save file in a read-only filesystem"
 msgstr ""
 
-#: edit.c:875
+#: edit.c:878
 #, c-format
 msgid "Error %d saving file"
 msgstr ""
 
-#: edit.c:1562
+#: edit.c:1568
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 
-#: edit.c:1578
+#: edit.c:1584
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""

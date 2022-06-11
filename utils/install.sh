@@ -6,8 +6,8 @@
 ##  install.sh
 ##
 
-# Installs the Visopsys system on the requested device.  Suitable for use
-# only with Visopsys SOURCE distribution.  Note that the device must have
+# Installs the Visopsys system on the requested device.  Suitable for use only
+# with Visopsys SOURCE distribution.  Note that the device must have
 # permissions which allow direct writes by the invoking user.
 
 BUILDDIR=../build
@@ -106,7 +106,7 @@ if [ -f $MKDOSFSLOG ] ; then
 fi
 rm -f $MKDOSFSLOG
 
-# Install the boot sector.
+# Install the boot sector
 echo -n "Copying boot sector...  "
 ./copy-boot $BOOTSECTOR $DEVICE > $COPYBOOTLOG 2>&1
 if [ $? -ne 0 ] ; then
@@ -119,9 +119,9 @@ fi
 echo Done
 rm -f $COPYBOOTLOG
 
-# Try to figure out where the disk gets mounted by reading the fstab
-# file.  If this is not working on your system, you should override
-# this manually (or fix the following command)
+# Try to figure out where the disk gets mounted by reading the fstab file.  If
+# this is not working on your system, you should override this manually (or
+# fix the following command).
 MOUNTDIR=`cat $FSTAB | grep ^$DEVICE | awk '{print $2}'`
 
 if [ "$MOUNTDIR" != "" ] ; then

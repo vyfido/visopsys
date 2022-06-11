@@ -8,63 +8,63 @@ msgid ""
 msgstr ""
 "Project-Id-Version: filebrowse\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-08 02:31+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
 #: filebrowse.c:61
 msgid "File Browser"
-msgstr "ƒ–Ÿ€ﬁ“ÎŸ ‹’›’‘÷’‡"
+msgstr "–§–∞–π–ª–æ–≤—ã–π –º–µ–Ω–µ–¥–∂–µ—Ä"
 
 #: filebrowse.c:62
 msgid "File"
-msgstr "ƒ–Ÿ€"
+msgstr "–§–∞–π–ª"
 
 #: filebrowse.c:63
 msgid "Quit"
-msgstr "≤ÎÂﬁ‘"
+msgstr "–í—ã—Ö–æ–¥"
 
 #: filebrowse.c:64
 msgid "View"
-msgstr "≤ÿ‘"
+msgstr "–í–∏–¥"
 
 #: filebrowse.c:65
 msgid "Refresh"
-msgstr "æ—›ﬁ“ÿ‚Ï"
+msgstr "–û–±–Ω–æ–≤–∏—Ç—å"
 
-#: filebrowse.c:126
+#: filebrowse.c:127
 msgid "Error"
-msgstr "æËÿ—⁄–"
+msgstr "–û—à–∏–±–∫–∞"
 
-#: filebrowse.c:276
+#: filebrowse.c:283
 #, c-format
 msgid "Couldn't execute command \"%s\""
 msgstr ""
 
-#: filebrowse.c:474
+#: filebrowse.c:481
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 "\n"
-"∫ﬁ‹–›‘–  \"%s\" ‡–—ﬁ‚–’‚ ‚ﬁ€Ï⁄ﬁ “ ”‡–‰ÿÁ’·⁄ﬁ‹ ‡’÷ÿ‹’\n"
+"–ö–æ–º–∞–Ω–¥–∞  \"%s\" —Ä–∞–±–æ—Ç–∞–µ—Ç —Ç–æ–ª—å–∫–æ –≤ –≥—Ä–∞—Ñ–∏—á–µ—Å–∫–æ–º —Ä–µ–∂–∏–º–µ\n"
 
-#: filebrowse.c:488
+#: filebrowse.c:495
 msgid "Memory allocation error"
-msgstr "æËÿ—⁄– ‡–·ﬂ‡’‘’€’›ÿÔ ﬂ–‹Ô‚ÿ."
-
-#: filebrowse.c:503
-#, c-format
-msgid "Can't change to directory \"%s\""
-msgstr "Ω’ ‹ﬁ”„ ﬂ’‡’Ÿ‚ÿ “ ⁄–‚–€ﬁ” \"%s\""
+msgstr "–û—à–∏–±–∫–∞ —Ä–∞—Å–ø—Ä–µ–¥–µ–ª–µ–Ω–∏—è –ø–∞–º—è—Ç–∏."
 
 #: filebrowse.c:510
+#, c-format
+msgid "Can't change to directory \"%s\""
+msgstr "–ù–µ –º–æ–≥—É –ø–µ—Ä–µ–π—Ç–∏ –≤ –∫–∞—Ç–∞–ª–æ–≥ \"%s\""
+
+#: filebrowse.c:517
 msgid "Can't determine current directory"
-msgstr "Ω’ ‹ﬁ”„ ﬁﬂ‡’‘’€ÿ‚Ï ‚’⁄„ÈÿŸ ⁄–‚–€ﬁ”"
+msgstr "–ù–µ –º–æ–≥—É –æ–ø—Ä–µ–¥–µ–ª–∏—Ç—å —Ç–µ–∫—É—â–∏–π –∫–∞—Ç–∞–ª–æ–≥"

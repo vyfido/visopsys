@@ -9,19 +9,19 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2017-05-29 01:25+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: ntfsprogs/ntfsresize.c:878
 #, c-format
 msgid "Relocation needed for inode %8lld"
-msgstr "Es wird eine Neuplatzierung benötigt für inode %8lld"
+msgstr "Es wird eine Neuplatzierung benÃ¶tigt fÃ¼r inode %8lld"
 
 #: ntfsprogs/ntfsresize.c:1036
 msgid "Accounting clusters"
@@ -29,15 +29,15 @@ msgstr "Die Cluster werden berechnet"
 
 #: ntfsprogs/ntfsresize.c:1186
 msgid "Checking filesystem consistency"
-msgstr "Die Konsistenz des Dateisystems wird überprüft"
+msgstr "Die Konsistenz des Dateisystems wird Ã¼berprÃ¼ft"
 
 #: ntfsprogs/ntfsresize.c:1270
 msgid "Collecting resizing constraints"
-msgstr "Die Bedingungen für die Größenanpassung werden zusammengestellt"
+msgstr "Die Bedingungen fÃ¼r die GrÃ¶ÃŸenanpassung werden zusammengestellt"
 
 #: ntfsprogs/ntfsresize.c:1375
 msgid "Enlarging attribute header ..."
-msgstr "Die Attribut-Kopfzeile wird vergrößert..."
+msgstr "Die Attribut-Kopfzeile wird vergrÃ¶ÃŸert..."
 
 #: ntfsprogs/ntfsresize.c:1797
 #, c-format
@@ -46,11 +46,11 @@ msgstr "Eintrag %llu 0x%llx->0x%llx wird neu platziert"
 
 #: ntfsprogs/ntfsresize.c:1985
 msgid "Relocating needed data"
-msgstr "Die benötigten Daten werden neu platziert"
+msgstr "Die benÃ¶tigten Daten werden neu platziert"
 
 #: ntfsprogs/ntfsresize.c:2356
 msgid "Checking for bad sectors"
-msgstr "Überprüfung auf falsche Sektoren"
+msgstr "ÃœberprÃ¼fung auf falsche Sektoren"
 
 #: ntfsprogs/ntfsresize.c:2424
 msgid "Updating $BadClust file"
@@ -75,18 +75,18 @@ msgstr "Laufwerk wird verbunden"
 #: ntfsprogs/ntfsresize.c:2684
 msgid "Schedule chkdsk for NTFS consistency check at Windows boot time"
 msgstr ""
-"Zeitliche Durchführung von chkdsk für die Überprüfung der NTFS-Konsistenz "
+"Zeitliche DurchfÃ¼hrung von chkdsk fÃ¼r die ÃœberprÃ¼fung der NTFS-Konsistenz "
 "beim Start von Windows festlegen"
 
 #: ntfsprogs/ntfsresize.c:2699
 msgid "Resetting $LogFile (this might take a while)"
-msgstr "Zurücksetzen von $LogFile (das könnte einen Moment dauern)"
+msgstr "ZurÃ¼cksetzen von $LogFile (das kÃ¶nnte einen Moment dauern)"
 
 #: ntfsprogs/ntfsresize.c:3006
 msgid "Syncing device"
-msgstr "Gerät wird synchronisiert"
+msgstr "GerÃ¤t wird synchronisiert"
 
 #: ntfsprogs/ntfsresize.c:3013
 #, c-format
 msgid "Successfully resized NTFS on device '%s'."
-msgstr "NTFS wurde erfolgreich auf dem Gerät '%s' in der Größe angepasst"
+msgstr "NTFS wurde erfolgreich auf dem GerÃ¤t '%s' in der GrÃ¶ÃŸe angepasst"

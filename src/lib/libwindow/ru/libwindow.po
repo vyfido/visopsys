@@ -8,84 +8,84 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libwindow.po\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-07-25 16:48+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.6.4\n"
 
-#: windowArchiveList.c:55 windowFileList.c:200 windowProgressDialog.c:127
+#: windowArchiveList.c:55 windowFileList.c:205 windowProgressDialog.c:127
 msgid "Error"
-msgstr "æËÿ—⁄–"
+msgstr "–û—à–∏–±–∫–∞"
 
-#: windowArchiveList.c:78 windowFileList.c:503
+#: windowArchiveList.c:78 windowFileList.c:508
 msgid "Memory allocation error creating icon parameters"
-msgstr "æËÿ—⁄– ‡–·ﬂ‡’‘’€’›ÿÔ ﬂ–‹Ô‚ÿ ﬂ‡ÿ ·ﬁ◊‘–›ÿÿ ﬂ–‡–‹’‚‡ﬁ“ ◊›–Á⁄–"
+msgstr "–û—à–∏–±–∫–∞ —Ä–∞—Å–ø—Ä–µ–¥–µ–ª–µ–Ω–∏—è –ø–∞–º—è—Ç–∏ –ø—Ä–∏ —Å–æ–∑–¥–∞–Ω–∏–∏ –ø–∞—Ä–∞–º–µ—Ç—Ä–æ–≤ –∑–Ω–∞—á–∫–∞"
 
 #: windowColorDialog.c:32
 msgid "Color Chooser"
-msgstr "≤Î—ﬁ‡ Ê“’‚–"
+msgstr "–í—ã–±–æ—Ä —Ü–≤–µ—Ç–∞"
 
 #: windowColorDialog.c:152
 msgid "Red"
-msgstr "∫‡–·›ÎŸ"
+msgstr "–ö—Ä–∞—Å–Ω—ã–π"
 
 #: windowColorDialog.c:185
 msgid "Green"
-msgstr "∑’€’›ÎŸ"
+msgstr "–ó–µ–ª–µ–Ω—ã–π"
 
 #: windowColorDialog.c:217
 msgid "Blue"
-msgstr "¡ÿ›ÿŸ"
+msgstr "–°–∏–Ω–∏–π"
 
 #: windowColorDialog.c:271 windowFileDialog.c:249 windowLanguageDialog.c:200
 #: windowNumberDialog.c:169 windowOkDialog.c:127 windowPromptDialog.c:141
 #: windowQueryDialog.c:57 windowRadioDialog.c:154
 msgid "OK"
-msgstr "æ∫"
+msgstr "–û–ö"
 
 #: windowColorDialog.c:281 windowFileDialog.c:259 windowLanguageDialog.c:210
 #: windowNumberDialog.c:174 windowProgressDialog.c:260 windowPromptDialog.c:151
 #: windowQueryDialog.c:57 windowRadioDialog.c:166
 msgid "Cancel"
-msgstr "æ‚‹’›–"
+msgstr "–û—Ç–º–µ–Ω–∞"
 
-#: windowFileList.c:219
+#: windowFileList.c:224
 #, c-format
 msgid "Can't locate configuration file %s"
-msgstr "Ω’ ‹ﬁ”„ ›–Ÿ‚ÿ ‰–Ÿ€ ⁄ﬁ›‰ÿ”„‡–Êÿÿ %s"
+msgstr "–ù–µ –º–æ–≥—É –Ω–∞–π—Ç–∏ —Ñ–∞–π–ª –∫–æ–Ω—Ñ–∏–≥—É—Ä–∞—Ü–∏–∏ %s"
 
-#: windowFileList.c:344 windowFileList.c:377
+#: windowFileList.c:349 windowFileList.c:382
 msgid "(up)"
-msgstr "(““’‡Â)"
+msgstr "(–≤–≤–µ—Ä—Ö)"
 
-#: windowFileList.c:434
+#: windowFileList.c:439
 #, c-format
 msgid "Can't get directory \"%s\" file count"
-msgstr "Ω’ ‹ﬁ”„ ﬂﬁ€„Áÿ‚Ï ⁄ﬁ€ÿÁ’·‚“ﬁ ‰–Ÿ€ﬁ“ “ ⁄–‚–€ﬁ”’ \"%s\""
+msgstr "–ù–µ –º–æ–≥—É –ø–æ–ª—É—á–∏—Ç—å –∫–æ–ª–∏—á–µ—Å—Ç–≤–æ —Ñ–∞–π–ª–æ–≤ –≤ –∫–∞—Ç–∞–ª–æ–≥–µ \"%s\""
 
-#: windowFileList.c:445
+#: windowFileList.c:450
 msgid "Memory allocation error"
-msgstr "æËÿ—⁄– ‡–·ﬂ‡’‘’€’›ÿÔ ﬂ–‹Ô‚ÿ"
+msgstr "–û—à–∏–±–∫–∞ —Ä–∞—Å–ø—Ä–µ–¥–µ–ª–µ–Ω–∏—è –ø–∞–º—è—Ç–∏"
 
-#: windowFileList.c:458
+#: windowFileList.c:463
 #, c-format
 msgid "Error reading files in \"%s\""
-msgstr "æËÿ—⁄– Á‚’›ÿÔ ‰–Ÿ€ﬁ“ “ \"%s\""
+msgstr "–û—à–∏–±–∫–∞ —á—Ç–µ–Ω–∏—è —Ñ–∞–π–ª–æ–≤ –≤ \"%s\""
 
-#: windowFileList.c:837
+#: windowFileList.c:842
 #, c-format
 msgid "Can't change to directory %s"
-msgstr "Ω’ ‹ﬁ”„ ﬂ’‡’Ÿ‚ÿ “ ⁄–‚–€ﬁ” %s"
+msgstr "–ù–µ –º–æ–≥—É –ø–µ—Ä–µ–π—Ç–∏ –≤ –∫–∞—Ç–∞–ª–æ–≥ %s"
 
-#: windowFileList.c:865
+#: windowFileList.c:870
 #, c-format
 msgid "Error deleting file %s"
-msgstr "æËÿ—⁄– ﬂ‡ÿ „‘–€’›ÿÿ ‰–Ÿ€– %s"
+msgstr "–û—à–∏–±–∫–∞ –ø—Ä–∏ —É–¥–∞–ª–µ–Ω–∏–∏ —Ñ–∞–π–ª–∞ %s"
 
 #: windowLanguageDialog.c:36
 msgid "Language Chooser"
@@ -93,4 +93,4 @@ msgstr ""
 
 #: windowProgressDialog.c:116
 msgid "Confirmation"
-msgstr "øﬁ‘‚“’‡÷‘’›ÿ’"
+msgstr "–ü–æ–¥—Ç–≤–µ—Ä–∂–¥–µ–Ω–∏–µ"

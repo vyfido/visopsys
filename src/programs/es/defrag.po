@@ -7,19 +7,19 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-01-22 18:13-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
 #: defrag.c:75
 msgid "Confirmation"
-msgstr "Confirmación"
+msgstr "ConfirmaciÃ³n"
 
 #: defrag.c:104
 msgid ""
@@ -91,7 +91,7 @@ msgstr ""
 
 #: defrag.c:360
 msgid "Error getting disks info"
-msgstr "Error al determinar la información del disco"
+msgstr "Error al determinar la informaciÃ³n del disco"
 
 #: defrag.c:366
 msgid ""
@@ -100,7 +100,7 @@ msgid ""
 "Copyright (C) 1998-2020 J. Andrew McLaughlin\n"
 msgstr ""
 "\n"
-"Herramienta de DEFRAGMENTACIÓN Visopsys\n"
+"Herramienta de DEFRAGMENTACIÃ“N Visopsys\n"
 "Copyright (C) 1998-2020 J. Andrew McLaughlin\n"
 
 #: defrag.c:388
@@ -119,18 +119,18 @@ msgstr "Sistema de archivos desconocido en el disco \"%s\""
 #: defrag.c:425
 #, c-format
 msgid "Error getting info for disk \"%s\""
-msgstr "Error al determinar la información para el disco \"%s\""
+msgstr "Error al determinar la informaciÃ³n para el disco \"%s\""
 
 #: defrag.c:434
 #, c-format
 msgid "Defragmenting the filesystem type \"%s\" is not supported"
 msgstr ""
-"Defragmentación no soportada para el tipo de sistema de archivos \"%s\""
+"DefragmentaciÃ³n no soportada para el tipo de sistema de archivos \"%s\""
 
 #: defrag.c:441
 #, c-format
 msgid "Defragmenting disk %s.  Are you sure?"
-msgstr "Defragmentando disco %s. Está seguror?"
+msgstr "Defragmentando disco %s. EstÃ¡ seguror?"
 
 #: defrag.c:445
 msgid ""
@@ -146,11 +146,11 @@ msgstr "Defragmentando..."
 
 #: defrag.c:469
 msgid "Defragmentation complete"
-msgstr "Defragmentación completada"
+msgstr "DefragmentaciÃ³n completada"
 
 #: defrag.c:471
 msgid "Success"
-msgstr "Éxito"
+msgstr "Ã‰xito"
 
 #~ msgid "Ignore\n"
 #~ msgstr "Ignorar\n"

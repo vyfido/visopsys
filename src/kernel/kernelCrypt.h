@@ -27,6 +27,14 @@
 #include <sys/crypt.h>
 
 int kernelCryptHashMd5(const unsigned char *, unsigned, unsigned char *);
+int kernelCryptHashSha1(const unsigned char *, unsigned, unsigned char *,
+	int, unsigned);
+int kernelCryptHashSha1Cont(const unsigned char *, unsigned, unsigned char *,
+	int, unsigned);
+int kernelCryptHashSha256(const unsigned char *, unsigned, unsigned char *,
+	int, unsigned);
+int kernelCryptHashSha256Cont(const unsigned char *, unsigned,
+	unsigned char *, int, unsigned);
 
 #endif
 

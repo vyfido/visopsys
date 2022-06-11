@@ -69,6 +69,7 @@ Options:
 */
 
 #include <ctype.h>
+#include <errno.h>
 #include <libgen.h>
 #include <libintl.h>
 #include <locale.h>
@@ -77,13 +78,15 @@ Options:
 #include <string.h>
 #include <unistd.h>
 #include <sys/api.h>
-#include <sys/ascii.h>
 #include <sys/charset.h>
+#include <sys/color.h>
+#include <sys/disk.h>
 #include <sys/env.h>
+#include <sys/file.h>
 #include <sys/font.h>
 #include <sys/kernconf.h>
 #include <sys/keyboard.h>
-#include <sys/paths.h>
+#include <sys/window.h>
 
 #define _(string) gettext(string)
 
@@ -630,7 +633,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 		if (configGet(PATH_SYSTEM_CONFIG "/charset.conf",
 			selectedMap->language, charsetName, CHARSET_NAME_LEN) < 0)
 		{
-			strncpy(charsetName, CHARSET_NAME_ISO_8859_15, CHARSET_NAME_LEN);
+			strncpy(charsetName, CHARSET_NAME_UTF8, CHARSET_NAME_LEN);
 		}
 
 		keyboard->setCharset(keyboard, charsetName);
@@ -708,237 +711,28 @@ static void eventHandler(objectKey key, windowEvent *event)
 }
 
 
-static int selectCharDialog(objectKey parentWindow)
-{
-	int selected = 0;
-	objectKey dialogWindow = NULL;
-	objectKey largeFont = NULL;
-	objectKey smallFont = NULL;
-	int charWidth = 0;
-	int charHeight = 0;
-	int smallHeight = 0;
-	objectKey canvas = NULL;
-	componentParameters params;
-	windowDrawParameters drawParams;
-	char string[80];
-	int charVal = 0;
-	char keyChar[4];
-	windowEvent event;
-	int rowCount, columnCount;
-
-	sprintf(string, "%s (%s)", _("Select character"), keyboard->charsetName);
-	dialogWindow = windowNewDialog(parentWindow, string);
-	if (!dialogWindow)
-		return (selected = ERR_NOCREATE);
-
-	// Try to load a larger font for displaying the charset characters
-	largeFont = fontGet(FONT_FAMILY_ARIAL, (FONT_STYLEFLAG_BOLD |
-		FONT_STYLEFLAG_FIXED), 20, keyboard->charsetName);
-
-	// Try to load a smaller font for displaying charset values
-	smallFont = fontGet(FONT_FAMILY_LIBMONO, FONT_STYLEFLAG_FIXED, 8, NULL);
-
-	if (!largeFont || !smallFont)
-	{
-		selected = ERR_NOCREATE;
-		goto out;
-	}
-
-	charWidth = fontGetPrintedWidth(largeFont, NULL, "@");
-	charHeight = fontGetHeight(largeFont);
-	smallHeight = fontGetHeight(smallFont);
-	if ((charWidth <= 0) || (charHeight <= 0) || (smallHeight <= 0))
-	{
-		selected = ERR_NOCREATE;
-		goto out;
-	}
-
-	memset(&params, 0, sizeof(componentParameters));
-	params.gridWidth = 1;
-	params.gridHeight = 1;
-	params.padLeft = params.padRight = params.padTop = params.padBottom = 5;
-	params.orientationX = orient_center;
-	params.orientationY = orient_middle;
-	params.flags = COMP_PARAMS_FLAG_CUSTOMBACKGROUND;
-	windowGetColor(COLOR_SETTING_DESKTOP, &params.background);
-
-	// Make a canvas for drawing characters on
-	canvas = windowNewCanvas(dialogWindow, (charWidth * 16),
-		(charHeight * 16), &params);
-	if (!canvas)
-	{
-		selected = ERR_NOCREATE;
-		goto out;
-	}
-
-	// Set the correct character set
-	windowComponentSetCharSet(canvas, keyboard->charsetName);
-
-	// Draw the characters
-
-	memset(&drawParams, 0, sizeof(windowDrawParameters));
-	drawParams.mode = draw_normal;
-	drawParams.operation = draw_text;
-	drawParams.foreground = COLOR_WHITE;
-	windowGetColor(COLOR_SETTING_DESKTOP, &drawParams.background);
-
-	drawParams.width = charWidth;
-	drawParams.height = charHeight;
-	drawParams.thickness = 1;
-	drawParams.fill = 1;
-
-	for (rowCount = 0; rowCount < 16; rowCount ++)
-	{
-		for (columnCount = 0; columnCount < 16; columnCount ++)
-		{
-			drawParams.xCoord1 = (columnCount * charWidth);
-			drawParams.yCoord1 = (rowCount * charHeight);
-
-			charVal = ((rowCount * 16) + columnCount);
-
-			if (isgraph(charVal))
-			{
-				drawParams.font = largeFont;
-				sprintf(keyChar, "%c", charVal);
-			}
-			else
-			{
-				drawParams.font = smallFont;
-
-				switch (charVal)
-				{
-					case ASCII_NULL:
-						strcpy(keyChar, "NUL");
-						break;
-					case ASCII_BEL:
-						strcpy(keyChar, "BEL");
-						break;
-					case ASCII_BS:
-						strcpy(keyChar, "BS");
-						break;
-					case ASCII_TAB:
-						strcpy(keyChar, "HT");
-						break;
-					case ASCII_ENTER:
-						strcpy(keyChar, "LF");
-						break;
-					case ASCII_VT:
-						strcpy(keyChar, "VT");
-						break;
-					case ASCII_FF:
-						strcpy(keyChar, "FF");
-						break;
-					case ASCII_CR:
-						strcpy(keyChar, "CR");
-						break;
-					case ASCII_ESC:
-						strcpy(keyChar, "ESC");
-						break;
-					case ASCII_SPACE:
-						strcpy(keyChar, "SPC");
-						break;
-					case ASCII_DEL:
-						strcpy(keyChar, "DEL");
-						break;
-
-					default:
-						sprintf(keyChar, "%d",
-							charsetToUnicode(keyboard->charsetName, charVal));
-						break;
-				}
-
-				drawParams.xCoord1 += ((charWidth -
-					fontGetPrintedWidth(smallFont, NULL, keyChar)) / 2);
-				drawParams.yCoord1 += ((charHeight - smallHeight) / 2);
-			}
-
-			drawParams.data = keyChar;
-			windowComponentSetData(canvas, &drawParams, 1,
-				((rowCount == 15) && (columnCount == 15)));
-		}
-	}
-
-	windowCenterDialog(parentWindow, dialogWindow);
-	windowSetVisible(dialogWindow, 1);
-
-	while (1)
-	{
-		// Check for window close events
-		if ((windowComponentEventGet(dialogWindow, &event) > 0) &&
-			(event.type == WINDOW_EVENT_WINDOW_CLOSE))
-		{
-			selected = ERR_CANCELLED;
-			break;
-		}
-
-		else if ((windowComponentEventGet(canvas, &event) > 0) &&
-			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
-		{
-			selected = (((event.coord.y / charHeight) * 16) +
-				(event.coord.x / charWidth));
-			break;
-		}
-
-		// Not finished yet
-		multitaskerYield();
-	}
-
-out:
-	windowDestroy(dialogWindow);
-
-	if (selected >= 0)
-		return (charsetToUnicode(keyboard->charsetName, selected));
-	else
-		return (selected);
-}
-
-
-static void selectKeyValue(objectKey parentWindow, objectKey field,
-	objectKey label)
-{
-	int charVal = 0;
-	char string[KEYVAL_FIELDWIDTH + 1];
-
-	charVal = selectCharDialog(parentWindow);
-	if (charVal >= 0)
-	{
-		sprintf(string, "%d", charVal);
-		windowComponentSetData(field, string, strlen(string), 1 /* redraw */);
-
-		charVal = charsetFromUnicode(keyboard->charsetName, charVal);
-		if ((charVal < 0) || (charVal > 255))
-			charVal = 0;
-
-		sprintf(string, "%c", charVal);
-
-		if (string[0] == '\n')
-			string[0] = ' ';
-
-		windowComponentSetData(label, string, strlen(string), 1 /* redraw */);
-	}
-}
-
-
 static void typedKeyValue(objectKey field, objectKey label)
 {
 	int charVal = 0;
 	char string[KEYVAL_FIELDWIDTH + 1];
+	int bytes = 0;
 
 	windowComponentGetData(field, string, KEYVAL_FIELDWIDTH);
 
 	charVal = atoi(string);
 	if (charVal >= 0)
 	{
-		charVal = charsetFromUnicode(keyboard->charsetName, charVal);
-		if ((charVal < 0) || (charVal > 255))
-			charVal = 0;
+		bytes = wctomb(string, charVal);
+		if (bytes >= 0)
+		{
+			string[bytes] = '\0';
 
-		sprintf(string, "%c", charVal);
+			if (string[0] == '\n')
+				string[0] = ' ';
 
-		if (string[0] == '\n')
-			string[0] = ' ';
-
-		windowComponentSetData(label, string, strlen(string), 1 /* redraw */);
+			windowComponentSetData(label, string, strlen(string),
+				1 /* redraw */);
+		}
 	}
 }
 
@@ -964,6 +758,7 @@ static int changeKeyDialog(keyScan scanCode)
 	objectKey _cancelButton = NULL;
 	int commit = 0;
 	char string[80];
+	int bytes = 0;
 	color foreground = { 255, 255, 255 };
 	windowEvent event;
 	componentParameters params;
@@ -1031,42 +826,57 @@ static int changeKeyDialog(keyScan scanCode)
 		COMP_PARAMS_FLAG_CUSTOMBACKGROUND | COMP_PARAMS_FLAG_HASBORDER);
 	regCharLabel = windowNewTextLabel(dialogWindow, "@", &params);
 	windowComponentSetCharSet(regCharLabel, keyboard->charsetName);
-	sprintf(string, "%c", charsetFromUnicode(keyboard->charsetName,
-		selectedMap->regMap[scanCode]));
-	windowComponentSetData(regCharLabel, string, strlen(string),
-		0 /* no redraw */);
+	bytes = wctomb(string, selectedMap->regMap[scanCode]);
+	if (bytes >= 0)
+	{
+		string[bytes] = '\0';
+		windowComponentSetData(regCharLabel, string, bytes,
+			0 /* no redraw */);
+	}
 
 	params.gridX += 1;
 	shiftCharLabel = windowNewTextLabel(dialogWindow, "@", &params);
 	windowComponentSetCharSet(shiftCharLabel, keyboard->charsetName);
-	sprintf(string, "%c", charsetFromUnicode(keyboard->charsetName,
-		selectedMap->shiftMap[scanCode]));
-	windowComponentSetData(shiftCharLabel, string, strlen(string),
-		0 /* no redraw */);
+	bytes = wctomb(string, selectedMap->shiftMap[scanCode]);
+	if (bytes >= 0)
+	{
+		string[bytes] = '\0';
+		windowComponentSetData(shiftCharLabel, string, bytes,
+			0 /* no redraw */);
+	}
 
 	params.gridX += 1;
 	altGrCharLabel = windowNewTextLabel(dialogWindow, "@", &params);
 	windowComponentSetCharSet(altGrCharLabel, keyboard->charsetName);
-	sprintf(string, "%c", charsetFromUnicode(keyboard->charsetName,
-		selectedMap->altGrMap[scanCode]));
-	windowComponentSetData(altGrCharLabel, string, strlen(string),
-		0 /* no redraw */);
+	bytes = wctomb(string, selectedMap->altGrMap[scanCode]);
+	if (bytes >= 0)
+	{
+		string[bytes] = '\0';
+		windowComponentSetData(altGrCharLabel, string, bytes,
+			0 /* no redraw */);
+	}
 
 	params.gridX += 1;
 	shiftAltGrCharLabel = windowNewTextLabel(dialogWindow, "@", &params);
 	windowComponentSetCharSet(shiftAltGrCharLabel, keyboard->charsetName);
-	sprintf(string, "%c", charsetFromUnicode(keyboard->charsetName,
-		selectedMap->shiftAltGrMap[scanCode]));
-	windowComponentSetData(shiftAltGrCharLabel, string, strlen(string),
-		0 /* no redraw */);
+	bytes = wctomb(string, selectedMap->shiftAltGrMap[scanCode]);
+	if (bytes >= 0)
+	{
+		string[bytes] = '\0';
+		windowComponentSetData(shiftAltGrCharLabel, string, bytes,
+			0 /* no redraw */);
+	}
 
 	params.gridX += 1;
 	ctrlCharLabel = windowNewTextLabel(dialogWindow, "@", &params);
 	windowComponentSetCharSet(ctrlCharLabel, keyboard->charsetName);
-	sprintf(string, "%c", charsetFromUnicode(keyboard->charsetName,
-		selectedMap->controlMap[scanCode]));
-	windowComponentSetData(ctrlCharLabel, string, strlen(string),
-		0 /* no redraw */);
+	bytes = wctomb(string, selectedMap->controlMap[scanCode]);
+	if (bytes >= 0)
+	{
+		string[bytes] = '\0';
+		windowComponentSetData(ctrlCharLabel, string, bytes,
+			0 /* no redraw */);
+	}
 
 	// Text fields for entering new values for each map type
 
@@ -1152,41 +962,6 @@ static int changeKeyDialog(keyScan scanCode)
 			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
 		{
 			commit = 1;
-		}
-
-		// Clicks in the 'normal' character label
-		else if ((windowComponentEventGet(regCharLabel, &event) > 0) &&
-			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
-		{
-			selectKeyValue(dialogWindow, regField, regCharLabel);
-		}
-
-		// Clicks in the 'shifted' character label
-		else if ((windowComponentEventGet(shiftCharLabel, &event) > 0) &&
-			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
-		{
-			selectKeyValue(dialogWindow, shiftField, shiftCharLabel);
-		}
-
-		// Clicks in the 'AltGr' character label
-		else if ((windowComponentEventGet(altGrCharLabel, &event) > 0) &&
-			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
-		{
-			selectKeyValue(dialogWindow, altGrField, altGrCharLabel);
-		}
-
-		// Clicks in the 'Shift-AltGr' character label
-		else if ((windowComponentEventGet(shiftAltGrCharLabel, &event) > 0) &&
-			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
-		{
-			selectKeyValue(dialogWindow, shiftAltGrField, shiftAltGrCharLabel);
-		}
-
-		// Clicks in the 'control' character label
-		else if ((windowComponentEventGet(ctrlCharLabel, &event) > 0) &&
-			(event.type == WINDOW_EVENT_MOUSE_LEFTUP))
-		{
-			selectKeyValue(dialogWindow, ctrlField, ctrlCharLabel);
 		}
 
 		// Key presses in the 'normal' field
@@ -1386,7 +1161,7 @@ static void constructWindow(void)
 	if (configGet(PATH_SYSTEM_CONFIG "/charset.conf",
 		selectedMap->language, charsetName, CHARSET_NAME_LEN) < 0)
 	{
-		strncpy(charsetName, CHARSET_NAME_ISO_8859_15, CHARSET_NAME_LEN);
+		strncpy(charsetName, CHARSET_NAME_UTF8, CHARSET_NAME_LEN);
 	}
 
 	keyboard->setCharset(keyboard, charsetName);
@@ -1434,7 +1209,7 @@ static void constructWindow(void)
 }
 
 
-static void printRow(int start, int end, unsigned *map, char *charsetName)
+static void printRow(int start, int end, unsigned *map)
 {
 	int printed = 0;
 	int count;
@@ -1444,7 +1219,7 @@ static void printRow(int start, int end, unsigned *map, char *charsetName)
 	{
 		printf("%s=", scan2String[count]);
 		if (isgraph(map[count]))
-			printf("'%c' ", charsetFromUnicode(charsetName, map[count]));
+			printf("'%c' ", map[count]);
 		else
 			printf("%x ", map[count]);
 
@@ -1463,20 +1238,20 @@ static void printRow(int start, int end, unsigned *map, char *charsetName)
 }
 
 
-static void printMap(unsigned *map, char *charsetName)
+static void printMap(unsigned *map)
 {
 	printf("%s\n", _("1st row"));
-	printRow(keyEsc, keyPause, map, charsetName);
+	printRow(keyEsc, keyPause, map);
 	printf("%s\n", _("2nd row"));
-	printRow(keyE0, keyMinus, map, charsetName);
+	printRow(keyE0, keyMinus, map);
 	printf("%s\n", _("3rd row"));
-	printRow(keyTab, keyNine, map, charsetName);
+	printRow(keyTab, keyNine, map);
 	printf("%s\n", _("4th row"));
-	printRow(keyCapsLock, keyPlus, map, charsetName);
+	printRow(keyCapsLock, keyPlus, map);
 	printf("%s\n", _("5th row"));
-	printRow(keyLShift, keyThree, map, charsetName);
+	printRow(keyLShift, keyThree, map);
 	printf("%s\n", _("6th row"));
-	printRow(keyLCtrl, keyEnter, map, charsetName);
+	printRow(keyLCtrl, keyEnter, map);
 	printf("\n");
 }
 
@@ -1485,26 +1260,17 @@ static void printKeyboard(void)
 {
 	// Print out the detail of the selected keymap
 
-	char charsetName[CHARSET_NAME_LEN + 1];
-
-	// Try to get the character set for the keymap language
-	if (configGet(PATH_SYSTEM_CONFIG "/charset.conf",
-		selectedMap->language, charsetName, CHARSET_NAME_LEN) < 0)
-	{
-		strncpy(charsetName, CHARSET_NAME_ISO_8859_15, CHARSET_NAME_LEN);
-	}
-
 	printf(_("\nPrinting out keymap \"%s\"\n\n"), selectedMap->name);
 	printf("-- %s --\n", _("Regular map"));
-	printMap(selectedMap->regMap, charsetName);
+	printMap(selectedMap->regMap);
 	printf("-- %s --\n", _("Shift map"));
-	printMap(selectedMap->shiftMap, charsetName);
+	printMap(selectedMap->shiftMap);
 	printf("-- %s --\n", _("Ctrl map"));
-	printMap(selectedMap->controlMap, charsetName);
+	printMap(selectedMap->controlMap);
 	printf("-- %s --\n", _("AltGr map"));
-	printMap(selectedMap->altGrMap, charsetName);
+	printMap(selectedMap->altGrMap);
 	printf("-- %s --\n", _("Shift-AltGr map"));
-	printMap(selectedMap->shiftAltGrMap, charsetName);
+	printMap(selectedMap->shiftAltGrMap);
 }
 
 

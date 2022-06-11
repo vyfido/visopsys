@@ -1,0 +1,10 @@
+
+ -- vspinst --
+
+Install software package files.
+
+Usage:
+  vspinst <package>
+
+Software package files are binary files, usually with a .vsp extension.
+

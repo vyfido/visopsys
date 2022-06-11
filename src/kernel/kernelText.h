@@ -27,6 +27,23 @@
 #include "kernelStream.h"
 #include <sys/text.h>
 
+// Some useful macros for working with text areas
+#define TEXTAREA_CURSORPOS(area) \
+	((area->cursorRow * area->columns) + area->cursorColumn)
+#define TEXTAREA_FIRSTSCROLLBACK(area) \
+	(area->bufferData + ((area->maxBufferLines - \
+		(area->rows + area->scrollBackLines)) * \
+			(area->columns * area->bytesPerChar)))
+#define TEXTAREA_LASTSCROLLBACK(area) \
+	(area->bufferData + ((area->maxBufferLines - (area->rows + 1)) * \
+		(area->columns * area->bytesPerChar)))
+#define TEXTAREA_FIRSTVISIBLE(area) \
+	(area->bufferData + ((area->maxBufferLines - area->rows) * \
+		(area->columns * area->bytesPerChar)))
+#define TEXTAREA_LASTVISIBLE(area) \
+	(area->bufferData + ((area->maxBufferLines - 1) * \
+		(area->columns * area->bytesPerChar)))
+
 // Forward declarations, where necessary
 struct _kernelTextOutputStream;
 // Can't include kernelWindow.h, it's circular.
@@ -125,8 +142,10 @@ int kernelTextGetForeground(color *);
 int kernelTextSetForeground(color *);
 int kernelTextGetBackground(color *);
 int kernelTextSetBackground(color *);
-int kernelTextStreamPutc(kernelTextOutputStream *, int);
-int kernelTextPutc(int);
+int kernelTextStreamPutc(kernelTextOutputStream *, unsigned);
+int kernelTextPutc(unsigned);
+int kernelTextStreamPutMbc(kernelTextOutputStream *, const char *);
+int kernelTextPutMbc(const char *);
 int kernelTextStreamPrint(kernelTextOutputStream *, const char *);
 int kernelTextPrint(const char *, ...) __attribute__((format(printf, 1, 2)));
 int kernelTextStreamPrintAttrs(kernelTextOutputStream *, textAttrs *,
@@ -175,37 +194,20 @@ int kernelTextScreenRestore(textScreen *);
 
 int kernelTextInputStreamCount(kernelTextInputStream *);
 int kernelTextInputCount(void);
-int kernelTextInputStreamGetc(kernelTextInputStream *, char *);
-int kernelTextInputGetc(char *);
-int kernelTextInputStreamReadN(kernelTextInputStream *, int, char *);
-int kernelTextInputReadN(int, char *);
-int kernelTextInputStreamReadAll(kernelTextInputStream *, char *);
-int kernelTextInputReadAll(char *);
-int kernelTextInputStreamAppend(kernelTextInputStream *, int);
-int kernelTextInputAppend(int);
-int kernelTextInputStreamAppendN(kernelTextInputStream *, int, char *);
-int kernelTextInputAppendN(int, char *);
+int kernelTextInputStreamGetc(kernelTextInputStream *, unsigned *);
+int kernelTextInputGetc(unsigned *);
+int kernelTextInputStreamReadN(kernelTextInputStream *, int, unsigned *);
+int kernelTextInputReadN(int, unsigned *);
+int kernelTextInputStreamReadAll(kernelTextInputStream *, unsigned *);
+int kernelTextInputReadAll(unsigned *);
+int kernelTextInputStreamAppend(kernelTextInputStream *, unsigned);
+int kernelTextInputAppend(unsigned);
+int kernelTextInputStreamAppendN(kernelTextInputStream *, int, unsigned *);
+int kernelTextInputAppendN(int, unsigned *);
 int kernelTextInputStreamRemoveAll(kernelTextInputStream *);
 int kernelTextInputRemoveAll(void);
 void kernelTextInputStreamSetEcho(kernelTextInputStream *, int);
 void kernelTextInputSetEcho(int);
-
-// Some useful macros for working with text areas
-#define TEXTAREA_CURSORPOS(area) \
-	((area->cursorRow * area->columns) + area->cursorColumn)
-#define TEXTAREA_FIRSTSCROLLBACK(area) \
-	(area->bufferData + ((area->maxBufferLines - \
-		(area->rows + area->scrollBackLines)) * \
-			(area->columns * area->bytesPerChar)))
-#define TEXTAREA_LASTSCROLLBACK(area) \
-	(area->bufferData + ((area->maxBufferLines - (area->rows + 1)) * \
-		(area->columns * area->bytesPerChar)))
-#define TEXTAREA_FIRSTVISIBLE(area) \
-	(area->bufferData + ((area->maxBufferLines - area->rows) * \
-		(area->columns * area->bytesPerChar)))
-#define TEXTAREA_LASTVISIBLE(area) \
-	(area->bufferData + ((area->maxBufferLines - 1) * \
-		(area->columns * area->bytesPerChar)))
 
 #endif
 

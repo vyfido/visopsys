@@ -20,7 +20,7 @@
 //
 
 // This is a program for modifying partition tables and doing other disk
-// management tasks.
+// management tasks
 
 /* This is the text that appears when a user requests help about this program
 <help>
@@ -350,7 +350,7 @@ static int readLine(const char *choices, char *buffer, int length)
 			count1--;
 	}
 
-	// Make sure there's a NULL at the end of buffer.
+	// Make sure there's a NULL at the end of buffer
 	buffer[length - 1] = '\0';
 
 	printf("\n");
@@ -513,7 +513,6 @@ static int scanDisks(void)
 	status = diskGetAllPhysical(tmpDiskInfo, (tmpNumberDisks * sizeof(disk)));
 	if (status < 0)
 	{
-		// Eek.  Problem getting disk info.
 		free(tmpDiskInfo);
 		return (status);
 	}
@@ -620,7 +619,7 @@ static int isSliceUsed(partitionTable *t, int sliceNum)
 
 static void insertSliceAt(partitionTable *t, int sliceNumber)
 {
-	// Just moves part of the slice list to accommodate an insertion.
+	// Just moves part of the slice list to accommodate an insertion
 
 	int count;
 
@@ -633,7 +632,7 @@ static void insertSliceAt(partitionTable *t, int sliceNumber)
 
 static void removeSliceAt(partitionTable *t, int sliceNumber)
 {
-	// Just moves part of the slice list to accommodate a removal.
+	// Just moves part of the slice list to accommodate a removal
 
 	int count;
 
@@ -647,7 +646,7 @@ static void removeSliceAt(partitionTable *t, int sliceNumber)
 static void makeReservedSlice(partitionTable *t, int sliceNumber,
 	uquad_t startSector, uquad_t numSectors)
 {
-	// Given a slice entry and location/size, make a reserved slice for it.
+	// Given a slice entry and location/size, make a reserved slice for it
 
 	slice *reservedSlice = &t->slices[sliceNumber];
 
@@ -661,7 +660,7 @@ static void makeReservedSlice(partitionTable *t, int sliceNumber,
 static void updateReservedSlices(partitionTable *t)
 {
 	// Make all the reserved slices reflect the actual reserved spaces on the
-	// disk.
+	// disk
 
 	int count;
 
@@ -696,7 +695,7 @@ static void updateReservedSlices(partitionTable *t)
 static void makeEmptySlice(partitionTable *t, int sliceNumber,
 	uquad_t startSector, uquad_t numSectors)
 {
-	// Given a slice number and location/size, make a slice for it.
+	// Given a slice number and location/size, make a slice for it
 
 	slice *emptySlice = &t->slices[sliceNumber];
 
@@ -709,7 +708,7 @@ static void makeEmptySlice(partitionTable *t, int sliceNumber,
 
 static void updateEmptySlices(partitionTable *t)
 {
-	// Make all the empty slices reflect the actual empty spaces on the disk.
+	// Make all the empty slices reflect the actual empty spaces on the disk
 
 	int count;
 
@@ -734,7 +733,7 @@ static void updateEmptySlices(partitionTable *t)
 					t->slices[count - 1].raw.numSectors))))
 		{
 			// If we're not at the first slice, and there's just a small
-			// (< 1Mb) space before a logical slice, ignore it.
+			// (< 1Mb) space before a logical slice, ignore it
 			if (count && (t->slices[count].raw.type == partition_logical) &&
 				(sectorsToMegabytes(t->disk,
 					(t->slices[count].raw.startSector -
@@ -926,7 +925,7 @@ static int readPartitionTable(disk *theDisk, partitionTable *t)
 		}
 	}
 
-	// Detect the disk label.
+	// Detect the disk label
 	type = detectLabel(t->disk);
 	if (type == label_gpt)
 		t->label = gptLabel;
@@ -947,7 +946,7 @@ static int readPartitionTable(disk *theDisk, partitionTable *t)
 		t->label = msdosLabel;
 	}
 
-	// Any backup partition table saved?  Construct the file name
+	// Any backup partition table saved?  Construct the file name.
 
 	fileName = malloc(MAX_PATH_NAME_LENGTH + 1);
 	if (!fileName)
@@ -1025,7 +1024,7 @@ static int writePartitionTable(partitionTable *t)
 	memset(t->rawSlices, 0, (DISK_MAX_PARTITIONS * sizeof(rawSlice)));
 	t->numRawSlices = 0;
 
-	// Copy the 'raw' data from the data slices into the raw slice list.
+	// Copy the 'raw' data from the data slices into the raw slice list
 	for (count1 = 0; count1 < DISK_MAX_PARTITIONS; count1 ++)
 	{
 		for (count2 = 0; count2 < t->numSlices; count2 ++)
@@ -1085,7 +1084,7 @@ static void guidString(char *string, guid *g)
 static void makeSliceList(partitionTable *t)
 {
 	// This function populates the list of slices using the 'raw' slices list
-	// in the partitionTable structure.
+	// in the partitionTable structure
 
 	rawSlice *raw = NULL;
 	int firstPartition = -1;
@@ -1217,7 +1216,7 @@ static void drawDiagram(void)
 		{ 0, 0, 255 },   // 3  = Red
 		{ 255, 0, 255 }, // 4  = Purple
 		{ 0, 196, 255 }, // 5  = Orange
-		// These standard shades can fill out the rest.
+		// These standard shades can fill out the rest
 		COLOR_BLUE,
 		COLOR_GREEN,
 		COLOR_CYAN,
@@ -1321,7 +1320,7 @@ static void drawDiagram(void)
 		}
 
 		// If it is a used slice, we draw a filled rectangle on the canvas to
-		// represent the slice.
+		// represent the slice
 		if (isSliceUsed(table, count1))
 		{
 			table->slices[count1].color =
@@ -1566,7 +1565,7 @@ static void display(void)
 static void setActive(int sliceNumber)
 {
 	// Toggle the 'bootable' flag of the supplied slice number, and if
-	// necessary clear the flag of any existing bootable slice.
+	// necessary clear the flag of any existing bootable slice
 
 	int count;
 
@@ -1810,8 +1809,10 @@ static int mountedCheckSlice(slice *entry)
 	if (entry->diskName[0] && (diskGet(entry->diskName, &tmpDisk) >= 0))
 	{
 		if (!tmpDisk.mounted)
+		{
 			// Not mounted
 			return (status = 0);
+		}
 
 		// Mounted.  Prompt.
 		sprintf(tmpChar, _("The partition %s is mounted as %s.  It is "
@@ -1857,12 +1858,16 @@ static int mountedCheckSlice(slice *entry)
 		}
 
 		if (!choice)
+		{
 			// Ignore
 			return (status = 0);
+		}
 
 		if ((choice < 0) || (choice == 2))
+		{
 			// Cancelled
 			return (status = ERR_CANCELLED);
+		}
 
 		if (choice == 1)
 		{
@@ -1875,7 +1880,7 @@ static int mountedCheckSlice(slice *entry)
 	}
 
 	// The disk probably doesn't exist (yet).  So, it obviously can't be
-	// mounted
+	// mounted.
 	return (status = 0);
 }
 
@@ -1909,7 +1914,7 @@ static void doDelete(int sliceNumber)
 	removeSliceAt(table, sliceNumber);
 
 	// Reduce the order numbers of all slices that occur after the deleted
-	// slice.
+	// slice
 	for (count = 0; count < table->numSlices; count ++)
 	{
 		if (isSliceUsed(table, count) &&
@@ -1981,7 +1986,7 @@ static int createSliceOrder(int sliceNumber, sliceType type)
 {
 	// Given a slice number which currently contains empty space, determine
 	// the correct table order for a new slice which will reside there (and
-	// re-order others, if appropriate).
+	// re-order others, if appropriate)
 
 	int order = 0;
 	int count1, count2;
@@ -2006,7 +2011,7 @@ static int createSliceOrder(int sliceNumber, sliceType type)
 
 	if (type == partition_primary)
 	{
-		// Any logical slices will have their order numbers increased.
+		// Any logical slices will have their order numbers increased
 		for (count1 = 0; count1 < table->numSlices; count1 ++)
 		{
 			if (ISLOGICAL(&table->slices[count1]))
@@ -2018,12 +2023,12 @@ static int createSliceOrder(int sliceNumber, sliceType type)
 	{
 		// Logical slices' order in the table should always correspond with
 		// their on-disk order, so if any previous slice is logical, the new
-		// slice will follow it in the order.
+		// slice will follow it in the order
 		if (sliceNumber && ISLOGICAL(&table->slices[sliceNumber - 1]))
 			order = (table->slices[sliceNumber - 1].raw.order + 1);
 
 		// Otherwise if any following slice is logical, the new slice will
-		// precede it in the order.
+		// precede it in the order
 		else if ((sliceNumber < (table->numSlices - 1)) &&
 			ISLOGICAL(&table->slices[sliceNumber + 1]))
 		{
@@ -2031,7 +2036,7 @@ static int createSliceOrder(int sliceNumber, sliceType type)
 		}
 
 		// Any logical slices that follow this one will have their order
-		// numbers increased.
+		// numbers increased
 		for (count1 = (sliceNumber + 1); count1 < table->numSlices; count1 ++)
 		{
 			if (ISLOGICAL(&table->slices[count1]))
@@ -2223,6 +2228,7 @@ static void create(int sliceNumber)
 			windowComponentFocus(cancelButton);
 
 			// Make the window visible
+			windowLayout(createDialog);
 			windowSetResizable(createDialog, 0);
 			windowCenterDialog(window, createDialog);
 			windowSetVisible(createDialog, 1);
@@ -2286,8 +2292,8 @@ static void create(int sliceNumber)
 					}
 
 					snprintf(tmpChar, 160, SIZEMB_MESSAGE, 1, tmpMaxSizeMb);
-					windowComponentSetData(sizeLabel, tmpChar, strlen(tmpChar),
-						1 /* redraw */);
+					windowComponentSetData(sizeLabel, tmpChar,
+						strlen(tmpChar), 1 /* redraw */);
 
 					windowComponentGetData(sizeSlider, &sliderState,
 						sizeof(scrollBarState));
@@ -2460,8 +2466,8 @@ static void create(int sliceNumber)
 	}
 
 	// By convention, we don't write the first 'track' of the disk, or the
-	// first sector of a logical partition (it's reserved area for needed
-	// for any extended partition table)
+	// first sector of a logical partition (it's reserved area for needed for
+	// any extended partition table)
 	if (startSector < table->disk->sectorsPerCylinder)
 	{
 		numSectors -= (table->disk->sectorsPerCylinder - startSector);
@@ -2488,7 +2494,7 @@ static void create(int sliceNumber)
 	else
 	{
 		// The setType() will increase the 'changes pending' if it succeeded,
-		// so we don't do it here.
+		// so we don't do it here
 		table->selectedSlice = newSliceNumber;
 	}
 }
@@ -2806,7 +2812,7 @@ static void undo(void)
 	// Undo changes
 	if (table->changesPending)
 	{
-		// Re-scan from the original raw slices.
+		// Re-scan from the original raw slices
 		makeSliceList(table);
 
 		table->selectedSlice = 0;
@@ -2830,13 +2836,15 @@ static void writeChanges(partitionTable *t, int confirm)
 		// Write out the partition table
 		status = writePartitionTable(t);
 		if (status < 0)
+		{
 			error(_("Unable to write the partition table of %s."),
 				t->disk->name);
+		}
 
 		// Tell the kernel to re-examine the partition tables
 		diskReadPartitions(t->disk->name);
 
-		// Make the slice list.
+		// Make the slice list
 		makeSliceList(t);
 	}
 }
@@ -3133,11 +3141,15 @@ static int move(int sliceNumber)
 			0 /* round naturally */);
 
 	if (canMoveLeft)
+	{
 		moveRangeMb[0] = sectorsToMegabytes(table->disk, moveRangeSectors[0],
 			1 /* round up */);
+	}
 	if (canMoveRight)
+	{
 		moveRangeMb[1] = sectorsToMegabytes(table->disk, moveRangeSectors[1],
 			-1 /* round down */);
+	}
 
 	while (1)
 	{
@@ -3231,7 +3243,7 @@ static void deleteAll(void)
 	table->selectedSlice = 0;
 	table->changesPending += 1;
 
-	// Update the slice list.
+	// Update the slice list
 	updateSliceList(table);
 }
 
@@ -3272,7 +3284,7 @@ static int doResize(int sliceNumber, uquad_t newSectors, int resizeFs)
 		writeChanges(table, 0);
 
 		// If disk caching is enabled on the disk, disable it whilst we do a
-		// large operation like this.
+		// large operation like this
 		if (!(table->disk->flags & DISKFLAG_NOCACHE))
 			diskSetFlags(table->disk->name, DISKFLAG_NOCACHE, 1);
 
@@ -3305,7 +3317,7 @@ static int doResize(int sliceNumber, uquad_t newSectors, int resizeFs)
 		else
 			vshProgressBarDestroy(&prog);
 
-		// If applicable, re-enable disk caching.
+		// If applicable, re-enable disk caching
 		if (!(table->disk->flags & DISKFLAG_NOCACHE))
 			diskSetFlags(table->disk->name, DISKFLAG_NOCACHE, 0);
 
@@ -3335,8 +3347,10 @@ static int doResize(int sliceNumber, uquad_t newSectors, int resizeFs)
 		resizeSlice(&table->slices[sliceNumber], newSectors);
 
 		if (resizeFs)
+		{
 			// We already resized the filesystem, so write everything
 			writeChanges(table, 0);
+		}
 	}
 
 	return (status = 0);
@@ -3373,7 +3387,7 @@ static int resize(int sliceNumber)
 	if ((table->slices[sliceNumber].opFlags & FS_OP_RESIZE) ||
 		(!strcmp(table->slices[sliceNumber].fsType, "ntfs") && ntfsResize))
 	{
-		// We can resize this filesystem.
+		// We can resize this filesystem
 		resizeFs = 1;
 
 		char *optionStrings[] =
@@ -3412,8 +3426,8 @@ static int resize(int sliceNumber)
 		{
 			if (table->changesPending)
 			{
-				error("%s", _("A filesystem resize cannot be undone, and must "
-					"be committed\nto disk immediately.  You need to "
+				error("%s", _("A filesystem resize cannot be undone, and "
+					"must be committed\nto disk immediately.  You need to "
 					"write your other changes\nto disk before "
 					"continuing."));
 				return (status = ERR_BUSY);
@@ -3488,7 +3502,7 @@ static int resize(int sliceNumber)
 	else
 	{
 		// We can't resize this filesystem, but we will offer to resize
-		// the slice anyway.
+		// the slice anyway
 		snprintf(tmpChar, sizeof(tmpChar), "%s",
 			_("Resizing the filesystem on this partition is "
 			"not supported.\nHowever, it is possible to resize the "
@@ -3513,7 +3527,7 @@ static int resize(int sliceNumber)
 	if (status < 0)
 		return (status);
 
-	// Calculate the current, minimum, and maximum permissable sizes.
+	// Calculate the current, minimum, and maximum permissable sizes
 
 	currentSizeMb = sectorsToMegabytes(table->disk,
 		table->slices[sliceNumber].raw.numSectors, -1 /* round down */);
@@ -3610,6 +3624,7 @@ static int resize(int sliceNumber)
 			windowComponentFocus(cancelButton);
 
 			// Make the window visible
+			windowLayout(resizeDialog);
 			windowSetResizable(resizeDialog, 0);
 			windowCenterDialog(window, resizeDialog);
 			windowSetVisible(resizeDialog, 1);
@@ -3651,8 +3666,10 @@ static int resize(int sliceNumber)
 					(event.type == WINDOW_EVENT_KEY_DOWN))
 				{
 					if (event.key.scan == keyEnter)
-						// User hit enter.
+					{
+						// User hit Enter
 						break;
+					}
 
 					// See if we can apply a newly-typed number to the slider
 					newSizeString[0] = '\0';
@@ -3676,8 +3693,9 @@ static int resize(int sliceNumber)
 					{
 						windowComponentGetData(sizeSlider, &sliderState,
 							sizeof(scrollBarState));
-						sprintf(tmpChar, "%u", (((sliderState.positionPercent *
-							(maxSizeMb - minSizeMb)) / 100) + minSizeMb));
+						sprintf(tmpChar, "%u",
+							(((sliderState.positionPercent * (maxSizeMb -
+								minSizeMb)) / 100) + minSizeMb));
 						windowComponentSetData(sizeField, tmpChar,
 							strlen(tmpChar), 1 /* redraw */);
 					}
@@ -3741,7 +3759,7 @@ static int resize(int sliceNumber)
 		break;
 	}
 
-	// Before we go, warn about backups and such.
+	// Before we go, warn about backups and such
 	snprintf(tmpChar, sizeof(tmpChar),
 		_("Resizing partition from %u to %u megabytes.\n"
 		"Please use this feature with caution, and only after\n"
@@ -3863,7 +3881,7 @@ static void copyIoThread(int argc, char *argv[])
 
 		if (status < 0)
 		{
-			// There was an error reading or writing.
+			// There was an error reading or writing
 
 			if (!ignoreErrors)
 			{
@@ -4051,8 +4069,8 @@ static int copyData(disk *srcDisk, unsigned srcSector, disk *destDisk,
 		vshProgressBar(&prog);
 	}
 
-	// If disk caching is enabled on the disks, disable it whilst we do a large
-	// operation like this.
+	// If disk caching is enabled on the disks, disable it whilst we do a
+	// large operation like this
 	if (!(srcDisk->flags & DISKFLAG_NOCACHE))
 		diskSetFlags(srcDisk->name, DISKFLAG_NOCACHE, 1);
 	if (!(destDisk->flags & DISKFLAG_NOCACHE))
@@ -4105,9 +4123,11 @@ static int copyData(disk *srcDisk, unsigned srcSector, disk *destDisk,
 		}
 
 		if (prog.cancel)
+		{
 			// This can be set above, or else by the progress dialog when the
 			// user presses the cancel button
 			break;
+		}
 
 		multitaskerYield();
 	}
@@ -4138,17 +4158,19 @@ static int copyData(disk *srcDisk, unsigned srcSector, disk *destDisk,
 		status = ERR_CANCELLED;
 	}
 	else
+	{
 		status = 0;
+	}
 
 out:
 	// Release copy buffer data
 	memoryRelease(buffer.buffer[0].data);
 	memoryRelease(buffer.buffer[1].data);
 
-	// Flush data.
+	// Flush data
 	diskSync(destDisk->name);
 
-	// If applicable, re-enable disk caching.
+	// If applicable, re-enable disk caching
 	if (!(srcDisk->flags & DISKFLAG_NOCACHE))
 		diskSetFlags(srcDisk->name, DISKFLAG_NOCACHE, 0);
 	if (!(destDisk->flags & DISKFLAG_NOCACHE))
@@ -4188,7 +4210,7 @@ static void clearDiskLabel(disk *theDisk, diskLabel *label)
 
 static int setFatGeometry(partitionTable *t, int sliceNumber)
 {
-	// Given a slice, make sure the FAT disk geometry fields are correct.
+	// Given a slice, make sure the FAT disk geometry fields are correct
 
 	int status = 0;
 	slice *slc = &t->slices[sliceNumber];
@@ -4253,8 +4275,9 @@ static disk *chooseDiskDialog(void)
 	params.orientationY = orient_middle;
 
 	// Make a window list with all the disk choices
-	dList = windowNewList(chooseWindow, windowlist_textonly, numberDisks, 1, 0,
-		diskListParams, numberDisks, &params);
+	dList = windowNewList(chooseWindow, windowlist_textonly, numberDisks,
+		1 /* columns */, 0 /* multiple */, diskListParams, numberDisks,
+		&params);
 	windowComponentFocus(dList);
 
 	// Make 'OK' and 'cancel' buttons
@@ -4370,7 +4393,7 @@ static void copyDisk(void)
 		}
 	}
 
-	// We have a source disk and a destination disk.
+	// We have a source disk and a destination disk
 	sprintf(tmpChar, _("Copy disk %s to disk %s.\nWARNING: THIS WILL DESTROY "
 		"ALL DATA ON DISK %s.\nARE YOU SURE YOU WANT TO DO "
 		"THIS?"), srcDisk->name, destDisk->name, destDisk->name);
@@ -4453,8 +4476,8 @@ static void copyDisk(void)
 	// Write out the partition table
 	writeChanges(table, 0);
 
-	// Make sure the disk geometries of any FAT slices are correct for
-	// the new disk.
+	// Make sure the disk geometries of any FAT slices are correct for the new
+	// disk
 	for (count = 0; count < table->numSlices; count ++)
 	{
 		if (isSliceUsed(table, count) &&
@@ -4513,7 +4536,7 @@ static int pastePartition(int sliceNumber)
 	if (newType == partition_any)
 		newType = clipboardSlice.raw.type;
 
-	// Round up to a megabyte boundary.
+	// Round up to a megabyte boundary
 	startSector = megabytesToSectors(table->disk,
 		sectorsToMegabytes(table->disk, emptySlice->raw.startSector,
 			1 /* round up */));
@@ -4612,7 +4635,7 @@ static int pastePartition(int sliceNumber)
 		clipboardSlice.raw.attributes;
 
 	// If it's a FAT filesystem, make sure the disk geometry stuff in it
-	// is correct for the new disk.
+	// is correct for the new disk
 	if (!strncmp(clipboardSlice.fsType, "fat", 3))
 		setFatGeometry(table, newSliceNumber);
 
@@ -4629,7 +4652,7 @@ static int pastePartition(int sliceNumber)
 static void swapSlices(partitionTable *t, int first, int second)
 {
 	// Given 2 slices, swap them.  This is primarily for the change partition
-	// order function, below
+	// order function, below.
 
 	slice *firstSlice = &t->slices[first];
 	slice *secondSlice = &t->slices[second];
@@ -4866,13 +4889,13 @@ static void changePartitionOrder(void)
 					goto commit;
 
 				case (char) ASCII_CRSRUP:
-					// Cursor up.
+					// Cursor up
 					if (selected > 0)
 						selected -= 1;
 					continue;
 
 				case (char) ASCII_CRSRDOWN:
-					// Cursor down.
+					// Cursor down
 					if (selected < (tableCopy.numSlices - 1))
 						selected += 1;
 					continue;
@@ -4944,7 +4967,7 @@ commit:
 
 static int writeSimpleMbr(void)
 {
-	// Put simple MBR code into the main partition table.
+	// Put simple MBR code into the main partition table
 
 	int status = 0;
 	fileStream mbrFile;
@@ -4981,7 +5004,7 @@ static int writeSimpleMbr(void)
 		return (status = ERR_MEMORY);
 	}
 
-	// Read the current MBR sector.
+	// Read the current MBR sector
 	status = diskReadSectors(table->disk->name, 0, 1, mbr);
 	if (status < 0)
 	{
@@ -5001,7 +5024,7 @@ static int writeSimpleMbr(void)
 	// Make sure it's got the boot sector signature
 	mbr->bootSig = MSDOS_BOOT_SIGNATURE;
 
-	// Write back the MBR sector.
+	// Write back the MBR sector
 	status = diskWriteSectors(table->disk->name, 0, 1, mbr);
 	if (status < 0)
 	{
@@ -5070,7 +5093,7 @@ static void restoreBackup(void)
 		return;
 	}
 
-	// Clear the raw slices in the partition table.
+	// Clear the raw slices in the partition table
 	memset(table->rawSlices, 0, (DISK_MAX_PARTITIONS * sizeof(rawSlice)));
 	table->numRawSlices = 0;
 
@@ -5134,7 +5157,7 @@ static int chooseSecurityLevel(void)
 static int eraseData(disk *theDisk, unsigned startSector, unsigned numSectors,
 	int securityLevel)
 {
-	// Securely erase data sectors.
+	// Securely erase data sectors
 
 	int status = 0;
 	unsigned remainingSectors = numSectors;
@@ -5482,7 +5505,7 @@ static void newLabel(void)
 static void makeSliceListHeader(void)
 {
 	// The header that goes above the slice list.  Name string in graphics
-	// and text modes
+	// and text modes.
 
 	const char *string = NULL;
 	int count;
@@ -5523,13 +5546,13 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 		if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
 		{
-			// Window being closed by a GUI event.
+			// Window being closed by a GUI event
 			quit(0, 0);
 		}
 
 		else if (event->type == WINDOW_EVENT_WINDOW_RESIZE)
 		{
-			// Window resize.  Get the canvas sizes
+			// Window resize.  Get the canvas sizes.
 			canvasWidth = windowComponentGetWidth(canvas);
 			canvasHeight = windowComponentGetHeight(canvas);
 			redisplay = 1;
@@ -5997,7 +6020,7 @@ static void handleMenuEvents(windowMenuContents *contents)
 static void constructWindow(void)
 {
 	// If we are in graphics mode, make a window rather than operating on the
-	// command line.
+	// command line
 
 	componentParameters params;
 	image iconImage;
@@ -6102,7 +6125,8 @@ static void constructWindow(void)
 	params.flags &= ~COMP_PARAMS_FLAG_CANFOCUS;
 	params.flags |= COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	params.padBottom = 0;
-	params.font = fontGet(FONT_FAMILY_LIBMONO, FONT_STYLEFLAG_FIXED, 10, NULL);
+	params.font = fontGet(FONT_FAMILY_LIBMONO, FONT_STYLEFLAG_FIXED, 10,
+		NULL);
 	windowNewTextLabel(window, sliceListHeader, &params);
 
 	// Make a list for the slices
@@ -6302,11 +6326,14 @@ static int textMenu(void)
 		textSetColumn(0);
 
 		if (table->changesPending)
-			printf(_("  -== %d changes pending ==-\n"), table->changesPending);
+		{
+			printf(_("  -== %d changes pending ==-\n"),
+				table->changesPending);
+		}
 		printf("-> ");
 
 		// Construct the string of allowable options, corresponding to what is
-		// shown above.
+		// shown above
 		sprintf(optionString, "%s%sCc%s%s%s%s%sIiJjKkLl%s%s%s%sQq%sSs%s%sVv%s"
 			"XxYyZz",
 			(canActivate? "Aa" : ""),
@@ -6328,13 +6355,13 @@ static int textMenu(void)
 		switch (readKey(optionString, 1))
 		{
 			case (char) ASCII_CRSRUP:
-				// Cursor up.
+				// Cursor up
 				if (table->selectedSlice > 0)
 					table->selectedSlice -= 1;
 				continue;
 
 			case (char) ASCII_CRSRDOWN:
-				// Cursor down.
+				// Cursor down
 				if (table->selectedSlice < (table->numSlices - 1))
 					table->selectedSlice += 1;
 				continue;
@@ -6540,8 +6567,10 @@ int main(int argc, char *argv[])
 	// Find out whether our temp or backup directories are on a read-only
 	// filesystem
 	if (!fileGetDisk(PATH_TEMP, disks) && !disks->readOnly)
+	{
 		if (!fileGetDisk(PATH_SYSTEM_BOOT, disks) && !disks->readOnly)
 			readOnly = 0;
+	}
 
 	// Get the disk label structures for all the types we support
 	gptLabel = getLabelGpt();
@@ -6580,8 +6609,8 @@ int main(int argc, char *argv[])
 		printBanner();
 	}
 
-	// The user can specify the disk name as an argument.  Try to see
-	// whether they did so.
+	// The user can specify the disk name as an argument.  Try to see whether
+	// they did so.
 	if (argc > 1)
 	{
 		for (count = 0; count < numberDisks; count ++)
@@ -6627,6 +6656,7 @@ int main(int argc, char *argv[])
 	}
 
 	quit(status, 1);
+
 	// Keep the compiler happy
 	return (status);
 }

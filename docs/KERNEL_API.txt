@@ -1,4 +1,4 @@
-THE VISOPSYS KERNEL API (Version 0.85)
+THE VISOPSYS KERNEL API (Version 0.9)
 
 All of the kernel's functions are defined in the file
 /system/headers/sys/api.h. In future, this file may be split into smaller
@@ -97,9 +97,14 @@ int textSetBackground(color *background)
 	Set the current background color to the one represented in the color structure 'background'.  Some standard color values (as in PC text-mode values) can be found in <sys/color.h>.
 
 
-int textPutc(int ascii)
+int textPutc(unsigned unicode)
 	
 	Print a single character
+
+
+int textPutMbc(const char *str)
+	
+	Print a single (possibly wide) character from the beginning of 'str'.  If successful, returns the number of bytes consumed from 'str', negative otherwise.
 
 
 int textPrint(const char *str)
@@ -222,54 +227,54 @@ int textInputCount(void)
 	Get the number of characters currently waiting in the current input stream
 
 
-int textInputStreamGetc(objectKey strm, char *cp)
+int textInputStreamGetc(objectKey strm, unsigned *cp)
 	
-	Get one character from the specified input stream (as an integer value).
+	Removes and returns a single (possibly wide) character from the specified input stream
 
 
-int textInputGetc(char *cp)
+int textInputGetc(unsigned *cp)
 	
-	Get one character from the default input stream (as an integer value).
+	Removes and returns a single (possibly wide) character from the default input stream
 
 
-int textInputStreamReadN(objectKey strm, int num, char *buff)
+int textInputStreamReadN(objectKey strm, int num, unsigned *buff)
 	
-	Read up to 'num' characters from the specified input stream into 'buff'
+	Removes up to 'num' (possibly wide) characters from the specified input stream, and puts them in the supplied buffer 'buff'.
 
 
-int textInputReadN(int num, char *buff)
+int textInputReadN(int num, unsigned *buff)
 	
-	Read up to 'num' characters from the default input stream into 'buff'
+	Removes up to 'num' (possibly wide) characters from the default input stream, and puts them in the supplied buffer 'buff'.
 
 
-int textInputStreamReadAll(objectKey strm, char *buff)
+int textInputStreamReadAll(objectKey strm, unsigned *buff)
 	
-	Read all of the characters from the specified input stream into 'buff'
+	Removes all of the (possibly wide) characters from the specified input stream, and puts them in the buffer 'buff'.
 
 
-int textInputReadAll(char *buff)
+int textInputReadAll(unsigned *buff)
 	
-	Read all of the characters from the default input stream into 'buff'
+	Removes all of the (possibly wide) characters from the default input stream, and puts them in the buffer 'buff'.
 
 
-int textInputStreamAppend(objectKey strm, int ascii)
+int textInputStreamAppend(objectKey strm, unsigned unicode)
 	
-	Append a character (as an integer value) to the end of the specified input stream.
+	Appends a single (possibly wide) character to the end of the specified input stream.
 
 
-int textInputAppend(int ascii)
+int textInputAppend(unsigned unicode)
 	
-	Append a character (as an integer value) to the end of the default input stream.
+	Appends a single (possibly wide) character to the end of the default input stream.
 
 
-int textInputStreamAppendN(objectKey strm, int num, char *str)
+int textInputStreamAppendN(objectKey strm, int num, unsigned *str)
 	
-	Append 'num' characters to the end of the specified input stream from 'str'
+	Appends the requested number of (possibly wide) characters to the end of the the specified input stream.
 
 
-int textInputAppendN(int num, char *str)
+int textInputAppendN(int num, unsigned *str)
 	
-	Append 'num' characters to the end of the default input stream from 'str'
+	Appends the requested number of (possibly wide) characters to the end of the default input stream.
 
 
 int textInputStreamRemoveAll(objectKey strm)
@@ -1328,14 +1333,9 @@ int windowSetBackgroundImage(objectKey window, image *img)
 	Set the background image of 'window'.  If 'img' is NULL, remove any existing background image.
 
 
-int windowShellTileBackground(const char *theFile)
+int windowShellChangeBackground(void)
 	
-	Load the image file specified by the pathname 'theFile', and if successful, tile the image on the background root window.
-
-
-int windowShellCenterBackground(const char *theFile)
-	
-	Load the image file specified by the pathname 'theFile', and if successful, center the image on the background root window.
+	Notifies the window shell that the desktop background image has changed.  The 'DESKVAR_BACKGROUND_IMAGE' (see <sys/deskconf.h>) variable should first be changed in the appropriate desktop config file(s) 'PATH_SYSTEM_CONFIG "/" DESKTOP_CONFIG' and/or 'PATH_USERS_CONFIG "/" DESKTOP_CONFIG' (see <sys/paths.h> and <sys/deskconf.h>) before calling this function.
 
 
 objectKey windowShellNewTaskbarIcon(image *img)
@@ -1761,6 +1761,16 @@ int networkSetDomainName(const char *buffer, int bufferSize)
 	Sets the system's network domain name using up to 'bufferSize' bytes from 'buffer'
 
 
+int networkLookupNameAddress(const char *name, networkAddress *address, int *addressType)
+	
+	Attempts to look up (resolve) a network hostname 'name', and return the corresponding address in the supplied networkAddress 'address' (and type, if 'addressType' is non-NULL).  For IP networking, this uses DNS queries.
+
+
+int networkLookupAddressName(const networkAddress *address, char *name, unsigned nameLen)
+	
+	Attempts a reverse look up of a network address 'address', and return up to 'nameLen' bytes of the corresponding hostname in 'name'.  For IP networking, this uses DNS queries.
+
+
 int networkDeviceEnable(const char *name)
 	
 	Enables the requested (by 'name') network device.
@@ -1800,6 +1810,41 @@ unsigned networkDeviceSniff(objectKey hook, unsigned char *buffer, unsigned buff
 Miscellaneous functions
 --------------------------------------
 
+objectKey pipeNew(unsigned num, unsigned size)
+	
+	Initializes and returns an objectKey for a new pipe, with 'num' elements of 'size' bytes each.
+
+
+int pipeDestroy(objectKey pipe)
+	
+	Destroys a pipe previously allocated with pipeNew().
+
+
+int pipeSetReader(objectKey pipe, int pid)
+	
+	Set the process ID 'pid' of the process that is allowed to read from the pipe.
+
+
+int pipeSetWriter(objectKey pipe, int pid)
+	
+	Set the process ID 'pid' of the process that is allowed to write to the pipe.
+
+
+int pipeClear(objectKey pipe)
+	
+	Clear (discard) all data from the pipe.
+
+
+int pipeRead(objectKey pipe, unsigned num, void *buffer)
+	
+	Read 'num' elements of data from the pipe into 'buffer'.
+
+
+int pipeWrite(objectKey pipe, unsigned num, void *buffer)
+	
+	Write 'num' elements of data from 'buffer' into the pipe.
+
+
 int systemShutdown(int reboot, int nice)
 	
 	Shut down the system.  If 'reboot' is non-zero, the system will reboot.  If 'nice' is zero, the shutdown will be orderly and will abort if serious errors are detected.  If 'nice' is non-zero, the system will go down like a kamikaze regardless of errors.
@@ -1818,6 +1863,26 @@ int systemInfo(struct utsname *uts)
 int cryptHashMd5(const unsigned char *in, unsigned len, unsigned char *out)
 	
 	Given the input data 'in' and length 'len', return the numerical message digest in the buffer 'out'.
+
+
+int cryptHashSha1(const unsigned char *in, unsigned len, unsigned char *out, int finalize, unsigned total)
+	
+	Given the input data 'in' and length 'len', return the numerical message digest in the buffer 'out'.  If more data is to be hashed with a call to cryptHashSha1Cont(), then 'len' must be a multiple of 512 bits (64 bytes).  Otherwise (i.e. this is the end of the data) then 'finalize' must be non-zero, and the number of input bytes of the entire input must be supplied in 'total'.
+
+
+int cryptHashSha1Cont(const unsigned char *in, unsigned len, unsigned char *out, int finalize, unsigned total)
+	
+	Given the input data 'in' and length 'len', and a starting hash value in 'out' (obtained from a previous call) return the numerical message digest in the buffer 'out'.  If more data is to be hashed with further calls to this function, then 'len' must be a multiple of 512 bits (64 bytes).  Otherwise (i.e. this is the end of the data) then 'finalize' must be non-zero, and the number of input bytes of the entire input must be supplied in 'total'.
+
+
+int cryptHashSha256(const unsigned char *in, unsigned len, unsigned char *out, int finalize, unsigned total)
+	
+	Given the input data 'in' and length 'len', return the numerical message digest in the buffer 'out'.  If more data is to be hashed with a call to cryptHashSha256Cont(), then 'len' must be a multiple of 512 bits (64 bytes).  Otherwise (i.e. this is the end of the data) then 'finalize' must be non-zero, and the number of input bytes of the entire input must be supplied in 'total'.
+
+
+int cryptHashSha256Cont(const unsigned char *in, unsigned len, unsigned char *out, int finalize, unsigned total)
+	
+	Given the input data 'in' and length 'len', and a starting hash value in 'out' (obtained from a previous call) return the numerical message digest in the buffer 'out'.  If more data is to be hashed with further calls to this function, then 'len' must be a multiple of 512 bits (64 bytes).  Otherwise (i.e. this is the end of the data) then 'finalize' must be non-zero, and the number of input bytes of the entire input must be supplied in 'total'.
 
 
 int lockGet(spinLock *lock)

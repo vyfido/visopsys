@@ -8,13 +8,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: rm\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-08-13 22:14+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.6.4\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
@@ -22,22 +22,22 @@ msgstr ""
 
 #: rm.c:66
 msgid "usage:\n"
-msgstr "ÿ·ﬂﬁ€Ï◊ﬁ“–›ÿ’:\n"
+msgstr "–∏—Å–ø–æ–ª—å–∑–æ–≤–∞–Ω–∏–µ:\n"
 
 #: rm.c:67
 #, c-format
 msgid "%s [-R] [-S#] <file1> [file2] [...]\n"
-msgstr "%s [-R] [-S#] <‰–Ÿ€1> [‰–Ÿ€2] [...]\n"
+msgstr "%s [-R] [-S#] <—Ñ–∞–π–ª1> [—Ñ–∞–π–ª2] [...]\n"
 
 #: rm.c:109
 #, c-format
 msgid "Unknown option '%c'\n"
-msgstr "Ω’ÿ◊“’·‚›–Ô ﬁﬂÊÿÔ '%c'\n"
+msgstr "–ù–µ–∏–∑–≤–µ—Å—Ç–Ω–∞—è –æ–ø—Ü–∏—è '%c'\n"
 
 #: rm.c:118
 msgid "Can't both recursively and securely delete\n"
-msgstr "Ω’ ‹ﬁ”„ „‘–€ÿ‚Ï ‡’⁄„‡·ÿ“›ﬁ ÿ —’◊ﬁﬂ–·›ﬁ ﬁ‘›ﬁ“‡’‹’››ﬁ\n"
+msgstr "–ù–µ –º–æ–≥—É —É–¥–∞–ª–∏—Ç—å —Ä–µ–∫—É—Ä—Å–∏–≤–Ω–æ –∏ –±–µ–∑–æ–ø–∞—Å–Ω–æ –æ–¥–Ω–æ–≤—Ä–µ–º–µ–Ω–Ω–æ\n"
 
 #: rm.c:124
 msgid "No file names to delete\n"
-msgstr "Ω’‚ ‰–Ÿ€ﬁ“ ‘€Ô „‘–€’›ÿÔ\n"
+msgstr "–ù–µ—Ç —Ñ–∞–π–ª–æ–≤ –¥–ª—è —É–¥–∞–ª–µ–Ω–∏—è\n"

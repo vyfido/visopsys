@@ -46,6 +46,7 @@
 #define FILECLASS_NAME_DATA		"data"
 #define FILECLASS_NAME_DOC		"document"
 #define FILECLASS_NAME_ARCHIVE	"archive"
+#define FILECLASS_NAME_INSTALL	"installer package"
 #define FILECLASS_NAME_FONT		"font"
 #define FILECLASS_NAME_BOOT		"boot"
 #define FILECLASS_NAME_KEYMAP	"keymap"
@@ -68,12 +69,14 @@
 #define FILECLASS_NAME_GZIP		"gzip"
 #define FILECLASS_NAME_AR		"ar"
 #define FILECLASS_NAME_TAR		"tar"
+#define FILECLASS_NAME_VSP		"VSP"
 #define FILECLASS_NAME_PCF		"PCF"
 #define FILECLASS_NAME_TTF		"TTF"
 #define FILECLASS_NAME_VBF		"VBF"
 #define FILECLASS_NAME_MESSAGE	"message"
 #define FILECLASS_NAME_CONFIG	"configuration"
 #define FILECLASS_NAME_HTML		"HTML"
+#define FILECLASS_NAME_UTF8		"UTF-8"
 
 // A generic structure to represent a relocation entry
 typedef struct {
@@ -176,6 +179,7 @@ kernelFileClass *kernelFileClassZip(void);
 kernelFileClass *kernelFileClassGzip(void);
 kernelFileClass *kernelFileClassAr(void);
 kernelFileClass *kernelFileClassTar(void);
+kernelFileClass *kernelFileClassVsp(void);
 kernelFileClass *kernelFileClassPcf(void);
 kernelFileClass *kernelFileClassTtf(void);
 kernelFileClass *kernelFileClassVbf(void);
@@ -183,6 +187,7 @@ kernelFileClass *kernelFileClassElf(void);
 kernelFileClass *kernelFileClassMessage(void);
 kernelFileClass *kernelFileClassConfig(void);
 kernelFileClass *kernelFileClassHtml(void);
+kernelFileClass *kernelFileClassUtf8(void);
 kernelFileClass *kernelFileClassText(void);
 kernelFileClass *kernelFileClassBinary(void);
 

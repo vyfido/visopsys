@@ -67,6 +67,7 @@ filebrowse will attempt to execute it -- etc.
 #define EXECPROG_CONFEDIT	PATH_PROGRAMS "/confedit"
 #define EXECPROG_FONTUTIL	PATH_PROGRAMS "/fontutil"
 #define EXECPROG_KEYMAP		PATH_PROGRAMS "/keymap"
+#define EXECPROG_SOFTWARE	PATH_PROGRAMS "/software"
 #define EXECPROG_VIEW		PATH_PROGRAMS "/view"
 
 #define FILEMENU_QUIT 0
@@ -246,6 +247,12 @@ static void doFileSelection(windowFileList *list __attribute__((unused)),
 				!fileFind(EXECPROG_FONTUTIL, NULL))
 			{
 				sprintf(command, EXECPROG_FONTUTIL " \"%s\"", fullName);
+			}
+			else if (((loaderClass->type & LOADERFILECLASS_INSTALL) &&
+				(loaderClass->subType & LOADERFILESUBCLASS_VSP)) &&
+					!fileFind(EXECPROG_SOFTWARE, NULL))
+			{
+				sprintf(command, EXECPROG_SOFTWARE " -i \"%s\"", fullName);
 			}
 			else if ((loaderClass->type & LOADERFILECLASS_KEYMAP) &&
 				!fileFind(EXECPROG_KEYMAP, NULL))

@@ -8,97 +8,97 @@ msgid ""
 msgstr ""
 "Project-Id-Version: calendar\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-08 00:54+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
-#: cal.c:55
+#: cal.c:56
 msgid "Calendar"
-msgstr "∫–€’›‘–‡Ï"
-
-#: cal.c:58
-msgid "Mo"
-msgstr "ø›"
+msgstr "–ö–∞–ª–µ–Ω–¥–∞—Ä—å"
 
 #: cal.c:59
-msgid "Tu"
-msgstr "≤‚"
+msgid "Mo"
+msgstr "–ü–Ω"
 
 #: cal.c:60
-msgid "We"
-msgstr "¡‡"
+msgid "Tu"
+msgstr "–í—Ç"
 
 #: cal.c:61
-msgid "Th"
-msgstr "«‚"
+msgid "We"
+msgstr "–°—Ä"
 
 #: cal.c:62
-msgid "Fr"
-msgstr "ø‚"
+msgid "Th"
+msgstr "–ß—Ç"
 
 #: cal.c:63
-msgid "Sa"
-msgstr "¡—"
+msgid "Fr"
+msgstr "–ü—Ç"
 
 #: cal.c:64
-msgid "Su"
-msgstr "≤·"
+msgid "Sa"
+msgstr "–°–±"
 
-#: cal.c:68
-msgid "January"
-msgstr "œ›“–‡Ï"
+#: cal.c:65
+msgid "Su"
+msgstr "–í—Å"
 
 #: cal.c:69
-msgid "February"
-msgstr "ƒ’“‡–€Ï"
+msgid "January"
+msgstr "–Ø–Ω–≤–∞—Ä—å"
 
 #: cal.c:70
-msgid "March"
-msgstr "º–‡‚"
+msgid "February"
+msgstr "–§–µ–≤—Ä–∞–ª—å"
 
 #: cal.c:71
-msgid "April"
-msgstr "∞ﬂ‡’€Ï"
+msgid "March"
+msgstr "–ú–∞—Ä—Ç"
 
 #: cal.c:72
-msgid "May"
-msgstr "º–Ÿ"
+msgid "April"
+msgstr "–ê–ø—Ä–µ–ª—å"
 
 #: cal.c:73
-msgid "June"
-msgstr "∏Ó›Ï"
+msgid "May"
+msgstr "–ú–∞–π"
 
 #: cal.c:74
-msgid "July"
-msgstr "∏Ó€Ï"
+msgid "June"
+msgstr "–ò—é–Ω—å"
 
 #: cal.c:75
-msgid "August"
-msgstr "∞“”„·‚"
+msgid "July"
+msgstr "–ò—é–ª—å"
 
 #: cal.c:76
-msgid "September"
-msgstr "¡’›‚Ô—‡Ï"
+msgid "August"
+msgstr "–ê–≤–≥—É—Å—Ç"
 
 #: cal.c:77
-msgid "October"
-msgstr "æ⁄‚Ô—‡Ï"
+msgid "September"
+msgstr "–°–µ–Ω—Ç—è–±—Ä—å"
 
 #: cal.c:78
-msgid "November"
-msgstr "ΩﬁÔ—‡Ï"
+msgid "October"
+msgstr "–û–∫—Ç—è–±—Ä—å"
 
 #: cal.c:79
-msgid "December"
-msgstr "¥’⁄–—‡Ï"
+msgid "November"
+msgstr "–ù–æ—è–±—Ä—å"
 
-#: cal.c:365
+#: cal.c:80
+msgid "December"
+msgstr "–î–µ–∫–∞–±—Ä—å"
+
+#: cal.c:452
 #, c-format
 msgid "Unknown option '%c'\n"
 msgstr ""

@@ -141,7 +141,7 @@
 #define NETWORK_PORTNAME_IMAPS				"imaps"
 #define NETWORK_PORTNAME_POP3S				"pop3s"
 
-// IANA ephemeral (temporary, private) ports
+// IANA ephemeral (dynamic, private) ports
 #define NETWORK_PORT_EPHEMERAL_START		0xC000
 #define NETWORK_PORT_EPHEMERAL_END			0xFFFF
 
@@ -206,6 +206,26 @@
 #define NETWORK_DHCPMSG_DHCPNAK				6
 #define NETWORK_DHCPMSG_DHCPRELEASE			7
 #define NETWORK_DHCPMSG_DHCPINFORM			8
+
+// DNS query flags
+#define NETWORK_DNSFLAG_RESPONSE			0x8000
+#define NETWORK_DNSFLAG_OPMASK				0x7800
+#define NETWORK_DNSFLAG_AUTHORITATIVE		0x0400
+#define NETWORK_DNSFLAG_TRUNCATED			0x0200
+#define NETWORK_DNSFLAG_RECURSE_DESIRED		0x0100
+#define NETWORK_DNSFLAG_RECURSE_AVAILABLE	0x0080
+#define NETWORK_DNSFLAG_RETMASK				0x000F
+
+// DNS resource record types
+#define NETWORK_DNSRECTYPE_HOST_A			0x0001
+#define NETWORK_DNSRECTYPE_NAMESERVER_NS	0x0002
+#define NETWORK_DNSRECTYPE_ALIAS_CNAME		0x0005
+#define NETWORK_DNSRECTYPE_REV_PTR			0x000C
+#define NETWORK_DNSRECTYPE_MAIL_MX			0x000F
+#define NETWORK_DNSRECTYPE_SERVICE_SRV		0x0021
+#define NETWORK_DNSRECTYPE_INCRZONE_IXFR	0x00FB
+#define NETWORK_DNSRECTYPE_STDZONE_AXFR		0x00FC
+#define NETWORK_DNSRECTYPE_ALL				0x00FF
 
 // Ping
 #define NETWORK_PING_DATASIZE				56
@@ -447,6 +467,39 @@ typedef struct {
 	unsigned char data[NETWORK_PING_DATASIZE];
 
 } __attribute__((packed)) networkPingPacket;
+
+typedef struct {
+	unsigned short transId;
+	unsigned short flags;
+	unsigned short numQuestions;
+	unsigned short numAnswers;
+	unsigned short numAuthorities;
+	unsigned short numAdditional;
+
+} __attribute__((packed)) networkDnsHeader;
+
+typedef struct {
+	unsigned char len;
+	char name[];
+
+} __attribute__((packed)) networkDnsName;
+
+typedef struct {
+	// networkDnsName name[];  <-- variable length
+	unsigned short type;
+	unsigned short classCode;
+
+} __attribute__((packed)) networkDnsQuesion;
+
+typedef struct {
+	// networkDnsName name[];  <-- variable length
+	unsigned short type;
+	unsigned short classCode;
+	unsigned timeToLive;
+	unsigned short dataLen;
+	unsigned char data[];
+
+} __attribute__((packed)) networkDnsResource;
 
 #endif
 

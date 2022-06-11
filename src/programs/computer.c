@@ -65,6 +65,7 @@ browser window for that filesystem.
 #define DEFAULT_ROWS			3
 #define DEFAULT_COLUMNS			5
 #define MAX_VARIABLE_LEN		128
+#define RAMDISK_ICONFILE		PATH_SYSTEM_ICONS "/chip.ico"
 #define FLOPPYDISK_ICONFILE		PATH_SYSTEM_ICONS "/floppy.ico"
 #define HARDDISK_ICONFILE		PATH_SYSTEM_ICONS "/harddisk.ico"
 #define CDROMDISK_ICONFILE		PATH_SYSTEM_ICONS "/cdrom.ico"
@@ -92,10 +93,13 @@ static struct {
 	const char *fileName;
 	image *iconImage;
 } icons[] = {
+	{ DISKTYPE_RAMDISK, RAMDISK_ICONFILE, NULL },
 	{ DISKTYPE_FLOPPY, FLOPPYDISK_ICONFILE, NULL },
 	{ DISKTYPE_CDROM, CDROMDISK_ICONFILE, NULL },
 	{ DISKTYPE_FLASHDISK, FLASHDISK_ICONFILE, NULL },
 	{ DISKTYPE_HARDDISK, HARDDISK_ICONFILE, NULL },
+	// Default, any hardware
+	{ DISKTYPE_HARDWARE_MASK, HARDDISK_ICONFILE, NULL },
 	{ 0, NULL, NULL }
 };
 
@@ -163,7 +167,7 @@ static int getAndScanSelection(void)
 
 static int getMountPoint(const char *diskName, char *mountPoint)
 {
-	// Given a disk name, see if we can't find the mount point.
+	// Given a disk name, see if we can't find the mount point
 
 	int status = 0;
 	char variable[MAX_VARIABLE_LEN];
@@ -188,16 +192,16 @@ static int getMountPoint(const char *diskName, char *mountPoint)
 
 static void setMountPoint(const char *diskName, char *mountPoint)
 {
-	// Given a disk name, try to set the mount point in the mount configuration
-	// file.
+	// Given a disk name, try to set the mount point in the mount
+	// configuration file
 
 	int status = 0;
 	variableList mountConfig;
 	disk theDisk;
 	char variable[MAX_VARIABLE_LEN];
 
-	// Don't attempt to set the mount point if the config file's filesystem
-	// is read-only
+	// Don't attempt to set the mount point if the config file's filesystem is
+	// read-only
 	if (!fileGetDisk(DISK_MOUNT_CONFIG, &theDisk) && theDisk.readOnly)
 		return;
 
@@ -237,10 +241,15 @@ static int mount(disk *theDisk, const char *mountPoint)
 	if (status < 0)
 	{
 		if (status == ERR_NOSUCHFUNCTION)
+		{
 			error(_("Filesystem on %s is not supported for browsing"),
 				theDisk->name);
+		}
 		else
+		{
 			error(_("Can't mount %s on %s"), theDisk->name, mountPoint);
+		}
+
 		return (status);
 	}
 
@@ -270,11 +279,11 @@ static void browseThread(void)
 
 	// Make a private copy of the selected disk structure.  The main program
 	// keeps scanning, and can clobber the list when something changes (for
-	// example, when we mount it)
+	// example, when we mount it).
 	memcpy(&theDisk, &disks[selected], sizeof(disk));
 
-	// See whether we have to mount the corresponding disk, and launch
-	// an appropriate file browser
+	// See whether we have to mount the corresponding disk, and launch an
+	// appropriate file browser
 
 	// Disk mounted?
 	if (!theDisk.mounted)
@@ -289,7 +298,10 @@ static void browseThread(void)
 		}
 
 		if (getMountPoint(theDisk.name, theDisk.mountPoint) < 0)
-			snprintf(theDisk.mountPoint, MAX_PATH_LENGTH, "/%s", theDisk.name);
+		{
+			snprintf(theDisk.mountPoint, MAX_PATH_LENGTH, "/%s",
+				theDisk.name);
+		}
 
 		status = mount(&theDisk, theDisk.mountPoint);
 		if (status < 0)
@@ -328,9 +340,9 @@ out:
 
 static void mountAsThread(void)
 {
-	// The user has right-clicked on a disk, and wants to specify a mount point
-	// and browse it.  This thread will query for the mount point, mount the
-	// filesystem, if necessary, and launch a file browser program for it.
+	// The user has right-clicked on a disk, and wants to specify a mount
+	// point and browse it.  This thread will query for the mount point, mount
+	// the filesystem, if necessary, and launch a file browser program for it.
 
 	int status = 0;
 	int selected = -1;
@@ -344,7 +356,7 @@ static void mountAsThread(void)
 
 	// Make a private copy of the selected disk structure.  The main program
 	// keeps scanning, and can clobber the list when something changes (for
-	// example, when we mount it)
+	// example, when we mount it).
 	memcpy(&theDisk, &disks[selected], sizeof(disk));
 
 	// See whether we have to mount the corresponding disk, and launch
@@ -409,8 +421,10 @@ static void mountAsThread(void)
 	}
 
 	if (saveConfiguration)
+	{
 		// Try to save the specified mount point in the mount configuration
 		setMountPoint(theDisk.name, theDisk.mountPoint);
+	}
 
 	status = 0;
 
@@ -485,8 +499,8 @@ static void propertiesThread(void)
 		disks[selected].sectorsPerCylinder);
 
 	sprintf((buff + strlen(buff)), _("Size: %llu MB\n"),
-		(disks[selected].numSectors /
-		(1048576 / disks[selected].sectorSize)));
+		(disks[selected].numSectors / (1048576 /
+		disks[selected].sectorSize)));
 
 	sprintf((buff + strlen(buff)), _("Partition type: %s\n"),
 		disks[selected].partType);
@@ -495,9 +509,11 @@ static void propertiesThread(void)
 		disks[selected].fsType);
 
 	if (disks[selected].mounted)
+	{
 		sprintf((buff + strlen(buff)), _("Mounted as %s%s\n"),
-		disks[selected].mountPoint,
-		(disks[selected].readOnly? _(" (read only)") : ""));
+			disks[selected].mountPoint, (disks[selected].readOnly?
+			_(" (read only)") : ""));
+	}
 
 	windowNewInfoDialog(window, _("Properties"), buff);
 	status = 0;
@@ -556,7 +572,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 {
 	int selectedIndex = -1;
 
-	// Check for window events.
+	// Check for window events
 	if (key == window)
 	{
 		// Check for window refresh
@@ -568,7 +584,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 			stop = 1;
 	}
 
-	// Check for disk menu events.
+	// Check for disk menu events
 
 	else if (key == diskMenuContents.items[DISKMENU_BROWSE].key)
 	{
@@ -587,7 +603,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 		if (event->type & WINDOW_EVENT_SELECTION)
 		{
-			// Launch the "mount as" thread
+			// Launch the 'mount as' thread
 			if (multitaskerSpawn(&mountAsThread, "mount as thread",
 				0 /* no args */, NULL /* no args */, 1 /* run */) < 0)
 			{
@@ -622,18 +638,18 @@ static void eventHandler(objectKey key, windowEvent *event)
 		}
 	}
 
-	// Check for events in our icon list.
+	// Check for events in our icon list
 	else if (key == iconList)
 	{
 		if (event->type & WINDOW_EVENT_SELECTION)
 		{
-			// We consider the icon 'clicked' if it is a mouse left-up,
-			// or an ENTER key press
+			// We consider the icon 'clicked' if it is a mouse left-up, or an
+			// ENTER key press
 			if ((event->type & WINDOW_EVENT_MOUSE_LEFTUP) ||
 				((event->type & WINDOW_EVENT_KEY_DOWN) &&
 					(event->key.scan == keyEnter)))
 			{
-				// Launch the browse thread
+				// Launch the 'browse' thread
 				if (multitaskerSpawn(&browseThread, "browse thread",
 					0 /* no args */, NULL /* no args */, 1 /* run */) < 0)
 				{
@@ -669,8 +685,8 @@ static void setContextMenus(void)
 	listComponents = malloc(numDisks * sizeof(objectKey));
 	if (listComponents)
 	{
-		if (windowComponentGetData(iconList, listComponents,
-			(numDisks * sizeof(objectKey))) >= 0)
+		if (windowComponentGetData(iconList, listComponents, (numDisks *
+			sizeof(objectKey))) >= 0)
 		{
 			for (count = 0; count < numDisks; count ++)
 				windowContextSet(listComponents[count], diskMenu);
@@ -693,7 +709,7 @@ static int scanComputer(void)
 	listItemParameters *newIconParams = NULL;
 	int count1, count2;
 
-	// Call the kernel to give us the number of available disks
+	// Call the kernel to give us the number of available logical disks
 	newNumDisks = diskGetCount();
 	if (newNumDisks <= 0)
 		return (status = ERR_NOSUCHENTRY);
@@ -701,7 +717,7 @@ static int scanComputer(void)
 	newDisksSize = (newNumDisks * sizeof(disk));
 
 	newDisks = malloc(newDisksSize);
-	newIconParams = malloc(newNumDisks * sizeof(listItemParameters));
+	newIconParams = calloc(newNumDisks, sizeof(listItemParameters));
 	if (!newDisks || !newIconParams)
 	{
 		error("%s", _("Memory allocation error"));
@@ -711,21 +727,21 @@ static int scanComputer(void)
 	// Read disk info
 	status = diskGetAll(newDisks, newDisksSize);
 	if (status < 0)
-		// Eek.  Problem getting disk info
 		return (status);
 
 	// Any change?
-	if (!disks || (newNumDisks != numDisks) ||
-		memcmp(disks, newDisks, newDisksSize))
+	if (!disks || (newNumDisks != numDisks) || memcmp(disks, newDisks,
+		newDisksSize))
 	{
 		windowSwitchPointer(window, MOUSE_POINTER_BUSY);
 
-		// Get the icon image and label for each disk.
+		// Get the icon image and label for each disk
 		for (count1 = 0; count1 < newNumDisks; count1 ++)
 		{
 			for (count2 = 0; icons[count2].fileName; count2 ++)
 			{
-				if (newDisks[count1].type & icons[count2].diskType)
+				if ((newDisks[count1].type & icons[count2].diskType) &&
+					icons[count2].iconImage)
 				{
 					memcpy(&newIconParams[count1].iconImage,
 						icons[count2].iconImage, sizeof(image));
@@ -733,7 +749,7 @@ static int scanComputer(void)
 				}
 			}
 
-			// Copy the disk name, but add the filesystem label, if available.
+			// Copy the disk name, but add the filesystem label, if available
 			if (newDisks[count1].label[0])
 			{
 				// Don't let the label be too long
@@ -866,13 +882,19 @@ int main(int argc, char *argv[])
 			icons[count].iconImage);
 		if (status < 0)
 		{
-			error(_("Can't load icon image %s"), icons[count].fileName);
+			// Show an error and exit if we can't load the default image
+			if (icons[count].diskType == DISKTYPE_HARDWARE_MASK)
+			{
+				error(_("Can't load icon image %s"), icons[count].fileName);
+				goto out;
+			}
+
 			free(icons[count].iconImage);
 			icons[count].iconImage = NULL;
 		}
 	}
 
-	// Get information about all the disks, and make icon parameters for them.
+	// Get information about all the disks, and make icon parameters for them
 	status = scanComputer();
 	if (status < 0)
 		goto out;
@@ -896,7 +918,7 @@ int main(int argc, char *argv[])
 		multitaskerYield();
 	}
 
-	// We're back.
+	// We're back
 	windowGuiStop();
 	windowDestroy(window);
 

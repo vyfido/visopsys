@@ -1,0 +1,55 @@
+
+ -- vspmake --
+
+Create software package files.
+
+Usage:
+  vspmake <manifest>
+
+Manifests are text files with the following format:
+
+  name=<short package name>
+  desc=<longer single-line package description>
+  arch=<none | x86 | x86_64 | all>
+  version=<1-4 part numeric version string xxx.xxx.xxx.xxx)
+  depend=<dependency short package name>|<relational e.g >= operator > \
+    |<dependency numeric version string>
+  obsolete=<obsolescence short package name>|<relational e.g. <= operator> \
+    |<obsolescence numeric version string>
+  preexec=<pathname of pre-install program>
+  postexec=<pathname of pre-install program>
+  <path to install file at creation time>=<target path at install time>
+  ...
+
+Apart from name and version, most of these fields are optional.
+
+Lines beginning with no known variable name are assumed to be install files
+(usually, one would list these at the end).
+
+If the creation-time path of a file and the target path at install time are
+the same, the =<target path at install time> can be omitted.
+
+Parent directory creation is implied by file names, but directories can be
+explicitly created by appending an '/' to a name, and need not exist at the
+time of package creation.
+
+Example:
+
+  # Example manifest for foo
+  name=foo
+  desc=Foo Package!
+  arch=x86
+  version=0.82.0
+  depend=bar|>=|4.51
+  depend=baz|=|0.82
+  obsolete=foo|<=|0.82.0
+
+  preexec=build/premature
+  postexec=/tmp/aprez-vous
+
+  /create/this/directory/
+  build/file1=/foo/file1
+  build/file2=/foo/file2
+  build/premature
+  build/aprez-vous=/temp/aprez-vous
+

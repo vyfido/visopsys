@@ -112,6 +112,7 @@ static int countTextLines(int columns, char *data, int size)
 
 	int lines = 1;
 	int columnCount = 0;
+	int bytes = 0;
 	int count;
 
 	for (count = 0; count < size; count ++)
@@ -127,6 +128,10 @@ static int countTextLines(int columns, char *data, int size)
 		}
 		else
 		{
+			bytes = mblen((data + count), (size - count));
+			if (bytes > 1)
+				count += (bytes - 1);
+
 			columnCount += 1;
 		}
 	}
@@ -139,18 +144,29 @@ static void printTextLines(char *data, int size)
 {
 	// Cut the text data into lines and print them individually
 
+	int bytes = 0;
 	int count;
 
 	for (count = 0; count < size; count ++)
 	{
 		if (data[count] == '\t')
+		{
 			textTab();
+		}
 		else if (data[count] == '\n')
+		{
 			textNewline();
+		}
 		else if (data[count] == '\0')
+		{
 			break;
+		}
 		else
-			textPutc(data[count]);
+		{
+			bytes = textPutMbc(data + count);
+			if (bytes > 1)
+				count += (bytes - 1);
+		}
 	}
 }
 
@@ -333,12 +349,12 @@ static int viewImage(void)
 	{
 		if (origImage.data)
 		{
-			error(_("Error loading the image \"%s\"\n"), fileName);
+			error("%s \"%s\"\n", _("Error loading the image"), fileName);
 			return (status);
 		}
 		else
 		{
-			error(_("Unable to load the image \"%s\"\n"), fileName);
+			error("%s \"%s\"\n", _("Unable to load the image"), fileName);
 			return (status);
 		}
 	}
@@ -406,7 +422,7 @@ static int viewText(void)
 	textData = loaderLoad(fileName, &showFile);
 	if (!textData)
 	{
-		error(_("Unable to load the file \"%s\"\n"), fileName);
+		error("%s \"%s\"\n", _("Unable to load the file"), fileName);
 		return (status = ERR_IO);
 	}
 
@@ -491,14 +507,14 @@ int main(int argc, char *argv[])
 	// Get the classification of the file.
 	if (!loaderClassifyFile(fileName, &class))
 	{
-		error(_("Unable to classify the file \"%s\""), fileName);
+		error("%s \"%s\"", _("Unable to classify the file"), fileName);
 		goto deallocate;
 	}
 
 	if (!(class.type & LOADERFILECLASS_IMAGE) &&
 		!(class.type & LOADERFILECLASS_TEXT))
 	{
-		error(_("Can't display the file type of \"%s\" (%s)"), fileName,
+		error("%s \"%s\" (%s)", _("Can't display the file type of"), fileName,
 			class.name);
 		goto deallocate;
 	}
@@ -517,7 +533,9 @@ int main(int argc, char *argv[])
 		status = viewImage();
 	}
 	else if (class.type & LOADERFILECLASS_TEXT)
+	{
 		status = viewText();
+	}
 
 	if (status >= 0)
 	{

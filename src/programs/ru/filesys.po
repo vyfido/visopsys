@@ -8,81 +8,81 @@ msgid ""
 msgstr ""
 "Project-Id-Version: filesys\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-08 02:30+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
 #: filesys.c:53
 msgid "File systems"
-msgstr "ДРЩЫЮТлХ бШбвХЬл"
+msgstr "Р¤Р°Р№Р»РѕРІС‹Рµ СЃРёСЃС‚РµРјС‹"
 
 #: filesys.c:54
 msgid "Mount point:"
-msgstr "ВЮзЪР ЯЮФЪЫозХЭШп:"
+msgstr "РўРѕС‡РєР° РїРѕРґРєР»СЋС‡РµРЅРёСЏ:"
 
 #: filesys.c:55
 msgid "Mount automatically at boot"
-msgstr "їЮФЪЫозРвм РТвЮЬРвШзХбЪШ ЯаШ ЧРУагЧЪХ"
+msgstr "РџРѕРґРєР»СЋС‡Р°С‚СЊ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё РїСЂРё Р·Р°РіСЂСѓР·РєРµ"
 
 #: filesys.c:56
 msgid "Unsaved changes"
-msgstr "ЅХбЮеаРЭХЭЭлХ ШЧЬХЭХЭШп"
+msgstr "РќРµСЃРѕС…СЂР°РЅРµРЅРЅС‹Рµ РёР·РјРµРЅРµРЅРёСЏ"
 
 #: filesys.c:57
 msgid "Quit without writing changes?"
-msgstr "ІлЩвШ ЭХ ЧРЯШблТРп ШЧЬХЭХЭШп?"
+msgstr "Р’С‹Р№С‚Рё РЅРµ Р·Р°РїРёСЃС‹РІР°СЏ РёР·РјРµРЅРµРЅРёСЏ?"
 
 #: filesys.c:58
 msgid "Quit"
-msgstr "ІлеЮФ"
+msgstr "Р’С‹С…РѕРґ"
 
 #: filesys.c:59
 msgid "Cancel"
-msgstr "ѕвЬХЭР"
+msgstr "РћС‚РјРµРЅР°"
 
 #: filesys.c:60
 msgid "Save"
-msgstr "БЮеаРЭШвм"
+msgstr "РЎРѕС…СЂР°РЅРёС‚СЊ"
 
 #: filesys.c:103 filesys.c:121
 msgid "Error"
-msgstr "ѕиШСЪР"
+msgstr "РћС€РёР±РєР°"
 
 #: filesys.c:118
 msgid "  Quitting."
-msgstr "  ІлеЮФШЬ."
+msgstr "  Р’С‹С…РѕРґРёРј."
 
-#: filesys.c:144
+#: filesys.c:145
 msgid "No disks to work with."
-msgstr "ЅХв ФШбЪЮТ б ЪЮвЮалЬШ ЬЮЦЭЮ аРСЮвРвм."
+msgstr "РќРµС‚ РґРёСЃРєРѕРІ СЃ РєРѕС‚РѕСЂС‹РјРё РјРѕР¶РЅРѕ СЂР°Р±РѕС‚Р°С‚СЊ."
 
-#: filesys.c:149
+#: filesys.c:151
 msgid "Memory allocation error."
-msgstr "ѕиШСЪР аРбЯаХФХЫХЭШп ЯРЬпвШ."
+msgstr "РћС€РёР±РєР° СЂР°СЃРїСЂРµРґРµР»РµРЅРёСЏ РїР°РјСЏС‚Рё."
 
-#: filesys.c:154
+#: filesys.c:157
 msgid "Unable to get disk information."
-msgstr "ЅХТЮЧЬЮЦЭЮ ЯЮЫгзШвм ШЭдЮаЬРжШо Ю ФШбЪХ."
+msgstr "РќРµРІРѕР·РјРѕР¶РЅРѕ РїРѕР»СѓС‡РёС‚СЊ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РґРёСЃРєРµ."
 
-#: filesys.c:175
+#: filesys.c:182
 msgid "Can't read/create the mount configuration"
-msgstr "ЅХ ЬЮУг ЯаЮзШвРвм/бЮЧФРвм ЪЮЭдШУгаРжШо ЯЮФзЪЫозХЭШп"
+msgstr "РќРµ РјРѕРіСѓ РїСЂРѕС‡РёС‚Р°С‚СЊ/СЃРѕР·РґР°С‚СЊ РєРѕРЅС„РёРіСѓСЂР°С†РёСЋ РїРѕРґС‡РєР»СЋС‡РµРЅРёСЏ"
 
-#: filesys.c:187
+#: filesys.c:197
 msgid "Can't write the mount configuration"
-msgstr "ЭХ ЬЮУг ЧРЯШбРвм ЪЮЭдШУгаРжШо ЯЮФЪЫозХЭШп"
+msgstr "РЅРµ РјРѕРіСѓ Р·Р°РїРёСЃР°С‚СЊ РєРѕРЅС„РёРіСѓСЂР°С†РёСЋ РїРѕРґРєР»СЋС‡РµРЅРёСЏ"
 
-#: filesys.c:479
+#: filesys.c:491
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 "\n"
-"єЮЬРЭФР  \"%s\" аРСЮвРХв вЮЫмЪЮ Т УаРдШзХбЪЮЬ аХЦШЬХ\n"
+"РљРѕРјР°РЅРґР°  \"%s\" СЂР°Р±РѕС‚Р°РµС‚ С‚РѕР»СЊРєРѕ РІ РіСЂР°С„РёС‡РµСЃРєРѕРј СЂРµР¶РёРјРµ\n"

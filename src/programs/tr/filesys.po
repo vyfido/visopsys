@@ -3,20 +3,20 @@
 #  Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
-#  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
+#  Sistem mesajlari TÃ¼rkÃ§e'ye Doga Ã–zkaracaabatlioglu tarafindan Ã§evirilmistir.
 #  Doga.Ozkaraca - doga.ozkaraca@gmail.com - dogaozkaraca.com
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
-"Language-Team: Turkish/Türkçe\n"
+"Language-Team: Turkish/TÃ¼rkÃ§e\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-9\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: filesys.c:53
@@ -37,11 +37,11 @@ msgstr "Kaydedilmemis degisiklikler"
 
 #: filesys.c:57
 msgid "Quit without writing changes?"
-msgstr "Degisiklikleri yazmadan çikmak istiyor musunuz?"
+msgstr "Degisiklikleri yazmadan Ã§ikmak istiyor musunuz?"
 
 #: filesys.c:58
 msgid "Quit"
-msgstr "Çik"
+msgstr "Ã‡ik"
 
 #: filesys.c:59
 msgid "Cancel"
@@ -57,33 +57,33 @@ msgstr "Hata"
 
 #: filesys.c:118
 msgid "  Quitting."
-msgstr "  Çikiliyor."
+msgstr "  Ã‡ikiliyor."
 
-#: filesys.c:144
+#: filesys.c:145
 msgid "No disks to work with."
-msgstr "Üzerinde çalisilabilecek disk yok."
+msgstr "Ãœzerinde Ã§alisilabilecek disk yok."
 
-#: filesys.c:149
+#: filesys.c:151
 msgid "Memory allocation error."
 msgstr "Bellek ayirma hatasi."
 
-#: filesys.c:154
+#: filesys.c:157
 msgid "Unable to get disk information."
 msgstr "Disk bilgisi alinamiyor."
 
-#: filesys.c:175
+#: filesys.c:182
 msgid "Can't read/create the mount configuration"
 msgstr "Takilma konfigurasyonu okunamiyor/olusturulamiyor"
 
-#: filesys.c:187
+#: filesys.c:197
 msgid "Can't write the mount configuration"
 msgstr "Takilma konfigurasyonu yazilamiyor"
 
-#: filesys.c:479
+#: filesys.c:491
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 "\n"
-"\"%s\" komutu sadece grafik modda çalisabilir\n"
+"\"%s\" komutu sadece grafik modda Ã§alisabilir\n"

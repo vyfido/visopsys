@@ -8,13 +8,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: ifconfig.c:69
@@ -39,7 +39,7 @@ msgstr "Hostname"
 
 #: ifconfig.c:74
 msgid "Domain name"
-msgstr "Name der Dom‰ne"
+msgstr "Name der Dom√§ne"
 
 #: ifconfig.c:75
 #, fuzzy
@@ -56,7 +56,7 @@ msgstr "Abbrechen"
 
 #: ifconfig.c:78
 msgid "No supported network devices."
-msgstr "Keine unterst¸tzten Netzlaufwerke."
+msgstr "Keine unterst√ºtzten Netzlaufwerke."
 
 #: ifconfig.c:146
 msgid "Error"
@@ -161,7 +161,7 @@ msgstr "Interrupt"
 #: ifconfig.c:265 ifconfig.c:746
 #, c-format
 msgid "Can't get info for device %s"
-msgstr "Zu dem Ger‰t %s konnten keine Informationen bekommen werden"
+msgstr "Zu dem Ger√§t %s konnten keine Informationen bekommen werden"
 
 #: ifconfig.c:400
 #, c-format

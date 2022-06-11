@@ -8,27 +8,27 @@ msgid ""
 msgstr ""
 "Project-Id-Version: help\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-08 02:18+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
-#: help.c:154
+#: help.c:168
 #, fuzzy
 msgid "There is no general help available\n"
-msgstr "¡ﬂ‡–“⁄– ›’‘ﬁ·‚„ﬂ›– ‘€Ô \"%s\"\n"
+msgstr "–°–ø—Ä–∞–≤–∫–∞ –Ω–µ–¥–æ—Å—Ç—É–ø–Ω–∞ –¥–ª—è \"%s\"\n"
 
-#: help.c:213 help.c:254
+#: help.c:227 help.c:268
 #, c-format
 msgid "--More--(%d%%)"
 msgstr ""
 
-#: help.c:249
+#: help.c:263
 #, c-format
 msgid "There is no help available for \"%s\"\n"
-msgstr "¡ﬂ‡–“⁄– ›’‘ﬁ·‚„ﬂ›– ‘€Ô \"%s\"\n"
+msgstr "–°–ø—Ä–∞–≤–∫–∞ –Ω–µ–¥–æ—Å—Ç—É–ø–Ω–∞ –¥–ª—è \"%s\"\n"

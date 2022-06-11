@@ -3,20 +3,20 @@
 #  Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
-#  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
+#  Sistem mesajlari TÃ¼rkÃ§e'ye Doga Ã–zkaracaabatlioglu tarafindan Ã§evirilmistir.
 #  Doga.Ozkaraca - doga.ozkaraca@gmail.com - dogaozkaraca.com
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
-"Language-Team: Turkish/Türkçe\n"
+"Language-Team: Turkish/TÃ¼rkÃ§e\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-9\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: shutdown.c:79
@@ -29,27 +29,27 @@ msgstr "Kapat"
 
 #: shutdown.c:81
 msgid "Eject CD-ROM"
-msgstr "CD-ROM'u çikart"
+msgstr "CD-ROM'u Ã§ikart"
 
 #: shutdown.c:83
 msgid "Ejecting, please wait..."
-msgstr "Çikartiliyor, lütfen bekleyin..."
+msgstr "Ã‡ikartiliyor, lÃ¼tfen bekleyin..."
 
 #: shutdown.c:84
 msgid "Unable to unlock the media door"
-msgstr "Medya kapisi kilidi açilamiyor"
+msgstr "Medya kapisi kilidi aÃ§ilamiyor"
 
 #: shutdown.c:85
 msgid ""
 "Can't seem to eject.  Try pushing\n"
 "the 'eject' button now."
 msgstr ""
-"Görünüse bakilirsa çikartilamiyor.\n"
-"'çikartma' tusuna basmayi deneyin."
+"GÃ¶rÃ¼nÃ¼se bakilirsa Ã§ikartilamiyor.\n"
+"'Ã§ikartma' tusuna basmayi deneyin."
 
 #: shutdown.c:104
 msgid "Ejecting"
-msgstr "Çikartiliyor"
+msgstr "Ã‡ikartiliyor"
 
 #: shutdown.c:119
 msgid "Error"
@@ -63,4 +63,4 @@ msgstr ""
 #: shutdown.c:382
 #, c-format
 msgid "Use \"%s -f\" to force.\n"
-msgstr "Zorlamak için \"%s -f\" 'i kullanin.\n"
+msgstr "Zorlamak iÃ§in \"%s -f\" 'i kullanin.\n"

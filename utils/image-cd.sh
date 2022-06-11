@@ -15,9 +15,9 @@ ZIPLOG=./zip.log
 echo ""
 echo "Making Visopsys CD-ROM IMAGE file"
 
-# Are we doing a release version?  If the argument is "-r" then we use
-# the release number in the destination directory name.  Otherwise, we
-# assume an interim package and use the date instead
+# Are we doing a release version?  If the argument is "-r" then we use the
+# release number in the destination directory name.  Otherwise, we assume an
+# interim package and use the date instead.
 if [ "$1" = "-r" ] ; then
 	# What is the current release version?
 	RELEASE=`./release.sh`
@@ -69,7 +69,9 @@ echo Done
 
 echo -n "Creating ISO image... "
 rm -f $ISOIMAGE
-mkisofs -iso-level 4 -D -b $FLOPPYIMAGE -c boot.catalog -hide $FLOPPYIMAGE -hide boot.catalog -V "Visopsys $RELEASE" -iso-level 3 -allow-leading-dots -o $ISOIMAGE $TMPDIR > $MKISOFSLOG 2>&1
+mkisofs -iso-level 4 -D -b $FLOPPYIMAGE -c boot.catalog -hide $FLOPPYIMAGE \
+	-hide boot.catalog -V "Visopsys $RELEASE" -iso-level 3 \
+	-allow-leading-dots -o $ISOIMAGE $TMPDIR > $MKISOFSLOG 2>&1
 if [ $? -ne 0 ] ; then
 	echo ""
 	echo -n "Not able to create ISO image $ISOIMAGE.  "

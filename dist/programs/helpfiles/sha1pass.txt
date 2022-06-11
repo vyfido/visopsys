@@ -1,0 +1,13 @@
+
+ -- sha1pass --
+
+Calculate and print one or more SHA1 digests.  SHA1 is a one-way hashing
+algorithm which can be used to calculate checksums or hash passwords.
+
+Usage:
+  sha1pass [string1] [string2] [...]
+
+This command will print one line of SHA1 digest for each string parameter
+supplied.  If no parameter is supplied, the digest will still be created,
+but for an empty string (which is "da39a3ee5e6b4b0d3255bfef95601890afd80709").
+

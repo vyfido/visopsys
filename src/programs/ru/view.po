@@ -8,13 +8,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: view.po\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-07-25 18:13+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.6.4\n"
 
@@ -25,82 +25,82 @@ msgstr ""
 
 #: view.c:66
 msgid "Zoom in"
-msgstr "√“’€ÿÁ’›ÿ’"
+msgstr "–£–≤–µ–ª–∏—á–µ–Ω–∏–µ"
 
 #: view.c:67
 msgid "Zoom out"
-msgstr "√‹’›ÏË’›ÿ’"
+msgstr "–£–º–µ–Ω—å—à–µ–Ω–∏–µ"
 
 #: view.c:68
 msgid "Actual size"
-msgstr "ƒ–⁄‚ÿÁ’·⁄ÿŸ ‡–◊‹’‡"
+msgstr "–§–∞–∫—Ç–∏—á–µ—Å–∫–∏–π —Ä–∞–∑–º–µ—Ä"
 
 #: view.c:105
 msgid "Error"
-msgstr "æËÿ—⁄–"
+msgstr "–û—à–∏–±–∫–∞"
 
-#: view.c:221
+#: view.c:237
 msgid "Failed to resize image"
 msgstr ""
 
-#: view.c:323
+#: view.c:339
 msgid "Loading"
-msgstr "∑–”‡„◊⁄–"
+msgstr "–ó–∞–≥—Ä—É–∑–∫–∞"
 
-#: view.c:324
+#: view.c:340
 msgid "Loading image..."
-msgstr "∑–”‡„◊⁄– ÿ◊ﬁ—‡–÷’›ÿÔ..."
+msgstr "–ó–∞–≥—Ä—É–∑–∫–∞ –∏–∑–æ–±—Ä–∞–∂–µ–Ω–∏—è..."
 
-#: view.c:336
-#, c-format
-msgid "Error loading the image \"%s\"\n"
-msgstr "æËÿ⁄– ﬂ‡ÿ ◊–”‡„◊⁄’ ÿ◊ﬁ—‡–÷’›ÿÔ  \"%s\"\n"
+#: view.c:352
+#, fuzzy
+msgid "Error loading the image"
+msgstr "–û—à–∏–∫–∞ –ø—Ä–∏ –∑–∞–≥—Ä—É–∑–∫–µ –∏–∑–æ–±—Ä–∞–∂–µ–Ω–∏—è  \"%s\"\n"
 
-#: view.c:341
-#, c-format
-msgid "Unable to load the image \"%s\"\n"
-msgstr "Ω’“ﬁ◊‹ﬁ÷›ﬁ ◊–”‡„◊ÿ‚Ï ÿ◊ﬁ—‡–÷’›ÿ’ \"%s\"\n"
+#: view.c:357
+#, fuzzy
+msgid "Unable to load the image"
+msgstr "–ù–µ–≤–æ–∑–º–æ–∂–Ω–æ –∑–∞–≥—Ä—É–∑–∏—Ç—å –∏–∑–æ–±—Ä–∞–∂–µ–Ω–∏–µ \"%s\"\n"
 
-#: view.c:360
+#: view.c:376
 msgid "Image"
-msgstr "∏◊ﬁ—‡–÷’›ÿ’"
+msgstr "–ò–∑–æ–±—Ä–∞–∂–µ–Ω–∏–µ"
 
-#: view.c:409
-#, c-format
-msgid "Unable to load the file \"%s\"\n"
-msgstr "Ω’“ﬁ◊‹ﬁ÷›ﬁ ◊–”‡„◊ÿ‚Ï ‰–Ÿ€ \"%s\"\n"
+#: view.c:425
+#, fuzzy
+msgid "Unable to load the file"
+msgstr "–ù–µ–≤–æ–∑–º–æ–∂–Ω–æ –∑–∞–≥—Ä—É–∑–∏—Ç—å —Ñ–∞–π–ª \"%s\"\n"
 
-#: view.c:455
+#: view.c:471
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 "\n"
-"∫ﬁ‹–›‘– \"%s\" ‡–—ﬁ‚–’‚ ‚ﬁ€Ï⁄ﬁ “ ”‡–‰ÿÁ’·⁄ﬁ‹ ‡’÷ÿ‹’\n"
+"–ö–æ–º–∞–Ω–¥–∞ \"%s\" —Ä–∞–±–æ—Ç–∞–µ—Ç —Ç–æ–ª—å–∫–æ –≤ –≥—Ä–∞—Ñ–∏—á–µ—Å–∫–æ–º —Ä–µ–∂–∏–º–µ\n"
 
-#: view.c:471
+#: view.c:487
 msgid "Enter filename"
-msgstr "≤“’‘ÿ‚’ ÿ‹Ô ‰–Ÿ€–"
+msgstr "–í–≤–µ–¥–∏—Ç–µ –∏–º—è —Ñ–∞–π–ª–∞"
 
-#: view.c:472
+#: view.c:488
 msgid "Please choose the file to view:"
-msgstr "≤Î—’‡ÿ‚’ ‰–Ÿ€ ‘€Ô ﬂ‡ﬁ·‹ﬁ‚‡–:"
-
-#: view.c:485
-#, c-format
-msgid "The file \"%s\" was not found"
-msgstr "ƒ–Ÿ€  \"%s\" ›’ ›–Ÿ‘’›"
-
-#: view.c:494
-#, c-format
-msgid "Unable to classify the file \"%s\""
-msgstr "Ω’“ﬁ◊‹ﬁ÷›ﬁ ⁄€–··ÿ‰ÿÊÿ‡ﬁ“–‚Ï ‰–Ÿ€ \"%s\""
+msgstr "–í—ã–±–µ—Ä–∏—Ç–µ —Ñ–∞–π–ª –¥–ª—è –ø—Ä–æ—Å–º–æ—Ç—Ä–∞:"
 
 #: view.c:501
 #, c-format
-msgid "Can't display the file type of \"%s\" (%s)"
-msgstr "Ω’ ‹ﬁ”„ ﬁ‚ﬁ—‡–◊ÿ‚Ï ‚ÿﬂ ‰–Ÿ€– \"%s\" (%s)"
+msgid "The file \"%s\" was not found"
+msgstr "–§–∞–π–ª  \"%s\" –Ω–µ –Ω–∞–π–¥–µ–Ω"
+
+#: view.c:510
+#, fuzzy
+msgid "Unable to classify the file"
+msgstr "–ù–µ–≤–æ–∑–º–æ–∂–Ω–æ –∫–ª–∞—Å—Å–∏—Ñ–∏—Ü–∏—Ä–æ–≤–∞—Ç—å —Ñ–∞–π–ª \"%s\""
+
+#: view.c:517
+#, fuzzy
+msgid "Can't display the file type of"
+msgstr "–ù–µ –º–æ–≥—É –æ—Ç–æ–±—Ä–∞–∑–∏—Ç—å —Ç–∏–ø —Ñ–∞–π–ª–∞ \"%s\" (%s)"
 
 #~ msgid "ERROR: %s\n"
-#~ msgstr "æ»∏±∫∞: %s\n"
+#~ msgstr "–û–®–ò–ë–ö–ê: %s\n"

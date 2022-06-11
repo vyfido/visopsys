@@ -22,6 +22,7 @@
 // This is the standard "mbtowc" function, as found in standard C libraries
 
 #include <stdlib.h>
+#include <sys/utf.h>
 
 
 int mbtowc(wchar_t *wc, const char *bytes, size_t n)
@@ -59,53 +60,12 @@ int mbtowc(wchar_t *wc, const char *bytes, size_t n)
 		// Stateless
 		return (0);
 
-	if (n < 1)
+	numBytes = mblen(bytes, n);
+	if (numBytes < 0)
 		return (-1);
-
-	if ((unsigned char) bytes[0] <= 0x7F)
-	{
-		numBytes = 1;
-	}
-	else if ((bytes[0] & 0xE0) == 0xC0)
-	{
-		numBytes = 2;
-		if (n < 2)
-			return (-1);
-	}
-	else if ((bytes[0] & 0xF0) == 0xE0)
-	{
-		numBytes = 3;
-		if (n < 3)
-			return (-1);
-	}
-	else if ((bytes[0] & 0xF8) == 0xF0)
-	{
-		numBytes = 4;
-		if (n < 4)
-			return (-1);
-	}
-	else
-	{
-		return (-1);
-	}
 
 	if (wc)
-	{
-		if (numBytes == 1)
-			*wc = (wchar_t)(bytes[0] & 0x7F);
-		else if (numBytes == 2)
-			*wc = ((((wchar_t)(bytes[0] & 0x1F)) >> 2) |
-				((wchar_t)(bytes[1] & 0x3F)));
-		else if (numBytes == 3)
-			*wc = ((((wchar_t)(bytes[0] & 0x0F)) >> 4) |
-				(((wchar_t)(bytes[1] & 0x3F)) >> 2) |
-				((wchar_t)(bytes[2] & 0x3F)));
-		else if (numBytes == 4)
-			*wc = ((((wchar_t)(bytes[0] & 0x07)) >> 6) |
-				(((wchar_t)(bytes[1] & 0x3F)) >> 4) |
-				(((wchar_t)(bytes[2] & 0x3F)) >> 2) |
-				((wchar_t)(bytes[3] & 0x3F)));
-	}
+		*wc = (wchar_t) utf8CharToUnicode(bytes, n);
 
 	return (numBytes);
 }

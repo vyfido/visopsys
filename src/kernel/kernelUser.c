@@ -78,19 +78,19 @@ static int hashString(const char *plain, char *hash)
 	// Turns a plain text string into a hash
 
 	int status = 0;
-	unsigned char hashValue[CRYPT_HASH_MD5_BYTES];
+	unsigned char hashValue[CRYPT_HASH_SHA256_BYTES];
 	char byte[3];
 	int count;
 
-	// Get the MD5 hash of the supplied string
-	status = kernelCryptHashMd5((unsigned char *) plain, strlen(plain),
-		hashValue);
+	// Get the SHA256 hash of the supplied string
+	status = kernelCryptHashSha256((unsigned char *) plain, strlen(plain),
+		hashValue, 1 /* finalize */, strlen(plain));
 	if (status < 0)
 		return (status = 0);
 
 	// Turn it into a string
 	hash[0] = '\0';
-	for (count = 0; count < CRYPT_HASH_MD5_BYTES; count ++)
+	for (count = 0; count < CRYPT_HASH_SHA256_BYTES; count ++)
 	{
 		sprintf(byte, "%02x", (unsigned char) hashValue[count]);
 		strcat(hash, byte);
@@ -104,7 +104,7 @@ static int addUser(variableList *userList, const char *userName,
 	const char *password)
 {
 	int status = 0;
-	char hash[33];
+	char hash[65];
 
 	// Check permissions
 	if ((userList == &systemUserList) &&
@@ -161,7 +161,7 @@ static int authenticate(const char *userName, const char *password)
 {
 	int status = 0;
 	const char *fileHash = NULL;
-	char testHash[33];
+	char testHash[65];
 
 	// Get the hash of the real password
 	fileHash = variableListGet(&systemUserList, userName);
@@ -183,7 +183,7 @@ static int setPassword(variableList *userList, const char *userName,
 	const char *oldPass, const char *newPass)
 {
 	int status = 0;
-	char newHash[33];
+	char newHash[65];
 
 	// Check permissions
 	if ((userList == &systemUserList) &&

@@ -7,8 +7,7 @@
 ##
 
 # Given the name of a .pot template file and a language subdirectory, invoke
-# msgmerge to extract strings
-# into a corresponding .pot message template file
+# msgmerge to extract strings into a corresponding .pot message template file
 
 if [ $# -ne 2 ] ; then
 	echo Usage: $0 template.pot language_dir

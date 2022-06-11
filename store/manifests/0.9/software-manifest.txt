@@ -1,0 +1,7 @@
+# Package manifest for the 'software' program
+name=software
+desc=The software management program for Visopsys.  Install, remove, and update software packages.
+arch=x86
+version=0.9.1
+
+programs/software

@@ -7,7 +7,7 @@
 ##
 
 # This just does all of the things necessary to prepare an archive (zipfile)
-# of the Visopsys sources and utilities.
+# of the Visopsys sources and utilities
 
 ZIPLOG=./zip.log
 
@@ -15,9 +15,9 @@ echo ""
 echo "Making Visopsys SOURCE archive"
 echo ""
 
-# Are we doing a release version?  If the argument is "-r" then we use
-# the release number in the destination directory name.  Otherwise, we
-# assume an interim package and use the date instead
+# Are we doing a release version?  If the argument is "-r" then we use the
+# release number in the destination directory name.  Otherwise, we assume an
+# interim package and use the date instead.
 if [ "$1" = "-r" ] ; then
 	# What is the current release version?
 	RELEASE=`./release.sh`
@@ -33,7 +33,7 @@ fi
 DESTDIR=visopsys-"$RELEASE"-src
 
 # Make a copy of the Visopsys directory.  We will not fiddle with the current
-# working area
+# working area.
 rm -Rf "$DESTDIR" /tmp/"$DESTDIR"
 mkdir -p /tmp/"$DESTDIR"
 (cd ..; tar cf - *) | (cd /tmp/"$DESTDIR"; tar xf - )

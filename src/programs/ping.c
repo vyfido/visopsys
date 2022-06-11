@@ -310,6 +310,11 @@ static int getAddress(const char *string, networkAddress *address)
 	if (status == 1)
 		return (status = 0);
 
+	// Try looking it up as a host name
+	status = networkLookupNameAddress(string, address, NULL /* type */);
+	if (status >= 0)
+		return (status = 0);
+
 	// Seems like an invalid address or hostname
 	return (status = ERR_HOSTUNKNOWN);
 }

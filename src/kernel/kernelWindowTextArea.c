@@ -29,6 +29,7 @@
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
 #include "kernelWindowEventStream.h"
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -383,9 +384,9 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 	kernelTextInputStream *inputStream = textArea->area->inputStream;
 
 	if ((event->type == WINDOW_EVENT_KEY_DOWN) && inputStream &&
-		inputStream->s.append && event->key.ascii)
+		event->key.unicode)
 	{
-		inputStream->s.append(&inputStream->s, (char) event->key.ascii);
+		inputStream->s.append(&inputStream->s, event->key.unicode);
 	}
 
 	if (textArea->scrollBar)
@@ -519,7 +520,8 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 	component->data = (void *) textArea;
 
 	// Create the text area inside it
-	textArea->area = kernelTextAreaNew(columns, rows, 1, bufferLines);
+	textArea->area = kernelTextAreaNew(columns, rows, MB_LEN_MAX,
+		bufferLines);
 	if (!textArea->area)
 	{
 		kernelWindowComponentDestroy(component);

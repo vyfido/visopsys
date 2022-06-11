@@ -20,21 +20,21 @@
 //
 
 // This file contains definitions and structures for using and manipulating
-// colors in Visopsys.
+// colors in Visopsys
 
 #ifndef _COLOR_H
 #define _COLOR_H
 
 // Default color values for the system
-#define COLOR_DEFAULT_FOREGROUND_RED	9
-#define COLOR_DEFAULT_FOREGROUND_GREEN	56
-#define COLOR_DEFAULT_FOREGROUND_BLUE	89
-#define COLOR_DEFAULT_BACKGROUND_RED	165
-#define COLOR_DEFAULT_BACKGROUND_GREEN	165
-#define COLOR_DEFAULT_BACKGROUND_BLUE	180
-#define COLOR_DEFAULT_DESKTOP_RED		14
-#define COLOR_DEFAULT_DESKTOP_GREEN		83
-#define COLOR_DEFAULT_DESKTOP_BLUE		133
+#define COLOR_DEFAULT_FOREGROUND_RED	11
+#define COLOR_DEFAULT_FOREGROUND_GREEN	21
+#define COLOR_DEFAULT_FOREGROUND_BLUE	49
+#define COLOR_DEFAULT_BACKGROUND_RED	175
+#define COLOR_DEFAULT_BACKGROUND_GREEN	175
+#define COLOR_DEFAULT_BACKGROUND_BLUE	190
+#define COLOR_DEFAULT_DESKTOP_RED		36
+#define COLOR_DEFAULT_DESKTOP_GREEN		46
+#define COLOR_DEFAULT_DESKTOP_BLUE		89
 
 // Names for color settings
 #define COLOR_SETTING_FOREGROUND		"foreground"
@@ -67,6 +67,23 @@ typedef struct {
 		COLOR_DEFAULT_DESKTOP_BLUE, \
 		COLOR_DEFAULT_DESKTOP_GREEN, \
 		COLOR_DEFAULT_DESKTOP_RED } )
+
+// Color copying macro
+#define COLOR_COPY(destColor, srcColor) { \
+	(destColor)->blue = (srcColor)->blue; \
+	(destColor)->green = (srcColor)->green; \
+	(destColor)->red = (srcColor)->red; \
+}
+
+// Color adjustment macro
+#define COLOR_ADJUST(destColor, srcColor, numerator, denominator) { \
+	(destColor)->blue = min(255, (((int)(srcColor)->blue * numerator) / \
+		denominator)); \
+	(destColor)->green = min(255, (((int)(srcColor)->green * numerator) / \
+		denominator)); \
+	(destColor)->red = min(255, (((int)(srcColor)->red * numerator) / \
+		denominator)); \
+}
 
 // Standard PC (text-mode) color values, and our real-color translations
 // of them

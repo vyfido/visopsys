@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:39+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -82,27 +82,27 @@ msgstr ""
 msgid " %d x %d, %d bit "
 msgstr ""
 
-#: disprops.c:691
+#: disprops.c:698
 #, c-format
 msgid ""
 "The resolution has been changed to %dx%d, %dbpp\n"
 "This will take effect after you reboot."
 msgstr ""
 
-#: disprops.c:695
+#: disprops.c:702
 msgid "Changed"
 msgstr ""
 
-#: disprops.c:699
+#: disprops.c:706
 #, c-format
 msgid "Error %d setting mode"
 msgstr ""
 
-#: disprops.c:700
+#: disprops.c:707
 msgid "Error"
 msgstr ""
 
-#: disprops.c:980
+#: disprops.c:981
 #, c-format
 msgid ""
 "\n"

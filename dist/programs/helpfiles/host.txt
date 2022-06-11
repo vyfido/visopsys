@@ -1,0 +1,11 @@
+
+ -- host --
+
+Look up network names and addresses.
+
+Usage:
+  host <address | hostname>
+
+The 'host' command queries network services (e.g. DNS) to resolve a name to
+an address, or an address to a name.
+

@@ -98,7 +98,7 @@ int kernelNetworkIp4GetLocalPort(kernelNetworkDevice *netDev, int portNum)
 	}
 	else
 	{
-		// Find a random, available, ephemeral port
+		// Find a random available ephemeral port
 		while (!portNum || ipPortInUse(netDev, portNum))
 		{
 			portNum = kernelRandomFormatted(NETWORK_PORT_EPHEMERAL_START,

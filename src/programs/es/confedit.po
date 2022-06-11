@@ -6,19 +6,19 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-01-22 18:30-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
 #: confedit.c:65
 msgid "Configuration Editor"
-msgstr "Editor de configuraci髇"
+msgstr "Editor de configuraci贸n"
 
 #: confedit.c:66
 msgid "File"
@@ -51,12 +51,12 @@ msgstr "Error"
 #: confedit.c:123
 #, c-format
 msgid "Error %d reading configuration file."
-msgstr "Error %d al leer el archivo de configuraci髇."
+msgstr "Error %d al leer el archivo de configuraci贸n."
 
 #: confedit.c:140
 #, c-format
 msgid "Error %d writing configuration file."
-msgstr "Error %d al escribir el archivo de configuraci髇."
+msgstr "Error %d al escribir el archivo de configuraci贸n."
 
 #: confedit.c:209
 msgid "Change Variable"
@@ -97,7 +97,7 @@ msgid ""
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 "\n"
-"El comando \"%s\" funciona solamente en modo gr醘ico\n"
+"El comando \"%s\" funciona solamente en modo gr谩fico\n"
 
 #: confedit.c:620
 msgid "Enter filename"
@@ -105,9 +105,9 @@ msgstr "Ingresar nombre del archivo"
 
 #: confedit.c:621
 msgid "Please enter a configuration file to edit:"
-msgstr "Por favor, ingrese un archivo de configuraci髇 para editar:"
+msgstr "Por favor, ingrese un archivo de configuraci贸n para editar:"
 
 #: confedit.c:639
 #, c-format
 msgid "Error %d creating new configuration file."
-msgstr "Error %d al crear un nuevo archivo de configuraci髇."
+msgstr "Error %d al crear un nuevo archivo de configuraci贸n."

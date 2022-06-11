@@ -578,14 +578,14 @@ unsigned kernelCharsetToUnicode(const char *set, unsigned value)
 		return (0);
 	}
 
+	if ((value < CHARSET_IDENT_CODES) || !strcmp(set, CHARSET_NAME_UTF8))
+		return (value);
+
 	if (value >= (CHARSET_IDENT_CODES + CHARSET_NUM_CODES))
 	{
 		kernelError(kernel_error, "Charset value %u is invalid", value);
 		return (0);
 	}
-
-	if (value < CHARSET_IDENT_CODES)
-		return (value);
 
 	for (setCount = 0; setCount < (int)(sizeof(sets) / sizeof(charset));
 		setCount ++)
@@ -610,7 +610,7 @@ unsigned kernelCharsetFromUnicode(const char *set, unsigned value)
 		return (0);
 	}
 
-	if (value < CHARSET_IDENT_CODES)
+	if ((value < CHARSET_IDENT_CODES) || !strcmp(set, CHARSET_NAME_UTF8))
 		return (value);
 
 	for (setCount = 0; setCount < (int)(sizeof(sets) / sizeof(charset));

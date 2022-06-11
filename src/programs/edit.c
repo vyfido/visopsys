@@ -40,6 +40,7 @@ Options:
 */
 
 #include <libintl.h>
+#include <limits.h>
 #include <locale.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -200,7 +201,8 @@ static void processLine(unsigned filePos, screenLineInfo *line)
 			}
 			else
 			{
-				charBytes = 1;
+				charBytes = mblen(character, (editFile.size - (line->filePos +
+					line->length)));
 
 				line->screenLength += 1;
 
@@ -219,7 +221,7 @@ static void printLine(screenLineInfo *line)
 
 	int screenLength = 0;
 	int screenPos = 0;
-	char character = '\0';
+	char *character = NULL;
 	int charBytes = 0;
 	int count;
 
@@ -233,10 +235,10 @@ static void printLine(screenLineInfo *line)
 
 	for (count = 0; screenPos < screenLength; count ++)
 	{
-		character = *(editFile.buffer + line->filePos + count);
+		character = (editFile.buffer + line->filePos + count);
 
 		// Look out for tab characters
-		if (character == ASCII_TAB)
+		if (*character == ASCII_TAB)
 		{
 			textTab();
 
@@ -244,7 +246,7 @@ static void printLine(screenLineInfo *line)
 		}
 		else
 		{
-			charBytes = textPutc(character);
+			charBytes = textPutMbc(character);
 
 			screenPos += 1;
 
@@ -309,6 +311,7 @@ static unsigned columnBufferOffset(screenLineInfo *line, int column,
 	// Return the buffer offset of the on-screen column of the supplied line
 
 	char *buffPtr = (editFile.buffer + line->filePos);
+	char *endPtr = (buffPtr + line->length);
 	int charBytes = 0;
 	int count;
 
@@ -335,7 +338,7 @@ static unsigned columnBufferOffset(screenLineInfo *line, int column,
 		{
 			count += 1;
 
-			charBytes = 1;
+			charBytes = mblen(buffPtr, (endPtr - buffPtr));
 			if (charBytes > 1)
 				buffPtr += (charBytes - 1);
 		}
@@ -1351,7 +1354,8 @@ static void backspace(void)
 	if (oldRow || state.screenColumn)
 	{
 		cursorLeft();
-		deleteChars(1);
+		deleteChars(mblen((editFile.buffer + state.cursorFilePos),
+			(editFile.size - state.cursorFilePos)));
 
 		// Were we at the beginning of a line?
 		if (state.screenLine != oldRow)
@@ -1382,7 +1386,8 @@ static void delete(void)
 	int endLine = (state.screenColumn >=
 		(screen.lines[state.screenLine].screenLength - 1));
 
-	deleteChars(1);
+	deleteChars(mblen((editFile.buffer + state.cursorFilePos),
+		(editFile.size - state.cursorFilePos)));
 
 	// Were we at the end of a line?
 	if (endLine)
@@ -1417,7 +1422,8 @@ static int edit(void)
 	// This function is the base from which we do all the editing
 
 	int status = 0;
-	char character = '\0';
+	unsigned character = 0;
+	char mbChars[MB_LEN_MAX + 1];
 	int mbLen = 0;
 
 	while (!stop)
@@ -1512,10 +1518,10 @@ static int edit(void)
 			default:
 			{
 				// Typing anything else
-				mbLen = 1;
+				mbLen = wctomb(mbChars, character);
 				if (mbLen > 0)
 				{
-					status = insertChars(&character, mbLen);
+					status = insertChars(mbChars, mbLen);
 					if (status < 0)
 						break;
 				}

@@ -8,26 +8,26 @@ msgid ""
 msgstr ""
 "Project-Id-Version: renice\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-08-13 22:16+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.6.4\n"
 
 #: renice.c:58
 msgid "usage:\n"
-msgstr "ÿ·ﬂﬁ€Ï◊ﬁ“–›ÿ’:\n"
+msgstr "–∏—Å–ø–æ–ª—å–∑–æ–≤–∞–Ω–∏–µ:\n"
 
 #: renice.c:59
 #, c-format
 msgid "%s <priority> <process1> [process2] [...]\n"
-msgstr "%s <ﬂ‡ÿﬁ‡ÿ‚’‚> <ﬂ‡ﬁÊ’··1> [ﬂ‡ﬁÊ’··2] [...]\n"
+msgstr "%s <–ø—Ä–∏–æ—Ä–∏—Ç–µ—Ç> <–ø—Ä–æ—Ü–µ—Å—Å1> [–ø—Ä–æ—Ü–µ—Å—Å2] [...]\n"
 
 #: renice.c:118
 #, c-format
 msgid "%d changed\n"
-msgstr "%d ÿ◊‹’›’›\n"
+msgstr "%d –∏–∑–º–µ–Ω–µ–Ω\n"

@@ -8,59 +8,59 @@ msgid ""
 msgstr ""
 "Project-Id-Version: keymap\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-08 02:04+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
-#: keymap.c:90
-msgid "Keyboard Map"
-msgstr "¿–·⁄€–‘⁄– ⁄€–“ÿ–‚„‡Î"
-
-#: keymap.c:91
-msgid "Current:"
-msgstr "¬’⁄„ÈÿŸ:"
-
-#: keymap.c:92
-msgid "Name:"
-msgstr "∏‹Ô:"
-
 #: keymap.c:93
-#, fuzzy
-msgid "Language:"
-msgstr "ÿ·ﬂﬁ€Ï◊ﬁ“–›ÿ’:\n"
+msgid "Keyboard Map"
+msgstr "–†–∞—Å–∫–ª–∞–¥–∫–∞ –∫–ª–∞–≤–∏–∞—Ç—É—Ä—ã"
 
 #: keymap.c:94
-msgid "Save"
-msgstr "¡ﬁÂ‡–›ÿ‚Ï"
+msgid "Current:"
+msgstr "–¢–µ–∫—É—â–∏–π:"
 
 #: keymap.c:95
-msgid "Set as default"
-msgstr "Ω–◊›–Áÿ‚Ï ﬂﬁ „‹ﬁ€Á–›ÿÓ"
+msgid "Name:"
+msgstr "–ò–º—è:"
 
 #: keymap.c:96
+#, fuzzy
+msgid "Language:"
+msgstr "–∏—Å–ø–æ–ª—å–∑–æ–≤–∞–Ω–∏–µ:"
+
+#: keymap.c:97
+msgid "Save"
+msgstr "–°–æ—Ö—Ä–∞–Ω–∏—Ç—å"
+
+#: keymap.c:98
+msgid "Set as default"
+msgstr "–ù–∞–∑–Ω–∞—á–∏—Ç—å –ø–æ —É–º–æ–ª—á–∞–Ω–∏—é"
+
+#: keymap.c:99
 msgid "Close"
-msgstr "∑–⁄‡Î‚Ï"
+msgstr "–ó–∞–∫—Ä—ã—Ç—å"
 
-#: keymap.c:148
+#: keymap.c:151
 msgid "usage:\n"
-msgstr "ÿ·ﬂﬁ€Ï◊ﬁ“–›ÿ’:\n"
+msgstr "–∏—Å–ø–æ–ª—å–∑–æ–≤–∞–Ω–∏–µ:\n"
 
-#: keymap.c:149
-#, fuzzy, c-format
+#: keymap.c:152
+#, c-format
 msgid "%s [-T] [-p] [-s file_name] [map_name]\n"
-msgstr "%s [-T] [-s ÿ‹Ô_‰–Ÿ€–] ÿ‹Ô_‡–·⁄€–‘⁄ÿ]\n"
+msgstr "%s [-T] [-p] [-s –∏–º—è_—Ñ–∞–π–ª–∞] [–∏–º—è_—Ä–∞—Å–∫–ª–∞–¥–∫–∏]\n"
 
-#: keymap.c:166
+#: keymap.c:169
 msgid "Error"
-msgstr "æËÿ—⁄–"
+msgstr "–û—à–∏–±–∫–∞"
 
-#: keymap.c:168
+#: keymap.c:171
 #, c-format
 msgid ""
 "\n"
@@ -70,134 +70,129 @@ msgid ""
 msgstr ""
 "\n"
 "\n"
-"æ»∏±∫∞: %s\n"
+"–û–®–ò–ë–ö–ê: %s\n"
 "\n"
 
-#: keymap.c:182 keymap.c:416
+#: keymap.c:185 keymap.c:419
 #, c-format
 msgid "Couldn't open file %s"
-msgstr "Ω’ ‹ﬁ”„ ﬂ‡ﬁÁÿ‚–‚Ï ‰–Ÿ€ %s"
+msgstr "–ù–µ –º–æ–≥—É –ø—Ä–æ—á–∏—Ç–∞—Ç—å —Ñ–∞–π–ª %s"
 
-#: keymap.c:192
+#: keymap.c:195
 #, c-format
 msgid "Couldn't read file %s"
-msgstr "Ω’ ‹ﬁ”„ ﬂ‡ﬁÁÿ‚–‚Ï ‰–Ÿ€ %s"
+msgstr "–ù–µ –º–æ–≥—É –ø—Ä–æ—á–∏—Ç–∞—Ç—å —Ñ–∞–π–ª %s"
 
-#: keymap.c:282 keymap.c:334
+#: keymap.c:285 keymap.c:337
 #, c-format
 msgid "Couldn't find keyboard map %s"
-msgstr "Ω’ ‹ﬁ”„ ›–Ÿ‚ÿ ‡–·⁄€–‘⁄„ %s"
+msgstr "–ù–µ –º–æ–≥—É –Ω–∞–π—Ç–∏ —Ä–∞—Å–∫–ª–∞–¥–∫—É %s"
 
-#: keymap.c:289
+#: keymap.c:292
 #, c-format
 msgid "Couldn't set keyboard map to %s"
-msgstr "Ω’ ‹ﬁ”„ ◊–ﬂÿ·–‚Ï ‡–·⁄€–‘⁄„ “ %s"
+msgstr "–ù–µ –º–æ–≥—É –∑–∞–ø–∏—Å–∞—Ç—å —Ä–∞—Å–∫–ª–∞–¥–∫—É –≤ %s"
 
-#: keymap.c:296
+#: keymap.c:299
 msgid "Couldn't get current keyboard map"
-msgstr "Ω’ ‹ﬁ”„ ﬂﬁ€„Áÿ‚Ï ‚’⁄„È„Ó ‡–·⁄€–‘⁄„"
+msgstr "–ù–µ –º–æ–≥—É –ø–æ–ª—É—á–∏—Ç—å —Ç–µ–∫—É—â—É—é —Ä–∞—Å–∫–ª–∞–¥–∫—É"
 
-#: keymap.c:309
+#: keymap.c:312
 msgid "Couldn't write keyboard map setting"
-msgstr "Ω’ ‹ﬁ”„ ◊–ﬂÿ·–‚Ï ﬂ–‡–‹’‚‡Î ‡–·⁄€–‘⁄ÿ"
+msgstr "–ù–µ –º–æ–≥—É –∑–∞–ø–∏—Å–∞—Ç—å –ø–∞—Ä–∞–º–µ—Ç—Ä—ã —Ä–∞—Å–∫–ª–∞–¥–∫–∏"
 
-#: keymap.c:400
+#: keymap.c:403
 #, c-format
 msgid ""
 "Can't write %s:\n"
 "Filesystem is read-only"
 msgstr ""
-"Ω’ ‹ﬁ”„ ◊–ﬂÿ·–‚Ï %s:\n"
-"ƒ¡ ‚ﬁ€Ï⁄ﬁ ‘€Ô Á‚’›ÿÔ"
+"–ù–µ –º–æ–≥—É –∑–∞–ø–∏—Å–∞—Ç—å %s:\n"
+"–§–° —Ç–æ–ª—å–∫–æ –¥–ª—è —á—Ç–µ–Ω–∏—è"
 
-#: keymap.c:426
+#: keymap.c:429
 #, c-format
 msgid "Couldn't write file %s"
-msgstr "Ω’ ‹ﬁ”„ ◊–ﬂÿ·–‚Ï ‰–Ÿ€ %s"
+msgstr "–ù–µ –º–æ–≥—É –∑–∞–ø–∏—Å–∞—Ç—å —Ñ–∞–π–ª %s"
 
-#: keymap.c:654
+#: keymap.c:657
 msgid "Save as"
-msgstr "¡ﬁÂ‡–›ÿ‚Ï ⁄–⁄..."
+msgstr "–°–æ—Ö—Ä–∞–Ω–∏—Ç—å –∫–∞–∫..."
 
-#: keymap.c:655
+#: keymap.c:658
 msgid "Choose the output file:"
-msgstr "≤Î—’‡ÿ‚’ ‰–Ÿ€ ‘€Ô “Î“ﬁ‘–:"
+msgstr "–í—ã–±–µ—Ä–∏—Ç–µ —Ñ–∞–π–ª –¥–ª—è –≤—ã–≤–æ–¥–∞:"
 
-#: keymap.c:688
+#: keymap.c:691
 msgid "Saved"
-msgstr "¡ﬁÂ‡–›’›ﬁ"
+msgstr "–°–æ—Ö—Ä–∞–Ω–µ–Ω–æ"
 
-#: keymap.c:688
+#: keymap.c:691
 msgid "Map saved"
-msgstr "¿–·⁄€–‘⁄– ·ﬁÂ‡–›’›–"
+msgstr "–†–∞—Å–∫–ª–∞–¥–∫–∞ —Å–æ—Ö—Ä–∞–Ω–µ–Ω–∞"
 
-#: keymap.c:729
-msgid "Select character"
-msgstr ""
-
-#: keymap.c:971
+#: keymap.c:766
 msgid "Change key settings"
-msgstr "≤Î—’‡ÿ‚’ ﬂ–‡–‹’‚‡Î ⁄€–“ÿËÿ"
+msgstr "–í—ã–±–µ—Ä–∏—Ç–µ –ø–∞—Ä–∞–º–µ—Ç—Ä—ã –∫–ª–∞–≤–∏—à–∏"
 
-#: keymap.c:995
-#, fuzzy, c-format
+#: keymap.c:790
+#, c-format
 msgid "Scan code: 0x%02x (%s)"
-msgstr "Scan code: %d (0x%02x)"
+msgstr "Scan code: 0x%02x (%s)"
 
-#: keymap.c:1001
+#: keymap.c:796
 msgid "Unicode"
 msgstr ""
 
-#: keymap.c:1009
+#: keymap.c:804
 msgid "Normal"
 msgstr ""
 
-#: keymap.c:1012 keymap.c:1018
-#, fuzzy
+#: keymap.c:807 keymap.c:813
 msgid "Shift"
-msgstr "Shift code:"
+msgstr ""
 
-#: keymap.c:1015 keymap.c:1018
+#: keymap.c:810 keymap.c:813
 msgid "AltGr"
 msgstr ""
 
-#: keymap.c:1022
+#: keymap.c:817
 msgid "Ctrl"
 msgstr ""
 
-#: keymap.c:1127
+#: keymap.c:937
 msgid "OK"
-msgstr "æ∫"
+msgstr "–û–ö"
 
-#: keymap.c:1132
+#: keymap.c:942
 msgid "Cancel"
-msgstr "æ‚‹’›–"
+msgstr "–û—Ç–º–µ–Ω–∞"
 
-#: keymap.c:1468
+#: keymap.c:1243
 msgid "1st row"
 msgstr ""
 
-#: keymap.c:1470
+#: keymap.c:1245
 msgid "2nd row"
 msgstr ""
 
-#: keymap.c:1472
+#: keymap.c:1247
 msgid "3rd row"
 msgstr ""
 
-#: keymap.c:1474
+#: keymap.c:1249
 msgid "4th row"
 msgstr ""
 
-#: keymap.c:1476
+#: keymap.c:1251
 msgid "5th row"
 msgstr ""
 
-#: keymap.c:1478
+#: keymap.c:1253
 msgid "6th row"
 msgstr ""
 
-#: keymap.c:1497
+#: keymap.c:1263
 #, c-format
 msgid ""
 "\n"
@@ -205,46 +200,43 @@ msgid ""
 "\n"
 msgstr ""
 
-#: keymap.c:1498
-#, fuzzy
+#: keymap.c:1264
 msgid "Regular map"
-msgstr "Regular code:"
+msgstr ""
 
-#: keymap.c:1500
-#, fuzzy
+#: keymap.c:1266
 msgid "Shift map"
-msgstr "Shift code:"
+msgstr ""
 
-#: keymap.c:1502
+#: keymap.c:1268
 msgid "Ctrl map"
 msgstr ""
 
-#: keymap.c:1504
+#: keymap.c:1270
 msgid "AltGr map"
 msgstr ""
 
-#: keymap.c:1506
-#, fuzzy
+#: keymap.c:1272
 msgid "Shift-AltGr map"
-msgstr "Shift code:"
+msgstr ""
 
-#: keymap.c:1542
+#: keymap.c:1308
 msgid "Missing filename argument for -s option\n"
-msgstr "ø‡ﬁﬂ„È’›ﬁ ÿ‹Ô ‰–Ÿ€– ‘€Ô ﬁﬂÊÿÿ -s\n"
+msgstr "–ü—Ä–æ–ø—É—â–µ–Ω–æ –∏–º—è —Ñ–∞–π–ª–∞ –¥–ª—è –æ–ø—Ü–∏–∏ -s\n"
 
-#: keymap.c:1561
+#: keymap.c:1327
 #, c-format
 msgid "Missing parameter for %s option\n"
-msgstr "ø‡ﬁﬂ„È’› ﬂ–‡–‹’‚‡ ‘€Ô ﬁﬂÊÿÿ %s\n"
+msgstr "–ü—Ä–æ–ø—É—â–µ–Ω –ø–∞—Ä–∞–º–µ—Ç—Ä –¥–ª—è –æ–ø—Ü–∏–∏ %s\n"
 
-#: keymap.c:1567
+#: keymap.c:1333
 #, c-format
 msgid "Unknown option '%c'\n"
-msgstr "Ω’ÿ◊“’·‚›–Ô ﬁﬂÊÿÔ '%c'\n"
+msgstr "–ù–µ–∏–∑–≤–µ—Å—Ç–Ω–∞—è –æ–ø—Ü–∏—è '%c'\n"
 
-#: keymap.c:1672
+#: keymap.c:1438
 msgid " (current)"
-msgstr "(‚’⁄„ËÿŸ)"
+msgstr "(—Ç–µ–∫—É—à–∏–π)"
 
 #, fuzzy
 #~ msgid "Shift-AltGr"

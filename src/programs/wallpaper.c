@@ -186,15 +186,16 @@ int main(int argc, char *argv[])
 			printf("%s", _("File not found\n"));
 			return (status);
 		}
-
-		windowShellTileBackground(fileName);
-	}
-	else
-	{
-		windowShellTileBackground(NULL);
 	}
 
 	status = writeConfig(fileName);
+	if (status < 0)
+	{
+		printf("%s", _("Couldn't change desktop configration\n"));
+		return (status);
+	}
+
+	status = windowShellChangeBackground();
 
 	return (status);
 }

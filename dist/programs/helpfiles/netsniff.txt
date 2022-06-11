@@ -1,0 +1,14 @@
+
+ -- netsniff --
+
+A network packet sniffer.
+
+Usage:
+  netsniff [-T] [device_name]
+
+This command will display network traffic to/from a named network device,
+if specified, otherwise all devices.
+
+Options:
+-T  : Force text mode operation
+

@@ -29,11 +29,12 @@
 #define CHARSET_NUM_CODES			128
 #define CHARSET_IDENT_CODES			128
 #define CHARSET_NAME_ASCII			"ASCII"
+#define CHARSET_NAME_UTF8			"UTF-8"
 #define CHARSET_NAME_ISO_8859_5		"ISO-8859-5"	// Latin/Cyrillic (Russia)
 #define CHARSET_NAME_ISO_8859_9		"ISO-8859-9"	// Latin-5 (Turkish)
 #define CHARSET_NAME_ISO_8859_15	"ISO-8859-15"	// Latin-9 (W Europe)
 #define CHARSET_NAME_ISO_8859_16	"ISO-8859-16"	// Latin-10 (SE Europe)
-#define CHARSET_NAME_DEFAULT		CHARSET_NAME_ISO_8859_15
+#define CHARSET_NAME_DEFAULT		CHARSET_NAME_UTF8
 
 typedef struct {
 	char name[CHARSET_NAME_LEN + 1];

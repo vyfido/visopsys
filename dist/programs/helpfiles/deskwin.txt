@@ -1,0 +1,14 @@
+
+ -- deskwin --
+
+A basic desktop window 'shell' environment based on the standard 'desktop'
+metaphor.
+
+Usage:
+  deskwin
+
+(Only available in graphics mode)
+
+This command will open a new 'root' window with a desktop, icons, taskbar,
+etc.  It will only work properly when launched automatically by a user login.
+

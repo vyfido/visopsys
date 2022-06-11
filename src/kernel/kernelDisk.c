@@ -2517,7 +2517,7 @@ int kernelDiskFromLogical(kernelDisk *logical, disk *userDisk)
 
 	// Add/override some things specific to logical disks
 	strncpy(userDisk->name, (char *) logical->name, DISK_MAX_NAMELENGTH);
-	userDisk->type = ((logical->physical->type & ~DISKTYPE_LOGICALPHYSICAL) |
+	userDisk->type = ((logical->physical->type & ~DISKTYPE_PHYSLOG_MASK) |
 		DISKTYPE_LOGICAL);
 	if (logical->primary)
 		userDisk->type |= DISKTYPE_PRIMARY;
@@ -3009,9 +3009,9 @@ int kernelDiskGetFilesystemType(const char *diskName, char *buffer,
 	unsigned buffSize)
 {
 	// This function takes the supplied disk name and attempts to explicitly
-	// detect the filesystem type.  Particularly useful for things like removable
-	// media where the correct info may not be automatically provided in the
-	// disk structure.
+	// detect the filesystem type.  Particularly useful for things like
+	// removable media where the correct info may not be automatically
+	// provided in the disk structure.
 
 	int status = 0;
 	kernelDisk *logicalDisk = NULL;

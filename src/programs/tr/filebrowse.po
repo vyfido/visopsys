@@ -3,20 +3,20 @@
 #  Copyright (C) 1998-2020 J. Andrew McLaughlin
 #
 #  The system messages translated to Turkish by Doga Ozkaracaabatlioglu.
-#  Sistem mesajlari Türkçe'ye Doga Özkaracaabatlioglu tarafindan çevirilmistir.
+#  Sistem mesajlari TÃ¼rkÃ§e'ye Doga Ã–zkaracaabatlioglu tarafindan Ã§evirilmistir.
 #  Doga.Ozkaraca - doga.ozkaraca@gmail.com - dogaozkaraca.com
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Doga Ozkaracaabatlioglu <doga.ozkaraca@gmail.com>\n"
-"Language-Team: Turkish/Türkçe\n"
+"Language-Team: Turkish/TÃ¼rkÃ§e\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-9\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: filebrowse.c:61
@@ -29,43 +29,43 @@ msgstr "Dosya"
 
 #: filebrowse.c:63
 msgid "Quit"
-msgstr "Çýk"
+msgstr "Ã‡Ä±k"
 
 #: filebrowse.c:64
 msgid "View"
-msgstr "Görüntüle"
+msgstr "GÃ¶rÃ¼ntÃ¼le"
 
 #: filebrowse.c:65
 msgid "Refresh"
 msgstr "Aktualisieren"
 
-#: filebrowse.c:126
+#: filebrowse.c:127
 msgid "Error"
 msgstr "Hata"
 
-#: filebrowse.c:276
+#: filebrowse.c:283
 #, c-format
 msgid "Couldn't execute command \"%s\""
 msgstr ""
 
-#: filebrowse.c:474
+#: filebrowse.c:481
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 "\n"
-"\"%s\" komutu sadece grafik modda çalýþabilir\n"
+"\"%s\" komutu sadece grafik modda Ã§alÄ±ÅŸabilir\n"
 
-#: filebrowse.c:488
+#: filebrowse.c:495
 msgid "Memory allocation error"
-msgstr "Bellek ayýrma hatasý"
-
-#: filebrowse.c:503
-#, c-format
-msgid "Can't change to directory \"%s\""
-msgstr "\"%s\" klasörü açýlamadý"
+msgstr "Bellek ayÄ±rma hatasÄ±"
 
 #: filebrowse.c:510
+#, c-format
+msgid "Can't change to directory \"%s\""
+msgstr "\"%s\" klasÃ¶rÃ¼ aÃ§Ä±lamadÄ±"
+
+#: filebrowse.c:517
 msgid "Can't determine current directory"
-msgstr "Mevcut bulunulan klasör belirlenemiyor"
+msgstr "Mevcut bulunulan klasÃ¶r belirlenemiyor"

@@ -29,6 +29,7 @@
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
+#include "kernelVmware.h"
 #include "kernelWindow.h"
 #include <string.h>
 #include <sys/kernconf.h>
@@ -45,6 +46,7 @@ static int numberPointers = 0;
 
 static int threadPid = 0;
 static int threadStop = 0;
+static int vmware = 0;
 static int initialized = 0;
 
 // Keeps mouse pointer size and location data
@@ -60,6 +62,8 @@ static volatile struct {
 	int button1Pressed;
 	int button2Pressed;
 	int button3Pressed;
+	unsigned short vmwareX;
+	unsigned short vmwareY;
 
 } mouseStatus;
 
@@ -84,6 +88,45 @@ static inline void erase(void)
 }
 
 
+static int queryVmware(int vmwareGrabbed)
+{
+	// Make sure that our idea of where the mouse pointer is, matches up with
+	// the host's opinion
+
+	int vmwareX = 0;
+	int vmwareY = 0;
+
+	if (kernelVmwareMouseGetPos((unsigned short *) &vmwareX,
+		(unsigned short *) &vmwareY) >= 0)
+	{
+		if (vmwareX == (unsigned short) -100)
+		{
+			erase();
+			vmwareGrabbed = 0;
+		}
+		else
+		{
+			if (!vmwareGrabbed)
+			{
+				if ((mouseStatus.xPosition != vmwareX) ||
+					(mouseStatus.yPosition != vmwareY))
+				{
+					mouseStatus.xPosition = vmwareX;
+					mouseStatus.yPosition = vmwareY;
+					mouseStatus.xyChange += 1;
+				}
+
+				draw();
+			}
+
+			vmwareGrabbed = 1;
+		}
+	}
+
+	return (vmwareGrabbed);
+}
+
+
 static inline void status2event(int eventType, windowEvent *event)
 {
 	event->type = eventType;
@@ -98,14 +141,18 @@ static void mouseThread(void)
 	// window manager
 
 	int eventType = 0;
+	int vmwareGrabbed = 0;
 	windowEvent event;
 
 	memset(&event, 0, sizeof(windowEvent));
 
 	while (!threadStop)
 	{
-		if (!mouseStatus.xyChange && !mouseStatus.zChange &&
-			!mouseStatus.changeButton)
+		if (vmware)
+			vmwareGrabbed = queryVmware(vmwareGrabbed);
+
+		if ((vmware && !vmwareGrabbed) || (!mouseStatus.xyChange &&
+			!mouseStatus.zChange && !mouseStatus.changeButton))
 		{
 			kernelMultitaskerYield();
 			continue;
@@ -129,6 +176,12 @@ static void mouseThread(void)
 			// Tell the window manager
 			status2event(eventType, &event);
 			kernelWindowProcessEvent(&event);
+
+			if (vmware && vmwareGrabbed)
+			{
+				kernelVmwareMouseSetPos(mouseStatus.xPosition,
+					mouseStatus.yPosition);
+			}
 		}
 
 		if (mouseStatus.changeButton)
@@ -405,6 +458,9 @@ int kernelMouseInitialize(void)
 		if (status < 0)
 			kernelError(kernel_warn, "Unable to create default pointer");
 	}
+
+	// See whether we're running inside VMware
+	vmware = kernelVmwareCheck();
 
 	// Spawn the mouse thread
 	threadPid = kernelMultitaskerSpawn(mouseThread, "mouse thread",

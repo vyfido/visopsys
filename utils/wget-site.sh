@@ -6,8 +6,8 @@
 ##  wget-site.sh
 ##
 
-# Retrieves the relevant parts of the visopsys.org website that we include
-# in the 'docs' directory.
+# Retrieves the relevant parts of the visopsys.org website that we include in
+# the 'docs' directory
 
 SITE=visopsys.org
 TMP1=$SITE.tmp1

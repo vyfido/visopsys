@@ -7,13 +7,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-01-22 04:58-0400\n"
 "Last-Translator: Jens Leon Wagner <nikski280@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.5.4\n"
 
@@ -42,14 +42,14 @@ msgstr "Fehler beim Erstellen der RAM-Disk\n"
 #: ramdisk.c:174
 #, c-format
 msgid "Created RAM disk %s size %u\n"
-msgstr "RAM-Disk %s erstellt Grösse %u\n"
+msgstr "RAM-Disk %s erstellt GrÃ¶sse %u\n"
 
 #: ramdisk.c:184
 #, c-format
 msgid "Error destroying RAM disk %s\n"
-msgstr "Fehler beim Löschen der RAM-Disk %s\n"
+msgstr "Fehler beim LÃ¶schen der RAM-Disk %s\n"
 
 #: ramdisk.c:189
 #, c-format
 msgid "Destroyed RAM disk %s\n"
-msgstr "RAM-Disk %s gelöscht\n"
+msgstr "RAM-Disk %s gelÃ¶scht\n"

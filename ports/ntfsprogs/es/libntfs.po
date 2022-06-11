@@ -6,13 +6,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-29 02:02+0100\n"
+"POT-Creation-Date: 2017-05-29 01:25+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: ntfsprogs/ntfsresize.c:878
@@ -22,7 +22,7 @@ msgstr "Se necesita reubicar el inode %8lld"
 
 #: ntfsprogs/ntfsresize.c:1036
 msgid "Accounting clusters"
-msgstr "Contabilizando Clústeres"
+msgstr "Contabilizando ClÃºsteres"
 
 #: ntfsprogs/ntfsresize.c:1186
 msgid "Checking filesystem consistency"
@@ -30,7 +30,7 @@ msgstr "Chequeando consistencia del sistema de archivos"
 
 #: ntfsprogs/ntfsresize.c:1270
 msgid "Collecting resizing constraints"
-msgstr "Encontrando límites de cambio de tamaño"
+msgstr "Encontrando lÃ­mites de cambio de tamaÃ±o"
 
 #: ntfsprogs/ntfsresize.c:1375
 msgid "Enlarging attribute header ..."
@@ -51,7 +51,7 @@ msgstr "Buscando sectores corruptos"
 
 #: ntfsprogs/ntfsresize.c:2424
 msgid "Updating $BadClust file"
-msgstr "Actualizando el archivo en el clúster $BadClust"
+msgstr "Actualizando el archivo en el clÃºster $BadClust"
 
 #: ntfsprogs/ntfsresize.c:2450
 msgid "Updating $Bitmap file"
@@ -85,4 +85,4 @@ msgstr "Syncronizando dispositivo"
 #: ntfsprogs/ntfsresize.c:3013
 #, c-format
 msgid "Successfully resized NTFS on device '%s'."
-msgstr "Éxito al cambiar el tamaño NTFS del dispositivo '%s'."
+msgstr "Ã‰xito al cambiar el tamaÃ±o NTFS del dispositivo '%s'."

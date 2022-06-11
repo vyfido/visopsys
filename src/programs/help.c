@@ -48,6 +48,7 @@ fontutil          Edit and convert Visopsys fonts
 format            Create new, empty filesystems
 help              Show this summary of help entries
 hexdump           View files as hexadecimal listings
+host              Look up network names and addresses
 hostname          Print or set the system's network host name
 ifconfig          Network device information and control
 imgboot           The program launched at first system boot
@@ -64,6 +65,8 @@ mkdir             Create one or more new directories
 more              Display file's contents, one screenfull at a time
 mount             Mount a filesystem
 mv (or move)      Move a file (ren or rename have the same effect)
+netsniff          Sniff network packets
+netstat           Show network connections
 nm                Show symbol information for a dynamic program or library
 passwd            Set the password on a user account
 ping              'Ping' a host on the network
@@ -74,17 +77,27 @@ reboot            Reboot the computer
 renice            Change the priority of a running process
 rm (or del)       Delete a file
 rmdir             Remove a directory
+sha1pass          Calculate and print SHA1 digests of strings
+sha1sum           Calculate and print SHA1 digests of files
+sha256pass        Calculate and print SHA256 digests of strings
+sha256sum         Calculate and print SHA256 digests of files
 shutdown          Stop the computer
 snake             A 'snake' game like the one found on mobile phones
+software          Download, install, and update software
+store             Server for software downloads
 sync              Synchronize all filesystems on disk
 sysdiag           Perform system diagnostics
 tar               Create or manage archives using the TAR format
+telnet            Connect to a remote host using the telnet protocol
 touch             Update a file or create a new (empty) file
 umount            Unmount a filesystem
 uname             Print system information
 unzip             Decompress and extract files from a compressed archive file
 uptime            Time since last boot
 vsh               Start a new command shell
+vspinst           Install a software package
+vspmake           Create a software package
+wget              Download files from the web
 who               Show who is logged in
 zip               Compress and archive files
 
@@ -97,6 +110,7 @@ cmdwin            Open a new command window
 computer          Navigate the resources of the computer
 confedit          Edit Visopsys configuration files
 console           Show the console window
+deskwin           A 'desktop'-style window shell
 disprops          View or change the display settings
 edit              Simple text editor
 filebrowse        Navigate the file system

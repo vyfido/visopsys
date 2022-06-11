@@ -8,31 +8,31 @@ msgid ""
 msgstr ""
 "Project-Id-Version: mount\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-08 01:08+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
 #: mount.c:70
 msgid "usage:\n"
-msgstr "ÿ·ﬂﬁ€Ï◊ﬁ“–›ÿ’:\n"
+msgstr "–∏—Å–ø–æ–ª—å–∑–æ–≤–∞–Ω–∏–µ:\n"
 
 #: mount.c:71
 #, c-format
 msgid "%s <disk> [mount point]\n"
-msgstr "%s <‘ÿ·⁄> [‚ﬁÁ⁄– ﬂﬁ‘⁄€ÓÁ’›ÿÔ]\n"
+msgstr "%s <–¥–∏—Å–∫> [—Ç–æ—á–∫–∞ –ø–æ–¥–∫–ª—é—á–µ–Ω–∏—è]\n"
 
 #: mount.c:176
 #, c-format
 msgid "No mount point specified for %s in %s\n"
-msgstr "Ω’‚ ◊–‘–››ﬁŸ ‚ﬁÁ⁄ÿ ﬂﬁ‘⁄€ÓÁ’›ÿÔ ‘€Ô %s “ %s\n"
+msgstr "–ù–µ—Ç –∑–∞–¥–∞–Ω–Ω–æ–π —Ç–æ—á–∫–∏ –ø–æ–¥–∫–ª—é—á–µ–Ω–∏—è –¥–ª—è %s –≤ %s\n"
 
 #: mount.c:204
 #, c-format
 msgid "No media in disk %s\n"
-msgstr "Ω’‚ ›ﬁ·ÿ‚’€Ô “ %s\n"
+msgstr "–ù–µ—Ç –Ω–æ—Å–∏—Ç–µ–ª—è –≤ %s\n"

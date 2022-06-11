@@ -8,105 +8,105 @@ msgid ""
 msgstr ""
 "Project-Id-Version: edit\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-08 02:36+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
-#: edit.c:62
-msgid "Edit"
-msgstr "їаРТЪР"
-
 #: edit.c:63
-msgid "File"
-msgstr "ДРЩЫ"
+msgid "Edit"
+msgstr "РџСЂР°РІРєР°"
 
 #: edit.c:64
-msgid "Open"
-msgstr "ѕвЪалвм"
+msgid "File"
+msgstr "Р¤Р°Р№Р»"
 
 #: edit.c:65
-msgid "Save"
-msgstr "БЮеаРЭШвм"
+msgid "Open"
+msgstr "РћС‚РєСЂС‹С‚СЊ"
 
 #: edit.c:66
-msgid "Quit"
-msgstr "ІлеЮФ"
+msgid "Save"
+msgstr "РЎРѕС…СЂР°РЅРёС‚СЊ"
 
 #: edit.c:67
-msgid "Untitled"
-msgstr "±ХЧлЬпЭЭлЩ"
+msgid "Quit"
+msgstr "Р’С‹С…РѕРґ"
 
 #: edit.c:68
-msgid "Please enter the name of the file to edit:"
-msgstr "ІТХФШвХ ШЬп дРЩЫР ФЫп аХФРЪвШаЮТРЭШп:"
+msgid "Untitled"
+msgstr "Р‘РµР·С‹РјСЏРЅРЅС‹Р№"
 
 #: edit.c:69
+msgid "Please enter the name of the file to edit:"
+msgstr "Р’РІРµРґРёС‚Рµ РёРјСЏ С„Р°Р№Р»Р° РґР»СЏ СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ:"
+
+#: edit.c:70
 msgid "File has been modified.  Discard changes?"
-msgstr "ДРЩЫ ШЧЬХЭХЭ. ѕвЪЫЮЭШвм ШЧЬХЭХЭШп?"
+msgstr "Р¤Р°Р№Р» РёР·РјРµРЅРµРЅ. РћС‚РєР»РѕРЅРёС‚СЊ РёР·РјРµРЅРµРЅРёСЏ?"
 
-#: edit.c:153
+#: edit.c:154
 msgid "Error"
-msgstr "ѕиШСЪР"
+msgstr "РћС€РёР±РєР°"
 
-#: edit.c:365 edit.c:371
+#: edit.c:368 edit.c:374
 msgid " (modified)"
-msgstr "(ШЧЬХЭХЭ)"
+msgstr "(РёР·РјРµРЅРµРЅ)"
 
-#: edit.c:484
+#: edit.c:487
 msgid "Discard changes?"
-msgstr "ѕвЪЫЮЭШвм ШЧЬХЭХЭШп?"
+msgstr "РћС‚РєР»РѕРЅРёС‚СЊ РёР·РјРµРЅРµРЅРёСЏ?"
 
-#: edit.c:485
+#: edit.c:488
 msgid "Discard"
-msgstr "ѕвЪЫЮЭШвм"
+msgstr "РћС‚РєР»РѕРЅРёС‚СЊ"
 
-#: edit.c:485
+#: edit.c:488
 msgid "Cancel"
-msgstr "ѕвЬХЭР"
+msgstr "РћС‚РјРµРЅР°"
 
-#: edit.c:517
+#: edit.c:520
 msgid "Enter filename"
-msgstr "ІТХФШвХ ШЬп дРЩЫР"
+msgstr "Р’РІРµРґРёС‚Рµ РёРјСЏ С„Р°Р№Р»Р°"
 
-#: edit.c:738 edit.c:1619
+#: edit.c:741 edit.c:1625
 msgid "Couldn't create file in a read-only filesystem"
-msgstr "ЅХ ЬЮУг бЮЧФРвм дРЩЫ Т ДБ вЮЫмЪЮ ФЫп звХЭШп"
+msgstr "РќРµ РјРѕРіСѓ СЃРѕР·РґР°С‚СЊ С„Р°Р№Р» РІ Р¤РЎ С‚РѕР»СЊРєРѕ РґР»СЏ С‡С‚РµРЅРёСЏ"
 
-#: edit.c:740 edit.c:1621
+#: edit.c:743 edit.c:1627
 #, c-format
 msgid "Error %d loading file"
-msgstr "ѕиШСЪР %d ЧРУагЧЪШ  дРЩЫР"
+msgstr "РћС€РёР±РєР° %d Р·Р°РіСЂСѓР·РєРё  С„Р°Р№Р»Р°"
 
-#: edit.c:855
+#: edit.c:858
 msgid "Unable to launch file dialog"
-msgstr "ЅХТЮЧЬЮЦЭЮ ЧРЯгбвШвм дРЩЫЮТлЩ ФШРЫЮУ"
+msgstr "РќРµРІРѕР·РјРѕР¶РЅРѕ Р·Р°РїСѓСЃС‚РёС‚СЊ С„Р°Р№Р»РѕРІС‹Р№ РґРёР°Р»РѕРі"
 
-#: edit.c:870
+#: edit.c:873
 #, fuzzy
 msgid "Couldn't save file in a read-only filesystem"
-msgstr "ЅХ ЬЮУг бЮЧФРвм дРЩЫ Т ДБ вЮЫмЪЮ ФЫп звХЭШп"
+msgstr "РќРµ РјРѕРіСѓ СЃРѕР·РґР°С‚СЊ С„Р°Р№Р» РІ Р¤РЎ С‚РѕР»СЊРєРѕ РґР»СЏ С‡С‚РµРЅРёСЏ"
 
-#: edit.c:875
+#: edit.c:878
 #, c-format
 msgid "Error %d saving file"
-msgstr "ѕиШСЪР %d бЮеаРЭХЭШп дРЩЫР"
+msgstr "РћС€РёР±РєР° %d СЃРѕС…СЂР°РЅРµРЅРёСЏ С„Р°Р№Р»Р°"
 
-#: edit.c:1562
+#: edit.c:1568
 #, c-format
 msgid ""
 "\n"
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 "\n"
-"єЮЬРЭФР  \"%s\" аРСЮвРХв вЮЫмЪЮ Т УаРдШзХбЪЮЬ аХЦШЬХ\n"
+"РљРѕРјР°РЅРґР°  \"%s\" СЂР°Р±РѕС‚Р°РµС‚ С‚РѕР»СЊРєРѕ РІ РіСЂР°С„РёС‡РµСЃРєРѕРј СЂРµР¶РёРјРµ\n"
 
-#: edit.c:1578
+#: edit.c:1584
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""

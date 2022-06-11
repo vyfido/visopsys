@@ -8,13 +8,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: disprops.c:57
@@ -23,7 +23,7 @@ msgstr "Bildschirmeinstellungen"
 
 #: disprops.c:58
 msgid "Screen resolution:"
-msgstr "Bildschirmauflösung:"
+msgstr "BildschirmauflÃ¶sung:"
 
 #: disprops.c:59
 msgid "Colors:"
@@ -43,7 +43,7 @@ msgstr "Desktop"
 
 #: disprops.c:63
 msgid "Change"
-msgstr "Ändern"
+msgstr "Ã„ndern"
 
 #: disprops.c:64
 msgid "Background wallpaper:"
@@ -82,29 +82,29 @@ msgstr "Abbrechen"
 msgid " %d x %d, %d bit "
 msgstr " %d x %d, %d Bit "
 
-#: disprops.c:691
+#: disprops.c:698
 #, c-format
 msgid ""
 "The resolution has been changed to %dx%d, %dbpp\n"
 "This will take effect after you reboot."
 msgstr ""
-"Die Auflösung wurde geändert auf %dx%d, %dbpp\n"
-"Die Änderung wird nach dem Neustart wirksam."
+"Die AuflÃ¶sung wurde geÃ¤ndert auf %dx%d, %dbpp\n"
+"Die Ã„nderung wird nach dem Neustart wirksam."
 
-#: disprops.c:695
+#: disprops.c:702
 msgid "Changed"
-msgstr "Geändert"
+msgstr "GeÃ¤ndert"
 
-#: disprops.c:699
+#: disprops.c:706
 #, c-format
 msgid "Error %d setting mode"
 msgstr "Fehler %d beim einstellen des Modus"
 
-#: disprops.c:700
+#: disprops.c:707
 msgid "Error"
 msgstr "Fehler"
 
-#: disprops.c:980
+#: disprops.c:981
 #, c-format
 msgid ""
 "\n"

@@ -20,9 +20,9 @@ echo ""
 echo "Making Visopsys FLOPPY IMAGE file"
 
 while [ "$1" != "" ] ; do
-	# Are we doing a release version?  If the argument is "-r" then we use
-	# the release number in the destination directory name.  Otherwise, we
-	# assume an interim package and use the date instead
+	# Are we doing a release version?  If the argument is "-r" then we use the
+	# release number in the destination directory name.  Otherwise, we assume
+	# an interim package and use the date instead.
 	if [ "$1" = "-r" ] ; then
 		# What is the current release version?
 		RELEASE=`./release.sh`

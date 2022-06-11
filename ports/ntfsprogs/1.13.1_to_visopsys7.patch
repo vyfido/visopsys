@@ -1,0 +1,16 @@
+Index: ports/ntfsprogs/libntfs/visopsys_io.c
+===================================================================
+RCS file: /home/andymc/Prog/cvs/visopsys/ports/ntfsprogs/libntfs/visopsys_io.c,v
+retrieving revision 1.28
+diff -u -r1.28 visopsys_io.c
+--- ports/ntfsprogs/libntfs/visopsys_io.c	20 Jan 2020 01:16:16 -0000	1.28
++++ ports/ntfsprogs/libntfs/visopsys_io.c	16 Mar 2020 00:32:12 -0000
+@@ -128,7 +128,7 @@
+ 
+   // Make sure it's a logical disk (a partition, that is) rather than a
+   // physical one
+-  if ((fd->disk.type & DISKTYPE_LOGICALPHYSICAL) != DISKTYPE_LOGICAL)
++  if ((fd->disk.type & DISKTYPE_PHYSLOG_MASK) != DISKTYPE_LOGICAL)
+     {
+       ntfs_log_trace("Can't open physical disks\n");
+       status = ERR_NOTIMPLEMENTED;

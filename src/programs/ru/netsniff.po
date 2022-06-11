@@ -1,0 +1,128 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: netsniff.c:66
+msgid "Packet Sniffer"
+msgstr ""
+
+#: netsniff.c:144
+msgid "Error"
+msgstr ""
+
+#: netsniff.c:223
+msgid "Unsupported ethernet packet type"
+msgstr ""
+
+#: netsniff.c:271 netsniff.c:329 netsniff.c:547
+msgid "unknown"
+msgstr ""
+
+#: netsniff.c:374
+msgid "DHCP server"
+msgstr ""
+
+#: netsniff.c:377
+msgid "DHCP client"
+msgstr ""
+
+#: netsniff.c:395
+msgid "secure HTTP"
+msgstr ""
+
+#: netsniff.c:398
+msgid "secure FTP data"
+msgstr ""
+
+#: netsniff.c:401
+msgid "secure FTP"
+msgstr ""
+
+#: netsniff.c:404
+msgid "secure telnet"
+msgstr ""
+
+#: netsniff.c:407
+msgid "secure IMAP"
+msgstr ""
+
+#: netsniff.c:410
+msgid "secure POP3"
+msgstr ""
+
+#: netsniff.c:570
+msgid "request"
+msgstr ""
+
+#: netsniff.c:575
+msgid "reply"
+msgstr ""
+
+#: netsniff.c:629
+msgid "type"
+msgstr ""
+
+#: netsniff.c:898
+msgid "input"
+msgstr ""
+
+#: netsniff.c:899
+msgid "output"
+msgstr ""
+
+#: netsniff.c:899
+msgid "bytes"
+msgstr ""
+
+#: netsniff.c:934
+msgid "Input"
+msgstr ""
+
+#: netsniff.c:936
+msgid "Output"
+msgstr ""
+
+#: netsniff.c:1015
+#, c-format
+msgid "Unknown option '%c'"
+msgstr ""
+
+#: netsniff.c:1033
+msgid "Can't get the count of network devices"
+msgstr "Не могу получить кол-во сетевых устройств"
+
+#: netsniff.c:1041
+msgid "Couldn't allocate memory"
+msgstr ""
+
+#: netsniff.c:1065
+#, c-format
+msgid "Can't get info for device %s"
+msgstr "Не могу получить информацию о сетевом устройстве %s"
+
+#: netsniff.c:1114
+#, c-format
+msgid "Hooked %d devices, %d input streams, %d output streams\n"
+msgstr ""
+
+#: netsniff.c:1120
+msgid "Error setting signal handler"
+msgstr ""
+
+#~ msgid "Networking is not currently enabled"
+#~ msgstr "Сеть не запущена"

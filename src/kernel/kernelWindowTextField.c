@@ -26,8 +26,10 @@
 
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelMalloc.h"
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 
 static int (*saveFocus)(kernelWindowComponent *, int) = NULL;
 static int (*saveSetData)(kernelWindowComponent *, void *, int) = NULL;
@@ -61,10 +63,12 @@ static int getData(kernelWindowComponent *component, void *buffer, int size)
 	// Copy the text (up to size bytes) from our private buffer to the
 	// supplied buffer.
 	kernelWindowTextArea *textArea = component->data;
+	unsigned bytes = 0;
 
-	size = min(size, (MAXSTRINGLENGTH + 1));
+	size = min(size, MAXSTRINGLENGTH);
 
-	memcpy(buffer, textArea->fieldBuffer, size);
+	bytes = wcstombs(buffer, textArea->fieldBuffer, size);
+	((char *) buffer)[bytes] = '\0';
 
 	return (0);
 }
@@ -72,26 +76,40 @@ static int getData(kernelWindowComponent *component, void *buffer, int size)
 
 static int showScrolled(kernelWindowComponent *component)
 {
+	int status = 0;
 	kernelWindowTextArea *textArea = component->data;
 	kernelTextArea *area = textArea->area;
-	int bufferChars = strlen(textArea->fieldBuffer);
-	char *bufferPtr = NULL;
-
-	// Do we need to do any horizontal scrolling?
-	if (bufferChars >= (area->columns - 1))
-	{
-		bufferPtr = (textArea->fieldBuffer + (bufferChars -
-			area->columns) + 1);
-	}
-	else
-	{
-		bufferPtr = textArea->fieldBuffer;
-	}
+	int bufferChars = wcslen(textArea->fieldBuffer);
+	unsigned *bufferPtr = NULL;
+	char *multiByteData = NULL;
 
 	if (saveSetData)
-		return (saveSetData(component, bufferPtr, strlen(bufferPtr)));
-	else
-		return (0);
+	{
+		// Do we need to do any horizontal scrolling?
+		if (bufferChars >= (area->columns - 1))
+		{
+			bufferPtr = &textArea->fieldBuffer[(bufferChars -
+				area->columns) + 1];
+		}
+		else
+		{
+			bufferPtr = textArea->fieldBuffer;
+		}
+
+		multiByteData = kernelMalloc((MAXSTRINGLENGTH) + 1);
+		if (!multiByteData)
+			return (status = ERR_MEMORY);
+
+		status = wcstombs(multiByteData, bufferPtr, MAXSTRINGLENGTH);
+		if (status < 0)
+			return (status);
+
+		status = saveSetData(component, multiByteData, (status + 1));
+
+		kernelFree(multiByteData);
+	}
+
+	return (status);
 }
 
 
@@ -100,11 +118,12 @@ static int setData(kernelWindowComponent *component, void *buffer, int size)
 	// Copy the text (up to size bytes) from the supplied buffer to the
 	// text area.
 	kernelWindowTextArea *textArea = component->data;
+	unsigned bytes = 0;
 
-	size = min(size, MAXSTRINGLENGTH);
+	size = min(size, (MAXSTRINGLENGTH - 1));
 
-	memcpy(textArea->fieldBuffer, buffer, size);
-	textArea->fieldBuffer[size] = '\0';
+	bytes = mbstowcs(textArea->fieldBuffer, buffer, size);
+	textArea->fieldBuffer[bytes] = L'\0';
 
 	return (showScrolled(component));
 }
@@ -112,18 +131,20 @@ static int setData(kernelWindowComponent *component, void *buffer, int size)
 
 static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 {
+	int status = 0;
 	kernelWindowTextArea *textArea = component->data;
 	kernelTextArea *area = textArea->area;
-	int bufferChars = strlen(textArea->fieldBuffer);
+	int bufferChars = wcslen(textArea->fieldBuffer);
+	char string[MB_LEN_MAX + 1];
 
 	if (event->type == WINDOW_EVENT_KEY_DOWN)
 	{
 		if (event->key.scan == keyBackSpace)
 		{
 			if (bufferChars <= 0)
-				return (0);
+				return (status = 0);
 
-			textArea->fieldBuffer[--bufferChars] = NULL;
+			textArea->fieldBuffer[--bufferChars] = L'\0';
 			kernelTextStreamBackSpace(area->outputStream);
 
 			// Do we need to do any horizontal scrolling?
@@ -131,22 +152,25 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 				showScrolled(component);
 		}
 
-		else if (event->key.ascii >= ASCII_SPACE)
+		else if (event->key.unicode >= ASCII_SPACE)
 		{
-			if (bufferChars >= (MAXSTRINGLENGTH - 1))
-				return (0);
+			status = wctomb(string, event->key.unicode);
+			if ((status >= 1) && (bufferChars < MAXSTRINGLENGTH))
+			{
+				textArea->fieldBuffer[bufferChars++] = event->key.unicode;
+				textArea->fieldBuffer[bufferChars++] = L'\0';
 
-			textArea->fieldBuffer[bufferChars++] = event->key.ascii;
-			textArea->fieldBuffer[bufferChars++] = '\0';
-			kernelTextStreamPutc(area->outputStream, event->key.ascii);
+				string[status] = '\0';
+				kernelTextStreamPrint(area->outputStream, string);
 
-			// Do we need to do any horizontal scrolling?
-			if (bufferChars >= (area->columns - 1))
-				showScrolled(component);
+				// Do we need to do any horizontal scrolling?
+				if (bufferChars >= (area->columns - 1))
+					showScrolled(component);
+			}
 		}
 	}
 
-	return (0);
+	return (status = 0);
 }
 
 
@@ -200,11 +224,12 @@ kernelWindowComponent *kernelWindowNewTextField(objectKey parent, int columns,
 	area = textArea->area;
 
 	// Allocate our private buffer for the line contents
-	textArea->fieldBuffer = kernelMalloc(MAXSTRINGLENGTH + 1);
+	textArea->fieldBuffer = kernelMalloc((MAXSTRINGLENGTH + 1) * MB_LEN_MAX);
 	if (!textArea->fieldBuffer)
 	{
 		if (component->destroy)
 			component->destroy(component);
+
 		return (component = NULL);
 	}
 

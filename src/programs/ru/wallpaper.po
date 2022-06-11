@@ -8,13 +8,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: wallpaper.po\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-07-25 18:14+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.6.4\n"
 
@@ -25,20 +25,24 @@ msgid ""
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 "\n"
-"∫ﬁ‹–›‘–  \"%s\" ‡–—ﬁ‚–’‚ ‚ﬁ€Ï⁄ﬁ “ ”‡–‰ÿÁ’·⁄ﬁ‹ ‡’÷ÿ‹’\n"
+"–ö–æ–º–∞–Ω–¥–∞  \"%s\" —Ä–∞–±–æ—Ç–∞–µ—Ç —Ç–æ–ª—å–∫–æ –≤ –≥—Ä–∞—Ñ–∏—á–µ—Å–∫–æ–º —Ä–µ–∂–∏–º–µ\n"
 
 #: wallpaper.c:164
 msgid "Enter filename"
-msgstr "≤“’‘ÿ‚’ ÿ‹Ô ‰–Ÿ€–"
+msgstr "–í–≤–µ–¥–∏—Ç–µ –∏–º—è —Ñ–∞–π–ª–∞"
 
 #: wallpaper.c:165
 msgid "Please choose the background image:"
-msgstr "≤Î—’‡ÿ‚’ ‰ﬁ›ﬁ“ﬁ’ ÿ◊ﬁ—‡–÷’›ÿ’:"
+msgstr "–í—ã–±–µ—Ä–∏—Ç–µ —Ñ–æ–Ω–æ–≤–æ–µ –∏–∑–æ–±—Ä–∞–∂–µ–Ω–∏–µ:"
 
 #: wallpaper.c:172
 msgid "No filename specified\n"
-msgstr "Ω’‚ ·ﬁﬁ‚“’‚·‚“„ÓÈ’”ﬁ ‰–Ÿ€–\n"
+msgstr "–ù–µ—Ç —Å–æ–æ—Ç–≤–µ—Ç—Å—Ç–≤—É—é—â–µ–≥–æ —Ñ–∞–π–ª–∞\n"
 
 #: wallpaper.c:186
 msgid "File not found\n"
-msgstr "ƒ–Ÿ€ ›’ ›–Ÿ‘’›\n"
+msgstr "–§–∞–π–ª –Ω–µ –Ω–∞–π–¥–µ–Ω\n"
+
+#: wallpaper.c:194
+msgid "Couldn't change desktop configration\n"
+msgstr ""

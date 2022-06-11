@@ -45,7 +45,7 @@ char *readline(const char *prompt)
 {
 	char *returnString = NULL;
 	int inputCount = 0;
-	char oneChar;
+	unsigned oneChar;
 
 	if (visopsys_in_kernel)
 	{
@@ -74,7 +74,7 @@ char *readline(const char *prompt)
 			break;
 
 		// Put it into the array
-		returnString[inputCount++] = oneChar;
+		returnString[inputCount++] = (char) oneChar;
 	}
 
 	// Put a NULL at the end

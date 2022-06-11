@@ -956,9 +956,10 @@ static int makeConsoleWindow(void)
 	kernelWindowTextArea *textArea = NULL;
 	kernelTextArea *oldArea = NULL;
 	kernelTextArea *newArea = NULL;
-	unsigned char *lineAddress = NULL;
+	char *lineAddress = NULL;
 	char lineBuffer[1024];
 	int lineBufferCount = 0;
+	int bytes = 0;
 	int rowCount, columnCount;
 
 	consoleWindow = kernelWindowNew(KERNELPROCID, WINNAME_TEMPCONSOLE);
@@ -1007,15 +1008,25 @@ static int makeConsoleWindow(void)
 	for (rowCount = 0; ((rowCount < oldArea->rows) && (rowCount <
 		newArea->rows)); rowCount ++)
 	{
-		lineAddress =
-			(oldArea->visibleData + (rowCount * oldArea->columns));
+		lineAddress = (char *)(oldArea->visibleData + (rowCount *
+			(oldArea->columns * oldArea->bytesPerChar)));
 		lineBufferCount = 0;
 
 		for (columnCount = 0; (columnCount < oldArea->columns) &&
 			(columnCount < newArea->columns); columnCount ++)
 		{
-			lineBuffer[lineBufferCount++] = lineAddress[columnCount];
-			if (lineAddress[columnCount] == '\n')
+			bytes = mblen(lineAddress + (columnCount *
+				oldArea->bytesPerChar), min((oldArea->columns - columnCount),
+				(newArea->columns - columnCount)));
+			if (bytes > 0)
+			{
+				memcpy((lineBuffer + lineBufferCount), (lineAddress +
+					(columnCount * oldArea->bytesPerChar)), bytes);
+
+				lineBufferCount += bytes;
+			}
+
+			if (lineAddress[columnCount* oldArea->bytesPerChar] == '\n')
 				break;
 		}
 
@@ -2011,6 +2022,10 @@ static int readFileVariables(const char *fileName)
 	{
 		windowVariables->slider.width = atoi(value);
 	}
+	if ((value = variableListGet(&settings, WINVAR_WINDOW_SHELL)))
+	{
+		strncpy(windowVariables->shell, value, MAX_PATH_NAME_LENGTH);
+	}
 	if ((value = variableListGet(&settings, WINVAR_FONT_FIXW_SM_FAMILY)))
 	{
 		strncpy(windowVariables->font.fixWidth.small.family, value,
@@ -2167,6 +2182,10 @@ static int setupWindowVariables(void)
 		WINDOW_DEFAULT_VARFONT_MEDIUM_FLAGS;
 	windowVariables->font.varWidth.medium.points =
 		WINDOW_DEFAULT_VARFONT_MEDIUM_POINTS;
+
+	// The default window shell
+	strncpy(windowVariables->shell, WINDOW_DEFAULT_WINSHELL,
+		MAX_PATH_NAME_LENGTH);
 
 	// Now read the system window config file to let it overrides our defaults
 	readFileVariables(PATH_SYSTEM_CONFIG "/" WINDOW_CONFIG);
@@ -2453,8 +2472,9 @@ int kernelWindowLogin(const char *userName, const char *password)
 	if (!userName || !password)
 		return (status = ERR_NULLPARAMETER);
 
-	// Create the window shell thread
-	winShellPid = kernelWindowShell(userName);
+	// Load a window shell process
+	winShellPid = kernelLoaderLoadProgram(windowVariables->shell,
+		kernelUserGetPrivilege(userName));
 	if (winShellPid < 0)
 		return (status = winShellPid);
 
@@ -2473,6 +2493,14 @@ int kernelWindowLogin(const char *userName, const char *password)
 	// Make its input and output streams be the console
 	kernelMultitaskerSetTextInput(winShellPid, kernelTextGetConsoleInput());
 	kernelMultitaskerSetTextOutput(winShellPid, kernelTextGetConsoleOutput());
+
+	// Register the new window shell
+	status = kernelWindowShell(winShellPid);
+	if (status < 0)
+	{
+		kernelMultitaskerKillProcess(winShellPid);
+		return (status);
+	}
 
 	return (winShellPid);
 }
@@ -2557,7 +2585,7 @@ kernelWindow *kernelWindowNew(int processId, const char *title)
 	if (!window)
 		return (window);
 
-	kernelWindowShellUpdateList(&windowList);
+	kernelWindowShellUpdateList();
 
 	// Return the window
 	return (window);
@@ -2751,7 +2779,7 @@ int kernelWindowDestroy(kernelWindow *window)
 	// Free the window memory itself
 	kernelFree((void *) window);
 
-	kernelWindowShellUpdateList(&windowList);
+	kernelWindowShellUpdateList();
 
 	return (status = 0);
 }
@@ -3319,6 +3347,9 @@ int kernelWindowSetRoot(kernelWindow *window)
 	{
 		kernelCurrentProcess->session->local.rootWindow = window;
 	}
+
+	// Tell the window shell functions
+	kernelWindowShellSetRoot(window);
 
 	// Return success
 	return (status = 0);
@@ -4494,7 +4525,7 @@ int kernelWindowRefresh(void)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	kernelWindowShellRefresh();
+	kernelWindowShellRefresh(&windowList);
 
 	return (status = 0);
 }

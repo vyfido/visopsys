@@ -19,7 +19,7 @@
 //  install.c
 //
 
-// This is a program for installing the system on a target disk (filesystem).
+// This is a program for installing the system on a target disk (filesystem)
 
 /* This is the text that appears when a user requests help about this program
 <help>
@@ -80,11 +80,15 @@ typedef enum { install_basic, install_full } install_type;
 
 static int processId = 0;
 static char rootDisk[DISK_MAX_NAMELENGTH + 1];
-static int numberDisks = 0;
-static disk diskInfo[DISK_MAXDEVICES];
+static int numPhysicalDisks = 0;
+static disk physicalDiskInfo[DISK_MAXDEVICES];
+static int numLogicalDisks = 0;
+static disk logicalDiskInfo[DISK_MAXDEVICES];
 static char *diskName = NULL;
-static char *chooseVolumeString =
-	gettext_noop("Please choose the volume on which to install:");
+static char *chooseDiskString =
+	gettext_noop("Please choose the disk on which to install:");
+static char *choosePartitionString =
+	gettext_noop("Please choose the partition on which to install:");
 static char *setPasswordString =
 	gettext_noop("Please choose a password for the 'admin' account");
 static char *partitionString = gettext_noop("Partition disks...");
@@ -188,42 +192,129 @@ static void quit(int status, const char *message, ...)
 }
 
 
-static void makeDiskList(void)
+static int skipDisk(disk *theDisk)
 {
-	// Make a list of disks on which we can install
+	// Return 1 if it's a disk we wouldn't want to install to
+
+	// Skip RAM disks
+	if (theDisk->type & DISKTYPE_RAMDISK)
+		return (1);
+
+	// Skip CD-ROMS
+	if (theDisk->type & DISKTYPE_CDROM)
+		return (1);
+
+	// Skip any other read-only disks
+	if (theDisk->flags & DISKFLAG_READONLY)
+		return (1);
+
+	// Skip removable disks with no media
+	if ((theDisk->type & DISKTYPE_REMOVABLE) &&
+		!diskMediaPresent(theDisk->name))
+	{
+		return (1);
+	}
+
+	return (0);
+}
+
+
+static void makePhysicalDiskList(void)
+{
+	// Make a list of physical disks on which we can install
 
 	int status = 0;
-	int tmpNumberDisks = diskGetCount();
+	int tmpNumDisks = diskGetPhysicalCount();
 	disk *tmpDiskInfo = NULL;
 	int count;
 
-	numberDisks = 0;
-	memset(diskInfo, 0, (DISK_MAXDEVICES * sizeof(disk)));
+	numPhysicalDisks = 0;
+	memset(physicalDiskInfo, 0, (DISK_MAXDEVICES * sizeof(disk)));
 
-	tmpDiskInfo = malloc(DISK_MAXDEVICES * sizeof(disk));
+	if (!tmpNumDisks)
+		return;
+
+	tmpDiskInfo = malloc(tmpNumDisks * sizeof(disk));
 	if (!tmpDiskInfo)
+	{
+		status = errno;
 		quit(status, "%s", _("Memory allocation error."));
+	}
 
-	status = diskGetAll(tmpDiskInfo, (DISK_MAXDEVICES * sizeof(disk)));
+	status = diskGetAllPhysical(tmpDiskInfo, (tmpNumDisks * sizeof(disk)));
 	if (status < 0)
-		// Eek.  Problem getting disk info
+	{
+		free(tmpDiskInfo);
 		quit(status, "%s", _("Unable to get disk information."));
+	}
 
 	// Loop through the list we got.  Copy any valid disks (disks to which
-	// we might be able to install) into the main array
-	for (count = 0; count < tmpNumberDisks; count ++)
+	// we might be able to install) into the main array.
+	for (count = 0; count < tmpNumDisks; count ++)
 	{
+		if (skipDisk(&tmpDiskInfo[count]))
+			continue;
+
+		// Put this in the list
+		memcpy(&physicalDiskInfo[numPhysicalDisks++], &tmpDiskInfo[count],
+			sizeof(disk));
+	}
+
+	free(tmpDiskInfo);
+}
+
+
+static void makeLogicalDiskList(disk *physical)
+{
+	// Make a list of logical disks on which we can install
+
+	int status = 0;
+	int tmpNumDisks = diskGetCount();
+	disk *tmpDiskInfo = NULL;
+	int count;
+
+	numLogicalDisks = 0;
+	memset(logicalDiskInfo, 0, (DISK_MAXDEVICES * sizeof(disk)));
+
+	if (!tmpNumDisks)
+		return;
+
+	tmpDiskInfo = malloc(tmpNumDisks * sizeof(disk));
+	if (!tmpDiskInfo)
+	{
+		status = errno;
+		quit(status, "%s", _("Memory allocation error."));
+	}
+
+	status = diskGetAll(tmpDiskInfo, (tmpNumDisks * sizeof(disk)));
+	if (status < 0)
+	{
+		free(tmpDiskInfo);
+		quit(status, "%s", _("Unable to get disk information."));
+	}
+
+	// Loop through the list we got.  Copy any valid disks (disks to which
+	// we might be able to install) into the main array.
+	for (count = 0; count < tmpNumDisks; count ++)
+	{
+		// Does it belong to the physical disk (if any) the user chose?
+		if (physical && (tmpDiskInfo[count].deviceNumber !=
+			physical->deviceNumber))
+		{
+			continue;
+		}
+
+		if (skipDisk(&tmpDiskInfo[count]))
+			continue;
+
 		// Make sure it's not the root disk; that would be pointless and
 		// possibly dangerous
-		if (!strcmp(rootDisk, tmpDiskInfo[count].name))
+		if (!strcmp(tmpDiskInfo[count].name, rootDisk))
 			continue;
 
-		// Skip CD-ROMS
-		if (tmpDiskInfo[count].type & DISKTYPE_CDROM)
-			continue;
-
-		// Otherwise, we will put this in the list
-		memcpy(&diskInfo[numberDisks++], &tmpDiskInfo[count], sizeof(disk));
+		// Put this in the list
+		memcpy(&logicalDiskInfo[numLogicalDisks++], &tmpDiskInfo[count],
+			sizeof(disk));
 	}
 
 	free(tmpDiskInfo);
@@ -269,7 +360,7 @@ static void chooseLanguage(void)
 static void eventHandler(objectKey key, windowEvent *event)
 {
 
-	// Check for window events.
+	// Check for window events
 	if (key == window)
 	{
 		// Check for the window being closed
@@ -319,7 +410,7 @@ static void eventHandler(objectKey key, windowEvent *event)
 static void constructWindow(void)
 {
 	// If we are in graphics mode, make a window rather than operating on the
-	// command line.
+	// command line
 
 	objectKey container1 = NULL;
 	file langDir;
@@ -435,7 +526,6 @@ static int yesOrNo(char *question)
 	{
 		return (windowNewQueryDialog(window, _("Confirmation"), question));
 	}
-
 	else
 	{
 		printf(_("\n%s (y/n): "), question);
@@ -462,10 +552,146 @@ static int yesOrNo(char *question)
 }
 
 
-static int chooseDisk(void)
+static unsigned sectorsToMegabytes(disk *theDisk)
 {
-	// This is where the user chooses the disk on which to install
+	uquad_t sectsPerMb = 0;
+	uquad_t megabytes = 0;
 
+	if (!theDisk->numSectors || !theDisk->sectorSize)
+		return (0);
+
+	sectsPerMb = (uquad_t)(1048576 / theDisk->sectorSize);
+	megabytes = (theDisk->numSectors / sectsPerMb);
+
+	// Round up
+	if (theDisk->numSectors % sectsPerMb)
+		megabytes += 1;
+
+	return ((unsigned) megabytes);
+}
+
+
+static disk *choosePhysicalDisk(void)
+{
+	// This is where the user chooses the physical disk on which to install
+
+	disk *theDisk = NULL;
+	int status = 0;
+	int diskNumber = -1;
+	objectKey chooseWindow = NULL;
+	componentParameters params;
+	objectKey diskList = NULL;
+	objectKey okButton = NULL;
+	objectKey cancelButton = NULL;
+	listItemParameters diskListParams[DISK_MAXDEVICES];
+	char *diskStrings[DISK_MAXDEVICES];
+	windowEvent event;
+	int count;
+
+	memset(&params, 0, sizeof(componentParameters));
+	params.gridWidth = 2;
+	params.gridHeight = 1;
+	params.padTop = 5;
+	params.padLeft = 5;
+	params.padRight = 5;
+	params.orientationX = orient_center;
+	params.orientationY = orient_middle;
+
+	memset(diskListParams, 0, (numPhysicalDisks *
+		sizeof(listItemParameters)));
+	for (count = 0; count < numPhysicalDisks; count ++)
+	{
+		snprintf(diskListParams[count].text, WINDOW_MAX_LABEL_LENGTH,
+			_("Disk %d: [%s] %u MB, %u bytes/sec"), count,
+			physicalDiskInfo[count].name,
+			sectorsToMegabytes(&physicalDiskInfo[count]),
+			physicalDiskInfo[count].sectorSize);
+	}
+
+	if (graphics)
+	{
+		chooseWindow = windowNew(processId, _("Choose Installation Disk"));
+		windowNewTextLabel(chooseWindow, _(chooseDiskString), &params);
+
+		// Make a window list with all the disk choices
+		params.gridY += 1;
+		diskList = windowNewList(chooseWindow, windowlist_textonly, 5, 1, 0,
+			diskListParams, numPhysicalDisks, &params);
+		windowComponentFocus(diskList);
+
+		// Make 'OK' and 'cancel' buttons
+
+		params.gridY += 1;
+		params.gridWidth = 1;
+		params.padBottom = 5;
+		params.padRight = 0;
+		params.orientationX = orient_right;
+		okButton = windowNewButton(chooseWindow, _("OK"), NULL, &params);
+
+		params.gridX += 1;
+		params.padRight = 5;
+		params.orientationX = orient_left;
+		cancelButton = windowNewButton(chooseWindow, _("Cancel"), NULL,
+			&params);
+
+		// Make the window visible
+		windowRemoveMinimizeButton(chooseWindow);
+		windowRemoveCloseButton(chooseWindow);
+		windowSetResizable(chooseWindow, 0);
+		windowSetVisible(chooseWindow, 1);
+
+		while (1)
+		{
+			// Check for our OK button
+			status = windowComponentEventGet(okButton, &event);
+			if ((status < 0) || ((status > 0) &&
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
+			{
+				windowComponentGetSelected(diskList, &diskNumber);
+
+				if (diskNumber >= 0)
+					theDisk = &physicalDiskInfo[diskNumber];
+
+				break;
+			}
+
+			// Check for our Cancel button
+			status = windowComponentEventGet(cancelButton, &event);
+			if ((status < 0) || ((status > 0) &&
+				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
+			{
+				break;
+			}
+
+			// Done
+			multitaskerYield();
+		}
+
+		windowDestroy(chooseWindow);
+		chooseWindow = NULL;
+	}
+	else
+	{
+		for (count = 0; count < numPhysicalDisks; count ++)
+			diskStrings[count] = diskListParams[count].text;
+
+		diskNumber = vshCursorMenu(_(chooseDiskString), diskStrings,
+			numPhysicalDisks, 10 /* max rows */, 0 /* selected */);
+
+		if (diskNumber >= 0)
+			theDisk = &physicalDiskInfo[diskNumber];
+	}
+
+	return (theDisk);
+}
+
+
+static disk *chooseLogicalDisk(disk *physical)
+{
+	// This is where the user chooses the logical disk on which to install
+
+	disk *theDisk = NULL;
+	char fdiskCommand[32];
 	int status = 0;
 	int diskNumber = -1;
 	objectKey chooseWindow = NULL;
@@ -479,12 +705,14 @@ static int chooseDisk(void)
 	windowEvent event;
 	int count;
 
+	// The command, if we need to run the Disk Manager
+	snprintf(fdiskCommand, sizeof(fdiskCommand), PATH_PROGRAMS "/fdisk %s",
+		physical->name);
+
 	// We jump back to this position if the user repartitions the disks
 start:
 
 	memset(&params, 0, sizeof(componentParameters));
-	params.gridX = 0;
-	params.gridY = 0;
 	params.gridWidth = 3;
 	params.gridHeight = 1;
 	params.padTop = 5;
@@ -493,39 +721,43 @@ start:
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
 
-	memset(diskListParams, 0, (numberDisks * sizeof(listItemParameters)));
-	for (count = 0; count < numberDisks; count ++)
+	memset(diskListParams, 0, (numLogicalDisks * sizeof(listItemParameters)));
+	for (count = 0; count < numLogicalDisks; count ++)
 	{
 		snprintf(diskListParams[count].text, WINDOW_MAX_LABEL_LENGTH,
-			"%s  [ %s ]", diskInfo[count].name, diskInfo[count].partType);
+			"%s  [ %s ]", logicalDiskInfo[count].name,
+			logicalDiskInfo[count].partType);
 	}
 
 	if (graphics)
 	{
-		chooseWindow = windowNew(processId, _("Choose Installation Disk"));
-		windowNewTextLabel(chooseWindow, _(chooseVolumeString), &params);
+		chooseWindow = windowNew(processId,
+			_("Choose Installation Partition"));
+		windowNewTextLabel(chooseWindow, _(choosePartitionString), &params);
 
 		// Make a window list with all the disk choices
-		params.gridY = 1;
+		params.gridY += 1;
 		diskList = windowNewList(chooseWindow, windowlist_textonly, 5, 1, 0,
-			diskListParams, numberDisks, &params);
+			diskListParams, numLogicalDisks, &params);
 		windowComponentFocus(diskList);
 
 		// Make 'OK', 'partition', and 'cancel' buttons
-		params.gridY = 2;
+
+		params.gridY += 1;
 		params.gridWidth = 1;
 		params.padBottom = 5;
 		params.padRight = 0;
 		params.orientationX = orient_right;
 		okButton = windowNewButton(chooseWindow, _("OK"), NULL, &params);
+		windowComponentSetEnabled(okButton, numLogicalDisks);
 
-		params.gridX = 1;
+		params.gridX += 1;
 		params.padRight = 5;
 		params.orientationX = orient_center;
 		partButton = windowNewButton(chooseWindow, _(partitionString), NULL,
 			&params);
 
-		params.gridX = 2;
+		params.gridX += 1;
 		params.padLeft = 0;
 		params.orientationX = orient_left;
 		cancelButton = windowNewButton(chooseWindow, _("Cancel"), NULL,
@@ -545,6 +777,10 @@ start:
 				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 			{
 				windowComponentGetSelected(diskList, &diskNumber);
+
+				if (diskNumber >= 0)
+					theDisk = &logicalDiskInfo[diskNumber];
+
 				break;
 			}
 
@@ -554,17 +790,18 @@ start:
 				(event.type == WINDOW_EVENT_MOUSE_LEFTUP)))
 			{
 				// The user wants to repartition the disks.  Get rid of this
-				// window, run the disk manager, and start again
+				// window, run the Disk Manager, and start again.
 				windowDestroy(chooseWindow);
 				chooseWindow = NULL;
 
-				// Privilege zero, no args, block
-				loaderLoadAndExec(PATH_PROGRAMS "/fdisk", 0, 1);
+				// Run the Disk Manager
+				loaderLoadAndExec(fdiskCommand, 0 /* privilege */,
+					1 /* block */);
 
-				// Remake our disk list
-				makeDiskList();
+				// Remake our logical disk list
+				makeLogicalDiskList(physical);
 
-				// Start again.
+				// Start again
 				goto start;
 			}
 
@@ -585,39 +822,47 @@ start:
 	}
 	else
 	{
-		for (count = 0; count < numberDisks; count ++)
+		for (count = 0; count < numLogicalDisks; count ++)
 			diskStrings[count] = diskListParams[count].text;
 
-		diskStrings[numberDisks] = _(partitionString);
+		diskStrings[numLogicalDisks] = _(partitionString);
 
-		diskNumber = vshCursorMenu(_(chooseVolumeString), diskStrings,
-			(numberDisks + 1), 10 /* max rows */, 0 /* selected */);
+		diskNumber = vshCursorMenu(_(choosePartitionString), diskStrings,
+			(numLogicalDisks + 1), 10 /* max rows */, 0 /* selected */);
 
-		if (diskNumber == numberDisks)
+		if (diskNumber >= 0)
 		{
-			// The user wants to repartition the disks.  Run the disk
-			// manager, and start again
+			if (diskNumber == numLogicalDisks)
+			{
+				// The user wants to repartition the disks.  Run the Disk
+				// Manager, and start again.
 
-			// Privilege zero, no args, block
-			loaderLoadAndExec(PATH_PROGRAMS "/fdisk", 0, 1);
+				// Run the Disk Manager
+				loaderLoadAndExec(fdiskCommand, 0 /* privilege */,
+					1 /* block */);
 
-			// Remake our disk list
-			makeDiskList();
+				// Remake our logical disk list
+				makeLogicalDiskList(physical);
 
-			// Start again.
-			printBanner();
-			goto start;
+				// Start again
+				printBanner();
+				goto start;
+			}
+			else
+			{
+				theDisk = &logicalDiskInfo[diskNumber];
+			}
 		}
 	}
 
-	return (diskNumber);
+	return (theDisk);
 }
 
 
 static unsigned getInstallSize(const char *installFileName)
 {
-	// Given the name of an install file, calculate the number of bytes
-	// of disk space the installation will require.
+	// Given the name of an install file, calculate the number of bytes of
+	// disk space the installation will require
 
 	#define BUFFSIZE 160
 
@@ -635,14 +880,18 @@ static unsigned getInstallSize(const char *installFileName)
 	// See if the install file exists
 	status = fileFind(installFileName, NULL);
 	if (status < 0)
+	{
 		// Doesn't exist
 		return (bytes = 0);
+	}
 
 	// Open the install file
 	status = fileStreamOpen(installFileName, OPENMODE_READ, &installFile);
 	if (status < 0)
-		// Can't open the install file.
+	{
+		// Can't open the install file
 		return (bytes = 0);
+	}
 
 	// Read it line by line
 	while (1)
@@ -661,7 +910,7 @@ static unsigned getInstallSize(const char *installFileName)
 		else
 		{
 			// Use the line of data as the name of a file.  We try to find the
-			// file and add its size to the number of bytes
+			// file and add its size to the number of bytes.
 			status = fileFind(strtok(buffer, "="), &theFile);
 			if (status < 0)
 			{
@@ -714,7 +963,7 @@ static int askFsType(void)
 
 static void updateStatus(const char *message)
 {
-	// Updates progress messages.
+	// Updates progress messages
 
 	int statusLength = 0;
 
@@ -782,8 +1031,8 @@ static int mountedCheck(disk *theDisk)
 
 static int copyBootSector(disk *theDisk)
 {
-	// Overlay the boot sector from the root disk onto the boot sector of
-	// the target disk
+	// Overlay the boot sector from the root disk onto the boot sector of the
+	// target disk
 
 	int status = 0;
 	char bootSectFilename[MAX_PATH_NAME_LENGTH + 1];
@@ -889,8 +1138,8 @@ static int copyFiles(const char *installFileName)
 			continue;
 		}
 
-		// Get the source filename, and the destination filename if it
-		// follows (separated by an '=')
+		// Get the source filename, and the destination filename if it follows
+		// (separated by an '=')
 
 		srcFile = strtok(buffer, "=");
 		destFile = strtok(NULL, "=");
@@ -901,8 +1150,8 @@ static int copyFiles(const char *installFileName)
 		status = fileFind(srcFile, &theFile);
 		if (status < 0)
 		{
-			// Later we should do something here to make a message listing
-			// the names of any missing files
+			// Later we should do something here to make a message listing the
+			// names of any missing files
 			error(_("Missing file \"%s\""), buffer);
 			continue;
 		}
@@ -918,7 +1167,7 @@ static int copyFiles(const char *installFileName)
 		}
 		else
 		{
-			// It's a file.  Copy it to the destination.
+			// It's a file, copy it to the destination
 			status = fileCopy(srcFile, tmpFileName);
 		}
 
@@ -1042,7 +1291,7 @@ static void setAdminPassword(void)
 		windowCenterDialog(window, dialogWindow);
 		windowSetVisible(dialogWindow, 1);
 
-		graphicsRestart:
+	graphicsRestart:
 		while (1)
 		{
 			// Check for window close events
@@ -1110,7 +1359,7 @@ static void setAdminPassword(void)
 	}
 	else
 	{
-		textRestart:
+	textRestart:
 		printf("\n%s\n", _(setPasswordString));
 
 		// Turn keyboard echo off
@@ -1142,7 +1391,7 @@ static void setAdminPassword(void)
 		printf("\n");
 
 	// We have a password.  Copy the blank password file for the new system
-	// password file
+	// password file.
 	status = fileCopy(MOUNTPOINT USER_PASSWORDFILE_BLANK,
 		MOUNTPOINT USER_PASSWORDFILE);
 	if (status < 0)
@@ -1165,7 +1414,8 @@ int main(int argc, char *argv[])
 {
 	int status = 0;
 	char opt;
-	int diskNumber = -1;
+	disk *physicalDisk = NULL;
+	disk *logicalDisk = NULL;
 	char tmpChar[80];
 	unsigned diskSize = 0;
 	unsigned basicInstallSize = 0xFFFFFFFF;
@@ -1216,10 +1466,12 @@ int main(int argc, char *argv[])
 	// Get the root disk
 	status = diskGetBoot(rootDisk);
 	if (status < 0)
+	{
 		// Couldn't get the root disk name
 		quit(status, "%s", _("Can't determine the root disk."));
+	}
 
-	makeDiskList();
+	makePhysicalDiskList();
 
 	if (!graphics)
 	{
@@ -1227,35 +1479,46 @@ int main(int argc, char *argv[])
 		printBanner();
 	}
 
-	// The user can specify the disk name as an argument.  Try to see
-	// whether they did so.
+	// The user can specify the logical disk name as an argument
 	if (argc > 1)
 	{
-		for (count = 0; count < numberDisks; count ++)
+		makeLogicalDiskList(NULL /* no particular physical disk */);
+
+		for (count = 0; count < numLogicalDisks; count ++)
 		{
-			if (!strcmp(diskInfo[count].name, argv[argc - 1]))
+			if (!strcmp(logicalDiskInfo[count].name, argv[argc - 1]))
 			{
-				diskNumber = count;
+				logicalDisk = &logicalDiskInfo[count];
 				break;
 			}
 		}
 	}
 
-	if (diskNumber < 0)
-		// The user has not specified a disk number.  We need to display the
-		// list of available disks and prompt them.
-		diskNumber = chooseDisk();
+	if (!logicalDisk)
+	{
+		// The user has not specified a disk.  We need to display the list of
+		// physical disks and prompt them.  Then, we need to display the list
+		// of logical disks (partitions) on that physical disk and prompt them
+		// again.
 
-	if (diskNumber < 0)
-		quit(diskNumber, NULL);
+		physicalDisk = choosePhysicalDisk();
+		if (!physicalDisk)
+			quit(ERR_CANCELLED, NULL);
 
-	diskName = diskInfo[diskNumber].name;
+		makeLogicalDiskList(physicalDisk);
+
+		logicalDisk = chooseLogicalDisk(physicalDisk);
+		if (!logicalDisk)
+			quit(ERR_CANCELLED, NULL);
+	}
+
+	diskName = logicalDisk->name;
 
 	if (graphics)
 		constructWindow();
 
 	// Make sure the disk isn't mounted
-	status = mountedCheck(&diskInfo[diskNumber]);
+	status = mountedCheck(logicalDisk);
 	if (status < 0)
 		quit(0, "%s", _(cancelString));
 
@@ -1265,15 +1528,14 @@ int main(int argc, char *argv[])
 	fullInstallSize = getInstallSize(FULLINSTALL);
 
 	// How much space is available on the raw disk?
-	diskSize = (diskInfo[diskNumber].numSectors *
-		diskInfo[diskNumber].sectorSize);
+	diskSize = (logicalDisk->numSectors * logicalDisk->sectorSize);
 
 	// Make sure there's at least room for a basic install
 	if (diskSize < basicInstallSize)
 	{
 		quit((status = ERR_NOFREE), _("Disk %s is too small (%dK) to install "
-			"Visopsys\n(%dK required)"), diskInfo[diskNumber].name,
-			(diskSize / 1024), (basicInstallSize / 1024));
+			"Visopsys\n(%dK required)"), diskName, (diskSize / 1024),
+			(basicInstallSize / 1024));
 	}
 
 	// Show basic/full install choices based on whether there's enough space
@@ -1343,7 +1605,7 @@ int main(int argc, char *argv[])
 	if (!yesOrNo(tmpChar))
 		quit(0, "%s", _(cancelString));
 
-	// Default filesystem formatting type is optimal/default FAT.
+	// Default filesystem formatting type is optimal/default FAT
 	strcpy(formatFsType, "fat");
 
 	// In text mode, ask whether to format
@@ -1385,8 +1647,8 @@ int main(int argc, char *argv[])
 		if (status < 0)
 			quit(status, "%s", _("Errors during format."));
 
-		// Rescan the disk info so we get the new filesystem type, etc.
-		status = diskGet(diskName, &diskInfo[diskNumber]);
+		// Rescan the disk info so we get the new filesystem type, etc
+		status = diskGet(diskName, logicalDisk);
 		if (status < 0)
 			quit(status, "%s", _("Error rescanning disk after format."));
 
@@ -1395,7 +1657,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Copy the boot sector to the destination disk
-	status = copyBootSector(&diskInfo[diskNumber]);
+	status = copyBootSector(logicalDisk);
 	if (status < 0)
 		quit(status, "%s", _("Couldn't copy the boot sector."));
 
@@ -1406,35 +1668,38 @@ int main(int argc, char *argv[])
 		quit(status, "%s", _("Unable to mount the target disk."));
 	updateStatus(_("Done\n"));
 
-	// Rescan the disk info so we get the available free space, etc.
-	status = diskGet(diskName, &diskInfo[diskNumber]);
+	// Rescan the disk info so we get the available free space, etc
+	status = diskGet(diskName, logicalDisk);
 	if (status < 0)
 		quit(status, "%s", _("Error rescanning disk after mount."));
 
 	// Try to make sure the filesystem contains enough free space
-	if (diskInfo[diskNumber].freeBytes < bytesToCopy)
+	if (logicalDisk->freeBytes < bytesToCopy)
 	{
 		if (doFormat)
 		{
-			// We formatted, so we're pretty sure we won't succeed here.
+			// We formatted, so we're pretty sure we won't succeed here
 			if (filesystemUnmount(MOUNTPOINT) < 0)
 				error("%s", _("Unable to unmount the target disk."));
+
 			quit((status = ERR_NOFREE),
 				_("The filesystem on disk %s is too small "
 				"(%lluK) for\nthe selected Visopsys installation (%uK "
-				"required)."), diskName,
-				(diskInfo[diskNumber].freeBytes / 1024), (bytesToCopy / 1024));
+				"required)."), diskName, (logicalDisk->freeBytes / 1024),
+				(bytesToCopy / 1024));
 		}
 		else
 		{
-			sprintf(tmpChar, _("There MAY not be enough free space on disk %s "
-				"(%lluK) for the\nselected Visopsys installation (%uK "
-				"required).  Continue?"), diskName,
-				(diskInfo[diskNumber].freeBytes / 1024), (bytesToCopy / 1024));
+			sprintf(tmpChar, _("There MAY not be enough free space on disk "
+				"%s (%lluK) for the\nselected Visopsys installation (%uK "
+				"required).  Continue?"), diskName, (logicalDisk->freeBytes /
+				1024), (bytesToCopy / 1024));
+
 			if (!yesOrNo(tmpChar))
 			{
 				if (filesystemUnmount(MOUNTPOINT) < 0)
 					error("%s", _("Unable to unmount the target disk."));
+
 				quit(0, "%s", _(cancelString));
 			}
 		}
@@ -1499,7 +1764,6 @@ int main(int argc, char *argv[])
 	pause();
 	quit(status, NULL);
 
-	// Make the compiler happy
 	return (status);
 }
 

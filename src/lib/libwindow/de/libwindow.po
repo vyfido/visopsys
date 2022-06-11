@@ -9,23 +9,23 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: windowArchiveList.c:55 windowFileList.c:200 windowProgressDialog.c:127
+#: windowArchiveList.c:55 windowFileList.c:205 windowProgressDialog.c:127
 msgid "Error"
 msgstr "Fehler"
 
-#: windowArchiveList.c:78 windowFileList.c:503
+#: windowArchiveList.c:78 windowFileList.c:508
 msgid "Memory allocation error creating icon parameters"
 msgstr ""
-"Fehler bei der Speicherzuweisung während der Erstellung der Icon-Parameter"
+"Fehler bei der Speicherzuweisung wÃ¤hrend der Erstellung der Icon-Parameter"
 
 #: windowColorDialog.c:32
 msgid "Color Chooser"
@@ -37,7 +37,7 @@ msgstr "Rot"
 
 #: windowColorDialog.c:185
 msgid "Green"
-msgstr "Grün"
+msgstr "GrÃ¼n"
 
 #: windowColorDialog.c:217
 msgid "Blue"
@@ -55,38 +55,38 @@ msgstr "OK"
 msgid "Cancel"
 msgstr "Abbrechen"
 
-#: windowFileList.c:219
+#: windowFileList.c:224
 #, c-format
 msgid "Can't locate configuration file %s"
-msgstr "Konfigurationsdatei %s konnte nicht gefunden werden %s"
+msgstr "Konfigurationsdatei %s konnte nicht gefunden werden"
 
-#: windowFileList.c:344 windowFileList.c:377
+#: windowFileList.c:349 windowFileList.c:382
 msgid "(up)"
-msgstr "(zurück)"
+msgstr "(zurÃ¼ck)"
 
-#: windowFileList.c:434
+#: windowFileList.c:439
 #, c-format
 msgid "Can't get directory \"%s\" file count"
 msgstr "Das Verzeichnis \"%s\" wurde nicht gefunden Datei"
 
-#: windowFileList.c:445
+#: windowFileList.c:450
 msgid "Memory allocation error"
 msgstr "Fehler bei der Speicherzuweisung"
 
-#: windowFileList.c:458
+#: windowFileList.c:463
 #, c-format
 msgid "Error reading files in \"%s\""
 msgstr "Fehler beim auslesen der Dateien in \"%s\""
 
-#: windowFileList.c:837
+#: windowFileList.c:842
 #, c-format
 msgid "Can't change to directory %s"
 msgstr "Es konnte nicht auf das Verzeichnis %s gewechselt werden"
 
-#: windowFileList.c:865
+#: windowFileList.c:870
 #, c-format
 msgid "Error deleting file %s"
-msgstr "Fehler beim löschen der Datei %s"
+msgstr "Fehler beim lÃ¶schen der Datei %s"
 
 #: windowLanguageDialog.c:36
 msgid "Language Chooser"
@@ -94,4 +94,4 @@ msgstr ""
 
 #: windowProgressDialog.c:116
 msgid "Confirmation"
-msgstr "Bestätigung"
+msgstr "BestÃ¤tigung"

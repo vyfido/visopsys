@@ -1,0 +1,12 @@
+
+ -- sha1sum --
+
+Calculate and print one or more SHA1 digests.  SHA1 is a one-way hashing
+algorithm which can be used to calculate checksums or hash passwords.
+
+Usage:
+  sha1sum <file1> [file2] [...]
+
+This command will print one line of SHA1 digest for each file parameter
+supplied.
+

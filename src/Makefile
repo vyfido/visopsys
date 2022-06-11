@@ -8,7 +8,7 @@
 # This is the top-level source directories Makefile.
 
 all:
-	${MAKE} -C osloader
+	${MAKE} -C osloader DEBUG=${DEBUG}
 	${MAKE} -C include
 	${MAKE} -C lib DEBUG=${DEBUG}
 	${MAKE} -C kernel DEBUG=${DEBUG}

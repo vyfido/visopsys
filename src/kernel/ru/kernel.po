@@ -8,127 +8,126 @@ msgid ""
 msgstr ""
 "Project-Id-Version: kernel.po\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-07-25 16:43+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.6.4\n"
 
 #: kernelFilesystemFat.c:3068
 #, c-format
 msgid "Defragmenting %llu/%llu: %s"
-msgstr "ґХдаРУЬХЭвРжШп %llu/%llu: %s"
+msgstr "Р”РµС„СЂР°РіРјРµРЅС‚Р°С†РёСЏ %llu/%llu: %s"
 
 #: kernelFilesystemFat.c:4289 kernelFilesystemFat.c:4563
 msgid "Reading filesystem info"
-msgstr "ЗвХЭШХ ШЭдЮаЬРжШШ Ю дРЩЫЮТЮЩ бШбвХЬХ"
+msgstr "Р§С‚РµРЅРёРµ РёРЅС„РѕСЂРјР°С†РёРё Рѕ С„Р°Р№Р»РѕРІРѕР№ СЃРёСЃС‚РµРјРµ"
 
 #: kernelFilesystemFat.c:4328
 msgid "Analyzing"
-msgstr "°ЭРЫШЧ"
+msgstr "РђРЅР°Р»РёР·"
 
 #: kernelFilesystemFat.c:4342
 #, c-format
 msgid "%llu files need defragmentation"
-msgstr "ДаРУЬХЭвШаЮТРЭЮ %llu дРЩЫЮТ"
+msgstr "Р¤СЂР°РіРјРµРЅС‚РёСЂРѕРІР°РЅРѕ %llu С„Р°Р№Р»РѕРІ"
 
 #: kernelFilesystemFat.c:4452
 msgid "Checking constraints"
-msgstr "їаЮТХаЪР ЮУаРЭШзХЭШЩ"
+msgstr "РџСЂРѕРІРµСЂРєР° РѕРіСЂР°РЅРёС‡РµРЅРёР№"
 
 #: kernelFilesystemFat.c:4544
 msgid "Error getting resizing constraints"
-msgstr "ѕиШСЪР ЯаШ ЮЯаХФХЫХЭШШ ЮУаРЭШзХЭШЩ аРЧЬХаР дРЩЫЮТЮЩ бШбвХЬл"
+msgstr "РћС€РёР±РєР° РїСЂРё РѕРїСЂРµРґРµР»РµРЅРёРё РѕРіСЂР°РЅРёС‡РµРЅРёР№ СЂР°Р·РјРµСЂР° С„Р°Р№Р»РѕРІРѕР№ СЃРёСЃС‚РµРјС‹"
 
 #: kernelFilesystemFat.c:4551
 #, c-format
 msgid "Filesystem cannot resize to %llu blocks (minimum is %llu)"
 msgstr ""
-"АРЧЬХа дРЩЫЮТЮЩ бШбвХЬл ЭХ ЬЮЦХв Слвм ШЧЬХЭХЭ ФЮ %llu СЫЮЪЮТ (ЬШЭШЬгЬ - %llu)"
+"Р Р°Р·РјРµСЂ С„Р°Р№Р»РѕРІРѕР№ СЃРёСЃС‚РµРјС‹ РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РёР·РјРµРЅРµРЅ РґРѕ %llu Р±Р»РѕРєРѕРІ (РјРёРЅРёРјСѓРј - %llu)"
 
 #: kernelFilesystemFat.c:4554
 #, c-format
 msgid "Filesystem cannot resize to %llu blocks (maximum is %llu)"
 msgstr ""
-"АРЧЬХа дРЩЫЮТЮЩ бШбвХЬл ЭХ ЬЮЦХв Слвм ШЧЬХЭХЭ ФЮ %llu СЫЮЪЮТ (ЬРЪбШЬгЬ - "
+"Р Р°Р·РјРµСЂ С„Р°Р№Р»РѕРІРѕР№ СЃРёСЃС‚РµРјС‹ РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РёР·РјРµРЅРµРЅ РґРѕ %llu Р±Р»РѕРєРѕРІ (РјР°РєСЃРёРјСѓРј - "
 "%llu)"
 
 #: kernelFilesystemFat.c:4571 kernelFilesystemFat.c:4627
 msgid "Error reading filesystem info"
-msgstr "ѕиШСЪР ЯаШ звХЭШШ ШЭдЮаЬРжШШ Ю дРЩЫЮТЮЩ бШбвХЬХ"
+msgstr "РћС€РёР±РєР° РїСЂРё С‡С‚РµРЅРёРё РёРЅС„РѕСЂРјР°С†РёРё Рѕ С„Р°Р№Р»РѕРІРѕР№ СЃРёСЃС‚РµРјРµ"
 
 #: kernelFilesystemFat.c:4579 kernelFilesystemFat.c:4636
 msgid "Unable to create the free cluster bitmap"
 msgstr ""
 
 #: kernelFilesystemFat.c:4611
-#, fuzzy
 msgid "Defragmenting"
-msgstr "ґХдаРУЬХЭвРжШп"
+msgstr "Р”РµС„СЂР°РіРјРµРЅС‚Р°С†РёСЏ"
 
 #: kernelFilesystemFat.c:4619
 msgid "Error defragmenting filesystem"
-msgstr "ѕиШСЪР ЯаШ ФХдаРУЬХЭвРжШШ дРЩЫЮТЮЩ бШбвХЬл"
+msgstr "РћС€РёР±РєР° РїСЂРё РґРµС„СЂР°РіРјРµРЅС‚Р°С†РёРё С„Р°Р№Р»РѕРІРѕР№ СЃРёСЃС‚РµРјС‹"
 
 #: kernelFilesystemFat.c:4649
-#, fuzzy, c-format
+#, c-format
 msgid "Data exists outside the new size (%llu >= %llu)"
-msgstr "·Р ЯаХФХЫРЬШ ЭЮТЮУЮ аРЧЬХаР ЮбвРовбп ФРЭЭлХ (%llu >= %llu)"
+msgstr "Р—Р° РїСЂРµРґРµР»Р°РјРё РЅРѕРІРѕРіРѕ СЂР°Р·РјРµСЂР° РѕСЃС‚Р°СЋС‚СЃСЏ РґР°РЅРЅС‹Рµ (%llu >= %llu)"
 
 #: kernelFilesystemFat.c:4677
 msgid "Error moving data"
-msgstr "ѕиШСЪР ЯаШ ЯХаХЬХйХЭШШ ФРЭЭле"
+msgstr "РћС€РёР±РєР° РїСЂРё РїРµСЂРµРјРµС‰РµРЅРёРё РґР°РЅРЅС‹С…"
 
 #: kernelFilesystemFat.c:4688
 msgid "Clearing new FAT sectors"
-msgstr "ѕзШбвЪР ЭЮТле бХЪвЮаЮТ FAT"
+msgstr "РћС‡РёСЃС‚РєР° РЅРѕРІС‹С… СЃРµРєС‚РѕСЂРѕРІ FAT"
 
 #: kernelFilesystemFat.c:4695
 msgid "Error getting memory"
-msgstr "ѕиШСЪР ЯаШ ЯЮЫгзХЭШШ ЯРЬпвШ"
+msgstr "РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РїР°РјСЏС‚Рё"
 
 #: kernelFilesystemFat.c:4714
 msgid "Error clearing new FAT sectors"
-msgstr "ѕиШСЪР ЯаШ ЮзШбвЪХ ЭЮТле бХЪвЮаЮТ FAT"
+msgstr "РћС€РёР±РєР° РїСЂРё РѕС‡РёСЃС‚РєРµ РЅРѕРІС‹С… СЃРµРєС‚РѕСЂРѕРІ FAT"
 
 #: kernelFilesystemFat.c:4727
 msgid "Error synching FAT copies"
-msgstr "ѕиШСЪР ЯаШ бШЭеаЮЭШЧРжШШ ЪЮЯШЩ FAT"
+msgstr "РћС€РёР±РєР° РїСЂРё СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёРё РєРѕРїРёР№ FAT"
 
 #: kernelFilesystemFat.c:4737
 msgid "Updating filesystem info"
-msgstr "ѕСЭЮТЫХЭШХ ШЭдЮаЬРжШШ Ю дРЩЫЮТЮЩ бШбвХЬХ"
+msgstr "РћР±РЅРѕРІР»РµРЅРёРµ РёРЅС„РѕСЂРјР°С†РёРё Рѕ С„Р°Р№Р»РѕРІРѕР№ СЃРёСЃС‚РµРјРµ"
 
 #: kernelFilesystemFat.c:4752 kernelFilesystemFat.c:4761
 msgid "Error updating filesystem info"
-msgstr "ѕиШСЪР ЯаШ ЮСЭЮТЫХЭШШ ШЭдЮаЬРжШШ Ю дРЩЫЮТЮЩ бШбвХЬХ"
+msgstr "РћС€РёР±РєР° РїСЂРё РѕР±РЅРѕРІР»РµРЅРёРё РёРЅС„РѕСЂРјР°С†РёРё Рѕ С„Р°Р№Р»РѕРІРѕР№ СЃРёСЃС‚РµРјРµ"
 
 #: kernelShutdown.c:47
 msgid "Shutting down Visopsys, please wait..."
-msgstr "·РТХаиХЭШХ Visopsys, ЯЮФЮЦФШвХ..."
+msgstr "Р—Р°РІРµСЂС€РµРЅРёРµ Visopsys, РїРѕРґРѕР¶РґРёС‚Рµ..."
 
 #: kernelShutdown.c:48
 msgid "[ Wait for \"OK to power off\" message ]"
-msgstr "[ ѕЦШФРХЬ аРЧаХиХЭШп ЭР ТлЪЫозХЭШХ ]"
+msgstr "[ РћР¶РёРґР°РµРј СЂР°Р·СЂРµС€РµРЅРёСЏ РЅР° РІС‹РєР»СЋС‡РµРЅРёРµ ]"
 
 #: kernelShutdown.c:49
 msgid "Rebooting."
-msgstr "їХаХЧРУагЧЪР."
+msgstr "РџРµСЂРµР·Р°РіСЂСѓР·РєР°."
 
 # Verbatim phrase issued 95 windows at shutdown :)
 #: kernelShutdown.c:50
 msgid "OK to power off now."
-msgstr "ВХЯХам ЯШвРЭШХ ЪЮЬЯмовХаР ЬЮЦЭЮ ЮвЪЫозШвм"
+msgstr "РўРµРїРµСЂСЊ РїРёС‚Р°РЅРёРµ РєРѕРјРїСЊСЋС‚РµСЂР° РјРѕР¶РЅРѕ РѕС‚РєР»СЋС‡РёС‚СЊ"
 
 #: kernelShutdown.c:181
 msgid "Shutting down"
-msgstr "ІлЪЫозХЭШХ"
+msgstr "Р’С‹РєР»СЋС‡РµРЅРёРµ"
 
 #: kernelShutdown.c:338
 #, c-format
 msgid "SYSTEM HALTED: Panic at %s:%s(%d)"
-msgstr "БёБВµј° ѕБВ°ЅѕІ»µЅ°: їРЭШЪР Т %s:%s(%d)"
+msgstr "РЎРРЎРўР•РњРђ РћРЎРўРђРќРћР’Р›Р•РќРђ: РџР°РЅРёРєР° РІ %s:%s(%d)"

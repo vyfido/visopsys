@@ -116,7 +116,7 @@ static void chooseVideoMode(void)
 {
 	// This is the original C version of the algorithm used to automatically
 	// select a video mode in src/osloader/loaderVideo.s, in case we ever need
-	// to debug it.
+	// to debug it
 
 	unsigned screenArea = 0;
 	unsigned bestScreenArea = 0;
@@ -229,7 +229,7 @@ static int getVideoModes(void)
 
 static void getFileColors(const char *fileName)
 {
-	// Get the current color scheme from the requested config file.
+	// Get the current color scheme from the requested config file
 
 	variableList list;
 	const char *value = NULL;
@@ -265,11 +265,11 @@ static void getFileColors(const char *fileName)
 
 static void getColors(void)
 {
-	// Get the current color scheme from the window config(s).
+	// Get the current color scheme from the window config(s)
 
 	char fileName[MAX_PATH_NAME_LENGTH + 1];
 
-	// First read the values from the system config.
+	// First read the values from the system config
 	sprintf(fileName, PATH_SYSTEM_CONFIG "/" WINDOW_CONFIG);
 	getFileColors(fileName);
 
@@ -285,7 +285,7 @@ static void getColors(void)
 
 static void setColors(void)
 {
-	// Set the current color scheme.
+	// Set the current color scheme
 
 	char fileName[MAX_PATH_NAME_LENGTH + 1];
 	variableList list;
@@ -299,7 +299,7 @@ static void setColors(void)
 
 	if (!readOnly)
 	{
-		// Set the colors in the window configuration.
+		// Set the colors in the window configuration
 
 		if (!strcmp(currentUser, USER_ADMIN))
 		{
@@ -313,7 +313,7 @@ static void setColors(void)
 			sprintf(fileName, PATH_USERS_CONFIG, currentUser);
 			if (fileFind(fileName, NULL) < 0)
 			{
-				// No, try to create it.
+				// No, try to create it
 				if (fileMakeDir(fileName) < 0)
 					return;
 			}
@@ -509,7 +509,7 @@ static int readDesktopVariable(const char *variable, char *value, int len)
 
 static int writeDesktopVariable(const char *variable, char *value)
 {
-	// Get the variable from the desktop config.
+	// Get the variable from the desktop config
 
 	int status = 0;
 	char fileName[MAX_PATH_NAME_LENGTH + 1];
@@ -533,7 +533,7 @@ static int writeDesktopVariable(const char *variable, char *value)
 		status = fileFind(fileName, NULL);
 		if (status < 0)
 		{
-			// No, try to create it.
+			// No, try to create it
 			status = fileMakeDir(fileName);
 			if (status < 0)
 				return (status);
@@ -547,7 +547,8 @@ static int writeDesktopVariable(const char *variable, char *value)
 		if (status < 0)
 		{
 			// The file doesn't exist.  Try to create it.
-			status = fileOpen(fileName, (OPENMODE_WRITE | OPENMODE_CREATE), &f);
+			status = fileOpen(fileName, (OPENMODE_WRITE | OPENMODE_CREATE),
+				&f);
 			if (status < 0)
 				return (status);
 
@@ -574,21 +575,27 @@ static void eventHandler(objectKey key, windowEvent *event)
 	int selected = 0;
 	file f;
 
-	// Check for window events.
+	// Check for window events
 	if (key == window)
 	{
 		// Check for window refresh
 		if (event->type == WINDOW_EVENT_WINDOW_REFRESH)
+		{
 			refreshWindow();
+		}
 
 		// Check for window resize
 		else if (event->type == WINDOW_EVENT_WINDOW_RESIZE)
+		{
 			// Redraw the canvas
 			drawColor(selectedColor);
+		}
 
 		// Check for the window being closed
 		else if (event->type == WINDOW_EVENT_WINDOW_CLOSE)
+		{
 			windowGuiStop();
+		}
 	}
 
 	else if ((key == wallpaperCheckbox) && (event->type ==
@@ -722,15 +729,13 @@ static void eventHandler(objectKey key, windowEvent *event)
 	{
 		windowGuiStop();
 	}
-
-	return;
 }
 
 
 static void constructWindow(void)
 {
 	// If we are in graphics mode, make a window rather than operating on the
-	// command line.
+	// command line
 
 	componentParameters params;
 	objectKey container = NULL;
@@ -763,7 +768,7 @@ static void constructWindow(void)
 		&params);
 
 	// Make a list with all the available graphics modes
-	params.gridY++;
+	params.gridY += 1;
 	params.flags &= ~COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	modeList = windowNewList(container, windowlist_textonly, 5, 1, 0,
 		listItemParams, numberModes, &params);
@@ -782,13 +787,13 @@ static void constructWindow(void)
 		windowComponentSetEnabled(modeList, 0);
 
 	// A label for the colors
-	params.gridY++;
+	params.gridY += 1;
 	params.padTop = 10;
 	params.flags |= COMP_PARAMS_FLAG_FIXEDHEIGHT;
 	colorsLabel = windowNewTextLabel(container, COLORS, &params);
 
 	// Create the colors radio button
-	params.gridY++;
+	params.gridY += 1;
 	params.gridWidth = 1;
 	params.gridHeight = 2;
 	params.padTop = 5;
@@ -798,7 +803,7 @@ static void constructWindow(void)
 	windowRegisterEventHandler(colorsRadio, &eventHandler);
 
 	// The canvas to show the current color
-	params.gridX++;
+	params.gridX += 1;
 	params.gridHeight = 1;
 	params.flags &= ~(COMP_PARAMS_FLAG_FIXEDWIDTH |
 		COMP_PARAMS_FLAG_FIXEDHEIGHT);
@@ -806,12 +811,12 @@ static void constructWindow(void)
 	canvas = windowNewCanvas(container, 50, 50, &params);
 
 	// Create the change color button
-	params.gridY++;
+	params.gridY += 1;
 	params.flags &= ~COMP_PARAMS_FLAG_HASBORDER;
 	changeColorsButton = windowNewButton(container, CHANGE, NULL, &params);
 	windowRegisterEventHandler(changeColorsButton, &eventHandler);
 
-	// Adjust the canvas width so that it matches the width of the button.
+	// Adjust the canvas width so that it matches the width of the button
 	windowComponentSetWidth(canvas,
 		windowComponentGetWidth(changeColorsButton));
 
@@ -849,20 +854,20 @@ static void constructWindow(void)
 	if (currentMode.xRes)
 		wallpaperImageWidth = (int)((float) currentMode.xRes * scale);
 
-	params.gridY++;
+	params.gridY += 1;
 	params.flags |= COMP_PARAMS_FLAG_HASBORDER;
 	wallpaperImage = windowNewThumbImage(container, NULL, wallpaperImageWidth,
 		MAX_IMAGE_DIMENSION, 1 /* stretch */, &params);
 
 	// Create the background wallpaper button
-	params.gridY++;
+	params.gridY += 1;
 	params.flags &= ~COMP_PARAMS_FLAG_HASBORDER;
 	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	wallpaperButton = windowNewButton(container, CHOOSE, NULL, &params);
 	windowRegisterEventHandler(wallpaperButton, &eventHandler);
 
 	// Create the checkbox for whether to use background wallpaper
-	params.gridY++;
+	params.gridY += 1;
 	wallpaperCheckbox = windowNewCheckbox(container, USE_WALLPAPER, &params);
 	windowComponentSetSelected(wallpaperCheckbox, 1);
 	windowRegisterEventHandler(wallpaperCheckbox, &eventHandler);
@@ -891,17 +896,17 @@ static void constructWindow(void)
 	}
 
 	// A little divider
-	params.gridY++;
+	params.gridY += 1;
 	params.flags &= ~COMP_PARAMS_FLAG_FIXEDWIDTH;
 	windowNewDivider(container, divider_horizontal, &params);
 
 	// A label for the miscellaneous stuff
-	params.gridY++;
+	params.gridY += 1;
 	params.flags |= COMP_PARAMS_FLAG_FIXEDWIDTH;
 	miscLabel = windowNewTextLabel(container, MISCELLANEOUS, &params);
 
 	// Make a checkbox for whether to boot in graphics mode
-	params.gridY++;
+	params.gridY += 1;
 	bootGraphicsCheckbox = windowNewCheckbox(container, BOOT_GRAPHICS,
 		&params);
 	windowComponentSetSelected(bootGraphicsCheckbox, 1);
@@ -909,7 +914,7 @@ static void constructWindow(void)
 		windowComponentSetEnabled(bootGraphicsCheckbox, 0);
 
 	// Make a checkbox for whether to show the clock on the desktop
-	params.gridY++;
+	params.gridY += 1;
 	showClockCheckbox = windowNewCheckbox(container, SHOW_CLOCK, &params);
 
 	// Are we currently set to show one?
@@ -938,16 +943,14 @@ static void constructWindow(void)
 	// Create the OK button
 	params.gridY = 0;
 	params.gridWidth = 1;
-	params.padTop = 5;
-	params.padLeft = 5;
-	params.padRight = 5;
-	params.padBottom = 5;
+	params.padTop = params.padBottom = 5;
+	params.padLeft = params.padRight = 2;
 	params.orientationX = orient_right;
 	okButton = windowNewButton(container, OK, NULL, &params);
 	windowRegisterEventHandler(okButton, &eventHandler);
 
 	// Create the Cancel button
-	params.gridX++;
+	params.gridX += 1;
 	params.orientationX = orient_left;
 	cancelButton = windowNewButton(container, CANCEL, NULL, &params);
 	windowRegisterEventHandler(cancelButton, &eventHandler);
@@ -959,8 +962,6 @@ static void constructWindow(void)
 	windowSetVisible(window, 1);
 
 	drawColor(&foreground);
-
-	return;
 }
 
 

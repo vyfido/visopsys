@@ -53,6 +53,7 @@
 // Window events/masks.  This first batch are "tier 2" events, produced by
 // the system, windows, widgets, etc. to indicate that some more abstract
 // thing has happened.
+#define WINDOW_EVENT_SHELL					0x01000000
 #define WINDOW_EVENT_MASK_WINDOW			0x00F00000
 #define WINDOW_EVENT_WINDOW_REFRESH			0x00800000
 #define WINDOW_EVENT_WINDOW_RESIZE			0x00400000
@@ -97,6 +98,14 @@
 	(WINDOW_EVENT_MOUSE_SCROLLLEFT | WINDOW_EVENT_MOUSE_SCROLLRIGHT)
 #define WINDOW_EVENT_MOUSE_SCROLL \
 	(WINDOW_EVENT_MOUSE_SCROLLVERT | WINDOW_EVENT_MOUSE_SCROLLHORIZ)
+
+// Window shell events
+#define WINDOW_SHELL_EVENT_WINDOWLIST		0x0020
+#define WINDOW_SHELL_EVENT_REFRESH			0x0010
+#define WINDOW_SHELL_EVENT_CHANGEBACKGRND	0x0008
+#define WINDOW_SHELL_EVENT_RAISEWINMENU		0x0004
+#define WINDOW_SHELL_EVENT_NEWBARCOMP		0x0002
+#define WINDOW_SHELL_EVENT_DESTROYBARCOMP	0x0001
 
 // Flags for windows
 #define WINDOW_FLAG_ICONIFIED				0x0400
@@ -212,10 +221,20 @@ typedef struct {
 
 } componentParameters;
 
+// A structure for window shell events
+typedef struct {
+	unsigned type;
+	objectKey component;
+	int processId;
+
+} windowShellEvent;
+
 // A structure for containing various types of window events
 typedef struct {
 	unsigned type;
 	union {
+		windowShellEvent shell;
+
 		struct {
 			int x;
 			int y;
@@ -223,7 +242,7 @@ typedef struct {
 
 		struct {
 			keyScan scan;
-			unsigned ascii;
+			unsigned unicode;
 		} key;
 	};
 

@@ -33,9 +33,11 @@ _X_ int vshDumpFile(const char *fileName)
 	// Desc: Print the contents of the file, specified by 'fileName', to standard output.  'fileName' must be an absolute pathname, beginning with '/'.
 
 	int status = 0;
-	unsigned count;
 	file theFile;
 	char *fileBuffer = NULL;
+	unsigned bytes = 0;
+	unsigned char tmp = 0;
+	unsigned count1, count2;
 
 	// Make sure file name isn't NULL
 	if (!fileName)
@@ -58,8 +60,10 @@ _X_ int vshDumpFile(const char *fileName)
 	// care at this point, for example, whether it's a file or a directory.
 	// Read it into memory and print it on the screen.
 
-	// Allocate a buffer to store the file contents in
-	fileBuffer = malloc((theFile.blocks * theFile.blockSize) + 1);
+	bytes = theFile.blockSize;
+
+	// Allocate a buffer to store the file blocks in
+	fileBuffer = malloc(bytes + 1);
 	if (!fileBuffer)
 		return (errno = ERR_MEMORY);
 
@@ -70,30 +74,44 @@ _X_ int vshDumpFile(const char *fileName)
 		return (errno = status);
 	}
 
-	status = fileRead(&theFile, 0, theFile.blocks, fileBuffer);
-	if (status < 0)
+	for (count1 = 0; count1 < theFile.blocks; count1 ++)
 	{
-		free(fileBuffer);
-		return (errno = status);
-	}
+		// Read a block
+		status = fileRead(&theFile, count1, 1 /* blocks */, fileBuffer);
+		if (status < 0)
+		{
+			free(fileBuffer);
+			return (errno = status);
+		}
 
-	// Print the file
-	for (count = 0; count < theFile.size; count ++)
-	{
-		// Look out for tab characters
-		if (fileBuffer[count] == (char) 9)
-			textTab();
+		// Is the last block partially-filled with data?
+		if (count1 >= (theFile.blocks - 1))
+		{
+			if (theFile.size % theFile.blockSize)
+				bytes = (theFile.size % theFile.blockSize);
+		}
 
-		// Look out for newline characters
-		else if (fileBuffer[count] == (char) 10)
-			textNewline();
+		// NULL-terminate the buffer
+		fileBuffer[bytes] = '\0';
 
-		else
-			textPutc(fileBuffer[count]);
+		// Print the block, in chunks if necessary
+		for (count2 = 0; count2 < bytes; count2 += MAXSTRINGLENGTH)
+		{
+			if ((bytes - count2) > MAXSTRINGLENGTH)
+			{
+				tmp = fileBuffer[count2 + MAXSTRINGLENGTH];
+				fileBuffer[count2 + MAXSTRINGLENGTH] = '\0';
+			}
+
+			textPrint(fileBuffer + count2);
+
+			if ((bytes - count2) > MAXSTRINGLENGTH)
+				fileBuffer[count2 + MAXSTRINGLENGTH] = tmp;
+		}
 	}
 
 	// If the file did not end with a newline character...
-	if (fileBuffer[count - 1] != '\n')
+	if (fileBuffer[bytes - 1] != '\n')
 		textNewline();
 
 	// Free the memory

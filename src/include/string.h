@@ -37,6 +37,7 @@ void bcopy(const void *, void *, size_t n);
 void bzero(void *, size_t);
 int ffs(int);
 int fls(int);
+size_t mbslen(const char *);
 int memcmp(const void *, const void *, size_t);
 void *memcpy(void *, const void *, size_t);
 void *memmove(void *, const void *, size_t);

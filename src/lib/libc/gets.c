@@ -40,7 +40,7 @@ char *gets(char *s)
 
 	int status = 0;
 	int read = 0;
-	char c = '\0';
+	unsigned c = 0;
 
 	if (visopsys_in_kernel)
 	{
@@ -72,7 +72,7 @@ char *gets(char *s)
 		// We have a character.
 
 		// Is it an EOF or newline?  That would mean we're finished
-		if ((c == EOF) || (c == '\n'))
+		if ((c == (unsigned) EOF) || (c == '\n'))
 		{
 			textNewline();
 
@@ -85,7 +85,7 @@ char *gets(char *s)
 		// It's some other character.  Copy it into the target string.
 		else
 		{
-			s[read++] = c;
+			s[read++] = (char) c;
 			textPutc(c);
 			continue;
 		}

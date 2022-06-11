@@ -8,13 +8,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ping\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2014-08-13 22:35+0800\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.6.4\n"
 
@@ -24,85 +24,85 @@ msgstr ""
 
 #: ping.c:100
 msgid "Error"
-msgstr "æËÿ—⁄–"
+msgstr "–û—à–∏–±–∫–∞"
 
 #: ping.c:108
-#, c-format
+#, fuzzy, c-format
 msgid ""
 "usage:\n"
 "%s [-T] <address | hostname>"
 msgstr ""
-"ÿ·ﬂﬁ€Ï◊ﬁ“–›ÿ’:\n"
-"%s [-T] <–‘‡’· | Âﬁ·‚>"
+"–∏—Å–ø–æ–ª—å–∑–æ–≤–∞–Ω–∏–µ:\n"
+"%s [-T] <–∞–¥—Ä–µ—Å | —Ö–æ—Å—Ç>\n"
 
 #: ping.c:181
 #, c-format
 msgid "%d bytes from %d.%d.%d.%d: icmp_seq=%d ttl=%d time=%llu ms\n"
-msgstr "%d —–Ÿ‚ ﬁ‚ %d.%d.%d.%d: icmp_seq=%d ttl=%d “‡’‹Ô=%llu ms\n"
+msgstr "%d –±–∞–π—Ç –æ—Ç %d.%d.%d.%d: icmp_seq=%d ttl=%d –≤—Ä–µ–º—è=%llu ms\n"
 
 #: ping.c:288
 msgid "Stop"
-msgstr "¡‚ﬁﬂ"
+msgstr "–°—Ç–æ–ø"
 
-#: ping.c:349
+#: ping.c:354
 #, c-format
 msgid "Unknown option '%c'"
 msgstr ""
 
-#: ping.c:358
+#: ping.c:363
 msgid "Networking is not currently enabled"
-msgstr "¡’‚Ï ›’ ◊–ﬂ„È’›–"
+msgstr "–°–µ—Ç—å –Ω–µ –∑–∞–ø—É—â–µ–Ω–∞"
 
-#: ping.c:371
+#: ping.c:376
 msgid "Enter Address"
-msgstr "≤“’‘ÿ‚’ –‘‡’·"
+msgstr "–í–≤–µ–¥–∏—Ç–µ –∞–¥—Ä–µ—Å"
 
-#: ping.c:372
+#: ping.c:377
 msgid "Enter the network address to ping:"
-msgstr "≤“’‘ÿ‚’ –‘‡’· ‘€Ô ﬂÿ›”–:"
+msgstr "–í–≤–µ–¥–∏—Ç–µ –∞–¥—Ä–µ—Å –¥–ª—è –ø–∏–Ω–≥–∞:"
 
-#: ping.c:393
+#: ping.c:398
 msgid "Couldn't determine destination address"
 msgstr ""
 
-#: ping.c:409
+#: ping.c:414
 msgid "Error opening network connection"
-msgstr "æËÿ—⁄– ﬁ‚⁄‡Î‚ÿÔ ·’‚’“ﬁ”ﬁ ·ﬁ’‘ÿ›’›ÿÔ"
+msgstr "–û—à–∏–±–∫–∞ –æ—Ç–∫—Ä—ã—Ç–∏—è —Å–µ—Ç–µ–≤–æ–≥–æ —Å–æ–µ–¥–∏–Ω–µ–Ω–∏—è"
 
-#: ping.c:413
+#: ping.c:418
 #, c-format
 msgid "Ping %d.%d.%d.%d %d(%d) bytes of data"
-msgstr "Ping %d.%d.%d.%d %d(%d) —–Ÿ‚ ‘–››ÎÂ"
+msgstr "Ping %d.%d.%d.%d %d(%d) –±–∞–π—Ç –¥–∞–Ω–Ω—ã—Ö"
 
-#: ping.c:427
+#: ping.c:432
 msgid "Error setting signal handler"
 msgstr ""
 
-#: ping.c:440
+#: ping.c:445
 msgid "Error starting response thread"
 msgstr ""
 
-#: ping.c:448 ping.c:460
+#: ping.c:453 ping.c:465
 msgid "Memory allocation error"
-msgstr "æËÿ—⁄– ‡–·ﬂ‡’‘’€’›ÿÔ ﬂ–‹Ô‚ÿ"
+msgstr "–û—à–∏–±–∫–∞ —Ä–∞—Å–ø—Ä–µ–¥–µ–ª–µ–Ω–∏—è –ø–∞–º—è—Ç–∏"
 
-#: ping.c:474
+#: ping.c:479
 msgid "Error pinging host"
-msgstr "æËÿ—⁄– ﬂÿ›”ﬁ“–›ÿÔ Âﬁ·‚–"
+msgstr "–û—à–∏–±–∫–∞ –ø–∏–Ω–≥–æ–≤–∞–Ω–∏—è —Ö–æ—Å—Ç–∞"
 
-#: ping.c:492
+#: ping.c:497
 #, c-format
 msgid ""
 "\n"
 "--- %d.%d.%d.%d ping statistics ---\n"
 msgstr ""
 
-#: ping.c:494
+#: ping.c:499
 #, c-format
 msgid "%d packets transmitted, %d received, %d%% packet loss, time %llums\n"
-msgstr "%d ﬂ–⁄’‚ﬁ“ ﬁ‚ﬂ‡–“€’›ﬁ, %d ﬂﬁ€„Á’›ﬁ, %d%% ﬂﬁ‚’‡Ô›ﬁ, “‡’‹Ô %llums\n"
+msgstr "%d –ø–∞–∫–µ—Ç–æ–≤ –æ—Ç–ø—Ä–∞–≤–ª–µ–Ω–æ, %d –ø–æ–ª—É—á–µ–Ω–æ, %d%% –ø–æ—Ç–µ—Ä—è–Ω–æ, –≤—Ä–µ–º—è %llums\n"
 
-#: ping.c:498
+#: ping.c:503
 #, c-format
 msgid "rtt min/avg/max = %llu/%llu/%llu ms\n"
 msgstr ""

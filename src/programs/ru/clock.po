@@ -8,114 +8,114 @@ msgid ""
 msgstr ""
 "Project-Id-Version: clock\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-08 00:55+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
 #: clock.c:56
 msgid "Clock"
-msgstr "«–·Î"
+msgstr "–ß–∞—Å—ã"
 
 #: clock.c:59
 #, fuzzy
 msgid "Sun"
-msgstr "≤·"
+msgstr "–í—Å"
 
 #: clock.c:60
 #, fuzzy
 msgid "Mon"
-msgstr "ø›"
+msgstr "–ü–Ω"
 
 #: clock.c:61
 #, fuzzy
 msgid "Tue"
-msgstr "≤‚"
+msgstr "–í—Ç"
 
 #: clock.c:62
 #, fuzzy
 msgid "Wed"
-msgstr "¡‡"
+msgstr "–°—Ä"
 
 #: clock.c:63
 #, fuzzy
 msgid "Thu"
-msgstr "«‚"
+msgstr "–ß—Ç"
 
 #: clock.c:64
 #, fuzzy
 msgid "Fri"
-msgstr "ø‚"
+msgstr "–ü—Ç"
 
 #: clock.c:65
 #, fuzzy
 msgid "Sat"
-msgstr "¡—"
+msgstr "–°–±"
 
 #: clock.c:69
 #, fuzzy
 msgid "Jan"
-msgstr "œ›“"
+msgstr "–Ø–Ω–≤"
 
 #: clock.c:70
 #, fuzzy
 msgid "Feb"
-msgstr "ƒ’“"
+msgstr "–§–µ–≤"
 
 #: clock.c:71
 #, fuzzy
 msgid "Mar"
-msgstr "º–‡‚"
+msgstr "–ú–∞—Ä—Ç"
 
 #: clock.c:72
 #, fuzzy
 msgid "Apr"
-msgstr "∞ﬂ‡"
+msgstr "–ê–ø—Ä"
 
 #: clock.c:73
 #, fuzzy
 msgid "May"
-msgstr "º–Ÿ"
+msgstr "–ú–∞–π"
 
 #: clock.c:74
 #, fuzzy
 msgid "Jun"
-msgstr "∏Ó›Ï"
+msgstr "–ò—é–Ω—å"
 
 #: clock.c:75
 #, fuzzy
 msgid "Jul"
-msgstr "∏Ó€Ï"
+msgstr "–ò—é–ª—å"
 
 #: clock.c:76
 #, fuzzy
 msgid "Aug"
-msgstr "∞“”"
+msgstr "–ê–≤–≥"
 
 #: clock.c:77
 #, fuzzy
 msgid "Sep"
-msgstr "¡’›"
+msgstr "–°–µ–Ω"
 
 #: clock.c:78
 #, fuzzy
 msgid "Oct"
-msgstr "æ⁄‚"
+msgstr "–û–∫—Ç"
 
 #: clock.c:79
 #, fuzzy
 msgid "Nov"
-msgstr "ΩﬁÔ"
+msgstr "–ù–æ—è"
 
 #: clock.c:80
 #, fuzzy
 msgid "Dec"
-msgstr "¥’⁄"
+msgstr "–î–µ–∫"
 
 #: clock.c:120
 #, c-format
@@ -124,4 +124,4 @@ msgid ""
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 "\n"
-"∫ﬁ‹–›‘–  \"%s\" ‡–—ﬁ‚–’‚ ‚ﬁ€Ï⁄ﬁ “ ”‡–‰ÿÁ’·⁄ﬁ‹ ‡’÷ÿ‹’\n"
+"–ö–æ–º–∞–Ω–¥–∞  \"%s\" —Ä–∞–±–æ—Ç–∞–µ—Ç —Ç–æ–ª—å–∫–æ –≤ –≥—Ä–∞—Ñ–∏—á–µ—Å–∫–æ–º —Ä–µ–∂–∏–º–µ\n"

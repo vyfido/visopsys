@@ -6,11 +6,10 @@
 ##  check-tree.sh
 ##
 
-# Check the files in the build tree and make sure they are all listed in
-# one of the install files.
+# Check the files in the build tree and make sure they are all listed in one
+# of the install files
 
-# Then check that all of the items in the install files are in the build
-# tree
+# Then check that all of the items in the install files are in the build tree
 
 BUILD_DIR=../build/
 BUILD_FILES=buildfiles.$$

@@ -1,0 +1,14 @@
+
+ -- sha256pass --
+
+Calculate and print one or more SHA256 digests.  SHA256 is a one-way hashing
+algorithm which can be used to calculate checksums or hash passwords.
+
+Usage:
+  sha256pass [string1] [string2] [...]
+
+This command will print one line of SHA256 digest for each string parameter
+supplied.  If no parameter is supplied, the digest will still be created,
+but for an empty string (which is
+"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").
+

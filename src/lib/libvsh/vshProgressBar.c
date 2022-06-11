@@ -191,7 +191,7 @@ static void progressThread(void)
 	// until the (interruptible) operation is interrupted.
 
 	progress lastProg;
-	char character = '\0';
+	unsigned character = 0;
 
 	memcpy((void *) &lastProg, (void *) prog, sizeof(progress));
 	if (lockGet(&prog->lock) >= 0)

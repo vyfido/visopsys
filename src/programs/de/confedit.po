@@ -8,13 +8,13 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=ISO-8859-15\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 #: confedit.c:65
@@ -35,15 +35,15 @@ msgstr "Beenden"
 
 #: confedit.c:69
 msgid "Add variable"
-msgstr "Variable hinzufügen"
+msgstr "Variable hinzufÃ¼gen"
 
 #: confedit.c:70
 msgid "Change variable"
-msgstr "Variable ändern"
+msgstr "Variable Ã¤ndern"
 
 #: confedit.c:71
 msgid "Delete variable"
-msgstr "Variable löschen"
+msgstr "Variable lÃ¶schen"
 
 #: confedit.c:110
 msgid "Error"
@@ -61,11 +61,11 @@ msgstr "Fehler %d beim schreiben der Konfigurationsdatei."
 
 #: confedit.c:209
 msgid "Change Variable"
-msgstr "Variable ändern"
+msgstr "Variable Ã¤ndern"
 
 #: confedit.c:215
 msgid "Add Variable"
-msgstr "Variable hinzufügen"
+msgstr "Variable hinzufÃ¼gen"
 
 #: confedit.c:231
 msgid "Variable name:"
@@ -85,11 +85,11 @@ msgstr "Abbrechen"
 
 #: confedit.c:368
 msgid "Unsaved changes"
-msgstr "Ungespeicherte Änderungen"
+msgstr "Ungespeicherte Ã„nderungen"
 
 #: confedit.c:369
 msgid "Quit without saving changes?"
-msgstr "Beenden ohne speichern der Änderungen?"
+msgstr "Beenden ohne speichern der Ã„nderungen?"
 
 #: confedit.c:608
 #, c-format

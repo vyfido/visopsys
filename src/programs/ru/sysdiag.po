@@ -8,51 +8,51 @@ msgid ""
 msgstr ""
 "Project-Id-Version: sysdiag\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-08 02:45+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
 #: sysdiag.c:55
 msgid "System Diagnostics"
-msgstr "¥ÿ–”›ﬁ·‚ÿ⁄– ·ÿ·‚’‹Î"
+msgstr "–î–∏–∞–≥–Ω–æ—Å—Ç–∏–∫–∞ —Å–∏—Å—Ç–µ–º—ã"
 
 #: sysdiag.c:56 sysdiag.c:1032
 msgid "Disk test"
-msgstr "¬’·‚ ‘ÿ·⁄–"
+msgstr "–¢–µ—Å—Ç –¥–∏—Å–∫–∞"
 
 #: sysdiag.c:57 sysdiag.c:1033
 msgid "Memory test"
-msgstr "¬’·‚ ﬂ–‹Ô‚ÿ"
+msgstr "–¢–µ—Å—Ç –ø–∞–º—è—Ç–∏"
 
 #: sysdiag.c:58 sysdiag.c:1037
 msgid "Read-only"
-msgstr "¬ﬁ€Ï⁄ﬁ Á‚’›ÿ’"
+msgstr "–¢–æ–ª—å–∫–æ —á—Ç–µ–Ω–∏–µ"
 
 #: sysdiag.c:59 sysdiag.c:1038
 msgid "Read-write"
-msgstr "«‚’›ÿ’-◊–ﬂÿ·Ï"
+msgstr "–ß—Ç–µ–Ω–∏–µ-–∑–∞–ø–∏—Å—å"
 
 #: sysdiag.c:60
 msgid "Test"
-msgstr "¬’·‚"
+msgstr "–¢–µ—Å—Ç"
 
 #: sysdiag.c:61 sysdiag.c:236
 msgid "Quit"
-msgstr "≤ÎÂﬁ‘"
+msgstr "–í—ã—Ö–æ–¥"
 
 #: sysdiag.c:62
 msgid ""
 "You must be a privileged user to use this command.\n"
 "(Try logging in as user \"admin\")"
 msgstr ""
-"≤Î ‘ﬁ€÷›Î —Î‚Ï —ﬁ€’’ ﬂ‡ÿ“’€’”ÿ‡ﬁ“–››Î‹ ﬂﬁ€Ï◊ﬁ“–‚’€’‹.\n"
-"(øﬁﬂ‡ﬁ—„Ÿ‚’ “ﬁŸ‚ÿ ⁄–⁄ \"admin\")"
+"–í—ã –¥–æ–ª–∂–Ω—ã –±—ã—Ç—å –±–æ–ª–µ–µ –ø—Ä–∏–≤–µ–ª–µ–≥–∏—Ä–æ–≤–∞–Ω–Ω—ã–º –ø–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª–µ–º.\n"
+"(–ü–æ–ø—Ä–æ–±—É–π—Ç–µ –≤–æ–π—Ç–∏ –∫–∞–∫ \"admin\")"
 
 #: sysdiag.c:65
 msgid ""
@@ -62,39 +62,39 @@ msgid ""
 "longer and is more thorough, but can potentially cause\n"
 "some data loss if your disk is failing."
 msgstr ""
-"≈ﬁ‚ÿ‚’ ﬂ‡ﬁ“’·‚ÿ ‚’·‚ · ﬂ–‡–‹’‚‡ﬁ‹ ‚ﬁ€Ï⁄ﬁ-Á‚’›ÿ’,\n"
-"ÿ€ÿ ÷’ · ﬂ–‡–‹’‚‡ﬁ‹ Á‚’›ÿ’-◊–ﬂÿ·Ï? \n"
-"¬’·‚ ‚ﬁ€Ï⁄ﬁ Á‚’›ÿ’‹ ”–‡–›‚ÿ‡„’‚ ·ﬁÂ‡–››ﬁ·‚Ï ‘–››ÎÂ,\n"
-"›ﬁ ﬁ› ‹’›’’ ‚È–‚’€Ï›ÎŸ.  ¬’·‚ · Á‚’›ÿ‹’-◊–ﬂÿ·ÏÓ \n"
-"—ﬁ€’’ ‚È–‚’€Ï›ÎŸ ÿ ‚‡’—„’‚ —ﬁ€ÏË’ “‡’‹’›ÿ,\n"
-"›ﬁ ‚–⁄ ÷’ ‹ﬁ÷’‚ ﬂ‡ÿ“’·‚ÿ ⁄ ﬂﬁ‚’‡’ ‘–››ÎÂ."
+"–•–æ—Ç–∏—Ç–µ –ø—Ä–æ–≤–µ—Å—Ç–∏ —Ç–µ—Å—Ç —Å –ø–∞—Ä–∞–º–µ—Ç—Ä–æ–º —Ç–æ–ª—å–∫–æ-—á—Ç–µ–Ω–∏–µ,\n"
+"–∏–ª–∏ –∂–µ —Å –ø–∞—Ä–∞–º–µ—Ç—Ä–æ–º —á—Ç–µ–Ω–∏–µ-–∑–∞–ø–∏—Å—å? \n"
+"–¢–µ—Å—Ç —Ç–æ–ª—å–∫–æ —á—Ç–µ–Ω–∏–µ–º –≥–∞—Ä–∞–Ω—Ç–∏—Ä—É–µ—Ç —Å–æ—Ö—Ä–∞–Ω–Ω–æ—Å—Ç—å –¥–∞–Ω–Ω—ã—Ö,\n"
+"–Ω–æ –æ–Ω –º–µ–Ω–µ–µ —Ç—â–∞—Ç–µ–ª—å–Ω—ã–π.  –¢–µ—Å—Ç —Å —á—Ç–µ–Ω–∏–º–µ-–∑–∞–ø–∏—Å—å—é \n"
+"–±–æ–ª–µ–µ —Ç—â–∞—Ç–µ–ª—å–Ω—ã–π –∏ —Ç—Ä–µ–±—É–µ—Ç –±–æ–ª—å—à–µ –≤—Ä–µ–º–µ–Ω–∏,\n"
+"–Ω–æ —Ç–∞–∫ –∂–µ –º–æ–∂–µ—Ç –ø—Ä–∏–≤–µ—Å—Ç–∏ –∫ –ø–æ—Ç–µ—Ä–µ –¥–∞–Ω–Ω—ã—Ö."
 
 #: sysdiag.c:70
 #, c-format
 msgid "Performing %s test on disk %s"
-msgstr "≤Îﬂﬁ€›Ô’‚·Ô ‚’·‚ %s ‘ÿ·⁄– %s"
+msgstr "–í—ã–ø–æ–ª–Ω—è–µ—Ç—Å—è —Ç–µ—Å—Ç %s –¥–∏—Å–∫–∞ %s"
 
 #: sysdiag.c:71
 #, c-format
 msgid "Performing memory test of %uMB - %uMB in use"
-msgstr "≤Îﬂﬁ€›Ô’‚·Ô ‚’·‚ÿ‡ﬁ“–›ÿ’ ﬂ–‹Ô‚ÿ “ %uMB - %uMB ◊–›Ô‚ﬁ"
+msgstr "–í—ã–ø–æ–ª–Ω—è–µ—Ç—Å—è —Ç–µ—Å—Ç–∏—Ä–æ–≤–∞–Ω–∏–µ –ø–∞–º—è—Ç–∏ –≤ %uMB - %uMB –∑–∞–Ω—è—Ç–æ"
 
 #: sysdiag.c:72
 msgid "Test cancelled"
-msgstr "¬’·‚ ﬁ‚‹’›’›"
+msgstr "–¢–µ—Å—Ç –æ—Ç–º–µ–Ω–µ–Ω"
 
 #: sysdiag.c:73
 msgid "Test completed"
-msgstr "¬’·‚ “Îﬂﬁ€›’›"
+msgstr "–¢–µ—Å—Ç –≤—ã–ø–æ–ª–Ω–µ–Ω"
 
 #: sysdiag.c:74
 msgid "Error performing test"
-msgstr "æËÿ—⁄– “Îﬂﬁ€›’›ÿÔ ‚’·‚–"
+msgstr "–û—à–∏–±–∫–∞ –≤—ã–ø–æ–ª–Ω–µ–Ω–∏—è —Ç–µ—Å—Ç–∞"
 
 #: sysdiag.c:75
 #, c-format
 msgid "%d errors"
-msgstr "%d ﬁËÿ—ﬁ⁄"
+msgstr "%d –æ—à–∏–±–æ–∫"
 
 #: sysdiag.c:129
 #, c-format
@@ -103,18 +103,18 @@ msgid ""
 "Press any key to continue%s"
 msgstr ""
 "\n"
-"Ω–÷‹ÿ‚’ €Ó—„Ó ⁄€–“ÿË„ Á‚ﬁ—Î ﬂ‡ﬁ‘ﬁ€÷ÿ‚Ï%s"
+"–ù–∞–∂–º–∏—Ç–µ –ª—é–±—É—é –∫–ª–∞–≤–∏—à—É —á—Ç–æ–±—ã –ø—Ä–æ–¥–æ–ª–∂–∏—Ç—å%s"
 
 #: sysdiag.c:130
 msgid ", or 'q' to quit"
-msgstr ", ÿ€ÿ  'q' Á‚ﬁ—Î “ÎŸ‚ÿ"
+msgstr ", –∏–ª–∏  'q' —á—Ç–æ–±—ã –≤—ã–π—Ç–∏"
 
 #: sysdiag.c:154
 msgid "Error"
-msgstr "æËÿ—⁄–"
+msgstr "–û—à–∏–±–∫–∞"
 
 #: sysdiag.c:169
-#, fuzzy, c-format
+#, c-format
 msgid ""
 "%s\n"
 "Copyright (C) 1998-2020 J. Andrew McLaughlin\n"
@@ -124,43 +124,42 @@ msgstr ""
 
 #: sysdiag.c:224
 msgid "Please choose the disk to test:"
-msgstr "≤Î—’‡ÿ‚’ ‘ÿ·⁄ ‘€Ô ‚’·‚–:"
+msgstr "–í—ã–±–µ—Ä–∏—Ç–µ –¥–∏—Å–∫ –¥–ª—è —Ç–µ—Å—Ç–∞:"
 
 #: sysdiag.c:235
 msgid "View results"
-msgstr "ø‡ﬁ·‹ﬁ‚‡’‚Ï ‡’◊„€Ï‚–‚Î"
+msgstr "–ü—Ä–æ—Å–º–æ—Ç—Ä–µ—Ç—å —Ä–µ–∑—É–ª—å—Ç–∞—Ç—ã"
 
 #: sysdiag.c:280
 msgid "Do you want to view the results?\n"
-msgstr "≤Î Âﬁ‚ÿ‚’ ﬂ‡ﬁ·‹ﬁ‚‡’‚Ï ‡’◊„€Ï‚–‚Î?\n"
+msgstr "–í—ã —Ö–æ—Ç–∏—Ç–µ –ø—Ä–æ—Å–º–æ—Ç—Ä–µ—Ç—å —Ä–µ–∑—É–ª—å—Ç–∞—Ç—ã?\n"
 
 #: sysdiag.c:295
 msgid "Test results"
-msgstr "¿’◊„€Ï‚–‚Î ‚’·‚–"
+msgstr "–†–µ–∑—É–ª—å—Ç–∞—Ç—ã —Ç–µ—Å—Ç–∞"
 
 #: sysdiag.c:327
 #, c-format
 msgid "Disk read error at sector %llu\n"
-msgstr "æËÿ—⁄– Á‚’›ÿÔ ‘ÿ·⁄– “ ·’⁄‚ﬁ‡’ %llu\n"
+msgstr "–û—à–∏–±–∫–∞ —á—Ç–µ–Ω–∏—è –¥–∏—Å–∫–∞ –≤ —Å–µ–∫—Ç–æ—Ä–µ %llu\n"
 
 #: sysdiag.c:331
 #, c-format
 msgid "Disk write error at sector %llu\n"
-msgstr "æËÿ—⁄– ◊–ﬂÿ·ÿ ›– ‘ÿ·⁄ “ ·’‚⁄ﬁ‡’ %llu\n"
+msgstr "–û—à–∏–±–∫–∞ –∑–∞–ø–∏—Å–∏ –Ω–∞ –¥–∏—Å–∫ –≤ —Å–µ—Ç–∫–æ—Ä–µ %llu\n"
 
 #: sysdiag.c:335
 #, c-format
 msgid "Memory error at %llu\n"
-msgstr "æËÿ—⁄– ﬂ–‹Ô‚ÿ “ %llu\n"
+msgstr "–û—à–∏–±–∫–∞ –ø–∞–º—è—Ç–∏ –≤ %llu\n"
 
 #: sysdiag.c:430 sysdiag.c:441
-#, fuzzy
 msgid "read-write"
-msgstr "«‚’›ÿ’-◊–ﬂÿ·Ï"
+msgstr "–ß—Ç–µ–Ω–∏–µ-–∑–∞–ø–∏—Å—å"
 
 #: sysdiag.c:430 sysdiag.c:441
 msgid "read-only"
-msgstr "‚ﬁ€Ï⁄ﬁ Á‚’›ÿ’"
+msgstr "—Ç–æ–ª—å–∫–æ —á—Ç–µ–Ω–∏–µ"
 
 #: sysdiag.c:432 sysdiag.c:680
 msgid ""
@@ -168,21 +167,21 @@ msgid ""
 "[ Press 'Q' to cancel ]\n"
 msgstr ""
 "\n"
-"[ Ω–÷‹ÿ‚’ 'Q' ‘€Ô ﬁ‚‹’›Î ]\n"
+"[ –ù–∞–∂–º–∏—Ç–µ 'Q' –¥–ª—è –æ—Ç–º–µ–Ω—ã ]\n"
 
 #: sysdiag.c:551
 #, c-format
 msgid "Testing disk sectors %llu/%llu"
-msgstr "¬’·‚ ·’⁄‚ﬁ‡ﬁ“ ‘ÿ·⁄– %llu/%llu"
+msgstr "–¢–µ—Å—Ç —Å–µ–∫—Ç–æ—Ä–æ–≤ –¥–∏—Å–∫–∞ %llu/%llu"
 
 #: sysdiag.c:768
 #, c-format
 msgid "Testing memory MB %llu/%llu"
-msgstr "¬’·‚ ﬂ–‹Ô‚ÿ MB %llu/%llu"
+msgstr "–¢–µ—Å—Ç –ø–∞–º—è—Ç–∏ MB %llu/%llu"
 
 #: sysdiag.c:1083
 msgid "Do you want to do a disk test, or a memory test?\n"
-msgstr "≈ﬁ‚ÿ‚’ ﬂ‡ﬁ“’·‚ÿ ‚’·‚ÿ ‘ÿ·⁄– ÿ€ÿ ‚’·‚ ﬂ–‹Ô‚ÿ?\n"
+msgstr "–•–æ—Ç–∏—Ç–µ –ø—Ä–æ–≤–µ—Å—Ç–∏ —Ç–µ—Å—Ç–∏ –¥–∏—Å–∫–∞ –∏–ª–∏ —Ç–µ—Å—Ç –ø–∞–º—è—Ç–∏?\n"
 
 #~ msgid "lectoescritura"
-#~ msgstr "Á‚’›ÿ’-◊–ﬂÿ·Ï"
+#~ msgstr "—á—Ç–µ–Ω–∏–µ-–∑–∞–ø–∏—Å—å"

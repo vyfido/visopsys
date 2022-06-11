@@ -11,24 +11,24 @@ https://github.com/pasnox/oxygen-icons-png redistributed under the GNU Lesser
 General Public License, with thanks to the website http://www.iconarchive.com
 for packaging them up in .ico format.
 
-- Desktop wallpaper 'spirals' uploaded by gnome-look.org user neigemyst
-"Spirals", redistributed under the Creative Commons Attribution-NonCommercial-
-ShareAlike 3.0 license
-http://creativecommons.org/licenses/by-nc-sa/3.0/legalcode
+- Desktop wallpaper 'background' is a colourized version of "Subtle Website
+Background" from the website Tile-able http://tiled-bg.blogspot.com,
+redistributed under the Creative Commons Attribution 3.0 Unported license
+http://creativecommons.org/licenses/by/3.0
 
-- Desktop wallpaper 'pascual' uploaded by kde-look.org user kiov "Playa
-Pascual Uruguay", redistributed under the Creative Commons Attribution-
-NonCommercial-ShareAlike 3.0 license
-http://creativecommons.org/licenses/by-nc-sa/3.0/legalcode
+- Desktop wallpaper 'mountain' ("snow capped mountain near body of water
+during daytime") uploaded by unsplash.com user Kerensa Pickett, redistributed
+under the Unsplash licence
+https://unsplash.com/license
 
-- Desktop wallpaper 'madeira' uploaded by kde-look.org user Cycron "Madeira
-Portuguese Archipelago", redistributed under the Creative Commons Attribution
-3.0 license http://creativecommons.org/licenses/by/3.0/legalcode
+- Desktop wallpaper 'rainbow' ("green grass field") uploaded by unsplash.com
+user James Wheeler, redistributed under the Unsplash licence
+https://unsplash.com/license
 
-- Desktop wallpaper 'background' is a colourized version of "Blue Marble"
-from the website Tile-able http://tiled-bg.blogspot.com, redistributed under
-the Creative Commons Attribution 3.0 license
-http://creativecommons.org/licenses/by/3.0/legalcode
+- Desktop wallpaper 'wave' ("gold and blue wave abstract painting") uploaded
+by unsplash.com user Vidar Nordli-Mathisen, redistributed under the Unsplash
+licence
+https://unsplash.com/license
 
 - The Visopsys logo image visopsys.jpg uses the icon "Monitor icon" from "3D
 BlueFX Desktop Icons by WallpaperFX" found at http://www.iconarchive.com,

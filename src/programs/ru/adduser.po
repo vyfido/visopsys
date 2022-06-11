@@ -8,30 +8,30 @@ msgid ""
 msgstr ""
 "Project-Id-Version: adduser 0.1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-01-17 00:08+0000\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-07 23:57+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
 #: adduser.c:55
 msgid "usage:\n"
-msgstr "∏·ﬂﬁ€Ï◊ﬁ“–›ÿ’:\n"
+msgstr "–ò—Å–ø–æ–ª—å–∑–æ–≤–∞–Ω–∏–µ:\n"
 
 #: adduser.c:56
 #, c-format
 msgid "%s <username>\n"
-msgstr "%s <ÿ‹Ô_ﬂﬁ€Ï◊ﬁ“–‚’€Ô>\n"
+msgstr "%s <–∏–º—è_–ø–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª—è>\n"
 
 #: adduser.c:77
 #, c-format
 msgid "User %s already exists.\n"
-msgstr "øﬁ€Ï◊ﬁ“–‚’€Ï %s „÷’ ·„È’·‚“„’‚.\n"
+msgstr "–ü–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª—å %s —É–∂–µ —Å—É—â–µ—Å—Ç–≤—É–µ—Ç.\n"
 
 #: adduser.c:98
 msgid "User added.\n"
-msgstr "øﬁ€Ï◊ﬁ“–‚’€Ï ‘ﬁ—–“€’›.\n"
+msgstr "–ü–æ–ª—å–∑–æ–≤–∞—Ç–µ–ª—å –¥–æ–±–∞–≤–ª–µ–Ω.\n"

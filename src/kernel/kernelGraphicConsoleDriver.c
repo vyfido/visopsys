@@ -27,6 +27,7 @@
 #include "kernelMalloc.h"
 #include "kernelMemory.h"
 #include "kernelWindow.h"
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -38,6 +39,73 @@ static inline void updateComponent(kernelTextArea *area)
 
 	if (component && component->update)
 		component->update(area->windowComponent);
+}
+
+
+static int buffer2Char(kernelTextArea *area, char *dest,
+	const unsigned char * volatile src, int index, int maxChars)
+{
+	// Pack padded multibyte characters from the buffer into a char array
+
+	int charLen = 0;
+	int destLen = 0;
+	int count1, count2;
+
+	src += (index * area->bytesPerChar);
+
+	for (count1 = 0; count1 < maxChars; count1 ++)
+	{
+		charLen = mblen((char *) src, MB_LEN_MAX);
+		if (charLen >= 0)
+		{
+			if (!charLen)
+				break;
+
+			for (count2 = 0; count2 < charLen; count2 ++)
+				dest[count2] = src[count2];
+
+			dest += charLen;
+			destLen += charLen;
+		}
+
+		src += area->bytesPerChar;
+	}
+
+	*dest = '\0';
+	return (destLen);
+}
+
+
+static int char2Buffer(kernelTextArea *area, unsigned char * volatile dest,
+	int index, const char *src, int maxChars)
+{
+	// Unpack multibyte characters from a char array into the buffer
+
+	int charLen = 0;
+	int srcLen = 0;
+	int count1, count2;
+
+	dest += (index * area->bytesPerChar);
+
+	for (count1 = 0; count1 < maxChars; count1 ++)
+	{
+		charLen = mblen((char *) src, MB_LEN_MAX);
+		if (charLen >= 0)
+		{
+			if (!charLen)
+				break;
+
+			for (count2 = 0; count2 < charLen; count2 ++)
+				dest[count2] = src[count2];
+
+			dest += area->bytesPerChar;
+		}
+
+		src += charLen;
+		srcLen += charLen;
+	}
+
+	return (srcLen);
 }
 
 
@@ -67,13 +135,11 @@ static void setCursor(kernelTextArea *area, int onOff)
 {
 	// Draws or erases the cursor at the current position
 
-	int cursorPosition = (area->cursorRow * area->columns) + area->cursorColumn;
-	graphicBuffer *buffer =
-		((kernelWindowComponent *) area->windowComponent)->buffer;
-	char string[2];
+	graphicBuffer *buffer = ((kernelWindowComponent *)
+		area->windowComponent)->buffer;
+	char string[MB_LEN_MAX + 1];
 
-	string[0] = area->visibleData[cursorPosition];
-	string[1] = '\0';
+	buffer2Char(area, string, area->visibleData, TEXTAREA_CURSORPOS(area), 1);
 
 	if (onOff)
 	{
@@ -122,9 +188,6 @@ static int scrollLine(kernelTextArea *area)
 	kernelWindowTextArea *windowTextArea = component->data;
 	graphicBuffer *buffer = component->buffer;
 	int maxWidth = 0;
-	int longestLine = 0;
-	int lineWidth = 0;
-	int count;
 
 	if (windowTextArea)
 		maxWidth = windowTextArea->areaWidth;
@@ -133,39 +196,22 @@ static int scrollLine(kernelTextArea *area)
 	else
 		maxWidth = buffer->width;
 
-	// Figure out the length of the longest line
-	for (count = 0; count < area->rows; count ++)
-	{
-		lineWidth = (strlen((char *)(area->visibleData +
-			(count * area->columns))) * area->font->glyphWidth);
-
-		if (lineWidth > maxWidth)
-		{
-			longestLine = maxWidth;
-			break;
-		}
-
-		if (lineWidth > longestLine)
-			longestLine = lineWidth;
-	}
-
 	if (buffer->height > area->font->glyphHeight)
 	{
 		// Copy everything up by one line
-		kernelGraphicCopyArea(buffer, area->xCoord,
-			(area->yCoord + area->font->glyphHeight), longestLine,
-			((area->rows - 1) * area->font->glyphHeight),
-			area->xCoord, area->yCoord);
+		kernelGraphicCopyArea(buffer, area->xCoord, (area->yCoord +
+			area->font->glyphHeight), maxWidth, ((area->rows - 1) *
+			area->font->glyphHeight), area->xCoord, area->yCoord);
 	}
 
 	// Erase the last line
 	kernelGraphicClearArea(buffer, (color *) &area->background, area->xCoord,
 		(area->yCoord + ((area->rows - 1) * area->font->glyphHeight)),
-		longestLine, area->font->glyphHeight);
+		maxWidth, area->font->glyphHeight);
 
 	// Tell the window manager to update the whole graphic buffer
-	kernelWindowUpdateBuffer(buffer, area->xCoord, area->yCoord,
-		longestLine, (area->rows * area->font->glyphHeight));
+	kernelWindowUpdateBuffer(buffer, area->xCoord, area->yCoord, maxWidth,
+		(area->rows * area->font->glyphHeight));
 
 	// Move the buffer up by one
 	scrollBuffer(area, 1);
@@ -198,8 +244,8 @@ static int screenDraw(kernelTextArea *area)
 
 	graphicBuffer *buffer = ((kernelWindowComponent *)
 		area->windowComponent)->buffer;
-	unsigned char *bufferAddress = NULL;
 	char *lineBuffer = NULL;
+	int rowIndex = 0;
 	int count;
 
 	lineBuffer = kernelMalloc((area->columns * area->bytesPerChar) + 1);
@@ -212,18 +258,18 @@ static int screenDraw(kernelTextArea *area)
 		(area->rows * area->font->glyphHeight));
 
 	// Copy from the buffer to the visible area, minus any scrollback lines
-	bufferAddress = TEXTAREA_FIRSTVISIBLE(area);
-	bufferAddress -= (area->scrolledBackLines * area->columns);
-
+	rowIndex = -(area->scrolledBackLines * area->columns);
 	for (count = 0; count < area->rows; count ++)
 	{
-		strncpy(lineBuffer, (char *) bufferAddress, area->columns);
-		lineBuffer[area->columns] = '\0';
+		buffer2Char(area, lineBuffer, TEXTAREA_FIRSTVISIBLE(area), rowIndex,
+			area->columns);
+
 		kernelGraphicDrawText(buffer, (color *) &area->foreground,
-			(color *) &area->background, area->font, area->charSet, lineBuffer,
-			draw_normal, area->xCoord, (area->yCoord +
-				(count * area->font->glyphHeight)));
-		bufferAddress += area->columns;
+			(color *) &area->background, area->font, area->charSet,
+			lineBuffer, draw_normal, area->xCoord, (area->yCoord + (count *
+				area->font->glyphHeight)));
+
+		rowIndex += area->columns;
 	}
 
 	kernelFree(lineBuffer);
@@ -247,6 +293,7 @@ static int setCursorAddress(kernelTextArea *area, int row, int col)
 
 	int cursorState = area->cursorState;
 	char *line = NULL;
+	int count;
 
 	// If we are currently scrolled back, this puts us back to normal
 	if (area->scrolledBackLines)
@@ -263,13 +310,19 @@ static int setCursorAddress(kernelTextArea *area, int row, int col)
 	area->cursorRow = row;
 	area->cursorColumn = col;
 
-	// If any of the preceding spots have NULLS in them, fill those with
-	// spaces instead
-	line = ((char *) TEXTAREA_FIRSTVISIBLE(area) +
-		TEXTAREA_CURSORPOS(area) - col);
-	for ( ; col >= 0; col --)
-		if (line[col] == '\0')
-			line[col] = ' ';
+	if (col)
+	{
+		// If any of the preceding spots have NULLS in them, fill those with
+		// spaces instead
+		line = ((char *) TEXTAREA_FIRSTVISIBLE(area) +
+			(TEXTAREA_CURSORPOS(area) * area->bytesPerChar));
+		for (count = ((col - 1) * area->bytesPerChar); count >= 0;
+			count -= area->bytesPerChar)
+		{
+			if (!line[count])
+				line[count] = L' ';
+		}
+	}
 
 	if (cursorState)
 		setCursor(area, 1);
@@ -278,25 +331,28 @@ static int setCursorAddress(kernelTextArea *area, int row, int col)
 }
 
 
-static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
+static int print(kernelTextArea *area, const char *input, textAttrs *attrs)
 {
 	// Prints input to the text area
 
+	int status = 0;
 	graphicBuffer *buffer = ((kernelWindowComponent *)
 		area->windowComponent)->buffer;
+	char *lineBuffer = NULL;
 	int cursorState = area->cursorState;
-	int length = 0;
 	color *foreground = (color *) &area->foreground;
 	color *background = (color *) &area->background;
-	char *lineBuffer = NULL;
-	int inputCounter = 0;
-	int bufferCounter = 0;
-	unsigned tabChars = 0;
-	unsigned count;
+	int inputLen = 0;
+	int inputCount = 0;
+	int bufferCount = 0;
+	int charLen = 0;
+	int newLine = 0;
+	int printed = 0;
+	int count;
 
 	lineBuffer = kernelMalloc((area->columns * area->bytesPerChar) + 1);
 	if (!lineBuffer)
-		return (ERR_MEMORY);
+		return (status = ERR_MEMORY);
 
 	// See whether we're printing with special attributes
 	if (attrs)
@@ -323,69 +379,101 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
 	}
 
 	if (cursorState)
-		// Turn off da cursor
+		// Turn off the cursor
 		setCursor(area, 0);
 
-	// How long is the string?
-	length = strlen(text);
+	// How long is the input string?
+	inputLen = strlen(input);
 
 	// Loop through the input string, adding characters to our line buffer.
 	// If we reach the end of a line or encounter a newline character, do
-	// a newline
-	for (inputCounter = 0; inputCounter < length; inputCounter++)
+	// a newline.
+	for (inputCount = 0; inputCount < inputLen; )
 	{
-		// Add this character to the lineBuffer
-		lineBuffer[bufferCounter++] = (unsigned char) text[inputCounter];
+		newLine = 0;
 
-		if (text[inputCounter] == '\t')
+		if ((unsigned char) input[inputCount] < CHARSET_IDENT_CODES)
 		{
-			tabChars =
-				((TEXT_DEFAULT_TAB - (bufferCounter % TEXT_DEFAULT_TAB)) - 1);
-			for (count = 0; count < tabChars; count ++)
-				lineBuffer[bufferCounter++] = ' ';
-		}
-
-		// Is this the completion of the line?
-		if ((inputCounter >= (length - 1)) ||
-			((area->cursorColumn + bufferCounter) >= area->columns) ||
-			(text[inputCounter] == '\n'))
-		{
-			lineBuffer[bufferCounter] = '\0';
-
-			// Add it to our buffers
-			strncpy((char *)(TEXTAREA_FIRSTVISIBLE(area) +
-				TEXTAREA_CURSORPOS(area)), lineBuffer,
-				(area->columns - area->cursorColumn));
-
-			if (area->hidden)
+			// Skip the range of unprintable characters in the ASCII set
+			if (!isprint((int) input[inputCount]))
 			{
-				for (count = 0; count < strlen(lineBuffer); count ++)
-					lineBuffer[count] = '*';
-				strncpy((char *)(area->visibleData + TEXTAREA_CURSORPOS(area)),
-					lineBuffer, (area->columns - area->cursorColumn));
+				inputCount += 1;
+				continue;
+			}
+
+			if (input[inputCount] == '\t')
+			{
+				charLen = ((TEXT_DEFAULT_TAB - ((area->cursorColumn +
+					printed) % TEXT_DEFAULT_TAB)) - 1);
+
+				for (count = 0; count < charLen; count ++)
+					lineBuffer[bufferCount++] = ' ';
+
+				inputCount += 1;
+				printed += charLen;
 			}
 			else
 			{
-				strncpy((char *)(area->visibleData + TEXTAREA_CURSORPOS(area)),
-					(char *)(TEXTAREA_FIRSTVISIBLE(area) +
-						TEXTAREA_CURSORPOS(area)),
-					(area->columns - area->cursorColumn));
+				if (input[inputCount] == '\n')
+					newLine = 1;
+
+				charLen = 1;
+				lineBuffer[bufferCount++] = input[inputCount++];
+				printed += 1;
 			}
+		}
+		else
+		{
+			// How many bytes is the next character?
+			charLen = mblen((input + inputCount), (inputLen - inputCount));
+			if (charLen < 1)
+			{
+				// Skip this
+				inputCount += 1;
+				continue;
+			}
+
+			// Add this character to the lineBuffer
+			for (count = 0; count < charLen; count ++)
+				lineBuffer[bufferCount++] = input[inputCount++];
+
+			printed += 1;
+		}
+
+		// Is this the completion of the line?
+		if (newLine || (inputCount >= (inputLen - 1)) ||
+			((area->cursorColumn + printed) >= area->columns))
+		{
+			lineBuffer[bufferCount] = '\0';
+
+			// Add it to our buffers
+			char2Buffer(area, TEXTAREA_FIRSTVISIBLE(area),
+				TEXTAREA_CURSORPOS(area), lineBuffer, printed);
+
+			if (area->hidden)
+			{
+				for (count = 0; count < printed; count ++)
+					lineBuffer[count] = '*';
+				lineBuffer[printed] = '\0';
+				bufferCount = printed;
+			}
+
+			char2Buffer(area, area->visibleData, TEXTAREA_CURSORPOS(area),
+				lineBuffer, printed);
 
 			// Draw it
 			kernelGraphicDrawText(buffer, foreground, background, area->font,
 				area->charSet, lineBuffer, draw_normal,
-				(area->xCoord + (area->cursorColumn * area->font->glyphWidth)),
+				(area->xCoord + (area->cursorColumn *
+					area->font->glyphWidth)),
 				(area->yCoord + (area->cursorRow * area->font->glyphHeight)));
 
 			kernelWindowUpdateBuffer(buffer, (area->xCoord +
 					(area->cursorColumn * area->font->glyphWidth)),
 				(area->yCoord + (area->cursorRow * area->font->glyphHeight)),
-				(bufferCounter * area->font->glyphWidth),
-				area->font->glyphHeight);
+				(printed * area->font->glyphWidth), area->font->glyphHeight);
 
-			if (((area->cursorColumn + bufferCounter) >= area->columns) ||
-				(text[inputCounter] == '\n'))
+			if (newLine || ((area->cursorColumn + printed) >= area->columns))
 			{
 				// Will this cause a scroll?
 				if (area->cursorRow >= (area->rows - 1))
@@ -397,13 +485,19 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
 					}
 				}
 				else
+				{
 					area->cursorRow += 1;
-				area->cursorColumn = 0;
+				}
 
-				bufferCounter = 0;
+				area->cursorColumn = 0;
 			}
 			else
-				area->cursorColumn += bufferCounter;
+			{
+				area->cursorColumn += printed;
+			}
+
+			bufferCount = 0;
+			printed = 0;
 		}
 	}
 
@@ -413,7 +507,7 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
 		// Turn on the cursor
 		setCursor(area, 1);
 
-	return (0);
+	return (status = 0);
 }
 
 
@@ -440,8 +534,8 @@ static int delete(kernelTextArea *area)
 		setCursor(area, 0);
 
 	// Delete the character in our buffers
-	*(TEXTAREA_FIRSTVISIBLE(area) + position) = '\0';
-	*(area->visibleData + position) = '\0';
+	*(TEXTAREA_FIRSTVISIBLE(area) + (position * area->bytesPerChar)) = L'\0';
+	*(area->visibleData + (position * area->bytesPerChar)) = L'\0';
 
 	kernelWindowUpdateBuffer(buffer, (area->xCoord + (area->cursorColumn *
 		area->font->glyphWidth)), (area->yCoord + (area->cursorRow *

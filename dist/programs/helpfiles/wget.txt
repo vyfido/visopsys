@@ -1,0 +1,11 @@
+
+ -- wget --
+
+Download files from the web.
+
+Usage:
+  wget <URL>
+
+This command will send HTTP commands to download documents and elements
+referenced by them - for example images.
+

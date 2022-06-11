@@ -19,7 +19,7 @@
 //  kernelWindowButton.c
 //
 
-// This code is for managing kernelWindowButton objects.
+// This code is for managing kernelWindowButton objects
 
 #include "kernelWindow.h"	// Our prototypes are here
 #include "kernelError.h"
@@ -30,6 +30,10 @@
 #include "kernelMisc.h"
 #include <stdlib.h>
 #include <string.h>
+#include <sys/color.h>
+
+#define MIN_PAD		5
+#define MIN_PAD_X2	(MIN_PAD * 2)
 
 extern kernelWindowVariables *windowVariables;
 
@@ -39,13 +43,12 @@ static void setText(kernelWindowComponent *component, const char *label,
 {
 	kernelWindowButton *button = (kernelWindowButton *) component->data;
 	kernelFont *labelFont = (kernelFont *) component->params.font;
-	int borderThickness = windowVariables->border.thickness;
 
 	strncpy((char *) button->label, label, min(length,
 		WINDOW_MAX_LABEL_LENGTH));
 	button->label[length] = '\0';
 
-	int tmp = ((borderThickness * 2) + 6);
+	int tmp = MIN_PAD_X2;
 	if (labelFont)
 	{
 		tmp += kernelFontGetPrintedWidth(labelFont, (char *)
@@ -55,7 +58,7 @@ static void setText(kernelWindowComponent *component, const char *label,
 	if (tmp > component->width)
 		component->width = tmp;
 
-	tmp = ((borderThickness * 2) + 6);
+	tmp = MIN_PAD_X2;
 	if (labelFont)
 		tmp += labelFont->glyphHeight;
 
@@ -78,11 +81,11 @@ static int setImage(kernelWindowComponent *component, image *img)
 	button->buttonImage.transColor.green = 255;
 	button->buttonImage.transColor.red = 0;
 
-	int tmp = ((windowVariables->border.thickness * 2) + 6 + img->width);
+	int tmp = (MIN_PAD_X2 + img->width);
 	if (tmp > component->width)
 		component->width = tmp;
 
-	tmp = ((windowVariables->border.thickness * 2) + 6 + img->height);
+	tmp = (MIN_PAD_X2 + img->height);
 	if (tmp > component->height)
 		component->height = tmp;
 
@@ -92,21 +95,23 @@ static int setImage(kernelWindowComponent *component, image *img)
 
 static void drawFocus(kernelWindowComponent *component, int focus)
 {
-	color *drawColor = NULL;
-	int borderThickness = windowVariables->border.thickness;
+	color drawColor;
 
-	if (component->flags & WINDOW_COMP_FLAG_CANFOCUS)
+	// Draw the appropriate border around the button
+
+	if ((component->flags & WINDOW_COMP_FLAG_CANFOCUS) && focus)
 	{
-		if (focus)
-			drawColor = (color *) &component->params.foreground;
-		else
-			drawColor = (color *) &component->params.background;
-
-		kernelGraphicDrawRect(component->buffer, drawColor, draw_normal,
-			(component->xCoord + borderThickness), (component->yCoord +
-			borderThickness), (component->width - (borderThickness * 2)),
-			(component->height - (borderThickness * 2)), 1, 0);
+		COLOR_COPY(&drawColor, &component->params.foreground);
 	}
+	else
+	{
+		COLOR_ADJUST(&drawColor, &component->params.background, 5,
+			6 /* 5/6ths */);
+	}
+
+	kernelGraphicDrawRect(component->buffer, &drawColor, draw_normal,
+		component->xCoord, component->yCoord, component->width,
+		component->height, 1 /* thickness */, 0 /* fill */);
 }
 
 
@@ -116,24 +121,26 @@ static int draw(kernelWindowComponent *component)
 
 	kernelWindowButton *button = (kernelWindowButton *) component->data;
 	kernelFont *labelFont = (kernelFont *) component->params.font;
+	color drawColor;
 
 	// Draw the background of the button
+
 	if (button->state)
 	{
-		kernelGraphicConvexShade(component->buffer, (color *)
-			&component->params.background, component->xCoord,
-			component->yCoord, component->width, component->height,
-			shade_frombottom);
+		COLOR_ADJUST(&drawColor, &component->params.background, 5,
+			6 /* 5/6ths */);
 	}
 	else
 	{
-		kernelGraphicConvexShade(component->buffer, (color *)
-			&component->params.background, component->xCoord,
-			component->yCoord, component->width, component->height,
-			shade_fromtop);
+		COLOR_COPY(&drawColor, &component->params.background);
 	}
 
-	// If there is a label on the button, draw it
+	kernelGraphicDrawRect(component->buffer, &drawColor, draw_normal,
+		(component->xCoord + 1), (component->yCoord + 1),
+		(component->width - 2), (component->height - 2),
+		1 /* thickness */, 1 /* fill */);
+
+	// If there is a label, draw it centered on the button
 	if (button->label[0])
 	{
 		kernelGraphicDrawText(component->buffer, (color *)
@@ -147,7 +154,7 @@ static int draw(kernelWindowComponent *component)
 				labelFont->glyphHeight) / 2)));
 	}
 
-	// If there is an image on the button, draw it centered on the button
+	// If there is an image, draw it centered on the button
 	if (button->buttonImage.data)
 	{
 		unsigned tmpX, tmpY, tmpXoff = 0, tmpYoff = 0;
@@ -238,7 +245,7 @@ static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 	kernelWindowButton *button = (kernelWindowButton *) component->data;
 
 	// We're only looking for 'enter' key releases, which we turn into mouse
-	// button presses.
+	// button presses
 	if ((event->type & WINDOW_EVENT_MASK_KEY) &&
 		(event->key.scan == keyEnter))
 	{
@@ -269,7 +276,7 @@ static int destroy(kernelWindowComponent *component)
 		if (button->buttonImage.data)
 			kernelImageFree((image *) &button->buttonImage);
 
-		// The button itself.
+		// The button itself
 		kernelFree(component->data);
 		component->data = NULL;
 	}
@@ -294,7 +301,7 @@ kernelWindowComponent *kernelWindowNewButton(objectKey parent,
 	kernelWindowComponent *component = NULL;
 	kernelWindowButton *button = NULL;
 
-	// Check params.  It's okay for the image or label to be NULL
+	// Check params.  It's okay for the image or label to be NULL.
 	if (!parent || !params)
 	{
 		kernelError(kernel_error, "NULL parameter");

@@ -44,6 +44,7 @@
 #include "kernelNetworkDevice.h"
 #include "kernelPage.h"
 #include "kernelParameters.h"
+#include "kernelPipe.h"
 #include "kernelRamDiskDriver.h"
 #include "kernelRandom.h"
 #include "kernelRtc.h"
@@ -77,6 +78,8 @@ static kernelArgInfo args_textSetBackground[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_textPutc[] =
 	{ { 1, type_val, API_ARG_ANYVAL } };
+static kernelArgInfo args_textPutMbc[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_textPrint[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_textPrintAttrs[] =
@@ -164,6 +167,8 @@ static kernelFunctionIndex textFunctionIndex[] = {
 		PRIVILEGE_USER, 1, args_textSetBackground, type_val },
 	{ _fnum_textPutc, kernelTextPutc,
 		PRIVILEGE_USER, 1, args_textPutc, type_val },
+	{ _fnum_textPutMbc, kernelTextPutMbc,
+		PRIVILEGE_USER, 1, args_textPutMbc, type_val },
 	{ _fnum_textPrint, (void *) kernelTextPrint,
 		PRIVILEGE_USER, 1, args_textPrint, type_val },
 	{ _fnum_textPrintAttrs, (void *) kernelTextPrintAttrs,
@@ -1215,10 +1220,6 @@ static kernelArgInfo args_windowSetBackgroundColor[] =
 static kernelArgInfo args_windowSetBackgroundImage[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
 		{ 1, type_ptr, API_ARG_USERPTR } };
-static kernelArgInfo args_windowShellTileBackground[] =
-	{ { 1, type_ptr, API_ARG_USERPTR } };
-static kernelArgInfo args_windowShellCenterBackground[] =
-	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowShellNewTaskbarIcon[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_windowShellNewTaskbarTextLabel[] =
@@ -1474,10 +1475,8 @@ static kernelFunctionIndex windowFunctionIndex[] = {
 		PRIVILEGE_USER, 2, args_windowSetBackgroundColor, type_val },
 	{ _fnum_windowSetBackgroundImage, kernelWindowSetBackgroundImage,
 		PRIVILEGE_USER, 2, args_windowSetBackgroundImage, type_val },
-	{ _fnum_windowShellTileBackground, kernelWindowShellTileBackground,
-		PRIVILEGE_USER, 1, args_windowShellTileBackground, type_val },
-	{ _fnum_windowShellCenterBackground, kernelWindowShellCenterBackground,
-		PRIVILEGE_USER, 1, args_windowShellCenterBackground, type_val },
+	{ _fnum_windowShellChangeBackground, kernelWindowShellChangeBackground,
+		PRIVILEGE_USER, 0, NULL, type_val },
 	{ _fnum_windowShellNewTaskbarIcon, kernelWindowShellNewTaskbarIcon,
 		PRIVILEGE_USER, 1, args_windowShellNewTaskbarIcon, type_ptr },
 	{ _fnum_windowShellNewTaskbarTextLabel,
@@ -1704,6 +1703,14 @@ static kernelArgInfo args_networkGetDomainName[] =
 static kernelArgInfo args_networkSetDomainName[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_val, API_ARG_ANYVAL } };
+static kernelArgInfo args_networkLookupNameAddress[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_ptr, API_ARG_USERPTR } };
+static kernelArgInfo args_networkLookupAddressName[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_NONZEROVAL } };
 static kernelArgInfo args_networkDeviceEnable[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_networkDeviceDisable[] =
@@ -1755,6 +1762,10 @@ static kernelFunctionIndex networkFunctionIndex[] = {
 		PRIVILEGE_USER, 2, args_networkGetDomainName, type_val },
 	{ _fnum_networkSetDomainName, kernelNetworkSetDomainName,
 		PRIVILEGE_SUPERVISOR, 2, args_networkSetDomainName, type_val },
+	{ _fnum_networkLookupNameAddress, kernelNetworkLookupNameAddress,
+		PRIVILEGE_USER, 3, args_networkLookupNameAddress, type_val },
+	{ _fnum_networkLookupAddressName, kernelNetworkLookupAddressName,
+		PRIVILEGE_USER, 3, args_networkLookupAddressName, type_val },
 	{ _fnum_networkDeviceEnable, kernelNetworkDeviceEnable,
 		PRIVILEGE_SUPERVISOR, 1, args_networkDeviceEnable, type_val },
 	{ _fnum_networkDeviceDisable, kernelNetworkDeviceDisable,
@@ -1771,6 +1782,47 @@ static kernelFunctionIndex networkFunctionIndex[] = {
 		PRIVILEGE_SUPERVISOR, 3, args_networkDeviceSniff, type_val }
 };
 
+// Inter-process communication functions (0x12000-0x12FFF range)
+
+static kernelArgInfo args_pipeNew[] =
+	{ { 1, type_val, API_ARG_NONZEROVAL },
+		{ 1, type_val, API_ARG_NONZEROVAL } };
+static kernelArgInfo args_pipeDestroy[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
+static kernelArgInfo args_pipeSetReader[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
+		{ 1, type_val, API_ARG_POSINTVAL } };
+static kernelArgInfo args_pipeSetWriter[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
+		{ 1, type_val, API_ARG_POSINTVAL } };
+static kernelArgInfo args_pipeClear[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR } };
+static kernelArgInfo args_pipeRead[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
+		{ 1, type_val, API_ARG_NONZEROVAL },
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+static kernelArgInfo args_pipeWrite[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_KERNPTR },
+		{ 1, type_val, API_ARG_NONZEROVAL },
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+
+static kernelFunctionIndex ipcFunctionIndex[] = {
+	{ _fnum_pipeNew, kernelPipeNew,
+		PRIVILEGE_USER, 2, args_pipeNew, type_ptr },
+	{ _fnum_pipeDestroy, kernelPipeDestroy,
+		PRIVILEGE_USER, 1, args_pipeDestroy, type_val },
+	{ _fnum_pipeSetReader, kernelPipeSetReader,
+		PRIVILEGE_USER, 2, args_pipeSetReader, type_val },
+	{ _fnum_pipeSetWriter, kernelPipeSetWriter,
+		PRIVILEGE_USER, 2, args_pipeSetWriter, type_val },
+	{ _fnum_pipeClear, kernelPipeClear,
+		PRIVILEGE_USER, 1, args_pipeClear, type_val },
+	{ _fnum_pipeRead, kernelPipeRead,
+		PRIVILEGE_USER, 3, args_pipeRead, type_val },
+	{ _fnum_pipeWrite, kernelPipeWrite,
+		PRIVILEGE_USER, 3, args_pipeWrite, type_val }
+};
+
 // Miscellaneous functions (0xFF000-0xFFFFF range)
 
 static kernelArgInfo args_systemShutdown[] =
@@ -1785,6 +1837,30 @@ static kernelArgInfo args_cryptHashMd5[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
 		{ 1, type_val, API_ARG_ANYVAL },
 		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+static kernelArgInfo args_cryptHashSha1[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_ANYVAL },
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_ANYVAL },
+		{ 1, type_val, API_ARG_ANYVAL } };
+static kernelArgInfo args_cryptHashSha1Cont[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_ANYVAL },
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_ANYVAL },
+		{ 1, type_val, API_ARG_ANYVAL } };
+static kernelArgInfo args_cryptHashSha256[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_ANYVAL },
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_ANYVAL },
+		{ 1, type_val, API_ARG_ANYVAL } };
+static kernelArgInfo args_cryptHashSha256Cont[] =
+	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_ANYVAL },
+		{ 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+		{ 1, type_val, API_ARG_ANYVAL },
+		{ 1, type_val, API_ARG_ANYVAL } };
 static kernelArgInfo args_lockGet[] =
 	{ { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_lockRelease[] =
@@ -1853,6 +1929,14 @@ static kernelFunctionIndex miscFunctionIndex[] = {
 		PRIVILEGE_USER, 1, args_systemInfo, type_val },
 	{ _fnum_cryptHashMd5, kernelCryptHashMd5,
 		PRIVILEGE_USER, 3, args_cryptHashMd5, type_val },
+	{ _fnum_cryptHashSha1, kernelCryptHashSha1,
+		PRIVILEGE_USER, 5, args_cryptHashSha1, type_val },
+	{ _fnum_cryptHashSha1Cont, kernelCryptHashSha1Cont,
+		PRIVILEGE_USER, 5, args_cryptHashSha1Cont, type_val },
+	{ _fnum_cryptHashSha256, kernelCryptHashSha256,
+		PRIVILEGE_USER, 5, args_cryptHashSha256, type_val },
+	{ _fnum_cryptHashSha256Cont, kernelCryptHashSha256Cont,
+		PRIVILEGE_USER, 5, args_cryptHashSha256Cont, type_val },
 	{ _fnum_lockGet, kernelLockGet,
 		PRIVILEGE_USER, 1, args_lockGet, type_val },
 	{ _fnum_lockRelease, kernelLockRelease,
@@ -1919,7 +2003,8 @@ static kernelFunctionIndex *functionIndex[] = {
 	fontFunctionIndex,
 	windowFunctionIndex,
 	userFunctionIndex,
-	networkFunctionIndex
+	networkFunctionIndex,
+	ipcFunctionIndex
 };
 
 

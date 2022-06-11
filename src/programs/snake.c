@@ -329,7 +329,7 @@ static void setup(void)
 static int moveSnake(void)
 {
 	objectType object = empty;
-	char c;
+	unsigned c = 0;
 	int count;
 
 	// Move the snake array along to make room for the new head.

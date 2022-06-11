@@ -33,7 +33,7 @@ int getc(FILE *theStream)
 	// and it's only going to be partially implemented right now.
 
 	int status = 0;
-	char c = '\0';
+	unsigned c = 0;
 
 	if (visopsys_in_kernel)
 	{

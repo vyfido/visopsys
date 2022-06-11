@@ -74,7 +74,8 @@ int textGetForeground(color *);
 int textSetForeground(color *);
 int textGetBackground(color *);
 int textSetBackground(color *);
-int textPutc(int);
+int textPutc(unsigned);
+int textPutMbc(const char *);
 int textPrint(const char *);
 int textPrintAttrs(textAttrs *, const char *);
 int textPrintLine(const char *);
@@ -99,16 +100,16 @@ int textScreenSave(textScreen *);
 int textScreenRestore(textScreen *);
 int textInputStreamCount(objectKey);
 int textInputCount(void);
-int textInputStreamGetc(objectKey, char *);
-int textInputGetc(char *);
-int textInputStreamReadN(objectKey, int, char *);
-int textInputReadN(int, char *);
-int textInputStreamReadAll(objectKey, char *);
-int textInputReadAll(char *);
-int textInputStreamAppend(objectKey, int);
-int textInputAppend(int);
-int textInputStreamAppendN(objectKey, int, char *);
-int textInputAppendN(int, char *);
+int textInputStreamGetc(objectKey, unsigned *);
+int textInputGetc(unsigned *);
+int textInputStreamReadN(objectKey, int, unsigned *);
+int textInputReadN(int, unsigned *);
+int textInputStreamReadAll(objectKey, unsigned *);
+int textInputReadAll(unsigned *);
+int textInputStreamAppend(objectKey, unsigned);
+int textInputAppend(unsigned);
+int textInputStreamAppendN(objectKey, int, unsigned *);
+int textInputAppendN(int, unsigned *);
 int textInputStreamRemoveAll(objectKey);
 int textInputRemoveAll(void);
 void textInputStreamSetEcho(objectKey, int);
@@ -367,8 +368,7 @@ void windowResetColors(void);
 int windowComponentEventGet(objectKey, windowEvent *);
 int windowSetBackgroundColor(objectKey, color *);
 int windowSetBackgroundImage(objectKey, image *);
-int windowShellTileBackground(const char *);
-int windowShellCenterBackground(const char *);
+int windowShellChangeBackground(void);
 objectKey windowShellNewTaskbarIcon(image *);
 objectKey windowShellNewTaskbarTextLabel(const char *);
 int windowShellDestroyTaskbarComp(objectKey);
@@ -470,6 +470,8 @@ int networkGetHostName(char *, int);
 int networkSetHostName(const char *, int);
 int networkGetDomainName(char *, int);
 int networkSetDomainName(const char *, int);
+int networkLookupNameAddress(const char *, networkAddress *, int *);
+int networkLookupAddressName(const networkAddress *, char *, unsigned);
 int networkDeviceEnable(const char *);
 int networkDeviceDisable(const char *);
 int networkDeviceGetCount(void);
@@ -479,12 +481,31 @@ int networkDeviceUnhook(const char *, objectKey, int);
 unsigned networkDeviceSniff(objectKey, unsigned char *, unsigned);
 
 //
+// Inter-process communication functions
+//
+objectKey pipeNew(unsigned, unsigned);
+int pipeDestroy(objectKey);
+int pipeSetReader(objectKey, int);
+int pipeSetWriter(objectKey, int);
+int pipeClear(objectKey);
+int pipeRead(objectKey, unsigned, void *);
+int pipeWrite(objectKey, unsigned, void *);
+
+//
 // Miscellaneous functions
 //
 int systemShutdown(int, int);
 void getVersion(char *, int);
 int systemInfo(struct utsname *);
 int cryptHashMd5(const unsigned char *, unsigned, unsigned char *);
+int cryptHashSha1(const unsigned char *, unsigned, unsigned char *, int,
+	unsigned);
+int cryptHashSha1Cont(const unsigned char *, unsigned, unsigned char *, int,
+	unsigned);
+int cryptHashSha256(const unsigned char *, unsigned, unsigned char *, int,
+	unsigned);
+int cryptHashSha256Cont(const unsigned char *, unsigned, unsigned char *, int,
+	unsigned);
 int lockGet(spinLock *);
 int lockRelease(spinLock *);
 int lockVerify(spinLock *);

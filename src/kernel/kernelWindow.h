@@ -25,11 +25,12 @@
 #define _KERNELWINDOW_H
 
 #include "kernelCharset.h"
+#include "kernelFont.h"
 #include "kernelGraphic.h"
 #include "kernelMouse.h"
 #include "kernelText.h"
 #include <string.h>
-#include <sys/font.h>
+#include <sys/file.h>
 #include <sys/paths.h>
 #include <sys/vis.h>
 #include <sys/window.h>
@@ -61,6 +62,7 @@
 #define WINDOW_DEFAULT_VARFONT_MEDIUM_FAMILY	FONT_FAMILY_ARIAL
 #define WINDOW_DEFAULT_VARFONT_MEDIUM_FLAGS		FONT_STYLEFLAG_BOLD
 #define WINDOW_DEFAULT_VARFONT_MEDIUM_POINTS	12
+#define WINDOW_DEFAULT_WINSHELL					PATH_PROGRAMS "/deskwin"
 #define WINDOW_MAX_CHILDREN						32
 
 #define WINDOW_COMP_FLAG_VISIBLE				0x0020
@@ -108,6 +110,8 @@ typedef struct {
 	struct {
 		int width;
 	} slider;
+
+	char shell[MAX_PATH_NAME_LENGTH + 1];
 
 	struct {
 		kernelFont *defaultFont;
@@ -369,7 +373,7 @@ typedef volatile struct {
 	kernelWindowComponent *scrollBar;
 
 	// For derived kernelWindowTextField use
-	char *fieldBuffer;
+	unsigned *fieldBuffer;
 
 } kernelWindowTextArea;
 
@@ -636,11 +640,11 @@ int kernelWindowToggleMenuBar(kernelWindow *);
 int kernelWindowRefresh(void);
 
 // Window shell functions
-int kernelWindowShell(const char *);
-void kernelWindowShellUpdateList(linkedList *);
-void kernelWindowShellRefresh(void);
-int kernelWindowShellTileBackground(const char *);
-int kernelWindowShellCenterBackground(const char *);
+int kernelWindowShell(int);
+int kernelWindowShellSetRoot(kernelWindow *);
+int kernelWindowShellUpdateList(void);
+int kernelWindowShellRefresh(linkedList *);
+int kernelWindowShellChangeBackground(void);
 int kernelWindowShellRaiseWindowMenu(void);
 kernelWindowComponent *kernelWindowShellNewTaskbarIcon(image *);
 kernelWindowComponent *kernelWindowShellNewTaskbarTextLabel(const char *);

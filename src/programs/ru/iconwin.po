@@ -8,24 +8,24 @@ msgid ""
 msgstr ""
 "Project-Id-Version: iconwin\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-13 01:24+0100\n"
+"POT-Creation-Date: 2020-04-14 01:32+0100\n"
 "PO-Revision-Date: 2015-05-08 02:16+0700\n"
 "Last-Translator: Liss <liss8608@list.ru>\n"
 "Language-Team: liss <liss21@ya.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=iso-8859-5\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 1.7.6\n"
 
 #: iconwin.c:96
 msgid "Error"
-msgstr "æËÿ—⁄–"
+msgstr "–û—à–∏–±–∫–∞"
 
 #: iconwin.c:113
 #, c-format
 msgid "Can't locate configuration file %s"
-msgstr "Ω’ ‹ﬁ”„ ›–Ÿ‚ÿ ‰–Ÿ€ ⁄ﬁ›ÿ”„‡–Êÿÿ %s"
+msgstr "–ù–µ –º–æ–≥—É –Ω–∞–π—Ç–∏ —Ñ–∞–π–ª –∫–æ–Ω–∏–≥—É—Ä–∞—Ü–∏–∏ %s"
 
 #: iconwin.c:171
 msgid "Icon Window"
@@ -33,12 +33,12 @@ msgstr ""
 
 #: iconwin.c:216
 msgid "Memory allocation error"
-msgstr "æËÿ—⁄– ‡–·ﬂ‡’‘’€’›ÿÔ ﬂ–‹Ô‚ÿ."
+msgstr "–û—à–∏–±–∫–∞ —Ä–∞—Å–ø—Ä–µ–¥–µ–ª–µ–Ω–∏—è –ø–∞–º—è—Ç–∏."
 
 #: iconwin.c:398
 #, c-format
 msgid "Couldn't execute command \"%s\""
-msgstr "Ω’ ‹ﬁ”„ “Îﬂﬁ€›ÿ‚Ï ⁄ﬁ‹–›‘„ \"%s\""
+msgstr "–ù–µ –º–æ–≥—É –≤—ã–ø–æ–ª–Ω–∏—Ç—å –∫–æ–º–∞–Ω–¥—É \"%s\""
 
 #: iconwin.c:467
 #, c-format
@@ -47,7 +47,7 @@ msgid ""
 "The \"%s\" command only works in graphics mode\n"
 msgstr ""
 "\n"
-"∫ﬁ‹–›‘–  \"%s\" ‡–—ﬁ‚–’‚ ‚ﬁ€Ï⁄ﬁ “ ”‡–‰ÿÁ’·⁄ﬁ‹ ‡’÷ÿ‹’\n"
+"–ö–æ–º–∞–Ω–¥–∞  \"%s\" —Ä–∞–±–æ—Ç–∞–µ—Ç —Ç–æ–ª—å–∫–æ –≤ –≥—Ä–∞—Ñ–∏—á–µ—Å–∫–æ–º —Ä–µ–∂–∏–º–µ\n"
 
 #: iconwin.c:481
 #, c-format
@@ -55,10 +55,10 @@ msgid ""
 "usage:\n"
 "%s <config_file>\n"
 msgstr ""
-"ÿ·ﬂﬁ€Ï◊ﬁ“–›ÿ’:\n"
-"%s <‰–Ÿ€_⁄ﬁ›‰ÿ”„‡–Êÿÿ>\n"
+"–∏—Å–ø–æ–ª—å–∑–æ–≤–∞–Ω–∏–µ:\n"
+"%s <—Ñ–∞–π–ª_–∫–æ–Ω—Ñ–∏–≥—É—Ä–∞—Ü–∏–∏>\n"
 
 #: iconwin.c:512
 #, c-format
 msgid "Config file %s specifies no valid icons"
-msgstr "≤ ‰–Ÿ€’ ⁄ﬁ›‰ÿ”„‡–Êÿÿ %s ›’‚ ﬂﬁ‘Âﬁ‘ÔÈÿÂ ◊›–Á⁄ﬁ“"
+msgstr "–í —Ñ–∞–π–ª–µ –∫–æ–Ω—Ñ–∏–≥—É—Ä–∞—Ü–∏–∏ %s –Ω–µ—Ç –ø–æ–¥—Ö–æ–¥—è—â–∏—Ö –∑–Ω–∞—á–∫–æ–≤"
