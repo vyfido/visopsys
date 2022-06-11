@@ -38,14 +38,13 @@
 #include <string.h>
 #include <stdio.h>
 
-static int initialized = 0;
-
 // An array of pointers to all network devices.
 static kernelDevice *devices[NETWORK_MAX_ADAPTERS];
 static int numDevices = 0;
 
 // Saved old interrupt handlers
-static void *oldIntHandlers[INTERRUPT_VECTORS];
+static void **oldIntHandlers = NULL;
+static int numOldHandlers = 0;
 
 static networkAddress ethernetBroadcastAddress = {
 	{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0, 0 }
@@ -97,9 +96,9 @@ static void debugArp(kernelArpPacket *arpPacket)
 static int searchArpCache(kernelNetworkDevice *adapter,
 	networkAddress *logicalAddress)
 {
-	// Search the adapter's ARP cache for an entry corresponding to the supplied
-	// logical address, and if found, copy the physical address into the supplied
-	// pointer.
+	// Search the adapter's ARP cache for an entry corresponding to the
+	// supplied logical address, and if found, copy the physical address into
+	// the supplied pointer.
 
 	int status = 0;
 	int count;
@@ -131,7 +130,7 @@ static int sendArp(kernelNetworkDevice *adapter,
 
 	// Get memory for our ARP packet
 	arpPacket = kernelMalloc(sizeof(kernelArpPacket));
-	if (arpPacket == NULL)
+	if (!arpPacket)
 		return (status = ERR_MEMORY);
 
 	if ((opCode == NETWORK_ARPOP_REPLY) && destPhysicalAddress)
@@ -408,8 +407,8 @@ static void networkInterrupt(void)
 	// Find the device that uses this interrupt
 	for (count = 0; (count < numDevices) && !serviced; count ++)
 	{
-		if (((kernelNetworkDevice *) devices[count]->data)->device.interruptNum ==
-		interruptNum)
+		if (((kernelNetworkDevice *)
+			devices[count]->data)->device.interruptNum == interruptNum)
 		{
 			dev = devices[count];
 			adapter = dev->data;
@@ -487,14 +486,6 @@ int kernelNetworkDeviceRegister(kernelDevice *dev)
 	int status = 0;
 	kernelNetworkDevice *adapter = NULL;
 
-	if (!initialized)
-	{
-		// Clear old interrupt handlers list
-		kernelMemClear(&oldIntHandlers, (INTERRUPT_VECTORS * sizeof(void *)));
-
-		initialized = 1;
-	}
-
 	// Check params
 	if (!dev)
 	{
@@ -502,10 +493,10 @@ int kernelNetworkDeviceRegister(kernelDevice *dev)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	if ((dev->data == NULL) || (dev->driver == NULL) ||
-		(dev->driver->ops == NULL))
+	if (!dev->data || !dev->driver || !dev->driver->ops)
 	{
-		kernelError(kernel_error, "The network device, driver or ops are NULL");
+		kernelError(kernel_error, "The network device, driver or ops are "
+			"NULL");
 		return (status = ERR_NULLPARAMETER);
 	}
 
@@ -513,6 +504,17 @@ int kernelNetworkDeviceRegister(kernelDevice *dev)
 	sprintf((char *) adapter->device.name, "net%d", numDevices);
 
 	// Save any existing handler for the interrupt we're hooking
+
+	if (numOldHandlers <= adapter->device.interruptNum)
+	{
+		numOldHandlers = (adapter->device.interruptNum + 1);
+
+		oldIntHandlers = kernelRealloc(oldIntHandlers,
+			(numOldHandlers * sizeof(void *)));
+		if (!oldIntHandlers)
+			return (status = ERR_MEMORY);
+	}
+
 	if (!oldIntHandlers[adapter->device.interruptNum] &&
 		(kernelInterruptGetHandler(adapter->device.interruptNum) !=
 			networkInterrupt))
@@ -530,7 +532,9 @@ int kernelNetworkDeviceRegister(kernelDevice *dev)
 	devices[numDevices++] = dev;
 
 	// Turn on the interrupt
-	kernelPicMask(adapter->device.interruptNum, 1);
+	status = kernelPicMask(adapter->device.interruptNum, 1);
+	if (status < 0)
+		return (status);
 
 	// Register the adapter with the upper-level kernelNetwork functions
 	status = kernelNetworkRegister(adapter);
@@ -570,9 +574,10 @@ int kernelNetworkDeviceSetFlags(const char *adapterName, unsigned flags,
 
 	// Find the adapter by name
 	dev = findDeviceByName(adapterName);
-	if (dev == NULL)
+	if (!dev)
 	{
-		kernelError(kernel_error, "No such network adapter \"%s\"", adapterName);
+		kernelError(kernel_error, "No such network adapter \"%s\"",
+			adapterName);
 		return (status = ERR_NOSUCHENTRY);
 	}
 
@@ -620,17 +625,18 @@ int kernelNetworkDeviceGetAddress(const char *adapterName,
 
 	// Find the adapter by name
 	dev = findDeviceByName(adapterName);
-	if (dev == NULL)
+	if (!dev)
 	{
-		kernelError(kernel_error, "No such network adapter \"%s\"", adapterName);
+		kernelError(kernel_error, "No such network adapter \"%s\"",
+			adapterName);
 		return (status = ERR_NOSUCHENTRY);
 	}
 
 	adapter = dev->data;
 
-	// Try up to 5 attempts to get an address.  This is arbitrary.  Is it right?
-	// From network activity, it looks like Linux tries approx 6 times, when we
-	// don't reply to it; once per second.
+	// Try up to 5 attempts to get an address.  This is arbitrary.  Is it
+	// right?  From network activity, it looks like Linux tries approx 6 times,
+	// when we don't reply to it; once per second.
 	for (count = 0; count < 5; count ++)
 	{
 		// Is the address in the adapter's ARP cache?
@@ -646,13 +652,13 @@ int kernelNetworkDeviceGetAddress(const char *adapterName,
 
 		// Construct and send our ethernet packet with the ARP request
 		// (not queued; immediately)
-		status =
-			sendArp(adapter, logicalAddress, NULL, NETWORK_ARPOP_REQUEST, 1);
+		status = sendArp(adapter, logicalAddress, NULL,
+			NETWORK_ARPOP_REQUEST, 1);
 		if (status < 0)
 			return (status);
 
 		// Expect a quick reply the first time
-		if (count == 0)
+		if (!count)
 			kernelMultitaskerYield();
 		else
 			// Delay briefly.  About 1/2 second
@@ -684,13 +690,14 @@ int kernelNetworkDeviceSend(const char *adapterName, unsigned char *buffer,
 
 	// Find the adapter by name
 	dev = findDeviceByName(adapterName);
-	if (dev == NULL)
+	if (!dev)
 	{
-		kernelError(kernel_error, "No such network adapter \"%s\"", adapterName);
+		kernelError(kernel_error, "No such network adapter \"%s\"",
+			adapterName);
 		return (status = ERR_NOSUCHENTRY);
 	}
 
-	if (bufferLength == 0)
+	if (!bufferLength)
 		// Nothing to do?  Hum.
 		return (status = 0);
 
@@ -706,8 +713,8 @@ int kernelNetworkDeviceSend(const char *adapterName, unsigned char *buffer,
 		// Call the driver transmit routine.
 		status = ops->driverWriteData(adapter, buffer, bufferLength);
 
-	// Wait until all packets are transmitted before returning, since the memory
-	// is needed by the adapter
+	// Wait until all packets are transmitted before returning, since the
+	// memory is needed by the adapter
 	while (adapter->device.transQueued && !kernelProcessingInterrupt())
 		kernelMultitaskerYield();
 
@@ -752,18 +759,19 @@ int kernelNetworkDeviceGet(const char *name, networkDevice *dev)
 	kernelNetworkDevice *adapter = NULL;
 
 	// Check params
-	if ((name == NULL) || (dev == NULL))
+	if (!name || !dev)
 		return (ERR_NULLPARAMETER);
 
 	// Find the adapter by name
 	kernelDev = findDeviceByName(name);
-	if (kernelDev == NULL)
+	if (!kernelDev)
 		return (ERR_NOSUCHENTRY);
 
 	adapter = kernelDev->data;
 
 	kernelMemCopy((networkDevice *) &(adapter->device), dev,
 		sizeof(networkDevice));
+
 	return (0);
 }
 

@@ -79,3 +79,4 @@ int kernelDeviceTreeGetNext(device *);
 
 #define _KERNELDEVICE_H
 #endif
+

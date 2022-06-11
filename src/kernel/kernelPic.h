@@ -21,20 +21,43 @@
 
 #if !defined(_KERNELPIC_H)
 
-#include "kernelDevice.h"
+#include "kernelDriver.h"
+
+#define MAX_PICS			8
+
+typedef enum {
+	pic_8259, pic_ioapic
+
+} kernelPicType;
 
 typedef struct {
-  int (*driverEndOfInterrupt) (int);
-  int (*driverMask) (int, int);
-  int (*driverGetActive) (void);
+	kernelPicType type;
+	int enabled;
+	int startIrq;
+	int numIrqs;
+	kernelDriver *driver;
+	void *driverData;
+
+} kernelPic;
+
+typedef struct {
+	int (*driverGetIntNumber)(kernelPic *, unsigned char, unsigned char);
+	int (*driverGetVector)(kernelPic *, int);
+	int (*driverEndOfInterrupt)(kernelPic *, int);
+	int (*driverMask)(kernelPic *, int, int);
+	int (*driverGetActive)(kernelPic *);
+	int (*driverDisable)(kernelPic *);
 
 } kernelPicOps;
 
 // Functions exported by kernelPic.c
-int kernelPicInitialize(kernelDevice *);
+int kernelPicAdd(kernelPic *);
+int kernelPicGetIntNumber(unsigned char, unsigned char);
+int kernelPicGetVector(int);
 int kernelPicEndOfInterrupt(int);
 int kernelPicMask(int, int);
 int kernelPicGetActive(void);
 
 #define _KERNELPIC_H
 #endif
+

@@ -34,3 +34,4 @@ typedef struct {
 
 #define _KERNELACPIDRIVER_H
 #endif
+

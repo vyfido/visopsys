@@ -68,7 +68,6 @@ static inline void debugDeviceDesc(usbDeviceDesc *deviceDesc)
 		deviceDesc->numConfigs);
 }
 
-
 static inline void debugDevQualDesc(usbDevQualDesc *devQualDesc)
 {
 	kernelDebug(debug_usb, "USB debug device qualifier descriptor:\n"
@@ -86,7 +85,6 @@ static inline void debugDevQualDesc(usbDevQualDesc *devQualDesc)
 		devQualDesc->maxPacketSize0, devQualDesc->numConfigs);
 }
 
-
 static inline void debugConfigDesc(usbConfigDesc *configDesc)
 {
 	kernelDebug(debug_usb, "USB debug config descriptor:\n"
@@ -102,7 +100,6 @@ static inline void debugConfigDesc(usbConfigDesc *configDesc)
 		configDesc->confValue, configDesc->confStringIdx,
 		configDesc->attributes, configDesc->maxPower);
 }
-
 
 static inline void debugInterDesc(usbInterDesc *interDesc)
 {
@@ -122,6 +119,15 @@ static inline void debugInterDesc(usbInterDesc *interDesc)
 		interDesc->interStringIdx);
 }
 
+static inline void debugSuperEndpCompDesc(usbSuperEndpCompDesc *superComp)
+{
+	kernelDebug(debug_usb, "USB debug superspeed endpoint companion "
+		"descriptor:\n"
+		"  descLength=%d\n"
+		"  descType=%d\n"
+		"  maxBurst=%d", superComp->descLength, superComp->descType,
+		superComp->maxBurst);
+}
 
 static inline void debugEndpointDesc(usbEndpointDesc *endpointDesc)
 {
@@ -135,6 +141,9 @@ static inline void debugEndpointDesc(usbEndpointDesc *endpointDesc)
 		endpointDesc->descType, endpointDesc->endpntAddress,
 		endpointDesc->attributes, endpointDesc->maxPacketSize,
 		endpointDesc->interval);
+
+	if (endpointDesc->superComp.descType == USB_DESCTYPE_SSENDPCOMP)
+		debugSuperEndpCompDesc(&endpointDesc->superComp);
 }
 
 static inline void debugUsbDevice(usbDevice *usbDev)
@@ -142,7 +151,8 @@ static inline void debugUsbDevice(usbDevice *usbDev)
 	kernelDebug(debug_usb, "USB debug device:\n"
 		"  device=%p\n"
 		"  controller=%p (%d)\n"
-		"  port=%d\n"
+		"  rootPort=%d\n"
+		"  hubPort=%d\n"
 		"  speed=%s\n"
 		"  address=%d\n"
 		"  usbVersion=%d.%d\n"
@@ -151,7 +161,7 @@ static inline void debugUsbDevice(usbDevice *usbDev)
 		"  protocol=0x%02x\n"
 		"  vendorId=0x%04x\n"
 		"  deviceId=0x%04x", usbDev, usbDev->controller,
-		usbDev->controller->num, usbDev->port,
+		usbDev->controller->num, usbDev->rootPort, usbDev->hubPort,
 		usbDevSpeed2String(usbDev->speed), usbDev->address,
 		((usbDev->usbVersion & 0xFF00) >> 8),
 		(usbDev->usbVersion & 0xFF), usbDev->classCode,
@@ -163,6 +173,7 @@ static inline void debugUsbDevice(usbDevice *usbDev)
 	#define debugDevQualDesc(desc) do { } while (0)
 	#define debugConfigDesc(desc) do { } while (0)
 	#define debugInterDesc(desc) do { } while (0)
+	#define debugSuperEndpCompDesc(desc) do { } while (0)
 	#define debugEndpointDesc(desc) do { } while (0)
 	#define debugUsbDevice(usbDev) do { } while (0)
 #endif // DEBUG
@@ -219,7 +230,10 @@ static kernelLinkedList controllerList;
 static kernelLinkedList hubList;
 static kernelLinkedList deviceList;
 static int usbThreadId = 0;
-static void *oldIntHandlers[INTERRUPT_VECTORS];
+
+// Saved old interrupt handlers
+static void **oldIntHandlers = NULL;
+static int numOldHandlers = 0;
 
 
 static void usbInterrupt(void)
@@ -280,7 +294,9 @@ static void usbInterrupt(void)
 			kernelProcessorIsrCall(oldIntHandlers[interruptNum]);
 		}
 		else
+		{
 			kernelDebugError("Interrupt not serviced and no saved ISR");
+		}
 	}
 
 out:
@@ -320,14 +336,14 @@ static void deviceInfo2BusTarget(usbDevice *usbDev, kernelBusTarget *target)
 	usbSubClass *subClass = NULL;
 
 	class = kernelUsbGetClass(usbDev->classCode);
-	if (class == NULL)
+	if (!class)
 	{
 		kernelDebugError("Target %p - no device class", target);
 		return;
 	}
 
-	subClass =
-		kernelUsbGetSubClass(class, usbDev->subClassCode, usbDev->protocol);
+	subClass = kernelUsbGetSubClass(class, usbDev->subClassCode,
+		usbDev->protocol);
 
 	target->bus = usbDev->controller->bus;
 	target->id = usbMakeTargetCode(usbDev->controller->num, usbDev->address, 0);
@@ -360,7 +376,7 @@ static int driverGetTargets(kernelBus *bus, kernelBusTarget **pointer)
 			// (Re-)allocate memory for the targets list
 			busTargets = kernelRealloc(busTargets, ((targetCount + 1) *
 				sizeof(kernelBusTarget)));
-			if (busTargets == NULL)
+			if (!busTargets)
 				return (targetCount = ERR_MEMORY);
 
 			deviceInfo2BusTarget(usbDev, &busTargets[targetCount++]);
@@ -409,7 +425,7 @@ static int transaction(int target, usbTransaction *trans, int numTrans)
 	kernelDebug(debug_usb, "USB do transaction for target 0x%08x", target);
 
 	usbDev = kernelUsbGetDevice(target);
-	if (usbDev == NULL)
+	if (!usbDev)
 	{
 		kernelError(kernel_error, "No such device");
 		return (status = ERR_NOSUCHENTRY);
@@ -418,7 +434,7 @@ static int transaction(int target, usbTransaction *trans, int numTrans)
 #ifdef DEBUG
 	char *className = NULL, *subClassName = NULL;
 	if (kernelUsbGetClassName(usbDev->classCode, usbDev->subClassCode,
-			usbDev->protocol, &className, &subClassName) >= 0)
+		usbDev->protocol, &className, &subClassName) >= 0)
 	{
 		kernelDebug(debug_usb, "USB (%s %s)", subClassName, className);
 	}
@@ -432,12 +448,13 @@ static int transaction(int target, usbTransaction *trans, int numTrans)
 
 	if (!usbDev->controller->queue)
 	{
-		kernelError(kernel_error, "Hub driver cannot queue transactions");
+		kernelError(kernel_error, "Controller driver cannot queue "
+			"transactions");
 		return (status = ERR_NOTIMPLEMENTED);
 	}
 
-	status =
-		usbDev->controller->queue(usbDev->controller, usbDev, trans, numTrans);
+	status = usbDev->controller->queue(usbDev->controller, usbDev, trans,
+		numTrans);
 
 	return (status);
 }
@@ -471,7 +488,7 @@ static int addController(kernelDevice *dev, int numControllers,
 
 	// Get memory for the bus service
 	controller->bus = kernelMalloc(sizeof(kernelBus));
-	if (controller->bus == NULL)
+	if (!controller->bus)
 		return (status = ERR_MEMORY);
 
 	controller->bus->type = bus_usb;
@@ -483,35 +500,40 @@ static int addController(kernelDevice *dev, int numControllers,
 	if (status < 0)
 		return (status);
 
-	// Save any existing handler for the interrupt we're hooking
-	if (!oldIntHandlers[controller->interruptNum] &&
-		(kernelInterruptGetHandler(controller->interruptNum) !=
-			usbInterrupt))
-		oldIntHandlers[controller->interruptNum] =
-			kernelInterruptGetHandler(controller->interruptNum);
-
-	// Register the interrupt handler
-	status = kernelInterruptHook(controller->interruptNum, &usbInterrupt);
-	if (status < 0)
+	// Do we have an interrupt number?
+	if (controller->interruptNum != 0xFF)
 	{
-		if ((controller->interruptNum < 0) ||
-			(controller->interruptNum >= INTERRUPT_VECTORS))
+		// Save any existing handler for the interrupt we're hooking
+
+		if (numOldHandlers <= controller->interruptNum)
 		{
-			kernelTextPrintLine("%s", _("\n *** Unable to initialize "
-				"interrupt handling for your USB controller.\n *** You may "
-				"be able to temporarily disable the 'plug and play OS' "
-				"setting\n *** in your BIOS setup.\n"));
+			numOldHandlers = (controller->interruptNum + 1);
+
+			oldIntHandlers = kernelRealloc(oldIntHandlers,
+				(numOldHandlers * sizeof(void *)));
+			if (!oldIntHandlers)
+				return (status = ERR_MEMORY);
 		}
 
-		return (status);
+		if (!oldIntHandlers[controller->interruptNum] &&
+			(kernelInterruptGetHandler(controller->interruptNum) !=
+				usbInterrupt))
+		{
+			oldIntHandlers[controller->interruptNum] =
+				kernelInterruptGetHandler(controller->interruptNum);
+		}
+
+		// Register the interrupt handler
+		status = kernelInterruptHook(controller->interruptNum, &usbInterrupt);
+		if (status < 0)
+			return (status);
 	}
-
-	// Turn on the interrupt
-	kernelPicMask(controller->interruptNum, 1);
-
-	// Add the controller's root hub to our list of hubs.  This is the
-	// last step, and will trigger cold-plugged device detection
-	kernelUsbAddHub(&(controller->hub), 0 /* no hotplug */);
+	else
+	{
+		// No interrupt number.  Inconvenient, but not necessarily fatal.
+		kernelDebugError("No interrupt number for controller %d",
+			controller->num);
+	}
 
 	return (status = 0);
 }
@@ -520,9 +542,9 @@ static int addController(kernelDevice *dev, int numControllers,
 static int driverDetect(void *parent __attribute__((unused)),
 	kernelDriver *driver)
 {
-	// This routine is called to detect USB buses.  There are a couple of
-	// different types so we call further detection routines to do the
-	// actual hardware interaction.
+	// This routine is called to detect USB buses.  There are a few different
+	// types so we call further detection routines to do the actual hardware
+	// interaction.
 
 	int status = 0;
 	kernelBusTarget *pciTargets = NULL;
@@ -530,13 +552,12 @@ static int driverDetect(void *parent __attribute__((unused)),
 	int numControllers = 0;
 	int deviceCount = 0;
 	kernelDevice *dev = NULL;
+	kernelLinkedListItem *iter = NULL;
+	usbController *controller = NULL;
 
 	kernelMemClear(&controllerList, sizeof(kernelLinkedList));
 	kernelMemClear(&hubList, sizeof(kernelLinkedList));
 	kernelMemClear(&deviceList, sizeof(kernelLinkedList));
-
-	// Clear old interrupt handlers list
-	kernelMemClear(&oldIntHandlers, (INTERRUPT_VECTORS * sizeof(void *)));
 
 	// See if there are any USB controllers on the PCI bus.  This obviously
 	// depends upon PCI hardware detection occurring before USB detection.
@@ -554,11 +575,14 @@ static int driverDetect(void *parent __attribute__((unused)),
 	for (deviceCount = 0; deviceCount < numPciTargets; deviceCount ++)
 	{
 		// If it's not a USB device, skip it
-		if ((pciTargets[deviceCount].class == NULL) ||
+		if (!pciTargets[deviceCount].class ||
 			(pciTargets[deviceCount].class->class != DEVICECLASS_BUS) ||
-			(pciTargets[deviceCount].subClass == NULL) ||
-			(pciTargets[deviceCount].subClass->class != DEVICESUBCLASS_BUS_USB))
+			!pciTargets[deviceCount].subClass ||
+			(pciTargets[deviceCount].subClass->class !=
+				DEVICESUBCLASS_BUS_USB))
+		{
 			continue;
+		}
 
 		// See if it's an EHCI controller
 		if ((dev = kernelUsbEhciDetect(&pciTargets[deviceCount], driver)))
@@ -574,11 +598,14 @@ static int driverDetect(void *parent __attribute__((unused)),
 	for (deviceCount = 0; deviceCount < numPciTargets; deviceCount ++)
 	{
 		// If it's not a USB device, skip it
-		if ((pciTargets[deviceCount].class == NULL) ||
+		if (!pciTargets[deviceCount].class ||
 			(pciTargets[deviceCount].class->class != DEVICECLASS_BUS) ||
-			(pciTargets[deviceCount].subClass == NULL) ||
-			(pciTargets[deviceCount].subClass->class != DEVICESUBCLASS_BUS_USB))
+			!pciTargets[deviceCount].subClass ||
+			(pciTargets[deviceCount].subClass->class !=
+				DEVICESUBCLASS_BUS_USB))
+		{
 			continue;
+		}
 
 		// See if it's an XHCI controller
 		if ((dev = kernelUsbXhciDetect(&pciTargets[deviceCount], driver)))
@@ -604,6 +631,22 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 	kernelFree(pciTargets);
 
+	// For each detected controller, enable its interrupt and register its
+	// root hub
+	controller = kernelLinkedListIterStart(&controllerList, &iter);
+	while (controller)
+	{
+		if (controller->interruptNum != 0xFF)
+			// Turn on the interrupt
+			kernelPicMask(controller->interruptNum, 1);
+
+		// Add the controller's root hub to our list of hubs.  This is the
+		// last step, and will trigger cold-plugged device detection
+		kernelUsbAddHub(&controller->hub, 0 /* no hotplug */);
+
+		controller = kernelLinkedListIterNext(&controllerList, &iter);
+	}
+
 	return (status);
 }
 
@@ -622,7 +665,7 @@ static void driverDeviceClaim(kernelBusTarget *target, kernelDriver *driver)
 
 	// Find the USB device using the ID
 	usbDev = kernelUsbGetDevice(target->id);
-	if (usbDev == NULL)
+	if (!usbDev)
 		return;
 
 	kernelDebug(debug_usb, "USB target 0x%08x claimed", target->id);
@@ -638,7 +681,7 @@ static int driverWrite(kernelBusTarget *target, unsigned size, void *params)
 
 	kernelDebug(debug_usb, "USB driver write");
 
-	if ((target == NULL) || (params == NULL))
+	if (!target || !params)
 	{
 		kernelError(kernel_error, "Target or params are NULL");
 		return (ERR_NULLPARAMETER);
@@ -649,7 +692,77 @@ static int driverWrite(kernelBusTarget *target, unsigned size, void *params)
 }
 
 
-// Our driver operations structure.
+static void removeDeviceRecursive(usbController *controller, usbHub *hub,
+	usbDevice *usbDev)
+{
+	usbHub *removedHub = NULL;
+	usbDevice *connectedDev = NULL;
+	kernelLinkedListItem *iter = NULL;
+	usbClass *class = NULL;
+	usbSubClass *subClass = NULL;
+
+	// If the device is a hub, recurse to remove attached devices first
+	if ((usbDev->classCode == 0x09) && (usbDev->subClassCode == 0x00))
+	{
+		removedHub = usbDev->data;
+
+		connectedDev = kernelLinkedListIterStart((kernelLinkedList *)
+			&removedHub->devices, &iter);
+
+		while (connectedDev)
+		{
+			removeDeviceRecursive(controller, removedHub, connectedDev);
+
+			connectedDev = kernelLinkedListIterNext((kernelLinkedList *)
+				&removedHub->devices, &iter);
+		}
+	}
+
+	class = kernelUsbGetClass(usbDev->classCode);
+	subClass = kernelUsbGetSubClass(class, usbDev->subClassCode,
+		usbDev->protocol);
+
+	kernelDebug(debug_usb, "USB device %d disconnected (%s %s)",
+		usbDev->address, (subClass? subClass->name : ""),
+		(class? class->name : ""));
+
+	if (controller->deviceRemoved)
+		// Tell the controller that the device has disconnected
+		controller->deviceRemoved(controller, usbDev);
+
+	if (subClass)
+	{
+		// Tell the device hotplug function that the device has disconnected
+		kernelDeviceHotplug(controller->dev, subClass->systemSubClassCode,
+			bus_usb, usbMakeTargetCode(controller->num, usbDev->address, 0),
+			0 /* disconnected */);
+	}
+
+	// Remove the device from the device list.
+	kernelLinkedListRemove(&deviceList, (void *) usbDev);
+
+	// Remove the device from the hub's list
+	kernelLinkedListRemove((kernelLinkedList *) &hub->devices,
+		(void *) usbDev);
+
+	// If the device was a hub, remove it from our list of hubs
+	if ((usbDev->classCode == 0x09) && (usbDev->subClassCode == 0x00))
+		kernelLinkedListRemove(&hubList, (void *) usbDev->data);
+
+	// Free the device's attributes list
+	kernelVariableListDestroy((variableList *) &usbDev->dev.device.attrs);
+
+	// Free the device memory
+	if (usbDev->configDesc)
+		kernelFree(usbDev->configDesc);
+
+	kernelFree((void *) usbDev);
+
+	return;
+}
+
+
+// Our bus operations structure.
 static kernelBusOps usbOps = {
 	driverGetTargets,
 	driverGetTargetInfo,
@@ -695,19 +808,18 @@ int kernelUsbInitialize(void)
 	usbDev = kernelLinkedListIterStart(&deviceList, &iter);
 	while (usbDev)
 	{
-		if (usbDev->claimed)
-			kernelDebug(debug_usb, "USB device %p claimed", usbDev);
-		else
-			kernelDebug(debug_usb, "USB device %p not claimed", usbDev);
+		kernelDebug(debug_usb, "USB device %p class=0x%02x sub=0x%02x "
+			"proto=0x%02x %sclaimed", usbDev, usbDev->classCode,
+			usbDev->subClassCode, usbDev->protocol,
+			((usbDev->claimed)? "" : "not "));
 
 		usbDev = kernelLinkedListIterNext(&deviceList, &iter);
 	}
 
 	// Spawn the USB thread
 	if (controllerList.numItems)
-		usbThreadId =
-			kernelMultitaskerSpawnKernelThread(usbThread, "usb thread", 0,
-				NULL);
+		usbThreadId = kernelMultitaskerSpawnKernelThread(usbThread,
+			"usb thread", 0, NULL);
 
 	return (0);
 }
@@ -794,7 +906,7 @@ int kernelUsbGetClassName(int classCode, int subClassCode, int protocol,
 	char **className, char **subClassName)
 {
 	// Returns name of the class and the subclass in human readable format.
-	// Buffers classname and subclassname have to provide
+	// Buffers className and subClassName have to be provided.
 
 	int status = 0;
 	usbClass *class = NULL;
@@ -808,7 +920,7 @@ int kernelUsbGetClassName(int classCode, int subClassCode, int protocol,
 	}
 
 	class = kernelUsbGetClass(classCode);
-	if (class == NULL)
+	if (!class)
 	{
 		*className = "unknown device";
 		*subClassName = "";
@@ -818,7 +930,7 @@ int kernelUsbGetClassName(int classCode, int subClassCode, int protocol,
 	*className = (char *) class->name;
 
 	subClass = kernelUsbGetSubClass(class, subClassCode, protocol);
-	if (subClass == NULL)
+	if (!subClass)
 	{
 		*subClassName = "USB";
 		return (status = USB_INVALID_SUBCLASSCODE);
@@ -874,39 +986,81 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	kernelDebug(debug_usb, "USB device connection on controller %d hub %p "
-		"port %d", controller->num, hub, port);
+	if (hub->usbDev)
+		kernelDebug(debug_usb, "USB device connection on controller %d, "
+			"hub %d, port %d", controller->num, hub->usbDev->address, port);
+	else
+		kernelDebug(debug_usb, "USB device connection on controller %d, "
+			"root hub port %d", controller->num, port);
 
+	// Get memory for the USB device
 	usbDev = kernelMalloc(sizeof(usbDevice));
-	if (usbDev == NULL)
+	if (!usbDev)
 		return (status = ERR_MEMORY);
 
 	usbDev->controller = controller;
+
 	usbDev->hub = hub;
-	usbDev->port = port;
+	if (hub->usbDev)
+	{
+		usbDev->rootPort = hub->usbDev->rootPort;
+		usbDev->hubDepth = (hub->usbDev->hubDepth + 1);
+		usbDev->hubPort = port;
+		usbDev->routeString = ((((port + 1) & 0xF) <<
+			(hub->usbDev->hubDepth * 4)) | hub->usbDev->routeString);
+
+		kernelDebug(debug_usb, "USB hub depth=%d, route string=0x%05x",
+			usbDev->hubDepth, usbDev->routeString);
+	}
+	else
+		usbDev->rootPort = port;
+
 	usbDev->speed = speed;
 
 	// Try getting a device descriptor of only 8 bytes.  Thereafter we will
 	// *know* the supported packet size.
-	kernelDebug(debug_usb, "USB get short device descriptor for new device %d",
-		usbDev->address);
+	kernelDebug(debug_usb, "USB get short device descriptor for new device");
 	status = kernelUsbControlTransfer(usbDev, USB_GET_DESCRIPTOR,
 		(USB_DESCTYPE_DEVICE << 8), 0, 8, (void *) &(usbDev->deviceDesc),
 		NULL);
 	if (status < 0)
 	{
-		kernelError(kernel_error, "Error getting device descriptor");
+		kernelError(kernel_error, "Error getting short device descriptor");
+		goto err_out;
+	}
+
+	// Do it again.  Some devices need this.
+	kernelDebug(debug_usb, "USB get short device descriptor for new device");
+	status = kernelUsbControlTransfer(usbDev, USB_GET_DESCRIPTOR,
+		(USB_DESCTYPE_DEVICE << 8), 0, 8, (void *) &(usbDev->deviceDesc),
+		NULL);
+	if (status < 0)
+	{
+		kernelError(kernel_error, "Error getting short device descriptor");
 		goto err_out;
 	}
 
 	debugDeviceDesc((usbDeviceDesc *) &(usbDev->deviceDesc));
 
+	usbDev->usbVersion = usbDev->deviceDesc.usbVersion;
+	usbDev->classCode = usbDev->deviceDesc.deviceClass;
+	usbDev->subClassCode = usbDev->deviceDesc.deviceSubClass;
+	usbDev->protocol = usbDev->deviceDesc.deviceProtocol;
+
+	if (!usbDev->deviceDesc.maxPacketSize0)
+	{
+		kernelError(kernel_error, "New device max packet size is 0");
+		status = ERR_INVALID;
+		goto err_out;
+	}
+
 	// Try to set a device address.
+
 	kernelDebug(debug_usb, "USB set address %d for new device %p",
 		(controller->addressCounter + 1), usbDev);
-	status =
-		kernelUsbControlTransfer(usbDev, USB_SET_ADDRESS,
-			(controller->addressCounter + 1), 0, 0, NULL, NULL);
+
+	status = kernelUsbControlTransfer(usbDev, USB_SET_ADDRESS,
+		(controller->addressCounter + 1), 0, 0, NULL, NULL);
 	if (status < 0)
 	{
 		// No device waiting for an address, we guess
@@ -914,15 +1068,18 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 		goto err_out;
 	}
 
+	// The device is now in the 'addressed' state.
+	// 	N.B: The XHCI controller chooses its own address value, and our XHCI
+	//	driver sets it in the device structure.
+	if (controller->type != usb_xhci)
+		usbDev->address = ++controller->addressCounter;
+
 	// We're supposed to allow a 2ms delay for the device after the set
 	// address command.
 	kernelDebug(debug_usb, "USB delay after set_address");
 	kernelCpuSpinMs(2);
 
-	// The device is now in the 'addressed' state
-	usbDev->address = (controller->addressCounter + 1);
-
-	// Now get the whole descriptor
+	// Now get the whole device descriptor
 	kernelDebug(debug_usb, "USB get full device descriptor for new device %d",
 		usbDev->address);
 	status = kernelUsbControlTransfer(usbDev, USB_GET_DESCRIPTOR,
@@ -936,10 +1093,7 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 
 	debugDeviceDesc((usbDeviceDesc *) &(usbDev->deviceDesc));
 
-	usbDev->usbVersion = usbDev->deviceDesc.usbVersion;
-	usbDev->classCode = usbDev->deviceDesc.deviceClass;
-	usbDev->subClassCode = usbDev->deviceDesc.deviceSubClass;
-	usbDev->protocol = usbDev->deviceDesc.deviceProtocol;
+	// Vendor and product IDs from the full descriptor
 	usbDev->deviceId = usbDev->deviceDesc.productId;
 	usbDev->vendorId = usbDev->deviceDesc.vendorId;
 
@@ -947,23 +1101,15 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 	// descriptors.  The initial attempt must be limited to the max packet
 	// size for endpoint zero.
 
-	if (!usbDev->deviceDesc.maxPacketSize0)
-	{
-		kernelError(kernel_error, "New device %d max packet size is 0",
-			usbDev->address);
-		status = ERR_INVALID;
-		goto err_out;
-	}
-
 	tmpConfigDesc = kernelMalloc(usbDev->deviceDesc.maxPacketSize0);
-	if (tmpConfigDesc == NULL)
+	if (!tmpConfigDesc)
 	{
 		status = ERR_MEMORY;
 		goto err_out;
 	}
 
-	kernelDebug(debug_usb, "USB get short first configuration for new device %d",
-		usbDev->address);
+	kernelDebug(debug_usb, "USB get short first configuration for new device "
+		"%d", usbDev->address);
 	bytes = 0;
 	status = kernelUsbControlTransfer(usbDev, USB_GET_DESCRIPTOR,
 		(USB_DESCTYPE_CONFIG << 8), 0,
@@ -972,6 +1118,8 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 	if ((status < 0) || (bytes < min(usbDev->deviceDesc.maxPacketSize0,
 		sizeof(usbConfigDesc))))
 	{
+		kernelError(kernel_error, "Error getting short configuration "
+			"descriptor");
 		goto err_out;
 	}
 
@@ -983,7 +1131,7 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 		min(usbDev->deviceDesc.maxPacketSize0, sizeof(usbConfigDesc)))
 	{
 		usbDev->configDesc = kernelMalloc(tmpConfigDesc->totalLength);
-		if (usbDev->configDesc == NULL)
+		if (!usbDev->configDesc)
 		{
 			status = ERR_MEMORY;
 			goto err_out;
@@ -1062,25 +1210,27 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 
 			debugEndpointDesc(usbDev->endpointDesc[usbDev->numEndpoints]);
 
-			// Register the endpoint address in our list of data toggles.
-			usbDev->dataToggle[usbDev->numEndpoints].endpntAddress =
+			// Register the endpoint number in our list.
+			usbDev->endpoint[usbDev->numEndpoints].number =
 				usbDev->endpointDesc[usbDev->numEndpoints]->endpntAddress;
 
-			ptr += sizeof(usbEndpointDesc);
+			// USB3 superspeed endpoints only
+			if ((usbDev->speed == usbspeed_super) &&
+				(usbDev->endpointDesc[usbDev->numEndpoints]->
+					superComp.descType == USB_DESCTYPE_SSENDPCOMP))
+			{
+				usbDev->endpoint[usbDev->numEndpoints].maxBurst =
+					usbDev->endpointDesc[usbDev->numEndpoints]->
+						superComp.maxBurst;
+			}
+
+			ptr += usbDev->endpointDesc[usbDev->numEndpoints]->descLength;
 			usbDev->numEndpoints += 1;
 			count2 += 1;
 		}
 
 		count1 += 1;
 	}
-
-	// Set the configuration
-	kernelDebug(debug_usb, "USB set configuration %d for new device %d",
-		usbDev->configDesc->confValue, usbDev->address);
-	status = kernelUsbControlTransfer(usbDev, USB_SET_CONFIGURATION,
-		usbDev->configDesc->confValue, 0, 0, NULL, NULL);
-	if (status < 0)
-		goto err_out;
 
 	debugUsbDevice(usbDev);
 
@@ -1119,9 +1269,16 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 		kernelVariableListSet((variableList *) &usbDev->dev.device.attrs,
 			"usb.subclass", value);
 
-		snprintf(value, 80, "%d", (usbDev->port + 1));
+		snprintf(value, 80, "%d", (usbDev->rootPort + 1));
 		kernelVariableListSet((variableList *) &usbDev->dev.device.attrs,
-			"usb.port", value);
+			"usb.rootport", value);
+
+		if (usbDev->hub->usbDev)
+		{
+			snprintf(value, 80, "%d", (usbDev->hubPort + 1));
+			kernelVariableListSet((variableList *) &usbDev->dev.device.attrs,
+				"usb.hubport", value);
+		}
 
 		snprintf(value, 80, "%d", usbDev->address);
 		kernelVariableListSet((variableList *) &usbDev->dev.device.attrs,
@@ -1148,16 +1305,15 @@ int kernelUsbDevConnect(usbController *controller, usbHub *hub, int port,
 		// See about calling the appropriate hotplug detection functions of the
 		// appropriate drivers
 		class = kernelUsbGetClass(usbDev->classCode);
-		subClass =
-			kernelUsbGetSubClass(class, usbDev->subClassCode, usbDev->protocol);
+		subClass = kernelUsbGetSubClass(class, usbDev->subClassCode,
+			usbDev->protocol);
 
 		if (subClass)
 		{
-			status =
-				kernelDeviceHotplug(controller->dev,
-					subClass->systemSubClassCode, bus_usb,
-					usbMakeTargetCode(usbDev->controller->num,
-						usbDev->address, 0), 1);
+			status = kernelDeviceHotplug(controller->dev,
+				subClass->systemSubClassCode, bus_usb,
+				usbMakeTargetCode(usbDev->controller->num, usbDev->address, 0),
+				1 /* connected */);
 			if (status < 0)
 				return (status);
 		}
@@ -1188,8 +1344,6 @@ void kernelUsbDevDisconnect(usbController *controller, usbHub *hub, int port)
 
 	kernelLinkedListItem *iter = NULL;
 	usbDevice *usbDev = NULL;
-	usbClass *class = NULL;
-	usbSubClass *subClass = NULL;
 
 	kernelDebug(debug_usb, "USB device disconnection on controller %d hub %p "
 		"port %d", controller->num, hub, port);
@@ -1197,58 +1351,20 @@ void kernelUsbDevDisconnect(usbController *controller, usbHub *hub, int port)
 		hub->devices.numItems);
 
 	// Try to find the device
-	usbDev =
-		kernelLinkedListIterStart((kernelLinkedList *) &hub->devices, &iter);
+	usbDev = kernelLinkedListIterStart((kernelLinkedList *) &hub->devices,
+		&iter);
+
 	while (usbDev)
 	{
-		if (usbDev->port == port)
+		if ((!hub->usbDev && (usbDev->rootPort == port)) ||
+			(hub->usbDev && (usbDev->hubPort == port)))
 		{
-			kernelDebug(debug_usb, "USB device %d disconnected %p",
-				usbDev->address, usbDev);
-			debugUsbDevice(usbDev);
-
-			class = kernelUsbGetClass(usbDev->classCode);
-			subClass = kernelUsbGetSubClass(class, usbDev->subClassCode,
-				usbDev->protocol);
-
-			if (subClass)
-			{
-				// Tell the device hotplug function that the device has
-				// disconnected
-				kernelDeviceHotplug(controller->dev,
-					subClass->systemSubClassCode, bus_usb,
-					usbMakeTargetCode(controller->num,
-					usbDev->address, 0), 0);
-
-				// Remove it from the device list.
-				kernelLinkedListRemove(&deviceList, (void *) usbDev);
-
-				// Remove it from the hub's list
-				kernelLinkedListRemove((kernelLinkedList *) &hub->devices,
-					(void *) usbDev);
-
-				// If the device was a hub, remove it from our list of hubs
-				if ((usbDev->classCode == 0x09) &&
-					(usbDev->subClassCode == 0x00))
-				{
-					kernelLinkedListRemove(&hubList, (void *) usbDev->data);
-				}
-
-				// Free the attributes list
-				kernelVariableListDestroy((variableList *)
-					&usbDev->dev.device.attrs);
-
-				// Free the device memory
-				if (usbDev->configDesc)
-					kernelFree(usbDev->configDesc);
-				kernelFree((void *) usbDev);
-
-				break;
-			}
-
-			usbDev = kernelLinkedListIterNext((kernelLinkedList *)
-				&hub->devices, &iter);
+			removeDeviceRecursive(controller, hub, usbDev);
+			break;
 		}
+
+		usbDev = kernelLinkedListIterNext((kernelLinkedList *) &hub->devices,
+			&iter);
 	}
 
 	kernelDebug(debug_usb, "USB %d controllers, %d hubs, %d devices",
@@ -1284,7 +1400,7 @@ usbDevice *kernelUsbGetDevice(int target)
 		tmpUsbDev = kernelLinkedListIterNext(&deviceList, &iter);
 	}
 
-	if (usbDev == NULL)
+	if (!usbDev)
 		kernelError(kernel_error, "No such device %d", address);
 
 	return (usbDev);
@@ -1317,8 +1433,8 @@ usbEndpointDesc *kernelUsbGetEndpointDesc(usbDevice *dev,
 }
 
 
-volatile unsigned char *
-kernelUsbGetEndpointDataToggle(usbDevice *dev, unsigned char endpntAddress)
+volatile unsigned char *kernelUsbGetEndpointDataToggle(usbDevice *dev,
+	unsigned char endpntAddress)
 {
 	// Try to find the endpoint data toggle for the given address
 
@@ -1333,20 +1449,42 @@ kernelUsbGetEndpointDataToggle(usbDevice *dev, unsigned char endpntAddress)
 	}
 
 	if (endpntAddress == 0)
-		toggle = &(dev->dataToggle[0].toggle);
+		toggle = &(dev->endpoint[0].dataToggle);
 	else
 	{
 		for (count = 1; count < dev->numEndpoints; count ++)
 		{
-			if (dev->dataToggle[count].endpntAddress == endpntAddress)
+			if (dev->endpoint[count].number == endpntAddress)
 			{
-				toggle = &(dev->dataToggle[count].toggle);
+				toggle = &(dev->endpoint[count].dataToggle);
 				break;
 			}
 		}
 	}
 
 	return (toggle);
+}
+
+
+int kernelUsbSetDeviceConfig(usbDevice *usbDev)
+{
+	// Set the device configuration
+
+	int status = 0;
+
+	if (!usbDev || !usbDev->configDesc)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	kernelDebug(debug_usb, "USB set configuration %d for new device %d",
+		usbDev->configDesc->confValue, usbDev->address);
+
+	status = kernelUsbControlTransfer(usbDev, USB_SET_CONFIGURATION,
+		usbDev->configDesc->confValue, 0, 0, NULL, NULL);
+
+	return (status);
 }
 
 
@@ -1547,44 +1685,9 @@ int kernelUsbScheduleInterrupt(usbDevice *usbDev, unsigned char endpoint,
 		return (status = ERR_RANGE);
 	}
 
-	status =
-		usbDev->controller->schedInterrupt(usbDev->controller, usbDev, endpoint,
-			interval, maxLen, callback);
+	status = usbDev->controller->schedInterrupt(usbDev->controller, usbDev,
+		endpoint, interval, maxLen, callback);
+
 	return (status);
 }
 
-
-int kernelUsbUnscheduleInterrupt(usbDevice *usbDev)
-{
-	// Remove any previously scheduled interrupts.
-
-	int status = 0;
-
-	// Check params
-	if (!usbDev)
-	{
-		kernelError(kernel_error, "NULL parameter");
-		return (status = ERR_NULLPARAMETER);
-	}
-
-	if (!usbDev->controller)
-	{
-		kernelError(kernel_error, "Device controller is NULL");
-		return (status = ERR_NULLPARAMETER);
-	}
-
-	if (!usbDev->controller->schedInterrupt)
-	{
-		kernelError(kernel_error, "Controller cannot schedule interrupts");
-		return (status = ERR_NOTIMPLEMENTED);
-	}
-
-	if (!usbDev->controller->unschedInterrupt)
-	{
-		kernelError(kernel_error, "Controller cannot schedule interrupts");
-		return (status = ERR_NOTIMPLEMENTED);
-	}
-
-	status = usbDev->controller->unschedInterrupt(usbDev->controller, usbDev);
-	return (status);
-}

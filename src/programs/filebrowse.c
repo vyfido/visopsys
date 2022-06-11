@@ -443,7 +443,8 @@ int main(int argc, char *argv[])
 	status = multitaskerSetCurrentDirectory(dirStack[dirStackCurr].name);
 	if (status < 0)
 	{
-		error(_("Can't change to directory \"%s\""), argv[argc - 1]);
+		error(_("Can't change to directory \"%s\""),
+			dirStack[dirStackCurr].name);
 
 		status = multitaskerGetCurrentDirectory(dirStack[dirStackCurr].name,
 			MAX_PATH_LENGTH);

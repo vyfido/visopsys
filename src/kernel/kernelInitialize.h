@@ -26,3 +26,4 @@ int kernelInitialize(unsigned, void *, unsigned);
 
 #define _KERNELINITIALIZE_H
 #endif
+

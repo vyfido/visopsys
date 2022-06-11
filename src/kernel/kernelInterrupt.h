@@ -23,14 +23,25 @@
 
 #if !defined(_KERNELINTERRUPT_H)
 
-// Interrupt numbers for interrupts we care about
-#define INTERRUPT_VECTORS			16
-#define INTERRUPT_NUM_SYSTIMER		0x00
-#define INTERRUPT_NUM_KEYBOARD		0x01
-#define INTERRUPT_NUM_FLOPPY		0x06
-#define INTERRUPT_NUM_MOUSE			0x0C
-#define INTERRUPT_NUM_PRIMARYIDE	0x0E
-#define INTERRUPT_NUM_SECONDARYIDE	0x0F
+#define INTERRUPT_VECTORSTART			0x20
+
+// ISA/PIC interrupt numbers
+#define INTERRUPT_NUM_SYSTIMER			0
+#define INTERRUPT_NUM_KEYBOARD			1
+#define INTERRUPT_NUM_SLAVEPIC			2
+#define INTERRUPT_NUM_COM2				3
+#define INTERRUPT_NUM_COM1				4
+#define INTERRUPT_NUM_SOUNDCARD			5
+#define INTERRUPT_NUM_FLOPPY			6
+#define INTERRUPT_NUM_LPT				7
+#define INTERRUPT_NUM_RTC				8
+#define INTERRUPT_NUM_VGA				9
+#define INTERRUPT_NUM_AVAILABLE1		10
+#define INTERRUPT_NUM_AVAILABLE2		11
+#define INTERRUPT_NUM_MOUSE				12
+#define INTERRUPT_NUM_COPROCERR			13
+#define INTERRUPT_NUM_PRIMARYIDE		14
+#define INTERRUPT_NUM_SECONDARYIDE		15
 
 int kernelInterruptInitialize(void);
 void *kernelInterruptGetHandler(int);
@@ -42,3 +53,4 @@ void kernelInterruptClearCurrent(void);
 
 #define _KERNELINTERRUPT_H
 #endif
+

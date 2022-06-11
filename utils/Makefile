@@ -12,11 +12,11 @@ SRCDIR = ${ROOT}/src/programs
 
 include ${ROOT}/Makefile.include
 
-CFLAGS = ${OPT} -pipe ${WARN} ${DEBUG}
-
 ifdef DEBUG
 	override DEBUG = -DDEBUG
 endif
+
+CFLAGS = ${OPT} -pipe ${WARN} ${DEBUG}
 
 all: copy-boot
 

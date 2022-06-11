@@ -119,6 +119,7 @@ NAMES = kernelMain \
 	kernelWindowTitleBar
 
 DRIVERNAMES = kernelAcpiDriver \
+	kernelApicDriver \
 	kernelAtaDriver \
 	kernelDmaDriver \
 	kernelFloppyDriver \

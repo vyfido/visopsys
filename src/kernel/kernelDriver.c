@@ -214,3 +214,4 @@ void *kernelSoftwareDriverGet(kernelSoftwareDriverType type)
 			return (NULL);
 	}
 }
+

@@ -137,7 +137,7 @@ typedef struct {
 	unsigned char checksum;
 	char oemId[6];
 	unsigned char revision;
-	void *rsdtAddr;
+	unsigned rsdtAddr;
 
 	// Fields added in ACPI 2.0
 	unsigned length;
@@ -164,7 +164,7 @@ typedef struct {
 // Root System Description Table
 typedef struct {
 	acpiSysDescHeader header;
-	void *entry[];
+	unsigned entry[];
 
 } __attribute__((packed)) acpiRsdt;
 
@@ -188,7 +188,7 @@ typedef struct {
 	acpiApicHeader header;
 	unsigned char ioApicId;
 	unsigned char res;
-	void *ioApicAddr;
+	unsigned ioApicAddr;
 	unsigned gsiBase;
 
 } __attribute__((packed)) acpiIoApic;
@@ -196,17 +196,17 @@ typedef struct {
 // Multiple APIC Description Table
 typedef struct {
 	acpiSysDescHeader header;
-	void *localApicAddr;
+	unsigned localApicAddr;
 	unsigned flags;
-	void *entry[];
+	unsigned entry[];
 
 } __attribute__((packed)) acpiMadt;
 
 // Fixed ACPI Description Table
 typedef struct {
 	acpiSysDescHeader header;
-	void *facsAddr;
-	void *dsdtAddr;
+	unsigned facsAddr;
+	unsigned dsdtAddr;
 	unsigned char intMode;
 	unsigned char res1;
 	unsigned short sciInt;
@@ -265,7 +265,7 @@ typedef struct {
 	char signature[4];
 	unsigned length;
 	unsigned hardwareSig;
-	void *wakingVector;
+	unsigned wakingVector;
 	unsigned globalLock;
 	unsigned flags;
 	// Fields added in ACPI 2.0 (version field >= 1)

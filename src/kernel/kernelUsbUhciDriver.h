@@ -22,6 +22,7 @@
 #if !defined(_KERNELUSBUHCIDRIVER_H)
 
 #include "kernelLinkedList.h"
+#include "kernelMemory.h"
 
 // USB UHCI Host controller port offsets
 #define USBUHCI_PORTOFFSET_CMD		0x00
@@ -120,7 +121,7 @@ typedef volatile struct _usbUhciTransDesc {
 	unsigned linkPointer;
 	unsigned contStatus;
 	unsigned tdToken;
-	void *buffer;
+	unsigned buffer;
 	// The last 4 dwords are reserved for our use, also helps ensure 16-byte
 	// alignment.
 	void *buffVirtual;
@@ -156,8 +157,7 @@ typedef struct {
 
 typedef struct {
 	void *ioAddress;
-	void *frameListPhysical;
-	unsigned *frameList;
+	kernelIoMemory frameList;
 	usbUhciQueueHead *queueHeads[USBUHCI_NUM_QUEUEHEADS];
 	usbUhciTransDesc *termTransDesc;
 	kernelLinkedList intrRegs;
@@ -166,3 +166,4 @@ typedef struct {
 
 #define _KERNELUSBUHCIDRIVER_H
 #endif
+

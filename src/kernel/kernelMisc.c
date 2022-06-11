@@ -171,7 +171,7 @@ int kernelSystemInfo(struct utsname *uname)
 	kernelDevice *cpuDevice = NULL;
 
 	// Check params
-	if (uname == NULL)
+	if (!uname)
 		return (status = ERR_NULLPARAMETER);
 
 	strncpy(uname->sysname, kernelVersion[0], UTSNAME_MAX_SYSNAME_LENGTH);
@@ -180,8 +180,10 @@ int kernelSystemInfo(struct utsname *uname)
 	strncpy(uname->version, __DATE__" "__TIME__, UTSNAME_MAX_VERSION_LENGTH);
 	if ((kernelDeviceFindType(kernelDeviceGetClass(DEVICECLASS_CPU), NULL,
 		&cpuDevice, 1) > 0) && cpuDevice->device.subClass)
-	strncpy(uname->machine, cpuDevice->device.subClass->name,
-		UTSNAME_MAX_MACHINE_LENGTH);
+	{
+		strncpy(uname->machine, cpuDevice->device.subClass->name,
+			UTSNAME_MAX_MACHINE_LENGTH);
+	}
 	kernelNetworkGetDomainName(uname->domainname, NETWORK_MAX_DOMAINNAMELENGTH);
 
 	return (status = 0);
@@ -260,7 +262,7 @@ const char *kernelLookupClosestSymbol(kernelProcess *lookupProcess,
 	else
 		symTable = lookupProcess->symbols;
 
-	if (symTable == NULL)
+	if (!symTable)
 		return (NULL);
 
 	for (count = 0; count < symTable->numSymbols; count ++)
@@ -289,7 +291,7 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 	int status = 0;
 	void *instPointer = 0;
 	void *framePointer = NULL;
-	void *stackPhysical = NULL;
+	unsigned stackPhysical = NULL;
 	void *stackVirtual = NULL;
 	long memoryOffset = 0;
 	const char *symbolName = NULL;
@@ -301,14 +303,14 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	if (kernelCurrentProcess == NULL)
+	if (!kernelCurrentProcess)
 	{
 		kernelError(kernel_error, "Current process is NULL.  Multitasking not "
 			"yet initialized?");
 		return (status = ERR_INVALID);
 	}
 
-	if (traceProcess == NULL)
+	if (!traceProcess)
 		traceProcess = kernelCurrentProcess;
 
 	// Permission check.  A privileged process can trace any other process,
@@ -329,7 +331,7 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 	// we are live-tracing the current process (traceProcess is NULL).  If so
 	// then we need the current frame pointer.  Otherwise we get the saved frame
 	// pointer from the process structure.
-	if (traceProcess == NULL)
+	if (!traceProcess)
 	{
 		// Live-tracing the current process
 		traceProcess = kernelCurrentProcess;
@@ -465,7 +467,7 @@ int kernelConfigRead(const char *fileName, variableList *list)
 	}
 
 	configFile = kernelMalloc(sizeof(fileStream));
-	if (configFile == NULL)
+	if (!configFile)
 		return (status = ERR_MEMORY);
 
 	status = kernelFileStreamOpen(fileName, OPENMODE_READ, configFile);
@@ -562,7 +564,7 @@ int kernelConfigWrite(const char *fileName, variableList *list)
 		// so that we don't overwrite anything until we've been successful.
 
 		oldFileStream = kernelMalloc(sizeof(fileStream));
-		if (oldFileStream == NULL)
+		if (!oldFileStream)
 			return (status = ERR_MEMORY);
 
 		status = kernelFileStreamOpen(fileName, OPENMODE_READ, oldFileStream);
@@ -743,7 +745,7 @@ int kernelConfigSet(const char *fileName, const char *variable,
 	variableList list;
 
 	// Check params
-	if ((fileName == NULL) || (variable == NULL) || (value == NULL))
+	if (!fileName || !variable || !value)
 		return (status = ERR_NULLPARAMETER);
 
 	// Try to read in the config file
@@ -776,7 +778,7 @@ int kernelConfigUnset(const char *fileName, const char *variable)
 	variableList list;
 
 	// Check params
-	if ((fileName == NULL) || (variable == NULL))
+	if (!fileName || !variable)
 		return (status = ERR_NULLPARAMETER);
 
 	// Try to read in the config file
@@ -819,7 +821,7 @@ int kernelReadSymbols(void)
 	kernelLog("Reading kernel symbols from \"%s\"", KERNEL_FILE);
 
 	kernelSymbols = kernelLoaderGetSymbols(KERNEL_FILE);
-	if (kernelSymbols == NULL)
+	if (!kernelSymbols)
 	{
 		kernelDebugError("Couldn't load kernel symbols");
 		return (status = ERR_NODATA);
@@ -1034,3 +1036,4 @@ void kernelPause(int seconds)
 
 	return;
 }
+

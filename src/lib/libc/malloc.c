@@ -127,8 +127,8 @@ static inline void insertBlock(mallocBlock **list, mallocBlock *insBlock,
 {
 	// Stick the first block in front of the second block
 
-	debug("Insert block %08x->%08x (%u) before %08x->%08x (%u)", insBlock->start,
-		blockEnd(insBlock), insBlock->size, nextBlock->start,
+	debug("Insert block %08x->%08x (%u) before %08x->%08x (%u)",
+		insBlock->start, blockEnd(insBlock), insBlock->size, nextBlock->start,
 		blockEnd(nextBlock), nextBlock->size);
 
 	insBlock->prev = nextBlock->prev;
@@ -156,6 +156,7 @@ static inline void appendBlock(mallocBlock *appBlock, mallocBlock *prevBlock)
 
 	if (prevBlock->next)
 		prevBlock->next->prev = appBlock;
+
 	prevBlock->next = appBlock;
 }
 
@@ -217,7 +218,8 @@ static int allocVacantBlocks(void)
 		vacantBlockList = memory_get(MEMORY_BLOCK_SIZE, "kernel heap metadata");
 	else
 		vacantBlockList = memory_get(MEMORY_BLOCK_SIZE, "user heap metadata");
-	if (vacantBlockList == NULL)
+
+	if (!vacantBlockList)
 	{
 		error("Unable to allocate heap management memory");
 		return (status = ERR_MEMORY);
@@ -319,11 +321,11 @@ static int createBlock(mallocBlock **list, unsigned start, unsigned size,
 	int status = 0;
 	mallocBlock *block = NULL;
 
-	debug("Create block %08x-%08x (%u) in %s list", start, (start + (size - 1)),
-		size, ((list == USEDLIST_REF)? "used" : "free"));
+	debug("Create block %08x-%08x (%u) in %s list", start,
+		(start + (size - 1)), size, ((list == USEDLIST_REF)? "used" : "free"));
 
 	block = getBlock();
-	if (block == NULL)
+	if (!block)
 		return (status = ERR_NOFREE);
 
 	block->start = start;
@@ -358,7 +360,8 @@ static int growHeap(unsigned minSize)
 		newHeap = memory_get(minSize, "kernel heap");
 	else
 		newHeap = memory_get(minSize, "user heap");
-	if (newHeap == NULL)
+
+	if (!newHeap)
 	{
 		error("Unable to allocate heap memory");
 		return (ERR_MEMORY);
@@ -434,8 +437,7 @@ static void *allocateBlock(unsigned size, const char *function)
 
 	// Make sure there's enough heap memory.  This will get called the first
 	// time we're invoked, as totalMemory will be zero.
-	if ((size > (totalMemory - usedMemory)) ||
-		((block = findFree(size)) == NULL))
+	if ((size > (totalMemory - usedMemory)) || !(block = findFree(size)))
 	{
 		status = growHeap(size);
 		if (status < 0)
@@ -445,7 +447,7 @@ static void *allocateBlock(unsigned size, const char *function)
 		}
 
 		block = findFree(size);
-		if (block == NULL)
+		if (!block)
 		{
 			// Something really wrong.
 			error("Unable to allocate block of size %u (%s)", size, function);
@@ -628,8 +630,8 @@ static int checkBlocks(void)
 
 				if (prev->start >= block->start)
 				{
-					error("Previous block %08x->%08x (%u) does not start before "
-						"current block %08x->%08x (%u) in %s list",
+					error("Previous block %08x->%08x (%u) does not start "
+						"before current block %08x->%08x (%u) in %s list",
 						prev->start, blockEnd(prev), prev->size, block->start,
 						blockEnd(block), block->size, listName);
 					return (status = ERR_BADDATA);
@@ -637,9 +639,9 @@ static int checkBlocks(void)
 
 				if (blockEnd(prev) >= block->start)
 				{
-					error("Previous block %08x->%08x (%u) end overlaps current "
-						"block %08x->%08x (%u) in %s list", prev->start,
-						blockEnd(prev),	prev->size, block->start,
+					error("Previous block %08x->%08x (%u) end overlaps "
+						"current block %08x->%08x (%u) in %s list",
+						prev->start, blockEnd(prev), prev->size, block->start,
 						blockEnd(block), block->size, listName);
 					return (status = ERR_BADDATA);
 				}
@@ -651,9 +653,9 @@ static int checkBlocks(void)
 
 				if (next->prev != block)
 				{
-					error("Next block %08x->%08x (%u) does not point to current "
-						"block %08x->%08x (%u) in %s list", next->start,
-						blockEnd(next), next->size, block->start,
+					error("Next block %08x->%08x (%u) does not point to "
+						"current block %08x->%08x (%u) in %s list",
+						next->start, blockEnd(next), next->size, block->start,
 						blockEnd(block), block->size, listName);
 					return (status = ERR_BADDATA);
 				}
@@ -756,7 +758,7 @@ void _doFree(void *start, const char *function)
 
 	int status = 0;
 
-	if (start == NULL)
+	if (!start)
 	{
 		error("Can't free NULL pointer (%s)", function);
 		errno = ERR_INVALID;
@@ -819,7 +821,7 @@ int _mallocBlockInfo(void *start, memoryBlock *meBlock)
 	mallocBlock *maBlock = usedBlockList;
 
 	// Check params
-	if ((start == NULL) || (meBlock == NULL))
+	if (!start || !meBlock)
 		return (status = ERR_NULLPARAMETER);
 
 	status = lock_get(&blocksLock);
@@ -857,7 +859,7 @@ int _mallocGetStats(memoryStats *stats)
 	mallocBlock *block = usedBlockList;
 
 	// Check params
-	if (stats == NULL)
+	if (!stats)
 	{
 		error("Stats structure pointer is NULL");
 		return (status = ERR_NULLPARAMETER);
@@ -895,7 +897,7 @@ int _mallocGetBlocks(memoryBlock *blocksArray, int doBlocks)
 	int count;
 
 	// Check params
-	if (blocksArray == NULL)
+	if (!blocksArray)
 	{
 		error("Blocks array pointer is NULL");
 		return (status = ERR_NULLPARAMETER);

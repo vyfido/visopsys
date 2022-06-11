@@ -84,8 +84,8 @@ static int detectVbe(void)
 
 	// Map the video BIOS image into memory.  Starts at 0xC0000 and 'normally' is
 	// 32Kb according to the VBE 3.0 spec (but not really in my experience)
-	status = kernelPageMapToFree(KERNELPROCID, (void *) VIDEO_BIOS_MEMORY,
-		&biosOrig, VIDEO_BIOS_MEMORY_SIZE);
+	status = kernelPageMapToFree(KERNELPROCID, VIDEO_BIOS_MEMORY, &biosOrig,
+		VIDEO_BIOS_MEMORY_SIZE);
 	if (status < 0)
 		return (status);
 
@@ -260,7 +260,7 @@ int kernelGraphicInitialize(kernelDevice *dev)
 int kernelGraphicsAreEnabled(void)
 {
 	// Returns 1 if graphics are enabled, 0 otherwise
-	if (systemAdapter != NULL)
+	if (systemAdapter)
 		return (1);
 	else
 		return (0);

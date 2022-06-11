@@ -34,20 +34,21 @@ static kernelDeviceClass allClasses[] = {
 	{ DEVICECLASS_CPU,		"CPU"						},
 	{ DEVICECLASS_MEMORY,	"memory"					},
 	{ DEVICECLASS_SYSTEM,	"system"					},
+	{ DEVICECLASS_POWER,	"power management"			},
 	{ DEVICECLASS_BUS,		"bus controller"			},
 	{ DEVICECLASS_BRIDGE,	"bridge"					},
-	{ DEVICECLASS_PIC,		"PIC"						},
+	{ DEVICECLASS_INTCTRL,	"interrupt controller"		},
 	{ DEVICECLASS_SYSTIMER,	"system timer"				},
 	{ DEVICECLASS_RTC,		"real-time clock (RTC)"		},
 	{ DEVICECLASS_DMA,		"DMA controller"			},
 	{ DEVICECLASS_DISKCTRL,	"disk controller"			},
 	{ DEVICECLASS_KEYBOARD,	"keyboard"					},
 	{ DEVICECLASS_MOUSE,	"mouse"						},
+	{ DEVICECLASS_TOUCHSCR,	"touchscreen"				},
 	{ DEVICECLASS_DISK,		"disk"						},
 	{ DEVICECLASS_GRAPHIC,	"graphic adapter"			},
 	{ DEVICECLASS_NETWORK,	"network adapter"			},
 	{ DEVICECLASS_HUB,		"hub"						},
-	{ DEVICECLASS_POWER,	"power management"			},
 	{ DEVICECLASS_UNKNOWN,	"unknown"					},
 	{ 0, NULL											}
 };
@@ -58,10 +59,14 @@ static kernelDeviceClass allSubClasses[] = {
 	{ DEVICESUBCLASS_SYSTEM_BIOS,		"BIOS"					},
 	{ DEVICESUBCLASS_SYSTEM_BIOS32,		"BIOS (32-bit)"			},
 	{ DEVICESUBCLASS_SYSTEM_BIOSPNP,	"BIOS (Plug and Play)"	},
+	{ DEVICESUBCLASS_SYSTEM_MULTIPROC,	"multiprocessor"		},
+	{ DEVICESUBCLASS_POWER_ACPI,		"ACPI"					},
 	{ DEVICESUBCLASS_BUS_PCI,			"PCI"					},
 	{ DEVICESUBCLASS_BUS_USB,			"USB"					},
 	{ DEVICESUBCLASS_BRIDGE_PCI,		"PCI"					},
 	{ DEVICESUBCLASS_BRIDGE_ISA,		"ISA"					},
+	{ DEVICESUBCLASS_INTCTRL_PIC,		"PIC"					},
+	{ DEVICESUBCLASS_INTCTRL_APIC,		"APIC"					},
 	{ DEVICESUBCLASS_DISKCTRL_IDE,		"IDE"					},
 	{ DEVICESUBCLASS_DISKCTRL_SATA,		"SATA"					},
 	{ DEVICESUBCLASS_KEYBOARD_PS2,		"PS/2"					},
@@ -69,6 +74,7 @@ static kernelDeviceClass allSubClasses[] = {
 	{ DEVICESUBCLASS_MOUSE_PS2,			"PS/2"					},
 	{ DEVICESUBCLASS_MOUSE_SERIAL,		"serial"				},
 	{ DEVICESUBCLASS_MOUSE_USB,			"USB"					},
+	{ DEVICESUBCLASS_TOUCHSCR_USB,		"USB"					},
 	{ DEVICESUBCLASS_DISK_FLOPPY,		"floppy"				},
 	{ DEVICESUBCLASS_DISK_IDE,			"IDE"					},
 	{ DEVICESUBCLASS_DISK_SATA,			"SATA"					},
@@ -77,7 +83,6 @@ static kernelDeviceClass allSubClasses[] = {
 	{ DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER, "framebuffer"			},
 	{ DEVICESUBCLASS_NETWORK_ETHERNET,	"ethernet"				},
 	{ DEVICESUBCLASS_HUB_USB,			"USB"					},
-	{ DEVICESUBCLASS_POWER_ACPI,		"ACPI"					},
 	{ DEVICESUBCLASS_UNKNOWN,			"unknown"				},
 	{ 0, NULL													}
 };
@@ -99,10 +104,17 @@ static kernelDriver deviceDrivers[] = {
 		kernelBios32DriverRegister, NULL, NULL, NULL					},
 	{ DEVICECLASS_SYSTEM, DEVICESUBCLASS_SYSTEM_BIOS,
 		kernelBiosPnpDriverRegister, NULL, NULL, NULL					},
-	// Do motherboard-type devices.  The PIC must be before most drivers,
+	{ DEVICECLASS_SYSTEM, DEVICESUBCLASS_SYSTEM_MULTIPROC,
+		kernelMultiProcDriverRegister, NULL, NULL, NULL					},
+	{ DEVICECLASS_POWER, DEVICESUBCLASS_POWER_ACPI,
+		kernelAcpiDriverRegister, NULL, NULL, NULL						},
+	// Do motherboard-type devices.  The PICs must be before most drivers,
 	// specifically anything that uses interrupts (which is almost
 	// everything)
-	{ DEVICECLASS_PIC, 0, kernelPicDriverRegister, NULL, NULL, NULL		},
+	{ DEVICECLASS_INTCTRL, DEVICESUBCLASS_INTCTRL_PIC,
+		kernelPicDriverRegister, NULL, NULL, NULL						},
+	{ DEVICECLASS_INTCTRL, DEVICESUBCLASS_INTCTRL_APIC,
+		kernelApicDriverRegister, NULL, NULL, NULL						},
 	{ DEVICECLASS_SYSTIMER, 0,
 		kernelSysTimerDriverRegister, NULL, NULL, NULL					},
 	{ DEVICECLASS_RTC, 0, kernelRtcDriverRegister, NULL, NULL, NULL		},
@@ -139,7 +151,7 @@ static kernelDriver deviceDrivers[] = {
 		kernelSataAhciDriverRegister, NULL, NULL, NULL					},
 	{ DEVICECLASS_DISKCTRL, DEVICESUBCLASS_DISKCTRL_IDE,
 		kernelIdeDriverRegister, NULL, NULL, NULL						},
-	// Do the mouse devices after the graphic device so we can get screen
+	// Do the pointer devices after the graphic device so we can get screen
 	// parameters, etc.  Also needs to be after the keyboard driver since
 	// PS2 mouses use the keyboard controller.
 	{ DEVICECLASS_MOUSE, DEVICESUBCLASS_MOUSE_PS2,
@@ -149,8 +161,6 @@ static kernelDriver deviceDrivers[] = {
 	// Network and other non-critical (for basic operation) devices follow
 	{ DEVICECLASS_NETWORK, DEVICESUBCLASS_NETWORK_ETHERNET,
 		kernelLanceDriverRegister, NULL, NULL, NULL						},
-	{ DEVICECLASS_POWER, DEVICESUBCLASS_POWER_ACPI,
-		kernelAcpiDriverRegister, NULL, NULL, NULL						},
 	{ 0, 0, NULL, NULL, NULL, NULL										}
 };
 
@@ -277,7 +287,7 @@ int kernelDeviceInitialize(void)
 
 	// Allocate a NULL 'system' device to build our device tree from
 	deviceTree = kernelMalloc(sizeof(kernelDevice));
-	if (deviceTree == NULL)
+	if (!deviceTree)
 		return (status = ERR_MEMORY);
 
 	deviceTree->device.class = kernelDeviceGetClass(DEVICECLASS_SYSTEM);
@@ -285,6 +295,7 @@ int kernelDeviceInitialize(void)
 
 	// Loop through our static structures of built-in device drivers and
 	// initialize them.
+
 	for (driverCount = 0; (displayDrivers[driverCount].class != 0);
 		driverCount ++)
 	{
@@ -292,6 +303,7 @@ int kernelDeviceInitialize(void)
 			displayDrivers[driverCount]
 				.driverRegister(&displayDrivers[driverCount]);
 	}
+
 	for (driverCount = 0; (deviceDrivers[driverCount].class != 0);
 		driverCount ++)
 	{
@@ -333,7 +345,7 @@ int kernelDeviceDetectDisplay(void)
 		if (class)
 			strcat(driverString, class->name);
 
-		if (displayDrivers[driverCount].driverDetect == NULL)
+		if (!displayDrivers[driverCount].driverDetect)
 		{
 			kernelError(kernel_error, "Device driver for \"%s\" has no "
 				"'detect' function", driverString);
@@ -392,7 +404,7 @@ int kernelDeviceDetect(void)
 		// Print a message
 		kernelTextPrint("Detecting hardware: %s ", driverString);
 
-		if (deviceDrivers[driverCount].driverDetect == NULL)
+		if (!deviceDrivers[driverCount].driverDetect)
 		{
 			kernelError(kernel_error, "Device driver for \"%s\" has no "
 				"'detect' function", driverString);
@@ -445,11 +457,11 @@ int kernelDeviceFindType(kernelDeviceClass *class, kernelDeviceClass *subClass,
 	int status = 0;
 
 	// Check params.  subClass can be NULL.
-	if ((class == NULL) || (devPointers == NULL))
+	if (!class || !devPointers)
 		return (status = ERR_NULLPARAMETER);
 
-	status =
-		findDeviceType(deviceTree, class, subClass, devPointers, maxDevices, 0);
+	status = findDeviceType(deviceTree, class, subClass, devPointers,
+		maxDevices, 0);
 
 	return (status);
 }
@@ -514,7 +526,7 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 	}
 
 	// NULL parent means use the root system device.
-	if (parent == NULL)
+	if (!parent)
 		parent = deviceTree;
 
 	new->device.parent = parent;
@@ -542,7 +554,7 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 	new->device.firstChild = new->device.previous = new->device.next = NULL;
 
 	// If the parent has no children, make this the first one.
-	if (parent->device.firstChild == NULL)
+	if (!parent->device.firstChild)
 		parent->device.firstChild = new;
 
 	else
@@ -550,7 +562,7 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 		// The parent has at least one child.  Follow the linked list to the
 		// last child.
 		listPointer = parent->device.firstChild;
-		while (listPointer->device.next != NULL)
+		while (listPointer->device.next)
 			listPointer = listPointer->device.next;
 
 		// listPointer points to the last child.
@@ -624,7 +636,7 @@ int kernelDeviceTreeGetRoot(device *rootDev)
 	int status = 0;
 
 	// Are we initialized?
-	if (deviceTree == NULL)
+	if (!deviceTree)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
@@ -647,7 +659,7 @@ int kernelDeviceTreeGetChild(device *parentDev, device *childDev)
 	int status = 0;
 
 	// Are we initialized?
-	if (deviceTree == NULL)
+	if (!deviceTree)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
@@ -657,7 +669,7 @@ int kernelDeviceTreeGetChild(device *parentDev, device *childDev)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	if ((parentDev->firstChild == NULL) ||
+	if (!parentDev->firstChild ||
 		!isDevInTree(deviceTree, parentDev->firstChild))
 	{
 		return (status = ERR_NOSUCHENTRY);
@@ -676,7 +688,7 @@ int kernelDeviceTreeGetNext(device *dev)
 	int status = 0;
 
 	// Are we initialized?
-	if (deviceTree == NULL)
+	if (!deviceTree)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
@@ -686,9 +698,10 @@ int kernelDeviceTreeGetNext(device *dev)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	if ((dev->next == NULL) || !isDevInTree(deviceTree, dev->next))
+	if (!dev->next || !isDevInTree(deviceTree, dev->next))
 		return (status = ERR_NOSUCHENTRY);
 
 	device2user(dev->next, dev);
 	return (status = 0);
 }
+

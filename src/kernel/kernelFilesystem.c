@@ -35,7 +35,6 @@
 static kernelFilesystemDriver *driverArray[MAX_FILESYSTEMS];
 static int driverCounter = 0;
 
-
 static void populateDriverArray(void)
 {
 	driverArray[driverCounter++] = kernelSoftwareDriverGet(extDriver);
@@ -197,6 +196,129 @@ changed:
 }
 
 
+static int unmount(const char *path, int removed)
+{
+	// This function takes the filesystem mount point name and removes the
+	// filesystem structure and its driver from the lists.
+
+	int status = 0;
+	char mountPointName[MAX_PATH_LENGTH];
+	kernelDisk *theDisk = NULL;
+	kernelFilesystemDriver *theDriver = NULL;
+	kernelFileEntry *mountPoint = NULL;
+	kernelFileEntry *parentDir = NULL;
+	kernelPhysicalDisk *physicalDisk = NULL;
+
+	// Make sure the path name isn't NULL
+	if (!path)
+		return (status = ERR_NULLPARAMETER);
+
+	// Fix up the path of the mount point
+	status = kernelFileFixupPath(path, mountPointName);
+	if (status < 0)
+		return (status);
+
+	// Get the file entry for the mount point
+	mountPoint = kernelFileLookup(mountPointName);
+	if (!mountPoint)
+	{
+		kernelError(kernel_error, "Unable to locate the mount point entry");
+		return (status = ERR_NOSUCHDIR);
+	}
+
+	theDisk = mountPoint->disk;
+	theDriver = theDisk->filesystem.driver;
+
+	if (!theDisk->filesystem.mounted)
+	{
+		kernelError(kernel_error, "Disk %s is not mounted", theDisk->name);
+		return (status = ERR_ALREADY);
+	}
+
+	// Unless the device has been removed, do not attempt to unmount the
+	// filesystem if there are child mounts
+	if (!removed && theDisk->filesystem.childMounts)
+	{
+		kernelError(kernel_error, "Cannot unmount %s when child filesystems "
+			"are still mounted", mountPointName);
+		return (status = ERR_BUSY);
+	}
+
+	// Starting at the mount point, unbuffer all files from the file entry tree
+	status = kernelFileUnbufferRecursive(mountPoint);
+	if (status < 0)
+		return (status);
+
+	// Do a couple of additional things if this is not the root directory
+	if (strcmp(mountPointName, "/"))
+	{
+		if (mountPoint->parentDirectory)
+		{
+			parentDir = mountPoint->parentDirectory;
+			((kernelDisk *) parentDir->disk)->filesystem.childMounts -= 1;
+		}
+
+		// Remove the mount point's file entry from its parent directory
+		kernelFileRemoveEntry(mountPoint);
+	}
+
+	// If the the device is still present, call the filesystem driver's unmount
+	// function
+	if (!removed && theDriver->driverUnmount)
+		theDriver->driverUnmount(theDisk);
+
+	// It doesn't matter whether the unmount call was "successful".  If it
+	// wasn't, there's really nothing we can do about it from here.
+
+	// Clear some filesystem info
+	theDisk->filesystem.mounted = 0;
+	theDisk->filesystem.mountPoint[0] = '\0';
+	theDisk->filesystem.filesystemRoot = NULL;
+	theDisk->filesystem.childMounts = 0;
+	theDisk->filesystem.filesystemData = NULL;
+	theDisk->filesystem.caseInsensitive = 0;
+	theDisk->filesystem.readOnly = 0;
+
+	// If it's a removable device, clear everything
+	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
+	{
+		kernelMemClear((void *) &theDisk->filesystem,
+			sizeof(theDisk->filesystem));
+		strcpy((char *) theDisk->fsType, "unknown");
+	}
+
+	if (!removed)
+	{
+		// Sync the disk cache
+		status = kernelDiskSync((char *) theDisk->name);
+		if (status < 0)
+			kernelError(kernel_warn, "Unable to sync disk \"%s\" after unmount",
+				theDisk->name);
+
+		physicalDisk = theDisk->physical;
+
+		// If this is a removable disk, invalidate the disk cache
+		if (physicalDisk->type & DISKTYPE_REMOVABLE)
+		{
+			status = kernelDiskInvalidateCache((char *) physicalDisk->name);
+			if (status < 0)
+				kernelError(kernel_warn, "Unable to invalidate \"%s\" disk "
+					"cache after unmount", theDisk->name);
+
+			// If it has an 'unlock' function, unlock it
+			if (((kernelDiskOps *) physicalDisk->driver->ops)
+				->driverSetLockState)
+			{
+				((kernelDiskOps *) physicalDisk->driver->ops)
+					->driverSetLockState(physicalDisk->deviceNumber, 0);
+			}
+		}
+	}
+
+	return (status);
+}
+
+
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -221,6 +343,7 @@ int kernelFilesystemScan(kernelDisk *theDisk)
 	}
 
 	kernelMemClear((void *) &theDisk->filesystem, sizeof(theDisk->filesystem));
+
 	strcpy((char *) theDisk->fsType, "unknown");
 
 	physicalDisk = theDisk->physical;
@@ -253,11 +376,11 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
 	kernelFilesystemDriver *theDriver = NULL;
 
 	// Check params
-	if (diskName == NULL)
+	if (!diskName)
 		return (status = ERR_NULLPARAMETER);
 
 	theDisk = kernelDiskGetByName(diskName);
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
 		return (status = ERR_NULLPARAMETER);
@@ -271,7 +394,7 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
 	else if (!strncasecmp(type, FSNAME_LINUXSWAP, strlen(FSNAME_LINUXSWAP)))
 		theDriver = getDriver(FSNAME_LINUXSWAP);
 
-	if (theDriver == NULL)
+	if (!theDriver)
 	{
 		kernelError(kernel_error, "Invalid filesystem type \"%s\" for format!",
 			type);
@@ -279,7 +402,7 @@ int kernelFilesystemFormat(const char *diskName, const char *type,
 	}
 
 	// Make sure the driver's formatting routine is not NULL
-	if (theDriver->driverFormat == NULL)
+	if (!theDriver->driverFormat)
 	{
 		kernelError(kernel_error, "The filesystem driver does not support the "
 			"'format' operation");
@@ -306,11 +429,11 @@ int kernelFilesystemClobber(const char *diskName)
 	int count;
 
 	// Check params
-	if (diskName == NULL)
+	if (!diskName)
 		return (status = ERR_NULLPARAMETER);
 
 	theDisk = kernelDiskGetByName(diskName);
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
 		return (status = ERR_NULLPARAMETER);
@@ -349,11 +472,11 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair,
 	kernelFilesystemDriver *theDriver = NULL;
 
 	// Check params
-	if (diskName == NULL)
+	if (!diskName)
 		return (status = ERR_NULLPARAMETER);
 
 	theDisk = kernelDiskGetByName(diskName);
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
 		return (status = ERR_NULLPARAMETER);
@@ -362,7 +485,7 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair,
 	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
 		checkRemovable(theDisk);
 
-	if (theDisk->filesystem.driver == NULL)
+	if (!theDisk->filesystem.driver)
 	{
 		// Try a scan before we error out.
 		if (kernelFilesystemScan(theDisk) < 0)
@@ -376,7 +499,7 @@ int kernelFilesystemCheck(const char *diskName, int force, int repair,
 	theDriver = theDisk->filesystem.driver;
 
 	// Make sure the driver's checking routine is not NULL
-	if (theDriver->driverCheck == NULL)
+	if (!theDriver->driverCheck)
 	{
 		kernelError(kernel_error, "The filesystem driver does not support the "
 			"'check' operation");
@@ -398,11 +521,11 @@ int kernelFilesystemDefragment(const char *diskName, progress *prog)
 	kernelFilesystemDriver *theDriver = NULL;
 
 	// Check params
-	if (diskName == NULL)
+	if (!diskName)
 		return (status = ERR_NULLPARAMETER);
 
 	theDisk = kernelDiskGetByName(diskName);
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
 		return (status = ERR_NULLPARAMETER);
@@ -411,7 +534,7 @@ int kernelFilesystemDefragment(const char *diskName, progress *prog)
 	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
 		checkRemovable(theDisk);
 
-	if (theDisk->filesystem.driver == NULL)
+	if (!theDisk->filesystem.driver)
 	{
 		// Try a scan before we error out.
 		if (kernelFilesystemScan(theDisk) < 0)
@@ -425,7 +548,7 @@ int kernelFilesystemDefragment(const char *diskName, progress *prog)
 	theDriver = theDisk->filesystem.driver;
 
 	// Make sure the driver's checking routine is not NULL
-	if (theDriver->driverDefragment == NULL)
+	if (!theDriver->driverDefragment)
 	{
 		kernelError(kernel_error, "The filesystem driver does not support the "
 			"'defragment' operation");
@@ -447,11 +570,11 @@ int kernelFilesystemStat(const char *diskName, kernelFilesystemStats *stat)
 	kernelFilesystemDriver *theDriver = NULL;
 
 	// Check params
-	if ((diskName == NULL) || (stat == NULL))
+	if (!diskName || !stat)
 		return (status = ERR_NULLPARAMETER);
 
 	theDisk = kernelDiskGetByName(diskName);
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
 		return (status = ERR_NULLPARAMETER);
@@ -460,7 +583,7 @@ int kernelFilesystemStat(const char *diskName, kernelFilesystemStats *stat)
 	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
 		checkRemovable(theDisk);
 
-	if (theDisk->filesystem.driver == NULL)
+	if (!theDisk->filesystem.driver)
 	{
 		// Try a scan before we error out.
 		if (kernelFilesystemScan(theDisk) < 0)
@@ -474,7 +597,7 @@ int kernelFilesystemStat(const char *diskName, kernelFilesystemStats *stat)
 	theDriver = theDisk->filesystem.driver;
 
 	// Make sure the driver's stat routine is not NULL
-	if (theDriver->driverStat == NULL)
+	if (!theDriver->driverStat)
 	{
 		kernelError(kernel_error, "The filesystem driver does not support the "
 			"'stat' operation");
@@ -497,11 +620,11 @@ int kernelFilesystemResizeConstraints(const char *diskName, uquad_t *minBlocks,
 	kernelFilesystemDriver *theDriver = NULL;
 
 	// Check params
-	if ((diskName == NULL) || (minBlocks == NULL) || (maxBlocks == NULL))
+	if (!diskName || !minBlocks || !maxBlocks)
 		return (status = ERR_NULLPARAMETER);
 
 	theDisk = kernelDiskGetByName(diskName);
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
 		return (status = ERR_NULLPARAMETER);
@@ -510,7 +633,7 @@ int kernelFilesystemResizeConstraints(const char *diskName, uquad_t *minBlocks,
 	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
 		checkRemovable(theDisk);
 
-	if (theDisk->filesystem.driver == NULL)
+	if (!theDisk->filesystem.driver)
 	{
 		// Try a scan before we error out.
 		if (kernelFilesystemScan(theDisk) < 0)
@@ -524,7 +647,7 @@ int kernelFilesystemResizeConstraints(const char *diskName, uquad_t *minBlocks,
 	theDriver = theDisk->filesystem.driver;
 
 	// Make sure the driver's resizing constraints routine is not NULL
-	if (theDriver->driverResizeConstraints == NULL)
+	if (!theDriver->driverResizeConstraints)
 	{
 		kernelError(kernel_error, "The filesystem driver does not support the "
 			"'resize constraints' operation");
@@ -548,11 +671,11 @@ int kernelFilesystemResize(const char *diskName, uquad_t blocks,
 	kernelFilesystemDriver *theDriver = NULL;
 
 	// Check params
-	if (diskName == NULL)
+	if (!diskName)
 		return (status = ERR_NULLPARAMETER);
 
 	theDisk = kernelDiskGetByName(diskName);
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
 		return (status = ERR_NULLPARAMETER);
@@ -561,7 +684,7 @@ int kernelFilesystemResize(const char *diskName, uquad_t blocks,
 	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
 		checkRemovable(theDisk);
 
-	if (theDisk->filesystem.driver == NULL)
+	if (!theDisk->filesystem.driver)
 	{
 		// Try a scan before we error out.
 		if (kernelFilesystemScan(theDisk) < 0)
@@ -575,7 +698,7 @@ int kernelFilesystemResize(const char *diskName, uquad_t blocks,
 	theDriver = theDisk->filesystem.driver;
 
 	// Make sure the driver's resizing routine is not NULL
-	if (theDriver->driverResize == NULL)
+	if (!theDriver->driverResize)
 	{
 		kernelError(kernel_error, "The filesystem driver does not support the "
 			"'resize' operation");
@@ -602,11 +725,11 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 	kernelFileEntry *parentDir = NULL;
 
 	// Check params
-	if ((diskName == NULL) || (path == NULL))
+	if (!diskName || !path)
 		return (status = ERR_NULLPARAMETER);
 
 	theDisk = kernelDiskGetByName(diskName);
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
 		return (status = ERR_NULLPARAMETER);
@@ -623,7 +746,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
 		checkRemovable(theDisk);
 
-	if (theDisk->filesystem.driver == NULL)
+	if (!theDisk->filesystem.driver)
 	{
 		// Try a scan before we error out.
 		if (kernelFilesystemScan(theDisk) < 0)
@@ -637,7 +760,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 	theDriver = theDisk->filesystem.driver;
 
 	// Make sure the driver's mounting routine is not NULL
-	if (theDriver->driverMount == NULL)
+	if (!theDriver->driverMount)
 	{
 		kernelError(kernel_error, "The filesystem driver does not support the "
 			"'mount' operation");
@@ -673,7 +796,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 		}
 
 		parentDir = kernelFileLookup(parentDirName);
-		if (parentDir == NULL)
+		if (!parentDir)
 		{
 			kernelError(kernel_error, "Mount point parent directory doesn't "
 				"exist");
@@ -690,7 +813,7 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 
 	// Get a new file entry for the filesystem's root directory
 	theDisk->filesystem.filesystemRoot = kernelFileNewEntry(theDisk);
-	if (theDisk->filesystem.filesystemRoot == NULL)
+	if (!theDisk->filesystem.filesystemRoot)
 		// Not enough free file structures
 		return (status = ERR_NOFREE);
 
@@ -758,122 +881,17 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 
 int kernelFilesystemUnmount(const char *path)
 {
-	// This routine will remove a filesystem structure and its driver from the
-	// lists.  It takes the filesystem mount point name and returns the new
-	// number of filesystems in the array.  If the filesystem doesn't exist,
-	// it returns negative
+	// This is a wrapper for the unmount() function, used for a normal
+	// software-driven unmount when the hardware device is still present.
+	return (unmount(path, 0 /* not removed */));
+}
 
-	int status = 0;
-	char mountPointName[MAX_PATH_LENGTH];
-	kernelDisk *theDisk = NULL;
-	kernelFilesystemDriver *theDriver = NULL;
-	kernelFileEntry *mountPoint = NULL;
-	kernelFileEntry *parentDir = NULL;
-	kernelPhysicalDisk *physicalDisk = NULL;
 
-	// Make sure the path name isn't NULL
-	if (path == NULL)
-		return (status = ERR_NULLPARAMETER);
-
-	// Fix up the path of the mount point
-	status = kernelFileFixupPath(path, mountPointName);
-	if (status < 0)
-		return (status);
-
-	// Get the file entry for the mount point
-	mountPoint = kernelFileLookup(mountPointName);
-	if (mountPoint == NULL)
-	{
-		kernelError(kernel_error, "Unable to locate the mount point entry");
-		return (status = ERR_NOSUCHDIR);
-	}
-
-	theDisk = mountPoint->disk;
-	theDriver = theDisk->filesystem.driver;
-
-	if (!(theDisk->filesystem.mounted))
-	{
-		kernelError(kernel_error, "Disk %s is not mounted", theDisk->name);
-		return (status = ERR_ALREADY);
-	}
-
-	// DO NOT attempt to unmount the filesystem if there are child mounts.
-	// the parent filesystem of all other filesystems
-	if (theDisk->filesystem.childMounts)
-	{
-		kernelError(kernel_error, "Cannot unmount %s when child filesystems "
-			"are still mounted", mountPointName);
-		return (status = ERR_BUSY);
-	}
-
-	// Starting at the mount point, unbuffer all of the filesystem's files
-	// from the file entry tree
-	status = kernelFileUnbufferRecursive(mountPoint);
-	if (status < 0)
-		return (status);
-
-	// Do a couple of additional things if this is not the root directory
-	if (strcmp(mountPointName, "/") != 0)
-	{
-		if (mountPoint->parentDirectory)
-		{
-			parentDir = mountPoint->parentDirectory;
-			((kernelDisk *) parentDir->disk)->filesystem.childMounts -= 1;
-		}
-
-		// Remove the mount point's file entry from its parent directory
-		kernelFileRemoveEntry(mountPoint);
-	}
-
-	// If the driver's unmount routine is not NULL, call it
-	if (theDriver->driverUnmount)
-		theDriver->driverUnmount(theDisk);
-
-	// It doesn't matter whether the unmount call was "successful".  If it
-	// wasn't, there's really nothing we can do about it from here.
-
-	// Clear some filesystem info
-	theDisk->filesystem.mounted = 0;
-	theDisk->filesystem.mountPoint[0] = '\0';
-	theDisk->filesystem.filesystemRoot = NULL;
-	theDisk->filesystem.childMounts = 0;
-	theDisk->filesystem.filesystemData = NULL;
-	theDisk->filesystem.caseInsensitive = 0;
-	theDisk->filesystem.readOnly = 0;
-
-	// If it's a removable device, clear everything
-	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
-	{
-		kernelMemClear((void *) &theDisk->filesystem,
-			sizeof(theDisk->filesystem));
-		strcpy((char *) theDisk->fsType, "unknown");
-	}
-
-	// Sync the disk cache
-	status = kernelDiskSync((char *) theDisk->name);
-	if (status < 0)
-		kernelError(kernel_warn, "Unable to sync disk \"%s\" after unmount",
-			theDisk->name);
-
-	physicalDisk = theDisk->physical;
-
-	// If this is a removable disk, invalidate the disk cache
-	if (physicalDisk->type & DISKTYPE_REMOVABLE)
-	{
-		status = kernelDiskInvalidateCache((char *) physicalDisk->name);
-		if (status < 0)
-			kernelError(kernel_warn, "Unable to invalidate \"%s\" disk cache "
-				"before mount", theDisk->name);
-
-		// If it has an 'unlock' function, unlock it
-		if (((kernelDiskOps *) physicalDisk->driver->ops)->driverSetLockState)
-		{
-			((kernelDiskOps *) physicalDisk->driver->ops)
-				->driverSetLockState(physicalDisk->deviceNumber, 0);
-		}
-	}
-
-	return (status);
+int kernelFilesystemRemoved(const char *path)
+{
+	// This is a wrapper for the unmount() function, used for a forced unmount
+	// when the hardware device has been removed.
+	return (unmount(path, 1 /* removed */));
 }
 
 
@@ -891,7 +909,7 @@ uquad_t kernelFilesystemGetFreeBytes(const char *path)
 	kernelFilesystemDriver *theDriver = NULL;
 
 	// Make sure the path name isn't NULL
-	if (path == NULL)
+	if (!path)
 		return (freeSpace = 0);
 
 	// Fix up the path of the mount point
@@ -901,7 +919,7 @@ uquad_t kernelFilesystemGetFreeBytes(const char *path)
 
 	// Locate the mount point
 	fileEntry = kernelFileLookup(mountPoint);
-	if (fileEntry == NULL)
+	if (!fileEntry)
 	{
 		kernelError(kernel_error, "No filesystem mounted at %s", mountPoint);
 		return (freeSpace = 0);
@@ -909,7 +927,7 @@ uquad_t kernelFilesystemGetFreeBytes(const char *path)
 
 	// Find the filesystem structure based on its name
 	theDisk = fileEntry->disk;
-	if (theDisk == NULL)
+	if (!theDisk)
 	{
 		kernelError(kernel_error, "No disk for mount point \"%s\"", mountPoint);
 		return (status = ERR_BUG);
@@ -918,7 +936,7 @@ uquad_t kernelFilesystemGetFreeBytes(const char *path)
 	if (theDisk->physical->type & DISKTYPE_REMOVABLE)
 		checkRemovable(theDisk);
 
-	if (theDisk->filesystem.driver == NULL)
+	if (!theDisk->filesystem.driver)
 	{
 		// Try a scan before we error out.
 		if (kernelFilesystemScan(theDisk) < 0)
@@ -933,7 +951,7 @@ uquad_t kernelFilesystemGetFreeBytes(const char *path)
 
 	// OK, we just have to check on the filsystem driver function we want
 	// to call
-	if (theDriver->driverGetFreeBytes == NULL)
+	if (!theDriver->driverGetFreeBytes)
 		// Report NO free space
 		return (freeSpace = 0);
 
@@ -953,7 +971,7 @@ unsigned kernelFilesystemGetBlockSize(const char *path)
 	kernelFileEntry *fileEntry = NULL;
 
 	// Make sure the path name isn't NULL
-	if (path == NULL)
+	if (!path)
 		return (blockSize = 0);
 
 	// Fix up the path of the mount point
@@ -963,7 +981,7 @@ unsigned kernelFilesystemGetBlockSize(const char *path)
 
 	// Locate the mount point
 	fileEntry = kernelFileLookup(fixedPath);
-	if (fileEntry == NULL)
+	if (!fileEntry)
 	{
 		kernelError(kernel_error, "No filesystem mounted at %s", fixedPath);
 		return (blockSize = 0);
@@ -972,3 +990,4 @@ unsigned kernelFilesystemGetBlockSize(const char *path)
 	// Return the block size
 	return (blockSize = ((kernelDisk *) fileEntry->disk)->filesystem.blockSize);
 }
+

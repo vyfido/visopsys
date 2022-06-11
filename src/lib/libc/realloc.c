@@ -42,7 +42,7 @@ void *_realloc(void *oldMemory, size_t size, const char *function)
 	memoryBlock oldBlock;
 	void *memoryPointer = NULL;
 
-	if (oldMemory == NULL)
+	if (!oldMemory)
 		return (memoryPointer = _malloc(size, function));
 
 	else if (!size)
@@ -71,3 +71,4 @@ void *_realloc(void *oldMemory, size_t size, const char *function)
 	// Return this value, whether or not we were successful
 	return (memoryPointer);
 }
+

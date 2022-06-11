@@ -194,7 +194,7 @@ kernelWindowComponent *kernelWindowNewTextField(objectKey parent, int columns,
 	params = &newParams;
 
 	component = kernelWindowNewTextArea(parent, columns, 1, 0, params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	textArea = component->data;
@@ -202,7 +202,7 @@ kernelWindowComponent *kernelWindowNewTextField(objectKey parent, int columns,
 
 	// Allocate our private buffer for the line contents
 	textArea->fieldBuffer = kernelMalloc(MAXSTRINGLENGTH);
-	if (textArea->fieldBuffer == NULL)
+	if (!textArea->fieldBuffer)
 	{
 		if (component->destroy)
 			component->destroy(component);
@@ -245,3 +245,4 @@ kernelWindowComponent *kernelWindowNewTextField(objectKey parent, int columns,
 
 	return (component);
 }
+

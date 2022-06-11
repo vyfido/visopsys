@@ -97,8 +97,7 @@ static unsigned char statusRegister2;
 static unsigned char statusRegister3;
 
 // An area for doing floppy disk DMA transfers (physically aligned, etc)
-static void *xFerPhysical = NULL;
-static void *xFer = NULL;
+static kernelIoMemory xferArea;
 
 
 static void commandWrite(unsigned char cmd)
@@ -408,7 +407,7 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 	int errorCode = 0;
 	unsigned head, track, sector;
 	unsigned doSectors = 0;
-	unsigned xFerBytes = 0;
+	unsigned xferBytes = 0;
 	unsigned char command;
 	int retry = 0;
 	int count;
@@ -496,22 +495,22 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 		// complete, we can do some other things.
 
 		// How many bytes will we transfer?
-		xFerBytes = (doSectors * theDisk->sectorSize);
+		xferBytes = (doSectors * theDisk->sectorSize);
 
-		// If it's a write operation, copy xFerBytes worth of user data
+		// If it's a write operation, copy xferBytes worth of user data
 		// into the transfer area
 		if (!read)
-			kernelMemCopy(buffer, xFer, xFerBytes);
+			kernelMemCopy(buffer, xferArea.virtual, xferBytes);
 
 		// Set up the DMA controller for the transfer.
 		if (read)
 			// Set the DMA channel for writing TO memory, demand mode
-			status = kernelDmaOpenChannel(floppyData->dmaChannel, xFerPhysical,
-				xFerBytes, DMA_WRITEMODE);
+			status = kernelDmaOpenChannel(floppyData->dmaChannel,
+				(void *) xferArea.physical, xferBytes, DMA_WRITEMODE);
 		else
 			// Set the DMA channel for reading FROM memory, demand mode
-			status = kernelDmaOpenChannel(floppyData->dmaChannel, xFerPhysical,
-				xFerBytes, DMA_READMODE);
+			status = kernelDmaOpenChannel(floppyData->dmaChannel,
+				(void *) xferArea.physical, xferBytes, DMA_READMODE);
 		if (status < 0)
 		{
 			kernelError(kernel_error, "Unable to open DMA channel");
@@ -634,10 +633,10 @@ static int readWriteSectors(unsigned driveNum, uquad_t logicalSector,
 		}
 		else
 		{
-			// If this was a read operation, copy xFerBytes worth of data from
+			// If this was a read operation, copy xferBytes worth of data from
 			// the transfer area to the user buffer
 			if (read)
-				kernelMemCopy(xFer, buffer, xFerBytes);
+				kernelMemCopy(xferArea.virtual, buffer, xferBytes);
 		}
 
 		logicalSector += doSectors;
@@ -792,6 +791,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	kernelMemClear(&disks, (MAXFLOPPIES * sizeof(kernelPhysicalDisk)));
 	kernelMemClear((void *) &controllerLock, sizeof(lock));
+	kernelMemClear(&xferArea, sizeof(kernelIoMemory));
 
 	// Reset the number of floppy devices
 	numberFloppies = kernelOsLoaderInfo->floppyDisks;
@@ -891,32 +891,9 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	// Get memory for a disk transfer area.
 
-	// We need to get a physical memory address to pass to the DMA controller.
-	// Therefore, we ask the memory manager specifically for the physical
-	// address.
-	xFerPhysical = kernelMemoryGetPhysical(DISK_CACHE_ALIGN, DISK_CACHE_ALIGN,
-		"floppy disk transfer");
-	if (!xFerPhysical)
-	{
-		status = ERR_MEMORY;
-		goto out;
-	}
-
-	// Map the physical memory into virtual memory
-	status = kernelPageMapToFree(KERNELPROCID, xFerPhysical, &xFer,
-		DISK_CACHE_ALIGN);
+	status = kernelMemoryGetIo(DISK_CACHE_ALIGN, DISK_CACHE_ALIGN, &xferArea);
 	if (status < 0)
 		goto out;
-
-	// Make it non-cacheable
-	status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
-		PAGEFLAG_CACHEDISABLE, xFer, DISK_CACHE_ALIGN);
-	if (status < 0)
-		goto out;
-
-	// Clear it out, since the kernelMemoryGetPhysical() routine doesn't do
-	// it for us
-	kernelMemClear(xFer, DISK_CACHE_ALIGN);
 
 	// Clear the "interrupt received" byte
 	interruptReceived = 0;
@@ -934,7 +911,9 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		goto out;
 
 	// Turn on the interrupt
-	kernelPicMask(INTERRUPT_NUM_FLOPPY, 1);
+	status = kernelPicMask(INTERRUPT_NUM_FLOPPY, 1);
+	if (status < 0)
+		goto out;
 
 	// Loop again, for each device, to finalize the setup
 	for (count = 0; count < numberFloppies; count ++)
@@ -975,11 +954,8 @@ static int driverDetect(void *parent, kernelDriver *driver)
 out:
 	if (status < 0)
 	{
-		if (xFer)
-			kernelPageUnmap(KERNELPROCID, xFer, DISK_CACHE_ALIGN);
-
-		if (xFerPhysical)
-			kernelMemoryReleasePhysical(xFerPhysical);
+		if (xferArea.virtual)
+			kernelMemoryReleaseIo(&xferArea);
 
 		if (floppyData)
 			kernelFree((void *) floppyData);

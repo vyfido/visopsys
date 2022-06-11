@@ -23,6 +23,7 @@
 // of kernel logging features.
 
 #include "kernelLog.h"
+#include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelFileStream.h"
 #include "kernelLock.h"
@@ -50,6 +51,8 @@ static int flushLogStream(void)
 
 	int status = 0;
 	char buffer[512];
+
+	kernelDebug(debug_misc, "Log flushing log stream");
 
 	status = kernelLockGet(&logLock);
 	if (status < 0)
@@ -92,7 +95,7 @@ out:
 }
 
 
-static void kernelLogUpdater(void)
+static void logUpdater(void)
 {
 	// This function will be a new thread spawned by the kernel which
 	// flushes the log file stream as a low-priority process.
@@ -171,16 +174,18 @@ int kernelLogSetFile(const char *logFileName)
 		return (status = ERR_NOTINITIALIZED);
 	}
 
-	if ((logFileName == NULL) || (logFileStream == NULL))
+	if (!logFileName || !logFileStream)
 	{
 		// No more logging to a file
 		logToFile = 0;
 		return (status = 0);
 	}
 
+	kernelDebug(debug_misc, "Log opening filestream %s", logFileName);
+
 	// Initialize the fileStream structure that we'll be using for a log file
-	status = kernelFileStreamOpen(logFileName, (OPENMODE_WRITE | OPENMODE_CREATE),
-		logFileStream);
+	status = kernelFileStreamOpen(logFileName,
+		(OPENMODE_WRITE | OPENMODE_CREATE), logFileStream);
 	if (status < 0)
 	{
 		// We couldn't open or create a log file, for whatever reason.
@@ -198,8 +203,8 @@ int kernelLogSetFile(const char *logFileName)
 	flushLogStream();
 
 	// Make a logging thread
-	updaterPID = kernelMultitaskerSpawn(kernelLogUpdater, "logging thread",
-		0 , NULL);
+	kernelDebug(debug_misc, "Log spawning thread");
+	updaterPID = kernelMultitaskerSpawn(logUpdater, "logging thread", 0, NULL);
 	// Make sure we were successful
 	if (updaterPID < 0)
 	{
@@ -209,6 +214,7 @@ int kernelLogSetFile(const char *logFileName)
 	}
 
 	// Re-nice the log file updater
+	kernelDebug(debug_misc, "Log setting thread priority");
 	status = kernelMultitaskerSetProcessPriority(updaterPID,
 		(PRIORITY_LEVELS - 2));
 	if (status < 0)
@@ -251,7 +257,7 @@ int kernelLog(const char *format, ...)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Make sure the format string isn't NULL
-	if (format == NULL)
+	if (!format)
 		return (status = ERR_NULLPARAMETER);
 
 	// Initialize the argument list

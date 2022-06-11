@@ -335,7 +335,7 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
 	int count;
 
 	// Check params
-	if (component == NULL)
+	if (!component)
 		return (status = ERR_NULLPARAMETER);
 
 	window = component->window;
@@ -351,7 +351,7 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
 	numComponents += 1;
 
 	array = kernelMalloc(numComponents * sizeof(kernelWindowComponent *));
-	if (array == NULL)
+	if (!array)
 		return (status = ERR_MEMORY);
 
 	array[0] = component;
@@ -364,26 +364,21 @@ int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
 	{
 		tmpComponent = array[count];
 
+		if ((enabled && !(tmpComponent->flags & WINFLAG_ENABLED)) ||
+			(!enabled && (tmpComponent->flags & WINFLAG_ENABLED)))
+		{
+			// Swap the 'draw' and 'grey' function pointers
+			tmpDraw = tmpComponent->grey;
+			tmpComponent->grey = tmpComponent->draw;
+			tmpComponent->draw = tmpDraw;
+		}
+
 		if (enabled)
 		{
-			if (!(tmpComponent->flags & WINFLAG_ENABLED))
-			{
-				tmpDraw = tmpComponent->grey;
-				tmpComponent->grey = tmpComponent->draw;
-				tmpComponent->draw = tmpDraw;
-			}
-
 			tmpComponent->flags |= WINFLAG_ENABLED;
 		}
 		else // disabled
 		{
-			if (tmpComponent->flags & WINFLAG_ENABLED)
-			{
-				tmpDraw = tmpComponent->grey;
-				tmpComponent->grey = tmpComponent->draw;
-				tmpComponent->draw = tmpDraw;
-			}
-
 			tmpComponent->flags &= ~WINFLAG_ENABLED;
 
 			if (window->focusComponent == tmpComponent)
@@ -420,7 +415,7 @@ int kernelWindowComponentSetWidth(kernelWindowComponent *component, int width)
 
 	int status = 0;
 
-	if (component == NULL)
+	if (!component)
 		return (status = ERR_NULLPARAMETER);
 
 	// If the component wants to know about resize events...
@@ -445,7 +440,7 @@ int kernelWindowComponentSetWidth(kernelWindowComponent *component, int width)
 int kernelWindowComponentGetHeight(kernelWindowComponent *component)
 {
 	// Return the height parameter of the component
-	if (component == NULL)
+	if (!component)
 		return (0);
 	else
 		return (component->height);
@@ -459,7 +454,7 @@ int kernelWindowComponentSetHeight(kernelWindowComponent *component,
 
 	int status = 0;
 
-	if (component == NULL)
+	if (!component)
 		return (status = ERR_NULLPARAMETER);
 
 	// If the component wants to know about resize events...
@@ -490,12 +485,12 @@ int kernelWindowComponentFocus(kernelWindowComponent *component)
 	kernelWindow *window = NULL;
 
 	// Check params
-	if (component == NULL)
+	if (!component)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get the window
 	window = component->window;
-	if (window == NULL)
+	if (!window)
 	{
 		kernelError(kernel_error, "Component to focus has no window");
 		return (status = ERR_NODATA);
@@ -513,12 +508,12 @@ int kernelWindowComponentUnfocus(kernelWindowComponent *component)
 	kernelWindow *window = NULL;
 
 	// Check params
-	if (component == NULL)
+	if (!component)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get the window
 	window = component->window;
-	if (window == NULL)
+	if (!window)
 	{
 		kernelError(kernel_error, "Component to unfocus has no window");
 		return (status = ERR_NODATA);
@@ -535,7 +530,7 @@ int kernelWindowComponentDraw(kernelWindowComponent *component)
 	int status = 0;
 
 	// Check params
-	if (component == NULL)
+	if (!component)
 		return (status = ERR_NULLPARAMETER);
 
 	if (!component->draw)
@@ -553,7 +548,7 @@ int kernelWindowComponentGetData(kernelWindowComponent *component,
 	int status = 0;
 
 	// Check params
-	if ((component == NULL) || (buffer == NULL))
+	if (!component || !buffer)
 		return (status = ERR_NULLPARAMETER);
 
 	if (!component->getData)
@@ -571,13 +566,15 @@ int kernelWindowComponentSetData(kernelWindowComponent *component,
 	int status = 0;
 
 	// Check params.  buffer can only be NULL if size is NULL
-	if ((component == NULL) || ((buffer == NULL) && size))
+	if (!component || (!buffer && size))
 		return (status = ERR_NULLPARAMETER);
 
 	if (!component->setData)
 		return (status = ERR_NOTIMPLEMENTED);
 
 	status = component->setData(component, buffer, size);
+
+	renderComponent(component);
 
 	return (status);
 }
@@ -589,10 +586,10 @@ int kernelWindowComponentGetSelected(kernelWindowComponent *component,
 	// Calls the 'get selected' method of the component, if applicable
 
 	// Check parameters
-	if ((component == NULL) || (selection == NULL))
+	if (!component || !selection)
 		return (ERR_NULLPARAMETER);
 
-	if (component->getSelected == NULL)
+	if (!component->getSelected)
 		return (ERR_NOSUCHFUNCTION);
 
 	return (component->getSelected(component, selection));
@@ -605,11 +602,12 @@ int kernelWindowComponentSetSelected(kernelWindowComponent *component,
 	// Calls the 'set selected' method of the component, if applicable
 
 	// Check parameters
-	if (component == NULL)
+	if (!component)
 		return (ERR_NULLPARAMETER);
 
-	if (component->setSelected == NULL)
+	if (!component->setSelected)
 		return (ERR_NOSUCHFUNCTION);
 
 	return (component->setSelected(component, selected));
 }
+

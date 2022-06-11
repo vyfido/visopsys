@@ -77,7 +77,7 @@ void *_kernelMalloc(unsigned size, const char *function)
 	address = _doMalloc(size, function);
 
 	// If we got the memory, clear it.
-	if (address != NULL)
+	if (address)
 		kernelMemClear(address, size);
 
 	return (address);
@@ -119,7 +119,7 @@ void *_kernelRealloc(void *oldAddress, size_t size, const char *function)
 	if (kernelProcessingInterrupt())
 		return (address = NULL);
 
-	if (oldAddress == NULL)
+	if (!oldAddress)
 		return (address = _kernelMalloc(size, function));
 
 	else if (!size)

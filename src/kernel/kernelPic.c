@@ -20,12 +20,58 @@
 //
 
 #include "kernelPic.h"
-#include "kernelProcessorX86.h"
+#include "kernelDebug.h"
 #include "kernelError.h"
+#include "kernelProcessorX86.h"
 #include <string.h>
 
-static kernelDevice *systemPic = NULL;
-static kernelPicOps *ops = NULL;
+static kernelPic *pics[MAX_PICS];
+static int numPics = 0;
+
+
+static void apicSetup(void)
+{
+	kernelPicOps *ops = NULL;
+	int count;
+
+	kernelDebug(debug_io, "PIC setting up for I/O APIC");
+
+	// Disable any 8259 PICs
+	for (count = 0; count < numPics; count ++)
+	{
+		if (pics[count]->enabled && (pics[count]->type == pic_8259))
+		{
+			ops = pics[count]->driver->ops;
+
+			// Call the driver function
+			if (ops->driverDisable)
+				ops->driverDisable(pics[count]);
+		}
+	}
+}
+
+
+static kernelPic *findPic(int intNumber)
+{
+	int count;
+
+	//kernelDebug(debug_io, "PIC find PIC for interrupt %d", intNumber);
+
+	for (count = 0; count < numPics; count ++)
+	{
+		if (pics[count]->enabled &&
+			(intNumber >= pics[count]->startIrq) &&
+			(intNumber < (pics[count]->startIrq + pics[count]->numIrqs)))
+		{
+			//kernelDebug(debug_io, "PIC found - PIC %d", count);
+			return (pics[count]);
+		}
+	}
+
+	// Not found
+	kernelDebug(debug_io, "PIC not found");
+	return (NULL);
+}
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -37,65 +83,156 @@ static kernelPicOps *ops = NULL;
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelPicInitialize(kernelDevice *dev)
+int kernelPicAdd(kernelPic *pic)
 {
 	int status = 0;
 
 	// Check params
-	if (!dev)
-	{
-		kernelError(kernel_error, "NULL parameter");
-		return (status = ERR_NOTINITIALIZED);
-	}
-
-	systemPic = dev;
-
-	if ((systemPic->driver == NULL) || (systemPic->driver->ops == NULL))
-	{
-		kernelError(kernel_error, "The PIC driver or ops are NULL");
+	if (!pic || !pic->driver || !pic->driver->ops)
 		return (status = ERR_NULLPARAMETER);
+
+	if (numPics >= MAX_PICS)
+	{
+		kernelError(kernel_error, "Max PICs (%d) has been reached", MAX_PICS);
+		return (status = ERR_NOFREE);
 	}
 
-	ops = systemPic->driver->ops;
+	// If the PIC is an (enabled) I/O APIC, we will disable any 8259 PIC and do
+	// some additional setup
+	if ((pic->type == pic_ioapic) && pic->enabled)
+		apicSetup();
 
-	// Enable interrupts now.
+	// Add it to our list
+	pics[numPics++] = pic;
+
+	// Enable interrupts as soon as a good PIC is online.
 	kernelProcessorEnableInts();
 
 	return (status = 0);
 }
 
 
-int kernelPicEndOfInterrupt(int interruptNumber)
+int kernelPicGetIntNumber(unsigned char busId, unsigned char busIrq)
+{
+	// This function will attempt to return the IRQ number assigned to the
+	// supplied device, specified by bus ID and bus IRQ in the format
+	// defined by the multiprocessor specification.
+
+	int intNumber = 0;
+	kernelPic *pic = NULL;
+	kernelPicOps *ops = NULL;
+	int count;
+
+	kernelDebug(debug_io, "PIC request IRQ of device %d:%d", busId, busIrq);
+
+	if (!numPics)
+		return (intNumber = ERR_NOTINITIALIZED);
+
+	for (count = 0; count < numPics; count ++)
+	{
+		if (pics[count]->enabled)
+		{
+			pic = pics[count];
+			ops = pic->driver->ops;
+
+			// Call the driver function
+			if (ops->driverGetIntNumber)
+			{
+				intNumber = ops->driverGetIntNumber(pic, busId, busIrq);
+
+				if (intNumber >= 0)
+					return (intNumber);
+			}
+		}
+	}
+
+	// Nothing found
+	return (intNumber = ERR_NODATA);
+}
+
+
+int kernelPicGetVector(int intNumber)
+{
+	// Different PIC types (5259, APIC) use different schemes for prioritizing
+	// interrupts.  When a device driver hooks an interrupt, the generic
+	// interrupt code will ask us which vector number to use.  We allow the
+	// PIC driver code to provide the answer.
+
+	int status = 0;
+	kernelPic *pic = NULL;
+	kernelPicOps *ops = NULL;
+
+	kernelDebug(debug_io, "PIC get vector for interrupt %d", intNumber);
+
+	if (!numPics)
+		return (status = ERR_NOTINITIALIZED);
+
+	pic = findPic(intNumber);
+	if (!pic)
+		return (status = ERR_NOSUCHENTRY);
+
+	ops = pic->driver->ops;
+
+	// Call the driver function
+	if (ops->driverGetVector)
+		status = ops->driverGetVector(pic, intNumber);
+
+	return (status);
+}
+
+
+int kernelPicEndOfInterrupt(int intNumber)
 {
 	// This instructs the PIC to end the current interrupt.  Note that the
 	// interrupt number parameter is merely so that the driver can determine
 	// which controller(s) to send the command to.
 
 	int status = 0;
+	kernelPic *pic = NULL;
+	kernelPicOps *ops = NULL;
 
-	if (systemPic == NULL)
+	//kernelDebug(debug_io, "PIC EOI for interrupt %d", intNumber);
+
+	if (!numPics)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Ok, now we can call the routine.
+	pic = findPic(intNumber);
+	if (!pic)
+		return (status = ERR_NOSUCHENTRY);
+
+	ops = pic->driver->ops;
+
+	// Call the driver function
 	if (ops->driverEndOfInterrupt)
-		status = ops->driverEndOfInterrupt(interruptNumber);
+		status = ops->driverEndOfInterrupt(pic, intNumber);
 
 	return (status);
 }
 
 
-int kernelPicMask(int interruptNumber, int on)
+int kernelPicMask(int intNumber, int on)
 {
 	// This instructs the PIC to enable (on) or mask the interrupt.
 
 	int status = 0;
+	kernelPic *pic = NULL;
+	kernelPicOps *ops = NULL;
 
-	if (systemPic == NULL)
+	kernelDebug(debug_io, "PIC mask interrupt %d %s", intNumber,
+		(on? "on" : "off"));
+
+	if (!numPics)
 		return (status = ERR_NOTINITIALIZED);
 
-	// Ok, now we can call the routine.
+	pic = findPic(intNumber);
+	if (!pic)
+		return (status = ERR_NOSUCHENTRY);
+
+	ops = pic->driver->ops;
+
+	// Call the driver function
 	if (ops->driverMask)
-		status = ops->driverMask(interruptNumber, on);
+		status = ops->driverMask(pic, intNumber, on);
 
 	return (status);
 }
@@ -105,15 +242,33 @@ int kernelPicGetActive(void)
 {
 	// This asks the PIC for the currently-active interrupt
 
-	int interruptNum = 0;
+	int intNumber = 0;
+	kernelPic *pic = NULL;
+	kernelPicOps *ops = NULL;
+	int count;
 
-	if (systemPic == NULL)
-		return (interruptNum = ERR_NOTINITIALIZED);
+	kernelDebug(debug_io, "PIC active interrupt requested");
 
-	// Ok, now we can call the routine.
-	if (ops->driverGetActive)
-		interruptNum = ops->driverGetActive();
+	if (!numPics)
+		return (intNumber = ERR_NOTINITIALIZED);
 
-	return (interruptNum);
+	for (count = 0; count < numPics; count ++)
+	{
+		if (pics[count]->enabled)
+		{
+			pic = pics[count];
+			ops = pic->driver->ops;
+
+			// Call the driver function
+			if (ops->driverGetActive)
+				intNumber = ops->driverGetActive(pic);
+
+			if (intNumber >= 0)
+				return (intNumber);
+		}
+	}
+
+	// Nothing found
+	return (intNumber = ERR_NODATA);
 }
 

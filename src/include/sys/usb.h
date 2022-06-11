@@ -34,11 +34,19 @@
 #define USB_DESCTYPE_DEVICEQUAL		6
 #define USB_DESCTYPE_OTHERSPEED		7
 #define USB_DESCTYPE_INTERPOWER		8
+// USB 3.0+
+#define USB_DESCTYPE_OTG			9
+#define USB_DESCTYPE_DEBUG			10
+#define USB_DESCTYPE_INTERASSOC		11
+#define USB_DESCTYPE_BOS			15
+#define USB_DESCTYPE_DEVCAP			16
+#define USB_DESCTYPE_SSENDPCOMP		48
 // Class-specific
 #define USB_DESCTYPE_HID			33
 #define USB_DESCTYPE_HIDREPORT		34
 #define USB_DESCTYPE_HIDPHYSDESC	35
 #define USB_DESCTYPE_HUB			41
+#define USB_DESCTYPE_SSHUB			42
 
 // Endpoint attributes
 #define USB_ENDP_ATTR_MASK			0x03
@@ -47,7 +55,8 @@
 #define USB_ENDP_ATTR_BULK			0x02
 #define USB_ENDP_ATTR_INTERRUPT		0x03
 
-// USB commands (control transfer types)
+// USB commands (control transfer types).  Things with _V2 suffixes are
+// obsolete in USB 3.0
 #define USB_GET_STATUS				0
 #define USB_CLEAR_FEATURE			1
 #define USB_GET_STATE				2
@@ -67,10 +76,11 @@
 #define USB_HID_SET_REPORT			9
 #define USB_HID_SET_IDLE			10
 #define USB_HID_SET_PROTOCOL		11
-#define USB_HUB_CLEAR_TT_BUFFER		8
-#define USB_HUB_RESET_TT			9
-#define USB_HUB_GET_TT_STATE		10
-#define USB_HUB_STOP_TT				11
+#define USB_HUB_CLEAR_TT_BUFFER_V2	8
+#define USB_HUB_RESET_TT_V2			9
+#define USB_HUB_GET_TT_STATE_V2		10
+#define USB_HUB_STOP_TT_V2			11
+#define USB_HUB_SET_HUB_DEPTH		12
 #define USB_MASSSTORAGE_RESET		0xFF
 
 // USB device request types
@@ -98,6 +108,17 @@
 #define USB_PID_OUT					0xE1
 #define USB_PID_SETUP				0x2D
 
+// Hub characteristics, from the hub descriptor's hubChars field
+#define USB_HUBCHARS_PORTIND		0x80
+#define USB_HUBCHARS_TTT			0x60
+#define USB_HUBCHARS_TTT_8			0x00
+#define USB_HUBCHARS_TTT_16			0x20
+#define USB_HUBCHARS_TTT_24			0x40
+#define USB_HUBCHARS_TTT_32			0x60
+#define USB_HUBCHARS_OVERCURR		0x18
+#define USB_HUBCHARS_COMPOUND		0x04
+#define USB_HUBCHARS_POWERSWITCH	0x03
+
 // USB mass storage command and status block signatures
 #define USB_CMDBLOCKWRAPPER_SIG		0x43425355
 #define USB_CMDSTATUSWRAPPER_SIG	0x53425355
@@ -107,6 +128,117 @@
 #define USB_CMDSTATUS_FAILED		0x01
 #define USB_CMDSTATUS_PHASEERROR	0x02
 
+// USB HID report types
+#define USB_HID_REPORT_INPUT		1
+#define USB_HID_REPORT_OUTPUT		2
+#define USB_HID_REPORT_FEATURE		3
+
+// USB HID item types
+#define USB_HID_ITEMTYPE_MAIN		0x00
+#define USB_HID_ITEMTYPE_GLOBAL		0x01
+#define USB_HID_ITEMTYPE_LOCAL		0x02
+#define USB_HID_ITEMTYPE_RES		0x03
+
+// USB HID main items
+#define USB_HID_ITEMTAG_INPUT		0x08  // 1000
+#define USB_HID_ITEMTAG_OUTPUT		0x09  // 1001
+#define USB_HID_ITEMTAG_COLL		0x0A  // 1010
+#define USB_HID_ITEMTAG_FEATURE		0x0B  // 1011
+#define USB_HID_ITEMTAG_ENDCOLL		0x0C  // 1100
+#define USB_HID_ITEMTAG_LONG		0x0F  // 1111
+
+// USB HID global items
+#define USB_HID_ITEMTAG_USAGEPG		0x00  // 0000
+#define USB_HID_ITEMTAG_LOGIMIN		0x01  // 0001
+#define USB_HID_ITEMTAG_LOGIMAX		0x02  // 0010
+#define USB_HID_ITEMTAG_PHYSMIN		0x03  // 0011
+#define USB_HID_ITEMTAG_PHYSMAX		0x04  // 0100
+#define USB_HID_ITEMTAG_UNITEXP		0x05  // 0101
+#define USB_HID_ITEMTAG_UNIT		0x06  // 0110
+#define USB_HID_ITEMTAG_REPSIZE		0x07  // 0111
+#define USB_HID_ITEMTAG_REPID		0x08  // 1000
+#define USB_HID_ITEMTAG_REPCNT		0x09  // 1001
+#define USB_HID_ITEMTAG_PUSH		0x0A  // 1010
+#define USB_HID_ITEMTAG_POP			0x0B  // 1011
+
+// USB HID local items
+#define USB_HID_ITEMTAG_USAGE		0x00  // 0000
+#define USB_HID_ITEMTAG_USGMIN		0x01  // 0001
+#define USB_HID_ITEMTAG_USGMAX		0x02  // 0010
+#define USB_HID_ITEMTAG_DESGIDX		0x03  // 0011
+#define USB_HID_ITEMTAG_DESGMIN		0x04  // 0100
+#define USB_HID_ITEMTAG_DESGMAX		0x05  // 0101
+#define USB_HID_ITEMTAG_STRIDX		0x07  // 0111
+#define USB_HID_ITEMTAG_STRMIN		0x08  // 1000
+#define USB_HID_ITEMTAG_STRMAX		0x09  // 1001
+#define USB_HID_ITEMTAG_DELIMTR		0x0A  // 1010
+
+// USB HID main item parts
+#define USB_HID_MAININPUT_CONST		0x001
+#define USB_HID_MAININPUT_VAR		0x002
+#define USB_HID_MAININPUT_REL		0x004
+#define USB_HID_MAININPUT_WRAP		0x008
+#define USB_HID_MAININPUT_NONLIN	0x010
+#define USB_HID_MAININPUT_NOPREF	0x020
+#define USB_HID_MAININPUT_NULLST	0x040
+#define USB_HID_MAININPUT_RES		0x080
+#define USB_HID_MAININPUT_BUFFB		0x100
+
+#define USB_HID_MAINOUTPUT_CONST	0x001
+#define USB_HID_MAINOUTPUT_VAR		0x002
+#define USB_HID_MAINOUTPUT_REL		0x004
+#define USB_HID_MAINOUTPUT_WRAP		0x008
+#define USB_HID_MAINOUTPUT_NONLIN	0x010
+#define USB_HID_MAINOUTPUT_NOPREF	0x020
+#define USB_HID_MAINOUTPUT_NULLST	0x040
+#define USB_HID_MAINOUTPUT_VOL		0x080
+#define USB_HID_MAINOUTPUT_BUFFB	0x100
+
+#define USB_HID_MAINFEATURE_CONST	0x001
+#define USB_HID_MAINFEATURE_VAR		0x002
+#define USB_HID_MAINFEATURE_REL		0x004
+#define USB_HID_MAINFEATURE_WRAP	0x008
+#define USB_HID_MAINFEATURE_NONLIN	0x010
+#define USB_HID_MAINFEATURE_NOPREF	0x020
+#define USB_HID_MAINFEATURE_NULLST	0x040
+#define USB_HID_MAINFEATURE_VOL		0x080
+#define USB_HID_MAINFEATURE_BUFFB	0x100
+
+// Usage pages
+#define USB_HID_USAGEPAGE_UNDEFINED	0x00
+#define USB_HID_USAGEPAGE_GENDESK	0x01
+#define USB_HID_USAGEPAGE_SIMCTRLS	0x02
+#define USB_HID_USAGEPAGE_VRCTRLS	0x03
+#define USB_HID_USAGEPAGE_SPRTCTRLS	0x04
+#define USB_HID_USAGEPAGE_GAMECTRLS	0x05
+#define USB_HID_USAGEPAGE_GENDEVCTL	0x06
+#define USB_HID_USAGEPAGE_KEYBRDPAD	0x07
+#define USB_HID_USAGEPAGE_LEDS		0x08
+#define USB_HID_USAGEPAGE_BUTTON	0x09
+#define USB_HID_USAGEPAGE_ORDINAL	0x0A
+#define USB_HID_USAGEPAGE_TELEPHONY	0x0B
+#define USB_HID_USAGEPAGE_CONSUMER	0x0C
+#define USB_HID_USAGEPAGE_DIGITIZER	0x0D
+#define USB_HID_USAGEPAGE_PIDPAGE	0x0F
+#define USB_HID_USAGEPAGE_UNICODE	0x10
+#define USB_HID_USAGEPAGE_ALPHANUM	0x14
+#define USB_HID_USAGEPAGE_MEDICAL	0x40
+#define USB_HID_USAGEPAGE_MONPAGES1	0x80
+#define USB_HID_USAGEPAGE_MONPAGES2	0x81
+#define USB_HID_USAGEPAGE_MONPAGES3	0x82
+#define USB_HID_USAGEPAGE_MONPAGES4	0x83
+#define USB_HID_USAGEPAGE_POWPAGES1	0x84
+#define USB_HID_USAGEPAGE_POWPAGES2	0x85
+#define USB_HID_USAGEPAGE_POWPAGES3	0x86
+#define USB_HID_USAGEPAGE_POWPAGES4	0x87
+#define USB_HID_USAGEPAGE_BARCODE	0x8C
+#define USB_HID_USAGEPAGE_SCALEPAGE	0x8D
+#define USB_HID_USAGEPAGE_MAGSTRDEV	0x8E
+#define USB_HID_USAGEPAGE_RESPOS	0x8F
+#define USB_HID_USAGEPAGE_CAMERACTL	0x90
+#define USB_HID_USAGEPAGE_ARCADE	0x91
+
+// Control endpoint device request
 typedef struct {
 	unsigned char requestType;
 	unsigned char request;
@@ -116,6 +248,7 @@ typedef struct {
 
 } __attribute__((packed)) usbDeviceRequest;
 
+// USB device descriptor
 typedef struct {
 	unsigned char descLength;		// Number of bytes in this descriptor
 	unsigned char descType;			// Type, DEVICE descriptor type
@@ -134,6 +267,7 @@ typedef struct {
 
 } __attribute__((packed)) usbDeviceDesc;
 
+// USB device qualifier descriptor
 typedef struct {
 	unsigned char descLength;		// Number of bytes in this descriptor
 	unsigned char descType;			// Type, DEVICEQUAL descriptor type
@@ -147,6 +281,7 @@ typedef struct {
 
 } __attribute__((packed)) usbDevQualDesc;
 
+// USB configuration descriptor
 typedef struct {
 	unsigned char descLength;		// Number of bytes in this descriptor
 	unsigned char descType;			// Type, CONFIGURATION descriptor type
@@ -159,6 +294,7 @@ typedef struct {
 
 } __attribute__((packed)) usbConfigDesc;
 
+// USB interface descriptor
 typedef struct {
 	unsigned char descLength;		// Number of bytes in this descriptor
 	unsigned char descType;			// Type, INTERFACE descriptor type
@@ -172,6 +308,15 @@ typedef struct {
 
 } __attribute__((packed)) usbInterDesc;
 
+// USB superspeed endpoint companion descriptor
+typedef struct {
+	unsigned char descLength;		// Number of bytes in this descriptor
+	unsigned char descType;			// Type, SSENDPCOMP descriptor type
+	unsigned char maxBurst;			// Max packets in a burst (0-based)
+
+} __attribute__((packed)) usbSuperEndpCompDesc;
+
+// USB endpoint descriptor
 typedef struct {
 	unsigned char descLength;		// Number of bytes in this descriptor
 	unsigned char descType;			// Type, ENDPOINT descriptor type
@@ -179,6 +324,8 @@ typedef struct {
 	unsigned char attributes;		// Bitmap of attributes
 	unsigned short maxPacketSize;	// Max packet size for this endpoint
 	unsigned char interval;			// ms interval for enpoint data polling
+	// USB 3.0 superspeed devices
+	usbSuperEndpCompDesc superComp;
 
 } __attribute__((packed)) usbEndpointDesc;
 
@@ -189,16 +336,83 @@ typedef struct {
 
 } __attribute__((packed)) usbStringDesc;
 
+// USB hub class descriptor
 typedef struct {
 	unsigned char descLength;		// Number of bytes in this descriptor
 	unsigned char descType;			// Type, HUB descriptor type
 	unsigned char numPorts;			// Number of ports on the hub
-	unsigned short hubAttrs;		// Bitmap of hub characteristics
+	unsigned short hubChars;		// Bitmap of hub characteristics
 	unsigned char pwrOn2PwrGood;	// 2ms intervals until port power stable
 	unsigned char maxPower;			// Max consumption of the controller
-	unsigned devRemovable[];		// Bitmap of removable devices
+	union {
+		struct {
+			unsigned char devRemovable[1]; // Bitmap of ports w/ removable devs
+			// unsigned char portPwrCtlMap[]; // Obsolete
+		} v2;
+		struct {
+			// For USB3 superspeed hubs
+			unsigned char hubHdrDecLat;	// Hub packet header decode latency
+			unsigned short hubDelay;	// Average ns delay introduced by hub
+			unsigned short devRemovable; // Bitmap of ports w/ removable devs
+		} v3;
+	} ver;
 
 } __attribute__((packed)) usbHubDesc;
+
+// USB hub status
+typedef struct {
+	unsigned short status;
+	unsigned short change;
+
+} __attribute__((packed)) usbHubStatus;
+
+// USB hub port status
+typedef struct {
+	unsigned short status;
+	unsigned short change;
+
+} __attribute__((packed)) usbHubPortStatus;
+
+// Mass storage command block wrapper
+typedef struct {
+	unsigned signature;
+	unsigned tag;
+	unsigned dataLength;
+	unsigned char flags;
+	unsigned char lun;
+	unsigned char cmdLength;
+	unsigned char cmd[16];
+
+} __attribute__((packed)) usbCmdBlockWrapper;
+
+// Mass storage status wrapper
+typedef struct {
+	unsigned signature;
+	unsigned tag;
+	unsigned dataResidue;
+	unsigned char status;
+
+} __attribute__((packed)) usbCmdStatusWrapper;
+
+// Human Interface Device class-specific optional descriptor
+typedef struct {
+	unsigned char descType;
+	unsigned short descLength;
+
+} __attribute__((packed)) usbHidOptDesc;
+
+// Human Interface Device class-specific descriptor
+typedef struct {
+	unsigned char descLength;		// Number of bytes in this descriptor
+	unsigned char descType;			// Type, HID descriptor type
+	unsigned short hidVersion;		// BCD version of HID spec
+	unsigned char countryCode;		// Hardware target country
+	unsigned char numDescriptors;	// Number of HID class descs to follow
+	unsigned char repDescType;		// Report descriptor type
+	unsigned short repDescLength;	// Report descriptor total length
+	usbHidOptDesc optDesc[];		// Array of optional descriptors
+
+} __attribute__((packed)) usbHidDesc;
 
 #define _USB_H
 #endif

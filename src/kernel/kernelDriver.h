@@ -55,6 +55,7 @@ void *kernelSoftwareDriverGet(kernelSoftwareDriverType);
 
 // Registration routines for our built-in drivers
 void kernelAcpiDriverRegister(kernelDriver *);
+void kernelApicDriverRegister(kernelDriver *);
 void kernelBios32DriverRegister(kernelDriver *);
 void kernelBiosPnpDriverRegister(kernelDriver *);
 void kernelCpuDriverRegister(kernelDriver *);
@@ -65,6 +66,7 @@ void kernelIdeDriverRegister(kernelDriver *);
 void kernelIsaBridgeDriverRegister(kernelDriver *);
 void kernelLanceDriverRegister(kernelDriver *);
 void kernelMemoryDriverRegister(kernelDriver *);
+void kernelMultiProcDriverRegister(kernelDriver *);
 void kernelPciDriverRegister(kernelDriver *);
 void kernelPicDriverRegister(kernelDriver *);
 void kernelPs2KeyboardDriverRegister(kernelDriver *);
@@ -82,3 +84,4 @@ void kernelUsbMouseDriverRegister(kernelDriver *);
 
 #define _KERNELDRIVER_H
 #endif
+

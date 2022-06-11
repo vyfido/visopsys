@@ -1,0 +1,3 @@
+0ca292ab32407c34daa3b1d2892b1b16  visopsys-0.75-img.zip
+7c1a1593064d9ca9c1aa7114a20f367a  visopsys-0.75-iso.zip
+05fb1478aca1359d4e2b8619eedb6195  visopsys-0.75-usb-img.zip

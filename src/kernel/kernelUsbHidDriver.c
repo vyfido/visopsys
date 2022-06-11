@@ -423,6 +423,11 @@ static int detectTarget(void *parent, int target, void *driver, hidType type)
 		goto out;
 	}
 
+	// Set the device configuration
+	status = kernelUsbSetDeviceConfig(hidDev->usbDev);
+	if (status < 0)
+		goto out;
+
 	hidDev->usbDev->data = hidDev;
 
 	// If the USB class is 0x03, then we believe we have a USB HID device.
@@ -660,10 +665,6 @@ static int hotplug(void *parent, int busType __attribute__((unused)),
 
 		// Found it.
 		kernelDebug(debug_usb, "HID device removed");
-
-		// Unschedule any interrupts
-		if (hidDev->intrInDesc)
-			kernelUsbUnscheduleInterrupt(usbDev);
 
 		// Remove it from the device tree
 		kernelDeviceRemove((kernelDevice *) &hidDev->usbDev->dev);

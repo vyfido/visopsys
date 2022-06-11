@@ -165,7 +165,7 @@ int kernelTextInitialize(int columns, int rows)
 	int status = 0;
 
 	// Check our arguments
-	if ((columns == 0) || (rows == 0))
+	if (!columns || !rows)
 		return (status = ERR_INVALID);
 
 	// Initialize text mode output
@@ -184,7 +184,8 @@ int kernelTextInitialize(int columns, int rows)
 
 	// Take the physical text screen address and turn it into a virtual
 	// address in the kernel's address space.
-	status = kernelPageMapToFree(KERNELPROCID, consoleArea.visibleData,
+	status = kernelPageMapToFree(KERNELPROCID,
+		(unsigned) consoleArea.visibleData,
 		(void *) &(consoleArea.visibleData),
 		(columns * rows * consoleArea.bytesPerChar));
 	// Make sure we got a proper new virtual address
@@ -984,7 +985,7 @@ void kernelTextStreamBackSpace(kernelTextOutputStream *outputStream)
 	cursorRow = outputStream->textArea->cursorRow;
 	cursorColumn = outputStream->textArea->cursorColumn;
 
-	if ((cursorRow == 0) && (cursorColumn == 0))
+	if (!cursorRow && !cursorColumn)
 		// Already top left
 		return;
 
@@ -1038,7 +1039,7 @@ void kernelTextStreamTab(kernelTextOutputStream *outputStream)
 		tabChars -= (outputStream->outputDriver
 			->getCursorAddress(outputStream->textArea) % TEXT_DEFAULT_TAB);
 
-	if (tabChars == 0)
+	if (!tabChars)
 		tabChars = TEXT_DEFAULT_TAB;
 
 	// Fill up the spaces buffer with the appropriate number of spaces
@@ -1161,7 +1162,7 @@ void kernelTextStreamCursorLeft(kernelTextOutputStream *outputStream)
 	cursorRow = outputStream->textArea->cursorRow;
 	cursorColumn = outputStream->textArea->cursorColumn;
 
-	if ((cursorRow == 0) && (cursorColumn == 0))
+	if (!cursorRow && !cursorColumn)
 		// Already top left
 		return;
 
@@ -2003,3 +2004,4 @@ void kernelTextInputSetEcho(int onOff)
 {
 	kernelTextInputStreamSetEcho(NULL, onOff);
 }
+

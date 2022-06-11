@@ -780,8 +780,8 @@ static int driverDrawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
 			for (count = 0; count < lineBytes; )
 			{
 				// Isolate the bit from the bitmap
-				if ((monoImageData[pixelCounter / 8] &
-					(0x80 >> (pixelCounter % 8))) != 0)
+				if (monoImageData[pixelCounter / 8] &
+					(0x80 >> (pixelCounter % 8)))
 				{
 					// 'on' bit.
 					framebufferPointer[count++] = foreground->blue;
@@ -833,8 +833,8 @@ static int driverDrawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
 			for (count = 0; count < lineLength; count ++)
 			{
 				// Isolate the bit from the bitmap
-				if ((monoImageData[pixelCounter / 8] &
-					(0x80 >> (pixelCounter % 8))) != 0)
+				if (monoImageData[pixelCounter / 8] &
+					(0x80 >> (pixelCounter % 8)))
 				{
 					// 'on' bit.
 					((short *) framebufferPointer)[count] = onPixel;
@@ -1416,13 +1416,13 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	dev->data = adapter;
 
 	// If we are in a graphics mode, initialize the graphics functions
-	if (adapter->mode != 0)
+	if (adapter->mode)
 	{
 		// Map the supplied physical linear framebuffer address into kernel
 		// memory
-		status = kernelPageMapToFree(KERNELPROCID, adapter->framebuffer,
-			&adapter->framebuffer, (adapter->xRes * adapter->yRes *
-				adapter->bytesPerPixel));
+		status = kernelPageMapToFree(KERNELPROCID,
+			(unsigned) adapter->framebuffer, &adapter->framebuffer,
+			(adapter->xRes * adapter->yRes * adapter->bytesPerPixel));
 		if (status < 0)
 		{
 			kernelError(kernel_error, "Unable to map linear framebuffer");
@@ -1476,3 +1476,4 @@ void kernelFramebufferGraphicDriverRegister(kernelDriver *driver)
 
 	return;
 }
+

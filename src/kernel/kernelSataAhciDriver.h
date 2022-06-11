@@ -270,8 +270,8 @@ typedef volatile struct {
 	unsigned short portMulti:4;
 	unsigned short prdDescTableEnts;
 	unsigned prdByteCount;
-	void *cmdTablePhysAddr;
-	void *cmdTablePhysAddrHi;
+	unsigned cmdTablePhysAddr;
+	unsigned cmdTablePhysAddrHi;
 	unsigned char res2[16];
 
 } __attribute__((packed)) ahciCommandHeader;
@@ -315,8 +315,6 @@ typedef volatile struct {
 	int num;
 	kernelBusTarget busTarget;
 	int interrupt;
-	unsigned physMemSpace;
-	unsigned memSpaceSize;
 	ahciRegs *regs;
 	ahciPort port[AHCI_MAX_PORTS];
 	unsigned portInterrupts;
@@ -326,3 +324,4 @@ typedef volatile struct {
 
 #define _KERNELSATAAHCIDRIVER_H
 #endif
+

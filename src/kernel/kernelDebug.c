@@ -24,7 +24,6 @@
 #include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelInterrupt.h"
-#include "kernelMalloc.h"
 #include "kernelMultitasker.h"
 #include "kernelPic.h"
 #include "kernelText.h"
@@ -47,6 +46,9 @@ static int isCategory(debug_category category)
 	// Returns 1 if we're debugging a particular category
 
 	int count;
+
+	if (category == debug_all)
+		return (1);
 
 	for (count = 0; count < numDebugCategories; count ++)
 		if (categories[count] == category)
@@ -83,12 +85,15 @@ static int isFileName(const char *fileName)
 
 void kernelDebugInitialize(void)
 {
-	// Here is where we enable any flags/categories/files for debugging.
-	// No effect unless DEBUG is specified in the Makefile.  Here are some
-	// examples:
+	// Here is where we can enable any flags/categories/files for debugging.
+	// It can be done inline, around specific sections of code, or here.
+	//
+	// Here are some examples:
+	//
 	// kernelDebugFlags(DEBUG_SHOWPROCESS |
 	//					DEBUG_SHOWFILE |
 	//					DEBUG_SHOWFUNCTION);
+	//
 	// kernelDebugAddCategory(debug_all);
 	// kernelDebugAddCategory(debug_api);
 	// kernelDebugAddCategory(debug_fs);
@@ -103,6 +108,7 @@ void kernelDebugInitialize(void)
 	// kernelDebugAddCategory(debug_scsi);
 	// kernelDebugAddCategory(debug_usb);
 	// kernelDebugAddCategory(debug_device);
+	//
 	// kernelDebugAddFile("kernelWindow.c");
 
 	return;
@@ -162,6 +168,27 @@ void kernelDebugAddFile(const char *fileName)
 }
 
 
+void kernelDebugRemoveFile(const char *fileName)
+{
+	// Used to turn off debug messages for a source file
+
+	int count;
+
+	if (!isFileName(fileName))
+		return;
+
+	for (count = 0; count < numDebugFileNames; count ++)
+	{
+		if (fileNames[count] == fileName)
+		{
+			fileNames[count] = NULL;
+			if (--numDebugFileNames && (count < numDebugFileNames))
+				fileNames[count] = fileNames[numDebugFileNames];
+		}
+	}
+}
+
+
 void kernelDebugOutput(const char *fileName, const char *function, int line,
 	debug_category category, const char *message, ...)
 {
@@ -186,7 +213,7 @@ void kernelDebugOutput(const char *fileName, const char *function, int line,
 		if (kernelProcessingInterrupt() &&
 			((interrupt = kernelPicGetActive()) >= 0))
 		{
-			sprintf((debugText + strlen(debugText)), "interrupt %x",
+			sprintf((debugText + strlen(debugText)), "interrupt %d:",
 				interrupt);
 		}
 		else
@@ -223,13 +250,9 @@ void kernelDebugOutput(const char *fileName, const char *function, int line,
 void kernelDebugHex(void *ptr, unsigned length)
 {
 	unsigned char *buff = ptr;
-	char *debugText = NULL;
+	char debugText[MAX_DEBUGTEXT_LENGTH];
 	kernelTextOutputStream *console = kernelTextGetConsoleOutput();
 	unsigned count1, count2;
-
-	debugText = kernelMalloc(MAX_DEBUGTEXT_LENGTH);
-	if (debugText == NULL)
-		return;
 
 	for (count1 = 0; count1 < ((length / 16) + ((length % 16)? 1 : 0));
 		count1 ++)
@@ -245,21 +268,15 @@ void kernelDebugHex(void *ptr, unsigned length)
 
 		kernelTextStreamPrintLine(console, debugText);
 	}
-
-	kernelFree(debugText);
 }
 
 
 void kernelDebugHexDwords(void *ptr, unsigned length)
 {
 	unsigned *buff = ptr;
-	char *debugText = NULL;
+	char debugText[MAX_DEBUGTEXT_LENGTH];
 	kernelTextOutputStream *console = kernelTextGetConsoleOutput();
 	unsigned count1, count2;
-
-	debugText = kernelMalloc(MAX_DEBUGTEXT_LENGTH);
-	if (debugText == NULL)
-		return;
 
 	for (count1 = 0; count1 < ((length / 4) + ((length % 4)? 1 : 0));
 		count1 ++)
@@ -275,8 +292,6 @@ void kernelDebugHexDwords(void *ptr, unsigned length)
 
 		kernelTextStreamPrintLine(console, debugText);
 	}
-
-	kernelFree(debugText);
 }
 
 
@@ -284,13 +299,9 @@ void kernelDebugBinary(void *ptr, unsigned length)
 {
 	unsigned char *buff = ptr;
 	char tmp = 0;
-	char *debugText = NULL;
+	char debugText[MAX_DEBUGTEXT_LENGTH];
 	kernelTextOutputStream *console = kernelTextGetConsoleOutput();
 	unsigned count1, count2, count3;
-
-	debugText = kernelMalloc(MAX_DEBUGTEXT_LENGTH);
-	if (debugText == NULL)
-		return;
 
 	for (count1 = 0; count1 < ((length / 4) + ((length % 4)? 1 : 0));
 		count1 ++)
@@ -312,8 +323,6 @@ void kernelDebugBinary(void *ptr, unsigned length)
 
 		kernelTextStreamPrintLine(console, debugText);
 	}
-
-	kernelFree(debugText);
 }
 
 
@@ -321,13 +330,9 @@ void kernelDebugStack(void *stackMemory, unsigned stackSize, void *stackPtr,
 	long memoryOffset, unsigned showMax)
 {
 	void *stackBase = (stackMemory + stackSize - sizeof(void *));
-	char *debugText = NULL;
+	char debugText[MAX_DEBUGTEXT_LENGTH];
 	kernelTextOutputStream *console = kernelTextGetConsoleOutput();
 	unsigned count;
-
-	debugText = kernelMalloc(MAX_DEBUGTEXT_LENGTH);
-	if (debugText == NULL)
-		return;
 
 	showMax = min(showMax, ((stackBase - stackPtr) / sizeof(void *)));
 	if (!showMax)
@@ -347,9 +352,15 @@ void kernelDebugStack(void *stackMemory, unsigned stackSize, void *stackPtr,
 
 		kernelTextStreamPrintLine(console, debugText);
 	}
-
-	kernelFree(debugText);
 }
 
 
+void kernelDebugDoStop(const char *fileName, const char *function, int line)
+{
+	kernelDebugFlags(DEBUG_SHOWPROCESS | DEBUG_SHOWFILE | DEBUG_SHOWFUNCTION);
+	kernelDebugOutput(fileName, function, line, debug_all, "STOP");
+	while (1);
+}
+
 #endif  // defined(DEBUG)
+

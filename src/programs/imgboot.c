@@ -63,7 +63,7 @@ CD-ROM image files that asks if you want to 'install' or 'run now'.
 	"  This program is distributed in the hope that it will be useful, but\n" \
 	"  WITHOUT ANY WARRANTY; without even the implied warranty of\n" \
 	"  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See\n" \
-	"  the file " PATH_SYSTEM "/COPYING.txt for more details.")
+	"  the file /system/COPYING.txt for more details.")
 #define INSTALLQUEST	_("Would you like to install Visopsys?\n" \
 						"(Choose continue to skip installing)")
 #define INSTALL			_("Install")
@@ -399,7 +399,7 @@ static void constructWindow(void)
 			windowRegisterEventHandler(instButton, &eventHandler);
 
 			params.gridX += 1;
-			params.orientationX = orient_middle;
+			params.orientationX = orient_center;
 		}
 		else
 			params.orientationX = orient_right;

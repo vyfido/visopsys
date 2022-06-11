@@ -38,6 +38,8 @@
 #include <string.h>
 
 
+static int reset(usbController *);
+
 #ifdef DEBUG
 static inline void debugEhciCapRegs(usbController *controller)
 {
@@ -139,13 +141,13 @@ static inline void debugPortStatus(usbController *controller, int portNum)
 {
 	usbEhciData *ehciData = controller->data;
 
-	kernelDebug(debug_usb, "EHCI controller %d, port %d: 0x%08x", controller->num,
-		portNum, ehciData->opRegs->portsc[portNum]);
+	kernelDebug(debug_usb, "EHCI controller %d, port %d: 0x%08x",
+		controller->num, portNum, ehciData->opRegs->portsc[portNum]);
 }
 
 static inline void debugQtd(ehciQtd *qtd)
 {
-	kernelDebug(debug_usb, "EHCI qTD (%p):\n"
+	kernelDebug(debug_usb, "EHCI qTD (0x%08x):\n"
 		"  nextQtd=0x%08x\n"
 		"  altNextQtd=0x%08x\n"
 		"  token=0x%08x\n"
@@ -178,7 +180,7 @@ static inline void debugQtd(ehciQtd *qtd)
 
 static inline void debugQueueHead(ehciQueueHead *queueHead)
 {
-	kernelDebug(debug_usb, "EHCI queue head (%p):\n"
+	kernelDebug(debug_usb, "EHCI queue head (0x%08x):\n"
 		"  horizLink=0x%08x\n"
 		"  endpointChars=0x%08x\n"
 		"    nakCountReload=%d\n"
@@ -278,104 +280,32 @@ static void debugTransError(ehciQtd *qtd)
 #endif // DEBUG
 
 
-static ehciQueueHeadItem *findQueueHead(usbController *controller,
-	usbDevice *usbDev, unsigned char endpoint)
+static int releaseQueueHead(usbController *controller,
+	ehciQueueHeadItem *queueHeadItem)
 {
-	// Search the controller's list of used queue heads for one that belongs
-	// to the requested device and endpoint.
+	// Remove the queue head from the list of 'used' queue heads, and add it
+	// back into the list of 'free' queue heads.
 
+	int status = 0;
 	usbEhciData *ehciData = controller->data;
 	kernelLinkedList *usedList =
 		(kernelLinkedList *) &(ehciData->usedQueueHeadItems);
-	ehciQueueHeadItem *queueHeadItem = NULL;
-	kernelLinkedListItem *iter = NULL;
+	kernelLinkedList *freeList =
+		(kernelLinkedList *) &(ehciData->freeQueueHeadItems);
 
-	kernelDebug(debug_usb, "EHCI find queue head for controller %d, usbDev %p, "
-		"endpoint %02x", controller->num, usbDev, endpoint);
-
-	// Try searching for an existing queue head
-	if (usedList->numItems)
+	// Remove it from the used list
+	if (kernelLinkedListRemove(usedList, queueHeadItem) >= 0)
 	{
-		queueHeadItem = kernelLinkedListIterStart(usedList, &iter);
-
-		while (queueHeadItem)
-		{
-			kernelDebug(debug_usb, "EHCI examine queue head for device %p "
-				"endpoint %02x", queueHeadItem->usbDev,
-				queueHeadItem->endpoint);
-			if ((queueHeadItem->usbDev == usbDev) &&
-				(queueHeadItem->endpoint == endpoint))
-				break;
-			else
-				queueHeadItem = kernelLinkedListIterNext(usedList, &iter);
-		}
-
-		// Found it?
-		if (queueHeadItem)
-			kernelDebug(debug_usb, "EHCI found queue head");
-		else
-			kernelDebug(debug_usb, "EHCI queue head not found");
+		// Add it to the free list
+		if (kernelLinkedListAdd(freeList, queueHeadItem) < 0)
+			kernelError(kernel_warn, "Couldn't add item to queue head free "
+				"list");
 	}
 	else
-		kernelDebug(debug_usb, "EHCI no items in queue head list");
-
-	return (queueHeadItem);
-}
-
-
-static void freeIoMem(void *virtual, void *physical, unsigned size)
-{
-	// Attempt to unmap and free any memory allocated using the allocIoMem()
-	// function, below
-
-	if (virtual)
-		kernelPageUnmap(KERNELPROCID, virtual, size);
-
-	if (physical)
-		kernelMemoryReleasePhysical(physical);
-}
-
-
-static int allocIoMem(unsigned size, unsigned alignment, void **virtual,
-	void **physical)
-{
-	// Use this to allocate kernel-owned memory when we need to
-	// a) align it;
-	// b) know both the physical and virtual addresses; and
-	// c) make it non-cacheable
-
-	int status = 0;
-
-	// Request memory for an aligned array of TRBs
-	*physical = kernelMemoryGetPhysical(size, alignment, "usb i/o memory");
-	if (!*physical)
-	{
-		status = ERR_MEMORY;
-		goto err_out;
-	}
-
-	// Map the physical memory into virtual memory
-	status = kernelPageMapToFree(KERNELPROCID, *physical, virtual, size);
-	if (status < 0)
-		goto err_out;
-
-	// Make it non-cacheable
-	status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
-		PAGEFLAG_CACHEDISABLE, *virtual, size);
-	if (status < 0)
-		goto err_out;
-
-	// Clear it out, as the kernelMemoryGetPhysical function can't do that
-	// for us
-	kernelMemClear(*virtual, size);
+		kernelError(kernel_warn, "Couldn't remove item from queue head used "
+			"list");
 
 	return (status = 0);
-
-err_out:
-
-	freeIoMem(*virtual, *physical, size);
-
-	return (status);
 }
 
 
@@ -387,7 +317,7 @@ static int allocQueueHeads(kernelLinkedList *freeList)
 	// supplied kernelLinkedList.
 
 	int status = 0;
-	void *physicalMem = NULL;
+	kernelIoMemory ioMem;
 	ehciQueueHead *queueHeads = NULL;
 	int numQueueHeads = 0;
 	ehciQueueHeadItem *queueHeadItems = NULL;
@@ -398,10 +328,11 @@ static int allocQueueHeads(kernelLinkedList *freeList)
 
 	// Request an aligned page of I/O memory (we need to be sure of 32-byte
 	// alignment for each queue head)
-	status = allocIoMem(MEMORY_PAGE_SIZE, MEMORY_PAGE_SIZE,
-		(void **) &queueHeads, &physicalMem);
+	status = kernelMemoryGetIo(MEMORY_PAGE_SIZE, MEMORY_PAGE_SIZE, &ioMem);
 	if (status < 0)
 		goto err_out;
+
+	queueHeads = ioMem.virtual;
 
 	// How many queue heads per memory page?  The ehciQueueHead data structure
 	// will be padded so that they start on 32-byte boundaries, as required by
@@ -418,11 +349,11 @@ static int allocQueueHeads(kernelLinkedList *freeList)
 
 	// Now loop through each list item, link it to a queue head, and add it
 	// to the free list
-	physicalAddr = (unsigned) physicalMem;
+	physicalAddr = ioMem.physical;
 	for (count = 0; count < numQueueHeads; count ++)
 	{
 		queueHeadItems[count].queueHead = &(queueHeads[count]);
-		queueHeadItems[count].physicalAddr = physicalAddr;
+		queueHeadItems[count].physical = physicalAddr;
 		physicalAddr += sizeof(ehciQueueHead);
 
 		status = kernelLinkedListAdd(freeList, &(queueHeadItems[count]));
@@ -441,8 +372,8 @@ err_out:
 
 	if (queueHeadItems)
 		kernelFree(queueHeadItems);
-	if (queueHeads && physicalMem)
-		freeIoMem((void *) queueHeads, physicalMem, MEMORY_PAGE_SIZE);
+	if (queueHeads)
+		kernelMemoryReleaseIo(&ioMem);
 
 	return (status);
 }
@@ -458,9 +389,9 @@ static int setQueueHeadEndpointState(usbDevice *usbDev,
 	int maxPacketLen = 0;
 	usbEndpointDesc *endpointDesc = NULL;
 
-	kernelDebug(debug_usb, "EHCI set queue head endpoint state for %s speed "
-		"device %u, endpoint %02x", usbDevSpeed2String(usbDev->speed),
-		usbDev->address, endpointNum);
+	kernelDebug(debug_usb, "EHCI set queue head state for %s speed device %u, "
+		"endpoint %02x", usbDevSpeed2String(usbDev->speed),	usbDev->address,
+		endpointNum);
 
 	// Max NAK retries, we guess
 	queueHead->endpointChars = USBEHCI_QHDW1_NAKCNTRELOAD;
@@ -470,8 +401,7 @@ static int setQueueHeadEndpointState(usbDevice *usbDev,
 	if ((usbDev->speed != usbspeed_high) && !endpointNum)
 		queueHead->endpointChars |= USBEHCI_QHDW1_CTRLENDPOINT;
 
-	// Figure out the maximum number of bytes per transfer, depending on the
-	// endpoint we're addressing.
+	// Set the maximum endpoint packet length
 	if (!endpointNum && !usbDev->numEndpoints)
 		maxPacketLen = usbDev->deviceDesc.maxPacketSize0;
 	else
@@ -530,22 +460,351 @@ static int setQueueHeadEndpointState(usbDevice *usbDev,
 		// Port number, hub address, and split completion mask only set for a
 		// full- or low-speed device
 
-		kernelDebugError("Non-high-speed devices are not yet supported");
-
-		queueHead->endpointCaps |=
-			(((usbDev->port + 1) << 23) & USBEHCI_QHDW2_PORTNUMBER);
-
 		// Root hubs don't have constituent USB devices
 		if (usbDev->hub->usbDev)
 		{
-			kernelDebug(debug_usb, "EHCI using hub address %d",
-				usbDev->hub->usbDev->address);
+			queueHead->endpointCaps |=
+				(((usbDev->hubPort + 1) << 23) & USBEHCI_QHDW2_PORTNUMBER);
+
 			queueHead->endpointCaps |= ((usbDev->hub->usbDev->address << 16) &
 				USBEHCI_QHDW2_HUBADDRESS);
+
+			kernelDebug(debug_usb, "EHCI using hub address %d, port %d",
+				usbDev->hub->usbDev->address, usbDev->hubPort);
 		}
-		else
-			kernelDebug(debug_usb, "EHCI not using hub address - connected to "
-				"root hub");
+	}
+
+	return (status = 0);
+}
+
+
+static ehciQueueHeadItem *allocQueueHead(usbController *controller,
+	usbDevice *usbDev, unsigned char endpoint)
+{
+	// Allocate the queue head for the device endpoint.
+	//
+	// Each device endpoint has at most one queue head (which may be linked
+	// into either the synchronous or asynchronous queue, depending on the
+	// endpoint type).
+	//
+	// It's OK for the usbDevice parameter to be NULL; the asynchronous list
+	// will have a single, unused queue head to mark the start of the list.
+
+	usbEhciData *ehciData = controller->data;
+	kernelLinkedList *usedList =
+		(kernelLinkedList *) &(ehciData->usedQueueHeadItems);
+	kernelLinkedList *freeList =
+		(kernelLinkedList *) &(ehciData->freeQueueHeadItems);
+	ehciQueueHeadItem *queueHeadItem = NULL;
+	kernelLinkedListItem *iter = NULL;
+
+	kernelDebug(debug_usb, "EHCI alloc queue head for controller %d, "
+		"usbDev %p, endpoint %02x", controller->num, usbDev, endpoint);
+
+	// Anything in the free list?
+	if (!freeList->numItems)
+	{
+		// Super, the free list is empty.  We need to allocate everything.
+		if (allocQueueHeads(freeList) < 0)
+		{
+			kernelError(kernel_error, "Couldn't allocate new queue heads");
+			goto err_out;
+		}
+	}
+
+	// Grab the first item in the free list
+	queueHeadItem = kernelLinkedListIterStart(freeList, &iter);
+	if (!queueHeadItem)
+	{
+		kernelError(kernel_error, "Couldn't get a list item for a new queue "
+			"head");
+		goto err_out;
+	}
+
+	// Remove it from the free list
+	if (kernelLinkedListRemove(freeList, queueHeadItem) < 0)
+	{
+		kernelError(kernel_error, "Couldn't remove item from queue head free "
+			"list");
+		goto err_out;
+	}
+
+	// Initialize the queue head item
+	queueHeadItem->usbDev = (void *) usbDev;
+	queueHeadItem->endpoint = endpoint;
+	queueHeadItem->firstQtdItem = NULL;
+
+	// Initialize the queue head
+	kernelMemClear((void *) queueHeadItem->queueHead, sizeof(ehciQueueHead));
+	queueHeadItem->queueHead->horizLink =
+		queueHeadItem->queueHead->currentQtd =
+			queueHeadItem->queueHead->overlay.nextQtd =
+				queueHeadItem->queueHead->overlay.altNextQtd =
+					USBEHCI_LINK_TERM;
+
+	// Add it to the used list
+	if (kernelLinkedListAdd(usedList, queueHeadItem) < 0)
+	{
+		kernelError(kernel_error, "Couldn't add item to queue head used list");
+		goto err_out;
+	}
+
+	kernelDebug(debug_usb, "EHCI added queue head for usbDev %p, endpoint %02x",
+		queueHeadItem->usbDev, queueHeadItem->endpoint);
+
+	if (usbDev)
+	{
+		// Set the "static endpoint state" in the queue head
+		if (setQueueHeadEndpointState(usbDev, endpoint,
+				queueHeadItem->queueHead) < 0)
+			goto err_out;
+	}
+
+	// Return success
+	return (queueHeadItem);
+
+err_out:
+	if (queueHeadItem)
+		releaseQueueHead(controller, queueHeadItem);
+
+	return (queueHeadItem = NULL);
+}
+
+
+static int setup(usbController *controller)
+{
+	// Allocate things, and set up any global controller registers prior to
+	// changing the controller to the 'running' state.
+
+	// Note that in the case of a host system error, we use this function to
+	// re-initialize things, but we don't have to reallocate the memory.
+
+	int status = 0;
+	usbEhciData *ehciData = controller->data;
+	kernelIoMemory ioMem;
+	int count;
+
+	kernelDebug(debug_usb, "EHCI set up controller %d", controller->num);
+
+	if (!ehciData->reclaimHead)
+	{
+		// Allocate memory for the NULL queue head that will be the head of the
+		// 'reclaim' (asynchronous) queue
+		ehciData->reclaimHead = allocQueueHead(controller, NULL /* no device */,
+			0 /* no endpoint */);
+		if (!ehciData->reclaimHead)
+			return (status = ERR_NOTINITIALIZED);
+	}
+
+	// Make it point to itself, set the 'H' bit, and make sure the qTD
+	// pointers don't point to anything.
+	ehciData->reclaimHead->queueHead->horizLink =
+		(ehciData->reclaimHead->physical | USBEHCI_LINKTYP_QH);
+	ehciData->reclaimHead->queueHead->endpointChars =
+		USBEHCI_QHDW1_RECLLISTHEAD;
+	ehciData->reclaimHead->queueHead->currentQtd =
+		ehciData->reclaimHead->queueHead->overlay.nextQtd =
+			ehciData->reclaimHead->queueHead->overlay.altNextQtd =
+				USBEHCI_LINK_TERM;
+
+	// Put the address into the asychronous list address register
+	ehciData->opRegs->asynclstaddr = ehciData->reclaimHead->physical;
+
+	// After the reset, the default value of the USBCMD register is 0x00080000
+	// (no async schedule park) or 0x00080B00 (async schedule park).  If any of
+	// the default values aren't acceptable for us, change them here.
+
+	// Hmm, VMware doesn't seem to set the defaults.  Set the interrupt
+	// threshold control
+	ehciData->opRegs->cmd &= ~USBEHCI_CMD_INTTHRESCTL;
+	ehciData->opRegs->cmd |= (0x08 << 16);
+
+	// The FRINDEX register will be 0 (start of periodic frame list).
+	ehciData->opRegs->frindex = 0;
+
+	// The CTRLDSSEGMENT will be 0, which means we're using a 32-bit address
+	// space.
+	ehciData->opRegs->ctrldsseg = 0;
+
+	// If the size of the periodic queue frame list is programmable, make sure
+	// it's set to the default (1024 = 0)
+	if (ehciData->capRegs->hccparams & USBEHCI_HCCP_PROGFRAMELIST)
+		ehciData->opRegs->cmd &= ~USBEHCI_CMD_FRAMELISTSIZE;
+
+	if (!ehciData->periodicList)
+	{
+		// Allocate memory for the periodic queue frame list, and assign the
+		// physical address to the PERIODICLISTBASE register
+		status = kernelMemoryGetIo(USBEHCI_FRAMELIST_MEMSIZE, MEMORY_PAGE_SIZE,
+			&ioMem);
+		if (status < 0)
+		{
+			kernelError(kernel_error, "Couldn't get periodic frame list "
+				"memory");
+			return (status);
+		}
+
+		ehciData->periodicList = ioMem.virtual;
+		ehciData->opRegs->perlstbase = ioMem.physical;
+	}
+	else
+	{
+		ehciData->opRegs->perlstbase = (unsigned)
+			kernelPageGetPhysical(KERNELPROCID, ehciData->periodicList);
+	}
+
+	// Set the termination bit in each periodic list pointer
+	for (count = 0; count < USBEHCI_NUM_FRAMES; count ++)
+		ehciData->periodicList[count] = USBEHCI_LINK_TERM;
+
+	// Enable the interrupts we're interested in, in the USBINTR register; Host
+	// system error, port change, error interrupt, and USB (data) interrupt.
+	ehciData->opRegs->intr =
+		(USBEHCI_INTR_HOSTSYSERROR | USBEHCI_INTR_USBERRORINT |
+			USBEHCI_INTR_USBINTERRUPT);
+
+	// Set the 'configured' flag in the CONFIGFLAG register
+	ehciData->opRegs->configflag |= 1;
+
+	return (status = 0);
+}
+
+
+static int startStop(usbController *controller, int start)
+{
+	// Start or stop the EHCI controller
+
+	int status = 0;
+	usbEhciData *ehciData = controller->data;
+	int count;
+
+	kernelDebug(debug_usb, "EHCI st%s controller", (start? "art" : "op"));
+
+	if (start)
+	{
+		if (ehciData->opRegs->stat & USBEHCI_STAT_HCHALTED)
+		{
+			// Set the run/stop bit
+			ehciData->opRegs->cmd |= USBEHCI_CMD_RUNSTOP;
+
+			// Wait for not halted
+			for (count = 0; count < 200; count ++)
+			{
+				if (!(ehciData->opRegs->stat & USBEHCI_STAT_HCHALTED))
+				{
+					kernelDebug(debug_usb, "EHCI starting controller took %dms",
+						count);
+					break;
+				}
+
+				kernelCpuSpinMs(1);
+			}
+
+			// Started?
+			if (!(ehciData->opRegs->stat & USBEHCI_STAT_HCHALTED))
+			{
+				// Started, but some controllers need a small delay here,
+				// before they're fully up and running.  3ms seems to be
+				// enough, but we'll give it a little bit longer .
+				kernelCpuSpinMs(10);
+			}
+			else
+			{
+				kernelError(kernel_error, "Couldn't clear controller halted "
+					"bit");
+				status = ERR_TIMEOUT;
+			}
+		}
+	}
+	else // stop
+	{
+		if (!(ehciData->opRegs->stat & USBEHCI_STAT_HCHALTED))
+		{
+			// Clear the run/stop bit
+			ehciData->opRegs->cmd &= ~USBEHCI_CMD_RUNSTOP;
+
+			// Wait for halted
+			for (count = 0; count < 20; count ++)
+			{
+				if (ehciData->opRegs->stat & USBEHCI_STAT_HCHALTED)
+				{
+					kernelDebug(debug_usb, "EHCI stopping controller took %dms",
+						count);
+					break;
+				}
+
+				kernelCpuSpinMs(1);
+			}
+
+			// Stopped?
+			if (!(ehciData->opRegs->stat & USBEHCI_STAT_HCHALTED))
+			{
+				kernelError(kernel_error, "Couldn't set controller halted bit");
+				status = ERR_TIMEOUT;
+			}
+		}
+	}
+
+	kernelDebug(debug_usb, "EHCI controller %sst%sed", (status? "not " : ""),
+		(start? "art" : "opp"));
+
+	return (status);
+}
+
+
+static inline void setPortStatusBits(usbController *controller, int portNum,
+	unsigned bits)
+{
+	// Set the requested read-write status bits, without affecting any of
+	// the read-only or read-write-clear bits
+
+	usbEhciData *ehciData = controller->data;
+
+	ehciData->opRegs->portsc[portNum] =
+		((ehciData->opRegs->portsc[portNum] &
+			~(USBEHCI_PORTSC_ROMASK | USBEHCI_PORTSC_RWCMASK)) | bits);
+}
+
+
+static int portPower(usbController *controller, int portNum, int on)
+{
+	// If port power control is available, this function will turn it on or
+	// off
+
+	int status = 0;
+	usbEhciData *ehciData = controller->data;
+	int count;
+
+	kernelDebug(debug_usb, "EHCI %sable port power", (on? "en" : "dis"));
+
+	if (on)
+	{
+		// Turn on the port power bit
+		setPortStatusBits(controller, portNum, USBEHCI_PORTSC_PORTPOWER);
+
+		// Wait for it to read as set
+		for (count = 0; count < 20; count ++)
+		{
+			if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTPOWER)
+			{
+				kernelDebug(debug_usb, "EHCI turning on port power took %dms",
+					count);
+				break;
+			}
+
+			kernelCpuSpinMs(1);
+		}
+
+		// Set?
+		if (!(ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTPOWER))
+		{
+			kernelError(kernel_warn, "Couldn't set port power bit");
+			return (status = ERR_TIMEOUT);
+		}
+	}
+	else // off
+	{
+		// Don't think we'll ever use this
 	}
 
 	return (status = 0);
@@ -636,182 +895,131 @@ static int startStopSched(usbController *controller, unsigned statBit,
 
 	kernelDebug(debug_usb, "EHCI %s processing st%s", schedName,
 		(start? "arted" : "opped"));
-
-		return (status = 0);
-}
-
-
-static int releaseQueueHead(usbController *controller,
-	ehciQueueHeadItem *queueHeadItem)
-{
-	// Remove the queue head from the list of 'used' queue heads, and add it
-	// back into the list of 'free' queue heads.
-
-	int status = 0;
-	usbEhciData *ehciData = controller->data;
-	kernelLinkedList *usedList =
-		(kernelLinkedList *) &(ehciData->usedQueueHeadItems);
-	kernelLinkedList *freeList =
-		(kernelLinkedList *) &(ehciData->freeQueueHeadItems);
-
-	// Remove it from the used list
-	if (kernelLinkedListRemove(usedList, queueHeadItem) >= 0)
-	{
-		// Add it to the free list
-		if (kernelLinkedListAdd(freeList, queueHeadItem) < 0)
-			kernelError(kernel_warn, "Couldn't add item to queue head free "
-				"list");
-	}
-	else
-		kernelError(kernel_warn, "Couldn't remove item from queue head used "
-			"list");
-
 	return (status = 0);
 }
 
 
-static ehciQueueHeadItem *allocQueueHead(usbController *controller,
-	usbDevice *usbDev, unsigned char endpoint)
+static void hostSystemError(usbController *controller)
 {
-	// Allocate the queue head for the device endpoint.
-	//
-	// Each device endpoint has at most one queue head (which may be linked
-	// into either the synchronous or asynchronous queue, depending on the
-	// endpoint type).
-	//
-	// It's OK for the usbDevice parameter to be NULL; the asynchronous list
-	// will have a single, unused queue head to mark the start of the list.
-
-	usbEhciData *ehciData = controller->data;
-	kernelLinkedList *usedList =
-		(kernelLinkedList *) &(ehciData->usedQueueHeadItems);
-	kernelLinkedList *freeList =
-		(kernelLinkedList *) &(ehciData->freeQueueHeadItems);
-	ehciQueueHeadItem *queueHeadItem = NULL;
-	kernelLinkedListItem *iter = NULL;
-
-	kernelDebug(debug_usb, "EHCI alloc queue head for controller %d, "
-		"usbDev %p, endpoint %02x", controller->num, usbDev, endpoint);
-
-	// Anything in the free list?
-	if (!freeList->numItems)
-	{
-		// Super, the free list is empty.  We need to allocate everything.
-		if (allocQueueHeads(freeList) < 0)
-		{
-			kernelError(kernel_error, "Couldn't allocate new queue heads");
-			goto err_out;
-		}
-	}
-
-	// Grab the first item in the free list
-	queueHeadItem = kernelLinkedListIterStart(freeList, &iter);
-	if (!queueHeadItem)
-	{
-		kernelError(kernel_error, "Couldn't get a list item for a new Queue "
-			"Head");
-		goto err_out;
-	}
-
-	// Remove it from the free list
-	if (kernelLinkedListRemove(freeList, queueHeadItem) < 0)
-	{
-		kernelError(kernel_error, "Couldn't remove item from queue head free "
-			"list");
-		goto err_out;
-	}
-
-	// Initialize the queue head item
-	queueHeadItem->usbDev = (void *) usbDev;
-	queueHeadItem->endpoint = endpoint;
-	queueHeadItem->firstQtdItem = NULL;
-
-	// Initialize the queue head
-	kernelMemClear((void *) queueHeadItem->queueHead, sizeof(ehciQueueHead));
-	queueHeadItem->queueHead->horizLink = USBEHCI_LINK_TERM;
-	queueHeadItem->queueHead->currentQtd  = USBEHCI_LINK_TERM;
-	queueHeadItem->queueHead->overlay.nextQtd = USBEHCI_LINK_TERM;
-	queueHeadItem->queueHead->overlay.altNextQtd = USBEHCI_LINK_TERM;
-
-	// Add it to the used list
-	if (kernelLinkedListAdd(usedList, queueHeadItem) < 0)
-	{
-		kernelError(kernel_error, "Couldn't add item to queue head used list");
-		goto err_out;
-	}
-
-	kernelDebug(debug_usb, "EHCI added queue head for usbDev %p, endpoint %02x",
-		queueHeadItem->usbDev, queueHeadItem->endpoint);
-
-	if (usbDev)
-	{
-		// Set the "static endpoint state" in the queue head
-		if (setQueueHeadEndpointState(usbDev, endpoint,
-				queueHeadItem->queueHead) < 0)
-			goto err_out;
-	}
-
-	// Return success
-	return (queueHeadItem);
-
-err_out:
-
-	if (queueHeadItem)
-		releaseQueueHead(controller, queueHeadItem);
-
-	return (queueHeadItem = NULL);
-}
-
-
-static int unlinkQueueHead(usbController *controller,
-	ehciQueueHeadItem *unlinkQueueHeadItem)
-{
-	// Search the controller's list of used queue heads for any that link to
-	// the one supplied, and unlink them.
-
 	int status = 0;
 	usbEhciData *ehciData = controller->data;
 	kernelLinkedList *usedList =
 		(kernelLinkedList *) &(ehciData->usedQueueHeadItems);
 	ehciQueueHeadItem *queueHeadItem = NULL;
 	kernelLinkedListItem *iter = NULL;
+	ehciQtdItem *qtdItem = NULL;
+	int count;
 
-	kernelDebug(debug_usb, "EHCI unlink queue head");
+	// Reset the controller
+	status = reset(controller);
+	if (status < 0)
+		return;
 
-	// Try searching for a queue head that links to the one we're removing
+	// Set up the controller's data structures, etc.
+	status = setup(controller);
+	if (status < 0)
+		return;
+
+	// Start the controller
+	status = startStop(controller, 1);
+	if (status < 0)
+		return;
+
+	// Power on all the ports, if applicable
+	if (ehciData->capRegs->hcsparams & USBEHCI_HCSP_PORTPOWERCTRL)
+	{
+		for (count = 0; count < ehciData->numPorts; count ++)
+			portPower(controller, count, 1);
+
+		// Wait 20ms for power to stabilize on all ports (per EHCI spec)
+		kernelCpuSpinMs(20);
+	}
+
+	// Remove all transactions from the queue heads and mark them as failed.
 	if (usedList->numItems)
 	{
 		queueHeadItem = kernelLinkedListIterStart(usedList, &iter);
-
 		while (queueHeadItem)
 		{
-			if ((queueHeadItem->queueHead->horizLink & ~USBEHCI_LINKTYP_MASK) ==
-				unlinkQueueHeadItem->physicalAddr)
+			queueHeadItem->queueHead->currentQtd = USBEHCI_LINK_TERM;
+			kernelMemClear((void *) &(queueHeadItem->queueHead->overlay),
+				sizeof(ehciQtd));
+
+			qtdItem = queueHeadItem->firstQtdItem;
+			while (qtdItem)
 			{
-				// This one links to the one we're removing
-				kernelDebug(debug_usb, "EHCI found linking queue head");
-
-				// Replace the horizontal link pointer with whatever the one
-				// we're removing points to
-				queueHeadItem->queueHead->horizLink =
-					unlinkQueueHeadItem->queueHead->horizLink;
-
-				// Finished
-				return (status = 0);
+				qtdItem->qtd->token |= USBEHCI_QTDTOKEN_ERRXACT;
+				qtdItem->qtd->token &= ~USBEHCI_QTDTOKEN_ACTIVE;
+				qtdItem = qtdItem->nextQtdItem;
 			}
 
 			queueHeadItem = kernelLinkedListIterNext(usedList, &iter);
 		}
+	}
 
-		// Not found
-		kernelDebugError("No such item in queue head list");
-		return (status = ERR_NOSUCHENTRY);
-	}
-	else
+	// Restart the asynchronous schedule
+	ehciData->opRegs->asynclstaddr = ehciData->reclaimHead->physical;
+	startStopSched(controller, USBEHCI_STAT_ASYNCSCHED,
+		USBEHCI_CMD_ASYNCSCHEDENBL, 1);
+
+	// Restart the periodic schedule
+	startStopSched(controller, USBEHCI_STAT_PERIODICSCHED,
+		USBEHCI_CMD_PERSCHEDENBL, 1);
+
+	return;
+}
+
+
+static int setupQtdToken(ehciQtd *qtd, volatile unsigned char *dataToggle,
+	unsigned totalBytes, int interrupt, unsigned char pid)
+{
+	// Do the nuts-n-bolts setup for a qTD transfer descriptor
+
+	int status = 0;
+
+	qtd->token = 0;
+
+	if (dataToggle)
 	{
-		kernelDebugError("No items in queue head list");
-		return (status = ERR_NOSUCHENTRY);
+		// Set the data toggle
+		//kernelDebug(debug_usb, "EHCI set up qTD, dataToggle=%d", *dataToggle);
+		qtd->token |= (*dataToggle << 31);
 	}
+	//else
+		//kernelDebug(debug_usb, "EHCI set up qTD, no dataToggle");
+
+	// Set the number of bytes to transfer
+	qtd->token |= ((totalBytes << 16) & USBEHCI_QTDTOKEN_TOTBYTES);
+
+	// Interrupt on complete?
+	qtd->token |= ((interrupt << 15) & USBEHCI_QTDTOKEN_IOC);
+
+	// Current page is 0
+
+	// Set the error down-counter to 3
+	qtd->token |= USBEHCI_QTDTOKEN_ERRCOUNT;
+
+	switch (pid)
+	{
+		case USB_PID_OUT:
+			qtd->token |= USBEHCI_QTDTOKEN_PID_OUT;
+			break;
+		case USB_PID_IN:
+			qtd->token |= USBEHCI_QTDTOKEN_PID_IN;
+			break;
+		case USB_PID_SETUP:
+			qtd->token |= USBEHCI_QTDTOKEN_PID_SETUP;
+			break;
+		default:
+			kernelError(kernel_error, "Invalid PID %u", pid);
+			return (status = ERR_INVALID);
+	}
+
+	// Mark it active
+	qtd->token |= USBEHCI_QTDTOKEN_ACTIVE;
+
+	// Return success
+	return (status = 0);
 }
 
 
@@ -828,53 +1036,51 @@ static void setStatusBits(usbController *controller, unsigned bits)
 }
 
 
-static int removeAsyncQueueHead(usbController *controller,
-	ehciQueueHeadItem *queueHeadItem)
+static ehciQueueHeadItem *findQueueHead(usbController *controller,
+	usbDevice *usbDev, unsigned char endpoint)
 {
-	// Remove the queue head from the asynchronous queue, and release it.
+	// Search the controller's list of used queue heads for one that belongs
+	// to the requested device and endpoint.
 
-	int status = 0;
 	usbEhciData *ehciData = controller->data;
-	int count;
+	kernelLinkedList *usedList =
+		(kernelLinkedList *) &(ehciData->usedQueueHeadItems);
+	ehciQueueHeadItem *queueHeadItem = NULL;
+	kernelLinkedListItem *iter = NULL;
 
-	// Unlink the queue head from the queue
-	status = unlinkQueueHead(controller, queueHeadItem);
-	if (status < 0)
-		return (status);
+	kernelDebug(debug_usb, "EHCI find queue head for controller %d, usbDev "
+		"%p, endpoint %02x", controller->num, usbDev, endpoint);
 
-	// Now we set the 'interrupt on async advance doorbell' but in the command
-	// register
-	ehciData->opRegs->cmd |= USBEHCI_CMD_INTASYNCADVRST;
-
-	// Wait for the controller to set the 'interrupt on async advance' bit
-	// in the status register
-	kernelDebug(debug_usb, "EHCI wait for async advance");
-	for (count = 0; count < 20; count ++)
+	// Try searching for an existing queue head
+	if (usedList->numItems)
 	{
-		if (ehciData->opRegs->stat & USBEHCI_STAT_ASYNCADVANCE)
+		queueHeadItem = kernelLinkedListIterStart(usedList, &iter);
+
+		while (queueHeadItem)
 		{
-			kernelDebug(debug_usb, "EHCI async advance took %dms", count);
-			break;
+			kernelDebug(debug_usb, "EHCI examine queue head for device %p "
+				"endpoint %02x", queueHeadItem->usbDev,
+				queueHeadItem->endpoint);
+
+			if ((queueHeadItem->usbDev == usbDev) &&
+				(queueHeadItem->endpoint == endpoint))
+			{
+				break;
+			}
+
+			queueHeadItem = kernelLinkedListIterNext(usedList, &iter);
 		}
 
-		kernelCpuSpinMs(1);
+		// Found it?
+		if (queueHeadItem)
+			kernelDebug(debug_usb, "EHCI found queue head");
+		else
+			kernelDebug(debug_usb, "EHCI queue head not found");
 	}
+	else
+		kernelDebug(debug_usb, "EHCI no items in queue head list");
 
-	// Did the controller respond?
-	if (!(ehciData->opRegs->stat & USBEHCI_STAT_ASYNCADVANCE))
-	{
-		kernelError(kernel_error, "Controller did not set async advance bit");
-		return (status = ERR_TIMEOUT);
-	}
-
-	// Clear it
-	setStatusBits(controller, USBEHCI_STAT_ASYNCADVANCE);
-
-	status = releaseQueueHead(controller, queueHeadItem);
-	if (status < 0)
-		return (status);
-
-	return (status = 0);
+	return (queueHeadItem);
 }
 
 
@@ -901,14 +1107,14 @@ static ehciQueueHeadItem *allocAsyncQueueHead(usbController *controller,
 	queueHeadItem->queueHead->horizLink =
 		ehciData->reclaimHead->queueHead->horizLink;
 	ehciData->reclaimHead->queueHead->horizLink =
-		(queueHeadItem->physicalAddr | USBEHCI_LINKTYP_QH);
+		(queueHeadItem->physical | USBEHCI_LINKTYP_QH);
 
 	// If the asynchronous schedule is not running, start it now
 	if (!(ehciData->opRegs->stat & USBEHCI_STAT_ASYNCSCHED))
 	{
 		// Seems like sometimes this register gets corrupted by something after
 		// our initial setup - starting the controller?
-		ehciData->opRegs->asynclstaddr = ehciData->reclaimHead->physicalAddr;
+		ehciData->opRegs->asynclstaddr = ehciData->reclaimHead->physical;
 
 		if (startStopSched(controller, USBEHCI_STAT_ASYNCSCHED,
 			USBEHCI_CMD_ASYNCSCHEDENBL, 1) < 0)
@@ -921,7 +1127,6 @@ static ehciQueueHeadItem *allocAsyncQueueHead(usbController *controller,
 	return (queueHeadItem);
 
 err_out:
-
 	if (queueHeadItem)
 		releaseQueueHead(controller, queueHeadItem);
 
@@ -937,6 +1142,7 @@ static ehciQueueHeadItem *allocIntrQueueHead(usbController *controller,
 
 	usbEhciData *ehciData = controller->data;
 	ehciQueueHeadItem *queueHeadItem = NULL;
+	unsigned char cMask = 0xFE;
 
 	queueHeadItem = allocQueueHead(controller, usbDev, endpoint);
 	if (!queueHeadItem)
@@ -949,13 +1155,20 @@ static ehciQueueHeadItem *allocIntrQueueHead(usbController *controller,
 	{
 		// Port number, hub address, and split completion mask only set for a
 		// full- or low-speed device
+		queueHeadItem->queueHead->endpointCaps |=
+			(((usbDev->hubPort + 1) << 23) & USBEHCI_QHDW2_PORTNUMBER);
 
-		kernelDebugError("Non-high-speed devices are not yet supported");
+		queueHeadItem->queueHead->endpointCaps |=
+			((usbDev->hub->usbDev->address << 16) & USBEHCI_QHDW2_HUBADDRESS);
+
+		kernelDebug(debug_usb, "EHCI using portNum=%d, hubAddress %d for "
+			"low/full speed", usbDev->hubPort, usbDev->hub->usbDev->address);
 
 		// For now, set all bits in the split completion mask, and leave the
 		// interrupt schedule mask empty (its value will depend on the
 		// interval)
-		queueHeadItem->queueHead->endpointCaps |= USBEHCI_QHDW2_SPLTCOMPMASK;
+		queueHeadItem->queueHead->endpointCaps |=
+			((cMask << 8) & USBEHCI_QHDW2_SPLTCOMPMASK);
 	}
 
 	// If the periodic schedule is not running, start it now
@@ -970,7 +1183,6 @@ static ehciQueueHeadItem *allocIntrQueueHead(usbController *controller,
 	return (queueHeadItem);
 
 err_out:
-
 	if (queueHeadItem)
 		releaseQueueHead(controller, queueHeadItem);
 
@@ -985,7 +1197,7 @@ static int allocQtds(kernelLinkedList *freeList)
 	// and add them to the supplied kernelLinkedList.
 
 	int status = 0;
-	void *physicalMem = NULL;
+	kernelIoMemory ioMem;
 	ehciQtd *qtds = NULL;
 	int numQtds = 0;
 	ehciQtdItem *qtdItems = NULL;
@@ -994,10 +1206,11 @@ static int allocQtds(kernelLinkedList *freeList)
 
 	// Request an aligned page of I/O memory (we need to be sure of 32-byte
 	// alignment for each qTD)
-	status = allocIoMem(MEMORY_PAGE_SIZE, MEMORY_PAGE_SIZE, (void **) &qtds,
-		&physicalMem);
+	status = kernelMemoryGetIo(MEMORY_PAGE_SIZE, MEMORY_PAGE_SIZE, &ioMem);
 	if (status < 0)
 		goto err_out;
+
+	qtds = ioMem.virtual;
 
 	// How many queue heads per memory page?  The ehciQueueHead data structure
 	// will be padded so that they start on 32-byte boundaries, as required by
@@ -1014,11 +1227,11 @@ static int allocQtds(kernelLinkedList *freeList)
 
 	// Now loop through each list item, link it to a qTD, and add it to the
 	// free list
-	physicalAddr = (unsigned) physicalMem;
+	physicalAddr = ioMem.physical;
 	for (count = 0; count < numQtds; count ++)
 	{
 		qtdItems[count].qtd = &(qtds[count]);
-		qtdItems[count].physicalAddr = physicalAddr;
+		qtdItems[count].physical = physicalAddr;
 		physicalAddr += sizeof(ehciQtd);
 
 		status = kernelLinkedListAdd(freeList, &(qtdItems[count]));
@@ -1033,8 +1246,8 @@ err_out:
 
 	if (qtdItems)
 		kernelFree(qtdItems);
-	if (qtds && physicalMem)
-		freeIoMem((void *) qtds, physicalMem, MEMORY_PAGE_SIZE);
+	if (qtds)
+		kernelMemoryReleaseIo(&ioMem);
 
 	return (status);
 }
@@ -1063,7 +1276,6 @@ static void releaseQtds(usbController *controller, ehciQtdItem **qtdItems,
 	}
 
 	kernelFree(qtdItems);
-
 	return;
 }
 
@@ -1127,7 +1339,7 @@ static ehciQtdItem **getQtds(usbController *controller, int numQtds)
 		if (count)
 		{
 			qtdItems[count - 1]->nextQtdItem = qtdItems[count];
-			qtdItems[count - 1]->qtd->nextQtd = qtdItems[count]->physicalAddr;
+			qtdItems[count - 1]->qtd->nextQtd = qtdItems[count]->physical;
 		}
 	}
 
@@ -1157,9 +1369,8 @@ static int setQtdBufferPages(ehciQtd *qtd, unsigned buffPhysical,
 	for (count = 0; ((count < USBEHCI_MAX_QTD_BUFFERS) && (buffSize > 0));
 		count ++)
 	{
-		bytes =
-			min(buffSize, (USBEHCI_MAX_QTD_BUFFERSIZE -
-				(buffPhysical % USBEHCI_MAX_QTD_BUFFERSIZE)));
+		bytes = min(buffSize, (USBEHCI_MAX_QTD_BUFFERSIZE -
+			(buffPhysical % USBEHCI_MAX_QTD_BUFFERSIZE)));
 
 		kernelDebug(debug_usb, "EHCI qTD buffer page %d=0x%08x size=%u", count,
 			buffPhysical, bytes);
@@ -1189,7 +1400,7 @@ static int allocQtdBuffer(ehciQtdItem *qtdItem, unsigned buffSize)
 	// of control transfers, or for interrupt registrations.
 
 	int status = 0;
-	void *buffPhysical = NULL;
+	unsigned buffPhysical = NULL;
 
 	kernelDebug(debug_usb, "EHCI allocate qTD buffer of %u", buffSize);
 
@@ -1213,62 +1424,9 @@ static int allocQtdBuffer(ehciQtdItem *qtdItem, unsigned buffSize)
 	}
 
 	// Now set up the buffer pointers in the qTD
-	status = setQtdBufferPages(qtdItem->qtd, (unsigned) buffPhysical, buffSize);
+	status = setQtdBufferPages(qtdItem->qtd, buffPhysical, buffSize);
 	if (status < 0)
 		return (status);
-
-	// Return success
-	return (status = 0);
-}
-
-
-static int setupQtdToken(ehciQtd *qtd, volatile unsigned char *dataToggle,
-	unsigned totalBytes, int interrupt, unsigned char pid)
-{
-	// Do the nuts-n-bolts setup for a qTD transfer descriptor
-
-	int status = 0;
-
-	qtd->token = 0;
-
-	if (dataToggle)
-	{
-		// Set the data toggle
-		//kernelDebug(debug_usb, "EHCI set up qTD, dataToggle=%d", *dataToggle);
-		qtd->token |= (*dataToggle << 31);
-	}
-	//else
-		//kernelDebug(debug_usb, "EHCI set up qTD, no dataToggle");
-
-	// Set the number of bytes to transfer
-	qtd->token |= ((totalBytes << 16) & USBEHCI_QTDTOKEN_TOTBYTES);
-
-	// Interrupt on complete?
-	qtd->token |= ((interrupt << 15) & USBEHCI_QTDTOKEN_IOC);
-
-	// Current page is 0
-
-	// Set the error down-counter to 3
-	qtd->token |= USBEHCI_QTDTOKEN_ERRCOUNT;
-
-	switch (pid)
-	{
-		case USB_PID_OUT:
-			qtd->token |= USBEHCI_QTDTOKEN_PID_OUT;
-			break;
-		case USB_PID_IN:
-			qtd->token |= USBEHCI_QTDTOKEN_PID_IN;
-			break;
-		case USB_PID_SETUP:
-			qtd->token |= USBEHCI_QTDTOKEN_PID_SETUP;
-			break;
-		default:
-			kernelError(kernel_error, "Invalid PID %u", pid);
-			return (status = ERR_INVALID);
-	}
-
-	// Mark it active
-	qtd->token |= USBEHCI_QTDTOKEN_ACTIVE;
 
 	// Return success
 	return (status = 0);
@@ -1298,7 +1456,7 @@ static int queueTransaction(ehciTransQueue *transQueue)
 			qtdItem = qtdItem->nextQtdItem;
 
 		qtdItem->nextQtdItem = transQueue->qtdItems[0];
-		qtdItem->qtd->nextQtd = transQueue->qtdItems[0]->physicalAddr;
+		qtdItem->qtd->nextQtd = transQueue->qtdItems[0]->physical;
 
 		// Make sure the 'next' pointer of the queue head points to something
 		// valid (if not, point to our first qTD)
@@ -1306,7 +1464,7 @@ static int queueTransaction(ehciTransQueue *transQueue)
 			USBEHCI_LINK_TERM)
 		{
 			transQueue->queueHeadItem->queueHead->overlay.nextQtd =
-				transQueue->qtdItems[0]->physicalAddr;
+				transQueue->qtdItems[0]->physical;
 		}
 	}
 	else
@@ -1317,66 +1475,7 @@ static int queueTransaction(ehciTransQueue *transQueue)
 
 		transQueue->queueHeadItem->firstQtdItem = transQueue->qtdItems[0];
 		transQueue->queueHeadItem->queueHead->overlay.nextQtd =
-			transQueue->qtdItems[0]->physicalAddr;
-	}
-
-	// Return success
-	return (status = 0);
-}
-
-
-static int dequeueTransaction(ehciTransQueue *transQueue)
-{
-	// The ehciTransQueue structure contains pointers to a queue head, and
-	// an array of qTDs that should be unlinked from it.  Determine whether
-	// they are linked directly from the queue head, or else somewhere else in
-	// a chain of transactions.
-
-	int status = 0;
-	ehciQtdItem *qtdItem = NULL;
-
-	kernelDebug(debug_usb, "EHCI remove transaction from queue head");
-
-	if (!transQueue->queueHeadItem)
-		return (status = ERR_NOTINITIALIZED);
-
-	if (transQueue->queueHeadItem->firstQtdItem == transQueue->qtdItems[0])
-	{
-		// We're linked directly from the queue head.  Replace the 'next'
-		// qTD pointers in the queue head with the 'next' pointers from our
-		// last qTD (which might be NULL/terminating)
-
-		kernelDebug(debug_usb, "EHCI unlink directly from queue head");
-
-		transQueue->queueHeadItem->firstQtdItem =
-			transQueue->qtdItems[transQueue->numQtds - 1]->nextQtdItem;
-		transQueue->queueHeadItem->queueHead->overlay.nextQtd =
-			transQueue->qtdItems[transQueue->numQtds - 1]->qtd->nextQtd;
-	}
-	else
-	{
-		// There's something else in the queue.  Walk it to find the qTD that
-		// links to our first one, and replace its 'next' qTD pointers with
-		// the 'next' pointers from our last qTD (which might be
-		// NULL/terminating)
-
-		kernelDebug(debug_usb, "EHCI unlink from chained qTDs");
-
-		qtdItem = transQueue->queueHeadItem->firstQtdItem;
-		while (qtdItem && (qtdItem->nextQtdItem != transQueue->qtdItems[0]))
-			qtdItem = qtdItem->nextQtdItem;
-
-		if (!qtdItem)
-		{
-			// Not found!
-			kernelError(kernel_error, "Transaction to de-queue was not found");
-			return (status = ERR_NOSUCHENTRY);
-		}
-
-		qtdItem->nextQtdItem =
-			transQueue->qtdItems[transQueue->numQtds - 1]->nextQtdItem;
-		qtdItem->qtd->nextQtd =
-			transQueue->qtdItems[transQueue->numQtds - 1]->qtd->nextQtd;
+			transQueue->qtdItems[0]->physical;
 	}
 
 	// Return success
@@ -1447,9 +1546,9 @@ static int runTransaction(ehciTransQueue *transQueue)
 			previousQtd = transQueue->queueHeadItem->queueHead->currentQtd;
 		}
 
-		if (currTime > (activeTime + 200))
+		if (currTime > (activeTime + 40))
 		{
-			// Software timeout after ~10 seconds per qTD
+			// Software timeout after ~2 seconds per qTD
 			kernelDebugError("Software timeout");
 			status = ERR_TIMEOUT;
 			break;
@@ -1467,6 +1566,774 @@ static int runTransaction(ehciTransQueue *transQueue)
 				USBEHCI_QTDTOKEN_TOTBYTES) >> 16);
 
 	return (status);
+}
+
+
+static int dequeueTransaction(ehciTransQueue *transQueue)
+{
+	// The ehciTransQueue structure contains pointers to a queue head, and
+	// an array of qTDs that should be unlinked from it.  Determine whether
+	// they are linked directly from the queue head, or else somewhere else in
+	// a chain of transactions.
+
+	int status = 0;
+	ehciQtdItem *qtdItem = NULL;
+
+	kernelDebug(debug_usb, "EHCI remove transaction from queue head");
+
+	if (!transQueue->queueHeadItem)
+		return (status = ERR_NOTINITIALIZED);
+
+	if (transQueue->queueHeadItem->firstQtdItem == transQueue->qtdItems[0])
+	{
+		// We're linked directly from the queue head.  Replace the 'next'
+		// qTD pointers in the queue head with the 'next' pointers from our
+		// last qTD (which might be NULL/terminating)
+
+		kernelDebug(debug_usb, "EHCI unlink directly from queue head");
+
+		transQueue->queueHeadItem->firstQtdItem =
+			transQueue->qtdItems[transQueue->numQtds - 1]->nextQtdItem;
+		transQueue->queueHeadItem->queueHead->overlay.nextQtd =
+			transQueue->qtdItems[transQueue->numQtds - 1]->qtd->nextQtd;
+	}
+	else
+	{
+		// There's something else in the queue.  Walk it to find the qTD that
+		// links to our first one, and replace its 'next' qTD pointers with
+		// the 'next' pointers from our last qTD (which might be
+		// NULL/terminating)
+
+		kernelDebug(debug_usb, "EHCI unlink from chained qTDs");
+
+		qtdItem = transQueue->queueHeadItem->firstQtdItem;
+		while (qtdItem && (qtdItem->nextQtdItem != transQueue->qtdItems[0]))
+			qtdItem = qtdItem->nextQtdItem;
+
+		if (!qtdItem)
+		{
+			// Not found!
+			kernelError(kernel_error, "Transaction to de-queue was not found");
+			return (status = ERR_NOSUCHENTRY);
+		}
+
+		qtdItem->nextQtdItem =
+			transQueue->qtdItems[transQueue->numQtds - 1]->nextQtdItem;
+		qtdItem->qtd->nextQtd =
+			transQueue->qtdItems[transQueue->numQtds - 1]->qtd->nextQtd;
+	}
+
+	// Return success
+	return (status = 0);
+}
+
+
+static int unlinkQueueHead(usbController *controller,
+	ehciQueueHeadItem *unlinkQueueHeadItem)
+{
+	// Search the controller's list of used queue heads for any that link to
+	// the one supplied, and unlink them.
+
+	int status = 0;
+	usbEhciData *ehciData = controller->data;
+	kernelLinkedList *usedList =
+		(kernelLinkedList *) &(ehciData->usedQueueHeadItems);
+	ehciQueueHeadItem *queueHeadItem = NULL;
+	kernelLinkedListItem *iter = NULL;
+
+	kernelDebug(debug_usb, "EHCI unlink queue head");
+
+	// Try searching for a queue head that links to the one we're removing
+	if (usedList->numItems)
+	{
+		queueHeadItem = kernelLinkedListIterStart(usedList, &iter);
+
+		while (queueHeadItem)
+		{
+			if ((queueHeadItem->queueHead->horizLink & ~USBEHCI_LINKTYP_MASK) ==
+				unlinkQueueHeadItem->physical)
+			{
+				// This one links to the one we're removing
+				kernelDebug(debug_usb, "EHCI found linking queue head");
+
+				// Replace the horizontal link pointer with whatever the one
+				// we're removing points to
+				queueHeadItem->queueHead->horizLink =
+					unlinkQueueHeadItem->queueHead->horizLink;
+
+				// Finished
+				return (status = 0);
+			}
+
+			queueHeadItem = kernelLinkedListIterNext(usedList, &iter);
+		}
+
+		// If nothing was found, that's OK.  Interrupt queue heads linked
+		// directly from the synchronous schedule won't be linked to by any
+		// other queue heads.
+	}
+	else
+	{
+		kernelDebugError("No items in queue head list");
+		return (status = ERR_NOSUCHENTRY);
+	}
+
+	return (status = 0);
+}
+
+
+static inline void clearPortStatusBits(usbController *controller, int portNum,
+	unsigned bits)
+{
+	// Clear the requested read-write status bits, without affecting any of
+	// the read-only or read-write-clear bits
+
+	usbEhciData *ehciData = controller->data;
+
+	ehciData->opRegs->portsc[portNum] =
+		(ehciData->opRegs->portsc[portNum] &
+			~(USBEHCI_PORTSC_ROMASK | USBEHCI_PORTSC_RWCMASK | bits));
+}
+
+
+static int portReset(usbController *controller, int portNum)
+{
+	// Reset the port, with the appropriate delays, etc.
+
+	int status = 0;
+	usbEhciData *ehciData = controller->data;
+	int count;
+
+	kernelDebug(debug_usb, "EHCI port reset");
+
+	// Clear the port 'enabled' bit
+	clearPortStatusBits(controller, portNum, USBEHCI_PORTSC_PORTENABLED);
+
+	// Wait for it to read as clear
+	for (count = 0; count < 20; count ++)
+	{
+		if (!(ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTENABLED))
+		{
+			kernelDebug(debug_usb, "EHCI disabling port took %dms", count);
+			break;
+		}
+
+		kernelCpuSpinMs(1);
+	}
+
+	// Clear?
+	if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTENABLED)
+	{
+		kernelError(kernel_warn, "Couldn't clear port enabled bit");
+		status = ERR_TIMEOUT;
+		goto out;
+	}
+
+	// Set the port 'reset' bit
+	setPortStatusBits(controller, portNum, USBEHCI_PORTSC_PORTRESET);
+
+	// Wait for it to read as set
+	for (count = 0; count < 20; count ++)
+	{
+		if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTRESET)
+		{
+			kernelDebug(debug_usb, "EHCI setting reset bit took %dms", count);
+			break;
+		}
+
+		kernelCpuSpinMs(1);
+	}
+
+	// Set?
+	if (!(ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTRESET))
+	{
+		kernelError(kernel_warn, "Couldn't set port reset bit");
+		status = ERR_TIMEOUT;
+		goto out;
+	}
+
+	// Delay 50ms
+	kernelDebug(debug_usb, "EHCI delay for port reset");
+	kernelCpuSpinMs(50);
+
+	// Clear the port 'reset' bit
+	clearPortStatusBits(controller, portNum, USBEHCI_PORTSC_PORTRESET);
+
+	// Wait for it to read as clear
+	for (count = 0; count < 200; count ++)
+	{
+		if (!(ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTRESET))
+		{
+			kernelDebug(debug_usb, "EHCI clearing reset bit took %dms", count);
+			break;
+		}
+
+		kernelCpuSpinMs(1);
+	}
+
+	// Clear?
+	if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTRESET)
+	{
+		kernelError(kernel_warn, "Couldn't clear port reset bit");
+		status = ERR_TIMEOUT;
+		goto out;
+	}
+
+	// Delay another 20ms
+	kernelDebug(debug_usb, "EHCI delay after port reset");
+	kernelCpuSpinMs(20);
+
+	// Return success
+	status = 0;
+
+out:
+	kernelDebug(debug_usb, "EHCI port reset %s",
+		(status? "failed" : "success"));
+
+	return (status);
+}
+
+
+static int portConnected(usbController *controller, int portNum, int hotPlug)
+{
+	// This function is called whenever we notice that a port has indicated
+	// a new connection.
+
+	int status = 0;
+	usbEhciData *ehciData = controller->data;
+	usbDevSpeed speed = usbspeed_unknown;
+
+	kernelDebug(debug_usb, "EHCI controller %d, port %d connected",
+		controller->num, portNum);
+
+	debugPortStatus(controller, portNum);
+
+	if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_CONNCHANGE)
+		// Acknowledge connection status change
+		setPortStatusBits(controller, portNum, USBEHCI_PORTSC_CONNCHANGE);
+
+	debugPortStatus(controller, portNum);
+
+	// Check the line status bits to see whether this is a low-speed device
+	if (((ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_LINESTATUS) ==
+		USBEHCI_PORTSC_LINESTAT_LS) &&
+		(ehciData->capRegs->hcsparams & USBEHCI_HCSP_NUMCOMPANIONS))
+	{
+		speed = usbspeed_low;
+
+		// Release ownership of the port.
+		kernelDebug(debug_usb, "EHCI low-speed connection.  Releasing port "
+			"ownership");
+		setPortStatusBits(controller, portNum, USBEHCI_PORTSC_PORTOWNER);
+		debugPortStatus(controller, portNum);
+	}
+	else
+	{
+		// Reset the port
+		status = portReset(controller, portNum);
+		if (status < 0)
+			return (status);
+
+		debugPortStatus(controller, portNum);
+
+		// Is the port showing as enabled?
+		if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTENABLED)
+		{
+			if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTENBLCHG)
+				// Acknowledge enabled status change
+				setPortStatusBits(controller, portNum,
+					USBEHCI_PORTSC_PORTENBLCHG);
+
+			speed = usbspeed_high;
+		}
+		else
+		{
+			// Release ownership?
+			if (ehciData->capRegs->hcsparams & USBEHCI_HCSP_NUMCOMPANIONS)
+			{
+				kernelDebug(debug_usb, "EHCI full-speed connection.  "
+					"Releasing port ownership");
+				setPortStatusBits(controller, portNum,
+					USBEHCI_PORTSC_PORTOWNER);
+				debugPortStatus(controller, portNum);
+				return (status = 0);
+			}
+
+			speed = usbspeed_full;
+		}
+
+		kernelDebug(debug_usb, "EHCI connection speed: %s",
+			usbDevSpeed2String(speed));
+
+		status = kernelUsbDevConnect(controller, &controller->hub, portNum,
+			speed, hotPlug);
+		if (status < 0)
+		{
+			kernelError(kernel_error, "Error enumerating new USB device");
+			return (status);
+		}
+	}
+
+	debugPortStatus(controller, portNum);
+
+	return (status = 0);
+}
+
+
+static int removeAsyncQueueHead(usbController *controller,
+	ehciQueueHeadItem *queueHeadItem)
+{
+	// Remove the queue head from the asynchronous queue, and release it.
+
+	int status = 0;
+	usbEhciData *ehciData = controller->data;
+	int count;
+
+	// Unlink the queue head from the queue
+	status = unlinkQueueHead(controller, queueHeadItem);
+	if (status < 0)
+		return (status);
+
+	// Now we set the 'interrupt on async advance doorbell' but in the command
+	// register
+	ehciData->opRegs->cmd |= USBEHCI_CMD_INTASYNCADVRST;
+
+	// Wait for the controller to set the 'interrupt on async advance' bit
+	// in the status register
+	kernelDebug(debug_usb, "EHCI wait for async advance");
+	for (count = 0; count < 20; count ++)
+	{
+		if (ehciData->opRegs->stat & USBEHCI_STAT_ASYNCADVANCE)
+		{
+			kernelDebug(debug_usb, "EHCI async advance took %dms", count);
+			break;
+		}
+
+		kernelCpuSpinMs(1);
+	}
+
+	// Did the controller respond?
+	if (!(ehciData->opRegs->stat & USBEHCI_STAT_ASYNCADVANCE))
+	{
+		kernelError(kernel_error, "Controller did not set async advance bit");
+		return (status = ERR_TIMEOUT);
+	}
+
+	// Clear it
+	setStatusBits(controller, USBEHCI_STAT_ASYNCADVANCE);
+
+	status = releaseQueueHead(controller, queueHeadItem);
+	if (status < 0)
+		return (status);
+
+	return (status = 0);
+}
+
+
+static void portDisconnected(usbController *controller, int portNum)
+{
+	usbEhciData *ehciData = controller->data;
+
+	kernelDebug(debug_usb, "EHCI controller %d, port %d disconnected",
+		controller->num, portNum);
+
+	debugPortStatus(controller, portNum);
+
+	if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTENBLCHG)
+		// Acknowledge enabled status change
+		setPortStatusBits(controller, portNum, USBEHCI_PORTSC_PORTENBLCHG);
+
+	if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_CONNCHANGE)
+		// Acknowledge connection status change
+		setPortStatusBits(controller, portNum, USBEHCI_PORTSC_CONNCHANGE);
+
+	debugPortStatus(controller, portNum);
+
+	// Tell the USB functions that the device disconnected.  This will call us
+	// back to tell us about all affected devices - there might be lots if
+	// this was a hub
+	kernelUsbDevDisconnect(controller, &controller->hub, portNum);
+
+	return;
+}
+
+
+static void doDetectDevices(usbHub *hub, int hotplug)
+{
+	// This function gets called to check for device connections (either cold-
+	// plugged ones at boot time, or hot-plugged ones during operations.
+
+	usbController *controller = hub->controller;
+	usbEhciData *ehciData = controller->data;
+	int count;
+
+	// Check to see whether any of the ports are showing a connection change
+	for (count = 0; count < ehciData->numPorts; count ++)
+	{
+		if (ehciData->opRegs->portsc[count] & USBEHCI_PORTSC_CONNCHANGE)
+		{
+			kernelDebug(debug_usb, "EHCI port %d connection changed", count);
+
+			if (ehciData->opRegs->portsc[count] & USBEHCI_PORTSC_CONNECTED)
+				portConnected(controller, count, hotplug);
+			else
+				portDisconnected(controller, count);
+		}
+	}
+
+	return;
+}
+
+
+static int handoff(usbController *controller, kernelBusTarget *busTarget,
+	pciDeviceInfo *pciDevInfo)
+{
+	// If the controller supports the extended capability for legacy handoff
+	// synchronization between the BIOS and the OS, do that here.
+
+	int status = 0;
+	usbEhciData *ehciData = controller->data;
+	unsigned eecp = 0;
+	ehciExtendedCaps *extCap = NULL;
+	ehciLegacySupport *legSupp = NULL;
+	int count;
+
+	kernelDebug(debug_usb, "EHCI try BIOS-to-OS handoff");
+
+	eecp = ((ehciData->capRegs->hccparams & USBEHCI_HCCP_EXTCAPPTR) >> 8);
+	if (eecp)
+	{
+		kernelDebug(debug_usb, "EHCI has extended capabilities");
+
+		extCap = (ehciExtendedCaps *)((void *) pciDevInfo->header + eecp);
+		while (1)
+		{
+			kernelDebug(debug_usb, "EHCI extended capability %d", extCap->id);
+			if (extCap->id == USBEHCI_EXTCAP_HANDOFFSYNC)
+			{
+				kernelDebug(debug_usb, "EHCI legacy support implemented");
+
+				legSupp = (ehciLegacySupport *) extCap;
+
+				// Does the BIOS claim ownership of the controller?
+				if (legSupp->legSuppCap & USBEHCI_LEGSUPCAP_BIOSOWND)
+					kernelDebug(debug_usb, "EHCI BIOS claims ownership, "
+						"contStat=0x%08x", legSupp->legSuppContStat);
+				else
+					kernelDebug(debug_usb, "EHCI BIOS does not claim ownership");
+
+				// Attempt to take over ownership; write the 'OS-owned' flag,
+				// and wait for the BIOS to release ownership, if applicable
+				for (count = 0; count < 200; count ++)
+				{
+					legSupp->legSuppCap |= USBEHCI_LEGSUPCAP_OSOWNED;
+					kernelBusWriteRegister(busTarget,
+						((eecp +
+							offsetof(ehciLegacySupport, legSuppCap)) >> 2),
+						32, legSupp->legSuppCap);
+
+					// Re-read target info
+					kernelBusGetTargetInfo(busTarget, pciDevInfo);
+
+					if ((legSupp->legSuppCap & USBEHCI_LEGSUPCAP_OSOWNED) &&
+						!(legSupp->legSuppCap & USBEHCI_LEGSUPCAP_BIOSOWND))
+					{
+						kernelDebug(debug_usb, "EHCI OS ownership took %dms",
+							count);
+						break;
+					}
+
+					kernelDebug(debug_usb, "EHCI legSuppCap=0x%08x",
+						legSupp->legSuppCap);
+
+					kernelCpuSpinMs(1);
+				}
+
+				// Do we have ownership?
+				if (!(legSupp->legSuppCap & USBEHCI_LEGSUPCAP_OSOWNED) ||
+					(legSupp->legSuppCap & USBEHCI_LEGSUPCAP_BIOSOWND))
+				{
+					kernelError(kernel_error, "BIOS did not release ownership");
+				}
+
+				// Make sure any SMIs are acknowledged and disabled
+				legSupp->legSuppContStat = USBEHCI_LETSUBCONT_SMIRWC;
+				kernelBusWriteRegister(busTarget,
+					((eecp +
+						offsetof(ehciLegacySupport, legSuppContStat)) >> 2),
+					32, legSupp->legSuppContStat);
+
+				// Re-read target info
+				kernelBusGetTargetInfo(busTarget, pciDevInfo);
+
+				kernelDebug(debug_usb, "EHCI contStat now=0x%08x",
+					legSupp->legSuppContStat);
+			}
+
+			if (extCap->next)
+			{
+				eecp = extCap->next;
+				extCap = (ehciExtendedCaps *)
+					((void *) pciDevInfo->header + eecp);
+			}
+			else
+				break;
+		}
+	}
+	else
+		kernelDebug(debug_usb, "EHCI has no extended capabilities");
+
+	return (status = 0);
+}
+
+
+static void unregisterInterrupt(usbController *controller,
+	usbEhciInterruptReg *intrReg)
+{
+	// Remove an interrupt registration from the controller's list
+
+	int status = 0;
+	usbEhciData *ehciData = controller->data;
+	int count;
+
+	kernelLinkedListRemove(&ehciData->intrRegs, intrReg);
+
+	if (intrReg->transQueue.qtdItems)
+	{
+		// De-queue the qTDs from the queue head
+		dequeueTransaction(&intrReg->transQueue);
+
+		// Release the qTDs
+		releaseQtds(controller, intrReg->transQueue.qtdItems,
+			intrReg->transQueue.numQtds);
+	}
+
+	// Remove the queue head from the periodic schedule.
+
+	// First unlink it from any others that point to it.
+	status = unlinkQueueHead(controller, intrReg->transQueue.queueHeadItem);
+	if (status < 0)
+		return;
+
+	// Now remove it from any places where it's linked directly from the
+	// periodic list
+	for (count = 0; count < USBEHCI_NUM_FRAMES;
+		count += max(1, intrReg->interval))
+	{
+		if ((ehciData->periodicList[count] & ~USBEHCI_LINKTYP_MASK) ==
+			intrReg->transQueue.queueHeadItem->physical)
+		{
+			kernelDebug(debug_usb, "EHCI remove queue head from interrupt "
+				"slot %d", count);
+			ehciData->periodicList[count] =
+				intrReg->transQueue.queueHeadItem->queueHead->horizLink;
+		}
+	}
+
+	// Release the queue head
+	status = releaseQueueHead(controller, intrReg->transQueue.queueHeadItem);
+	if (status < 0)
+		return;
+
+	kernelDebug(debug_usb, "EHCI interrupt registration for device %p "
+		"classCode=0x%02x removed", intrReg->usbDev,
+		intrReg->usbDev->classCode);
+
+	// Free the memory
+	kernelFree(intrReg);
+
+	return;
+}
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Standard USB controller functions
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+static int reset(usbController *controller)
+{
+	// Do complete USB (controller and bus) reset
+
+	int status = 0;
+	usbEhciData *ehciData = NULL;
+	int count;
+
+	// Check params
+	if (!controller)
+	{
+		kernelError(kernel_error, "NULL parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	// Make sure the controller is stopped
+	status = startStop(controller, 0);
+	if (status < 0)
+		return (status);
+
+	kernelDebug(debug_usb, "EHCI reset controller");
+
+	ehciData = controller->data;
+
+	// Set host controller reset
+	ehciData->opRegs->cmd |= USBEHCI_CMD_HCRESET;
+
+	// Wait until the host controller clears it
+	for (count = 0; count < 2000; count ++)
+	{
+		if (!(ehciData->opRegs->cmd & USBEHCI_CMD_HCRESET))
+		{
+			kernelDebug(debug_usb, "EHCI resetting controller took %dms",
+				count);
+			break;
+		}
+
+		kernelCpuSpinMs(1);
+	}
+
+	// Clear?
+	if (ehciData->opRegs->cmd & USBEHCI_CMD_HCRESET)
+	{
+		kernelError(kernel_error, "Controller did not clear reset bit");
+		status = ERR_TIMEOUT;
+	}
+	else
+	{
+		// Clear the lock
+		kernelMemClear((void *) &controller->lock, sizeof(lock));
+		status = 0;
+	}
+
+	kernelDebug(debug_usb, "EHCI controller reset %s",
+		(status? "failed" : "successful"));
+
+	return (status);
+}
+
+
+static int interrupt(usbController *controller)
+{
+	// This function gets called when the controller issues an interrupt.
+
+	int status = 0;
+	usbEhciData *ehciData = controller->data;
+	usbEhciInterruptReg *intrReg = NULL;
+	kernelLinkedListItem *iter = NULL;
+	ehciQueueHeadItem *queueHeadItem = NULL;
+	ehciQtdItem *qtdItem = NULL;
+	unsigned bytes = 0;
+	unsigned char dataToggle = 0;
+
+	// See whether the status register indicates any of the interrupts we
+	// enabled
+	if (!(ehciData->opRegs->stat & ehciData->opRegs->intr))
+	{
+		//kernelDebug(debug_usb, "EHCI no interrupt from controller %d",
+		//	controller->num);
+		return (status = ERR_NODATA);
+	}
+
+	if (ehciData->opRegs->stat & USBEHCI_STAT_HOSTSYSERROR)
+	{
+		kernelError(kernel_error, "USB host system error, controller %d",
+			controller->num);
+
+		debugEhciOpRegs(controller);
+
+		// Try to get the controller running again
+		hostSystemError(controller);
+	}
+
+	if (ehciData->opRegs->stat & USBEHCI_STAT_USBERRORINT)
+	{
+		kernelDebug(debug_usb, "EHCI error interrupt, controller %d",
+			controller->num);
+
+		debugEhciOpRegs(controller);
+	}
+
+	if (ehciData->opRegs->stat & USBEHCI_STAT_USBINTERRUPT)
+	{
+		//kernelDebug(debug_usb, "EHCI data interrupt, controller %d",
+		//	controller->num);
+
+		// Loop through the registered interrupts for ones that are no longer
+		// active.
+		intrReg = kernelLinkedListIterStart(&ehciData->intrRegs, &iter);
+		while (intrReg)
+		{
+			//kernelDebug(debug_usb, "EHCI check interrupt QTD for device %d, "
+			//	"endpoint 0x%02x", intrReg->usbDev->address,
+			//	intrReg->endpoint);
+
+			queueHeadItem = intrReg->transQueue.queueHeadItem;
+			qtdItem = intrReg->transQueue.qtdItems[0];
+
+			// If the QTD is no longer active, there might be some data there
+			// for us.
+			if (!(qtdItem->qtd->token & USBEHCI_QTDTOKEN_ACTIVE))
+			{
+				//kernelDebug(debug_usb, "EHCI interrupt QTD processed for "
+				//	"device %d, endpoint 0x%02x", intrReg->usbDev->address,
+				//	intrReg->endpoint);
+
+				// Temporarily 'disconnect' the qTD
+				queueHeadItem->queueHead->overlay.nextQtd = USBEHCI_LINK_TERM;
+
+				// If the interrupt caused an error, don't do the callback
+				// and don't re-schedule it.
+				if (qtdItem->qtd->token & USBEHCI_QTDTOKEN_ERROR)
+				{
+					kernelDebugError("Interrupt QTD token error %02x",
+						(qtdItem->qtd->token & USBEHCI_QTDTOKEN_ERROR));
+					goto intr_error;
+				}
+
+				bytes = (intrReg->maxLen -
+					((qtdItem->qtd->token & USBEHCI_QTDTOKEN_TOTBYTES) >> 16));
+
+				// If there's data and a callback function, do the callback.
+				if (bytes && intrReg->callback)
+					intrReg->callback(intrReg->usbDev, qtdItem->buffer, bytes);
+
+				// Get the data toggle
+				dataToggle = ((qtdItem->qtd->token &
+					USBEHCI_QTDTOKEN_DATATOGG) >> 31);
+
+				// Reset the qTD
+				status = setupQtdToken(qtdItem->qtd, &dataToggle,
+					intrReg->maxLen, 1, USB_PID_IN);
+				if (status < 0)
+					goto intr_error;
+
+				// Reset the buffer pointer
+				qtdItem->qtd->buffPage[0] = intrReg->bufferPhysical;
+
+				// Reconnect the qTD to the queue head
+				queueHeadItem->queueHead->overlay.nextQtd = qtdItem->physical;
+			}
+
+			intrReg = kernelLinkedListIterNext(&ehciData->intrRegs, &iter);
+			continue;
+
+		intr_error:
+			kernelDebugError("Interrupt error - not re-scheduling");
+			intrReg = kernelLinkedListIterNext(&ehciData->intrRegs, &iter);
+			continue;
+		}
+
+		kernelDebug(debug_usb, "EHCI data interrupt serviced");
+	}
+
+	/* Clear the relevent interrupt bits */
+	setStatusBits(controller, (ehciData->opRegs->stat &
+		ehciData->opRegs->intr));
+
+	return (status = 0);
 }
 
 
@@ -1527,9 +2394,9 @@ static int queue(usbController *controller, usbDevice *usbDev,
 
 			// Update the "static endpoint state" in the queue head (in case
 			// anything has changed, such as the device address)
-			status =
-				setQueueHeadEndpointState(usbDev, trans[transCount].endpoint,
-					transQueues[transCount].queueHeadItem->queueHead);
+			status = setQueueHeadEndpointState(usbDev,
+				trans[transCount].endpoint,
+				transQueues[transCount].queueHeadItem->queueHead);
 			if (status < 0)
 				goto out;
 		}
@@ -1552,9 +2419,8 @@ static int queue(usbController *controller, usbDevice *usbDev,
 		// We can get the maximum packet size for this endpoint from the queue
 		// head (it will have been updated with the current device info upon
 		// retrieval, above).
-		packetSize =
-			((transQueues[transCount].queueHeadItem->queueHead
-				->endpointChars & USBEHCI_QHDW1_MAXPACKETLEN) >> 16);
+		packetSize = ((transQueues[transCount].queueHeadItem->queueHead
+			->endpointChars & USBEHCI_QHDW1_MAXPACKETLEN) >> 16);
 
 		// Figure out how many transfer descriptors we're going to need for this
 		// transaction
@@ -1672,10 +2538,10 @@ static int queue(usbController *controller, usbDevice *usbDev,
 				qtdCount ++)
 			{
 				bufferPhysical = (unsigned)
-				kernelPageGetPhysical((((unsigned) buffPtr <
-					KERNEL_VIRTUAL_ADDRESS)?
-						kernelCurrentProcess->processId :
-							KERNELPROCID), buffPtr);
+					kernelPageGetPhysical((((unsigned) buffPtr <
+						KERNEL_VIRTUAL_ADDRESS)?
+							kernelCurrentProcess->processId :
+								KERNELPROCID), buffPtr);
 				if (!bufferPhysical)
 				{
 					kernelDebugError("Can't get physical address for buffer "
@@ -1792,106 +2658,6 @@ out:
 }
 
 
-static int unschedInterrupt(usbController *controller, usbDevice *usbDev)
-{
-	// This function is used to unschedule an interrupt.
-
-	int status = ERR_NOSUCHENTRY;
-	usbEhciData *ehciData = NULL;
-	kernelLinkedListItem *iter = NULL;
-	usbEhciInterruptReg *intrReg = NULL;
-	int count;
-
-	// Check params
-	if (!controller || !usbDev)
-	{
-		kernelError(kernel_error, "NULL parameter");
-		return (status = ERR_NULLPARAMETER);
-	}
-
-	kernelDebug(debug_usb, "EHCI unschedule interrupt for device %d",
-		usbDev->address);
-
-	// Lock the controller
-	status = kernelLockGet(&controller->lock);
-	if (status < 0)
-	{
-		kernelError(kernel_error, "Can't get controller lock");
-		return (status);
-	}
-
-	ehciData = controller->data;
-
-	// Find the interrupt registration
-	intrReg = kernelLinkedListIterStart(&ehciData->intrRegs, &iter);
-	while (intrReg)
- 	{
-		if (intrReg->usbDev == usbDev)
-		{
-			// Remove it from the list of interrupt registrations
-			kernelLinkedListRemove(&ehciData->intrRegs, intrReg);
-
-			if (intrReg->transQueue.qtdItems)
-			{
-				// De-queue the qTDs from the queue head
-				dequeueTransaction(&intrReg->transQueue);
-
-				// Release the qTDs
-				releaseQtds(controller, intrReg->transQueue.qtdItems,
-					intrReg->transQueue.numQtds);
-			}
-
-			// Remove the queue head from the periodic schedule.
-
-			// First unlink it from any others that point to it.
-			status = unlinkQueueHead(controller,
-				intrReg->transQueue.queueHeadItem);
-			if (status < 0)
-				goto out;
-
-			// Now remove it from any places where it's linked directly from
-			// the periodic list
-			for (count = 0; count < USBEHCI_NUM_FRAMES;
-				count += intrReg->interval)
-			{
-				if ((ehciData->periodicList[count] & ~USBEHCI_LINKTYP_MASK) ==
-					intrReg->transQueue.queueHeadItem->physicalAddr)
-				{
-					kernelDebug(debug_usb, "EHCI remove queue head from "
-						"interrupt slot %d", count);
-					ehciData->periodicList[count] =
-						intrReg->transQueue.queueHeadItem->queueHead->horizLink;
-				}
-			}
-
-			// Release the queue head
-			status = releaseQueueHead(controller,
-				intrReg->transQueue.queueHeadItem);
-			if (status < 0)
-				goto out;
-
-			// Free the memory
-			kernelFree(intrReg);
-
-			status = 0;
-			break;
-		}
-
-		intrReg = kernelLinkedListIterNext(&ehciData->intrRegs, &iter);
-	}
-
-	if (!intrReg)
-	{
-		kernelError(kernel_warn, "Interrupt registration not found");
-		status = ERR_NOSUCHENTRY;
-	}
-
-out:
-	kernelLockRelease(&controller->lock);
-	return (status);
-}
-
-
 static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	unsigned char endpoint, int interval, unsigned maxLen,
 	void (*callback)(usbDevice *, void *, unsigned))
@@ -1901,7 +2667,7 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	int status = 0;
 	usbEhciData *ehciData = NULL;
 	usbEhciInterruptReg *intrReg = NULL;
-	unsigned char sMask = 0;
+	unsigned char sMask = 0x01;
 	int count;
 
 	// Check params
@@ -1936,11 +2702,12 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	intrReg->usbDev = usbDev;
 	intrReg->endpoint = endpoint;
 	intrReg->maxLen = maxLen;
+	intrReg->interval = interval;
 	intrReg->callback = callback;
 
 	// Get a queue head for the interrupt endpoint.
-	intrReg->transQueue.queueHeadItem =
-		allocIntrQueueHead(controller, usbDev, endpoint);
+	intrReg->transQueue.queueHeadItem = allocIntrQueueHead(controller, usbDev,
+		endpoint);
 	if (!intrReg->transQueue.queueHeadItem)
 	{
 		kernelError(kernel_error, "Couldn't retrieve endpoint queue head");
@@ -1962,6 +2729,14 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	status = allocQtdBuffer(intrReg->transQueue.qtdItems[0], maxLen);
 	if (status < 0)
 		goto out;
+
+	intrReg->bufferPhysical = (unsigned) kernelPageGetPhysical(KERNELPROCID,
+		intrReg->transQueue.qtdItems[0]->buffer);
+	if (!intrReg->bufferPhysical)
+	{
+		status = ERR_MEMORY;
+		goto out;
+	}
 
 	// Set up the qTD
 	status = setupQtdToken(intrReg->transQueue.qtdItems[0]->qtd, NULL,
@@ -1986,7 +2761,6 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 	// interval is used as the exponent for a 2^(interval - 1) value;
 	// e.g., an interval of 4 means a period of 8 (2^(4 - 1)).  This value
 	// must be from 1 to 16.
-	sMask = 1;
 	if (usbDev->speed == usbspeed_high)
 	{
 		// Get the interval in microframes
@@ -2003,7 +2777,7 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 		}
 		else
 		{
-			sMask = 1;
+			sMask = 0x01;
 			intrReg->interval >>= 3;
 		}
 	}
@@ -2015,7 +2789,8 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 		(sMask & USBEHCI_QHDW2_INTSCHEDMASK);
 
 	// Insert it into the periodic schedule
-	for (count = 0; count < USBEHCI_NUM_FRAMES; count += intrReg->interval)
+	for (count = 0; count < USBEHCI_NUM_FRAMES;
+		count += max(1, intrReg->interval))
 	{
 		if (!(ehciData->periodicList[count] & USBEHCI_LINK_TERM))
 		{
@@ -2027,935 +2802,103 @@ static int schedInterrupt(usbController *controller, usbDevice *usbDev,
 
 		// Insert our queue head.
 		ehciData->periodicList[count] =
-			(intrReg->transQueue.queueHeadItem->physicalAddr |
-				USBEHCI_LINKTYP_QH);
+			(intrReg->transQueue.queueHeadItem->physical | USBEHCI_LINKTYP_QH);
 	}
 
 	status = 0;
 
 out:
-
 	if (status < 0)
-		unschedInterrupt(controller, usbDev);
+	{
+		if (intrReg)
+			unregisterInterrupt(controller, intrReg);
+	}
 
 	kernelLockRelease(&controller->lock);
 	return (status);
 }
 
 
-static int startStop(usbController *controller, int start)
+static int deviceRemoved(usbController *controller, usbDevice *usbDev)
 {
-	// Start or stop the EHCI controller
-
-	int status = 0;
-	usbEhciData *ehciData = controller->data;
-	int count;
-
-	kernelDebug(debug_usb, "EHCI st%s controller", (start? "art" : "op"));
-
-	if (start)
-	{
-		if (ehciData->opRegs->stat & USBEHCI_STAT_HCHALTED)
-		{
-			// Set the run/stop bit
-			ehciData->opRegs->cmd |= USBEHCI_CMD_RUNSTOP;
-
-			// Wait for not halted
-			for (count = 0; count < 20; count ++)
-			{
-				if (!(ehciData->opRegs->stat & USBEHCI_STAT_HCHALTED))
-				{
-					kernelDebug(debug_usb, "EHCI starting controller took %dms",
-						count);
-					break;
-				}
-
-				kernelCpuSpinMs(1);
-			}
-
-			// Started?
-			if (!(ehciData->opRegs->stat & USBEHCI_STAT_HCHALTED))
-			{
-				// Started, but some controllers need a small delay here,
-				// before they're fully up and running.  3ms seems to be
-				// enough, but we'll give it a little bit longer .
-				kernelCpuSpinMs(5);
-			}
-			else
-			{
-				kernelError(kernel_error, "Couldn't clear controller halted "
-					"bit");
-				status = ERR_TIMEOUT;
-			}
-		}
-	}
-	else // stop
-	{
-		if (!(ehciData->opRegs->stat & USBEHCI_STAT_HCHALTED))
-		{
-			// Clear the run/stop bit
-			ehciData->opRegs->cmd &= ~USBEHCI_CMD_RUNSTOP;
-
-			// Wait for halted
-			for (count = 0; count < 20; count ++)
-			{
-				if (ehciData->opRegs->stat & USBEHCI_STAT_HCHALTED)
-				{
-					kernelDebug(debug_usb, "EHCI stopping controller took %dms",
-						count);
-					break;
-				}
-
-				kernelCpuSpinMs(1);
-			}
-
-			// Stopped?
-			if (!(ehciData->opRegs->stat & USBEHCI_STAT_HCHALTED))
-			{
-				kernelError(kernel_error, "Couldn't set controller halted bit");
-				status = ERR_TIMEOUT;
-			}
-		}
-	}
-
-	kernelDebug(debug_usb, "EHCI controller %sst%sed", (status? "not " : ""),
-		(start? "art" : "opp"));
-
-	return (status);
-}
-
-
-static int handoff(usbController *controller, kernelBusTarget *busTarget,
-	pciDeviceInfo *pciDevInfo)
-{
-	// If the controller supports the extended capability for legacy handoff
-	// synchronization between the BIOS and the OS, do that here.
-
-	int status = 0;
-	usbEhciData *ehciData = controller->data;
-	unsigned eecp = 0;
-	ehciExtendedCaps *extCap = NULL;
-	ehciLegacySupport *legSupp = NULL;
-	int count;
-
-	kernelDebug(debug_usb, "EHCI try BIOS-to-OS handoff");
-
-	eecp = ((ehciData->capRegs->hccparams & USBEHCI_HCCP_EXTCAPPTR) >> 8);
-	if (eecp)
-	{
-		kernelDebug(debug_usb, "EHCI has extended capabilities");
-
-		extCap = (ehciExtendedCaps *)((void *) pciDevInfo->header + eecp);
-		while (1)
-		{
-			kernelDebug(debug_usb, "EHCI extended capability %d", extCap->id);
-			if (extCap->id == USBEHCI_EXTCAP_HANDOFFSYNC)
-			{
-				kernelDebug(debug_usb, "EHCI legacy support implemented");
-
-				legSupp = (ehciLegacySupport *) extCap;
-
-				// Does the BIOS claim ownership of the controller?
-				if (legSupp->legSuppCap & USBEHCI_LEGSUPCAP_BIOSOWND)
-					kernelDebug(debug_usb, "EHCI BIOS claims ownership, "
-						"legSuppContStat=0x%08x", legSupp->legSuppContStat);
-				else
-					kernelDebug(debug_usb, "EHCI BIOS does not claim ownership");
-
-				// Attempt to take over ownership; write the 'OS-owned' flag,
-				// and wait for the BIOS to release ownership, if applicable
-				for (count = 0; count < 50; count ++)
-				{
-					legSupp->legSuppCap |= USBEHCI_LEGSUPCAP_OSOWNED;
-					kernelBusWriteRegister(busTarget,
-						((eecp +
-							offsetof(ehciLegacySupport, legSuppCap)) >> 2),
-						32, legSupp->legSuppCap);
-
-					// Re-read target info
-					kernelBusGetTargetInfo(busTarget, pciDevInfo);
-
-					if ((legSupp->legSuppCap & USBEHCI_LEGSUPCAP_OSOWNED) &&
-						!(legSupp->legSuppCap & USBEHCI_LEGSUPCAP_BIOSOWND))
-					{
-						kernelDebug(debug_usb, "EHCI OS ownership took %dms",
-							count);
-						break;
-					}
-
-					kernelDebug(debug_usb, "EHCI legSuppCap=0x%08x",
-						legSupp->legSuppCap);
-
-					kernelCpuSpinMs(1);
-				}
-
-				// Do we have ownership?
-				if (!(legSupp->legSuppCap & USBEHCI_LEGSUPCAP_OSOWNED) ||
-					(legSupp->legSuppCap & USBEHCI_LEGSUPCAP_BIOSOWND))
-				{
-					kernelError(kernel_error, "BIOS did not release ownership");
-					return (status = ERR_TIMEOUT);
-				}
-
-				// Make sure any SMIs are acknowledged and disabled
-				legSupp->legSuppContStat = 0xE0000000;
-				kernelBusWriteRegister(busTarget,
-					((eecp +
-						offsetof(ehciLegacySupport, legSuppContStat)) >> 2),
-					32, legSupp->legSuppContStat);
-
-				// Re-read target info
-				kernelBusGetTargetInfo(busTarget, pciDevInfo);
-
-				kernelDebug(debug_usb, "EHCI legSuppContStat now=0x%08x",
-					legSupp->legSuppContStat);
-			}
-
-			if (extCap->next)
-			{
-				eecp = extCap->next;
-				extCap = (ehciExtendedCaps *)
-					((void *) pciDevInfo->header + eecp);
-			}
-			else
-				break;
-		}
-	}
-	else
-		kernelDebug(debug_usb, "EHCI has no extended capabilities");
-
-	return (status = 0);
-}
-
-
-static int reset(usbController *controller)
-{
-	// Do complete USB (controller and bus) reset
-
 	int status = 0;
 	usbEhciData *ehciData = NULL;
+	ehciQueueHeadItem *queueHeadItem = NULL;
+	kernelLinkedListItem *iter = NULL;
+	usbEhciInterruptReg *intrReg = NULL;
 	int count;
 
 	// Check params
-	if (!controller)
+	if (!controller || !usbDev)
 	{
 		kernelError(kernel_error, "NULL parameter");
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	// Make sure the controller is stopped
-	status = startStop(controller, 0);
-	if (status < 0)
-		return (status);
+	kernelDebug(debug_usb, "EHCI device %d removed", usbDev->address);
 
-	kernelDebug(debug_usb, "EHCI reset controller");
+	// Lock the controller
+	status = kernelLockGet(&controller->lock);
+	if (status < 0)
+	{
+		kernelError(kernel_error, "Can't get controller lock");
+		return (status);
+	}
 
 	ehciData = controller->data;
 
-	// Set host controller reset
-	ehciData->opRegs->cmd |= USBEHCI_CMD_HCRESET;
-
-	// Wait until the host controller clears it
-	for (count = 0; count < 20; count ++)
+	for (count = 0; count < usbDev->numEndpoints; count ++)
 	{
-		if (!(ehciData->opRegs->cmd & USBEHCI_CMD_HCRESET))
+		switch (usbDev->endpointDesc[count]->attributes & USB_ENDP_ATTR_MASK)
 		{
-			kernelDebug(debug_usb, "EHCI resetting controller took %dms",
-				count);
-			break;
-		}
-
-		kernelCpuSpinMs(1);
-	}
-
-	// Clear?
-	if (ehciData->opRegs->cmd & USBEHCI_CMD_HCRESET)
-	{
-		kernelError(kernel_error, "Controller did not clear reset bit");
-		status = ERR_TIMEOUT;
-	}
-	else
-	{
-		// Clear the lock
-		kernelMemClear((void *) &controller->lock, sizeof(lock));
-		status = 0;
-	}
-
-	kernelDebug(debug_usb, "EHCI controller reset %s",
-		(status? "failed" : "successful"));
-
-	return (status);
-}
-
-
-static inline void setPortStatusBits(usbController *controller, int portNum,
-	unsigned bits)
-{
-	// Set the requested read-write status bits, without affecting any of
-	// the read-only or read-write-clear bits
-
-	usbEhciData *ehciData = controller->data;
-
-	ehciData->opRegs->portsc[portNum] =
-		((ehciData->opRegs->portsc[portNum] &
-			~(USBEHCI_PORTSC_ROMASK | USBEHCI_PORTSC_RWCMASK)) | bits);
-}
-
-
-static inline void clearPortStatusBits(usbController *controller, int portNum,
-	unsigned bits)
-{
-	// Clear the requested read-write status bits, without affecting any of
-	// the read-only or read-write-clear bits
-
-	usbEhciData *ehciData = controller->data;
-
-	ehciData->opRegs->portsc[portNum] =
-		(ehciData->opRegs->portsc[portNum] &
-			~(USBEHCI_PORTSC_ROMASK | USBEHCI_PORTSC_RWCMASK | bits));
-}
-
-
-static int portPower(usbController *controller, int portNum, int on)
-{
-	// If port power control is available, this function will turn it on or
-	// off
-
-	int status = 0;
-	usbEhciData *ehciData = controller->data;
-	int count;
-
-	kernelDebug(debug_usb, "EHCI %sable port power", (on? "en" : "dis"));
-
-	if (on)
-	{
-		// Turn on the port power bit
-		setPortStatusBits(controller, portNum, USBEHCI_PORTSC_PORTPOWER);
-
-		// Wait for it to read as set
-		for (count = 0; count < 20; count ++)
-		{
-			if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTPOWER)
+			case USB_ENDP_ATTR_CONTROL:
+			case USB_ENDP_ATTR_BULK:
 			{
-				kernelDebug(debug_usb, "EHCI turning on port power took %dms",
-					count);
+				// Remove any queue heads belonging to this device's endpoints
+				// from the asynchronous queue
+				queueHeadItem =	findQueueHead(controller, usbDev,
+					usbDev->endpointDesc[count]->endpntAddress);
+				if (queueHeadItem)
+					removeAsyncQueueHead(controller, queueHeadItem);
 				break;
 			}
 
-			kernelCpuSpinMs(1);
-		}
-
-		// Set?
-		if (!(ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTPOWER))
-		{
-			kernelError(kernel_warn, "Couldn't set port power bit");
-			return (status = ERR_TIMEOUT);
-		}
-	}
-	else // off - will we ever use this?
-	{
-		// Turn off the port power bit
-		clearPortStatusBits(controller, portNum, USBEHCI_PORTSC_PORTPOWER);
-
-		// Wait for it to read as clear
-		for (count = 0; count < 20; count ++)
-		{
-			if (!(ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTPOWER))
+			case USB_ENDP_ATTR_ISOCHRONOUS:
+			case USB_ENDP_ATTR_INTERRUPT:
 			{
-				kernelDebug(debug_usb, "EHCI turning off port power took %dms",
-					count);
+				// Unschedule any interrupt registrations for the device
+				intrReg = kernelLinkedListIterStart(&ehciData->intrRegs,
+					&iter);
+
+				while (intrReg)
+			 	{
+					if (intrReg->usbDev == usbDev)
+						unregisterInterrupt(controller, intrReg);
+
+					intrReg = kernelLinkedListIterNext(&ehciData->intrRegs,
+						&iter);
+				}
+
 				break;
 			}
 
-			kernelCpuSpinMs(1);
-		}
-
-		// Clear?
-		if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTPOWER)
-		{
-			kernelError(kernel_warn, "Couldn't clear port power bit");
-			return (status = ERR_TIMEOUT);
+			default:
+				break;
 		}
 	}
 
+	kernelLockRelease(&controller->lock);
 	return (status = 0);
 }
 
 
-static int portReset(usbController *controller, int portNum)
-{
-	// Reset the port, with the appropriate delays, etc.
-
-	int status = 0;
-	usbEhciData *ehciData = controller->data;
-	int count;
-
-	kernelDebug(debug_usb, "EHCI port reset");
-
-	// Clear the port 'enabled' bit
-	clearPortStatusBits(controller, portNum, USBEHCI_PORTSC_PORTENABLED);
-
-	// Wait for it to read as clear
-	for (count = 0; count < 20; count ++)
-	{
-		if (!(ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTENABLED))
-		{
-			kernelDebug(debug_usb, "EHCI disabling port took %dms", count);
-			break;
-		}
-
-		kernelCpuSpinMs(1);
-	}
-
-	// Clear?
-	if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTENABLED)
-	{
-		kernelError(kernel_warn, "Couldn't clear port enabled bit");
-		status = ERR_TIMEOUT;
-		goto out;
-	}
-
-	// Set the port 'reset' bit
-	setPortStatusBits(controller, portNum, USBEHCI_PORTSC_PORTRESET);
-
-	// Wait for it to read as set
-	for (count = 0; count < 20; count ++)
-	{
-		if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTRESET)
-		{
-			kernelDebug(debug_usb, "EHCI setting reset bit took %dms", count);
-			break;
-		}
-
-		kernelCpuSpinMs(1);
-	}
-
-	// Set?
-	if (!(ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTRESET))
-	{
-		kernelError(kernel_warn, "Couldn't set port reset bit");
-		status = ERR_TIMEOUT;
-		goto out;
-	}
-
-	// Delay 50ms
-	kernelDebug(debug_usb, "EHCI delay for port reset");
-	kernelCpuSpinMs(50);
-
-	// Clear the port 'reset' bit
-	clearPortStatusBits(controller, portNum, USBEHCI_PORTSC_PORTRESET);
-
-	// Wait for it to read as clear
-	for (count = 0; count < 200; count ++)
-	{
-		if (!(ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTRESET))
-		{
-			kernelDebug(debug_usb, "EHCI clearing reset bit took %dms", count);
-			break;
-		}
-
-		kernelCpuSpinMs(1);
-	}
-
-	// Clear?
-	if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTRESET)
-	{
-		kernelError(kernel_warn, "Couldn't clear port reset bit");
-		status = ERR_TIMEOUT;
-		goto out;
-	}
-
-	// Delay another 10ms
-	kernelDebug(debug_usb, "EHCI delay after port reset");
-	kernelCpuSpinMs(10);
-
-	// Return success
-	status = 0;
-
-out:
-
-	kernelDebug(debug_usb, "EHCI port reset %s",
-		(status? "failed" : "success"));
-
-	return (status);
-}
-
-
-static int setup(usbController *controller)
-{
-	// Allocate things, and set up any global controller registers prior to
-	// changing the controller to the 'running' state.
-
-	// Note that in the case of a host system error, we use this function to
-	// re-initialize things, but we don't have to reallocate the memory.
-
-	int status = 0;
-	usbEhciData *ehciData = controller->data;
-	int count;
-
-	kernelDebug(debug_usb, "EHCI set up controller %d", controller->num);
-
-	if (!ehciData->reclaimHead)
-	{
-		// Allocate memory for the NULL queue head that will be the head of the
-		// 'reclaim' (asynchronous) queue
-		ehciData->reclaimHead = allocQueueHead(controller, NULL /* no device */,
-			0 /* no endpoint */);
-		if (!ehciData->reclaimHead)
-			return (status = ERR_NOTINITIALIZED);
-	}
-
-	// Make it point to itself, set the 'H' bit, and make sure the qTD
-	// pointers don't point to anything.
-	ehciData->reclaimHead->queueHead->horizLink =
-		(ehciData->reclaimHead->physicalAddr | USBEHCI_LINKTYP_QH);
-	ehciData->reclaimHead->queueHead->endpointChars =
-		USBEHCI_QHDW1_RECLLISTHEAD;
-	ehciData->reclaimHead->queueHead->currentQtd =
-		ehciData->reclaimHead->queueHead->overlay.nextQtd =
-			ehciData->reclaimHead->queueHead->overlay.altNextQtd =
-				USBEHCI_LINK_TERM;
-
-	// After the reset, the default value of the USBCMD register is 0x00080000
-	// (no async schedule park) or 0x00080B00 (async schedule park).  If any of
-	// the default values aren't acceptable for us, change them here.
-
-	// Hmm, VMware doesn't seem to set the defaults.  Set the interrupt
-	// threshold control
-	ehciData->opRegs->cmd &= ~USBEHCI_CMD_INTTHRESCTL;
-	ehciData->opRegs->cmd |= (0x08 << 16);
-
-	// The FRINDEX register defaults to 0x00000000 (start of periodic frame
-	// list).  This is fine.
-
-	// The CTRLDSSEGMENT register defaults to 0x00000000, which means we're
-	// using a 32-bit address space.  Check.
-
-	// If the size of the periodic queue frame list is programmable, make sure
-	// it's set to the default (1024 = 0)
-	if (ehciData->capRegs->hccparams & USBEHCI_HCCP_PROGFRAMELIST)
-		ehciData->opRegs->cmd &= ~USBEHCI_CMD_FRAMELISTSIZE;
-
-	if (!ehciData->periodicList)
-	{
-		// Allocate memory for the periodic queue frame list, and assign the
-		// physical address to the PERIODICLISTBASE register
-		status = allocIoMem(USBEHCI_FRAMELIST_MEMSIZE, MEMORY_PAGE_SIZE,
-			(void **) &ehciData->periodicList,
-			(void **) &ehciData->opRegs->perlstbase);
-		if (status < 0)
-		{
-			kernelError(kernel_error, "Couldn't get memory for the periodic "
-				"schedule");
-			return (status);
-		}
-	}
-	else
-	{
-		ehciData->opRegs->perlstbase = (unsigned)
-			kernelPageGetPhysical(KERNELPROCID, ehciData->periodicList);
-	}
-
-	// Set the termination bit in each periodic list pointer
-	for (count = 0; count < USBEHCI_NUM_FRAMES; count ++)
-		ehciData->periodicList[count] = USBEHCI_LINK_TERM;
-
-	// We don't program the ASYNCLISTADDR register to point to the NULL
-	// 'reclaim' queue head we created above, or enable the asynchronous
-	// schedule until an asynchronous transaction is queued.
-
-	// Enable the interrupts we're interested in, in the USBINTR register; Host
-	// system error, port change, error interrupt, and USB (data) interrupt.
-	ehciData->opRegs->intr =
-		(USBEHCI_INTR_HOSTSYSERROR | USBEHCI_INTR_USBERRORINT |
-			USBEHCI_INTR_USBINTERRUPT);
-
-	// Set the 'configured' flag in the CONFIGFLAG register
-	ehciData->opRegs->configflag |= 1;
-
-	return (status = 0);
-}
-
-
-static int portConnected(usbController *controller, int portNum, int hotPlug)
-{
-	// This function is called whenever we notice that a port has indicated
-	// a new connection.
-
-	int status = 0;
-	usbEhciData *ehciData = controller->data;
-	usbDevSpeed speed = usbspeed_unknown;
-
-	kernelDebug(debug_usb, "EHCI controller %d, port %d connected",
-		controller->num, portNum);
-
-	debugPortStatus(controller, portNum);
-
-	if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_CONNCHANGE)
-		// Acknowledge connection status change
-		setPortStatusBits(controller, portNum, USBEHCI_PORTSC_CONNCHANGE);
-
-	debugPortStatus(controller, portNum);
-
-	// Check the line status bits to see whether this is a low-speed device
-	if ((ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_LINESTATUS) ==
-		USBEHCI_PORTSC_LINESTAT_LS)
-	{
-		speed = usbspeed_low;
-
-		// Release ownership of the port.  Not sure what we'd do here, if there
-		// are no companion controllers.
-		kernelDebug(debug_usb, "EHCI low-speed connection.  Releasing port "
-			"ownership");
-		setPortStatusBits(controller, portNum, USBEHCI_PORTSC_PORTOWNER);
-
-		debugPortStatus(controller, portNum);
-	}
-	else
-	{
-		// Reset the port
-		status = portReset(controller, portNum);
-		if (status < 0)
-			return (status);
-
-		debugPortStatus(controller, portNum);
-
-		// Is the port showing as enabled?
-		if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTENABLED)
-		{
-			if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTENBLCHG)
-				// Acknowledge enabled status change
-				setPortStatusBits(controller, portNum,
-					USBEHCI_PORTSC_PORTENBLCHG);
-
-			speed = usbspeed_high;
-		}
-		else
-			// Release ownership?
-			speed = usbspeed_full;
-
-		kernelDebug(debug_usb, "EHCI connection speed: %s",
-			usbDevSpeed2String(speed));
-
-		status = kernelUsbDevConnect(controller, &controller->hub, portNum,
-			speed, hotPlug);
-		if (status < 0)
-		{
-			kernelError(kernel_error, "Error enumerating new USB device");
-			return (status);
-		}
-	}
-
-	debugPortStatus(controller, portNum);
-
-	return (status = 0);
-}
-
-
-static usbDevice *findRootHubDev(usbController *controller, int portNum)
-{
-	// Given a controller and a root hub port number, try to find the device
-	// attached to that port
-
-	usbDevice *usbDev = NULL;
-	kernelLinkedListItem *iter = NULL;
-
-	kernelDebug(debug_usb, "EHCI search root hub for controller %d, port %d",
-		controller->num, portNum);
-
-	usbDev = kernelLinkedListIterStart((kernelLinkedList *)
-		&(controller->hub.devices), &iter);
-	while (usbDev)
-	{
-		if (usbDev->port == portNum)
-			break;
-		else
-			usbDev = kernelLinkedListIterNext((kernelLinkedList *)
-				&(controller->hub.devices), &iter);
-	}
-
-	if (usbDev)
-		kernelDebug(debug_usb, "EHCI found device %p", usbDev);
-	else
-		kernelDebug(debug_usb, "EHCI device not found");
-
-	return (usbDev);
-}
-
-
-static void portDisconnected(usbController *controller, int portNum)
-{
-	usbEhciData *ehciData = controller->data;
-	usbDevice *usbDev = NULL;
-	ehciQueueHeadItem *queueHeadItem = NULL;
-	int count;
-
-	kernelDebug(debug_usb, "EHCI controller %d, port %d disconnected",
-		controller->num, portNum);
-
-	debugPortStatus(controller, portNum);
-
-	// Try to find the device that's attached to this root hub port
-	usbDev = findRootHubDev(controller, portNum);
-	if (usbDev)
-	{
-		for (count = 0; count < usbDev->numEndpoints; count ++)
-		{
-			switch (usbDev->endpointDesc[count]->attributes &
-				USB_ENDP_ATTR_MASK)
-			{
-				case USB_ENDP_ATTR_CONTROL:
-				case USB_ENDP_ATTR_BULK:
-				{
-					// Remove any queue heads belonging to this device's
-					// endpoints from the asynchronous queue
-					queueHeadItem =
-						findQueueHead(controller, usbDev,
-							usbDev->endpointDesc[count]->endpntAddress);
-					if (queueHeadItem)
-						removeAsyncQueueHead(controller, queueHeadItem);
-					break;
-				}
-
-				case USB_ENDP_ATTR_ISOCHRONOUS:
-				case USB_ENDP_ATTR_INTERRUPT:
-				{
-					// Unschedule any interrupt registrations for the device
-					unschedInterrupt(controller, usbDev);
-					break;
-				}
-
-				default:
-					break;
-			}
-		}
-	}
-
-	if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_PORTENBLCHG)
-		// Acknowledge enabled status change
-		setPortStatusBits(controller, portNum, USBEHCI_PORTSC_PORTENBLCHG);
-
-	if (ehciData->opRegs->portsc[portNum] & USBEHCI_PORTSC_CONNCHANGE)
-		// Acknowledge connection status change
-		setPortStatusBits(controller, portNum, USBEHCI_PORTSC_CONNCHANGE);
-
-	debugPortStatus(controller, portNum);
-
-	kernelUsbDevDisconnect(controller, &controller->hub, portNum);
-
-	return;
-}
-
-
-static void hostSystemError(usbController *controller)
-{
-	int status = 0;
-	usbEhciData *ehciData = controller->data;
-	kernelLinkedList *usedList =
-		(kernelLinkedList *) &(ehciData->usedQueueHeadItems);
-	ehciQueueHeadItem *queueHeadItem = NULL;
-	kernelLinkedListItem *iter = NULL;
-	ehciQtdItem *qtdItem = NULL;
-	int count;
-
-	// Reset the controller
-	status = reset(controller);
-	if (status < 0)
-		return;
-
-	// Set up the controller's data structures, etc.
-	status = setup(controller);
-	if (status < 0)
-		return;
-
-	// Start the controller
-	status = startStop(controller, 1);
-	if (status < 0)
-		return;
-
-	// Power on all the ports, if applicable
-	if (ehciData->capRegs->hcsparams & USBEHCI_HCSP_PORTPOWERCTRL)
-	{
-		for (count = 0; count < ehciData->numPorts; count ++)
-			portPower(controller, count, 1);
-
-		// Wait 20ms for power to stabilize on all ports (per EHCI spec)
-		kernelCpuSpinMs(20);
-	}
-
-	// Remove all transactions from the queue heads and mark them as failed.
-	if (usedList->numItems)
-	{
-		queueHeadItem = kernelLinkedListIterStart(usedList, &iter);
-		while (queueHeadItem)
-		{
-			queueHeadItem->queueHead->currentQtd = USBEHCI_LINK_TERM;
-			kernelMemClear((void *) &(queueHeadItem->queueHead->overlay),
-				sizeof(ehciQtd));
-
-			qtdItem = queueHeadItem->firstQtdItem;
-			while (qtdItem)
-			{
-				qtdItem->qtd->token |= USBEHCI_QTDTOKEN_ERRXACT;
-				qtdItem->qtd->token &= ~USBEHCI_QTDTOKEN_ACTIVE;
-				qtdItem = qtdItem->nextQtdItem;
-			}
-
-			queueHeadItem = kernelLinkedListIterNext(usedList, &iter);
-		}
-	}
-
-	// Restart the asynchronous schedule
-	ehciData->opRegs->asynclstaddr = ehciData->reclaimHead->physicalAddr;
-	startStopSched(controller, USBEHCI_STAT_ASYNCSCHED,
-		USBEHCI_CMD_ASYNCSCHEDENBL, 1);
-
-	// Restart the periodic schedule
-	startStopSched(controller, USBEHCI_STAT_PERIODICSCHED,
-		USBEHCI_CMD_PERSCHEDENBL, 1);
-
-	return;
-}
-
-
-static int interrupt(usbController *controller)
-{
-	// This function gets called when the controller issues an interrupt.
-
-	int status = 0;
-	usbEhciData *ehciData = controller->data;
-	usbEhciInterruptReg *intrReg = NULL;
-	kernelLinkedListItem *iter = NULL;
-	ehciQtd *qtd = NULL;
-	unsigned bytes = 0;
-	unsigned char dataToggle = 0;
-	ehciQueueHead *queueHead = NULL;
-
-	if (ehciData->opRegs->stat & USBEHCI_STAT_USBINTERRUPT)
-	{
-		//kernelDebug(debug_usb, "EHCI USB data interrupt, controller %d",
-		//	controller->num);
-
-		// Clear the USB interrupt bit
-		setStatusBits(controller, USBEHCI_STAT_USBINTERRUPT);
-
-		// Loop through the registered interrupts for ones that are no longer
-		// active.
-		intrReg = kernelLinkedListIterStart(&ehciData->intrRegs, &iter);
-		while (intrReg)
-		{
-			queueHead = intrReg->transQueue.queueHeadItem->queueHead;
-			qtd = intrReg->transQueue.qtdItems[0]->qtd;
-
-			// If the QTD is no longer active, there might be some data there
-			// for us.
-			if (!(qtd->token & USBEHCI_QTDTOKEN_ACTIVE))
-			{
-				if (qtd->token & USBEHCI_QTDTOKEN_ERROR)
-					goto intr_error;
-
-				// Temporarily 'disconnect' the qTD
-				queueHead->overlay.nextQtd = USBEHCI_LINK_TERM;
-
-				bytes = (intrReg->maxLen -
-					((qtd->token & USBEHCI_QTDTOKEN_TOTBYTES) >> 16));
-
-				// If there's data and a callback function, do the callback.
-				if (bytes && intrReg->callback)
-				intrReg->callback(intrReg->usbDev,
-					intrReg->transQueue.qtdItems[0]->buffer, bytes);
-
-				// Get the data toggle
-				dataToggle = ((qtd->token & USBEHCI_QTDTOKEN_DATATOGG) >> 31);
-
-				// Reset the qTD
-				status = setupQtdToken(qtd, &dataToggle, intrReg->maxLen, 1,
-					USB_PID_IN);
-				if (status < 0)
-					goto intr_error;
-
-				// Clear any buffer offset
-				qtd->buffPage[0] &= 0xFFFFF000;
-
-				// Reconnect the qTD to the queue head
-				queueHead->overlay.nextQtd =
-					intrReg->transQueue.qtdItems[0]->physicalAddr;
-			}
-
-			intrReg = kernelLinkedListIterNext(&ehciData->intrRegs, &iter);
-			continue;
-
-		intr_error:
-			// If there was an error with this interrupt, remove it.
-			unschedInterrupt(controller, intrReg->usbDev);
-
-			// Restart list iteration
-			intrReg = kernelLinkedListIterStart(&ehciData->intrRegs, &iter);
-			continue;
-		}
-	}
-
-	else if (ehciData->opRegs->stat & USBEHCI_STAT_HOSTSYSERROR)
-	{
-		kernelError(kernel_error, "USB host system error, controller %d",
-			controller->num);
-
-		debugEhciOpRegs(controller);
-
-		// Clear the host system error bit
-		setStatusBits(controller, USBEHCI_STAT_HOSTSYSERROR);
-
-		// Try to get the controller running again
-		hostSystemError(controller);
-	}
-
-	else if (ehciData->opRegs->stat & USBEHCI_STAT_USBERRORINT)
-	{
-		kernelDebug(debug_usb, "EHCI USB error interrupt, controller %d",
-			controller->num);
-
-		debugEhciOpRegs(controller);
-
-		// Clear the USB error bit
-		setStatusBits(controller, USBEHCI_STAT_USBERRORINT);
-	}
-
-	else
-	{
-		//kernelDebug(debug_usb, "EHCI no interrupt from controller %d",
-		//	controller->num);
-		return (status = ERR_NODATA);
-	}
-
-	return (status = 0);
-}
-
-
-static void doDetectDevices(usbHub *hub, int hotplug)
-{
-	// This function gets called to check for device connections (either cold-
-	// plugged ones at boot time, or hot-plugged ones during operations.
-
-	usbController *controller = hub->controller;
-	usbEhciData *ehciData = controller->data;
-	int count;
-
-	// Check to see whether any of the ports are showing a connection change
-	for (count = 0; count < ehciData->numPorts; count ++)
-	{
-		if (ehciData->opRegs->portsc[count] & USBEHCI_PORTSC_CONNCHANGE)
-		{
-			kernelDebug(debug_usb, "EHCI port %d connection changed", count);
-
-			if (ehciData->opRegs->portsc[count] & USBEHCI_PORTSC_CONNECTED)
-				portConnected(controller, count, hotplug);
-			else
-				portDisconnected(controller, count);
-		}
-	}
-
-	return;
-}
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+//  Standard USB hub functions
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 
 static void detectDevices(usbHub *hub, int hotplug)
@@ -3038,6 +2981,8 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 	pciDeviceInfo pciDevInfo;
 	usbController *controller = NULL;
 	usbEhciData *ehciData = NULL;
+	unsigned physMemSpace;
+	unsigned memSpaceSize;
 	kernelDevice *dev = NULL;
 	char value[32];
 	int count;
@@ -3058,7 +3003,7 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 
 	// Make sure it's an EHCI controller (programming interface is 0x20 in
 	// the PCI header)
-	if (pciDevInfo.device.progIF != 0x20)
+	if (pciDevInfo.device.progIF != USBEHCI_PCI_PROGIF)
 		goto err_out;
 
 	// After this point, we believe we have a supported device.
@@ -3096,11 +3041,14 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 	if (!controller)
 		goto err_out;
 
+	// Set the controller type
+	controller->type = usb_ehci;
+
 	// Get the USB version number
 	controller->usbVersion = kernelBusReadRegister(busTarget, 0x60, 8);
 
-	// Get the interrupt line
-	controller->interruptNum = (int) pciDevInfo.device.nonBridge.interruptLine;
+	// Get the interrupt number.
+	controller->interruptNum = pciDevInfo.device.nonBridge.interruptLine;
 
 	kernelLog("USB: EHCI controller USB %d.%d interrupt %d",
 		((controller->usbVersion & 0xF0) >> 4),
@@ -3114,8 +3062,7 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 	ehciData = controller->data;
 
 	// Get the memory range address
-	ehciData->physMemSpace =
-		(pciDevInfo.device.nonBridge.baseAddress[0] & 0xFFFFFFF0);
+	physMemSpace = (pciDevInfo.device.nonBridge.baseAddress[0] & 0xFFFFFFF0);
 
 	if (pciDevInfo.device.nonBridge.baseAddress[0] & 0x6)
 	{
@@ -3125,12 +3072,11 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 	}
 
 	// Determine the memory space size.  Write all 1s to the register.
-	kernelBusWriteRegister(busTarget,
-		PCI_CONFREG_BASEADDRESS0_32, 32, 0xFFFFFFFF);
+	kernelBusWriteRegister(busTarget, PCI_CONFREG_BASEADDRESS0_32, 32,
+		0xFFFFFFFF);
 
-	ehciData->memSpaceSize =
-		(~(kernelBusReadRegister(busTarget,
-			PCI_CONFREG_BASEADDRESS0_32, 32) & ~0xF) + 1);
+	memSpaceSize = (~(kernelBusReadRegister(busTarget,
+		PCI_CONFREG_BASEADDRESS0_32, 32) & ~0xF) + 1);
 
 	// Restore the register we clobbered.
 	kernelBusWriteRegister(busTarget, PCI_CONFREG_BASEADDRESS0_32, 32,
@@ -3140,8 +3086,8 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 	// our virtual address space.
 
 	// Map the physical memory space pointed to by the decoder.
-	status = kernelPageMapToFree(KERNELPROCID, (void *) ehciData->physMemSpace,
-		(void **) &(ehciData->capRegs), ehciData->memSpaceSize);
+	status = kernelPageMapToFree(KERNELPROCID, physMemSpace,
+		(void **) &(ehciData->capRegs), memSpaceSize);
 	if (status < 0)
 	{
 		kernelDebugError("EHCI: Error mapping memory");
@@ -3150,9 +3096,8 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 
 	// Make it non-cacheable, since this memory represents memory-mapped
 	// hardware registers.
-	status =
-		kernelPageSetAttrs(KERNELPROCID, 1 /* set */, PAGEFLAG_CACHEDISABLE,
-			(void *) ehciData->capRegs, ehciData->memSpaceSize);
+	status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
+		PAGEFLAG_CACHEDISABLE, (void *) ehciData->capRegs, memSpaceSize);
 	if (status < 0)
 	{
 		kernelDebugError("EHCI: Error setting page attrs");
@@ -3230,9 +3175,12 @@ kernelDevice *kernelUsbEhciDetect(kernelBusTarget *busTarget,
 	controller->interrupt = &interrupt;
 	controller->queue = &queue;
 	controller->schedInterrupt = &schedInterrupt;
-	controller->unschedInterrupt = &unschedInterrupt;
+	controller->deviceRemoved = &deviceRemoved;
 
+	// The controller's root hub
 	controller->hub.controller = controller;
+
+	// Set hub function calls
 	controller->hub.detectDevices = &detectDevices;
 	controller->hub.threadCall = &threadCall;
 

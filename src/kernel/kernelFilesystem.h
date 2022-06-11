@@ -99,9 +99,11 @@ int kernelFilesystemResizeConstraints(const char *, uquad_t *, uquad_t *,
 int kernelFilesystemResize(const char *, uquad_t, progress *);
 int kernelFilesystemMount(const char *, const char *);
 int kernelFilesystemUnmount(const char *);
+int kernelFilesystemRemoved(const char *);
 kernelDisk *kernelFilesystemGet(char *);
 uquad_t kernelFilesystemGetFreeBytes(const char *);
 unsigned kernelFilesystemGetBlockSize(const char *);
 
 #define _KERNELFILESYSTEM_H
 #endif
+

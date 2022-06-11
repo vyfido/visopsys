@@ -24,15 +24,19 @@
 // contrib/jonas-pci/src/kernel/kernelBusPCI.c
 
 #include "kernelPciDriver.h"
-#include "kernelBus.h"
 #include "kernelDebug.h"
 #include "kernelDevice.h"
 #include "kernelError.h"
+#include "kernelInterrupt.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
+#include "kernelParameters.h"
+#include "kernelPic.h"
 #include "kernelProcessorX86.h"
+#include "kernelSystemDriver.h"
 #include <string.h>
+#include <values.h>
 
 
 static pciSubClass subclass_old[] = {
@@ -118,7 +122,7 @@ static pciSubClass subclass_comm[] = {
 };
 
 static pciSubClass subclass_sys[] = {
-	{ 0x00, "(A)PIC", DEVICECLASS_PIC, DEVICESUBCLASS_NONE },
+	{ 0x00, "(A)PIC", DEVICECLASS_INTCTRL, DEVICESUBCLASS_NONE },
 	{ 0x01, "DMA", DEVICECLASS_DMA, DEVICESUBCLASS_NONE },
 	{ 0x02, "timer", DEVICECLASS_SYSTIMER, DEVICESUBCLASS_NONE },
 	{ 0x03, "RTC", DEVICECLASS_RTC, DEVICESUBCLASS_NONE },
@@ -248,7 +252,7 @@ static kernelBusTarget *targets = NULL;
 static int numTargets = 0;
 
 #define headerAddress(bus, device, function, reg)					\
-	(0x80000000L |  (((unsigned) ((bus) & 0xFF) << 16) |			\
+	(0x80000000L |  (((unsigned)((bus) & 0xFF) << 16) |			\
 		(((device) & 0x1F)  << 11) | (((function) & 0x07) << 8) |	\
 		(((reg) & 0x3F) << 2)))
 
@@ -408,7 +412,7 @@ static int getClassName(int classCode, int subClassCode, char **className,
 	pciSubClass *subClass = NULL;
 
 	getClass(classCode, &class);
-	if (class == NULL)
+	if (!class)
 	{
 		*className = (char *) unknownDevice;
 		return (status = PCI_INVALID_CLASSCODE);
@@ -424,7 +428,7 @@ static int getClassName(int classCode, int subClassCode, char **className,
 	}
 
 	getSubClass(class, subClassCode, &subClass);
-	if (subClass == NULL)
+	if (!subClass)
 	{
 		*subClassName = (char *) unknownDevice;
 		return (status = PCI_INVALID_SUBCLASSCODE);
@@ -447,7 +451,7 @@ static void deviceInfo2BusTarget(kernelBus *bus, int busNum, int dev,
 	target->id = makeTargetCode(busNum, dev, function);
 
 	getClass(info->device.classCode, &class);
-	if (class == NULL)
+	if (!class)
 	{
 		kernelDebugError("No class for classCode 0x%02x",
 			info->device.classCode);
@@ -455,7 +459,7 @@ static void deviceInfo2BusTarget(kernelBus *bus, int busNum, int dev,
 	}
 
 	getSubClass(class, info->device.subClassCode, &subClass);
-	if (subClass == NULL)
+	if (!subClass)
 	{
 		kernelDebugError("No subclass for classCode 0x%02x, subClassCode "
 			"0x%02x", info->device.classCode, info->device.subClassCode);
@@ -487,7 +491,7 @@ static int driverGetTargets(kernelBus *bus, kernelBusTarget **pointer)
 
 	// Allocate memory for all the targets
 	*pointer = kernelMalloc(targetCount * sizeof(kernelBusTarget));
-	if (*pointer == NULL)
+	if (!*pointer)
 		return (status = ERR_MEMORY);
 
 	// Loop again and copy targets
@@ -672,8 +676,9 @@ static int driverSetMaster(kernelBusTarget *target, int master)
 
 static int driverDetect(void *parent, kernelDriver *driver)
 {
-	// This routine is used to detect and initialize each PCI controller device,
-	// as well as registering each one with any higher-level interfaces.
+	// This routine is used to detect and initialize each PCI controller
+	// device, as well as registering each one with any higher-level
+	// interfaces.
 
 	int status = 0;
 	unsigned reply = 0;
@@ -682,6 +687,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	int functionCount = 0;
 	char *className = NULL;
 	char *subclassName = NULL;
+	int intNumber = 0;
 	pciDeviceInfo pciDevice;
 	kernelDevice *dev = NULL;
 	kernelBus *bus = NULL;
@@ -703,16 +709,16 @@ static int driverDetect(void *parent, kernelDriver *driver)
 			for (functionCount = 0; functionCount < PCI_MAX_FUNCTIONS;
 				functionCount ++)
 			{
-				// Just read the first dword of the header to get the device and
-				// vendor IDs
+				// Just read the first dword of the header to get the device
+				// and vendor IDs
 				readConfig32(busCount, deviceCount, functionCount, 0,
 					&(pciDevice.header[0]));
 
 				// See if this is really a device, or if this device header is
 				// unoccupied.
-				if ((pciDevice.device.vendorID == 0x0000) ||
-					(pciDevice.device.vendorID == 0xffff) ||
-					(pciDevice.device.deviceID == 0xffff))
+				if (!pciDevice.device.vendorID ||
+					(pciDevice.device.vendorID == 0xFFFF) ||
+					(pciDevice.device.deviceID == 0xFFFF))
 				{
 					// No device here, so try next one
 					continue;
@@ -729,7 +735,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	// Allocate memory for the PCI bus device
 	dev = kernelMalloc(sizeof(kernelDevice));
-	if (dev == NULL)
+	if (!dev)
 		return (status = ERR_MEMORY);
 
 	dev->device.class = kernelDeviceGetClass(DEVICECLASS_BUS);
@@ -738,7 +744,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	// Allocate memory for the bus service
 	bus = kernelMalloc(sizeof(kernelBus));
-	if (bus == NULL)
+	if (!bus)
 		return (status = ERR_MEMORY);
 
 	bus->type = bus_pci;
@@ -747,7 +753,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	// Allocate memory for the targets list
 	targets = kernelMalloc(numTargets * sizeof(kernelBusTarget));
-	if (targets == NULL)
+	if (!targets)
 		return (status = ERR_MEMORY);
 
 	// Now fill up our targets list
@@ -763,28 +769,60 @@ static int driverDetect(void *parent, kernelDriver *driver)
 				readConfig32(busCount, deviceCount, functionCount, 0,
 					&(pciDevice.header[0]));
 
-				if ((pciDevice.device.vendorID == 0x0000) ||
-					(pciDevice.device.vendorID == 0xffff) ||
-					(pciDevice.device.deviceID == 0xffff))
+				if (!pciDevice.device.vendorID ||
+					(pciDevice.device.vendorID == 0xFFFF) ||
+					(pciDevice.device.deviceID == 0xFFFF))
 				{
 					// No device here, so try next one
 					continue;
 				}
 
 				// There's a device.  Get the full device header.
-				readConfigHeader(busCount, deviceCount, functionCount, &pciDevice);
+				readConfigHeader(busCount, deviceCount, functionCount,
+					&pciDevice);
 
 				getClassName(pciDevice.device.classCode,
 					pciDevice.device.subClassCode, &className,
 					&subclassName);
 
+				kernelDebug(debug_pci, "PCI %s %s %u:%u:%u int:%d pin=%c",
+					subclassName, className, busCount, deviceCount,
+					functionCount, pciDevice.device.all.interruptLine,
+					(pciDevice.device.all.interruptPin?
+						('@' + pciDevice.device.all.interruptPin) : ' '));
+
+				if (pciDevice.device.all.interruptPin)
+				{
+					// If we have reassigned the interrupt number by
+					// initializing APICs, update it
+					intNumber = kernelPicGetIntNumber(busCount,
+						((deviceCount << 2) |
+							(pciDevice.device.all.interruptPin - 1)));
+
+					if (intNumber >= 0)
+					{
+						kernelDebug(debug_pci, "PCI interrupt %d reassigned "
+							"to %d", pciDevice.device.all.interruptLine,
+							intNumber);
+
+						writeConfig8(busCount, deviceCount, functionCount,
+							PCI_CONFREG_INTLINE_8, intNumber);
+						readConfig8(busCount, deviceCount, functionCount,
+							PCI_CONFREG_INTLINE_8,
+							&pciDevice.device.all.interruptLine);
+					}
+				}
+
 				kernelLog("PCI: %s %s %u:%u:%u vend:0x%04x dev:0x%04x",
 					subclassName, className, busCount, deviceCount,
 					functionCount, pciDevice.device.vendorID,
 					pciDevice.device.deviceID);
-				kernelLog("  class:0x%02x sub:0x%02x int:0x%02x caps=%s",
-					pciDevice.device.classCode, pciDevice.device.subClassCode,
-					pciDevice.device.nonBridge.interruptLine,
+				kernelLog("  class:0x%02x sub:0x%02x int:%d pin=%c "
+					"caps=%s", pciDevice.device.classCode,
+					pciDevice.device.subClassCode,
+					pciDevice.device.all.interruptLine,
+					(pciDevice.device.all.interruptPin?
+						('@' + pciDevice.device.all.interruptPin) : ' '),
 					((pciDevice.device.statusReg & PCI_STATUS_CAPSLIST)?
 						"yes" : "no"));
 
@@ -876,6 +914,7 @@ void kernelPciPrintHeader(pciDeviceInfo *devInfo)
 		"headerType=0x%02x BIST=0x%02x", devInfo->device.cachelineSize,
 		devInfo->device.latency, devInfo->device.headerType,
 		devInfo->device.BIST);
+
 	switch (devInfo->device.headerType & ~PCI_HEADERTYPE_MULTIFUNC)
 	{
 		case PCI_HEADERTYPE_NORMAL:
@@ -896,12 +935,12 @@ void kernelPciPrintHeader(pciDeviceInfo *devInfo)
 				"expansionROM=0x%08x ",
 				devInfo->device.nonBridge.subsystemDeviceID,
 				devInfo->device.nonBridge.expansionROM);
-			kernelDebug(debug_pci, "   capPtr=0x%02x interruptLine=0x%02x "
+			kernelDebug(debug_pci, "   capPtr=0x%02x interruptLine=%d "
 				"interruptPin=%s%c%s (%d)", devInfo->device.nonBridge.capPtr,
 				devInfo->device.nonBridge.interruptLine,
 				(devInfo->device.nonBridge.interruptPin? "INT" : ""),
 				(devInfo->device.nonBridge.interruptPin?
-					('@' +devInfo->device.nonBridge.interruptPin) : ' '),
+					('@' + devInfo->device.nonBridge.interruptPin) : ' '),
 				(devInfo->device.nonBridge.interruptPin? "#" : ""),
 				devInfo->device.nonBridge.interruptPin);
 			kernelDebug(debug_pci, "   minGrant=0x%02x maxLatency=0x%02x",
@@ -963,7 +1002,7 @@ pciCapHeader *kernelPciGetCapability(pciDeviceInfo *devInfo,
 		// No capabilities
 		capHeader = NULL;
 
-		return (capHeader);
+	return (capHeader);
 }
 
 
@@ -1025,3 +1064,4 @@ void kernelPciPrintCapabilities(pciDeviceInfo *devInfo)
 
 	return;
 }
+

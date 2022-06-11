@@ -145,7 +145,7 @@ static int allocateBlock(int processId, unsigned start, unsigned end,
 
 
 static int requestBlock(int processId, unsigned size, unsigned alignment,
-	const char *description, void **memory)
+	const char *description, unsigned *memory)
 {
 	// This function takes a size and some other parameters, and allocates
 	// a memory block.  The alignment parameter allows the caller to request
@@ -155,7 +155,7 @@ static int requestBlock(int processId, unsigned size, unsigned alignment,
 	// this.
 
 	int status = 0;
-	void *blockPointer = NULL;
+	unsigned blockPointer = NULL;
 	unsigned consecutiveBlocks = 0;
 	int foundBlock = 0;
 	int count;
@@ -234,7 +234,7 @@ static int requestBlock(int processId, unsigned size, unsigned alignment,
 		// Do we have enough yet?
 		if ((consecutiveBlocks * MEMORY_BLOCK_SIZE) >= size)
 		{
-			blockPointer = (void *)((count - (consecutiveBlocks - 1)) *
+			blockPointer = ((count - (consecutiveBlocks - 1)) *
 				MEMORY_BLOCK_SIZE);
 			foundBlock = 1;
 			break;
@@ -249,8 +249,8 @@ static int requestBlock(int processId, unsigned size, unsigned alignment,
 	// in the loop above.  We now have to allocate the new "used" block.
 
 	// blockPointer should point to the start of the memory area.
-	status = allocateBlock(processId, (unsigned) blockPointer,
-		(unsigned)(blockPointer + size - 1), description);
+	status = allocateBlock(processId, blockPointer, (blockPointer + size - 1),
+		description);
 
 	// Make sure we were successful with the allocation, above
 	if (status < 0)
@@ -265,7 +265,7 @@ static int requestBlock(int processId, unsigned size, unsigned alignment,
 
 
 
-static int findBlock(void *memory)
+static int findBlock(unsigned memory)
 {
 	// Search the used block list for one with the supplied physical starting
 	// address.  If found, return the index of the block (else negative error
@@ -278,7 +278,7 @@ static int findBlock(void *memory)
 	for (index = 0; ((index < usedBlocks) && (index < MAXMEMORYBLOCKS));
 		index ++)
 	{
-		if (usedBlockList[index]->startLocation == (unsigned) memory)
+		if (usedBlockList[index]->startLocation == memory)
 			// This is the one
 			return (index);
 	}
@@ -357,7 +357,7 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 	// will "zero" all the memory.  Returns 0 on success, negative otherwise.
 
 	int status = 0;
-	unsigned char *bitmapPhysical = NULL;
+	unsigned bitmapPhysical = NULL;
 	unsigned bitmapSize = 0;
 	const char *desc = NULL;
 	unsigned start = 0, end = 0;
@@ -398,7 +398,7 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 	// we will have to do it manually since, without the bitmap, we can't
 	// do a "normal" block allocation.
 	// This is a physical address.
-	bitmapPhysical = (unsigned char *)
+	bitmapPhysical =
 		(KERNEL_LOAD_ADDRESS + kernelMemory + KERNEL_PAGING_DATA_SIZE);
 
 	// Calculate the size of the free-block bitmap, based on the total
@@ -410,7 +410,7 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 
 	// If we want to actually USE the memory we just allocated, we will
 	// have to map it into the kernel's address space
-	status = kernelPageMapToFree(KERNELPROCID, (void *) bitmapPhysical,
+	status = kernelPageMapToFree(KERNELPROCID, bitmapPhysical,
 		(void **) &freeBlockBitmap, bitmapSize);
 	if (status < 0)
 		return (status);
@@ -512,14 +512,14 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 }
 
 
-void *kernelMemoryGetPhysical(unsigned size, unsigned alignment,
+unsigned kernelMemoryGetPhysical(unsigned size, unsigned alignment,
 	const char *description)
 {
 	// This function is a wrapper around the requestBlock function.
 	// It returns the same physical memory address returned by requestBlock.
 
 	int status = 0;
-	void *physical = NULL;
+	unsigned physical = NULL;
 
 	// Make sure the memory manager has been initialized
 	if (!initialized)
@@ -549,7 +549,7 @@ void *kernelMemoryGetPhysical(unsigned size, unsigned alignment,
 }
 
 
-int kernelMemoryReleasePhysical(void *physical)
+int kernelMemoryReleasePhysical(unsigned physical)
 {
 	// This function will find the block of the block that begins with
 	// the the supplied physical address, and releases it.
@@ -597,7 +597,7 @@ void *kernelMemoryGetSystem(unsigned size, const char *description)
 	// space of the kernel.
 
 	int status = 0;
-	void *physical = NULL;
+	unsigned physical = NULL;
 	void *virtual = NULL;
 
 	// This function will check initialization, etc
@@ -630,7 +630,7 @@ int kernelMemoryReleaseSystem(void *virtual)
 	// kernel's page table, and deallocate it.
 
 	int status = 0;
-	void *physical = NULL;
+	unsigned physical = NULL;
 	int index = 0;
 
 	// Make sure the memory manager has been initialized
@@ -685,6 +685,96 @@ int kernelMemoryReleaseSystem(void *virtual)
 }
 
 
+int kernelMemoryGetIo(unsigned size, unsigned alignment, kernelIoMemory *ioMem)
+{
+	// Use this to allocate kernel-owned I/O memory when we need to
+	//	a) possibly align it;
+	//	b) know both the physical and virtual addresses; and
+	//	c) make it non-cacheable
+
+	int status = 0;
+
+	// Make sure the memory manager has been initialized
+	if (!initialized)
+		return (status = ERR_NOTINITIALIZED);
+
+	// Check params
+	if (!size || !ioMem)
+		return (status = ERR_NULLPARAMETER);
+
+	ioMem->size = size;
+
+	// Can only align on page boundaries, so round up if necessary
+	if (alignment && (alignment < MEMORY_BLOCK_SIZE))
+		alignment = MEMORY_BLOCK_SIZE;
+
+	// Request memory for an aligned array of TRBs
+	ioMem->physical = kernelMemoryGetPhysical(ioMem->size, alignment,
+		"i/o memory");
+	if (!ioMem->physical)
+	{
+		status = ERR_MEMORY;
+		goto err_out;
+	}
+
+	// Map the physical memory into virtual memory
+	status = kernelPageMapToFree(KERNELPROCID, ioMem->physical,
+		&ioMem->virtual, ioMem->size);
+	if (status < 0)
+		goto err_out;
+
+	// Make it non-cacheable
+	status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
+		PAGEFLAG_CACHEDISABLE, ioMem->virtual, ioMem->size);
+	if (status < 0)
+		goto err_out;
+
+	// Clear it out, as the kernelMemoryGetPhysical function can't do that
+	// for us
+	kernelMemClear(ioMem->virtual, ioMem->size);
+
+	return (status = 0);
+
+err_out:
+	kernelMemoryReleaseIo(ioMem);
+
+	return (status);
+}
+
+
+int kernelMemoryReleaseIo(kernelIoMemory *ioMem)
+{
+	// Attempt to unmap and free any memory allocated using the
+	// kernelMemoryGetIo() function, above
+
+	int status = 0;
+
+	// Make sure the memory manager has been initialized
+	if (!initialized)
+		return (status = ERR_NOTINITIALIZED);
+
+	// Check params
+	if (!ioMem)
+		return (status = ERR_NULLPARAMETER);
+
+	if (ioMem->virtual)
+	{
+		status = kernelPageUnmap(KERNELPROCID, ioMem->virtual, ioMem->size);
+		if (status < 0)
+			return (status);
+	}
+
+	if (ioMem->physical)
+	{
+		status = kernelMemoryReleasePhysical(ioMem->physical);
+		if (status < 0)
+			return (status);
+	}
+
+	return (status = 0);
+}
+
+
 void *kernelMemoryGet(unsigned size, const char *description)
 {
 	// This function will allocate some physical memory, and map it to
@@ -692,7 +782,7 @@ void *kernelMemoryGet(unsigned size, const char *description)
 
 	int status = 0;
 	int processId = 0;
-	void *physical = NULL;
+	unsigned physical = NULL;
 	void *virtual = NULL;
 
 	// Make sure the memory manager has been initialized
@@ -700,7 +790,7 @@ void *kernelMemoryGet(unsigned size, const char *description)
 		return (virtual = NULL);
 
 	if (kernelProcessingInterrupt())
-		return (physical = NULL);
+		return (virtual = NULL);
 
 	// Get the current process Id
 	processId = kernelMultitaskerGetCurrentProcessId();
@@ -750,7 +840,7 @@ int kernelMemoryRelease(void *virtual)
 
 	int status = 0;
 	int pid = 0;
-	void *physical = NULL;
+	unsigned physical = NULL;
 	int index = 0;
 
 	// Make sure the memory manager has been initialized
@@ -876,7 +966,7 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
 	// process owner of a block of allocated memory.
 
 	int status = 0;
-	void *physical = NULL;
+	unsigned physical = NULL;
 	int index = 0;
 	unsigned blockSize = 0;
 
@@ -971,7 +1061,7 @@ int kernelMemoryShare(int sharerPid, int shareePid, void *oldVirtual,
 	// the second process will cause a page fault).
 
 	int status = 0;
-	void *physical = NULL;
+	unsigned physical = NULL;
 	int index = 0;
 	unsigned blockSize = 0;
 
@@ -1059,6 +1149,7 @@ int kernelMemoryGetStats(memoryStats *stats, int kernel)
 	stats->usedBlocks = usedBlocks;
 	stats->totalMemory = totalMemory;
 	stats->usedMemory = totalUsed;
+
 	return (status = 0);
 }
 
@@ -1142,7 +1233,7 @@ int kernelMemoryBlockInfo(void *virtual, memoryBlock *block)
 
 	int status = 0;
 	int currentPid = 0;
-	void *physical = NULL;
+	unsigned physical = NULL;
 	int index = 0;
 
 	// Make sure the memory manager has been initialized

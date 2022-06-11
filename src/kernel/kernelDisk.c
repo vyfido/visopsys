@@ -256,7 +256,7 @@ static int motorOff(kernelPhysicalDisk *physicalDisk)
 		return (status = 0);
 
 	// Make sure the device driver routine is available.
-	if (ops->driverSetMotorState == NULL)
+	if (!ops->driverSetMotorState)
 		// Don't make this an error.  It's just not available in some drivers.
 		return (status = 0);
 
@@ -351,8 +351,8 @@ static int realReadWrite(kernelPhysicalDisk *physicalDisk, uquad_t startSector,
 		spawnDiskd();
 
 	// Make sure the device driver routine is available.
-	if (((mode & IOMODE_READ) && (ops->driverReadSectors == NULL)) ||
-		((mode & IOMODE_WRITE) && (ops->driverWriteSectors == NULL)))
+	if (((mode & IOMODE_READ) && !ops->driverReadSectors) ||
+		((mode & IOMODE_WRITE) && !ops->driverWriteSectors))
 	{
 		kernelError(kernel_error, "Disk %s cannot %s", physicalDisk->name,
 			((mode & IOMODE_READ)? "read" : "write"));
@@ -361,17 +361,18 @@ static int realReadWrite(kernelPhysicalDisk *physicalDisk, uquad_t startSector,
 
 	// Do the actual read/write operation
 
-	kernelDebug(debug_io, "%s %s %llu sectors at %llu", physicalDisk->name,
-		((mode & IOMODE_READ)? "read" : "write"), numSectors, startSector);
+	kernelDebug(debug_io, "Disk %s %s %llu sectors at %llu",
+		physicalDisk->name, ((mode & IOMODE_READ)? "read" : "write"),
+		numSectors, startSector);
 
 	if (mode & IOMODE_READ)
-		status = ops->driverReadSectors(physicalDisk->deviceNumber, startSector,
-			numSectors, data);
+		status = ops->driverReadSectors(physicalDisk->deviceNumber,
+			startSector, numSectors, data);
 	else
-		status = ops->driverWriteSectors(physicalDisk->deviceNumber, startSector,
-			numSectors, data);
+		status = ops->driverWriteSectors(physicalDisk->deviceNumber,
+			startSector, numSectors, data);
 
-	kernelDebug(debug_io, "%s done %sing %llu sectors at %llu",
+	kernelDebug(debug_io, "Disk %s done %sing %llu sectors at %llu",
 		physicalDisk->name, ((mode & IOMODE_READ)? "read" : "writ"),
 		numSectors, startSector);
 
@@ -470,7 +471,7 @@ static kernelDiskCacheBuffer *cacheGetBuffer(kernelPhysicalDisk *physicalDisk,
 
 	// Get memory for the structure
 	buffer = kernelMalloc(sizeof(kernelDiskCacheBuffer));
-	if (buffer == NULL)
+	if (!buffer)
 		return (buffer);
 
 	buffer->startSector = startSector;
@@ -478,7 +479,7 @@ static kernelDiskCacheBuffer *cacheGetBuffer(kernelPhysicalDisk *physicalDisk,
 
 	// Get memory for the data
 	buffer->data = kernelMalloc(numSectors * physicalDisk->sectorSize);
-	if (buffer->data == NULL)
+	if (!buffer->data)
 	{
 		kernelFree((void *) buffer);
 		return (buffer = NULL);
@@ -591,14 +592,14 @@ static unsigned cacheQueryRange(kernelPhysicalDisk *physicalDisk,
 		*firstCached = max(startSector, buffer->startSector);
 		numCached = min((numSectors - (*firstCached - startSector)),
 			(buffer->numSectors - (*firstCached - buffer->startSector)));
-		kernelDebug(debug_io, "%s found %llu->%llu in %llu->%llu, first=%llu "
-			"num=%llu", physicalDisk->name, startSector,
+		kernelDebug(debug_io, "Disk %s found %llu->%llu in %llu->%llu, "
+			"first=%llu num=%llu", physicalDisk->name, startSector,
 			(startSector + numSectors - 1), buffer->startSector,
 			bufferEnd(buffer), *firstCached, numCached);
 	}
 	else
-		kernelDebug(debug_io, "%s %llu->%llu not found", physicalDisk->name,
-			startSector, (startSector + numSectors - 1));
+		kernelDebug(debug_io, "Disk %s %llu->%llu not found",
+			physicalDisk->name, startSector, (startSector + numSectors - 1));
 
 	return (numCached);
 }
@@ -758,12 +759,13 @@ static void cachePrune(kernelPhysicalDisk *physicalDisk)
 
 		if (!oldestBuffer)
 		{
-			kernelDebug(debug_io, "%s, no oldest buffer!", physicalDisk->name);
+			kernelDebug(debug_io, "Disk %s, no oldest buffer!",
+				physicalDisk->name);
 			break;
 		}
 
-		kernelDebug(debug_io, "%s uncache buffer %llu->%llu, mem=%p, dirty=%d",
-			physicalDisk->name, oldestBuffer->startSector,
+		kernelDebug(debug_io, "Disk %s uncache buffer %llu->%llu, mem=%p, "
+			"dirty=%d", physicalDisk->name, oldestBuffer->startSector,
 			bufferEnd(oldestBuffer), oldestBuffer->data, oldestBuffer->dirty);
 
 		if (oldestBuffer->dirty)
@@ -771,7 +773,7 @@ static void cachePrune(kernelPhysicalDisk *physicalDisk)
 			if (realReadWrite(physicalDisk, oldestBuffer->startSector,
 				oldestBuffer->numSectors, oldestBuffer->data, IOMODE_WRITE) < 0)
 			{
-				kernelDebug(debug_io, "%s error writing dirty buffer",
+				kernelDebug(debug_io, "Disk %s error writing dirty buffer",
 					physicalDisk->name);
 				return;
 			}
@@ -795,7 +797,7 @@ static kernelDiskCacheBuffer *cacheAdd(kernelPhysicalDisk *physicalDisk,
 	kernelDiskCacheBuffer *nextBuffer = NULL;
 	kernelDiskCacheBuffer *newBuffer = NULL;
 
-	//kernelDebug(debug_io, "%s adding %llu->%llu", physicalDisk->name,
+	//kernelDebug(debug_io, "Disk %s adding %llu->%llu", physicalDisk->name,
 	//	startSector, (startSector + numSectors - 1));
 
 	debugLockCheck(physicalDisk, __FUNCTION__);
@@ -815,7 +817,7 @@ static kernelDiskCacheBuffer *cacheAdd(kernelPhysicalDisk *physicalDisk,
 
 	// Get a new cache buffer.
 	newBuffer = cacheGetBuffer(physicalDisk, startSector, numSectors);
-	if (newBuffer == NULL)
+	if (!newBuffer)
 	{
 		kernelError(kernel_error, "Couldn't get a new buffer for %s's disk "
 			"cache", physicalDisk->name);
@@ -869,7 +871,7 @@ static void cacheMerge(kernelPhysicalDisk *physicalDisk)
 				// entry, copying both entries' data into it, and removing the
 				// second entry.
 
-				kernelDebug(debug_io, "%s merge %llu->%llu and %llu->%llu",
+				kernelDebug(debug_io, "Disk %s merge %llu->%llu and %llu->%llu",
 					physicalDisk->name, currBuffer->startSector,
 					bufferEnd(currBuffer), nextBuffer->startSector,
 					bufferEnd(nextBuffer));
@@ -1058,8 +1060,8 @@ static kernelDiskCacheBuffer *cacheSplit(kernelPhysicalDisk *physicalDisk,
 		nextBuffer = cacheGetBuffer(physicalDisk, (startSector + numSectors),
 			nextSectors);
 
-	if ((prevSectors && (prevBuffer == NULL)) || (newBuffer == NULL) ||
-		(nextSectors && (nextBuffer == NULL)))
+	if ((prevSectors && !prevBuffer) || !newBuffer ||
+		(nextSectors && !nextBuffer))
 	{
 		kernelError(kernel_error, "Couldn't get a new buffer for %s's disk "
 			"cache", physicalDisk->name);
@@ -1322,7 +1324,7 @@ static int diskFromPhysical(kernelPhysicalDisk *physicalDisk, disk *userDisk)
 	int status = 0;
 
 	// Check params
-	if ((physicalDisk == NULL) || (userDisk == NULL))
+	if (!physicalDisk || !userDisk)
 		return (status = ERR_NULLPARAMETER);
 
 	kernelMemClear(userDisk, sizeof(disk));
@@ -1367,7 +1369,7 @@ static int isDosDisk(kernelPhysicalDisk *physicalDisk)
 	unsigned char *sectorData = NULL;
 
 	sectorData = kernelMalloc(physicalDisk->sectorSize);
-	if (sectorData == NULL)
+	if (!sectorData)
 		return (status = ERR_MEMORY);
 
 	// Read the first sector of the device
@@ -1387,7 +1389,7 @@ static int isDosDisk(kernelPhysicalDisk *physicalDisk)
 	if (status == 1)
 	{
 		// Call this an MSDOS label.
-		kernelDebug(debug_io, "%s MSDOS partition table found",
+		kernelDebug(debug_io, "Disk %s MSDOS partition table found",
 			physicalDisk->name);
 		return (status);
 	}
@@ -1422,21 +1424,21 @@ static int isGptDisk(kernelPhysicalDisk *physicalDisk)
 
 	// A GPT disk must have a "guard" MS-DOS table, so a call to the MS-DOS
 	// detect() function must succeed first.
-	kernelDebug(debug_io, "%s GPT check for MSDOS guard table",
+	kernelDebug(debug_io, "Disk %s GPT check for MSDOS guard table",
 		physicalDisk->name);
 	if (isDosDisk(physicalDisk) != 1)
 	{
 		// Not a GPT label
-		kernelDebug(debug_io, "%s GPT MSDOS guard table not found",
+		kernelDebug(debug_io, "Disk %s GPT MSDOS guard table not found",
 			physicalDisk->name);
 		return (status = 0);
 	}
 
 	sectorData = kernelMalloc(physicalDisk->sectorSize);
-	if (sectorData == NULL)
+	if (!sectorData)
 		return (status = ERR_MEMORY);
 
-	kernelDebug(debug_io, "%s GPT check for MSDOS protective partition",
+	kernelDebug(debug_io, "Disk %s GPT check for MSDOS protective partition",
 		physicalDisk->name);
 
 	// Read the MS-DOS table
@@ -1462,8 +1464,8 @@ static int isGptDisk(kernelPhysicalDisk *physicalDisk)
 	if (!foundMsdosProtective)
 	{
 		// Say it's not a valid GPT label
-		kernelDebug(debug_io, "%s GPT MSDOS protective partition not found",
-			physicalDisk->name);
+		kernelDebug(debug_io, "Disk %s GPT MSDOS protective partition not "
+			"found", physicalDisk->name);
 		kernelFree(sectorData);
 		return (status = 0);
 	}
@@ -1487,14 +1489,14 @@ static int isGptDisk(kernelPhysicalDisk *physicalDisk)
 	if (status == 1)
 	{
 		// Call this a GPT label.
-		kernelDebug(debug_io, "%s GPT partition table found",
+		kernelDebug(debug_io, "Disk %s GPT partition table found",
 			physicalDisk->name);
 		return (status);
 	}
 	else
 	{
 		// Not a GPT label
-		kernelDebug(debug_io, "%s GPT partition table not found",
+		kernelDebug(debug_io, "Disk %s GPT partition table not found",
 			physicalDisk->name);
 		return (status = 0);
 	}
@@ -1541,7 +1543,7 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
 	unsigned count;
 
 	sectorData = kernelMalloc(physicalDisk->sectorSize);
-	if (sectorData == NULL)
+	if (!sectorData)
 		return (status = ERR_MEMORY);
 
 	// Read the header.  The guard MS-DOS table in the first sector.  Read
@@ -1559,8 +1561,8 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
 	numEntries = *((unsigned *)(sectorData + 80));
 	entrySize = *((unsigned *)(sectorData + 84));
 
-	kernelDebug(debug_io, "%s has %u GPT entries of size %u", physicalDisk->name,
-		numEntries, entrySize);
+	kernelDebug(debug_io, "Disk %s has %u GPT entries of size %u",
+		physicalDisk->name, numEntries, entrySize);
 
 	// Check the checksum
 	if (checksum != gptHeaderChecksum(sectorData))
@@ -1578,11 +1580,11 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
 	// Reallocate the buffer for reading the entries
 	kernelFree(sectorData);
 	sectorData = kernelMalloc(entrySectors * physicalDisk->sectorSize);
-	if (sectorData == NULL)
+	if (!sectorData)
 		return (status = ERR_MEMORY);
 
 	// Read the first sector of the entries.
-	kernelDebug(debug_io, "%s read %u sectors of GPT entries at %llu",
+	kernelDebug(debug_io, "Disk %s read %u sectors of GPT entries at %llu",
 		physicalDisk->name, entrySectors, entriesLogical);
 	status = kernelDiskReadSectors((char *) physicalDisk->name,
 		(unsigned) entriesLogical, entrySectors, sectorData);
@@ -1595,7 +1597,8 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
 	for (count = 0; ((count < numEntries) &&
 		(physicalDisk->numLogical < DISK_MAX_PARTITIONS)); count ++)
 	{
-		kernelDebug(debug_io, "%s read GPT entry %d", physicalDisk->name, count);
+		kernelDebug(debug_io, "Disk %s read GPT entry %d", physicalDisk->name,
+			count);
 
 		entry = (sectorData + (count * entrySize));
 		logicalDisk = &(physicalDisk->logical[physicalDisk->numLogical]);
@@ -1605,7 +1608,7 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
 		if (!kernelMemCmp(typeGuid, &GUID_UNUSED, sizeof(guid)))
 		{
 			// Empty
-			kernelDebug(debug_io, "%s GPT entry %d is empty",
+			kernelDebug(debug_io, "Disk %s GPT entry %d is empty",
 				physicalDisk->name, count);
 			continue;
 		}
@@ -1632,9 +1635,9 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
 		// GPT partitions are always 'primary'
 		logicalDisk->primary = 1;
 
-		kernelDebug(debug_io, "%s GPT entry %d startSector=%llu numSectors=%llu",
-			physicalDisk->name, count, logicalDisk->startSector,
-			logicalDisk->numSectors);
+		kernelDebug(debug_io, "Disk %s GPT entry %d startSector=%llu "
+			"numSectors=%llu", physicalDisk->name, count,
+			logicalDisk->startSector, logicalDisk->numSectors);
 
 		newLogicalDisks[*newLogicalDiskCounter] = logicalDisk;
 		*newLogicalDiskCounter += 1;
@@ -1664,7 +1667,7 @@ static int readDosPartitions(kernelPhysicalDisk *physicalDisk,
 	uquad_t extendedStartSector = 0;
 
 	sectorData = kernelMalloc(physicalDisk->sectorSize);
-	if (sectorData == NULL)
+	if (!sectorData)
 		return (status = ERR_MEMORY);
 
 	// Read the first sector of the disk
@@ -1886,8 +1889,8 @@ static int identifyBootCd(void)
 	unsigned imageSector = 0;
 	int count;
 
-	kernelDebug(debug_io, "searching for CD-ROM boot image with signature "
-		"0x%08x", kernelOsLoaderInfo->bootSectorSig);
+	kernelDebug(debug_io, "Disk searching for CD-ROM boot image with "
+		"signature 0x%08x", kernelOsLoaderInfo->bootSectorSig);
 
 	bootDisk[0] = '\0';
 	for (count = 0; count < physicalDiskCounter; count ++)
@@ -1900,7 +1903,7 @@ static int identifyBootCd(void)
 		// This is a CD-ROM.
 
 		buffer = kernelMalloc(physicalDisk->sectorSize);
-		if (buffer == NULL)
+		if (!buffer)
 			return (status = ERR_MEMORY);
 
 		// Lock the disk
@@ -1935,14 +1938,15 @@ static int identifyBootCd(void)
 		bootCatEntry = (isoBootCatInitEntry *) buffer;
 		if (bootCatEntry[1].bootIndicator != 0x88)
 		{
-			kernelDebug(debug_io, "%s is not bootable", physicalDisk->name);
+			kernelDebug(debug_io, "Disk %s is not bootable",
+				physicalDisk->name);
 			kernelLockRelease(&physicalDisk->lock);
 			kernelFree(buffer);
 			continue;
 		}
 
 		imageSector = bootCatEntry[1].loadRba;
-		kernelDebug(debug_io, "%s image at sector %u", physicalDisk->name,
+		kernelDebug(debug_io, "Disk %s image at sector %u", physicalDisk->name,
 			imageSector);
 
 		// Read the first sector of the boot image
@@ -1970,7 +1974,7 @@ static int identifyBootCd(void)
 		if (*((unsigned *)(buffer + 498)) == kernelOsLoaderInfo->bootSectorSig)
 		{
 			// We found the logical disk we booted from
-			kernelDebug(debug_io, "%s boot sector signature matches",
+			kernelDebug(debug_io, "Disk %s boot sector signature matches",
 				physicalDisk->name);
 			strcpy(bootDisk, (char *) physicalDisk->name);
 			kernelFree(buffer);
@@ -1978,11 +1982,12 @@ static int identifyBootCd(void)
 		}
 		else
 		{
-			kernelDebug(debug_io, "%s boot sector signature (0x%08x) doesn't "
-				"match", physicalDisk->name, *((unsigned *)(buffer + 498)));
+			kernelDebug(debug_io, "Disk %s boot sector signature (0x%08x) "
+				"doesn't match", physicalDisk->name,
+				*((unsigned *)(buffer + 498)));
 			kernelFree(buffer);
 		}
-		}
+	}
 
 	if (!bootDisk[0])
 	{
@@ -2005,29 +2010,29 @@ static int identifyBootDisk(void)
 	unsigned char *buffer = NULL;
 	int count;
 
-	kernelDebug(debug_io, "searching for boot sector with signature 0x%08x",
-		kernelOsLoaderInfo->bootSectorSig);
+	kernelDebug(debug_io, "Disk searching for boot sector with signature "
+		"0x%08x", kernelOsLoaderInfo->bootSectorSig);
 
 	bootDisk[0] = '\0';
 	for (count = 0; count < logicalDiskCounter; count ++)
 	{
 		logicalDisk = logicalDisks[count];
 
-		kernelDebug(debug_io, "trying %s", logicalDisk->name);
+		kernelDebug(debug_io, "Disk trying %s", logicalDisk->name);
 
 		physicalDisk = logicalDisk->physical;
 
 		// Does this logical disk have the correct starting sector number?
 		if (logicalDisk->startSector == kernelOsLoaderInfo->bootSector)
 		{
-			kernelDebug(debug_io, "%s start sector %llu is correct",
+			kernelDebug(debug_io, "Disk %s start sector %llu is correct",
 				logicalDisk->name, logicalDisk->startSector);
 
 			// Read the boot sector.
 
 			buffer = kernelMalloc(physicalDisk->sectorSize);
-			if (buffer == NULL)
-			return (status = ERR_MEMORY);
+			if (!buffer)
+				return (status = ERR_MEMORY);
 
 			// Lock the disk
 			status = kernelLockGet(&physicalDisk->lock);
@@ -2055,7 +2060,7 @@ static int identifyBootDisk(void)
 			kernelOsLoaderInfo->bootSectorSig)
 			{
 				// We found the logical disk we booted from
-				kernelDebug(debug_io, "%s boot sector signature matches",
+				kernelDebug(debug_io, "Disk %s boot sector signature matches",
 					logicalDisk->name);
 				strcpy(bootDisk, (char *) logicalDisk->name);
 				kernelFree(buffer);
@@ -2063,7 +2068,7 @@ static int identifyBootDisk(void)
 			}
 			else
 			{
-				kernelDebug(debug_io, "%s boot sector signature (0x%08x) "
+				kernelDebug(debug_io, "Disk %s boot sector signature (0x%08x) "
 					"doesn't match", logicalDisk->name,
 					*((unsigned *)(buffer + 498)));
 				kernelFree(buffer);
@@ -2109,7 +2114,7 @@ int kernelDiskRegisterDevice(kernelDevice *dev)
 
 	physicalDisk = dev->data;
 
-	if ((physicalDisk == NULL) || (physicalDisk->driver == NULL))
+	if (!physicalDisk || !physicalDisk->driver)
 	{
 		kernelError(kernel_error, "Physical disk structure or driver is NULL");
 		return (status = ERR_NULLPARAMETER);
@@ -2175,8 +2180,8 @@ int kernelDiskRegisterDevice(kernelDevice *dev)
 
 int kernelDiskRemoveDevice(kernelDevice *dev)
 {
-	// This routine will receive a new device structure, remove the
-	// kernelPhysicalDisk from our array, and remove all of its logical disks
+	// Removes all the logical disks associated with a physical disk, and
+	// then removes the physical disk.
 
 	int status = 0;
 	kernelPhysicalDisk *physicalDisk = NULL;
@@ -2194,11 +2199,13 @@ int kernelDiskRemoveDevice(kernelDevice *dev)
 
 	physicalDisk = dev->data;
 
-	if ((physicalDisk == NULL) || (physicalDisk->driver == NULL))
+	if (!physicalDisk || !physicalDisk->driver)
 	{
 		kernelError(kernel_error, "Physical disk structure or driver is NULL");
 		return (status = ERR_NULLPARAMETER);
 	}
+
+	kernelDebug(debug_io, "Disk %s remove device",  physicalDisk->name);
 
 	// Add all the logical disks that don't belong to this physical disk
 	for (count = 0; count < logicalDiskCounter; count ++)
@@ -2232,6 +2239,8 @@ int kernelDiskRemoveDevice(kernelDevice *dev)
 
 		physicalDiskCounter -= 1;
 	}
+
+	kernelDebug(debug_io, "Disk %s removed",  physicalDisk->name);
 
 	return (status = 0);
 }
@@ -2359,14 +2368,16 @@ int kernelDiskInvalidateCache(const char *diskName)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (diskName == NULL)
+	if (!diskName)
 		return (status = ERR_NULLPARAMETER);
+
+	kernelDebug(debug_io, "Disk %s invalidate cache",  diskName);
 
 	#if (DISK_CACHE)
 	kernelPhysicalDisk *physicalDisk = NULL;
 
 	physicalDisk = getPhysicalByName(diskName);
-	if (physicalDisk == NULL)
+	if (!physicalDisk)
 	{
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
 		return (status = ERR_NOSUCHENTRY);
@@ -2445,7 +2456,7 @@ int kernelDiskFromLogical(kernelDisk *logical, disk *userDisk)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if ((logical == NULL) || (userDisk == NULL))
+	if (!logical || !userDisk)
 		return (status = ERR_NULLPARAMETER);
 
 	kernelMemClear(userDisk, sizeof(disk));
@@ -2551,14 +2562,14 @@ int kernelDiskReadPartitions(const char *diskName)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (diskName == NULL)
+	if (!diskName)
 		return (status = ERR_NULLPARAMETER);
 
-	kernelDebug(debug_io, "Read partitions on disk %s",  diskName);
+	kernelDebug(debug_io, "Disk read partitions on disk %s",  diskName);
 
 	// Find the disk structure.
 	physicalDisk = getPhysicalByName(diskName);
-	if (physicalDisk == NULL)
+	if (!physicalDisk)
 	{
 		// No such disk.
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
@@ -2620,7 +2631,8 @@ int kernelDiskReadPartitions(const char *diskName)
 				&newLogicalDiskCounter);
 
 		else
-			kernelDebug(debug_io, "%s unknown disk label", physicalDisk->name);
+			kernelDebug(debug_io, "Disk %s unknown disk label",
+				physicalDisk->name);
 
 		if (status < 0)
 			return (status);
@@ -2628,7 +2640,7 @@ int kernelDiskReadPartitions(const char *diskName)
 
 	else
 	{
-		kernelDebug(debug_io, "%s is not a partitioned disk",  diskName);
+		kernelDebug(debug_io, "Disk %s is not a partitioned disk", diskName);
 
 		// If this is a not a hard disk with partitions, etc, make the logical
 		// disk be the same as the physical disk
@@ -2724,12 +2736,12 @@ int kernelDiskSync(const char *diskName)
 		return (errors = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (diskName == NULL)
+	if (!diskName)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get the disk structure
 	physicalDisk = getPhysicalByName(diskName);
-	if (physicalDisk == NULL)
+	if (!physicalDisk)
 	{
 		// Try logical
 		if ((logicalDisk = kernelDiskGetByName(diskName)))
@@ -2811,7 +2823,7 @@ int kernelDiskGetBoot(char *boot)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (boot == NULL)
+	if (!boot)
 		return (status = ERR_NULLPARAMETER);
 
 	strncpy(boot, bootDisk, DISK_MAX_NAMELENGTH);
@@ -2853,7 +2865,7 @@ int kernelDiskGet(const char *diskName, disk *userDisk)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if ((diskName == NULL) || (userDisk == NULL))
+	if (!diskName || !userDisk)
 		return (status = ERR_NULLPARAMETER);
 
 	// Find the disk structure.
@@ -2885,7 +2897,7 @@ int kernelDiskGetAll(disk *userDiskArray, unsigned buffSize)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (userDiskArray == NULL)
+	if (!userDiskArray)
 		return (status = ERR_NULLPARAMETER);
 
 	if ((buffSize / sizeof(disk)) < doDisks)
@@ -2912,7 +2924,7 @@ int kernelDiskGetAllPhysical(disk *userDiskArray, unsigned buffSize)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (userDiskArray == NULL)
+	if (!userDiskArray)
 		return (status = ERR_NULLPARAMETER);
 
 	if ((buffSize / sizeof(disk)) < doDisks)
@@ -2941,12 +2953,12 @@ int kernelDiskGetFilesystemType(const char *diskName, char *buffer,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if ((diskName == NULL) || (buffer == NULL))
+	if (!diskName || !buffer)
 		return (status = ERR_NULLPARAMETER);
 
 	// There must exist a logical disk with this name.
 	logicalDisk = kernelDiskGetByName(diskName);
-	if (logicalDisk == NULL)
+	if (!logicalDisk)
 	{
 		// No such disk.
 		kernelError(kernel_error, "No such disk \"%s\"", diskName);
@@ -2973,7 +2985,7 @@ int kernelDiskGetMsdosPartType(int tag, msdosPartType *type)
 
 	// We don't check for initialization; the table is static.
 
-	if (type == NULL)
+	if (!type)
 		return (status = ERR_NULLPARAMETER);
 
 	for (count = 0; (msdosPartTypes[count].tag != 0); count ++)
@@ -2997,7 +3009,7 @@ msdosPartType *kernelDiskGetMsdosPartTypes(void)
 
 	msdosPartType *types =
 		kernelMemoryGet(sizeof(msdosPartTypes), "partition types");
-	if (types == NULL)
+	if (!types)
 		return (types);
 
 	kernelMemCopy(msdosPartTypes, types, sizeof(msdosPartTypes));
@@ -3015,7 +3027,7 @@ int kernelDiskGetGptPartType(guid *g, gptPartType *type)
 
 	// We don't check for initialization; the table is static.
 
-	if (type == NULL)
+	if (!type)
 		return (status = ERR_NULLPARAMETER);
 
 	for (count = 0; kernelMemCmp(&gptPartTypes[count].typeGuid, &GUID_UNUSED,
@@ -3040,7 +3052,7 @@ gptPartType *kernelDiskGetGptPartTypes(void)
 
 	gptPartType *types =
 		kernelMemoryGet(sizeof(gptPartTypes), "partition types");
-	if (types == NULL)
+	if (!types)
 		return (types);
 
 	kernelMemCopy(gptPartTypes, types, sizeof(gptPartTypes));
@@ -3061,7 +3073,7 @@ int kernelDiskSetFlags(const char *diskName, unsigned flags, int set)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (diskName == NULL)
+	if (!diskName)
 		return (status = ERR_NULLPARAMETER);
 
 	// Only allow the user-settable flags
@@ -3069,7 +3081,7 @@ int kernelDiskSetFlags(const char *diskName, unsigned flags, int set)
 
 	// Get the disk structure
 	physicalDisk = getPhysicalByName(diskName);
-	if (physicalDisk == NULL)
+	if (!physicalDisk)
 	{
 		// Try logical
 		if ((logicalDisk = kernelDiskGetByName(diskName)))
@@ -3127,12 +3139,12 @@ int kernelDiskSetLockState(const char *diskName, int state)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (diskName == NULL)
+	if (!diskName)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get the disk structure
 	physicalDisk = getPhysicalByName(diskName);
-	if (physicalDisk == NULL)
+	if (!physicalDisk)
 	{
 		// Try logical
 		if ((logicalDisk = kernelDiskGetByName(diskName)))
@@ -3144,7 +3156,7 @@ int kernelDiskSetLockState(const char *diskName, int state)
 	ops = (kernelDiskOps *) physicalDisk->driver->ops;
 
 	// Make sure the operation is supported
-	if (ops->driverSetLockState == NULL)
+	if (!ops->driverSetLockState)
 	{
 		kernelError(kernel_error, "Driver routine is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
@@ -3179,12 +3191,12 @@ int kernelDiskSetDoorState(const char *diskName, int state)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (diskName == NULL)
+	if (!diskName)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get the disk structure
 	physicalDisk = getPhysicalByName(diskName);
-	if (physicalDisk == NULL)
+	if (!physicalDisk)
 	{
 		// Try logical
 		if ((logicalDisk = kernelDiskGetByName(diskName)))
@@ -3203,7 +3215,7 @@ int kernelDiskSetDoorState(const char *diskName, int state)
 	ops = (kernelDiskOps *) physicalDisk->driver->ops;
 
 	// Make sure the operation is supported
-	if (ops->driverSetDoorState == NULL)
+	if (!ops->driverSetDoorState)
 	{
 		kernelError(kernel_error, "Driver routine is NULL");
 		return (status = ERR_NOSUCHFUNCTION);
@@ -3244,12 +3256,12 @@ int kernelDiskMediaPresent(const char *diskName)
 		return (present = 0);
 
 	// Check params
-	if (diskName == NULL)
+	if (!diskName)
 		return (present = 0);
 
 	// Get the disk structure
 	physicalDisk = getPhysicalByName(diskName);
-	if (physicalDisk == NULL)
+	if (!physicalDisk)
 	{
 		// Try logical
 		if ((logicalDisk = kernelDiskGetByName(diskName)))
@@ -3312,12 +3324,12 @@ int kernelDiskMediaChanged(const char *diskName)
 		return (changed = 0);
 
 	// Check params
-	if (diskName == NULL)
+	if (!diskName)
 		return (changed = 0);
 
 	// Get the disk structure
 	physicalDisk = getPhysicalByName(diskName);
-	if (physicalDisk == NULL)
+	if (!physicalDisk)
 	{
 		// Try logical
 		if ((logicalDisk = kernelDiskGetByName(diskName)))
@@ -3333,7 +3345,7 @@ int kernelDiskMediaChanged(const char *diskName)
 	ops = (kernelDiskOps *) physicalDisk->driver->ops;
 
 	// Make sure the the 'disk changed' function is implemented
-	if (ops->driverMediaChanged == NULL)
+	if (!ops->driverMediaChanged)
 		return (changed = 0);
 
 	// Lock the disk
@@ -3372,16 +3384,16 @@ int kernelDiskReadSectors(const char *diskName, uquad_t logicalSector,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if ((diskName == NULL) || (dataPointer == NULL))
+	if (!diskName || !dataPointer)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get the disk structure.  Try a physical disk first.
 	physicalDisk = getPhysicalByName(diskName);
-	if (physicalDisk == NULL)
+	if (!physicalDisk)
 	{
 		// Try logical
 		theDisk = kernelDiskGetByName(diskName);
-		if (theDisk == NULL)
+		if (!theDisk)
 			// No such disk.
 			return (status = ERR_NOSUCHENTRY);
 
@@ -3404,7 +3416,7 @@ int kernelDiskReadSectors(const char *diskName, uquad_t logicalSector,
 
 		physicalDisk = theDisk->physical;
 
-		if (physicalDisk == NULL)
+		if (!physicalDisk)
 		{
 			kernelError(kernel_error, "Logical disk's physical disk is NULL");
 			return (status = ERR_NOSUCHENTRY);
@@ -3442,16 +3454,16 @@ int kernelDiskWriteSectors(const char *diskName, uquad_t logicalSector,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if ((diskName == NULL) || (data == NULL))
+	if (!diskName || !data)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get the disk structure.  Try a physical disk first.
 	physicalDisk = getPhysicalByName(diskName);
-	if (physicalDisk == NULL)
+	if (!physicalDisk)
 	{
 		// Try logical
 		theDisk = kernelDiskGetByName(diskName);
-		if (theDisk == NULL)
+		if (!theDisk)
 			// No such disk.
 			return (status = ERR_NOSUCHENTRY);
 
@@ -3471,7 +3483,7 @@ int kernelDiskWriteSectors(const char *diskName, uquad_t logicalSector,
 
 		physicalDisk = theDisk->physical;
 
-		if (physicalDisk == NULL)
+		if (!physicalDisk)
 		{
 			kernelError(kernel_error, "Logical disk's physical disk is NULL");
 			return (status = ERR_NOSUCHENTRY);
@@ -3513,16 +3525,16 @@ int kernelDiskEraseSectors(const char *diskName, uquad_t logicalSector,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (diskName == NULL)
+	if (!diskName)
 		return (status = ERR_NULLPARAMETER);
 
 	// Get the disk structure.  Try a physical disk first.
 	physicalDisk = getPhysicalByName(diskName);
-	if (physicalDisk == NULL)
+	if (!physicalDisk)
 	{
 		// Try logical
 		theDisk = kernelDiskGetByName(diskName);
-		if (theDisk == NULL)
+		if (!theDisk)
 			// No such disk.
 			return (status = ERR_NOSUCHENTRY);
 
@@ -3546,7 +3558,7 @@ int kernelDiskEraseSectors(const char *diskName, uquad_t logicalSector,
 	// Get a buffer for the data
 	bufferSize = (numSectors * physicalDisk->sectorSize);
 	buffer = kernelMalloc(bufferSize);
-	if (buffer == NULL)
+	if (!buffer)
 		return (status = ERR_MEMORY);
 
 	// Lock the disk
@@ -3608,7 +3620,7 @@ int kernelDiskGetStats(const char *diskName, diskStats *stats)
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params.  It's okay for diskName to be NULL.
-	if (stats == NULL)
+	if (!stats)
 		return (status = ERR_NULLPARAMETER);
 
 	kernelMemClear(stats, sizeof(diskStats));
@@ -3617,7 +3629,7 @@ int kernelDiskGetStats(const char *diskName, diskStats *stats)
 	{
 		// Get the disk structure
 		physicalDisk = getPhysicalByName(diskName);
-		if (physicalDisk == NULL)
+		if (!physicalDisk)
 		{
 			// Try logical
 			if ((logicalDisk = kernelDiskGetByName(diskName)))

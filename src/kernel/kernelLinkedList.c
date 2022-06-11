@@ -45,11 +45,11 @@ int kernelLinkedListAdd(kernelLinkedList *list, void *data)
 	int status = 0;
 	kernelLinkedListItem *new = NULL;
 
-	if ((list == NULL) || (data == NULL))
+	if (!list || !data)
 		return (status = ERR_NULLPARAMETER);
 
 	new = kernelMalloc(sizeof(kernelLinkedListItem));
-	if (new == NULL)
+	if (!new)
 		return (status = ERR_MEMORY);
 
 	new->data = data;
@@ -81,7 +81,7 @@ int kernelLinkedListRemove(kernelLinkedList *list, void *data)
 	int status = 0;
 	kernelLinkedListItem *iter = NULL;
 
-	if ((list == NULL) || (data == NULL))
+	if (!list || !data)
 		return (status = ERR_NULLPARAMETER);
 
 	status = kernelLockGet(&list->lock);
@@ -126,7 +126,7 @@ int kernelLinkedListClear(kernelLinkedList *list)
 	kernelLinkedListItem *iter = NULL;
 	kernelLinkedListItem *next = NULL;
 
-	if (list == NULL)
+	if (!list)
 		return (status = ERR_NULLPARAMETER);
 
 	status = kernelLockGet(&list->lock);
@@ -211,3 +211,4 @@ void kernelLinkedListDebug(kernelLinkedList *list __attribute__((unused)))
 	}
 #endif // DEBUG
 }
+

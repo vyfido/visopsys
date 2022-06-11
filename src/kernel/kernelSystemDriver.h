@@ -21,11 +21,13 @@
 
 #if !defined(_KERNELSYSTEMDRIVER_H)
 
-#define BIOSAREA_START		0x000E0000
-#define BIOSAREA_END		0x000FFFFF
-#define BIOSAREA_SIZE		((BIOSAREA_END - BIOSAREA_START) + 1)
-#define BIOSAREA_SIG_32		"_32_"
-#define BIOSAREA_SIG_PNP	"$PnP"
+#include "kernelDevice.h"
+
+#define BIOSROM_START		0x000E0000
+#define BIOSROM_END			0x000FFFFF
+#define BIOSROM_SIZE		((BIOSROM_END - BIOSROM_START) + 1)
+#define BIOSROM_SIG_32		"_32_"
+#define BIOSROM_SIG_PNP		"$PnP"
 #define BIOS_PNP_VERSION	0x10
 
 // The header for a 32-bit BIOS interface
@@ -57,5 +59,11 @@ typedef struct {
 
 } __attribute__((packed)) kernelBiosPnpHeader;
 
+typedef struct {
+	void *(*driverGetEntry)(kernelDevice *, unsigned char, int);
+
+} kernelMultiProcOps;
+
 #define _KERNELSYSTEMDRIVER_H
 #endif
+

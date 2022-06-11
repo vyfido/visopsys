@@ -94,7 +94,10 @@ static char *errorMessages[] = {
 
 static ideController *controllers = NULL;
 static int numControllers = 0;
-static void *oldIntHandlers[INTERRUPT_VECTORS];
+
+// Saved old interrupt handlers
+static void **oldIntHandlers = NULL;
+static int numOldHandlers = 0;
 
 
 static int pollStatus(int diskNum, unsigned char mask, int onOff)
@@ -332,8 +335,8 @@ static int waitOperationComplete(int diskNum, int yield, int dataWait,
 	unsigned startTime = kernelSysTimerRead();
 
 	kernelDebug(debug_io, "IDE disk %02x wait (%s) for interrupt %d "
-		"ack=%d", diskNum, (yield? "yield" : "poll"),
-		DISK_CHAN(diskNum).interrupt, ack);
+		"dataWait=%d ack=%d", diskNum, (yield? "yield" : "poll"),
+		DISK_CHAN(diskNum).interrupt, dataWait, ack);
 
 	if (!timeout)
 		timeout = 20;
@@ -341,11 +344,13 @@ static int waitOperationComplete(int diskNum, int yield, int dataWait,
 	while (1)
 	{
 		if (yield && !DISK_CHAN(diskNum).gotInterrupt)
+		{
 			// Go into a waiting state.  The caller should previously have
 			// called expectInterrupt(), which will tell the interrupt handler
 			// that our process ID is waiting.  It will change our state to
 			// 'IO ready' which will give us high priority for a wakeup
 			kernelMultitaskerWait(timeout);
+		}
 
 		if (DISK_CHAN(diskNum).gotInterrupt)
 		{
@@ -442,14 +447,6 @@ static int writeCommandFile(int diskNum, unsigned char featErr,
 	if (status < 0)
 		return (status);
 
-	// Wait for the controller to be ready
-	status = pollStatus(diskNum, ATA_STAT_BSY, 0);
-	if (status < 0)
-	{
-		kernelDebugError("Disk %02x controller not ready", diskNum);
-		return (status);
-	}
-
 	if (DISKIS48(diskNum))
 	{
 		kernelDebug(debug_io, "IDE disk %02x write command file 48-bit",
@@ -538,7 +535,8 @@ static int sendAtapiPacket(int diskNum, unsigned byteCount,
 	kernelProcessorRepOutPort16(DISK_CHAN(diskNum).ports.data, packet, 6);
 
 	// Interrupt says data received
-	status = waitOperationComplete(diskNum, 0, 0, 1, 100);
+	status = waitOperationComplete(diskNum, 0 /* no yield */,
+		0 /* no data wait */, 1 /* ack */, 100 /* timeout */);
 
 	// The disk may interrupt again if/when it's got data for us
 	expectInterrupt(diskNum);
@@ -582,7 +580,8 @@ static int atapiRequestSense(int diskNum, atapiSenseData *senseData,
 	}
 
 	// Interrupt at the end says data is finished
-	waitOperationComplete(diskNum, 0, 0, 1, 0);
+	waitOperationComplete(diskNum, 0 /* no yield */, 0 /* no data wait */,
+		1 /* ack */, 0 /* default timeout */);
 
 	kernelDebug(debug_io, "IDE disk %02x sense key=%02x", diskNum,
 		senseData->senseKey);
@@ -723,7 +722,8 @@ static int atapiStartStop(int diskNum, int start)
 			(((unsigned)(dataWord & 0xFF00)) >> 8);
 
 		// Interrupt at the end says data is finished
-		waitOperationComplete(diskNum, 0, 0, 1, 0);
+		waitOperationComplete(diskNum, 0 /* no yield */, 0 /* no data wait */,
+			1 /* ack */, 0 /* default timeout */);
 
 		// If there's no disk, the number of sectors will be illegal.	Set
 		// to the maximum value and quit
@@ -778,7 +778,8 @@ static int atapiStartStop(int diskNum, int start)
 		DISK(diskNum).physical.flags |= DISKFLAG_MOTORON;
 
 		// Interrupt at the end says data is finished
-		waitOperationComplete(diskNum, 0, 0, 1, 0);
+		waitOperationComplete(diskNum, 0 /* no yield */, 0 /* no data wait */,
+			1 /* ack */, 0 /* default timeout */);
 	}
 	else
 	{
@@ -858,9 +859,10 @@ static int dmaSetup(int diskNum, void *address, unsigned bytes, int read,
 
 	int status = 0;
 	unsigned maxBytes = 0;
-	void *physicalAddress = NULL;
+	unsigned physicalAddress = NULL;
 	unsigned doBytes = 0;
 	int numPrds = 0;
+	idePrd *prds = NULL;
 	int count;
 
 	// How many bytes can we do per DMA operation?
@@ -878,17 +880,18 @@ static int dmaSetup(int diskNum, void *address, unsigned bytes, int read,
 	}
 
 	// Address must be dword-aligned
-	if ((unsigned) physicalAddress % 4)
+	if (physicalAddress % 4)
 	{
-		kernelError(kernel_error, "Physical address %p of virtual address %p "
-			"not dword-aligned", physicalAddress, address);
+		kernelError(kernel_error, "Physical address 0x%08x of virtual address "
+			"%p not dword-aligned", physicalAddress, address);
 		return (status = ERR_ALIGN);
 	}
 
 	kernelDebug(debug_io, "IDE disk %02x do DMA setup for %u bytes to "
-		"address %p", diskNum, bytes, physicalAddress);
+		"address 0x%08x", diskNum, bytes, physicalAddress);
 
 	// Set up all the PRDs
+	prds = DISK_CHAN(diskNum).prds.virtual;
 
 	for (count = 0; bytes > 0; count ++)
 	{
@@ -920,13 +923,12 @@ static int dmaSetup(int diskNum, void *address, unsigned bytes, int read,
 		}
 
 		// Set up the address and count in the channel's PRD
-		DISK_CHAN(diskNum).prd[count].physicalAddress = physicalAddress;
-		DISK_CHAN(diskNum).prd[count].count = doBytes;
-		DISK_CHAN(diskNum).prd[count].EOT = 0;
+		prds[count].physicalAddress = physicalAddress;
+		prds[count].count = doBytes;
+		prds[count].EOT = 0;
 
-		kernelDebug(debug_io, "IDE disk %02x set up PRD for address %p, "
-			"bytes %u", diskNum, DISK_CHAN(diskNum).prd[count].physicalAddress,
-			doBytes);
+		kernelDebug(debug_io, "IDE disk %02x set up PRD for address 0x%08x, "
+			"bytes %u", diskNum, prds[count].physicalAddress, doBytes);
 
 		physicalAddress += doBytes;
 		bytes -= doBytes;
@@ -935,7 +937,7 @@ static int dmaSetup(int diskNum, void *address, unsigned bytes, int read,
 	}
 
 	// Mark the last entry in the PRD table.
-	DISK_CHAN(diskNum).prd[numPrds - 1].EOT = 0x8000;
+	prds[numPrds - 1].EOT = 0x8000;
 
 	// Try to wait for the controller to be ready
 	status = pollStatus(diskNum, ATA_STAT_BSY, 0);
@@ -944,7 +946,7 @@ static int dmaSetup(int diskNum, void *address, unsigned bytes, int read,
 
 	// Set the PRD table address
 	kernelProcessorOutPort32(DISK_BMPORT_PRDADDR(diskNum),
-		 DISK_CHAN(diskNum).prdPhysical);
+		 DISK_CHAN(diskNum).prds.physical);
 
 	// Set DMA read/write bit
 	dmaReadWrite(diskNum, read);
@@ -1104,24 +1106,15 @@ static int identify(int diskNum, unsigned short *buffer)
 		if (status < 0)
 			return (status);
 
-		kernelSysTimerWaitTicks(2);
+		// Delay 10ms
+		kernelCpuSpinMs(10);
 
 		// Wait for the controller to finish the operation
-		status = waitOperationComplete(diskNum, 0, 0, 0, 0);
+		status = waitOperationComplete(diskNum, 0 /* no yield */,
+			1 /* data wait */, 0 /* no ack */, 0 /* default timeout */);
 
 		if (status >= 0)
 		{
-			// Wait for data ready.  We don't do this in the
-			// waitOperationComplete() call, above, because some nonexistent
-			// slaves can interrupt even though they don't have any data for
-			// us.  Doing it here prevents an error message in debug mode.
-			status = pollStatus(diskNum, ATA_STAT_DRQ, 1);
-			if (status < 0)
-			{
-				ackInterrupt(diskNum);
-				return (status = ERR_NODATA);
-			}
-
 			// Transfer one sector's worth of data from the controller.
 			kernelDebug(debug_io, "IDE disk %02x identify succeeded",
 				diskNum);
@@ -1181,9 +1174,11 @@ static int identify(int diskNum, unsigned short *buffer)
 	if (status < 0)
 		return (status);
 
-	kernelSysTimerWaitTicks(2);
+	// Delay 10ms
+	kernelCpuSpinMs(10);
 
-	status = waitOperationComplete(diskNum, 0, 1, 0, 0);
+	status = waitOperationComplete(diskNum, 0 /* no yield */,
+		1 /* data wait */, 0 /* no ack */, 0 /* default timeout */);
 	if (status < 0)
 	{
 		ackInterrupt(diskNum);
@@ -1303,7 +1298,8 @@ static int readWriteAtapi(int diskNum, uquad_t logicalSector,
 		}
 
 		// Interrupt at the end says data is finished
-		waitOperationComplete(diskNum, 0, 0, 1, 0);
+		waitOperationComplete(diskNum, 0 /* no yield */, 0 /* no data wait */,
+			1 /* ack */, 0 /* default timeout */);
 	}
 
 	return (status = 0);
@@ -1395,7 +1391,8 @@ static int readWriteDma(int diskNum, uquad_t logicalSector, uquad_t numSectors,
 		dmaStartStop(diskNum, 1);
 
 		// Wait for the controller to finish the operation
-		status = waitOperationComplete(diskNum, 1, 0, 0, 0);
+		status = waitOperationComplete(diskNum, 1 /* yield */,
+			0 /* no data wait */, 0 /* no ack */, 0 /* default timeout */);
 
 		// Stop DMA.
 		dmaStartStop(diskNum, 0);
@@ -1546,7 +1543,9 @@ static int readWritePio(int diskNum, uquad_t logicalSector, uquad_t numSectors,
 			}
 
 			// Wait for the controller to finish the operation
-			status = waitOperationComplete(diskNum, 1, read, 0, 0);
+			status = waitOperationComplete(diskNum, 1 /* yield */,
+				read /* data wait on read */, 0 /* no ack */,
+				0 /* default timeout */);
 			if (status < 0)
 				break;
 
@@ -1621,11 +1620,6 @@ static int readWriteSectors(int diskNum, uquad_t logicalSector,
 	if (status < 0)
 		goto out;
 
-	// Wait for the controller to be ready
-	status = pollStatus(diskNum, ATA_STAT_BSY, 0);
-	if (status < 0)
-		goto out;
-
 	// If it's an ATAPI device
 	if (DISK(diskNum).physical.type & DISKTYPE_IDECDROM)
 	{
@@ -1678,15 +1672,16 @@ static int atapiReset(int diskNum)
 	if (status < 0)
 		return (status);
 
-	status = waitOperationComplete(diskNum, 1, 0, 1, 0);
+	status = waitOperationComplete(diskNum, 1 /* yield */,
+		0 /* no data wait */, 1 /* ack */, 0 /* default timeout */);
 	if (status < 0)
 		return (status);
 
 	// Do ATAPI reset
 	kernelProcessorOutPort8(DISK_CHAN(diskNum).ports.comStat, ATA_ATAPIRESET);
 
-	// Wait for it...
-	kernelSysTimerWaitTicks(1);
+	// Delay 5ms
+	kernelCpuSpinMs(5);
 
 	// Wait for controller ready
 	status = pollStatus(diskNum, ATA_STAT_BSY, 0);
@@ -1916,19 +1911,10 @@ static void secondaryIdeInterrupt(void)
 	// the information.
 
 	void *address = NULL;
-	unsigned char data;
 	int interruptNum = 0;
 	int count;
 
 	kernelProcessorIsrEnter(address);
-
-	// This interrupt can sometimes occur frivolously from "noise"
-	// on the interrupt request lines.  Before we do anything at all,
-	// we MUST ensure that the interrupt really occurred.
-	kernelProcessorOutPort8(0xA0, 0x0B);
-	kernelProcessorInPort8(0xA0, data);
-	if (!(data & 0x80))
-		goto out;
 
 	// Which interrupt number is active?
 	interruptNum = kernelPicGetActive();
@@ -1995,13 +1981,14 @@ static int setTransferMode(int diskNum, ataDmaMode *mode,
 
 	expectInterrupt(diskNum);
 
-	status =
-		writeCommandFile(diskNum, 0x03, mode->val, 0, 0, 0, ATA_SETFEATURES);
+	status = writeCommandFile(diskNum, 0x03, mode->val, 0, 0, 0,
+		ATA_SETFEATURES);
 	if (status < 0)
 		return (status);
 
 	// Wait for the command to complete
-	status = waitOperationComplete(diskNum, 1, 0, 1, 0);
+	status = waitOperationComplete(diskNum, 1 /* yield */,
+		0 /* no data wait */, 1 /* ack */, 0 /* default timeout */);
 	if (status < 0)
 		return (status);
 
@@ -2047,13 +2034,14 @@ static int setMultiMode(int diskNum, unsigned short multiSectors)
 
 	expectInterrupt(diskNum);
 
-	status =
-		writeCommandFile(diskNum, 0, multiSectors, 0, 0, 0, ATA_SETMULTIMODE);
+	status = writeCommandFile(diskNum, 0, multiSectors, 0, 0, 0,
+		ATA_SETMULTIMODE);
 	if (status < 0)
 		goto out;
 
 	// Wait for the controller to finish the operation
-	status = waitOperationComplete(diskNum, 1, 0, 1, 0);
+	status = waitOperationComplete(diskNum, 1 /* yield */,
+		0 /* no data wait */, 1 /* ack */, 0 /* default timeout */);
 	if (status < 0)
 		goto out;
 
@@ -2117,7 +2105,8 @@ static int enableFeature(int diskNum, ataFeature *feature,
 		return (status);
 
 	// Wait for the command to complete
-	status = waitOperationComplete(diskNum, 1, 0, 1, 0);
+	status = waitOperationComplete(diskNum, 1 /* yield */,
+		0 /* no data wait */, 1 /* ack */, 0 /* default timeout */);
 	if (status < 0)
 		return (status);
 
@@ -2203,11 +2192,6 @@ static int driverSetLockState(int diskNum, int lockState)
 	if (status < 0)
 		goto out;
 
-	// Wait for the controller to be ready
-	status = pollStatus(diskNum, ATA_STAT_BSY, 0);
-	if (status < 0)
-		goto out;
-
 	status = atapiSetLockState(diskNum, lockState);
 
 out:
@@ -2247,11 +2231,6 @@ static int driverSetDoorState(int diskNum, int open)
 	if (status < 0)
 		goto out;
 
-	// Wait for the controller to be ready
-	status = pollStatus(diskNum, ATA_STAT_BSY, 0);
-	if (status < 0)
-		goto out;
-
 	status = atapiSetDoorState(diskNum, open);
 
 out:
@@ -2278,10 +2257,6 @@ static int driverMediaPresent(int diskNum)
 
 	// Select the disk
 	if (select(diskNum) < 0)
-		goto out;
-
-	// Wait for the controller to be ready
-	if (pollStatus(diskNum, ATA_STAT_BSY, 0) < 0)
 		goto out;
 
 	kernelDebug(debug_io, "IDE does %ssupport media status",
@@ -2364,7 +2339,7 @@ static int driverFlush(int diskNum)
 		return (status);
 
 	// Select the disk and wait for it to be ready
-	if ((select(diskNum) < 0) || (pollStatus(diskNum, ATA_STAT_BSY, 0) < 0))
+	if (select(diskNum) < 0)
 	{
 		kernelError(kernel_error, "%s", errorMessages[IDE_TIMEOUT]);
 		goto out;
@@ -2383,7 +2358,8 @@ static int driverFlush(int diskNum)
 	kernelProcessorOutPort8(DISK_CHAN(diskNum).ports.comStat, command);
 
 	// Wait for the controller to finish the operation
-	status = waitOperationComplete(diskNum, 1, 0, 1, 0);
+	status = waitOperationComplete(diskNum, 1 /* yield */,
+		0 /* no data wait */, 1 /* ack */, 0 /* default timeout */);
 	if (status < 0)
 		goto out;
 
@@ -2436,8 +2412,7 @@ static int detectPciControllers(kernelDevice *controllerDevices[],
 		}
 
 		// Get the PCI device header
-		status =
-			kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
+		status = kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
 		if (status < 0)
 			continue;
 
@@ -2514,26 +2489,8 @@ static int detectPciControllers(kernelDevice *controllerDevices[],
 		kernelDebug(debug_io, "IDE PCI busmaster control reg=%08x",
 			pciDevInfo.device.nonBridge.baseAddress[4]);
 
-#if 0
-		// Is an interrupt number assigned?
-		if (!pciDevInfo.device.nonBridge.interruptLine ||
-			(pciDevInfo.device.nonBridge.interruptLine == 0xFF))
-		{
-			// Nothing assigned.  Ask the PCI driver to assign one.
-			kernelDebug(debug_io, "IDE PCI ask for interrupt assignment");
-			if (kernelPciAssignInterrupt(&pciTargets[deviceCount]) >= 0)
-			{
-				kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
-				kernelDebug(debug_io, "IDE PCI assigned interrupt=%d",
-					kernelBusReadRegister(&pciTargets[deviceCount],
-						PCI_CONFREG_INTLINE_8, 8));
-			}
-		}
-#endif
-
-		// Get the interrupt line
-		if (pciDevInfo.device.nonBridge.interruptLine &&
-			(pciDevInfo.device.nonBridge.interruptLine != 0xFF))
+		// Get the interrupt number
+		if (pciDevInfo.device.nonBridge.interruptLine != 0xFF)
 		{
 			kernelDebug(debug_io, "IDE PCI using PCI interrupt=%d",
 				pciDevInfo.device.nonBridge.interruptLine);
@@ -2623,45 +2580,8 @@ static int detectPciControllers(kernelDevice *controllerDevices[],
 			prdMemorySize = (CHANNEL(numControllers, count).prdEntries *
 				sizeof(idePrd));
 
-			CHANNEL(numControllers, count).prdPhysical =
-				kernelMemoryGetPhysical(prdMemorySize, DISK_CACHE_ALIGN,
-					"ide prd entries");
-			if (!CHANNEL(numControllers, count).prdPhysical)
-			{
-				status = ERR_MEMORY;
-				break;
-			}
-
-			// Map the physical memory into virtual memory
-			status = kernelPageMapToFree(KERNELPROCID,
-				CHANNEL(numControllers, count).prdPhysical,
-				(void **) &CHANNEL(numControllers, count).prd, prdMemorySize);
-			if (status < 0)
-				break;
-
-			if (((unsigned) CHANNEL(numControllers, count).prd % 4) ||
-				((unsigned) CHANNEL(numControllers, count).prdPhysical %
-					0x10000))
-			{
-				kernelError(kernel_warn, "PRD or PRD physical not correctly "
-					"aligned");
-				status = ERR_ALIGN;
-				break;
-			}
-
-			// Make it non-cacheable
-			status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
-				PAGEFLAG_CACHEDISABLE,
-				(void *) CHANNEL(numControllers, count).prd, prdMemorySize);
-			if (status < 0)
-				break;
-
-			// Clear it out, since the kernelMemoryGetPhysical() routine
-			// doesn't do it for us
-			kernelMemClear((void *) CHANNEL(numControllers, count).prd,
-				 prdMemorySize);
-
-			status = 0;
+			status = kernelMemoryGetIo(prdMemorySize, DISK_CACHE_ALIGN,
+				(kernelIoMemory *) &CHANNEL(numControllers, count).prds);
 		}
 
 		if (status < 0)
@@ -2681,6 +2601,10 @@ static int detectPciControllers(kernelDevice *controllerDevices[],
 				kernelDeviceGetClass(DEVICECLASS_DISKCTRL);
 			controllerDevices[numControllers]->device.subClass =
 				kernelDeviceGetClass(DEVICESUBCLASS_DISKCTRL_IDE);
+
+			// Initialize the variable list for attributes of the controller
+			kernelVariableListCreate(
+				&controllerDevices[numControllers]->device.attrs);
 
 			// Claim the controller device in the list of PCI targets.
 			kernelBusDeviceClaim(&(pciTargets[deviceCount]), driver);
@@ -2727,30 +2651,15 @@ static int driverDetect(void *parent __attribute__((unused)),
 	// Reset controller count
 	numControllers = 0;
 
-	// Clear old interrupt handlers list
-	kernelMemClear(&oldIntHandlers, (INTERRUPT_VECTORS * sizeof(void *)));
-
-	// First see whether we have PCI controller(s)
+	// See whether we have PCI controller(s)
 	status = detectPciControllers(controllerDevices, driver);
 	if (status < 0)
 		kernelDebugError("IDE PCI controller detection error");
 
 	if (numControllers <= 0)
 	{
-		// No PCI.  Assume standard IDE and use the parent device passed to us
-		// as the parent for the disks.
-		kernelDebug(debug_io, "IDE PCI controller not detected.");
-
-		// Allocate memory for the controller
-		controllers = kernelMalloc(sizeof(ideController));
-		if (!controllers)
-		{
-			status = ERR_MEMORY;
-			goto out;
-		}
-
-		controllerDevices[0] = parent;
-		numControllers = 1;
+		kernelDebug(debug_io, "IDE no controllers detected.");
+		return (status = 0);
 	}
 
 	kernelDebug(debug_io, "IDE %d controllers detected", numControllers);
@@ -2763,17 +2672,41 @@ static int driverDetect(void *parent __attribute__((unused)),
 			!controllers[controllerCount].pciInterrupt)
 		{
 			if (!CHANNEL(controllerCount, 0).interrupt)
+			{
 				CHANNEL(controllerCount, 0).interrupt =
 					INTERRUPT_NUM_PRIMARYIDE;
-			kernelDebug(debug_io, "IDE controller %d using standard "
-				"interrupt=%d", controllerCount,
-				CHANNEL(controllerCount, 0).interrupt);
+
+				kernelDebug(debug_io, "IDE controller %d using standard "
+					"interrupt=%d", controllerCount,
+					CHANNEL(controllerCount, 0).interrupt);
+			}
+
+			sprintf(value, "%d", CHANNEL(controllerCount, 0).interrupt);
+			kernelVariableListSet(
+				&controllerDevices[controllerCount]->device.attrs,
+				"controller.interrupt.primary", value);
+
 			if (!CHANNEL(controllerCount, 1).interrupt)
+			{
 				CHANNEL(controllerCount, 1).interrupt =
 					INTERRUPT_NUM_SECONDARYIDE;
-			kernelDebug(debug_io, "IDE controller %d using standard "
-				"interrupt=%d", controllerCount,
-				CHANNEL(controllerCount, 1).interrupt);
+
+				kernelDebug(debug_io, "IDE controller %d using standard "
+					"interrupt=%d", controllerCount,
+					CHANNEL(controllerCount, 1).interrupt);
+			}
+
+			sprintf(value, "%d", CHANNEL(controllerCount, 1).interrupt);
+			kernelVariableListSet(
+				&controllerDevices[controllerCount]->device.attrs,
+				"controller.interrupt.secondary", value);
+		}
+		else
+		{
+			sprintf(value, "%d", controllers[controllerCount].pciInterrupt);
+			kernelVariableListSet(
+				&controllerDevices[controllerCount]->device.attrs,
+				"controller.interrupt", value);
 		}
 
 		// If none are set, copy the default port addresses
@@ -2785,6 +2718,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 				kernelMemCopy(&defaultPorts[count], (void *)
 					&CHANNEL(controllerCount, count).ports,
 					sizeof(idePorts));
+
 				kernelDebug(debug_io, "IDE controller %d using legacy I/O "
 					"ports %04x-%04x & %04x", controllerCount,
 					CHANNEL(controllerCount, count).ports.data,
@@ -2797,6 +2731,21 @@ static int driverDetect(void *parent __attribute__((unused)),
 		if (controllers[controllerCount].pciInterrupt)
 		{
 			// Save any old handler for this PCI interrupt number
+
+			if (numOldHandlers <= controllers[controllerCount].pciInterrupt)
+			{
+				numOldHandlers =
+					(controllers[controllerCount].pciInterrupt + 1);
+
+				oldIntHandlers = kernelRealloc(oldIntHandlers,
+					(numOldHandlers * sizeof(void *)));
+				if (!oldIntHandlers)
+				{
+					status = ERR_MEMORY;
+					goto out;
+				}
+			}
+
 			if (!oldIntHandlers[controllers[controllerCount].pciInterrupt] &&
 				(kernelInterruptGetHandler(controllers[controllerCount]
 					.pciInterrupt) != pciIdeInterrupt))
@@ -2818,7 +2767,9 @@ static int driverDetect(void *parent __attribute__((unused)),
 			// Just in case there's an outstanding interrupt
 			expectInterrupt(controllerCount << 4);
 
-			kernelPicMask(controllers[controllerCount].pciInterrupt, 1);
+			status = kernelPicMask(controllers[controllerCount].pciInterrupt, 1);
+			if (status < 0)
+				continue;
 
 			// Ack any outstanding interrupt
 			ackInterrupt(controllerCount << 4);
@@ -2849,7 +2800,9 @@ static int driverDetect(void *parent __attribute__((unused)),
 			// Just in case there's an outstanding interrupt
 			expectInterrupt(controllerCount << 4);
 
-			kernelPicMask(CHANNEL(controllerCount, 0).interrupt, 1);
+			status = kernelPicMask(CHANNEL(controllerCount, 0).interrupt, 1);
+			if (status < 0)
+				continue;
 
 			// Ack any outstanding interrupt
 			ackInterrupt(controllerCount << 4);
@@ -2878,7 +2831,9 @@ static int driverDetect(void *parent __attribute__((unused)),
 			// Just in case there's an outstanding interrupt
 			expectInterrupt((controllerCount << 4) | 2);
 
-			kernelPicMask(CHANNEL(controllerCount, 1).interrupt, 1);
+			status = kernelPicMask(CHANNEL(controllerCount, 1).interrupt, 1);
+			if (status < 0)
+				continue;
 
 			// Ack any outstanding interrupt
 			ackInterrupt((controllerCount << 4) | 2);
@@ -2904,7 +2859,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 			if (status < 0)
 				continue;
 
-			if (!(diskNum % 2))
+			if (!(diskNum & 1))
 				// Do a reset without checking the status.  Some controllers
 				// need a select before a reset, some the other way around.
 				// These should cause the code below to satisfy both.
@@ -2915,16 +2870,22 @@ static int driverDetect(void *parent __attribute__((unused)),
 			// Some controllers can interrupt on a select(), if there's no
 			// disk.
 			expectInterrupt(diskNum);
+
 			selectStatus = select(diskNum);
+
+			// Wait for any potential interrupt to arrive
+			kernelCpuSpinMs(5);
+
+			if (DISK_CHAN(diskNum).gotInterrupt)
+			{
+				kernelDebug(debug_io, "IDE selection caused interrupt, status "
+					"%02x", DISK_CHAN(diskNum).intStatus);
+				ackInterrupt(diskNum);
+			}
+
 			if (selectStatus < 0)
 			{
 				kernelDebug(debug_io, "IDE selection failed");
-				if (DISK_CHAN(diskNum).gotInterrupt)
-				{
-					kernelDebug(debug_io, "IDE selection fail caused "
-						"interrupt");
-					ackInterrupt(diskNum);
-				}
 			}
 			else
 			{
@@ -3053,7 +3014,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 					kernelError(kernel_warn, "ATAPI device type may not be "
 						"supported");
 
-				if ((buffer[0] & 0x0003) != 0)
+				if (buffer[0] & 0x0003)
 					kernelError(kernel_warn, "ATAPI packet size not 12");
 
 				atapiReset(diskNum);
@@ -3378,6 +3339,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 	status = 0;
 
 out:
+	kernelDebug(debug_io, "IDE detection complete");
 	return (status);
 }
 

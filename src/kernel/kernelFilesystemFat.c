@@ -142,7 +142,7 @@ int fatFlushFSInfo(fatInternalData *fatData)
 
 	int status = 0;
 
-	kernelDebug(debug_fs, "Flushing FS info");
+	kernelDebug(debug_fs, "FAT flushing FS info");
 
 	fatData->fsInfo.freeCount = fatData->freeClusters;
 
@@ -468,7 +468,7 @@ int fatFlushVolumeInfo(fatInternalData *fatData)
 
 	int status = 0;
 
-	kernelDebug(debug_fs, "Flushing volume info");
+	kernelDebug(debug_fs, "FAT flushing volume info");
 
 	// Set a couple of BPB values that are based on up-to-date ones in the
 	// main fatInternalData structure.
@@ -537,7 +537,8 @@ static int writeFatSectors(fatInternalData *fatData, unsigned sector,
 	int status = 0;
 	unsigned count;
 
-	kernelDebug(debug_fs, "Writing %d FAT sectors at %d", numSectors, sector);
+	kernelDebug(debug_fs, "FAT writing %d FAT sectors at %d", numSectors,
+		sector);
 
 	if ((sector + (numSectors - 1)) >= fatData->fatSects)
 	{
@@ -575,7 +576,7 @@ static int getFatEntries(fatInternalData *fatData, unsigned firstEntry,
 	unsigned entryOffset = 0;
 	unsigned count;
 
-	//kernelDebug(debug_fs, "Read FAT entries %u->%u", firstEntry,
+	//kernelDebug(debug_fs, "FAT read FAT entries %u->%u", firstEntry,
 	//	((firstEntry + numEntries) - 1));
 
 	// Check to make sure there is such a range
@@ -1041,7 +1042,7 @@ static void makeFreeBitmapThread(void)
 		}
 	}
 
-	kernelDebug(debug_fs, "Finished making free cluster bitmap");
+	kernelDebug(debug_fs, "FAT finished making free cluster bitmap");
 	status = 0;
 
 out:
@@ -1229,12 +1230,16 @@ static int getUnusedClusters(fatInternalData *fatData, unsigned requested,
 	*startCluster = 0;
 
 	// Make sure the request is bigger than zero
-	if (requested == 0)
+	if (!requested)
 		// This isn't an "error" per se, we just won't do anything
 		return (status = 0);
 
 	if (makingFatFree == fatData)
+	{
+		kernelDebug(debug_fs, "FAT waiting for free bitmap thread");
 		kernelMultitaskerBlock(makeFatFreePid);
+		kernelDebug(debug_fs, "FAT finished waiting for free bitmap thread");
+	}
 
 	// Make sure that there are enough free clusters to satisfy the request
 	if (fatData->freeClusters < requested)
@@ -1343,7 +1348,7 @@ static int getUnusedClusters(fatInternalData *fatData, unsigned requested,
 
 	// Adjust the free cluster count by whatever number we found
 	fatData->freeClusters -= biggestSize;
-	kernelDebug(debug_fs, "Free clusters now %d", fatData->freeClusters);
+	kernelDebug(debug_fs, "FAT free clusters now %d", fatData->freeClusters);
 
 	// If we didn't find enough clusters in the main loop, that means there's
 	// no single block of clusters large enough.  We'll do a little recursion
@@ -1400,7 +1405,7 @@ static int lengthenFile(fatInternalData *fatData, kernelFileEntry *entry,
 	if (!entry)
 		return (status = ERR_NULLPARAMETER);
 
-	kernelDebug(debug_fs, "Lengthening file \"%s\": entry->blocks=%d "
+	kernelDebug(debug_fs, "FAT lengthening file \"%s\": entry->blocks=%d "
 		"newClusters=%d", entry->name, entry->blocks, newClusters);
 
 	if (entry->blocks >= newClusters)
@@ -1414,13 +1419,16 @@ static int lengthenFile(fatInternalData *fatData, kernelFileEntry *entry,
 
 	needClusters = (newClusters - entry->blocks);
 
+	kernelDebug(debug_fs, "FAT getting %u new clusters for \"%s\"",
+		needClusters, entry->name);
+
 	// We will need to allocate some more clusters
 	status = getUnusedClusters(fatData, needClusters, &gotClusters);
 	if (status < 0)
 		return (status);
 
-	kernelDebug(debug_fs, "Got %u new clusters for \"%s\" at %u", needClusters,
-		entry->name, gotClusters);
+	kernelDebug(debug_fs, "FAT got %u new clusters for \"%s\" at %u",
+		needClusters, entry->name, gotClusters);
 
 	// Get the number of the current last cluster
 	status = getLastCluster(fatData, entryData->startCluster, &lastCluster);
@@ -2010,7 +2018,7 @@ static int write(fatInternalData *fatData, kernelFileEntry *writeFile,
 	unsigned startSavedClusters = 0;
 	unsigned count;
 
-	kernelDebug(debug_fs, "Writing file \"%s\": skipClusters=%d "
+	kernelDebug(debug_fs, "FAT writing file \"%s\": skipClusters=%d "
 		"writeClusters=%d", writeFile->name, skipClusters, writeClusters);
 
 	// Get the entry's data
@@ -2068,6 +2076,8 @@ static int write(fatInternalData *fatData, kernelFileEntry *writeFile,
 	// We already know the first cluster
 	startSavedClusters = currentCluster;
 	savedClusters = 1;
+
+	kernelDebug(debug_fs, "FAT writing clusters");
 
 	// This is the loop where we write the clusters
 	for (count = 0; count < writeClusters; count ++)
@@ -2607,7 +2617,7 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 			}
 		}
 
-		kernelDebug(debug_fs, "Scanning directory entry for %s",
+		kernelDebug(debug_fs, "FAT scanning directory entry for %s",
 			newItem->name);
 
 		// Get the entry's various other information
@@ -3188,7 +3198,7 @@ static int writeDir(kernelFileEntry *directory)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	kernelDebug(debug_fs, "Writing directory \"%s\"", directory->name);
+	kernelDebug(debug_fs, "FAT writing directory \"%s\"", directory->name);
 
 	// Get the private FAT data structure attached to this file entry
 	entryData = (fatEntryData *) directory->driverData;
@@ -3459,7 +3469,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	kernelDebug(debug_fs, "Formatting disk %s", theDisk->name);
+	kernelDebug(debug_fs, "FAT formatting disk %s", theDisk->name);
 
 	// Check params
 	if (!theDisk || !type || !label)
@@ -3842,7 +3852,7 @@ static int defragFile(fatInternalData *fatData, kernelFileEntry *entry,
 	void *fileData = NULL;
 	unsigned count;
 
-	kernelDebug(debug_fs, "Defragging file %s", entry->name);
+	kernelDebug(debug_fs, "FAT defragging file %s", entry->name);
 
 	status = getNumClusters(fatData, entryData->startCluster, &numClusters);
 	if (status < 0)
@@ -4188,7 +4198,7 @@ static int clobber(kernelDisk *theDisk)
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	kernelDebug(debug_fs, "Clobbering disk %s", theDisk->name);
+	kernelDebug(debug_fs, "FAT clobbering disk %s", theDisk->name);
 
 	// Check params.
 	if (!theDisk)
@@ -4257,7 +4267,8 @@ static int mount(kernelDisk *theDisk)
 		return (status = ERR_BADDATA);
 	}
 
-	kernelDebug(debug_fs, "Mounted %s as %s", theDisk->name, theDisk->fsType);
+	kernelDebug(debug_fs, "FAT mounted %s as %s", theDisk->name,
+		theDisk->fsType);
 
 	// Mark the filesystem as 'dirty'
 	if (!markFatFsClean(fatData, 0))
@@ -4469,7 +4480,7 @@ static int writeFile(kernelFileEntry *theFile, unsigned blockNum,
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	kernelDebug(debug_fs, "Writing file \"%s\" blockNum=%d blocks=%d",
+	kernelDebug(debug_fs, "FAT writing file \"%s\" blockNum=%d blocks=%d",
 		theFile->name, blockNum, blocks);
 
 	// Make sure the file entry and buffer aren't NULL

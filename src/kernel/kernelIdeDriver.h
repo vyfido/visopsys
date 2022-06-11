@@ -26,6 +26,7 @@
 
 #include "kernelDisk.h"
 #include "kernelLock.h"
+#include "kernelMemory.h"
 
 #define IDE_MAX_DISKS			4
 #define IDE_MAX_CONTROLLERS		(DISK_MAXDEVICES / IDE_MAX_DISKS)
@@ -64,7 +65,7 @@ typedef struct {
 } idePorts;
 
 typedef volatile struct {
-	void *physicalAddress;
+	unsigned physicalAddress;
 	unsigned short count;
 	unsigned short EOT;
 
@@ -75,8 +76,7 @@ typedef volatile struct {
 	int interrupt;
 	unsigned char intStatus;
 	ideDisk disk[2];
-	idePrd *prd;
-	void *prdPhysical;
+	kernelIoMemory prds;
 	int prdEntries;
 	int expectInterrupt;
 	int gotInterrupt;
@@ -95,3 +95,4 @@ typedef volatile struct {
 
 #define _KERNELIDEDRIVER_H
 #endif
+

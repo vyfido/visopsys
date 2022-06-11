@@ -81,11 +81,11 @@ static void printTree(device *dev, int level)
 
 		if (vendor || model)
 		{
-			if (vendor && model)
+			if (vendor && vendor[0] && model && model[0])
 				printf("\"%s %s\" ", vendor, model);
-			else if (vendor)
+			else if (vendor && vendor[0])
 				printf("\"%s\" ", vendor);
-			else if (model)
+			else if (model && model[0])
 				printf("\"%s\" ", model);
 		}
 

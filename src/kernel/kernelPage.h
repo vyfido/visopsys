@@ -93,10 +93,10 @@ kernelPageDirectory *kernelPageGetDirectory(int);
 kernelPageDirectory *kernelPageNewDirectory(int);
 kernelPageDirectory *kernelPageShareDirectory(int, int);
 int kernelPageDeleteDirectory(int);
-int kernelPageMap(int, void *, void *, unsigned);
-int kernelPageMapToFree(int, void *, void **, unsigned);
+int kernelPageMap(int, unsigned, void *, unsigned);
+int kernelPageMapToFree(int, unsigned, void **, unsigned);
 int kernelPageUnmap(int, void *, unsigned);
-void *kernelPageGetPhysical(int, void *);
+unsigned kernelPageGetPhysical(int, void *);
 void *kernelPageFindFree(int, unsigned);
 int kernelPageSetAttrs(int, int, unsigned char, void *, unsigned);
 
@@ -106,3 +106,4 @@ void kernelPageTableDebug(int);
 
 #define _KERNELPAGE_H
 #endif
+

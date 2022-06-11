@@ -25,17 +25,32 @@
 #include "kernelLinkedList.h"
 #include <sys/usb.h>
 
+#define USB_STD_TIMEOUT_MS		2000
+
+// The 4 USB controller types
+typedef enum {
+	usb_ohci, usb_uhci, usb_ehci, usb_xhci
+
+} usbControllerType;
+
+// The 4 USB device speeds
+typedef enum {
+	usbspeed_unknown, usbspeed_low, usbspeed_full, usbspeed_high,
+	usbspeed_super
+
+} usbDevSpeed;
+
+// The 3 USB protocol levels
+typedef enum {
+	usbproto_unknown, usbproto_usb1, usbproto_usb2, usbproto_usb3
+
+} usbProtocol;
+
 // The 4 USB data transfer types
 typedef enum {
 	usbxfer_isochronous, usbxfer_interrupt, usbxfer_control, usbxfer_bulk
 
 } usbXferType;
-
-// The 4 USB device speeds
-typedef enum {
-	usbspeed_unknown, usbspeed_low, usbspeed_full, usbspeed_high, usbspeed_super
-
-} usbDevSpeed;
 
 typedef volatile struct {
 	usbXferType type;
@@ -51,6 +66,7 @@ typedef volatile struct {
 	void *buffer;
 	unsigned bytes;
 	unsigned char pid;
+	unsigned timeout;
 
 } usbTransaction;
 
@@ -62,7 +78,11 @@ typedef volatile struct {
 	volatile struct _usbController *controller;
 	volatile struct _usbHub *hub;
 	kernelDevice dev;
-	unsigned char port;
+	int rootPort;
+	int hubAddress;
+	int hubDepth;
+	int hubPort;
+	unsigned routeString;
 	usbDevSpeed speed;
 	unsigned char address;
 	unsigned short usbVersion;
@@ -79,25 +99,14 @@ typedef volatile struct {
 	usbEndpointDesc *endpointDesc[USB_MAX_ENDPOINTS];
 	int numEndpoints;
 	struct {
-		unsigned char endpntAddress;
-		unsigned char toggle;
-	} dataToggle[USB_MAX_ENDPOINTS];
+		unsigned char number;
+		unsigned char dataToggle;
+		unsigned char maxBurst;
+	} endpoint[USB_MAX_ENDPOINTS];
 	void *claimed;
 	void *data;
 
 } usbDevice;
-
-typedef struct {
-	unsigned short status;
-	unsigned short change;
-
-} __attribute__((packed)) usbHubStatus;
-
-typedef struct {
-	unsigned short status;
-	unsigned short change;
-
-} __attribute__((packed)) usbPortStatus;
 
 typedef volatile struct _usbHub {
 	volatile struct _usbController *controller;
@@ -107,8 +116,6 @@ typedef volatile struct _usbHub {
 	unsigned char *changeBitmap;
 	int gotInterrupt;
 	int doneColdDetect;
-	usbHubStatus hubStatus;
-	usbPortStatus *portStatus;
 	usbEndpointDesc *intrInDesc;
 	unsigned char intrInEndpoint;
 	kernelLinkedList devices;
@@ -122,7 +129,8 @@ typedef volatile struct _usbHub {
 typedef volatile struct _usbController {
 	kernelBus *bus;
 	kernelDevice *dev;
-	unsigned char num;
+	int num;
+	usbControllerType type;
 	unsigned short usbVersion;
 	int interruptNum;
 	unsigned char addressCounter;
@@ -138,7 +146,7 @@ typedef volatile struct _usbController {
 	int (*schedInterrupt)(volatile struct _usbController *, usbDevice *,
 		unsigned char, int, unsigned,
 		void (*)(usbDevice *, void *, unsigned));
-	int (*unschedInterrupt)(volatile struct _usbController *, usbDevice *);
+	int (*deviceRemoved)(volatile struct _usbController *, usbDevice *);
 
 } usbController;
 
@@ -156,25 +164,6 @@ typedef struct {
 	usbSubClass *subClasses;
 
 } usbClass;
-
-typedef struct {
-	unsigned signature;
-	unsigned tag;
-	unsigned dataLength;
-	unsigned char flags;
-	unsigned char lun;
-	unsigned char cmdLength;
-	unsigned char cmd[16];
-
-} __attribute__((packed)) usbCmdBlockWrapper;
-
-typedef struct {
-	unsigned signature;
-	unsigned tag;
-	unsigned dataResidue;
-	unsigned char status;
-
-} __attribute__((packed)) usbCmdStatusWrapper;
 
 // Make our proprietary USB target code
 #define usbMakeTargetCode(controller, address, endpoint)			\
@@ -208,12 +197,12 @@ usbDevice *kernelUsbGetDevice(int);
 usbEndpointDesc *kernelUsbGetEndpointDesc(usbDevice *, unsigned char);
 volatile unsigned char *kernelUsbGetEndpointDataToggle(usbDevice *,
 	unsigned char);
+int kernelUsbSetDeviceConfig(usbDevice *);
 int kernelUsbSetupDeviceRequest(usbTransaction *, usbDeviceRequest *);
 int kernelUsbControlTransfer(usbDevice *, unsigned char, unsigned short,
 	unsigned short, unsigned short, void *,	unsigned *);
 int kernelUsbScheduleInterrupt(usbDevice *, unsigned char, int, unsigned,
 	void (*)(usbDevice *, void *, unsigned));
-int kernelUsbUnscheduleInterrupt(usbDevice *);
 
 // Detection routines for different driver types
 kernelDevice *kernelUsbUhciDetect(kernelBusTarget *, kernelDriver *);
@@ -223,3 +212,4 @@ kernelDevice *kernelUsbXhciDetect(kernelBusTarget *, kernelDriver *);
 
 #define _KERNELUSBDRIVER_H
 #endif
+

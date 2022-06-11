@@ -192,3 +192,4 @@ int kernelDiskRamDiskDestroy(const char *);
 
 #define _KERNELDISK_H
 #endif
+

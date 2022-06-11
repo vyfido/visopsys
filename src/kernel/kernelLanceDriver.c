@@ -25,23 +25,23 @@
 
 #include "kernelDriver.h" // Contains my prototypes
 #include "kernelLanceDriver.h"
-#include "kernelNetworkDevice.h"
 #include "kernelBus.h"
+#include "kernelError.h"
+#include "kernelMalloc.h"
+#include "kernelNetworkDevice.h"
+#include "kernelPage.h"
+#include "kernelParameters.h"
 #include "kernelPciDriver.h"
 #include "kernelProcessorX86.h"
-#include "kernelMalloc.h"
-#include "kernelParameters.h"
-#include "kernelPage.h"
 #include "kernelMemory.h"
 #include "kernelMisc.h"
-#include "kernelError.h"
 #include <string.h>
-
 
 static struct {
 	unsigned version;
 	char *vendor;
 	char *model;
+
 } lanceVendorModel[] = {
 	{ 0x2420, "AMD", "PCnet/PCI 79C970" },		// PCI
 	{ 0x2621, "AMD", "PCnet/PCI II 79C970A" },	// PCI
@@ -60,13 +60,17 @@ static void reset(lanceDevice *lance)
 	unsigned tmp;
 
 	// 32-bit reset, by doing a 32-bit read from the 32-bit reset port.
-	kernelProcessorInPort32((lance->ioAddress + LANCE_PORTOFFSET32_RESET), tmp);
+	kernelProcessorInPort32((lance->ioAddress + LANCE_PORTOFFSET32_RESET),
+		tmp);
 
 	// Then 16-bit reset, by doing a 16-bit read from the 16-bit reset port,
 	// so the chip is reset and in 16-bit mode.
-	kernelProcessorInPort16((lance->ioAddress + LANCE_PORTOFFSET16_RESET), tmp);
+	kernelProcessorInPort16((lance->ioAddress + LANCE_PORTOFFSET16_RESET),
+		tmp);
+
 	// The NE2100 LANCE card needs an extra write access to follow
-	kernelProcessorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RESET), tmp);
+	kernelProcessorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RESET),
+		tmp);
 }
 
 
@@ -106,7 +110,8 @@ static void modifyCSR(lanceDevice *lance, int idx, unsigned data, opType op)
 	data &= 0xFFFF;
 
 	kernelProcessorOutPort16((lance->ioAddress + LANCE_PORTOFFSET16_RAP), idx);
-	kernelProcessorInPort16((lance->ioAddress + LANCE_PORTOFFSET_RDP), contents);
+	kernelProcessorInPort16((lance->ioAddress + LANCE_PORTOFFSET_RDP),
+		contents);
 
 	if (op == op_or)
 		contents |= data;
@@ -370,7 +375,7 @@ static int driverWriteData(kernelNetworkDevice *adapter,
 	lanceDevice *lance = NULL;
 	lanceTransDesc16 *transDesc = NULL;
 	int *head = NULL;
-	void *bufferPhysical = NULL;
+	unsigned bufferPhysical = NULL;
 
 	// Check params
 	if (!adapter || !buffer)
@@ -433,13 +438,12 @@ static int driverDetect(void *parent __attribute__((unused)),
 	kernelNetworkDevice *adapter = NULL;
 	lanceDevice *lance = NULL;
 	unsigned ioSpaceSize = 0;
+	kernelIoMemory recvBuff;
 	void *receiveBuffer = NULL;
-	void *receiveBufferPhysical = NULL;
-	void *recvRingPhysical = NULL;
-	void *recvRingVirtual = NULL;
-	void *transRingPhysical = NULL;
-	void *transRingVirtual = NULL;
-	void *initPhysical = NULL;
+	unsigned receiveBufferPhysical = 0;
+	kernelIoMemory recvRing;
+	kernelIoMemory transRing;
+	kernelIoMemory init;
 	lanceInitBlock16 *initBlock = NULL;
 	int deviceCount, count, shift;
 
@@ -534,9 +538,8 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 		shift = 2;
 		lance->ioSpaceSize = 4;
-		ioSpaceSize =
-			kernelBusReadRegister(&busTargets[deviceCount],
-				PCI_CONFREG_BASEADDRESS0_32, 32);
+		ioSpaceSize = kernelBusReadRegister(&busTargets[deviceCount],
+			PCI_CONFREG_BASEADDRESS0_32, 32);
 		while (!((ioSpaceSize >> shift++) & 1))
 			lance->ioSpaceSize *= 2;
 
@@ -549,7 +552,8 @@ static int driverDetect(void *parent __attribute__((unused)),
 			(NETWORK_ADAPTERFLAG_AUTOPAD | NETWORK_ADAPTERFLAG_AUTOSTRIP |
 				NETWORK_ADAPTERFLAG_AUTOCRC);
 		adapter->device.linkProtocol = NETWORK_LINKPROTOCOL_ETHERNET;
-		adapter->device.interruptNum = pciDevInfo.device.nonBridge.interruptLine;
+		adapter->device.interruptNum =
+			pciDevInfo.device.nonBridge.interruptLine;
 		adapter->device.recvQueueLen = LANCE_NUM_RINGBUFFERS;
 		adapter->device.transQueueLen = LANCE_NUM_RINGBUFFERS;
 
@@ -587,49 +591,33 @@ static int driverDetect(void *parent __attribute__((unused)),
 		}
 
 		// Get space for the buffers
-		receiveBufferPhysical =
-			kernelMemoryGetPhysical((LANCE_NUM_RINGBUFFERS *
-				LANCE_RINGBUFFER_SIZE), 0, "lance receive buffers");
+		status = kernelMemoryGetIo((LANCE_NUM_RINGBUFFERS *
+			LANCE_RINGBUFFER_SIZE), 0, &recvBuff);
+		if (status < 0)
+			continue;
 
-		// Map the physical memory into virtual memory
-		kernelPageMapToFree(KERNELPROCID, receiveBufferPhysical, &receiveBuffer,
-			(LANCE_NUM_RINGBUFFERS * LANCE_RINGBUFFER_SIZE));
-
-		// Make it non-cacheable
-		kernelPageSetAttrs(KERNELPROCID, 1 /* set */, PAGEFLAG_CACHEDISABLE,
-			receiveBuffer, (LANCE_NUM_RINGBUFFERS * LANCE_RINGBUFFER_SIZE));
-
-		// Clear it out, since the kernelMemoryGetPhysical() routine doesn't
-		// do it for us
-		kernelMemClear(receiveBuffer,
-			(LANCE_NUM_RINGBUFFERS * LANCE_RINGBUFFER_SIZE));
+		receiveBuffer = recvBuff.virtual;
+		receiveBufferPhysical = recvBuff.physical;
 
 		// Set up the receive ring descriptors
 		lance->recvRing.head = 0;
 		lance->recvRing.tail = 0;
-		recvRingPhysical = kernelMemoryGetPhysical((LANCE_NUM_RINGBUFFERS *
-			sizeof(lanceRecvDesc16)), 0, "lance ring descriptors");
 
-		// Map the physical memory into virtual memory
-		kernelPageMapToFree(KERNELPROCID, recvRingPhysical, &recvRingVirtual,
-			(LANCE_NUM_RINGBUFFERS * sizeof(lanceRecvDesc16)));
+		status = kernelMemoryGetIo((LANCE_NUM_RINGBUFFERS *
+			sizeof(lanceRecvDesc16)), 0, &recvRing);
+		if (status < 0)
+		{
+			kernelMemoryReleaseIo(&recvBuff);
+			continue;
+		}
 
-		// Make it non-cacheable
-		kernelPageSetAttrs(KERNELPROCID, 1 /* set */, PAGEFLAG_CACHEDISABLE,
-			recvRingVirtual, (LANCE_NUM_RINGBUFFERS * sizeof(lanceRecvDesc16)));
-
-		// Clear it out, since the kernelMemoryGetPhysical() routine doesn't
-		// do it for us
-		kernelMemClear(recvRingVirtual, (LANCE_NUM_RINGBUFFERS *
-			sizeof(lanceRecvDesc16)));
-
-		lance->recvRing.desc.recv = recvRingVirtual;
+		lance->recvRing.desc.recv = recvRing.virtual;
 		for (count = 0; count < LANCE_NUM_RINGBUFFERS; count ++)
 		{
 			lance->recvRing.desc.recv[count].buffAddrLow = (unsigned short)
-				((unsigned) receiveBufferPhysical & 0xFFFF);
+				(receiveBufferPhysical & 0xFFFF);
 			lance->recvRing.desc.recv[count].buffAddrHigh = (unsigned short)
-				(((unsigned) receiveBufferPhysical & 0x00FF0000) >> 16);
+				((receiveBufferPhysical & 0x00FF0000) >> 16);
 			lance->recvRing.desc.recv[count].flags = LANCE_DESCFLAG_OWN;
 			lance->recvRing.desc.recv[count].bufferSize = (unsigned short)
 				(0xF000 | (((short) -LANCE_RINGBUFFER_SIZE) & 0x0FFF));
@@ -641,59 +629,50 @@ static int driverDetect(void *parent __attribute__((unused)),
 		// Set up the transmit ring descriptors
 		lance->transRing.head = 0;
 		lance->transRing.tail = 0;
-		transRingPhysical = kernelMemoryGetPhysical((LANCE_NUM_RINGBUFFERS *
-			sizeof(lanceTransDesc16)), 0, "lance ring descriptors");
 
-		// Map the physical memory into virtual memory
-		kernelPageMapToFree(KERNELPROCID, transRingPhysical, &transRingVirtual,
-			(LANCE_NUM_RINGBUFFERS * sizeof(lanceTransDesc16)));
+		status = kernelMemoryGetIo((LANCE_NUM_RINGBUFFERS *
+			sizeof(lanceTransDesc16)), 0, &transRing);
+		if (status < 0)
+		{
+			kernelMemoryReleaseIo(&recvRing);
+			kernelMemoryReleaseIo(&recvBuff);
+			continue;
+		}
 
-		// Make it non-cacheable
-		kernelPageSetAttrs(KERNELPROCID, 1 /* set */, PAGEFLAG_CACHEDISABLE,
-			transRingVirtual, (LANCE_NUM_RINGBUFFERS *
-				sizeof(lanceTransDesc16)));
-
-		// Clear it out, since the kernelMemoryGetPhysical() routine doesn't
-		// do it for us
-		kernelMemClear(transRingVirtual, (LANCE_NUM_RINGBUFFERS *
-			sizeof(lanceTransDesc16)));
-
-		lance->transRing.desc.trans = transRingVirtual;
+		lance->transRing.desc.trans = transRing.virtual;
 
 		// Set up the initialization registers.
 
 		// Set the software style as 0 == 16-bit LANCE
 		writeCSR(lance, LANCE_CSR_STYLE, 0);
 
-		// Set up the initialization block
-		initPhysical = kernelMemoryGetPhysical(sizeof(lanceInitBlock16), 0,
-			"lance init block");
+		status = kernelMemoryGetIo(sizeof(lanceInitBlock16), 0, &init);
+		if (status < 0)
+		{
+			kernelMemoryReleaseIo(&transRing);
+			kernelMemoryReleaseIo(&recvRing);
+			kernelMemoryReleaseIo(&recvBuff);
+			continue;
+		}
 
-		// Map the physical memory into virtual memory
-		kernelPageMapToFree(KERNELPROCID, initPhysical, (void **) &initBlock,
-			sizeof(lanceInitBlock16));
-
-		// Make it non-cacheable
-		kernelPageSetAttrs(KERNELPROCID, 1 /* set */, PAGEFLAG_CACHEDISABLE,
-			initBlock, sizeof(lanceInitBlock16));
-
-		// Clear it out, since the kernelMemoryGetPhysical() routine doesn't
-		// do it for us
-		kernelMemClear(initBlock, sizeof(lanceInitBlock16));
+		initBlock = init.virtual;
 
 		// Mode zero is 'normal' mode
-		initBlock->mode = 0;//LANCE_CSR_MODE_PROM;
+		initBlock->mode = 0; //LANCE_CSR_MODE_PROM;
+
 		for (count = 0; count < 6; count ++)
 			initBlock->physAddr[count] =
 				adapter->device.hardwareAddress.bytes[count];
+
 		// Accept all multicast packets for now.
 		for (count = 0; count < 4; count ++)
 			initBlock->addressFilter[count] = 0xFFFF;
-		initBlock->recvDescLow = ((unsigned) recvRingPhysical & 0xFFFF);
-		initBlock->recvDescHigh = ((unsigned) recvRingPhysical >> 16);
+
+		initBlock->recvDescLow = ((unsigned) recvRing.physical & 0xFFFF);
+		initBlock->recvDescHigh = ((unsigned) recvRing.physical >> 16);
 		initBlock->recvRingLen = (LANCE_NUM_RINGBUFFERS_CODE << 5);
-		initBlock->transDescLow = ((unsigned) transRingPhysical & 0xFFFF);
-		initBlock->transDescHigh = ((unsigned) transRingPhysical >> 16);
+		initBlock->transDescLow = ((unsigned) transRing.physical & 0xFFFF);
+		initBlock->transDescHigh = ((unsigned) transRing.physical >> 16);
 		initBlock->transRingLen = (LANCE_NUM_RINGBUFFERS_CODE << 5);
 
 		// Interrupt mask and deferral control: enable everything except
@@ -710,8 +689,8 @@ static int driverDetect(void *parent __attribute__((unused)),
 			(readBCR(lance, LANCE_BCR_BURST) | 0x0260));
 
 		// Load init block address registers
-		writeCSR(lance, LANCE_CSR_IADR0, ((unsigned) initPhysical & 0xFFFF));
-		writeCSR(lance, LANCE_CSR_IADR1, ((unsigned) initPhysical >> 16));
+		writeCSR(lance, LANCE_CSR_IADR0, ((unsigned) init.physical & 0xFFFF));
+		writeCSR(lance, LANCE_CSR_IADR1, ((unsigned) init.physical >> 16));
 
 		// Start the init
 		writeCSR(lance, LANCE_CSR_STATUS, LANCE_CSR_STATUS_INIT);
@@ -719,8 +698,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 		// Wait until done
 		while (!(readCSR(lance, LANCE_CSR_STATUS) & LANCE_CSR_STATUS_IDON));
 
-		kernelPageUnmap(KERNELPROCID, initBlock, sizeof(lanceInitBlock16));
-		kernelMemoryReleasePhysical(initPhysical);
+		kernelMemoryReleaseIo(&init);
 
 		// Start it and enable device interrupts
 		writeCSR(lance, LANCE_CSR_STATUS,

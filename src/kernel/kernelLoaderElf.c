@@ -98,7 +98,7 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
 	Elf32SectionHeader *sectionHeaders = NULL;
 	int count;
 
-	if ((fileName == NULL) || (dataPtr == NULL) || (class == NULL))
+	if (!fileName || !dataPtr || !class)
 		return (0);
 
 	// Make sure there's enough data here for our detection
@@ -222,7 +222,7 @@ static loaderSymbolTable *getSymbols(void *data, int kernel)
 		symTable = kernelMalloc(symTableSize);
 	else
 		symTable = kernelMemoryGet(symTableSize, "symbol table");
-	if (symTable == NULL)
+	if (!symTable)
 		return (symTable = NULL);
 
 	// Set up the structure
@@ -365,7 +365,7 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
 		imageMemory = kernelMemoryGetSystem(imageSize, memoryDesc);
 	else
 		imageMemory = kernelMemoryGet(imageSize, memoryDesc);
-	if (imageMemory == NULL)
+	if (!imageMemory)
 	{
 		kernelError(kernel_error, "Error getting memory for ELF image");
 		return (status = ERR_MEMORY);
@@ -437,7 +437,7 @@ static int getLibraryDependencies(void *loadAddress, elfLibraryArray *array)
 
 	// Get the section header for the 'dynamic' section
 	dynamicHeader = getSectionHeader(loadAddress, ".dynamic");
-	if (dynamicHeader == NULL)
+	if (!dynamicHeader)
 	{
 		kernelError(kernel_error, "ELF image has no dynamic linking section");
 		return (status = ERR_INVALID);
@@ -446,7 +446,7 @@ static int getLibraryDependencies(void *loadAddress, elfLibraryArray *array)
 	// The string table header used by the 'dynamic' section
 	stringHeader = getSectionHeaderByNumber(loadAddress,
 		dynamicHeader->sh_link);
-	if (stringHeader == NULL)
+	if (!stringHeader)
 	{
 		kernelError(kernel_error, "Can't find ELF image dynamic string header");
 		return (status = ERR_INVALID);
@@ -458,23 +458,23 @@ static int getLibraryDependencies(void *loadAddress, elfLibraryArray *array)
 	// entries
 	array->numLibraries = 0;
 	array->libraries = NULL;
-	for (count = 0; (dynArray[count].d_tag != 0); count ++)
+	for (count = 0; dynArray[count].d_tag; count ++)
 		if (dynArray[count].d_tag == ELFDT_NEEDED)
 			numLibraries += 1;
 
 	// If no dependencies, stop here
-	if (numLibraries == 0)
+	if (!numLibraries)
 		return (status = 0);
 
 	// Get the memory
 	array->libraries =
 		kernelMalloc(numLibraries * sizeof(kernelDynamicLibrary));
-	if (array->libraries == NULL)
+	if (!array->libraries)
 		return (status = ERR_MEMORY);
 
 	// Go through the headers again, and make copies of all the needed
 	// library structures.
-	for (count = 0; (dynArray[count].d_tag != 0) ; count ++)
+	for (count = 0; dynArray[count].d_tag; count ++)
 	{
 		if (dynArray[count].d_tag == ELFDT_NEEDED)
 		{
@@ -482,7 +482,7 @@ static int getLibraryDependencies(void *loadAddress, elfLibraryArray *array)
 				dynArray[count].d_un.d_val);
 
 			library = kernelLoaderGetLibrary(string);
-			if (library == NULL)
+			if (!library)
 				return (status = ERR_NOTINITIALIZED);
 
 			kernelMemCopy(library, &(array->libraries[array->numLibraries]),
@@ -513,7 +513,7 @@ static int resolveLibrarySymbols(loaderSymbolTable **symTable,
 	// First get memory for the new combined table
 	newTableSize = ((*symTable)->tableSize + library->symbolTable->tableSize);
 	newTable = kernelMalloc(newTableSize);
-	if (newTable == NULL)
+	if (!newTable)
 		return (status = ERR_MEMORY);
 
 	newTable->tableSize = newTableSize;
@@ -614,7 +614,7 @@ static kernelRelocationTable *getRelocations(void *loadAddress,
 
 	// The 'dynamic' section header
 	dynamicHeader = getSectionHeader(loadAddress, ".dynamic");
-	if (dynamicHeader == NULL)
+	if (!dynamicHeader)
 	{
 		kernelError(kernel_error, "ELF image has no dynamic linking section");
 		return (table = NULL);
@@ -623,7 +623,7 @@ static kernelRelocationTable *getRelocations(void *loadAddress,
 	// The string table header used by the 'dynamic' section
 	stringHeader =
 		getSectionHeaderByNumber(loadAddress, dynamicHeader->sh_link);
-	if (stringHeader == NULL)
+	if (!stringHeader)
 	{
 		kernelError(kernel_error, "Can't find ELF dynamic string header");
 		return (table = NULL);
@@ -639,14 +639,14 @@ static kernelRelocationTable *getRelocations(void *loadAddress,
 		// The dynamic-linking relocations section header
 		relocSection[count1].relocHeader =
 		getSectionHeader(loadAddress, relocSection[count1].sectionName);
-		if (relocSection[count1].relocHeader == NULL)
+		if (!relocSection[count1].relocHeader)
 			continue;
 
 		// The symbols header for this relocation section
 		relocSection[count1].symbolHeader =
 			getSectionHeaderByNumber(loadAddress,
 				relocSection[count1].relocHeader->sh_link);
-		if (relocSection[count1].symbolHeader == NULL)
+		if (!relocSection[count1].symbolHeader)
 		{
 			kernelError(kernel_error, "Can't find ELF %s section symbols "
 				"header", relocSection[count1].sectionName);
@@ -666,7 +666,7 @@ static kernelRelocationTable *getRelocations(void *loadAddress,
 		(numTotalRelocs * sizeof(kernelRelocation)));
 
 	table = kernelMalloc(tableSize);
-	if (table == NULL)
+	if (!table)
 		return (table);
 
 	table->tableSize = tableSize;
@@ -674,7 +674,7 @@ static kernelRelocationTable *getRelocations(void *loadAddress,
 	// Now get the relocations for each section
 	for (count1 = 0; count1 < RELOC_SECTIONS; count1 ++)
 	{
-		if (relocSection[count1].relocHeader == NULL)
+		if (!relocSection[count1].relocHeader)
 			continue;
 
 		relArray = (Elf32Rel *)
@@ -711,7 +711,7 @@ static kernelRelocationTable *getRelocations(void *loadAddress,
 					}
 				}
 
-				if (table->relocations[table->numRelocs].symbolName == NULL)
+				if (!table->relocations[table->numRelocs].symbolName)
 				{
 					kernelError(kernel_error, "Unrecognized symbol name %s in "
 						"ELF image", symName);
@@ -760,7 +760,7 @@ static int doRelocations(void *dataAddress, void *codeVirtualAddress,
 			symbol =
 				kernelLoaderFindSymbol(relocTable->relocations[count1]
 					.symbolName, globalSymTable);
-			if (symbol == NULL)
+			if (!symbol)
 			{
 				kernelError(kernel_error, "Symbol %s not found",
 					relocTable->relocations[count1].symbolName);
@@ -848,7 +848,7 @@ static int layoutLibrary(void *loadAddress, kernelDynamicLibrary *library)
 
 	// Get the section header for the 'dynamic' section
 	dynamicHeader = getSectionHeader(loadAddress, ".dynamic");
-	if (dynamicHeader == NULL)
+	if (!dynamicHeader)
 	{
 		kernelError(kernel_error, "Library has no dynamic linking section");
 		return (status = ERR_INVALID);
@@ -856,7 +856,7 @@ static int layoutLibrary(void *loadAddress, kernelDynamicLibrary *library)
 
 	// The string table header used by the 'dynamic' section
 	stringHeader = getSectionHeaderByNumber(loadAddress, dynamicHeader->sh_link);
-	if (stringHeader == NULL)
+	if (!stringHeader)
 	{
 		kernelError(kernel_error, "Can't find library dynamic string header");
 		return (status = ERR_INVALID);
@@ -865,7 +865,7 @@ static int layoutLibrary(void *loadAddress, kernelDynamicLibrary *library)
 	dynArray = (Elf32Dyn *)(loadAddress + dynamicHeader->sh_offset);
 
 	// Loop through the 'dynamic' entries
-	for (count = 0; (dynArray[count].d_tag != 0); count ++)
+	for (count = 0; dynArray[count].d_tag; count ++)
 	{
 		// Does the library need another library?
 		if (dynArray[count].d_tag == ELFDT_NEEDED)
@@ -914,7 +914,7 @@ static int layoutLibrary(void *loadAddress, kernelDynamicLibrary *library)
 	library->relocationTable =
 		getRelocations(loadAddress, library->symbolTable, 0);
 
-	kernelDebug(debug_loader, "ELF libary codeVirtual=%p codePhysical=%p",
+	kernelDebug(debug_loader, "ELF libary codeVirtual=%p codePhysical=0x%08x",
 		library->codeVirtual, library->codePhysical);
 
 	return (status = 0);
@@ -950,7 +950,7 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
 	int status = 0;
 	unsigned dataOffset = 0;
 	void *dataMem = NULL;
-	void *libraryDataPhysical = NULL;
+	unsigned libraryDataPhysical = NULL;
 
 	kernelDebug(debug_loader, "ELF pull in library %s", library->name);
 
@@ -960,13 +960,13 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
 	// Get memory for a copy of the library's data
 	dataMem = kernelMemoryGet(kernelPageRoundUp(dataOffset + library->dataSize),
 		"dynamic library data");
-	if (dataMem == NULL)
+	if (!dataMem)
 		return (status = ERR_MEMORY);
 
 	// Get the physical address of the data memory
 	libraryDataPhysical =
 		kernelPageGetPhysical(kernelCurrentProcess->processId, dataMem);
-	if (libraryDataPhysical == NULL)
+	if (!libraryDataPhysical)
 	{
 		kernelMemoryRelease(dataMem);
 		return (status = ERR_MEMORY);
@@ -979,8 +979,8 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
 		"library->dataSize=%u (0x%x)", library->dataVirtual,
 		library->dataSize, library->dataSize);
 
-	kernelDebug(debug_loader, "ELF got libraryDataPhysical=%p dataOffset=%u",
-		libraryDataPhysical, dataOffset);
+	kernelDebug(debug_loader, "ELF got libraryDataPhysical=0x%08x "
+		"dataOffset=%u", libraryDataPhysical, dataOffset);
 
 	kernelDebug(debug_loader, "ELF copy data from %p to %p (%p + %u) size %u",
 		library->data, (dataMem + dataOffset), dataMem, dataOffset,
@@ -993,7 +993,7 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
 
 	// Find enough free pages for the whole library image
 	library->codeVirtual = kernelPageFindFree(processId, library->imageSize);
-	if (library->codeVirtual == NULL)
+	if (!library->codeVirtual)
 	{
 		kernelMemoryRelease(dataMem);
 		return (status = ERR_MEMORY);
@@ -1111,7 +1111,7 @@ static int link(int processId, void *loadAddress, processImage *execImage,
 
 	// Get the dynamic symbols for the program
 	*symbols = getSymbols(loadAddress, 1 /* kernel */);
-	if (*symbols == NULL)
+	if (!*symbols)
 		return (status = ERR_NODATA);
 
 	// Get any library dependencies
@@ -1136,7 +1136,7 @@ static int link(int processId, void *loadAddress, processImage *execImage,
 	// Get the relocations for the program code
 	relocations =
 		getRelocations(loadAddress, *symbols, execImage->virtualAddress);
-	if (relocations == NULL)
+	if (!relocations)
 	{
 		kernelFree(*symbols);
 		*symbols = NULL;
@@ -1188,7 +1188,7 @@ static int hotLink(kernelDynamicLibrary *library)
 
 	// Get the current symbol table
 	symbols = kernelMultitaskerGetSymbols(kernelCurrentProcess->processId);
-	if (symbols == NULL)
+	if (!symbols)
 	{
 		kernelDebugError("Couldn't get symbols for process %d",
 			 kernelCurrentProcess->processId);
@@ -1243,3 +1243,4 @@ kernelFileClass *kernelFileClassElf(void)
 
 	return (&elfFileClass);
 }
+

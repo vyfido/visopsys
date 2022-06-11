@@ -47,7 +47,10 @@
 
 static ahciController *controllers = NULL;
 static int numControllers = 0;
-static void *oldIntHandlers[INTERRUPT_VECTORS];
+
+// Saved old interrupt handlers
+static void **oldIntHandlers = NULL;
+static int numOldHandlers = 0;
 
 
 #ifdef DEBUG
@@ -171,6 +174,8 @@ static int detectPciControllers(void)
 	int numPciTargets = 0;
 	int deviceCount = 0;
 	pciDeviceInfo pciDevInfo;
+	unsigned physMemSpace;
+	unsigned memSpaceSize;
 
 	// See if there are any AHCI controllers on the PCI bus.  This obviously
 	// depends upon PCI hardware detection occurring before AHCI detection.
@@ -274,9 +279,8 @@ static int detectPciControllers(void)
 		kernelMemCopy(&pciTargets[deviceCount], (kernelBusTarget *)
 			&controllers[numControllers].busTarget, sizeof(kernelBusTarget));
 
-		// Get the interrupt line
-		if (pciDevInfo.device.nonBridge.interruptLine &&
-			(pciDevInfo.device.nonBridge.interruptLine != 0xFF))
+		// Get the interrupt number
+		if (pciDevInfo.device.nonBridge.interruptLine != 0xFF)
 		{
 			kernelDebug(debug_io, "AHCI Using PCI interrupt=%d",
 				pciDevInfo.device.nonBridge.interruptLine);
@@ -288,23 +292,20 @@ static int detectPciControllers(void)
 				pciDevInfo.device.nonBridge.interruptLine);
 
 		// Get the memory range address
-		controllers[numControllers].physMemSpace =
+		physMemSpace =
 			(pciDevInfo.device.nonBridge.baseAddress[5] & 0xFFFFFFF0);
 
-		kernelDebug(debug_io, "AHCI PCI registers address %08x",
-			controllers[numControllers].physMemSpace);
+		kernelDebug(debug_io, "AHCI PCI registers address %08x", physMemSpace);
 
 		// Determine the memory space size.  Write all 1s to the register.
 		kernelBusWriteRegister(&pciTargets[deviceCount],
 			PCI_CONFREG_BASEADDRESS5_32, 32, 0xFFFFFFFF);
 
-		controllers[numControllers].memSpaceSize =
-			(~(kernelBusReadRegister(&pciTargets[deviceCount],
-				PCI_CONFREG_BASEADDRESS5_32, 32) & ~0xF) + 1);
+		memSpaceSize = (~(kernelBusReadRegister(&pciTargets[deviceCount],
+			PCI_CONFREG_BASEADDRESS5_32, 32) & ~0xF) + 1);
 
-		kernelDebug(debug_io, "AHCI PCI memory size %08x (%d)",
-			controllers[numControllers].memSpaceSize,
-			controllers[numControllers].memSpaceSize);
+		kernelDebug(debug_io, "AHCI PCI memory size %08x (%d)", memSpaceSize,
+			memSpaceSize);
 
 		// Restore the register we clobbered.
 		kernelBusWriteRegister(&pciTargets[deviceCount],
@@ -319,10 +320,8 @@ static int detectPciControllers(void)
 		// our virtual address space.
 
 		// Map the physical memory space pointed to by the decoder.
-		status = kernelPageMapToFree(KERNELPROCID, (void *)
-			controllers[numControllers].physMemSpace,
-			(void **) &(controllers[numControllers].regs),
-			controllers[numControllers].memSpaceSize);
+		status = kernelPageMapToFree(KERNELPROCID, physMemSpace,
+			(void **) &(controllers[numControllers].regs), memSpaceSize);
 		if (status < 0)
 		{
 			kernelError(kernel_error, "Error mapping memory");
@@ -333,7 +332,7 @@ static int detectPciControllers(void)
 		// hardware registers.
 		status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
 			PAGEFLAG_CACHEDISABLE, (void *) controllers[numControllers].regs,
-			controllers[numControllers].memSpaceSize);
+			memSpaceSize);
 		if (status < 0)
 			kernelDebugError("Error setting page attrs");
 
@@ -414,7 +413,7 @@ static int startStopPortCommands(ahciController *controller, int portNum,
 		(!start && !(portRegs->CMD & AHCI_PXCMD_CR)))
 	{
 		kernelDebug(debug_io, "AHCI port %d commands already %s", portNum,
-					(start? "started" : "stopped"));
+			(start? "started" : "stopped"));
 	}
 
 	// Set or clear the 'start' bit in any case
@@ -546,8 +545,8 @@ static int allocPortMemory(ahciController *controller, int portNum)
 {
 	int status = 0;
 	ahciPortRegs *portRegs = NULL;
-	unsigned physicalAddress = NULL;
-	void *virtualAddress = NULL;
+	kernelIoMemory cmdIoMem;
+	kernelIoMemory fisIoMem;
 
 	kernelDebug(debug_io, "AHCI allocate memory for port %d", portNum);
 
@@ -562,46 +561,23 @@ static int allocPortMemory(ahciController *controller, int portNum)
 		return (status = ERR_RANGE);
 	}
 
-	physicalAddress = (unsigned)
-		kernelMemoryGetPhysical(sizeof(ahciCommandList),
-			max(AHCI_CMDLIST_ALIGN, MEMORY_BLOCK_SIZE),
-			"sata ahci port command list");
-	if (!physicalAddress)
-	{
-		kernelDebugError("physicalAddress is NULL");
-		return (status = ERR_MEMORY);
-	}
+	status = kernelMemoryGetIo(sizeof(ahciCommandList),
+		max(AHCI_CMDLIST_ALIGN, MEMORY_BLOCK_SIZE), &cmdIoMem);
+	if (status < 0)
+		return (status);
 
-	if (physicalAddress % AHCI_CMDLIST_ALIGN)
+	if (cmdIoMem.physical % AHCI_CMDLIST_ALIGN)
 	{
 		kernelError(kernel_error, "Port command list is not 1Kb-aligned");
+		kernelMemoryReleaseIo(&cmdIoMem);
 		return (status = ERR_ALIGN);
 	}
 
-	portRegs->CLB = physicalAddress;
+	portRegs->CLB = cmdIoMem.physical;
 	if (controller->regs->CAP & AHCI_CAP_S64A)
 		portRegs->CLBU = 0;
 
-	// Map the physical memory to a virtual address
-	status = kernelPageMapToFree(KERNELPROCID, (void *) physicalAddress,
-		&virtualAddress, sizeof(ahciCommandList));
-	if (status < 0)
-	{
-		kernelDebugError("kernelPageMapToFree returned %d", status);
-		return (status);
-	}
-
-	// Make it non-cacheable
-	status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
-		PAGEFLAG_CACHEDISABLE, virtualAddress, sizeof(ahciCommandList));
-	if (status < 0)
-		kernelDebugError("Error setting page attrs");
-
-	// Clear it out, since the kernelMemoryGetPhysical() routine doesn't do it
-	// for us
-	kernelMemClear(virtualAddress, sizeof(ahciCommandList));
-
-	controller->port[portNum].commandList = (ahciCommandList *) virtualAddress;
+	controller->port[portNum].commandList = cmdIoMem.virtual;
 
 	// Get physical memory for the port's received FISes.  It is a 256b
 	// structure that needs to reside on a 256b boundary
@@ -609,50 +585,32 @@ static int allocPortMemory(ahciController *controller, int portNum)
 	if (sizeof(ahciReceivedFises) != AHCI_RECVFIS_SIZE)
 	{
 		kernelDebugError("ahciReceivedFises is not 256b in size");
+		kernelMemoryReleaseIo(&cmdIoMem);
 		return (status = ERR_RANGE);
 	}
 
-	physicalAddress = (unsigned)
-		kernelMemoryGetPhysical(sizeof(ahciReceivedFises),
-			max(AHCI_CMDLIST_ALIGN, MEMORY_BLOCK_SIZE),
-			"sata ahci port received fises");
-	if (!physicalAddress)
-	{
-		kernelDebugError("kernelMemoryGetPhysical returned NULL");
-		return (status = ERR_MEMORY);
-	}
-
-	if (physicalAddress % AHCI_RECVFIS_ALIGN)
-	{
-		kernelError(kernel_error, "Port received FISes structure is not "
-			"256b-aligned");
-		return (status = ERR_ALIGN);
-	}
-
-	portRegs->FB = physicalAddress;
-	if (controller->regs->CAP & AHCI_CAP_S64A)
-		portRegs->FBU = 0;
-
-	// Map the physical memory to a virtual address
-	status = kernelPageMapToFree(KERNELPROCID, (void *) physicalAddress,
-		&virtualAddress, sizeof(ahciReceivedFises));
+	status = kernelMemoryGetIo(sizeof(ahciReceivedFises),
+		max(AHCI_RECVFIS_ALIGN, MEMORY_BLOCK_SIZE), &fisIoMem);
 	if (status < 0)
 	{
-		kernelDebugError("kernelPageMapToFree returned %d", status);
+		kernelMemoryReleaseIo(&cmdIoMem);
 		return (status);
 	}
 
-	// Make it non-cacheable
-	status = kernelPageSetAttrs(KERNELPROCID, 1 /* set */,
-		PAGEFLAG_CACHEDISABLE, virtualAddress, sizeof(ahciReceivedFises));
-	if (status < 0)
-		kernelDebugError("Error setting page attrs");
+	if (fisIoMem.physical % AHCI_RECVFIS_ALIGN)
+	{
+		kernelError(kernel_error, "Port received FISes structure is not "
+			"256b-aligned");
+		kernelMemoryReleaseIo(&fisIoMem);
+		kernelMemoryReleaseIo(&cmdIoMem);
+		return (status = ERR_ALIGN);
+	}
 
-	// Clear it out, since the kernelMemoryGetPhysical() routine doesn't do it
-	// for us
-	kernelMemClear(virtualAddress, sizeof(ahciReceivedFises));
+	portRegs->FB = fisIoMem.physical;
+	if (controller->regs->CAP & AHCI_CAP_S64A)
+		portRegs->FBU = 0;
 
-	controller->port[portNum].recvFis = (ahciReceivedFises *) virtualAddress;
+	controller->port[portNum].recvFis = fisIoMem.virtual;
 
 	return (status = 0);
 }
@@ -749,6 +707,11 @@ static void interruptHandler(void)
 			{
 				kernelDebug(debug_io, "AHCI controller %d interrupt",
 					controllerCount);
+
+				// Seems like, at least with some drives/controllers, a short
+				// delay is required here before we start processing the
+				// interrupt
+				kernelCpuSpinMs(1);
 
 				for (portCount = 0; portCount < AHCI_MAX_PORTS; portCount ++)
 				{
@@ -915,6 +878,17 @@ static int setupController(ahciController *controller)
 	}
 
 	// Save any existing handler for the interrupt we're hooking
+
+	if (numOldHandlers <= controller->interrupt)
+	{
+		numOldHandlers = (controller->interrupt + 1);
+
+		oldIntHandlers = kernelRealloc(oldIntHandlers,
+			(numOldHandlers * sizeof(void *)));
+		if (!oldIntHandlers)
+			return (status = ERR_MEMORY);
+	}
+
 	if (!oldIntHandlers[controller->interrupt] &&
 		(kernelInterruptGetHandler(controller->interrupt) !=
 			&interruptHandler))
@@ -931,7 +905,9 @@ static int setupController(ahciController *controller)
 
 	kernelDebug(debug_io, "AHCI Turn on interrupt %d", controller->interrupt);
 
-	kernelPicMask(controller->interrupt, 1);
+	status = kernelPicMask(controller->interrupt, 1);
+	if (status < 0)
+		return (status);
 
 	// Enable interrupts in the controller
 	controller->regs->GHC |= AHCI_GHC_IE;
@@ -1052,43 +1028,24 @@ static int findCommandSlot(ahciController *controller, int portNum)
 }
 
 
-static unsigned allocCommandTable(int numPrds, void **commandTablePhysical,
+static unsigned allocCommandTable(int numPrds, unsigned *commandTablePhysical,
 	ahciCommandTable **commandTable)
 {
 	// Allocate a command table structure
 
 	unsigned commandTableSize = 0;
+	kernelIoMemory ioMem;
 
 	commandTableSize = (sizeof(ahciCommandTable) + (numPrds * sizeof(ahciPrd)));
 
-	// Allocate a command table structure physical memory
-	*commandTablePhysical = kernelMemoryGetPhysical(commandTableSize,
-		DISK_CACHE_ALIGN, "ahci command table");
-	if (!*commandTablePhysical)
+	if (kernelMemoryGetIo(commandTableSize, DISK_CACHE_ALIGN, &ioMem) < 0)
 	{
 		kernelError(kernel_error, "Couldn't allocate command table memory");
 		return (commandTableSize = 0);
 	}
 
-	// Map it to a virtual address
-	if (kernelPageMapToFree(KERNELPROCID, *commandTablePhysical,
-		(void **) commandTable, commandTableSize) < 0)
-	{
-		kernelError(kernel_error, "Couldn't map command table memory");
-		kernelMemoryReleasePhysical(*commandTablePhysical);
-		return (commandTableSize = 0);
-	}
-
-	// Make it non-cacheable
-	if (kernelPageSetAttrs(KERNELPROCID, 1 /* set */, PAGEFLAG_CACHEDISABLE,
-		(void *) *commandTable, commandTableSize) < 0)
-	{
-		kernelDebugError("Error setting page attrs");
-	}
-
-	// Clear it, since the kernelMemoryGetPhysical() function can't do that
-	// for us
-	kernelMemClear((void *) *commandTable, commandTableSize);
+	*commandTable = ioMem.virtual;
+	*commandTablePhysical = ioMem.physical;
 
 	// Success
 	return (commandTableSize);
@@ -1269,7 +1226,7 @@ static int issueCommand(ahciController *controller, int portNum,
 	int slotNum = -1;
 	unsigned numPrds = 0;
 	unsigned commandTableSize = 0;
-	void *commandTablePhysical = NULL;
+	unsigned commandTablePhysical = NULL;
 	ahciCommandTable *commandTable = NULL;
 	unsigned fisLen = 0;
 	ahciCommandHeader *commandHeader = NULL;
@@ -1489,9 +1446,10 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 
 	kernelDebug(debug_io, "AHCI detect disks");
 
+	kernelMemClear(sigs, sizeof(sigs));
+
 	// Loop through the ports.  For each one that's implemented, see
 	// whether there's a device attached.  If so, enable the port/device.
-	kernelMemClear(sigs, sizeof(sigs));
 	for (portNum = 0; portNum < AHCI_MAX_PORTS; portNum ++)
 	{
 		// Port implemented?
@@ -1636,7 +1594,7 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 				kernelError(kernel_warn, "ATAPI device type may not be "
 					"supported");
 
-			if ((identData.field.generalConfig & 0x0003) != 0)
+			if (identData.field.generalConfig & 0x0003)
 				kernelError(kernel_warn, "ATAPI packet size not 12");
 
 			// Return some information we know from our device info command
@@ -1886,15 +1844,13 @@ static int driverDetect(void *parent __attribute__((unused)),
 
 	int status = 0;
 	kernelDevice *controllerDevices = NULL;
+	char value[80];
 	int count;
 
 	kernelLog("AHCI: Searching for controllers");
 
 	// Reset controller count
 	numControllers = 0;
-
-	// Clear old interrupt handlers list
-	kernelMemClear(&oldIntHandlers, (INTERRUPT_VECTORS * sizeof(void *)));
 
 	// See whether we have PCI controller(s)
 	status = detectPciControllers();
@@ -1922,6 +1878,16 @@ static int driverDetect(void *parent __attribute__((unused)),
 			kernelDeviceGetClass(DEVICECLASS_DISKCTRL);
 		controllerDevices[count].device.subClass =
 			kernelDeviceGetClass(DEVICESUBCLASS_DISKCTRL_SATA);
+
+		// Initialize the variable list for attributes of the controller
+		status = kernelVariableListCreate(
+			&controllerDevices[count].device.attrs);
+		if (status >= 0)
+		{
+			sprintf(value, "%d", controllers[count].interrupt);
+			kernelVariableListSet(&controllerDevices[count].device.attrs,
+				"controller.interrupt", value);
+		}
 
 		// Register the controller
 		kernelDeviceAdd(controllers[count].busTarget.bus->dev,
@@ -2083,7 +2049,8 @@ static int readWriteAtapi(ahciController *controller, ahciDisk *dsk,
 	// If it's not started, we start it
 	if (!(dsk->physical.flags & DISKFLAG_MOTORON))
 	{
-		kernelDebug(debug_io, "AHCI disk on port %d start ATAPI", dsk->portNum);
+		kernelDebug(debug_io, "AHCI disk on port %d start ATAPI",
+			dsk->portNum);
 
 		status = atapiStartStop(controller, dsk, 1);
 		if (status < 0)
@@ -2095,8 +2062,7 @@ static int readWriteAtapi(ahciController *controller, ahciDisk *dsk,
 		kernelDebug(debug_io, "AHCI disk on port %d kickstart ATAPI device",
 			dsk->portNum);
 
-		status =
-			sendAtapiPacket(controller, dsk, ATAPI_PACKET_START, NULL, 0);
+		status = sendAtapiPacket(controller, dsk, ATAPI_PACKET_START, NULL, 0);
 		if (status < 0)
 		{
 			// Oops, didn't work -- try a full startup

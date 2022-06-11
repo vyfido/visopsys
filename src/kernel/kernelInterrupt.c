@@ -24,12 +24,17 @@
 #include "kernelInterrupt.h"
 #include "kernelDescriptor.h"
 #include "kernelError.h"
+#include "kernelMalloc.h"
+#include "kernelMisc.h"
 #include "kernelMultitasker.h"
+#include "kernelPic.h"
 #include "kernelProcessorX86.h"
 
+// Hooked interrupt vectors
+static void **vectorList = NULL;
+static int numVectors = 0;
 static volatile int processingInterrupt = 0;
 static int initialized = 0;
-
 
 #define EXHANDLERX(exceptionNum) {	\
 	unsigned exAddress = 0;			\
@@ -59,7 +64,6 @@ static void exHandler16(void) EXHANDLERX(EXCEPTION_FLOAT)
 static void exHandler17(void) EXHANDLERX(EXCEPTION_ALIGNCHECK)
 static void exHandler18(void) EXHANDLERX(EXCEPTION_MACHCHECK)
 
-
 static void intHandlerUnimp(void)
 {
 	// This is the "unimplemented interrupt" handler
@@ -70,26 +74,6 @@ static void intHandlerUnimp(void)
 	kernelProcessorIsrExit(address);
 }
 
-
-// All the interrupt vectors
-static void *vectorList[INTERRUPT_VECTORS] = {
-	intHandlerUnimp,
-	intHandlerUnimp,
-	intHandlerUnimp,
-	intHandlerUnimp,
-	intHandlerUnimp,
-	intHandlerUnimp,
-	intHandlerUnimp,
-	intHandlerUnimp,
-	intHandlerUnimp,
-	intHandlerUnimp,
-	intHandlerUnimp,
-	intHandlerUnimp,
-	intHandlerUnimp,
-	intHandlerUnimp,
-	intHandlerUnimp,
-	intHandlerUnimp
-};
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -151,14 +135,7 @@ void *kernelInterruptGetHandler(int intNumber)
 	if (!initialized)
 		return (NULL);
 
-	if ((intNumber < 0) || (intNumber >= INTERRUPT_VECTORS))
-	{
-		kernelError(kernel_error, "Interrupt number %d is out of range",
-			intNumber);
-		return (NULL);
-	}
-
-	if (vectorList[intNumber] == intHandlerUnimp)
+	if ((intNumber < 0) || (intNumber >= numVectors))
 		return (NULL);
 
 	return (vectorList[intNumber]);
@@ -174,23 +151,30 @@ int kernelInterruptHook(int intNumber, void *handlerAddress)
 	// means, please stay away from hooking interrupts!  ;)
 
 	int status = 0;
+	int vector = 0;
 
 	if (!initialized)
 		return (status = ERR_NOTINITIALIZED);
 
-	if ((intNumber < 0) || (intNumber >= INTERRUPT_VECTORS))
+	vector = kernelPicGetVector(intNumber);
+	if (vector < 0)
+		return (status = vector);
+
+	if (intNumber >= numVectors)
 	{
-		kernelError(kernel_error, "Interrupt number %d is out of range",
-			intNumber);
-		return (status = ERR_INVALID);
+		numVectors = (intNumber + 1);
+
+		vectorList = kernelRealloc(vectorList, (numVectors * sizeof(void *)));
+		if (!vectorList)
+			return (status = ERR_MEMORY);
 	}
 
-	status =
-		kernelDescriptorSetIDTInterruptGate((0x20 + intNumber), handlerAddress);
+	status = kernelDescriptorSetIDTInterruptGate(vector, handlerAddress);
 	if (status < 0)
 		return (status);
 
 	vectorList[intNumber] = handlerAddress;
+
 	return (status = 0);
 }
 
@@ -209,11 +193,9 @@ int kernelInterruptGetCurrent(void)
 
 void kernelInterruptSetCurrent(int intNumber)
 {
-	if ((intNumber < 0) || (intNumber >= INTERRUPT_VECTORS))
-	{
+	if ((intNumber < 0) || (intNumber >= numVectors))
 		kernelError(kernel_error, "Interrupt number %d is out of range",
 			intNumber);
-	}
 	else
 		processingInterrupt = ((intNumber << 16) | 1);
 }
@@ -223,3 +205,4 @@ void kernelInterruptClearCurrent(void)
 {
 	processingInterrupt = 0;
 }
+

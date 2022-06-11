@@ -33,6 +33,7 @@
 static struct {
 	char *string;
 	char *vendor;
+
 } cpuVendorIds[] = {
 	{ "AMDisbetter!", "AMD" },
 	{ "AuthenticAMD", "AMD" },

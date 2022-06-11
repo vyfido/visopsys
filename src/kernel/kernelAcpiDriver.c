@@ -144,7 +144,7 @@ static int parseMadt(kernelAcpi *acpi)
 	acpiApicHeader *apicHeader = (acpiApicHeader *) acpi->madt->entry;
 	int count;
 
-	if (acpi->madt == NULL)
+	if (!acpi->madt)
 		return (status = ERR_NOTIMPLEMENTED);
 
 	for (count = sizeof(acpiMadt); count < (int) acpi->madt->header.length; )
@@ -167,7 +167,7 @@ static int parseMadt(kernelAcpi *acpi)
 				acpiIoApic *apic = (acpiIoApic *) apicHeader;
 				#endif
 				kernelDebug(debug_power, "ACPI MADT I/O APIC ioApicId=%02x "
-					"ioApicAddr=%p", apic->ioApicId, apic->ioApicAddr);
+					"ioApicAddr=0x%08x", apic->ioApicId, apic->ioApicAddr);
 				break;
 			}
 
@@ -208,8 +208,8 @@ static int driverPowerOff(kernelDevice *dev)
 	int count;
 
 	// This is a hack, since we're not interested in implementing most of
-	// ACPI here.  We just get the bit we need from the differential definitions
-	// (DSDT).
+	// ACPI here.  We just get the bit we need from the differential
+	// definitions (DSDT).
 
 	if (!acpiEnabled || !acpi || !acpi->dsdt)
 		return (status = ERR_NOTIMPLEMENTED);
@@ -268,7 +268,7 @@ static int driverPowerOff(kernelDevice *dev)
 static int driverDetectAcpi(void *parent, kernelDriver *driver)
 {
 	int status = 0;
-	void *biosArea = NULL;
+	void *rom = NULL;
 	char *ptr = NULL;
 	acpiRsdp *dataStruct = NULL;
 	acpiRsdt *rsdt = NULL;
@@ -280,13 +280,13 @@ static int driverDetectAcpi(void *parent, kernelDriver *driver)
 	int count;
 
 	// Map the designated area for the BIOS into memory so we can scan it.
-	status = kernelPageMapToFree(KERNELPROCID, (void *) BIOSAREA_START,
-		&biosArea, BIOSAREA_SIZE);
+	status = kernelPageMapToFree(KERNELPROCID, BIOSROM_START, &rom,
+		BIOSROM_SIZE);
 	if (status < 0)
 		goto out;
 
-	for (ptr = biosArea ;
-		ptr < (char *) (biosArea + BIOSAREA_SIZE - sizeof(acpiRsdp));
+	for (ptr = rom ;
+		ptr <= (char *)(rom + (BIOSROM_SIZE - sizeof(acpiRsdp)));
 		ptr += 16)
 	{
 		if (!strncmp(ptr, ACPI_SIG_RSDP, strlen(ACPI_SIG_RSDP)))
@@ -303,15 +303,15 @@ static int driverDetectAcpi(void *parent, kernelDriver *driver)
 	if (checkChecksum(ptr, sizeof(acpiRsdp)))
 		goto out;
 
-	kernelDebug(debug_power, "ACPI found at %p, RSDT at %p",
-		(void *)(BIOSAREA_START + ((void *) dataStruct - biosArea)),
+	kernelDebug(debug_power, "ACPI found at 0x%08x, RSDT at 0x%08x",
+		(BIOSROM_START + ((void *) dataStruct - rom)),
 		dataStruct->rsdtAddr);
 
 	status = kernelPageMapToFree(KERNELPROCID, dataStruct->rsdtAddr,
 		(void **) &rsdt, sizeof(acpiRsdt));
 	if (status < 0)
 	{
-		kernelError(kernel_error, "ACPI RSDT physical address %p can't be "
+		kernelError(kernel_error, "ACPI RSDT physical address 0x%08x can't be "
 			"mapped (%d)", dataStruct->rsdtAddr, status);
 		goto out;
 	}
@@ -327,7 +327,7 @@ static int driverDetectAcpi(void *parent, kernelDriver *driver)
 		goto out;
 
 	acpi = kernelMalloc(sizeof(kernelAcpi));
-	if (acpi == NULL)
+	if (!acpi)
 	{
 		status = ERR_MEMORY;
 		goto out;
@@ -349,14 +349,14 @@ static int driverDetectAcpi(void *parent, kernelDriver *driver)
 			(void **) &header, MEMORY_PAGE_SIZE);
 		if (status < 0)
 		{
-			kernelError(kernel_error, "ACPI RSDT physical address %p can't be "
-				"mapped (%d)", rsdt->entry[count], status);
+			kernelError(kernel_error, "ACPI RSDT physical address 0x%08x "
+				"can't be mapped (%d)", rsdt->entry[count], status);
 			continue;
 		}
 
 		strncpy(sig, header->signature, 4);
 		sig[4] = '\0';
-		kernelDebug(debug_power, "ACPI RSDT entry %p type %s",
+		kernelDebug(debug_power, "ACPI RSDT entry 0x%08x type %s",
 			rsdt->entry[count], sig);
 
 		if (!strncmp(sig, ACPI_SIG_APIC, strlen(ACPI_SIG_APIC)))
@@ -367,7 +367,7 @@ static int driverDetectAcpi(void *parent, kernelDriver *driver)
 			if (checkChecksum((char *) acpi->madt, acpi->madt->header.length))
 				goto out;
 
-			kernelDebug(debug_power, "ACPI MADT localApicAddr=%p",
+			kernelDebug(debug_power, "ACPI MADT localApicAddr=0x%08x",
 				acpi->madt->localApicAddr);
 
 			parseMadt(acpi);
@@ -380,8 +380,8 @@ static int driverDetectAcpi(void *parent, kernelDriver *driver)
 			if (checkChecksum((char *) acpi->fadt, acpi->fadt->header.length))
 				goto out;
 
-			kernelDebug(debug_power, "ACPI FADT revision=%02x facsAddr=%p "
-				"dsdtAddr=%p", acpi->fadt->header.revision,
+			kernelDebug(debug_power, "ACPI FADT revision=%02x facsAddr=0x%08x "
+				"dsdtAddr=0x%08x", acpi->fadt->header.revision,
 				acpi->fadt->facsAddr, acpi->fadt->dsdtAddr);
 
 			if (acpi->fadt->header.revision >= 2)
@@ -407,17 +407,17 @@ static int driverDetectAcpi(void *parent, kernelDriver *driver)
 			(void **) &acpi->facs, MEMORY_PAGE_SIZE);
 		if (status < 0)
 		{
-			kernelError(kernel_error, "ACPI FACS physical address %p can't be "
-				"mapped (%d)", acpi->fadt->facsAddr, status);
+			kernelError(kernel_error, "ACPI FACS physical address 0x%08x "
+				"can't be mapped (%d)", acpi->fadt->facsAddr, status);
 			goto out;
 		}
 
-		kernelDebug(debug_power, "ACPI FACS version=%02x hardwareSig=%08x "
-			"wakingVector=%p", acpi->facs->version, acpi->facs->hardwareSig,
-			acpi->facs->wakingVector);
+		kernelDebug(debug_power, "ACPI FACS version=%02x hardwareSig=0x%08x "
+			"wakingVector=0x%08x", acpi->facs->version,
+			acpi->facs->hardwareSig, acpi->facs->wakingVector);
 
 		if (acpi->facs->version >= 1)
-			kernelDebug(debug_power, "ACPI FACS xWakingVector=%016llx",
+			kernelDebug(debug_power, "ACPI FACS xWakingVector=0x%016llx",
 				acpi->facs->xWakingVector);
 	}
 
@@ -427,8 +427,8 @@ static int driverDetectAcpi(void *parent, kernelDriver *driver)
 			(void **) &acpi->dsdt, MEMORY_PAGE_SIZE);
 		if (status < 0)
 		{
-			kernelError(kernel_error, "ACPI DSDT physical address %p can't be "
-				"mapped (%d)", acpi->fadt->dsdtAddr, status);
+			kernelError(kernel_error, "ACPI DSDT physical address 0x%08x "
+				"can't be mapped (%d)", acpi->fadt->dsdtAddr, status);
 			goto out;
 		}
 
@@ -445,8 +445,8 @@ static int driverDetectAcpi(void *parent, kernelDriver *driver)
 				(void **) &acpi->dsdt, newLength);
 			if (status < 0)
 			{
-				kernelError(kernel_error, "ACPI DSDT physical address %p can't "
-					"be mapped (%d)", acpi->fadt->dsdtAddr, status);
+				kernelError(kernel_error, "ACPI DSDT physical address 0x%08x "
+					"can't be mapped (%d)", acpi->fadt->dsdtAddr, status);
 				goto out;
 			}
 		}
@@ -458,10 +458,11 @@ static int driverDetectAcpi(void *parent, kernelDriver *driver)
 
 	// Allocate memory for the device
 	dev = kernelMalloc(sizeof(kernelDevice));
-	if (dev == NULL)
+	if (!dev)
 		goto out;
 
-	dev->device.class = kernelDeviceGetClass(DEVICESUBCLASS_POWER_ACPI);
+	dev->device.class = kernelDeviceGetClass(DEVICECLASS_POWER);
+	dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_POWER_ACPI);
 	dev->driver = driver;
 	dev->data = acpi;
 
@@ -491,8 +492,8 @@ out:
 	if (rsdt)
 		kernelPageUnmap(KERNELPROCID, rsdt, sizeof(acpiRsdt));
 
-	if (biosArea)
-		kernelPageUnmap(KERNELPROCID, biosArea, BIOSAREA_SIZE);
+	if (rom)
+		kernelPageUnmap(KERNELPROCID, rom, BIOSROM_SIZE);
 
 	return (status);
 }
@@ -519,3 +520,4 @@ void kernelAcpiDriverRegister(kernelDriver *driver)
 	driver->ops = &powerOps;
 	return;
 }
+

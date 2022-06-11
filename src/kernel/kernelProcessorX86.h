@@ -21,10 +21,25 @@
 
 #if !defined(_KERNELPROCESSORX86_H)
 
+// Model-specific registers that we use
+#define X86_MSR_APICBASE				0x1B
+
+// Bitfields for the APICBASE MSR
+#define X86_MSR_APICBASE_BASEADDR		0xFFFFF000
+#define X86_MSR_APICBASE_APICENABLE		0x00000800
+#define X86_MSR_APICBASE_BSP			0x00000100
+
 #define kernelProcessorId(arg, rega, regb, regc, regd) \
 	__asm__ __volatile__ ("cpuid" \
 		: "=a" (rega), "=b" (regb), "=c" (regc), "=d" (regd) \
 		: "a" (arg))
+
+#define kernelProcessorReadMsr(msr, rega, regd) \
+	__asm__ __volatile__ ("rdmsr" \
+		: "=a" (rega), "=d" (regd) : "c" (msr));
+
+#define kernelProcessorWriteMsr(msr, rega, regd) \
+	__asm__ __volatile__ ("wrmsr" : : "a" (rega), "d" (regd), "c" (msr));
 
 #define kernelProcessorIdle() \
 	__asm__ __volatile__ ("sti \n\t" \

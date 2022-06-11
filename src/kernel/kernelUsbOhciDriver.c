@@ -28,6 +28,8 @@
 #include "kernelVariableList.h"
 #include <string.h>
 
+#define USBOHCI_PCI_PROGIF	0x10
+
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
@@ -39,10 +41,10 @@
 
 
 kernelDevice *kernelUsbOhciDetect(kernelBusTarget *busTarget,
-				  kernelDriver *driver)
+	kernelDriver *driver)
 {
-	// This routine is used to detect and initialize a potential OHCI USB
-	// device, as well as registering it with the higher-level interfaces.
+	// This routine is used to detect OHCI USB controllers, as well as
+	// registering it with the higher-level interfaces.
 
 	// This version is just a stub, to show that the device has been detected.
 	// The real driver will probably never be written, since these are fairly
@@ -65,32 +67,35 @@ kernelDevice *kernelUsbOhciDetect(kernelBusTarget *busTarget,
 	// Make sure it's a non-bridge header
 	if (pciDevInfo.device.headerType != PCI_HEADERTYPE_NORMAL)
 	{
-		kernelDebug(debug_usb, "OHCI: Headertype not 'normal' (%d)",
+		kernelDebug(debug_usb, "OHCI headertype not 'normal' (%d)",
 			pciDevInfo.device.headerType);
 		goto err_out;
 	}
 
 	// Make sure it's an OHCI controller (programming interface is 0x10 in
 	// the PCI header)
-	if (pciDevInfo.device.progIF != 0x10)
+	if (pciDevInfo.device.progIF != USBOHCI_PCI_PROGIF)
 		goto err_out;
 
 	// After this point, we believe we have a supported device.
 
 	// Allocate memory for the device
 	dev = kernelMalloc(sizeof(kernelDevice));
-	if (dev == NULL)
+	if (!dev)
 		goto err_out;
 
 	// Allocate memory for the controller
 	controller = kernelMalloc(sizeof(usbController));
-	if (controller == NULL)
+	if (!controller)
 		goto err_out;
+
+	// Set the controller type
+	controller->type = usb_ohci;
 
 	// The USB version number.  Fake this.
 	controller->usbVersion = 0x10;
 
-	// Get the interrupt line
+	// Get the interrupt number.
 	controller->interruptNum = pciDevInfo.device.nonBridge.interruptLine;
 
 	kernelLog("USB: OHCI controller interrupt %d", controller->interruptNum);
@@ -120,3 +125,4 @@ err_out:
 
   return (dev = NULL);
 }
+

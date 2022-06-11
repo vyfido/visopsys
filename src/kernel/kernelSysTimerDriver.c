@@ -104,7 +104,7 @@ static int driverReadValue(int counter)
 	kernelProcessorInPort8(portNumber[counter], data);
 	timerValue |= (data << 8);
 
-	kernelDebug(debug_misc, "PIT: read counter %d count=%d", counter,
+	kernelDebug(debug_misc, "PIT read counter %d count=%d", counter,
 		timerValue);
 
 	return (timerValue);
@@ -119,7 +119,7 @@ static int driverSetupTimer(int counter, int mode, int count)
 	int status = 0;
 	unsigned char data, commandByte;
 
-	kernelDebug(debug_misc, "PIT: setting counter %d mode=%d count=%d", counter,
+	kernelDebug(debug_misc, "PIT setting counter %d mode=%d count=%d", counter,
 		mode, count);
 
 	// Make sure the timer number is not greater than 2.  This driver only
@@ -152,7 +152,7 @@ static int driverSetupTimer(int counter, int mode, int count)
 
 	timerMode[counter] = mode;
 
-	kernelDebug(debug_misc, "PIT: set counter cmd=0x%02x", commandByte);
+	kernelDebug(debug_misc, "PIT set counter cmd=0x%02x", commandByte);
 
 	return (status = 0);
 }
@@ -221,3 +221,4 @@ void kernelSysTimerDriverRegister(kernelDriver *driver)
 
 	return;
 }
+

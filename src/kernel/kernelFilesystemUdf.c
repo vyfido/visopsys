@@ -130,7 +130,7 @@ static int readEntry(udfInternalData *udfData, unsigned icbLogical,
 			udfEntry->length, udfEntry->blocks);
 	}
 
-	if (entry->driverData == NULL)
+	if (!entry->driverData)
 	{
 		kernelError(kernel_error, "File %s has no private data", entry->name);
 		return (status = ERR_NODATA);
@@ -210,7 +210,7 @@ static udfInternalData *getUdfData(kernelDisk *theDisk)
 
 	// We must allocate some new memory to hold information about the filesystem
 	udfData = kernelMalloc(sizeof(udfInternalData));
-	if (udfData == NULL)
+	if (!udfData)
 		return (udfData);
 
 	// Attach the disk structure to the udfData structure
@@ -218,7 +218,7 @@ static udfInternalData *getUdfData(kernelDisk *theDisk)
 
 	// Read the anchor volume descriptor
 	buffer = kernelMalloc(theDisk->physical->sectorSize);
-	if (buffer == NULL)
+	if (!buffer)
 	{
 		status = ERR_MEMORY;
 		goto out;
@@ -252,7 +252,7 @@ static udfInternalData *getUdfData(kernelDisk *theDisk)
 
 	// Read the prim volume descriptor sequence
 	buffer = kernelMalloc(primVolDescSeqBytes);
-	if (buffer == NULL)
+	if (!buffer)
 	{
 		status = ERR_MEMORY;
 		goto out;
@@ -306,7 +306,7 @@ static udfInternalData *getUdfData(kernelDisk *theDisk)
 
 	// Read the file set descriptor
 	buffer = kernelMalloc(theDisk->physical->sectorSize);
-	if (buffer == NULL)
+	if (!buffer)
 	{
 		status = ERR_MEMORY;
 		goto out;
@@ -385,7 +385,7 @@ static int scanDirectory(udfInternalData *udfData, kernelFileEntry *dirEntry)
 	}
 
 	// Make sure it's not zero-length
-	if (dirEntry->blocks == 0)
+	if (!dirEntry->blocks)
 	{
 		kernelError(kernel_error, "Directory has no blocks");
 		return (status = ERR_NODATA);
@@ -394,7 +394,7 @@ static int scanDirectory(udfInternalData *udfData, kernelFileEntry *dirEntry)
 	// Allocate a buffer for the directory contents
 	buffer =
 		kernelMalloc(dirEntry->blocks * udfData->disk->physical->sectorSize);
-	if (buffer == NULL)
+	if (!buffer)
 		return (status = ERR_MEMORY);
 
 	// Read the directory contents
@@ -412,7 +412,7 @@ static int scanDirectory(udfInternalData *udfData, kernelFileEntry *dirEntry)
  			"entries");
 
 	udfEntry = kernelMalloc(udfData->disk->physical->sectorSize);
-	if (udfEntry == NULL)
+	if (!udfEntry)
 	{
 		status = ERR_MEMORY;
 		goto out;
@@ -446,7 +446,7 @@ static int scanDirectory(udfInternalData *udfData, kernelFileEntry *dirEntry)
 
 		// Get a new file entry
 		entry = kernelFileNewEntry((kernelDisk *) udfData->disk);
-		if (entry == NULL)
+		if (!entry)
 		{
 			status = ERR_NOFREE;
 			goto out;
@@ -524,7 +524,7 @@ static int detect(kernelDisk *theDisk)
 
 	// Look for the BEA, Volume Sequence Descriptor, and TEA
 	buffer = kernelMalloc(theDisk->physical->sectorSize * 16);
-	if (buffer == NULL)
+	if (!buffer)
 		return (status = ERR_MEMORY);
 
 	// Do a dummy read to ensure that the TOC has been properly read, and
@@ -541,7 +541,7 @@ static int detect(kernelDisk *theDisk)
 		theDisk->physical->sectorSize, theDisk->physical->lastSession);
 
 	// The sector size must be non-zero
-	if (theDisk->physical->sectorSize == 0)
+	if (!theDisk->physical->sectorSize)
 	{
 		kernelError(kernel_error, "Disk sector size is zero");
 		kernelFree(buffer);
@@ -620,11 +620,11 @@ static int mount(kernelDisk *theDisk)
 	// Get the UDF data for the requested filesystem.  We don't need the info
 	// right now -- we just want to collect it.
 	udfData = getUdfData(theDisk);
-	if (udfData == NULL)
+	if (!udfData)
 		return (status = ERR_BADDATA);
 
 	udfEntry = kernelMalloc(theDisk->physical->sectorSize);
-	if (udfEntry == NULL)
+	if (!udfEntry)
 		return (status = ERR_MEMORY);
 
 	kernelDebug(debug_fs, "UDF: Read root directory ICB");
@@ -704,14 +704,14 @@ static int newEntry(kernelFileEntry *entry)
 	}
 
 	// Make sure there's an associated disk
-	if (entry->disk == NULL)
+	if (!entry->disk)
 	{
 		kernelError(kernel_error, "Entry has no associated filesystem");
 		return (status = ERR_NOCREATE);
 	}
 
 	entry->driverData = kernelMalloc(sizeof(udfFileData));
-	if (entry->driverData == NULL)
+	if (!entry->driverData)
 	{
 		kernelError(kernel_error, "Error allocating memory for UDF "
 			"directory record");
@@ -794,7 +794,7 @@ static int readFile(kernelFileEntry *theFile, unsigned blockNum,
 
 	// Make sure there's a directory record attached
 	dirRec = (udfFileData *) theFile->driverData;
-	if (dirRec == NULL)
+	if (!dirRec)
 	{
 		kernelError(kernel_error, "File \"%s\" has no private data",
 			theFile->name);
@@ -803,7 +803,7 @@ static int readFile(kernelFileEntry *theFile, unsigned blockNum,
 
 	// Get the UDF data for the filesystem.
 	udfData = getUdfData(theFile->disk);
-	if (udfData == NULL)
+	if (!udfData)
 		return (status = ERR_BADDATA);
 
 	status =
@@ -831,7 +831,7 @@ static int readDir(kernelFileEntry *directory)
 	}
 
 	// Make sure there's a directory record  attached
-	if (directory->driverData == NULL)
+	if (!directory->driverData)
 	{
 		kernelError(kernel_error, "Directory \"%s\" has no private data",
 			directory->name);
@@ -840,7 +840,7 @@ static int readDir(kernelFileEntry *directory)
 
 	// Get the UDF data for the filesystem.
 	udfData = getUdfData(directory->disk);
-	if (udfData == NULL)
+	if (!udfData)
 		return (status = ERR_BADDATA);
 
 	return (scanDirectory(udfData, directory));
@@ -891,3 +891,4 @@ int kernelFilesystemUdfInitialize(void)
 	// Register our driver
 	return (kernelSoftwareDriverRegister(udfDriver, &defaultUdfDriver));
 }
+

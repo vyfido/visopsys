@@ -876,6 +876,10 @@ static kernelPhysicalDisk *detectTarget(void *parent, int targetId,
 	if (dsk->usbDev == NULL)
 		goto err_out;
 
+	// Set the device configuration
+	if (kernelUsbSetDeviceConfig(dsk->usbDev) < 0)
+		goto err_out;
+
 	physical = kernelMalloc(sizeof(kernelPhysicalDisk));
 	if (physical == NULL)
 		goto err_out;

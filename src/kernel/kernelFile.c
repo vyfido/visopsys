@@ -1153,8 +1153,8 @@ static int fileCopy(file *sourceFile, file *destFile)
 	destBlocks = max(1, ((sourceFile->size / destFile->blockSize) +
 		((sourceFile->size % destFile->blockSize) != 0)));
 
-	kernelDebug(debug_fs, "Copy %s (%u blocks @ %u) to %s (%u blocks @ %u)",
-		sourceFile->name, srcBlocks, sourceFile->blockSize,
+	kernelDebug(debug_fs, "File copy %s (%u blocks @ %u) to %s (%u blocks "
+		"@ %u)", sourceFile->name, srcBlocks, sourceFile->blockSize,
 		destFile->name, destBlocks, destFile->blockSize);
 
 	// Try to allocate the largest copy buffer that we can.
@@ -1188,7 +1188,8 @@ static int fileCopy(file *sourceFile, file *destFile)
 		destBlocksPerOp = min(destBlocks, destBlocksPerOp);
 
 		// Read from the source file
-		kernelDebug(debug_fs, "Read %u blocks from source", srcBlocksPerOp);
+		kernelDebug(debug_fs, "File read %u blocks from source",
+			srcBlocksPerOp);
 		status = kernelFileRead(sourceFile, currentSrcBlock, srcBlocksPerOp,
 			copyBuffer);
 		if (status < 0)
@@ -1198,7 +1199,7 @@ static int fileCopy(file *sourceFile, file *destFile)
 		}
 
 		// Write to the destination file
-		kernelDebug(debug_fs, "Write %u blocks to dest", destBlocksPerOp);
+		kernelDebug(debug_fs, "File write %u blocks to dest", destBlocksPerOp);
 		status = kernelFileWrite(destFile, currentDestBlock, destBlocksPerOp,
 			copyBuffer);
 		if (status < 0)

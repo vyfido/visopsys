@@ -437,7 +437,7 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 
 	// Get the basic component structure
 	component = kernelWindowComponentNew(parent, params);
-	if (component == NULL)
+	if (!component)
 		return (component);
 
 	component->type = textAreaComponentType;
@@ -465,7 +465,7 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 			sizeof(color));
 
 	// If font is NULL, get the default font
-	if (component->params.font == NULL)
+	if (!component->params.font)
 	{
 		status = kernelFontGetDefault((asciiFont **) &(component->params.font));
 		if (status < 0)
@@ -477,7 +477,7 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 
 	// Get memory for the kernelWindowTextArea
 	textArea = kernelMalloc(sizeof(kernelWindowTextArea));
-	if (textArea == NULL)
+	if (!textArea)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
@@ -487,7 +487,7 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 
 	// Create the text area inside it
 	textArea->area = kernelTextAreaNew(columns, rows, 1, bufferLines);
-	if (textArea->area == NULL)
+	if (!textArea->area)
 	{
 		kernelWindowComponentDestroy(component);
 		return (component = NULL);
@@ -523,7 +523,7 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 		textArea->scrollBar =
 			kernelWindowNewScrollBar(parent, scrollbar_vertical, 0,
 				component->height, &subParams);
-		if (textArea->scrollBar == NULL)
+		if (!textArea->scrollBar)
 		{
 			kernelWindowComponentDestroy(component);
 			return (component = NULL);
@@ -542,3 +542,4 @@ kernelWindowComponent *kernelWindowNewTextArea(objectKey parent, int columns,
 
 	return (component);
 }
+

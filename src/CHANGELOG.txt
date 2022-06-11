@@ -1,3 +1,54 @@
+--------------
+ Version 0.75   27/10/2014
+--------------
+
+  Overview: This harware-focused maintenance release adds USB 3.0 support,
+  improved USB 2.0 and USB hub support, an APIC interrupt controller driver,
+  plus several bug fixes and general quality improvements.
+
+- Added USB3 (XHCI) support.
+- Greatly improved USB2 (EHCI) and hub support.
+- Added APIC interrupt controller support.
+- Added support for detecting and parsing the Intel multiprocessor table.
+- The USB layer code no longer sets device configurations by default.
+  It is now left up to the individual device drivers, when they determine
+  that a given device is supported.  Configuring some unknown, built-in,
+  proprietary devices can cause other devices to stop responding.
+- USB hub removal now triggers a recursive device removal for all
+  downstream things connected via the hub.
+- If a mounted removable disk (such as a USB stick) is removed from the
+  system, a call to kernelFilesystemRemoved() will now act like a forced
+  umount - unbuffering files and removing the filesystem - without
+  attempting further accesses to the physical disk.
+- Added new functionality to count interrupt hooks, and updated some
+  definitions and things in the PCI driver.
+- Physical memory addresses are now treated as unsigned integer values
+  instead of void pointers.
+- Added kernelMemoryGetIo() and kernelMemoryReleaseIo() functions for
+  automating the process of allocating/releasing aligned physical memory,
+  mapping it, and marking it un-cacheable.
+- Added a kernelDebugStop() function to output a message and halt
+  execution when errors are encountered in debug mode.
+- Added a kernelDebugRemoveFile() function as a companion to
+  kernelDebugAddFile()
+- Fixed: In the computer browser, when clicking to mount a CD-ROM for
+  the first time, from a cold boot, the file browser that was launched
+  sometimes wouldn't start in the CD-ROM's mount directory.
+- Fixed: In the file browser and the file dialog, the current directory
+  field started off disabled (greyed-out), but changing the directory
+  caused it to be redrawn as enabled (not greyed out).  Components weren't
+  being re-rendered when their setData() functions were called.
+- Fixed: A bug in the USB driver subsystem, in which a device
+  disconnection could cause the USB thread to go into an infinite loop.
+- Fixed: Increased timeout values for SCSI 'start unit' commands, to
+  support various USB-attached disks (hard disks and CD/DVD drives that
+  need time to spin up).
+- Fixed: An IDE disk controller driver bug where an unhandled interrupt
+  could result from selecting a nonexistent slave drive on certain
+  controllers.  Also eliminated some redundant status polling.
+- Fixed: Timing issues in the AHCI SATA driver related to CD/DVD drives.
+- Fixed: Removed kernelMalloc() usage in kernelDebug.c which could cause
+  debugging output not to be displayed in an interrupt context.
 
 --------------
  Version 0.74   30/06/2014

@@ -43,15 +43,15 @@ static int readPrimaryVolDesc(isoInternalData *isoData)
 
 	// Do a dummy read from the CD-ROM to ensure that the TOC has been properly
 	// read, and therefore the information for the last session is available.
-	status =
-		kernelDiskReadSectors((char *) isoData->disk->name,
-			ISO_PRIMARY_VOLDESC_SECTOR, 1,
-			(isoPrimaryDescriptor *) &(isoData->volDesc));
+	status = kernelDiskReadSectors((char *) isoData->disk->name,
+		ISO_PRIMARY_VOLDESC_SECTOR, 1,
+		(isoPrimaryDescriptor *) &(isoData->volDesc));
+
 	if (status < 0)
 		return (status);
 
 	// The sector size must be non-zero
-	if (physicalDisk->sectorSize == 0)
+	if (!physicalDisk->sectorSize)
 	{
 		kernelError(kernel_error, "Disk sector size is zero");
 		return (status = ERR_INVALID);
@@ -61,10 +61,9 @@ static int readPrimaryVolDesc(isoInternalData *isoData)
 	kernelMemClear((void *) &(isoData->volDesc), sizeof(isoPrimaryDescriptor));
 
 	// Read the primary volume descriptor
-	status =
-		kernelDiskReadSectors((char *) isoData->disk->name,
-			(physicalDisk->lastSession + ISO_PRIMARY_VOLDESC_SECTOR), 1,
-			(isoPrimaryDescriptor *) &(isoData->volDesc));
+	status = kernelDiskReadSectors((char *) isoData->disk->name,
+		(physicalDisk->lastSession + ISO_PRIMARY_VOLDESC_SECTOR), 1,
+		(isoPrimaryDescriptor *) &(isoData->volDesc));
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Unable to read the ISO primary volume "
@@ -172,7 +171,7 @@ static isoInternalData *getIsoData(kernelDisk *theDisk)
 
 	// We must allocate some new memory to hold information about the filesystem
 	isoData = kernelMalloc(sizeof(isoInternalData));
-	if (isoData == NULL)
+	if (!isoData)
 		return (isoData = NULL);
 
 	// Attach the disk structure to the isoData structure
@@ -254,7 +253,7 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
  			"entries");
 
 	scanDirRec = (isoFileData *) dirEntry->driverData;
-	if (scanDirRec == NULL)
+	if (!scanDirRec)
 	{
 		kernelError(kernel_error, "Directory \"%s\" has no private data",
 			dirEntry->name);
@@ -270,7 +269,7 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 
 	// Get a buffer for the directory
 	buffer = kernelMalloc(bufferSize);
-	if (buffer == NULL)
+	if (!buffer)
 	{
 		kernelError(kernel_error, "Unable to get memory for directory buffer");
 		return (status = ERR_MEMORY);
@@ -306,7 +305,7 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 		}
 
 		fileEntry = kernelFileNewEntry(dirEntry->disk);
-		if ((fileEntry == NULL) || (fileEntry->driverData == NULL))
+		if (!fileEntry || !fileEntry->driverData)
 		{
 			kernelError(kernel_error, "Unable to get new filesystem entry or "
 				"entry has no private data");
@@ -319,7 +318,7 @@ static int scanDirectory(isoInternalData *isoData, kernelFileEntry *dirEntry)
 
 		if ((fileEntry->name[0] < 32) || (fileEntry->name[0] > 126))
 		{
-			if ((fileEntry->name[0] != 0) && (fileEntry->name[0] != 1))
+			if (fileEntry->name[0] && (fileEntry->name[0] != 1))
 				// Not the current directory, or the parent directory.  Warn
 				// about funny ones like this.
 				kernelError(kernel_warn, "Unknown directory entry type in %s",
@@ -418,7 +417,7 @@ static int mount(kernelDisk *theDisk)
 	// Get the ISO data for the requested filesystem.  We don't need the info
 	// right now -- we just want to collect it.
 	isoData = getIsoData(theDisk);
-	if (isoData == NULL)
+	if (!isoData)
 		return (status = ERR_BADDATA);
 
 	// Read the filesystem's root directory
@@ -487,14 +486,14 @@ static int newEntry(kernelFileEntry *entry)
 	}
 
 	// Make sure there's an associated disk
-	if (entry->disk == NULL)
+	if (!entry->disk)
 	{
 		kernelError(kernel_error, "Entry has no associated filesystem");
 		return (status = ERR_NOCREATE);
 	}
 
 	entry->driverData = kernelMalloc(sizeof(isoFileData));
-	if (entry->driverData == NULL)
+	if (!entry->driverData)
 	{
 		kernelError(kernel_error, "Error allocating memory for ISO "
 			"directory record");
@@ -577,7 +576,7 @@ static int readFile(kernelFileEntry *theFile, unsigned blockNum,
 
 	// Make sure there's a directory record  attached
 	dirRec = (isoFileData *) theFile->driverData;
-	if (dirRec == NULL)
+	if (!dirRec)
 	{
 		kernelError(kernel_error, "File \"%s\" has no private data",
 			theFile->name);
@@ -586,7 +585,7 @@ static int readFile(kernelFileEntry *theFile, unsigned blockNum,
 
 	// Get the ISO data for the filesystem.
 	isoData = getIsoData(theFile->disk);
-	if (isoData == NULL)
+	if (!isoData)
 		return (status = ERR_BADDATA);
 
 	status =
@@ -614,7 +613,7 @@ static int readDir(kernelFileEntry *directory)
 	}
 
 	// Make sure there's a directory record  attached
-	if (directory->driverData == NULL)
+	if (!directory->driverData)
 	{
 		kernelError(kernel_error, "Directory \"%s\" has no private data",
 			directory->name);
@@ -623,7 +622,7 @@ static int readDir(kernelFileEntry *directory)
 
 	// Get the ISO data for the filesystem.
 	isoData = getIsoData(directory->disk);
-	if (isoData == NULL)
+	if (!isoData)
 		return (status = ERR_BADDATA);
 
 	return (scanDirectory(isoData, directory));
@@ -674,3 +673,4 @@ int kernelFilesystemIsoInitialize(void)
 	// Register our driver
 	return (kernelSoftwareDriverRegister(isoDriver, &defaultIsoDriver));
 }
+

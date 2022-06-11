@@ -256,7 +256,7 @@ static void browseThread(void)
 
 	int status = 0;
 	int selected = -1;
-	char *mountPoint = NULL;
+	disk theDisk;
 	char *command = NULL;
 
 	windowSwitchPointer(window, "busy");
@@ -265,32 +265,30 @@ static void browseThread(void)
 	if (selected < 0)
 		goto out;
 
+	// Make a private copy of the selected disk structure.  The main program
+	// keeps scanning, and can clobber the list when something changes (for
+	// example, when we mount it)
+	memcpy(&theDisk, &disks[selected], sizeof(disk));
+
 	// See whether we have to mount the corresponding disk, and launch
 	// an appropriate file browser
 
 	// Disk mounted?
-	if (!disks[selected].mounted)
+	if (!theDisk.mounted)
 	{
 		// If it's removable, see if there is any media present
-		if ((disks[selected].type & DISKTYPE_REMOVABLE) &&
-			!diskMediaPresent(disks[selected].name))
+		if ((theDisk.type & DISKTYPE_REMOVABLE) &&
+			!diskMediaPresent(theDisk.name))
 		{
-			error(_("No media in disk %s"), disks[selected].name);
+			error(_("No media in disk %s"), theDisk.name);
 			status = ERR_INVALID;
 			goto out;
 		}
 
-		mountPoint = calloc(MAX_PATH_LENGTH, 1);
-		if (!mountPoint)
-		{
-			status = ERR_MEMORY;
-			goto out;
-		}
+		if (getMountPoint(theDisk.name, theDisk.mountPoint) < 0)
+			snprintf(theDisk.mountPoint, MAX_PATH_LENGTH, "/%s", theDisk.name);
 
-		if (getMountPoint(disks[selected].name, mountPoint) < 0)
-			snprintf(mountPoint, MAX_PATH_LENGTH, "/%s", disks[selected].name);
-
-		status = mount(&disks[selected], mountPoint);
+		status = mount(&theDisk, theDisk.mountPoint);
 		if (status < 0)
 			goto out;
 	}
@@ -304,10 +302,13 @@ static void browseThread(void)
 
 	// Launch a file browser
 	snprintf(command, MAXSTRINGLENGTH, "%s %s", FILE_BROWSER,
-		disks[selected].mountPoint);
+		theDisk.mountPoint);
 
 	// Exec the file browser command, no block
 	status = loaderLoadAndExec(command, privilege, 0);
+
+	free(command);
+
 	if (status < 0)
 	{
 		error("%s", _("Error launching file browser"));
@@ -317,11 +318,6 @@ static void browseThread(void)
 	status = 0;
 
 out:
-	if (mountPoint)
-		free(mountPoint);
-	if (command)
-		free(command);
-
 	windowSwitchPointer(window, "default");
 	multitaskerTerminate(status);
 }
@@ -335,7 +331,7 @@ static void mountAsThread(void)
 
 	int status = 0;
 	int selected = -1;
-	char *mountPoint = NULL;
+	disk theDisk;
 	int saveConfiguration = 0;
 	char *command = NULL;
 
@@ -343,49 +339,47 @@ static void mountAsThread(void)
 	if (selected < 0)
 		goto out;
 
+	// Make a private copy of the selected disk structure.  The main program
+	// keeps scanning, and can clobber the list when something changes (for
+	// example, when we mount it)
+	memcpy(&theDisk, &disks[selected], sizeof(disk));
+
 	// See whether we have to mount the corresponding disk, and launch
 	// an appropriate file browser
 
 	// Disk mounted?
-	if (disks[selected].mounted)
+	if (theDisk.mounted)
 	{
-		error(_("Disk is already mounted as %s"), disks[selected].mountPoint);
+		error(_("Disk is already mounted as %s"), theDisk.mountPoint);
 		goto out;
 	}
 
 	windowSwitchPointer(window, "busy");
 
 	// If it's removable, see if there is any media present
-	if ((disks[selected].type & DISKTYPE_REMOVABLE) &&
-		!diskMediaPresent(disks[selected].name))
+	if ((theDisk.type & DISKTYPE_REMOVABLE) &&
+		!diskMediaPresent(theDisk.name))
 	{
-		error(_("No media in disk %s"), disks[selected].name);
+		error(_("No media in disk %s"), theDisk.name);
 		status = ERR_INVALID;
 		goto out;
 	}
 
 	windowSwitchPointer(window, "default");
 
-	mountPoint = calloc(MAX_PATH_LENGTH, 1);
-	if (!mountPoint)
-	{
-		status = ERR_MEMORY;
-		goto out;
-	}
-
 	// See if there's a mount point specified in the mount configuration
-	if (getMountPoint(disks[selected].name, mountPoint) < 0)
+	if (getMountPoint(theDisk.name, theDisk.mountPoint) < 0)
 		saveConfiguration = 1;
 
 	// Ask the user for the mount point
 	status = windowNewPromptDialog(window, _("Mount point"),
-		_("Please enter the mount point"), 1, 40, mountPoint);
+		_("Please enter the mount point"), 1, 40, theDisk.mountPoint);
 	if (status <= 0)
 		goto out;
 
 	windowSwitchPointer(window, "busy");
 
-	status = mount(&disks[selected], mountPoint);
+	status = mount(&theDisk, theDisk.mountPoint);
 	if (status < 0)
 		goto out;
 
@@ -398,10 +392,13 @@ static void mountAsThread(void)
 
 	// Launch a file browser
 	snprintf(command, MAXSTRINGLENGTH, "%s %s", FILE_BROWSER,
-		disks[selected].mountPoint);
+		theDisk.mountPoint);
 
 	// Exec the file browser command, no block
 	status = loaderLoadAndExec(command, privilege, 0);
+
+	free(command);
+
 	if (status < 0)
 	{
 		error("%s", _("Error launching file browser"));
@@ -410,16 +407,11 @@ static void mountAsThread(void)
 
 	if (saveConfiguration)
 		// Try to save the specified mount point in the mount configuration
-		setMountPoint(disks[selected].name, mountPoint);
+		setMountPoint(theDisk.name, theDisk.mountPoint);
 
 	status = 0;
 
 out:
-	if (mountPoint)
-		free(mountPoint);
-	if (command)
-		free(command);
-
 	windowSwitchPointer(window, "default");
 	multitaskerTerminate(status);
 }
@@ -465,7 +457,7 @@ static void propertiesThread(void)
 		goto out;
 
 	buff = malloc(1024);
-	if (buff == NULL)
+	if (!buff)
 	{
 		status = ERR_MEMORY;
 		goto out;
@@ -702,7 +694,7 @@ static int scanComputer(void)
 
 	newDisks = malloc(newDisksSize);
 	newIconParams = malloc(newNumDisks * sizeof(listItemParameters));
-	if ((newDisks == NULL) || (newIconParams == NULL))
+	if (!newDisks || !newIconParams)
 	{
 		error("%s", _("Memory allocation error"));
 		return (status = ERR_MEMORY);
@@ -715,7 +707,7 @@ static int scanComputer(void)
 		return (status);
 
 	// Any change?
-	if ((disks == NULL) || (newNumDisks != numDisks) ||
+	if (!disks || (newNumDisks != numDisks) ||
 		memcmp(disks, newDisks, newDisksSize))
 	{
 		windowSwitchPointer(window, "busy");
@@ -790,7 +782,7 @@ static int constructWindow(void)
 
 	// Create a new window, with small, arbitrary size and location
 	window = windowNew(processId, WINDOW_TITLE);
-	if (window == NULL)
+	if (!window)
 		return (status = ERR_NOTINITIALIZED);
 
 	bzero(&params, sizeof(componentParameters));
@@ -854,7 +846,7 @@ int main(int argc, char *argv[])
 	for (count = 0; icons[count].fileName; count ++)
 	{
 		icons[count].iconImage = malloc(sizeof(image));
-		if (icons[count].iconImage == NULL)
+		if (!icons[count].iconImage)
 		{
 			status = ERR_MEMORY;
 			goto out;

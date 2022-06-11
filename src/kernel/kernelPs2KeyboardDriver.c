@@ -226,6 +226,7 @@ static void readData(void)
 	// This routine reads the keyboard data and returns it to the keyboard
 	// console text input stream
 
+	int status = 0;
 	unsigned char data = 0;
 	keyScan scan = 0;
 	int release = 0;
@@ -233,10 +234,12 @@ static void readData(void)
 	static int extended1 = 0;
 
 	// Read the data from port 60h
-	if (inPort60(&data) < 0)
+	status = inPort60(&data);
+
+	kernelPicEndOfInterrupt(INTERRUPT_NUM_KEYBOARD);
+
+	if (status < 0)
 		return;
-	else
-		kernelPicEndOfInterrupt(INTERRUPT_NUM_KEYBOARD);
 
 	// If an extended scan code is coming next...
 	if (data == EXTENDED)
@@ -254,6 +257,7 @@ static void readData(void)
 		extended1 = 1;
 		return;
 	}
+
 	if (extended1 && ((data & ~KEY_RELEASE) == LEFT_CONTROL))
 		return;
 
@@ -425,9 +429,9 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	kernelDebug(debug_io, "Ps2Key: get flags data from BIOS");
 
-	// Map the BIOS data area into our memory so we can get hardware information
-	// from it.
-	status = kernelPageMapToFree(KERNELPROCID, (void *) 0, &biosData, 0x1000);
+	// Map the BIOS data area into our memory so we can get hardware
+	// information from it.
+	status = kernelPageMapToFree(KERNELPROCID, 0, &biosData, 0x1000);
 	if (status < 0)
 		goto out;
 
@@ -474,7 +478,9 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	kernelDebug(debug_io, "Ps2Key: turn on keyboard interrupt");
 
 	// Turn on the interrupt
-	kernelPicMask(INTERRUPT_NUM_KEYBOARD, 1);
+	status = kernelPicMask(INTERRUPT_NUM_KEYBOARD, 1);
+	if (status < 0)
+		goto out;
 
 	kernelDebug(debug_io, "Ps2Key: enable keyboard");
 
@@ -483,7 +489,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 
 	// Allocate memory for the device
 	dev = kernelMalloc(sizeof(kernelDevice));
-	if (dev == NULL)
+	if (!dev)
 		return (status = ERR_MEMORY);
 
 	dev->device.class = kernelDeviceGetClass(DEVICECLASS_KEYBOARD);

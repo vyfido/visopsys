@@ -517,7 +517,7 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
 	// Check for events in our icon list.  We consider the icon 'clicked'
 	// if it is a mouse click selection, or an ENTER key selection
 	if ((event->type & EVENT_SELECTION) &&
-			((event->type & EVENT_MOUSE_LEFTUP) ||
+		((event->type & EVENT_MOUSE_LEFTUP) ||
 		((event->type & EVENT_KEY_DOWN) && (event->key == ASCII_ENTER))))
 	{
 		memcpy(&saveEntry, &fileEntries[selected], sizeof(fileEntry));
@@ -533,8 +533,7 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
 		{
 			// Change to the directory, get the list of icon
 			// parameters, and update our window list.
-			status =
-				changeDirWithLock(fileList, saveEntry.fullName);
+			status = changeDirWithLock(fileList, saveEntry.fullName);
 			if (status < 0)
 			{
 				error(_("Can't change to directory %s"), saveEntry.file.name);

@@ -26,12 +26,21 @@
 // Definitions
 #define MAXMEMORYBLOCKS  2048
 
+typedef struct {
+	unsigned size;
+	unsigned physical;
+	void *virtual;
+
+} kernelIoMemory;
+
 // Functions from kernelMemory.c
 int kernelMemoryInitialize(unsigned);
-void *kernelMemoryGetPhysical(unsigned, unsigned, const char *);
-int kernelMemoryReleasePhysical(void *);
+unsigned kernelMemoryGetPhysical(unsigned, unsigned, const char *);
+int kernelMemoryReleasePhysical(unsigned);
 void *kernelMemoryGetSystem(unsigned, const char *);
 int kernelMemoryReleaseSystem(void *);
+int kernelMemoryGetIo(unsigned, unsigned, kernelIoMemory *);
+int kernelMemoryReleaseIo(kernelIoMemory *);
 int kernelMemoryChangeOwner(int, int, int, void *, void **);
 int kernelMemoryShare(int, int, void *, void **);
 
@@ -45,3 +54,4 @@ int kernelMemoryBlockInfo(void *, memoryBlock *);
 
 #define _KERNELMEMORY_H
 #endif
+

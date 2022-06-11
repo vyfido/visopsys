@@ -39,17 +39,6 @@
 #define USB_HID_MOUSE_MIDDLEBUTTON	0x02
 #define USB_HID_MOUSE_LEFTBUTTON	0x01
 
-typedef struct {
-	unsigned char descLength;		// Number of bytes in this descriptor
-	unsigned char descType;			// Type, HID descriptor type
-	unsigned short hidVersion;		// BCD version of HID spec
-	unsigned char countryCode;		// Hardware target country
-	unsigned char numDescriptors;	// Number of HID class descriptors to follow
-	unsigned char repDescType;		// Report descriptor type
-	unsigned short repDescLength;	// Report descriptor total length
-
-} __attribute__((packed)) usbHidDesc;
-
 typedef enum {
 	hid_mouse, hid_keyboard, hid_any
 

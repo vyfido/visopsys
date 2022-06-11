@@ -421,10 +421,12 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	}
 
 	// See whether any other disks should be auto-mounted.
+	kernelDebug(debug_misc, "Automounting filesystems");
 	kernelDiskAutoMountAll();
 
 	// Try to read the default system environment.conf for the kernel's
 	// environment.
+	kernelDebug(debug_misc, "Reading kernel environment");
 	kernelConfigRead(PATH_SYSTEM_CONFIG "/environment.conf",
 		kernelCurrentProcess->environment);
 
@@ -432,6 +434,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	graphics = kernelGraphicsAreEnabled();
 
 	// Read the kernel config file
+	kernelDebug(debug_misc, "Reading kernel variables");
 	status = kernelConfigRead(DEFAULT_KERNEL_CONFIG, kernelVariables);
 	if (status < 0)
 		kernelVariables = NULL;
@@ -509,6 +512,8 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 
 	if (graphics)
 	{
+		kernelDebug(debug_misc, "Initializing graphics");
+
 		// Clear the screen with our default background color
 		kernelGraphicClearScreen(&kernelDefaultDesktop);
 		kernelMemClear(&splashImage, sizeof(image));
@@ -541,12 +546,15 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	// If the filesystem is not read-only, open a kernel log file
 	if (!rootDisk->filesystem.readOnly)
 	{
+		kernelDebug(debug_misc, "Opening kernel log file");
+
 		status = kernelLogSetFile(DEFAULT_LOGFILE);
 		if (status < 0)
 			// Make a warning, but don't return error.  This is not fatal.
 			kernelError(kernel_warn, "Unable to open the kernel log file");
 
 		// Write the saved screen contents to a "boot log"
+		kernelDebug(debug_misc, "Writing loader log");
 		writeLoaderLog(screen.data, (80 * 50),
 			kernelTextGetConsoleOutput()->textArea->bytesPerChar);
 	}
@@ -555,11 +563,14 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 		kernelMemoryRelease(screen.data);
 
 	// Load the kernel's symbol table
+	kernelDebug(debug_misc, "Reading kernel symbols");
 	kernelReadSymbols();
 
 	// Initialize network functions?
 	if (networking)
 	{
+		kernelDebug(debug_misc, "Initializing networking");
+
 		status = kernelNetworkInitialize();
 		if (status < 0)
 		{
@@ -569,6 +580,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	}
 
 	// Initialize user functions
+	kernelDebug(debug_misc, "Initializing user functions");
 	status = kernelUserInitialize();
 	if (status < 0)
 	{
@@ -580,6 +592,8 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	// error code.
 	if (graphics)
 	{
+		kernelDebug(debug_misc, "Starting GUI initialization");
+
 		status = kernelWindowInitialize();
 		if (status < 0)
 			// Make a warning, but don't return error.  This is not fatal.
@@ -594,6 +608,9 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 		kernelTextPrint("\nGraphics are not enabled.  Operating in text "
 			"mode.\n");
 
+	kernelDebug(debug_misc, "Finished kernel initialization");
+
 	// Done setup.  Return success.
 	return (status = 0);
 }
+

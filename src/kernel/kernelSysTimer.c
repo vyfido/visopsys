@@ -93,8 +93,8 @@ int kernelSysTimerInitialize(kernelDevice *dev)
 	// Don't save any old handler for the dedicated system timer interrupt,
 	// but if there is one, we want to know about it.
 	if (kernelInterruptGetHandler(INTERRUPT_NUM_SYSTIMER))
-		kernelError(kernel_warn, "Not chaining unexpected existing handler for "
-			"system timer int %d", INTERRUPT_NUM_SYSTIMER);
+		kernelError(kernel_warn, "Not chaining unexpected existing handler "
+			"for system timer int %d", INTERRUPT_NUM_SYSTIMER);
 
 	// Register our interrupt handler
 	status = kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, &timerInterrupt);
@@ -102,7 +102,9 @@ int kernelSysTimerInitialize(kernelDevice *dev)
 		return (status);
 
 	// Turn on the interrupt
-	kernelPicMask(INTERRUPT_NUM_SYSTIMER, 1);
+	status = kernelPicMask(INTERRUPT_NUM_SYSTIMER, 1);
+	if (status < 0)
+		return (status);
 
 	// Return success
 	return (status = 0);

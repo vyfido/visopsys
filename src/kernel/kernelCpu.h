@@ -29,3 +29,4 @@ void kernelCpuSpinMs(unsigned);
 
 #define _KERNELCPU_H
 #endif
+

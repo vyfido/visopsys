@@ -113,7 +113,7 @@ typedef struct _kernelDynamicLibrary {
 	char name[MAX_NAME_LENGTH];
 	void *code;
 	void *codeVirtual;
-	void *codePhysical;
+	unsigned codePhysical;
 	unsigned codeSize;
 	void *data;
 	void *dataVirtual;
@@ -167,3 +167,4 @@ kernelFileClass *kernelFileClassBinary(void);
 
 #define _KERNELLOADER_H
 #endif
+

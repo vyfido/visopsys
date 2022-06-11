@@ -123,3 +123,4 @@ void kernelGraphicConvexShade(kernelGraphicBuffer *, color *, int, int, int,
 
 #define _KERNELGRAPHIC_H
 #endif
+

@@ -26,36 +26,60 @@
 #include <sys/types.h>
 
 // Global definitions
-#define USBEHCI_NUM_FRAMES			1024
-#define USBEHCI_FRAMELIST_MEMSIZE	(USBEHCI_NUM_FRAMES * sizeof(unsigned))
-#define USBEHCI_MAX_QTD_BUFFERSIZE	4096
-#define USBEHCI_MAX_QTD_BUFFERS		5
-#define USBEHCI_MAX_QTD_DATA		(USBEHCI_MAX_QTD_BUFFERS * \
-									USBEHCI_MAX_QTD_BUFFERSIZE)
+#define USBEHCI_PCI_PROGIF				0x20
+#define USBEHCI_MAX_ROOTPORTS			15
+#define USBEHCI_NUM_FRAMES				1024
+#define USBEHCI_FRAMELIST_MEMSIZE		(USBEHCI_NUM_FRAMES * sizeof(unsigned))
+#define USBEHCI_MAX_QTD_BUFFERSIZE		4096
+#define USBEHCI_MAX_QTD_BUFFERS			5
+#define USBEHCI_MAX_QTD_DATA			(USBEHCI_MAX_QTD_BUFFERS * \
+										USBEHCI_MAX_QTD_BUFFERSIZE)
 
 // Bitfields for the EHCI HCSPARAMS register
-#define USBEHCI_HCSP_DEBUGPORT		0x00F00000
-#define USBEHCI_HCSP_PORTINICATORS	0x00010000
-#define USBEHCI_HCSP_NUMCOMPANIONS	0x0000F000
-#define USBEHCI_HCSP_PORTSPERCOMP	0x00000F00
-#define USBEHCI_HCSP_PORTRTERULES	0x00000080
-#define USBEHCI_HCSP_PORTPOWERCTRL	0x00000010
-#define USBEHCI_HCSP_NUMPORTS		0x0000000F
+#define USBEHCI_HCSP_DEBUGPORT			0x00F00000
+#define USBEHCI_HCSP_PORTINICATORS		0x00010000
+#define USBEHCI_HCSP_NUMCOMPANIONS		0x0000F000
+#define USBEHCI_HCSP_PORTSPERCOMP		0x00000F00
+#define USBEHCI_HCSP_PORTRTERULES		0x00000080
+#define USBEHCI_HCSP_PORTPOWERCTRL		0x00000010
+#define USBEHCI_HCSP_NUMPORTS			0x0000000F
 
 // Bitfields for the EHCI HCCPARAMS register
-#define USBEHCI_HCCP_EXTCAPPTR		0x0000FF00
-#define USBEHCI_HCCP_ISOCSCHDTHRES	0x000000F0
-#define USBEHCI_HCCP_ASYNCSCHDPARK	0x00000004
-#define USBEHCI_HCCP_PROGFRAMELIST	0x00000002
-#define USBEHCI_HCCP_ADDR64			0x00000001
+#define USBEHCI_HCCP_EXTCAPPTR			0x0000FF00
+#define USBEHCI_HCCP_ISOCSCHDTHRES		0x000000F0
+#define USBEHCI_HCCP_ASYNCSCHDPARK		0x00000004
+#define USBEHCI_HCCP_PROGFRAMELIST		0x00000002
+#define USBEHCI_HCCP_ADDR64				0x00000001
 
 // Extended capability codes
-#define USBEHCI_EXTCAP_RESERVED		0
-#define USBEHCI_EXTCAP_HANDOFFSYNC	1
+#define USBEHCI_EXTCAP_RESERVED			0
+#define USBEHCI_EXTCAP_HANDOFFSYNC		1
 
 // Bitfields for the legacy support registers
-#define USBEHCI_LEGSUPCAP_OSOWNED	0x01000000
-#define USBEHCI_LEGSUPCAP_BIOSOWND	0x00010000
+#define USBEHCI_LEGSUPCAP_OSOWNED		0x01000000	/* RW */
+#define USBEHCI_LEGSUPCAP_BIOSOWND		0x00010000	/* RW */
+#define USBEHCI_LEGSUPCAP_NEXTEXTCAP	0x0000FF00	/* RO */
+#define USBEHCI_LEGSUPCAP_CAPID			0x000000FF	/* RO */
+#define USBEHCI_LEGSUPCAP_RO			(USBEHCI_LEGSUPCAP_NEXTEXTCAP | \
+										USBEHCI_LEGSUPCAP_CAPID)
+#define USBEHCI_LETSUBCONT_SMIBAR		0x80000000	/* RWC */
+#define USBEHCI_LETSUBCONT_SMICMD		0x40000000	/* RWC */
+#define USBEHCI_LETSUBCONT_SMIOSOWN		0x20000000	/* RWC */
+#define USBEHCI_LETSUBCONT_SMIASYNC		0x00200000	/* RO */
+#define USBEHCI_LETSUBCONT_SMIHOST		0x00100000	/* RO */
+#define USBEHCI_LETSUBCONT_SMIFRAME		0x00080000	/* RO */
+#define USBEHCI_LETSUBCONT_SMIPORT		0x00040000	/* RO */
+#define USBEHCI_LETSUBCONT_SMIERR		0x00020000	/* RO */
+#define USBEHCI_LETSUBCONT_SMIINT		0x00010000	/* RO */
+#define USBEHCI_LETSUBCONT_SMIRWC		(USBEHCI_LETSUBCONT_SMIBAR | \
+										USBEHCI_LETSUBCONT_SMICMD | \
+										USBEHCI_LETSUBCONT_SMIOSOWN)
+#define EHCI_LETSUBCONT_SMIRO			(USBEHCI_LETSUBCONT_SMIASYNC | \
+										USBEHCI_LETSUBCONT_SMIHOST | \
+										USBEHCI_LETSUBCONT_SMIFRAME | \
+										USBEHCI_LETSUBCONT_SMIPORT | \
+										USBEHCI_LETSUBCONT_SMIERR | \
+										USBEHCI_LETSUBCONT_SMIINT)
 
 // Bitfields for the EHCI command register
 #define USBEHCI_CMD_INTTHRESCTL		0x00FF0000
@@ -198,7 +222,7 @@ typedef volatile struct {
 // Structure for managing lists of ehciQtds.
 typedef struct _ehciQtdItem {
 	ehciQtd *qtd;
-	unsigned physicalAddr;
+	unsigned physical;
 	void *buffer;
 	struct _ehciQtdItem *nextQtdItem;
 
@@ -220,7 +244,7 @@ typedef struct _ehciQueueHeadItem {
 	void *usbDev;
 	unsigned char endpoint;
 	ehciQueueHead *queueHead;
-	unsigned physicalAddr;
+	unsigned physical;
 	ehciQtdItem *firstQtdItem;
 
 } ehciQueueHeadItem;
@@ -281,13 +305,12 @@ typedef struct {
 	unsigned maxLen;
 	int interval;
 	ehciTransQueue transQueue;
+	unsigned bufferPhysical;
 	void (*callback)(usbDevice *, void *, unsigned);
 
 } usbEhciInterruptReg;
 
 typedef struct {
-	unsigned physMemSpace;
-	unsigned memSpaceSize;
 	ehciCapRegs *capRegs;
 	ehciOpRegs *opRegs;
 	int numPorts;
@@ -303,3 +326,4 @@ typedef struct {
 
 #define _KERNELUSBEHCIDRIVER_H
 #endif
+
