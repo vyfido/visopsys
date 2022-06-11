@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,30 +46,30 @@ has not been enabled, this command has no effect.
 
 int main(int argc, char *argv[])
 {
-  char buffer[NETWORK_MAX_HOSTNAMELENGTH];
+	char buffer[NETWORK_MAX_HOSTNAMELENGTH];
 
-  int status = 0;
+	int status = 0;
 
-  if (argc > 1)
-    {
-      // Set the hostname
+	if (argc > 1)
+	{
+		// Set the hostname
 
-      strncpy(buffer, argv[argc - 1], NETWORK_MAX_HOSTNAMELENGTH);
+		strncpy(buffer, argv[argc - 1], NETWORK_MAX_HOSTNAMELENGTH);
 
-      status = networkSetHostName(buffer, NETWORK_MAX_HOSTNAMELENGTH);
-      if (status < 0)
-	return (status);
-    }
-  else
-    {
-      // Just print the current hostname
+		status = networkSetHostName(buffer, NETWORK_MAX_HOSTNAMELENGTH);
+		if (status < 0)
+			return (status);
+	}
+	else
+	{
+		// Just print the current hostname
 
-      status = networkGetHostName(buffer, NETWORK_MAX_HOSTNAMELENGTH);
-      if (status < 0)
-	return (status);
+		status = networkGetHostName(buffer, NETWORK_MAX_HOSTNAMELENGTH);
+		if (status < 0)
+			return (status);
 
-      printf("%s\n", buffer);
-    }
+		printf("%s\n", buffer);
+	}
 
-  return (status = 0);
+	return (status = 0);
 }

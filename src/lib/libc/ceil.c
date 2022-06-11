@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,18 +26,18 @@
 
 double ceil(double d)
 {
-  // The ceil() function computes the smallest integral value not
-  // less than x.
+	// The ceil() function computes the smallest integral value not
+	// less than x.
 
-  int c = (int) d;
-    
-  if (d > 0)
-    d = (double) (c + 1);
+	int c = (int) d;
+		
+	if (d > 0)
+		d = (double) (c + 1);
 
-  else if (d < 0)
-    // ??? what to do ???  Is ceil(-5.5) == -6.0, or is
-    // ceil(-5.5) == -5.0?  -5.0 according to the description.
-    d = (double) c;
+	else if (d < 0)
+		// ??? what to do ???  Is ceil(-5.5) == -6.0, or is
+		// ceil(-5.5) == -5.0?  -5.0 according to the description.
+		d = (double) c;
 
-  return (d);
+	return (d);
 }

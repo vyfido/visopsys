@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -65,10 +65,10 @@ Options:
 
 #define _(string) gettext(string)
 
-#define EJECT_MESS     _("Ejecting, please wait...")
-#define NOUNLOCK_MESS  _("Unable to unlock the media door")
-#define NOEJECT_MESS   _("Can't seem to eject.  Try pushing\nthe 'eject' " \
-			 "button now.")
+#define EJECT_MESS		_("Ejecting, please wait...")
+#define NOUNLOCK_MESS	_("Unable to unlock the media door")
+#define NOEJECT_MESS	_("Can't seem to eject.  Try pushing\nthe 'eject' " \
+	"button now.")
 
 static int graphics = 0;
 static int eject = 0;
@@ -82,235 +82,234 @@ static disk sysDisk;
 
 static void doEject(void)
 {
-  int status = 0;
-  objectKey bannerDialog = NULL;
+	int status = 0;
+	objectKey bannerDialog = NULL;
 
-  if (graphics)
-    bannerDialog = windowNewBannerDialog(window, _("Ejecting"), EJECT_MESS);
-  else
-    printf("\n%s ", EJECT_MESS);
+	if (graphics)
+		bannerDialog = windowNewBannerDialog(window, _("Ejecting"), EJECT_MESS);
+	else
+		printf("\n%s ", EJECT_MESS);
 
-  if (diskSetLockState(sysDisk.name, 0) < 0)
-    {
-      if (graphics)
+	if (diskSetLockState(sysDisk.name, 0) < 0)
 	{
-	  if (bannerDialog)
-	    windowDestroy(bannerDialog);
-      
-	  windowNewErrorDialog(window, _("Error"), NOUNLOCK_MESS);
-	}
-      else
-	printf("\n\n%s\n", NOUNLOCK_MESS);
-    }
-  else
-    {
-      status = diskSetDoorState(sysDisk.name, 1);
-      if (status < 0)
-	{
-	  // Try a second time.  Sometimes 2 attempts seems to help.
-	  status = diskSetDoorState(sysDisk.name, 1);
-
-	  if (status < 0)
-	    {
-	      if (graphics)
+		if (graphics)
 		{
-		  if (bannerDialog)
-		    windowDestroy(bannerDialog);
-
-		  windowNewInfoDialog(window, "Hmm", NOEJECT_MESS);
+			if (bannerDialog)
+				windowDestroy(bannerDialog);
+		
+			windowNewErrorDialog(window, _("Error"), NOUNLOCK_MESS);
 		}
-	      else
-		printf("\n\n%s\n", NOEJECT_MESS);
-	    }
+		else
+			printf("\n\n%s\n", NOUNLOCK_MESS);
 	}
-      else
+	else
 	{
-	  if (graphics)
-	    {
-	      if (bannerDialog)
-		windowDestroy(bannerDialog);
-	    }
-	  else
-	    printf("\n");
+		status = diskSetDoorState(sysDisk.name, 1);
+		if (status < 0)
+		{
+			// Try a second time.  Sometimes 2 attempts seems to help.
+			status = diskSetDoorState(sysDisk.name, 1);
+
+			if (status < 0)
+			{
+				if (graphics)
+				{
+					if (bannerDialog)
+						windowDestroy(bannerDialog);
+
+					windowNewInfoDialog(window, "Hmm", NOEJECT_MESS);
+				}
+				else
+					printf("\n\n%s\n", NOEJECT_MESS);
+			}
+		}
+		else
+		{
+			if (graphics)
+			{
+				if (bannerDialog)
+					windowDestroy(bannerDialog);
+			}
+			else
+				printf("\n");
+		}
 	}
-    }
 }
 
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
-  int selected = 0;
+	int selected = 0;
 
-  // Check for the window being closed by a GUI event.
-  if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-    {
-      windowGuiStop();
-      windowDestroy(window);
-      exit(0);
-    }
-
-  if (((key == rebootIcon) || (key == shutdownIcon)) &&
-      (event->type == EVENT_MOUSE_LEFTUP))
-    {
-      windowGuiStop();
-
-      if (ejectCheckbox)
+	// Check for the window being closed by a GUI event.
+	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
 	{
-	  windowComponentGetSelected(ejectCheckbox, &selected);
-
-	  if (eject || (selected == 1))
-	    doEject();
+		windowGuiStop();
+		windowDestroy(window);
+		exit(0);
 	}
 
-      windowDestroy(window);
+	if (((key == rebootIcon) || (key == shutdownIcon)) &&
+	(event->type == EVENT_MOUSE_LEFTUP))
+	{
+		windowGuiStop();
 
-      shutdown((key == rebootIcon), 0);
-      while(1);
-    }
+		if (ejectCheckbox)
+		{
+			windowComponentGetSelected(ejectCheckbox, &selected);
+
+			if (eject || (selected == 1))
+				doEject();
+		}
+
+		windowDestroy(window);
+
+		shutdown((key == rebootIcon), 0);
+		while(1);
+	}
 }
 
 
 static void constructWindow(void)
 {
-  // If we are in graphics mode, make a window rather than operating on the
-  // command line.
+	// If we are in graphics mode, make a window rather than operating on the
+	// command line.
 
-  componentParameters params;
-  image iconImage;
+	componentParameters params;
+	image iconImage;
 
-  // Create a new window, with small, arbitrary size and location
-  window = windowNew(multitaskerGetCurrentProcessId(), _("Shut down"));
-  if (window == NULL)
-    return;
+	// Create a new window, with small, arbitrary size and location
+	window = windowNew(multitaskerGetCurrentProcessId(), _("Shut down"));
+	if (window == NULL)
+		return;
 
-  bzero(&params, sizeof(componentParameters));
-  params.gridWidth = 1;
-  params.gridHeight = 1;
-  params.padTop = 20;
-  params.padBottom = 20;
-  params.padLeft = 20;
-  params.padRight = 20;
-  params.orientationX = orient_center;
-  params.orientationY = orient_middle;
-  params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
-		  WINDOW_COMPFLAG_CUSTOMBACKGROUND |
-		  WINDOW_COMPFLAG_CANFOCUS);
-  params.foreground.red = 255;
-  params.foreground.green = 255;
-  params.foreground.blue = 255;
-  params.background.red = 35;
-  params.background.green = 60;
-  params.background.blue = 230;
+	bzero(&params, sizeof(componentParameters));
+	params.gridWidth = 1;
+	params.gridHeight = 1;
+	params.padTop = 20;
+	params.padBottom = 20;
+	params.padLeft = 20;
+	params.padRight = 20;
+	params.orientationX = orient_center;
+	params.orientationY = orient_middle;
+	params.flags = (WINDOW_COMPFLAG_CUSTOMFOREGROUND |
+		WINDOW_COMPFLAG_CUSTOMBACKGROUND | WINDOW_COMPFLAG_CANFOCUS);
+	params.foreground.red = 255;
+	params.foreground.green = 255;
+	params.foreground.blue = 255;
+	params.background.red = 35;
+	params.background.green = 60;
+	params.background.blue = 230;
 
-  // Create a reboot icon
-  bzero(&iconImage, sizeof(image));
-  if (imageLoad("/system/icons/rebticon.bmp", 0, 0, &iconImage) >= 0)
-    {
-      rebootIcon = windowNewIcon(window, &iconImage, _("Reboot"), &params);
-      windowRegisterEventHandler(rebootIcon, &eventHandler);
-      imageFree(&iconImage);
-    }
+	// Create a reboot icon
+	bzero(&iconImage, sizeof(image));
+	if (imageLoad("/system/icons/rebticon.bmp", 0, 0, &iconImage) >= 0)
+	{
+		rebootIcon = windowNewIcon(window, &iconImage, _("Reboot"), &params);
+		windowRegisterEventHandler(rebootIcon, &eventHandler);
+		imageFree(&iconImage);
+	}
 
-  // Create a shut down icon
-  bzero(&iconImage, sizeof(image));
-  if (imageLoad("/system/icons/shuticon.bmp", 0, 0, &iconImage) >= 0)
-    {
-      params.gridX = 1;
-      shutdownIcon =
-	windowNewIcon(window, &iconImage, _("Shut down"), &params);
-      windowRegisterEventHandler(shutdownIcon, &eventHandler);
-      imageFree(&iconImage);
-    }
+	// Create a shut down icon
+	bzero(&iconImage, sizeof(image));
+	if (imageLoad("/system/icons/shuticon.bmp", 0, 0, &iconImage) >= 0)
+	{
+		params.gridX = 1;
+		shutdownIcon =
+			windowNewIcon(window, &iconImage, _("Shut down"), &params);
+		windowRegisterEventHandler(shutdownIcon, &eventHandler);
+		imageFree(&iconImage);
+	}
 
-  // Find out whether we are currently running from a CD-ROM
-  if (sysDisk.type & DISKTYPE_CDROM)
-    {
-      // Yes.  Make an 'eject cd' checkbox.
-      params.gridX = 0;
-      params.gridY = 1;
-      params.gridWidth = 2;
-      params.padTop = 0;
-      ejectCheckbox = windowNewCheckbox(window, _("Eject CD-ROM"), &params);
-    }
+	// Find out whether we are currently running from a CD-ROM
+	if (sysDisk.type & DISKTYPE_CDROM)
+	{
+		// Yes.  Make an 'eject cd' checkbox.
+		params.gridX = 0;
+		params.gridY = 1;
+		params.gridWidth = 2;
+		params.padTop = 0;
+		ejectCheckbox = windowNewCheckbox(window, _("Eject CD-ROM"), &params);
+	}
 
-  // Register an event handler to catch window close events
-  windowRegisterEventHandler(window, &eventHandler);
+	// Register an event handler to catch window close events
+	windowRegisterEventHandler(window, &eventHandler);
 
-  windowSetBackgroundColor(window, &params.background);
-  windowSetVisible(window, 1);
+	windowSetBackgroundColor(window, &params.background);
+	windowSetVisible(window, 1);
 
-  return;
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  char *language = "";
-  char opt;
-  int force = 0;
+	int status = 0;
+	char *language = "";
+	char opt;
+	int force = 0;
 
-#ifdef BUILDLANG
-  language=BUILDLANG;
-#endif
-  setlocale(LC_ALL, language);
-  textdomain("shutdown");
+	#ifdef BUILDLANG
+		language=BUILDLANG;
+	#endif
+	setlocale(LC_ALL, language);
+	textdomain("shutdown");
 
-  // Are graphics enabled?
-  graphics = graphicsAreEnabled();
+	// Are graphics enabled?
+	graphics = graphicsAreEnabled();
 
-  while (strchr("Tefr", (opt = getopt(argc, argv, "Tefr"))))
-    {
-      // Force text mode?
-      if (opt == 'T')
-	graphics = 0;
-
-      // Eject boot media?
-      if (opt == 'e')
-	eject = 1;
-
-      // Shut down forcefully?
-      if (opt == 'f')
-	force = 1;
-
-      // Reboot?
-      if (opt == 'r')
+	while (strchr("Tefr", (opt = getopt(argc, argv, "Tefr"))))
 	{
-	  graphics = 0;
-	  reboot = 1;
-	}
-    }
+		// Force text mode?
+		if (opt == 'T')
+			graphics = 0;
 
-  // Get the system disk
-  bzero(&sysDisk, sizeof(disk));
-  fileGetDisk("/", &sysDisk);
+		// Eject boot media?
+		if (opt == 'e')
+			eject = 1;
 
-  // If graphics are enabled, show a query dialog asking whether to shut
-  // down or reboot
-  if (graphics)
-    {
-      constructWindow();
+		// Shut down forcefully?
+		if (opt == 'f')
+			force = 1;
 
-      // Run the GUI
-      windowGuiRun();
-    }
-  else
-    {
-      if (eject && (sysDisk.type & DISKTYPE_CDROM))
-	doEject();
-
-      // There's a nice system function for doing this.
-      status = shutdown(reboot, force);
-      if (status < 0)
-	{
-	  if (!force)
-	    printf(_("Use \"%s -f\" to force.\n"), argv[0]);
-	  return (status);
+		// Reboot?
+		if (opt == 'r')
+		{
+			graphics = 0;
+			reboot = 1;
+		}
 	}
 
-      // Wait for death
-      while(1);
-    }
+	// Get the system disk
+	bzero(&sysDisk, sizeof(disk));
+	fileGetDisk("/", &sysDisk);
 
-  return (status = 0);
+	// If graphics are enabled, show a query dialog asking whether to shut
+	// down or reboot
+	if (graphics)
+	{
+		constructWindow();
+
+		// Run the GUI
+		windowGuiRun();
+	}
+	else
+	{
+		if (eject && (sysDisk.type & DISKTYPE_CDROM))
+			doEject();
+
+		// There's a nice system function for doing this.
+		status = shutdown(reboot, force);
+		if (status < 0)
+		{
+			if (!force)
+				printf(_("Use \"%s -f\" to force.\n"), argv[0]);
+			return (status);
+		}
+
+		// Wait for death
+		while(1);
+	}
+
+	return (status = 0);
 }

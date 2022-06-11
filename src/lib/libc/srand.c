@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,9 +28,9 @@ extern unsigned __random_seed;
 
 void srand(unsigned seed)
 {
-  // The srand() function sets its argument as the seed for a new sequence
-  // of pseudo-random integers to be returned by rand().  These sequences
-  // are repeatable by calling srand() with the same seed value.
-  __random_seed = seed;
-  return;
+	// The srand() function sets its argument as the seed for a new sequence
+	// of pseudo-random integers to be returned by rand().  These sequences
+	// are repeatable by calling srand() with the same seed value.
+	__random_seed = seed;
+	return;
 }

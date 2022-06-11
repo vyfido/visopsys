@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -85,6 +85,7 @@ vsh               Start a new command shell
 
  -- Additional (graphics mode only) --
 
+calc              A calculator program
 clock             Show a simple clock in the corner of the screen
 cmdwin            Open a new command window
 computer          Navigate the resources of the computer
@@ -116,38 +117,38 @@ wallpaper         Load a new background wallpaper image
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  char command[MAX_PATH_NAME_LENGTH];
-  int count;
+	int status = 0;
+	char command[MAX_PATH_NAME_LENGTH];
+	int count;
 
-  if (argc < 2)
-    // If there are no arguments, print the general help file
-    status = system("/programs/more " HELPFILES_DIR "/help.txt");
+	if (argc < 2)
+		// If there are no arguments, print the general help file
+		status = system("/programs/more " HELPFILES_DIR "/help.txt");
 
-  else
-    {
-      for (count = 1; count < argc; count ++)
+	else
 	{
-	  // See if there is a help file for the argument
-	  sprintf(command, "%s/%s.txt", HELPFILES_DIR, argv[count]);
-	  status = fileFind(command, NULL);
-	  if (status < 0)
-	    {
-	      // No help file
-	      printf("There is no help available for \"%s\"\n", argv[count]);
-	      return (status = ERR_NOSUCHFILE);
-	    }
+		for (count = 1; count < argc; count ++)
+		{
+			// See if there is a help file for the argument
+			sprintf(command, "%s/%s.txt", HELPFILES_DIR, argv[count]);
+			status = fileFind(command, NULL);
+			if (status < 0)
+			{
+				// No help file
+				printf("There is no help available for \"%s\"\n", argv[count]);
+				return (status = ERR_NOSUCHFILE);
+			}
 
-	  // For each argument, look for a help file whose name matches
-	  sprintf(command, "/programs/more %s/%s.txt", HELPFILES_DIR,
-		  argv[count]);
+			// For each argument, look for a help file whose name matches
+			sprintf(command, "/programs/more %s/%s.txt", HELPFILES_DIR,
+				argv[count]);
 
-	  // Search
-	  status = system(command);
-	  if (status < 0)
-	    break;
+			// Search
+			status = system(command);
+			if (status < 0)
+				break;
+		}
 	}
-    }
 
-  return (status);
+	return (status);
 }

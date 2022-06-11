@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -54,65 +54,65 @@ static disk sysDisk;
 
 static void doEject(void)
 {
-  int status = 0;
+	int status = 0;
 
-  printf("\nEjecting, please wait... ");
+	printf("\nEjecting, please wait... ");
 
-  if (diskSetLockState(sysDisk.name, 0) < 0)
-    printf("\n\nUnable to unlock the media door\n");
-  else
-    {
-      status = diskSetDoorState(sysDisk.name, 1);
-      if (status < 0)
+	if (diskSetLockState(sysDisk.name, 0) < 0)
+		printf("\n\nUnable to unlock the media door\n");
+	else
 	{
-	  // Try a second time.  Sometimes 2 attempts seems to help.
-	  status = diskSetDoorState(sysDisk.name, 1);
+		status = diskSetDoorState(sysDisk.name, 1);
+		if (status < 0)
+		{
+			// Try a second time.  Sometimes 2 attempts seems to help.
+			status = diskSetDoorState(sysDisk.name, 1);
 
-	  if (status < 0)
-	    printf("\n\nCan't seem to eject.  Try pushing the 'eject' button "
-		   "now.\n");
+			if (status < 0)
+				printf("\n\nCan't seem to eject.  Try pushing the 'eject' "
+					"button now.\n");
+		}
+		else
+			printf("\n");
 	}
-      else
-	printf("\n");
-    }
 }
 
 
 int main(int argc, char *argv[])
 {
-  // There's a nice system function for doing this.
+	// There's a nice system function for doing this.
 
-  int status = 0;
-  char opt;
-  int eject = 0;
-  int force = 0;
+	int status = 0;
+	char opt;
+	int eject = 0;
+	int force = 0;
 
-  while (strchr("ef", (opt = getopt(argc, argv, "ef"))))
-    {
-      // Eject boot media?
-      if (opt == 'e')
-	eject = 1;
+	while (strchr("ef", (opt = getopt(argc, argv, "ef"))))
+	{
+		// Eject boot media?
+		if (opt == 'e')
+			eject = 1;
 
-      // Shut down forcefully?
-      if (opt == 'f')
-	force = 1;
-    }
+		// Shut down forcefully?
+		if (opt == 'f')
+			force = 1;
+	}
 
-  // Get the system disk
-  bzero(&sysDisk, sizeof(disk));
-  fileGetDisk("/", &sysDisk);
+	// Get the system disk
+	bzero(&sysDisk, sizeof(disk));
+	fileGetDisk("/", &sysDisk);
 
-  if (eject && (sysDisk.type & DISKTYPE_CDROM))
-    doEject();
+	if (eject && (sysDisk.type & DISKTYPE_CDROM))
+		doEject();
 
-  status = shutdown(1, force);
-  if (status < 0)
-    {
-      if (!force)
-	printf("Use \"%s -f\" to force.\n", argv[0]);
-      return (status);
-    }
+	status = shutdown(1, force);
+	if (status < 0)
+	{
+		if (!force)
+			printf("Use \"%s -f\" to force.\n", argv[0]);
+		return (status);
+	}
 
-  // Wait for death
-  while(1);
+	// Wait for death
+	while(1);
 }

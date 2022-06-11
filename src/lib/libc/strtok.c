@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,50 +28,50 @@ static char *saveptr = NULL;
 
 char *strtok(char *string, const char *delim)
 {
-  // The strtok() function parses a string into a sequence of tokens.  The
-  // string to be parsed is passed to the first call of the function along
-  // with a second string containing delimiter characters.
+	// The strtok() function parses a string into a sequence of tokens.  The
+	// string to be parsed is passed to the first call of the function along
+	// with a second string containing delimiter characters.
 
-  char *token = NULL;
+	char *token = NULL;
 
-  // Check params
-  if (string == NULL)
-    {
-      if (saveptr == NULL)
-	return (saveptr = NULL);
-    }
-  else
-    // This is the first call with this string
-    saveptr = string;
+	// Check params
+	if (string == NULL)
+	{
+		if (saveptr == NULL)
+			return (saveptr = NULL);
+	}
+	else
+		// This is the first call with this string
+		saveptr = string;
 
-  if (delim == NULL)
-    // We need delimiters
-    return (saveptr = NULL);
+	if (delim == NULL)
+		// We need delimiters
+		return (saveptr = NULL);
 
-  // Skip any leading delimiter characters.
-  while (saveptr[0] && strchr(delim, saveptr[0]))
-    saveptr += 1;
+	// Skip any leading delimiter characters.
+	while (saveptr[0] && strchr(delim, saveptr[0]))
+		saveptr += 1;
 
-  if (!saveptr[0])
-    // Nothing left
-    return (saveptr = NULL);
+	if (!saveptr[0])
+		// Nothing left
+		return (saveptr = NULL);
 
-  // Remember the start of the token.  This will be our return value.
-  token = saveptr;
+	// Remember the start of the token.  This will be our return value.
+	token = saveptr;
 
-  // Move our save pointer along to the next delimiter or NULL
-  while (saveptr[0] && !strchr(delim, saveptr[0]))
-    saveptr += 1;
+	// Move our save pointer along to the next delimiter or NULL
+	while (saveptr[0] && !strchr(delim, saveptr[0]))
+		saveptr += 1;
 
-  if (saveptr[0])
-    {
-      // Insert a NULL at the delimiter
-      saveptr[0] = '\0';
+	if (saveptr[0])
+	{
+		// Insert a NULL at the delimiter
+		saveptr[0] = '\0';
 
-      // Move to the next char.  We don't care what it is (NULL, delimiter,
-      // etc) because the next call will deal with that.
-      saveptr += 1;
-    }
+		// Move to the next char.  We don't care what it is (NULL, delimiter,
+		// etc) because the next call will deal with that.
+		saveptr += 1;
+	}
 
-  return (token);
+	return (token);
 }

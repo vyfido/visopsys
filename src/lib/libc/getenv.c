@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,35 +28,35 @@
 
 char *getenv(const char *variable)
 {
-  // Get a pointer to the value of an environment variable, or NULL if it
-  // isn't set.
+	// Get a pointer to the value of an environment variable, or NULL if it
+	// isn't set.
 
-  int status = 0;
-  char *value = NULL;
+	int status = 0;
+	char *value = NULL;
 
-  if (visopsys_in_kernel)
-    {
-      errno = ERR_BUG;
-      return (value =NULL);
-    }
-
-  if (!variable)
-    {
-      errno = ERR_NULLPARAMETER;
-      return (value = NULL);
-    }
-
-  value = malloc(MAXSTRINGLENGTH);
-  if (value)
-    {
-      status = environmentGet(variable, value, MAXSTRINGLENGTH);
-      if (status < 0)
+	if (visopsys_in_kernel)
 	{
-	  errno = status;
-	  free(value);
-	  return (value = NULL);
+		errno = ERR_BUG;
+		return (value =NULL);
 	}
-    }
 
-  return (value);
+	if (!variable)
+	{
+		errno = ERR_NULLPARAMETER;
+		return (value = NULL);
+	}
+
+	value = malloc(MAXSTRINGLENGTH);
+	if (value)
+	{
+		status = environmentGet(variable, value, MAXSTRINGLENGTH);
+		if (status < 0)
+		{
+			errno = status;
+			free(value);
+			return (value = NULL);
+		}
+	}
+
+	return (value);
 }

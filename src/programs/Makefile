@@ -1,30 +1,30 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2013 J. Andrew McLaughlin
+##  Copyright (C) 1998-2014 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
 
-ROOT=../..
-UTILSDIR=${ROOT}/utils
-BUILDDIR=${ROOT}/build/programs
-INCDIR=../include
-LIBDIR=${ROOT}/build/system/libraries
-MSGDIR=${ROOT}/build/system/locale
+ROOT		= ../..
+UTILSDIR	= ${ROOT}/utils
+BUILDDIR	= ${ROOT}/build/programs
+INCDIR		= ../include
+LIBDIR		= ${ROOT}/build/system/libraries
+MSGDIR		= ${ROOT}/build/system/locale
 
 include ${ROOT}/Makefile.include
 
 ifneq (${PLUS},)
-	PLUSNAMES = sysdiag
+	PLUSNAMES	= sysdiag
 endif
 ifneq (${BUILDLANG},)
-	DEFLANG = -DBUILDLANG=\"${BUILDLANG}\"
-	MAKEMSGS = ${UTILSDIR}/makemsgs.sh ${BUILDLANG} ${MSGDIR}
+	DEFLANG		= -DBUILDLANG=\"${BUILDLANG}\"
+	MAKEMSGS	= ${UTILSDIR}/makemsgs.sh ${BUILDLANG} ${MSGDIR}
 endif
 
 STDDEPS		= ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h ${LIBDIR}/crt0.o
-INCLUDE         = -nostdinc -I${INCDIR} -I${INCDIR}/c++
+INCLUDE		= -nostdinc -I${INCDIR} -I${INCDIR}/c++
 DEBUG		= # -DDEBUG # Uncomment to turn on debugging
 CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG} \
 		${DEFLANG}
@@ -39,6 +39,7 @@ endif
 CNAMES	= adduser \
 	bootmenu \
 	cal \
+	calc \
 	cat \
 	cdrom \
 	chkdisk \
@@ -109,8 +110,8 @@ CNAMES	= adduser \
 	wallpaper \
 	${PLUSNAMES}
 
-COBJS = $(addprefix ${BUILDDIR}/, ${CNAMES})
-C++OBJS = $(addprefix ${BUILDDIR}/, ${C++NAMES})
+COBJS	= $(addprefix ${BUILDDIR}/, ${CNAMES})
+C++OBJS	= $(addprefix ${BUILDDIR}/, ${C++NAMES})
 
 # Targets
 

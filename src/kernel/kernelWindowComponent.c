@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,7 +22,7 @@
 // This code implements a generic window component, including a default
 // constructor and default functions that can be overridden.
 
-#include "kernelWindow.h"     // Our prototypes are here
+#include "kernelWindow.h"	// Our prototypes are here
 #include "kernelError.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
@@ -34,51 +34,52 @@ extern kernelWindowVariables *windowVariables;
 
 static int drawBorder(kernelWindowComponent *component, int draw)
 {
-  // Draw or erase a simple little border around the supplied component
+	// Draw or erase a simple little border around the supplied component
 
-  if (draw)
-    kernelGraphicDrawRect(component->buffer,
-			  (color *) &(component->params.foreground),
-			  draw_normal, (component->xCoord - 2),
-			  (component->yCoord - 2), (component->width + 4),
-			  (component->height + 4), 1, 0);
-  else
-    kernelGraphicDrawRect(component->buffer,
-			  (color *) &(component->window->background),
-			  draw_normal, (component->xCoord - 2),
-			  (component->yCoord - 2), (component->width + 4),
-			  (component->height + 4), 1, 0);
-  return (0);
+	if (draw)
+		kernelGraphicDrawRect(component->buffer,
+			(color *) &(component->params.foreground),
+			draw_normal, (component->xCoord - 2), (component->yCoord - 2),
+			(component->width + 4), (component->height + 4), 1, 0);
+	else
+		kernelGraphicDrawRect(component->buffer,
+			(color *) &(component->window->background),
+			draw_normal, (component->xCoord - 2), (component->yCoord - 2),
+			(component->width + 4),	(component->height + 4), 1, 0);
+
+	return (0);
 }
 
 
 static int erase(kernelWindowComponent *component)
 {
-  // Simple erasure of a component, by drawing a filled rectangle of the
-  // window's background color over the component's area
+	// Simple erasure of a component, by drawing a filled rectangle of the
+	// window's background color over the component's area
 
-  kernelGraphicDrawRect(component->buffer,
-			(color *) &(component->window->background),
-			draw_normal, component->xCoord, component->yCoord,
-			component->width, component->height, 1, 1);
-  return (0);
+	kernelGraphicDrawRect(component->buffer,
+		(color *) &(component->window->background),	draw_normal,
+		component->xCoord, component->yCoord, component->width,
+		component->height, 1, 1);
+
+	return (0);
 }
 
 
 static int grey(kernelWindowComponent *component)
 {
-  // Filter the component with the default background color
+	// Filter the component with the default background color
 
-  // If the component has a draw function (stored in its 'grey' pointer)
-  // call it first.
-  if (component->grey)
-    component->grey(component);
+	// If the component has a draw function (stored in its 'grey' pointer)
+	// call it first.
+	if (component->grey)
+		component->grey(component);
 
-  kernelGraphicFilter(component->buffer,
-		      (color *) &(component->params.background),
-		      component->xCoord, component->yCoord, component->width,
-		      component->height);
-  return (0);
+	kernelGraphicFilter(component->buffer,
+		(color *) &(component->params.background),
+		component->xCoord, component->yCoord, component->width,
+		component->height);
+
+	return (0);
 }
 
 
@@ -92,504 +93,506 @@ static int grey(kernelWindowComponent *component)
 
 
 kernelWindowComponent *kernelWindowComponentNew(objectKey parent,
-						componentParameters *params)
+	componentParameters *params)
 {
-  // Creates a new component and adds it to the main container of the
-  // window.
+	// Creates a new component and adds it to the main container of the
+	// window.
 
-  int status = 0;
-  kernelWindowComponent *parentComponent = NULL;
-  kernelWindowComponent *component = NULL;
+	int status = 0;
+	kernelWindowComponent *parentComponent = NULL;
+	kernelWindowComponent *component = NULL;
 
-  // Check params
-  if ((parent == NULL) || (params == NULL))
-    return (component = NULL);
+	// Check params
+	if ((parent == NULL) || (params == NULL))
+		return (component = NULL);
 
-  // Get memory for the basic component
-  component = kernelMalloc(sizeof(kernelWindowComponent));
-  if (component == NULL)
-    return (component);
+	// Get memory for the basic component
+	component = kernelMalloc(sizeof(kernelWindowComponent));
+	if (component == NULL)
+		return (component);
 
-  component->type = genericComponentType;
-  component->subType = genericComponentType;
-  component->window = getWindow(parent);
-  
-  // Use the window's buffer by default
-  if (component->window)
-    component->buffer = &(component->window->buffer);
+	component->type = genericComponentType;
+	component->subType = genericComponentType;
+	component->window = getWindow(parent);
+	
+	// Use the window's buffer by default
+	if (component->window)
+		component->buffer = &(component->window->buffer);
 
-  // Visible and enabled by default
-  component->flags |= (WINFLAG_VISIBLE | WINFLAG_ENABLED);
+	// Visible and enabled by default
+	component->flags |= (WINFLAG_VISIBLE | WINFLAG_ENABLED);
 
-  // If the parameter flags indicate the component should be focusable,
-  // set the appropriate component flag
-  if (params->flags & WINDOW_COMPFLAG_CANFOCUS)
-    component->flags |= WINFLAG_CANFOCUS;
+	// If the parameter flags indicate the component should be focusable,
+	// set the appropriate component flag
+	if (params->flags & WINDOW_COMPFLAG_CANFOCUS)
+		component->flags |= WINFLAG_CANFOCUS;
 
-  // Copy the parameters into the component
-  kernelMemCopy(params, (void *) &(component->params),
+	// Copy the parameters into the component
+	kernelMemCopy(params, (void *) &(component->params),
 		sizeof(componentParameters));
 
-  // If the default colors are requested, copy them into the component
-  // parameters
-  if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
-    {
-      component->params.foreground.blue =
-	windowVariables->color.foreground.blue;
-      component->params.foreground.green =
-	windowVariables->color.foreground.green;
-      component->params.foreground.red = windowVariables->color.foreground.red;
-    }
+	// If the default colors are requested, copy them into the component
+	// parameters
+	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMFOREGROUND))
+	{
+		component->params.foreground.blue =
+			windowVariables->color.foreground.blue;
+		component->params.foreground.green =
+			windowVariables->color.foreground.green;
+		component->params.foreground.red =
+			windowVariables->color.foreground.red;
+	}
 
-  if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
-    {
-      component->params.background.blue =
-	windowVariables->color.background.blue;
-      component->params.background.green =
-	windowVariables->color.background.green;
-      component->params.background.red = windowVariables->color.background.red;
-    }
+	if (!(component->params.flags & WINDOW_COMPFLAG_CUSTOMBACKGROUND))
+	{
+		component->params.background.blue =
+			windowVariables->color.background.blue;
+		component->params.background.green =
+			windowVariables->color.background.green;
+		component->params.background.red =
+			windowVariables->color.background.red;
+	}
 
-  // Initialize the event stream
-  status = kernelWindowEventStreamNew(&(component->events));
-  if (status < 0)
-    {
-      kernelFree((void *) component);
-      return (component = NULL);
-    }
+	// Initialize the event stream
+	status = kernelWindowEventStreamNew(&(component->events));
+	if (status < 0)
+	{
+		kernelFree((void *) component);
+		return (component = NULL);
+	}
 
-  // Default functions
-  component->drawBorder = &drawBorder;
-  component->erase = &erase;
-  component->grey = &grey;
+	// Default functions
+	component->drawBorder = &drawBorder;
+	component->erase = &erase;
+	component->grey = &grey;
 
-  // Now we need to add the component somewhere.
+	// Now we need to add the component somewhere.
 
-  if (((kernelWindow *) parent)->type == windowType)
-    // The parent is a window, so we use the window's main container.
-    parentComponent = ((kernelWindow *) parent)->mainContainer;
+	if (((kernelWindow *) parent)->type == windowType)
+		// The parent is a window, so we use the window's main container.
+		parentComponent = ((kernelWindow *) parent)->mainContainer;
 
-  else if (((kernelWindowComponent *) parent)->add)
-    // Not a window but a component with an 'add' function.
-    parentComponent = parent;
+	else if (((kernelWindowComponent *) parent)->add)
+		// Not a window but a component with an 'add' function.
+		parentComponent = parent;
 
-  else
-    {
-      kernelError(kernel_error, "Invalid parent object for new component");
-      kernelFree((void *) component);
-      return (component = NULL);
-    }
+	else
+	{
+		kernelError(kernel_error, "Invalid parent object for new component");
+		kernelFree((void *) component);
+		return (component = NULL);
+	}
 
-  if (parentComponent && parentComponent->add)
-    status = parentComponent->add(parentComponent, component);
+	if (parentComponent && parentComponent->add)
+		status = parentComponent->add(parentComponent, component);
 
-  if (status < 0)
-    {
-      kernelFree((void *) component);
-      return (component = NULL);
-    }
+	if (status < 0)
+	{
+		kernelFree((void *) component);
+		return (component = NULL);
+	}
 
-  if (component->container == NULL)
-    component->container = parentComponent;
+	if (component->container == NULL)
+		component->container = parentComponent;
 
-  return (component);
+	return (component);
 }
 
 
 void kernelWindowComponentDestroy(kernelWindowComponent *component)
 {
-  extern kernelWindow *consoleWindow;
-  extern kernelWindowComponent *consoleTextArea;
+	extern kernelWindow *consoleWindow;
+	extern kernelWindowComponent *consoleTextArea;
 
-  // Check params.  
-  if (component == NULL)
-    return;
+	// Check params.  
+	if (component == NULL)
+		return;
 
-  // Make sure the component is removed from any containers it's in
-  removeFromContainer(component);
+	// Make sure the component is removed from any containers it's in
+	removeFromContainer(component);
 
-  // Never destroy the console text area.  If this is the console text area,
-  // move it back to our console window
-  if (component == consoleTextArea)
-    {
-      kernelWindowMoveConsoleTextArea(component->window, consoleWindow);
-      return;
-    }
+	// Never destroy the console text area.  If this is the console text area,
+	// move it back to our console window
+	if (component == consoleTextArea)
+	{
+		kernelWindowMoveConsoleTextArea(component->window, consoleWindow);
+		return;
+	}
 
-  // Call the component's own destroy function
-  if (component->destroy)
-    component->destroy(component);
-  component->data = NULL;
+	// Call the component's own destroy function
+	if (component->destroy)
+		component->destroy(component);
+	component->data = NULL;
 
-  // Deallocate generic things
+	// Deallocate generic things
 
-  // Free the component's event stream
-  kernelStreamDestroy(&component->events);
+	// Free the component's event stream
+	kernelStreamDestroy(&component->events);
 
-  // Free the component itself
-  kernelFree((void *) component);
+	// Free the component itself
+	kernelFree((void *) component);
 
-  return;
+	return;
 }
 
 
 int kernelWindowComponentSetVisible(kernelWindowComponent *component,
-				    int visible)
+	int visible)
 {
-  // Set a component visible or not visible
+	// Set a component visible or not visible
 
-  int status = 0;
-  kernelWindow *window = NULL;
-  int numComponents = 0;
-  kernelWindowComponent **array = NULL;
-  kernelWindowComponent *tmpComponent = NULL;
-  int count;
+	int status = 0;
+	kernelWindow *window = NULL;
+	int numComponents = 0;
+	kernelWindowComponent **array = NULL;
+	kernelWindowComponent *tmpComponent = NULL;
+	int count;
 
-  // Check params
-  if (component == NULL)
-    return (status = ERR_NULLPARAMETER);
+	// Check params
+	if (component == NULL)
+		return (status = ERR_NULLPARAMETER);
 
-  window = component->window;
+	window = component->window;
 
-  if (component->numComps)
-    numComponents = component->numComps(component);
+	if (component->numComps)
+		numComponents = component->numComps(component);
 
-  // One for the component itself.
-  numComponents += 1;
+	// One for the component itself.
+	numComponents += 1;
 
-  array = kernelMalloc(numComponents * sizeof(kernelWindowComponent *));
-  if (array == NULL)
-    return (status = ERR_MEMORY);
+	array = kernelMalloc(numComponents * sizeof(kernelWindowComponent *));
+	if (array == NULL)
+		return (status = ERR_MEMORY);
 
-  array[0] = component;
-  numComponents = 1;
+	array[0] = component;
+	numComponents = 1;
 
-  if (component->flatten)
-    component->flatten(component, array, &numComponents, 0);
+	if (component->flatten)
+		component->flatten(component, array, &numComponents, 0);
 
-  for (count = 0; count < numComponents; count ++)
-    {
-      tmpComponent = array[count];
-
-      if (visible)
+	for (count = 0; count < numComponents; count ++)
 	{
-	  tmpComponent->flags |= WINFLAG_VISIBLE;
-	  if (tmpComponent->draw)
-	    tmpComponent->draw(tmpComponent);
+		tmpComponent = array[count];
+
+		if (visible)
+		{
+			tmpComponent->flags |= WINFLAG_VISIBLE;
+			if (tmpComponent->draw)
+				tmpComponent->draw(tmpComponent);
+		}
+		else // Not visible
+		{
+			if (window->focusComponent == tmpComponent)
+				// Make sure it doesn't have the focus
+				kernelWindowComponentUnfocus(tmpComponent);
+
+			tmpComponent->flags &= ~WINFLAG_VISIBLE;
+			if (tmpComponent->erase)
+				tmpComponent->erase(tmpComponent);
+		}
 	}
-      else // Not visible
-	{
-	  if (window->focusComponent == tmpComponent)
-	    // Make sure it doesn't have the focus
-	    kernelWindowComponentUnfocus(tmpComponent);
 
-	  tmpComponent->flags &= ~WINFLAG_VISIBLE;
-	  if (tmpComponent->erase)
-	    tmpComponent->erase(tmpComponent);
-	}
-    }
+	if (array)
+		kernelFree(array);
 
-  if (array)
-    kernelFree(array);
+	// Redraw a clip of that part of the window
+	if (window->drawClip)
+		window->drawClip(window, (component->xCoord - 2),
+			(component->yCoord - 2), (component->width + 4),
+			(component->height + 4));
 
-  // Redraw a clip of that part of the window
-  if (window->drawClip)
-    window->drawClip(window, (component->xCoord - 2), (component->yCoord - 2),
-		     (component->width + 4), (component->height + 4));
-
-  return (status = 0);
+	return (status = 0);
 }
 
 
 int kernelWindowComponentSetEnabled(kernelWindowComponent *component,
-				    int enabled)
+	int enabled)
 {
-  // Set a component enabled or not enabled.  What we do is swap the 'draw'
-  // and 'grey' functions of the component and any sub-components, if
-  // applicable
+	// Set a component enabled or not enabled.  What we do is swap the 'draw'
+	// and 'grey' functions of the component and any sub-components, if
+	// applicable
 
-  int status = 0;
-  kernelWindow *window = NULL;
-  kernelWindowComponent **array = NULL;
-  int numComponents = 0;
-  int (*tmpDraw) (kernelWindowComponent *) = NULL;
-  kernelWindowComponent *tmpComponent = NULL;
-  int count;
+	int status = 0;
+	kernelWindow *window = NULL;
+	kernelWindowComponent **array = NULL;
+	int numComponents = 0;
+	int (*tmpDraw) (kernelWindowComponent *) = NULL;
+	kernelWindowComponent *tmpComponent = NULL;
+	int count;
 
-  // Check params
-  if (component == NULL)
-    return (status = ERR_NULLPARAMETER);
+	// Check params
+	if (component == NULL)
+		return (status = ERR_NULLPARAMETER);
 
-  window = component->window;
+	window = component->window;
 
-  if (component->numComps)
-    numComponents = component->numComps(component);
+	if (component->numComps)
+		numComponents = component->numComps(component);
 
-  // One for the component itself.
-  numComponents += 1;
+	// One for the component itself.
+	numComponents += 1;
 
-  array = kernelMalloc(numComponents * sizeof(kernelWindowComponent *));
-  if (array == NULL)
-    return (status = ERR_MEMORY);
+	array = kernelMalloc(numComponents * sizeof(kernelWindowComponent *));
+	if (array == NULL)
+		return (status = ERR_MEMORY);
 
-  array[0] = component;
-  numComponents = 1;
+	array[0] = component;
+	numComponents = 1;
 
-  if (component->flatten)
-    component->flatten(component, array, &numComponents, 0);
+	if (component->flatten)
+		component->flatten(component, array, &numComponents, 0);
 
-  for (count = 0; count < numComponents; count ++)
-    {
-      tmpComponent = array[count];
-
-      if (enabled)
+	for (count = 0; count < numComponents; count ++)
 	{
-	  if (!(tmpComponent->flags & WINFLAG_ENABLED))
-	    {
-	      tmpDraw = tmpComponent->grey;
-	      tmpComponent->grey = tmpComponent->draw;
-	      tmpComponent->draw = tmpDraw;
-	    }
+		tmpComponent = array[count];
 
-	  tmpComponent->flags |= WINFLAG_ENABLED;
+		if (enabled)
+		{
+			if (!(tmpComponent->flags & WINFLAG_ENABLED))
+			{
+				tmpDraw = tmpComponent->grey;
+				tmpComponent->grey = tmpComponent->draw;
+				tmpComponent->draw = tmpDraw;
+			}
+
+			tmpComponent->flags |= WINFLAG_ENABLED;
+		}
+		else // disabled
+		{
+			if (tmpComponent->flags & WINFLAG_ENABLED)
+			{
+				tmpDraw = tmpComponent->grey;
+				tmpComponent->grey = tmpComponent->draw;
+				tmpComponent->draw = tmpDraw;
+			}
+
+			tmpComponent->flags &= ~WINFLAG_ENABLED;
+
+			if (window->focusComponent == tmpComponent)
+				// Make sure it doesn't have the focus
+				kernelWindowComponentUnfocus(tmpComponent);
+		}
 	}
-      else // disabled
-	{
-	  if (tmpComponent->flags & WINFLAG_ENABLED)
-	    {
-	      tmpDraw = tmpComponent->grey;
-	      tmpComponent->grey = tmpComponent->draw;
-	      tmpComponent->draw = tmpDraw;
-	    }
 
-	  tmpComponent->flags &= ~WINFLAG_ENABLED;
+	if (array)
+		kernelFree(array);
 
-	  if (window->focusComponent == tmpComponent)
-	    // Make sure it doesn't have the focus
-	    kernelWindowComponentUnfocus(tmpComponent);
-	}
-    }
+	// Redraw a clip of that part of the window
+	if ((component->flags & WINFLAG_VISIBLE) && window->drawClip)
+		window->drawClip(window, (component->xCoord - 2),
+			(component->yCoord - 2), (component->width + 4),
+			(component->height + 4));
 
-  if (array)
-    kernelFree(array);
-
-  // Redraw a clip of that part of the window
-  if ((component->flags & WINFLAG_VISIBLE) && window->drawClip)
-    window->drawClip(window, (component->xCoord - 2), (component->yCoord - 2),
-		     (component->width + 4), (component->height + 4));
-
-  return (status = 0);
+	return (status = 0);
 }
 
 
 int kernelWindowComponentGetWidth(kernelWindowComponent *component)
 {
-  // Return the width parameter of the component
-  if (component == NULL)
-    return (0);
-  else
-    return (component->width);
+	// Return the width parameter of the component
+	if (component == NULL)
+		return (0);
+	else
+		return (component->width);
 }
 
 
 int kernelWindowComponentSetWidth(kernelWindowComponent *component, int width)
 {
-  // Set the width parameter of the component
+	// Set the width parameter of the component
 
-  int status = 0;
-  int oldWidth = 0;
+	int status = 0;
+	int oldWidth = 0;
 
-  if (component == NULL)
-    return (ERR_NULLPARAMETER);
+	if (component == NULL)
+		return (ERR_NULLPARAMETER);
 
-  oldWidth = component->width;
+	oldWidth = component->width;
 
-  // If the component wants to know about resize events...
-  if (component->resize)
-    status = component->resize(component, width, component->height);
+	// If the component wants to know about resize events...
+	if (component->resize)
+		status = component->resize(component, width, component->height);
 
-  component->width = width;
+	component->width = width;
 
-  // Redraw a clip of that part of the window
-  // If the component is visible, redraw the clip of the window
-  if (component->window->drawClip)
-    component->window->drawClip(component->window, component->xCoord,
-				component->yCoord, max(width, oldWidth),
-				component->height);
+	// Redraw a clip of that part of the window
+	// If the component is visible, redraw the clip of the window
+	if (component->window->drawClip)
+		component->window->drawClip(component->window, component->xCoord,
+			component->yCoord, max(width, oldWidth), component->height);
 
-  return (status);
+	return (status);
 }
 
 
 int kernelWindowComponentGetHeight(kernelWindowComponent *component)
 {
-  // Return the height parameter of the component
-  if (component == NULL)
-    return (0);
-  else
-    return (component->height);
+	// Return the height parameter of the component
+	if (component == NULL)
+		return (0);
+	else
+		return (component->height);
 }
 
 
 int kernelWindowComponentSetHeight(kernelWindowComponent *component,
-				   int height)
+	int height)
 {
-  // Set the width parameter of the component
+	// Set the width parameter of the component
 
-  int status = 0;
-  int oldHeight = 0;
+	int status = 0;
+	int oldHeight = 0;
 
-  if (component == NULL)
-    return (ERR_NULLPARAMETER);
-  
-  oldHeight = component->height;
+	if (component == NULL)
+		return (ERR_NULLPARAMETER);
+	
+	oldHeight = component->height;
 
-  // If the component wants to know about resize events...
-  if (component->resize)
-    status = component->resize(component, component->width, height);
+	// If the component wants to know about resize events...
+	if (component->resize)
+		status = component->resize(component, component->width, height);
 
-  component->height = height;
+	component->height = height;
 
-  // Redraw a clip of that part of the window
-  // If the component is visible, redraw the clip of the window
-  if (component->window->drawClip)
-    component->window->drawClip(component->window, component->xCoord,
-				component->yCoord, component->width,
-				max(height, oldHeight));
+	// Redraw a clip of that part of the window
+	// If the component is visible, redraw the clip of the window
+	if (component->window->drawClip)
+		component->window->drawClip(component->window, component->xCoord,
+			component->yCoord, component->width, max(height, oldHeight));
 
-  return (status);
+	return (status);
 }
 
 
 int kernelWindowComponentFocus(kernelWindowComponent *component)
 {
-  // Gives the supplied component the focus, puts it on top of any other
-  // components it intersects, etc.
-  
-  int status = 0;
-  kernelWindow *window = NULL;
+	// Gives the supplied component the focus, puts it on top of any other
+	// components it intersects, etc.
+	
+	int status = 0;
+	kernelWindow *window = NULL;
 
-  // Check params
-  if (component == NULL)
-    return (status = ERR_NULLPARAMETER);
+	// Check params
+	if (component == NULL)
+		return (status = ERR_NULLPARAMETER);
 
-  // Get the window
-  window = component->window;
-  if (window == NULL)
-    {
-      kernelError(kernel_error, "Component to focus has no window");
-      return (status = ERR_NODATA);
-    }
+	// Get the window
+	window = component->window;
+	if (window == NULL)
+	{
+		kernelError(kernel_error, "Component to focus has no window");
+		return (status = ERR_NODATA);
+	}
 
-  return (window->changeComponentFocus(window, component));
+	return (window->changeComponentFocus(window, component));
 }
 
 
 int kernelWindowComponentUnfocus(kernelWindowComponent *component)
 {
-  // Removes the focus from the supplied component
-  
-  int status = 0;
-  kernelWindow *window = NULL;
+	// Removes the focus from the supplied component
+	
+	int status = 0;
+	kernelWindow *window = NULL;
 
-  // Check params
-  if (component == NULL)
-    return (status = ERR_NULLPARAMETER);
+	// Check params
+	if (component == NULL)
+		return (status = ERR_NULLPARAMETER);
 
-  // Get the window
-  window = component->window;
-  if (window == NULL)
-    {
-      kernelError(kernel_error, "Component to unfocus has no window");
-      return (status = ERR_NODATA);
-    }
+	// Get the window
+	window = component->window;
+	if (window == NULL)
+	{
+		kernelError(kernel_error, "Component to unfocus has no window");
+		return (status = ERR_NODATA);
+	}
 
-  return (window->changeComponentFocus(window, NULL));
+	return (window->changeComponentFocus(window, NULL));
 }
 
 
 int kernelWindowComponentDraw(kernelWindowComponent *component)
 {
-  // Draw  a component
-  
-  int status = 0;
+	// Draw  a component
+	
+	int status = 0;
 
-  // Check params
-  if (component == NULL)
-    return (status = ERR_NULLPARAMETER);
+	// Check params
+	if (component == NULL)
+		return (status = ERR_NULLPARAMETER);
 
-  if (!component->draw)
-    return (status = ERR_NOTIMPLEMENTED);
+	if (!component->draw)
+		return (status = ERR_NOTIMPLEMENTED);
 
-  return (component->draw(component));
+	return (component->draw(component));
 }
 
 
 int kernelWindowComponentGetData(kernelWindowComponent *component,
-				 void *buffer, int size)
+	void *buffer, int size)
 {
-  // Get (generic) data from a component
-  
-  int status = 0;
+	// Get (generic) data from a component
+	
+	int status = 0;
 
-  // Check params
-  if ((component == NULL) || (buffer == NULL))
-    return (status = ERR_NULLPARAMETER);
+	// Check params
+	if ((component == NULL) || (buffer == NULL))
+		return (status = ERR_NULLPARAMETER);
 
-  if (!component->getData)
-    return (status = ERR_NOTIMPLEMENTED);
+	if (!component->getData)
+		return (status = ERR_NOTIMPLEMENTED);
 
-  return (component->getData(component, buffer, size));
+	return (component->getData(component, buffer, size));
 }
 
 
 int kernelWindowComponentSetData(kernelWindowComponent *component,
-				 void *buffer, int size)
+	void *buffer, int size)
 {
-  // Set (generic) data in a component
-  
-  int status = 0;
+	// Set (generic) data in a component
+	
+	int status = 0;
 
-  // Check params.  buffer can only be NULL if size is NULL
-  if ((component == NULL) || ((buffer == NULL) && size))
-    return (status = ERR_NULLPARAMETER);
+	// Check params.  buffer can only be NULL if size is NULL
+	if ((component == NULL) || ((buffer == NULL) && size))
+		return (status = ERR_NULLPARAMETER);
 
-  if (!component->setData)
-    return (status = ERR_NOTIMPLEMENTED);
+	if (!component->setData)
+		return (status = ERR_NOTIMPLEMENTED);
 
-  status = component->setData(component, buffer, size);
+	status = component->setData(component, buffer, size);
 
-  return (status);
+	return (status);
 }
 
 
 int kernelWindowComponentGetSelected(kernelWindowComponent *component,
-				     int *selection)
+	int *selection)
 {
-  // Calls the 'get selected' method of the component, if applicable
+	// Calls the 'get selected' method of the component, if applicable
 
-  // Check parameters
-  if ((component == NULL) || (selection == NULL))
-    return (ERR_NULLPARAMETER);
+	// Check parameters
+	if ((component == NULL) || (selection == NULL))
+		return (ERR_NULLPARAMETER);
 
-  if (component->getSelected == NULL)
-    return (ERR_NOSUCHFUNCTION);
+	if (component->getSelected == NULL)
+		return (ERR_NOSUCHFUNCTION);
 
-  return (component->getSelected(component, selection));
+	return (component->getSelected(component, selection));
 }
 
 
 int kernelWindowComponentSetSelected(kernelWindowComponent *component,
-				     int selected)
+	int selected)
 {
-  // Calls the 'set selected' method of the component, if applicable
+	// Calls the 'set selected' method of the component, if applicable
 
-  // Check parameters
-  if (component == NULL)
-    return (ERR_NULLPARAMETER);
+	// Check parameters
+	if (component == NULL)
+		return (ERR_NULLPARAMETER);
 
-  if (component->setSelected == NULL)
-    return (ERR_NOSUCHFUNCTION);
+	if (component->setSelected == NULL)
+		return (ERR_NOSUCHFUNCTION);
 
-  return (component->setSelected(component, selected));
+	return (component->setSelected(component, selected));
 }

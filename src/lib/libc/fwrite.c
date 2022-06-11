@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,32 +28,32 @@
 
 size_t fwrite(const void *buf, size_t size, size_t number, FILE *theStream)
 {
-  // Write 'size' bytes to the stream 'number' times
-  
-  int status = 0;
-  size_t bytes = (size * number);
+	// Write 'size' bytes to the stream 'number' times
+	
+	int status = 0;
+	size_t bytes = (size * number);
 
-  if (visopsys_in_kernel)
-    {
-      errno = ERR_BUG;
-      return (bytes = 0);
-    }
+	if (visopsys_in_kernel)
+	{
+		errno = ERR_BUG;
+		return (bytes = 0);
+	}
 
-  if (!size)
-    return (bytes = 0);
+	if (!size)
+		return (bytes = 0);
 
-  if ((theStream == stdout) || (theStream == stderr))
-    status = textPrint(buf);
-  else
-    status = fileStreamWrite(theStream, bytes, buf);
+	if ((theStream == stdout) || (theStream == stderr))
+		status = textPrint(buf);
+	else
+		status = fileStreamWrite(theStream, bytes, buf);
 
-  if (status < 0)
-    {
-      errno = status;
-      return 0;
-    }
+	if (status < 0)
+	{
+		errno = status;
+		return 0;
+	}
 
-  bytes = (status / size);
+	bytes = (status / size);
 
-  return (bytes);
+	return (bytes);
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -59,84 +59,84 @@ Note the -S option is not allowed if the -R option is used.
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s [-R] [-S#] <file1> [file2] [...]\n", name);
-  return;
+	printf("usage:\n");
+	printf("%s [-R] [-S#] <file1> [file2] [...]\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  char opt;
-  int recurse = 0;
-  int secure = 0;
-  int count;
+	int status = 0;
+	char opt;
+	int recurse = 0;
+	int secure = 0;
+	int count;
 
-  if (argc < 2)
-    {
-      usage(argv[0]);
-      return (status = ERR_ARGUMENTCOUNT);
-    }
-
-  count = 1;
-
-  while (strchr("RrS?", (opt = getopt(argc, argv, "RrS::"))))
-    {
-      switch (opt)
+	if (argc < 2)
 	{
-	case 'r':
-	case 'R':
-	  // Recurse
-	  recurse = 1;
-	  break;
-
-	case 'S':
-	  // Secure
-	  secure = 5;
-	  if (optarg && (atoi(optarg) >= 0))
-	    secure = atoi(optarg);
-	  break;
-
-	default:
-	  fprintf(stderr, "Unknown option '%c'\n", optopt);
-	  usage(argv[0]);
-	  return (status = ERR_INVALID);
+		usage(argv[0]);
+		return (status = ERR_ARGUMENTCOUNT);
 	}
-    }
 
-  // We can't do a secure recursive delete
-  if (recurse && secure)
-    {
-      fprintf(stderr, "Can't both recursively and securely delete\n");
-      return (status = ERR_NOTIMPLEMENTED);
-    }
+	count = 1;
 
-  if (optind >= argc)
-    {
-      fprintf(stderr, "No file names to delete\n");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  // Loop through all of our file name arguments
-  for (count = optind ; count < argc; count ++)
-    {
-      // Attempt to remove the file
-      if (recurse)
-	status = fileDeleteRecursive(argv[count]);
-      else if (secure)
-	status = fileDeleteSecure(argv[count], secure);
-      else
-	status = fileDelete(argv[count]);
-
-      if (status < 0)
+	while (strchr("RrS?", (opt = getopt(argc, argv, "RrS::"))))
 	{
-	  errno = status;
-	  perror(argv[0]);
-	  return (status);
-	}
-    }
+		switch (opt)
+		{
+			case 'r':
+			case 'R':
+				// Recurse
+				recurse = 1;
+				break;
 
-  // Return success
-  return (status = 0);
+			case 'S':
+				// Secure
+				secure = 5;
+				if (optarg && (atoi(optarg) >= 0))
+					secure = atoi(optarg);
+				break;
+
+			default:
+				fprintf(stderr, "Unknown option '%c'\n", optopt);
+				usage(argv[0]);
+				return (status = ERR_INVALID);
+		}
+	}
+
+	// We can't do a secure recursive delete
+	if (recurse && secure)
+	{
+		fprintf(stderr, "Can't both recursively and securely delete\n");
+		return (status = ERR_NOTIMPLEMENTED);
+	}
+
+	if (optind >= argc)
+	{
+		fprintf(stderr, "No file names to delete\n");
+		return (status = ERR_NULLPARAMETER);
+	}
+
+	// Loop through all of our file name arguments
+	for (count = optind ; count < argc; count ++)
+	{
+		// Attempt to remove the file
+		if (recurse)
+			status = fileDeleteRecursive(argv[count]);
+		else if (secure)
+			status = fileDeleteSecure(argv[count], secure);
+		else
+			status = fileDelete(argv[count]);
+
+		if (status < 0)
+		{
+			errno = status;
+			perror(argv[0]);
+			return (status);
+		}
+	}
+
+	// Return success
+	return (status = 0);
 }

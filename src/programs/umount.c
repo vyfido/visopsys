@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -51,33 +51,33 @@ This will synchronize and unmount the logical disk mounted at /C.
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s <mount point>\n", name);
-  return;
+	printf("usage:\n");
+	printf("%s <mount point>\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  // Attempts to unmount the named filesystem from the named mount point
+	// Attempts to unmount the named filesystem from the named mount point
 
-  int status = 0;
-  
-  if (argc < 2)
-    {
-      usage(argv[0]);
-      return (status = ERR_ARGUMENTCOUNT);
-    }
+	int status = 0;
+	
+	if (argc < 2)
+	{
+		usage(argv[0]);
+		return (status = ERR_ARGUMENTCOUNT);
+	}
 
-  status = filesystemUnmount(argv[1]);
-  if (status < 0)
-    {
-      printf("Error unmounting %s\n", argv[1]);
-      errno = status;
-      perror(argv[0]);
-      return (status = errno);
-    }
- 
-  // Finished
-  return (status = 0);
+	status = filesystemUnmount(argv[1]);
+	if (status < 0)
+	{
+		printf("Error unmounting %s\n", argv[1]);
+		errno = status;
+		perror(argv[0]);
+		return (status = errno);
+	}
+	 
+	// Finished
+	return (status = 0);
 }

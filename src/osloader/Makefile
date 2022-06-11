@@ -1,15 +1,15 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2013 J. Andrew McLaughlin
+##  Copyright (C) 1998-2014 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
 
 # This makefile builds all the MBRs, boot sectors, and the OS loader.
 
-ROOT=../..
-BOOTBUILDDIR=${ROOT}/build/system/boot
-LOADERBUILDDIR=${ROOT}/build
+ROOT		= ../..
+BOOTBUILDDIR	= ${ROOT}/build/system/boot
+LOADERBUILDDIR	= ${ROOT}/build
 
 include ${ROOT}/Makefile.include
 

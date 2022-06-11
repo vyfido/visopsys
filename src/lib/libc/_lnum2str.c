@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,44 +27,44 @@
 
 void _lnum2str(unsigned long long num, char *string, int base, int sign)
 {
-  int digits = _ldigits(num, base, sign);
-  int charCount = 0;
-  unsigned long long place = 1;
-  unsigned long long rem = 0;
-  int count;
+	int digits = _ldigits(num, base, sign);
+	int charCount = 0;
+	unsigned long long place = 1;
+	unsigned long long rem = 0;
+	int count;
 
-  if (string == NULL)
-    {
-      errno = ERR_NULLPARAMETER;
-      return;
-    }
+	if (string == NULL)
+	{
+		errno = ERR_NULLPARAMETER;
+		return;
+	}
 
-  // Negative?
-  if (sign && ((long long) num < 0))
-    {
-      string[charCount++] = '-';
-      num = ((long long) num * -1);
-      digits -= 1;
-    }
+	// Negative?
+	if (sign && ((long long) num < 0))
+	{
+		string[charCount++] = '-';
+		num = ((long long) num * -1);
+		digits -= 1;
+	}
 
-  for (count = 0; count < (digits - 1); count ++)
-    place *= (unsigned long long) base;
+	for (count = 0; count < (digits - 1); count ++)
+		place *= (unsigned long long) base;
 
-  while (place)
-    {
-      rem = (num % place);
-      num = (num / place);
+	while (place)
+	{
+		rem = (num % place);
+		num = (num / place);
 
-      if (num < 10)
-	string[charCount++] = ('0' + num);
-      else
-	string[charCount++] = ('a' + (num - 10));
-      num = rem;
-      place /= (unsigned long long) base;
-    }
+		if (num < 10)
+			string[charCount++] = ('0' + num);
+		else
+			string[charCount++] = ('a' + (num - 10));
+		num = rem;
+		place /= (unsigned long long) base;
+	}
 
-  string[charCount] = '\0';
+	string[charCount] = '\0';
 
-  // Done
-  return;
+	// Done
+	return;
 }

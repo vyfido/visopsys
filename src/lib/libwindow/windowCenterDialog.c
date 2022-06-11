@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -39,34 +39,34 @@ extern void libwindowInitialize(void);
 
 _X_ void windowCenterDialog(objectKey parentWindow, objectKey dialogWindow)
 {
-  // Desc: Center a dialog window.  The first object key is the parent window, and the second is the dialog window.  This function can be used to center a regular window on the screen if the first objectKey argument is NULL.
-  
-  int parentX = 0, parentY = 0;
-  int myWidth = 0, myHeight = 0, parentWidth = 0, parentHeight = 0;
-  int diffWidth, diffHeight;
+	// Desc: Center a dialog window.  The first object key is the parent window, and the second is the dialog window.  This function can be used to center a regular window on the screen if the first objectKey argument is NULL.
+	
+	int parentX = 0, parentY = 0;
+	int myWidth = 0, myHeight = 0, parentWidth = 0, parentHeight = 0;
+	int diffWidth, diffHeight;
 
-  if (!libwindow_initialized)
-    libwindowInitialize();
+	if (!libwindow_initialized)
+		libwindowInitialize();
 
-  if (parentWindow)
-    {
-      // Get the size and location of the parent window
-      windowGetLocation(parentWindow, &parentX, &parentY);
-      windowGetSize(parentWindow, &parentWidth, &parentHeight);
-    }
-  else
-    {
-      parentWidth = graphicGetScreenWidth();
-      parentHeight = graphicGetScreenHeight();
-    }
+	if (parentWindow)
+	{
+		// Get the size and location of the parent window
+		windowGetLocation(parentWindow, &parentX, &parentY);
+		windowGetSize(parentWindow, &parentWidth, &parentHeight);
+	}
+	else
+	{
+		parentWidth = graphicGetScreenWidth();
+		parentHeight = graphicGetScreenHeight();
+	}
 
-  // Get our size
-  windowGetSize(dialogWindow, &myWidth, &myHeight);
+	// Get our size
+	windowGetSize(dialogWindow, &myWidth, &myHeight);
 
-  diffWidth = (parentWidth - myWidth);
-  diffHeight = (parentHeight - myHeight);
+	diffWidth = (parentWidth - myWidth);
+	diffHeight = (parentHeight - myHeight);
 
-  // Set our location
-  windowSetLocation(dialogWindow, (parentX + (diffWidth / 2)),
-		    (parentY + (diffHeight / 2)));
+	// Set our location
+	windowSetLocation(dialogWindow, (parentX + (diffWidth / 2)),
+		(parentY + (diffHeight / 2)));
 }

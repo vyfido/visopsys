@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,24 +23,7 @@
 
 #if !defined(_MSDOS_H)
 
-typedef struct {
-  unsigned char driveActive;
-  unsigned char startHead;
-  unsigned char startCylSect;
-  unsigned char startCyl;
-  unsigned char tag;
-  unsigned char endHead;
-  unsigned char endCylSect;
-  unsigned char endCyl;
-  unsigned startLogical;
-  unsigned sizeLogical;
-
-} __attribute__((packed)) msdosEntry;
-
-typedef struct {
-  msdosEntry entries[4];
-
-} __attribute__((packed)) msdosTable;
+#include <sys/msdos.h>
 
 // Function to get the disk label structure
 diskLabel *getLabelMsdos(void);

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -68,108 +68,108 @@ typedef enum { bytes, kilobytes, megabytes, gigabytes } unit;
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s <create> <bytes>[unit]\n-or-\n", name);
-  printf("%s <destroy> <name>\n", name);
-  return;
+	printf("usage:\n");
+	printf("%s <create> <bytes>[unit]\n-or-\n", name);
+	printf("%s <destroy> <name>\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  int create = 0;
-  int destroy = 0;
-  char *sizeArg = NULL;
-  unit units = bytes;
-  unsigned size = 0;
-  char name[DISK_MAX_NAMELENGTH];
-  
-  // There need to be at least 2 arguments
-  if ((argc < 3) || (argc > 4))
-    {
-      usage(argv[0]);
-      return (status = ERR_ARGUMENTCOUNT);
-    }
-
-  // Arg 1 must be either 'create' or 'destroy'
-  if (!strcasecmp(argv[1], "create"))
-    create = 1;
-  if (!strcasecmp(argv[1], "destroy"))
-    destroy = 1; 
-
-  if (!create && !destroy)
-    {
-      usage(argv[0]);
-      return (status = ERR_INVALID);
-    }
-
-  if (create)
-    {
-      sizeArg = argv[argc - 1];
-
-      // Do we have units specified?
-      switch (sizeArg[strlen(sizeArg) - 1])
+	int status = 0;
+	int create = 0;
+	int destroy = 0;
+	char *sizeArg = NULL;
+	unit units = bytes;
+	unsigned size = 0;
+	char name[DISK_MAX_NAMELENGTH];
+	
+	// There need to be at least 2 arguments
+	if ((argc < 3) || (argc > 4))
 	{
-	case 'k':
-	case 'K':
-	  units = kilobytes;
-	  sizeArg[strlen(sizeArg) - 1] = '\0';
-	  break;
-	case 'm':
-	case 'M':
-	  units = megabytes;
-	  sizeArg[strlen(sizeArg) - 1] = '\0';
-	  break;
-	case 'g':
-	case 'G':
-	  units = gigabytes;
-	  sizeArg[strlen(sizeArg) - 1] = '\0';
-	  break;
+		usage(argv[0]);
+		return (status = ERR_ARGUMENTCOUNT);
 	}
 
-      // Get the size itself
-      size = atoi(sizeArg);
+	// Arg 1 must be either 'create' or 'destroy'
+	if (!strcasecmp(argv[1], "create"))
+		create = 1;
+	if (!strcasecmp(argv[1], "destroy"))
+		destroy = 1; 
 
-      // Enlarge?
-      switch (units)
+	if (!create && !destroy)
 	{
-	case kilobytes:
-	  size *= 1024;
-	  break;
-	case megabytes:
-	  size *= (1024 * 1024);
-	  break;
-	case gigabytes:
-	  size *= (1024 * 1024 * 1024);
-	  break;
-	default:
-	  break;
+		usage(argv[0]);
+		return (status = ERR_INVALID);
 	}
 
-      status = diskRamDiskCreate(size, name);
-      if (status < 0)
+	if (create)
 	{
-	  fprintf(stderr, "Error creating RAM disk\n");
-	  return (status);
-	}
-      else
-	printf("Created RAM disk %s size %u\n", name, size);
-    }
+		sizeArg = argv[argc - 1];
 
-  else if (destroy)
-    {
-      strncpy(name, argv[argc - 1], DISK_MAX_NAMELENGTH);
-      status = diskRamDiskDestroy(name);
-      if (status < 0)
+		// Do we have units specified?
+		switch (sizeArg[strlen(sizeArg) - 1])
+		{
+			case 'k':
+			case 'K':
+				units = kilobytes;
+				sizeArg[strlen(sizeArg) - 1] = '\0';
+				break;
+			case 'm':
+			case 'M':
+				units = megabytes;
+				sizeArg[strlen(sizeArg) - 1] = '\0';
+				break;
+			case 'g':
+			case 'G':
+				units = gigabytes;
+				sizeArg[strlen(sizeArg) - 1] = '\0';
+				break;
+		}
+
+		// Get the size itself
+		size = atoi(sizeArg);
+
+		// Enlarge?
+		switch (units)
+		{
+			case kilobytes:
+				size *= 1024;
+				break;
+			case megabytes:
+				size *= (1024 * 1024);
+				break;
+			case gigabytes:
+				size *= (1024 * 1024 * 1024);
+				break;
+			default:
+				break;
+		}
+
+		status = diskRamDiskCreate(size, name);
+		if (status < 0)
+		{
+			fprintf(stderr, "Error creating RAM disk\n");
+			return (status);
+		}
+		else
+			printf("Created RAM disk %s size %u\n", name, size);
+	}
+
+	else if (destroy)
 	{
-	  fprintf(stderr, "Error destroying RAM disk %s\n", name);
-	  return (status);
+		strncpy(name, argv[argc - 1], DISK_MAX_NAMELENGTH);
+		status = diskRamDiskDestroy(name);
+		if (status < 0)
+		{
+			fprintf(stderr, "Error destroying RAM disk %s\n", name);
+			return (status);
+		}
+		else
+			printf("Destroyed RAM disk %s\n", name);
 	}
-      else
-	printf("Destroyed RAM disk %s\n", name);
-    }
 
-  // Return 
-  return (status = 0);
+	// Return 
+	return (status = 0);
 }

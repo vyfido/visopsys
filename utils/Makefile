@@ -1,18 +1,18 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2013 J. Andrew McLaughlin
+##  Copyright (C) 1998-2014 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
 
 ##  Makefile for the Visopsys utilities.  
 
-ROOT=..
-SRCDIR=${ROOT}/src/programs
+ROOT	= ..
+SRCDIR	= ${ROOT}/src/programs
 
 include ${ROOT}/Makefile.include
 
-CFLAGS		= ${OPT} -pipe ${WARN}
+CFLAGS	= ${OPT} -pipe ${WARN}
 
 all: copy-boot
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,34 +22,34 @@
 #if !defined(_ASCII_H)
 
 // ASCII codes with special names
-#define ASCII_NULL        0
-#define ASCII_ENDOFFILE   4
-#define ASCII_BACKSPACE   8
-#define ASCII_TAB         9
-#define ASCII_ENTER       10
-#define ASCII_VERTTAB     11
-#define ASCII_FORMFEED    12
-#define ASCII_CRGRET      13
-#define ASCII_DEVCONT1    17
-#define ASCII_DEVCONT2    18
-#define ASCII_DEVCONT3    19
-#define ASCII_DEVCONT4    20
-#define ASCII_ESC         27
-#define ASCII_SPACE       32
-#define ASCII_DEL         127
+#define ASCII_NULL			0
+#define ASCII_ENDOFFILE		4
+#define ASCII_BACKSPACE		8
+#define ASCII_TAB			9
+#define ASCII_ENTER			10
+#define ASCII_VERTTAB		11
+#define ASCII_FORMFEED		12
+#define ASCII_CRGRET		13
+#define ASCII_DEVCONT1		17
+#define ASCII_DEVCONT2		18
+#define ASCII_DEVCONT3		19
+#define ASCII_DEVCONT4		20
+#define ASCII_ESC			27
+#define ASCII_SPACE			32
+#define ASCII_DEL			127
 
 // These are unoffical overrides of certain codes that we use for things
 // that don't have ASCII codes
-#define ASCII_PAGEUP      ASCII_VERTTAB   // 11
-#define ASCII_PAGEDOWN    ASCII_FORMFEED  // 12
-#define ASCII_HOME        ASCII_CRGRET    // 13
-#define ASCII_CRSRUP      ASCII_DEVCONT1  // 17
-#define ASCII_CRSRLEFT    ASCII_DEVCONT2  // 18
-#define ASCII_CRSRRIGHT   ASCII_DEVCONT3  // 19
-#define ASCII_CRSRDOWN    ASCII_DEVCONT4  // 20
+#define ASCII_PAGEUP		ASCII_VERTTAB	// 11
+#define ASCII_PAGEDOWN		ASCII_FORMFEED	// 12
+#define ASCII_HOME			ASCII_CRGRET	// 13
+#define ASCII_CRSRUP		ASCII_DEVCONT1	// 17
+#define ASCII_CRSRLEFT		ASCII_DEVCONT2	// 18
+#define ASCII_CRSRRIGHT		ASCII_DEVCONT3	// 19
+#define ASCII_CRSRDOWN		ASCII_DEVCONT4	// 20
 
-#define ASCII_CHARS       255
-#define ASCII_PRINTABLES  (ASCII_DEL - ASCII_SPACE) // 95
+#define ASCII_CHARS			255
+#define ASCII_PRINTABLES	(ASCII_DEL - ASCII_SPACE)	// 95
 
 /*
                                ASCII CODES

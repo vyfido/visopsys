@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,41 +46,41 @@ parameter is the name of a new directory to create.  Any number of other
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s <directory1> [directory2] [...]\n", name);
-  return;
+	printf("usage:\n");
+	printf("%s <directory1> [directory2] [...]\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  int count;
+	int status = 0;
+	int count;
 
-  if (argc < 2)
-    {
-      usage(argv[0]);
-      return (status = ERR_ARGUMENTCOUNT);
-    }
-
-  // Loop through all of our directory name arguments
-  for (count = 1; count < argc; count ++)
-    {
-      // Make sure the name isn't NULL
-      if (argv[count] == NULL)
-	return (status = ERR_NULLPARAMETER);
-
-      // Attempt to create the directory
-      status = fileMakeDir(argv[count]);
-
-      if (status < 0)
+	if (argc < 2)
 	{
-	  errno = status;
-	  perror(argv[0]);
-	  return (status);
+		usage(argv[0]);
+		return (status = ERR_ARGUMENTCOUNT);
 	}
-    }
 
-  // Return success
-  return (status = 0);
+	// Loop through all of our directory name arguments
+	for (count = 1; count < argc; count ++)
+	{
+		// Make sure the name isn't NULL
+		if (argv[count] == NULL)
+			return (status = ERR_NULLPARAMETER);
+
+		// Attempt to create the directory
+		status = fileMakeDir(argv[count]);
+
+		if (status < 0)
+		{
+			errno = status;
+			perror(argv[0]);
+			return (status);
+		}
+	}
+
+	// Return success
+	return (status = 0);
 }

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -30,63 +30,69 @@
 
 char *basename(char *path)
 {
-  // The GNU manual page says the following:
-  //
-  //   The functions dirname() and basename() break a null-terminated pathname
-  //   string into directory and filename components.  In the usual case,
-  //   dirname() returns the string up to, but not including, the final '/',
-  //   and basename() returns the component following the final '/'.  Trailing
-  //   '/' characters are not counted as part of the pathname.
-  //
-  //   If path does not contain a slash, dirname() returns the string "."
-  //   while basename() returns a copy of path.  If path is the string  "/",
-  //   then both dirname() and basename() return the string "/".  If path is a
-  //   NULL pointer or points to an empty string, then both dirname() and
-  //   basename() return the string ".".
-  //
-  // The GNU manual page also says that the POSIX versions might modify their
-  // arguments or use statically allocated memory.  Our version will never
-  // do either of these things; it will return a dynamically allocated string
-  // which the caller is responsible for freeing.  Also, unlike GNU basename,
-  // we will not return the empty string when path has a trailing '/'.
+	// The GNU manual page says the following:
+	//
+	//   The functions dirname() and basename() break a null-terminated pathname
+	//   string into directory and filename components.  In the usual case,
+	//   dirname() returns the string up to, but not including, the final '/',
+	//   and basename() returns the component following the final '/'.  Trailing
+	//   '/' characters are not counted as part of the pathname.
+	//
+	//   If path does not contain a slash, dirname() returns the string "."
+	//   while basename() returns a copy of path.  If path is the string  "/",
+	//   then both dirname() and basename() return the string "/".  If path is a
+	//   NULL pointer or points to an empty string, then both dirname() and
+	//   basename() return the string ".".
+	//
+	// The GNU manual page also says that the POSIX versions might modify their
+	// arguments or use statically allocated memory.  Our version will never
+	// do either of these things; it will return a dynamically allocated string
+	// which the caller is responsible for freeing.  Also, unlike GNU basename,
+	// we will not return the empty string when path has a trailing '/'.
 
-  char *newPath = NULL;
-  char *lastSlash = NULL;
-  int count;
+	char *newPath = NULL;
+	char *lastSlash = NULL;
+	int count;
 
-  // Get the memory to return.  Always a maxed-out pathname.
-  newPath = malloc(MAX_PATH_NAME_LENGTH);
-  if (newPath == NULL)
-    {
-      // Nothing much we can do here.
-      errno = ERR_MEMORY;
-      return (newPath);
-    }
+	// Get the memory to return.  Always a maxed-out pathname.
+	newPath = malloc(MAX_PATH_NAME_LENGTH);
+	if (newPath == NULL)
+	{
+		// Nothing much we can do here.
+		errno = ERR_MEMORY;
+		return (newPath);
+	}
 
-  // Look for NULL, empty string, or no '/'
-  if ((path == NULL) || (path[0] == '\0') || (strrchr(path, '/') == NULL))
-    {
-      newPath[0] = '.';
-      newPath[1] = '\0';
-      return (newPath);
-    }
+	// Look for NULL, or an empty string
+	if ((path == NULL) || (path[0] == '\0'))
+	{
+		newPath[0] = '.';
+		newPath[1] = '\0';
+		return (newPath);
+	}
 
-  strncpy(newPath, path, MAX_PATH_NAME_LENGTH);
+	strncpy(newPath, path, MAX_PATH_NAME_LENGTH);
 
-  // Remove any trailing separators, not including the first character
-  for (count = (strlen(newPath) - 1); ((count > 0) && (newPath[count] == '/'));
-       count --)
-    newPath[count] = '\0';
+	// Check for no '/'
+	if (strrchr(newPath, '/') == NULL)
+		return (newPath);
 
-  if (!strncmp(newPath, "/", MAX_PATH_NAME_LENGTH))
-    // It's just a slash.  Stop.
-    return (newPath);
+	// Remove any trailing separators, not including the first character
+	for (count = (strlen(newPath) - 1);
+		((count > 0) && (newPath[count] == '/')); count --)
+	{
+		newPath[count] = '\0';
+	}
 
-  // Look for the last instance of '/'
-  lastSlash = strrchr(newPath, '/');
+	if (!strncmp(newPath, "/", MAX_PATH_NAME_LENGTH))
+		// It's just a slash.  Stop.
+		return (newPath);
 
-  // Re-copy the string
-  strncpy(newPath, (lastSlash + 1), MAX_PATH_NAME_LENGTH);
+	// Look for the last instance of '/'
+	lastSlash = strrchr(newPath, '/');
 
-  return (newPath);
+	// Re-copy the string
+	strncpy(newPath, (lastSlash + 1), MAX_PATH_NAME_LENGTH);
+
+	return (newPath);
 }

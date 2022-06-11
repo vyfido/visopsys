@@ -1,10 +1,22 @@
 
 	Visopsys
-	Copyright (C) 1998-2013 J. Andrew McLaughlin
+	Copyright (C) 1998-2014 J. Andrew McLaughlin
 
 Unless otherwise stated, all aspects of Visopsys are created/authored by
 Andy McLaughlin.  Other contributions are as follows (please notify me
 <andy@visopsys.org> if you believe I've missed anything):
+
+- espectalll123 <espectalll123@yahoo.es> from the Visopsys forums fixed up
+the Spanish keyboard map.
+
+- Giuseppe Gatta <tails92@gmail.com> wrote the 'calc' calculator program.
+See the directory contrib/giuseppe-calc
+
+- The calculator icon (dist/system/icons/calcicon.ico) is based on the
+Calculator Icon https://www.iconfinder.com/icons/87414/calculator_icon
+by Design Contest http://www.designcontest.com distributed
+under the Creative Commons (Attribution 3.0 Unported) license
+http://creativecommons.org/licenses/by/3.0
 
 - Jonas Zaddach <jonaszaddach@gmx.de> has made a number of contributions
 including early 'Lance' network driver support, the foundations for PCI
@@ -38,7 +50,7 @@ from http://www.opennc.org/onlinepubs/7908799/xsh/fcntl.h.html
 files from Linux and Solaris on i386 machines, and based on the 'Standard C'
 specification Copyright (C) 1989-1996 P.J. Plauger and Jim Brodie.
 
-- Pseudorandom number generation in kernelRancom.c inspired by Nick
+- Pseudorandom number generation in kernelRandom.c inspired by Nick
 Galbreath's <nickg@modp.com> re-implementation of the PRNG from Sun's
 java.util.Random at:
 http://javarng.googlecode.com/svn/trunk/com/modp/random/LinearSunJDK.java

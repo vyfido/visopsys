@@ -1,0 +1,78 @@
+#searchresults {
+   margin: 0px 0px 0px 0px;
+}
+
+#searchBoxHeader form {
+    margin: -20px 30px 0px 0px;
+    padding: 0px;
+    float: right;
+}
+
+#searchBoxHeader form input.searchText {
+    margin: 0px 2px 0px 0px;
+    padding: 1px 0px 1px 0px;
+    height: auto;
+    font-size: 80%;
+    background-color: #eeeeee;
+    border: 1px solid #888888;
+}
+
+#searchBoxHeader form input.searchButton {
+    margin: 0px;
+    padding: 1px;
+    height: auto;
+    font-size: 80%;
+    border: 1px solid #888;
+    background-color: #999;
+}
+
+#searchBoxTopNav form {
+    margin: 0px 5px 0px 0px;
+    padding: 0px;
+    float: right;
+}
+
+#searchBoxTopNav form input.searchText {
+    margin: 0px 2px 0px 0px;
+    padding: 1px 0px 1px 0px;
+    height: auto;
+    font-size: 80%;
+    background-color: #eeeeee;
+    border: 1px solid #888888;
+}
+
+#searchBoxTopNav form input.searchButton {
+    margin: 0px;
+    padding: 0px;
+    height: auto;
+    font-size: 80%;
+    border: none;
+    background-color: #888888;
+}
+
+#searchBoxSideNav form, #searchBoxSideBar form {
+    margin: 1px 0px 1px 0px;
+    padding: 0px;
+    width: auto;
+    text-align: left;
+}
+
+#searchBoxSideNav form input.searchText, #searchBoxSideBar form input.searchText {
+    margin: 0px 1px 1px 0px;
+    padding: 1px 0px 1px 0px;
+    height: auto;
+    width: 66%;
+    font-size: 80%;
+    background-color: #eeeeee;
+    border: 1px solid #888888;
+}
+
+#searchBoxSideNav form input.searchButton, #searchBoxSideBar form input.searchButton {
+    margin: 0px;
+    padding: 0px;
+    height: auto;
+    width: 28%;
+    font-size: 80%;
+    border: 1px solid #888888;
+    background-color: #888888;
+}

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,23 +28,23 @@
 
 void rewind(FILE *theStream)
 {
-  // The rewind function sets the file position indicator for the stream
-  // pointed to by stream to the beginning of the file.  It is equivalent
-  // to:
-  //      (void)fseek(stream, 0L, SEEK_SET)
-  // except that the error indicator for the stream is also cleared.  The
-  // rewind function returns no value.
+	// The rewind function sets the file position indicator for the stream
+	// pointed to by stream to the beginning of the file.  It is equivalent
+	// to:
+	//      (void)fseek(stream, 0L, SEEK_SET)
+	// except that the error indicator for the stream is also cleared.  The
+	// rewind function returns no value.
 
-  if (visopsys_in_kernel)
-    {
-      errno = ERR_BUG;
-      return;
-    }
+	if (visopsys_in_kernel)
+	{
+		errno = ERR_BUG;
+		return;
+	}
 
-  // Let the kernel do all the work, baby.
-  int status = fileStreamSeek(theStream, 0);
-  if (status < 0)
-    errno = status;
+	// Let the kernel do all the work, baby.
+	int status = fileStreamSeek(theStream, 0);
+	if (status < 0)
+		errno = status;
 
-  return;
+	return;
 }

@@ -1,0 +1,458 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Visopsys &#126; OS Dev</title>
+    <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=iso-8859-1" />
+    <link rel="stylesheet" href="blade_packs/system_razorSiteSearch/css/sitesearch.css" type="text/css" media="screen" />    <link rel="stylesheet" type="text/css" href="blade_packs/theme_ClearBlue/ClearBlue_css.css" />
+    <!-- WIN IE Style Sheets -->
+<!--[if IE]>
+  <![if gte IE 5.5]>
+   <![if gte IE 7]><link rel="stylesheet" 
+	type="text/css" media="screen,projection" 
+	href="ie.css" />
+	<![endif]>
+   <![if lt IE 7]><link rel="stylesheet" 
+	type="text/css" media="screen,projection" 
+	href="ie.css" />
+	<![endif]>
+  <![endif]>
+  <![if lt IE 5.5]>
+   <link rel="stylesheet"
+	type="text/css" media="screen,projection" 
+	href="ie.css" />
+    <![endif]>
+<![endif]-->
+        <link rel="shortcut icon" href="favicon.ico" />
+</head>
+<body>
+<div id="wrap">
+  <div id="wrap2">
+    <div id="header">
+
+<h1 id="logo"><img src="visopsys-logo1.png" width="300px" height="85px" /></h1>
+
+      <!--<h1 id="logo">Visopsys</h1>
+            <div id="slogan">Visual Operating System</div>-->
+
+	    <div id='searchBoxHeader'><div><form action='http://visopsys.org/razor-SiteSearch.htm' method='post'><input class='searchText' type='text' name='siteSearch' /><input class='searchButton' type='submit' value='Search' /></form></div></div>    </div>
+    <div id="nav">
+      <div id="nbar">
+            <ul class="first"><li><a href='index.html'>Home</a></li><li><a href='about.htm'>About</a></li><li><a href='news.htm'>News</a></li><li><a href='screenshots.htm'>Screenshots</a></li><li><a href='downloads.htm'>Downloads</a></li><li><a href='forums/index.php'>Forum</a></li><li><a href='developers.htm'>Developers</a></li><li><a class='active' href='os-dev.htm'>OS Dev</a></li></ul>	             </div>
+    </div>
+    <div id="content-wrap">
+      <div id="sidebar">
+      <div id="right_sidebar">
+          <div id="side_sky_ad">
+          	<!-- Sidebar Sky Scraper Ad -->
+            <!-- 160 x 600 Google ad code -->
+                                <script type="text/javascript"><!--
+					google_ad_client = "ca-pub-2784580927617241";
+					/* orig */
+					google_ad_slot = "8342665437";
+					google_ad_width = 160;
+					google_ad_height = 600;
+					//-->
+				  </script>
+				  <script type="text/javascript"
+					src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+				  </script>
+          </div>
+        </div>
+      <!--<div id="left_sidebar">
+                                Edit this sidebar with the Filemanager in<br/>
+root/blade_packs/ theme_ClearBlue/ ClearBlue_xhtml.php
+          </div>-->
+      </div>
+      <div id="content">
+                <p align="left" style="color: rgb(0, 0, 0); font-family: arial; font-size: medium;">
+	<b><font size="4">OS Development</font></b></p>
+<div>
+	<div align="center" style="color: rgb(0, 0, 0); font-family: arial; font-size: medium;">
+		<center>
+			<table border="0" bordercolor="#111111" cellpadding="0" cellspacing="0" style="border-collapse: collapse;" width="100%">
+				<tbody>
+					<tr>
+						<td>
+							<p align="left">
+								This little page is a small collection of source code, information, and links related to general Operating Systems&#39; Development on the Web.</p>
+							<blockquote>
+								<p align="left">
+									<a href="os-dev.htm#SOURCE">Source code</a><br />
+									<a href="os-dev.htm#LINKS">Links</a></p>
+							</blockquote>
+							<p align="left">
+								<a name="SOURCE"></a>SOURCE CODE</p>
+							<p align="left">
+								Here is some source code, written by Andy McLaughlin, which might be useful to programmers who are developing OS- like products on the x86 platform. &nbsp; All code ending with an &quot;.s&quot; extension is NASM- compatible Assembler code.&nbsp; All &quot;.c&quot; code is tested for gcc-2.95 (or compatible) C compilers.</p>
+							<div align="center">
+								<center>
+									<p>
+										&nbsp;</p>
+									<table border="1" cellpadding="2">
+										<tbody>
+											<tr>
+												<td>
+													<a href="enablea20.htm">enableA20.s</a></td>
+												<td>
+													This is a fairly versatile snippet of code for enabling the x86&#39;s A20 address line. &nbsp; It&#39;s a little bit lengthy, but it seems to work more reliably than other examples I&#39;ve tried.&nbsp; Cut and paste it into one of your existing source files.</td>
+											</tr>
+											<tr>
+												<td>
+													<a href="vesamodes.htm">vesaModes.s</a></td>
+												<td>
+													This piece of 16-bit code will query the VESA BIOS for a supported graphics mode number based on the desired parameters of resolution and colour depth.&nbsp; Cut and paste it into one of your existing source files.</td>
+											</tr>
+										</tbody>
+									</table>
+								</center>
+							</div>
+							<p>
+								&nbsp;</p>
+							<p>
+								<a name="LINKS"></a>LINKS</p>
+							<p>
+								Here are some selected links to sites useful to OS developers (much of this is specific to PC- style hardware architectures).&nbsp; Please&nbsp;<a href="mailto:andy@visopsys.org">email me</a>&nbsp;about any broken links or erroneous descriptions.&nbsp; Thanks.</p>
+							<table border="1" cellpadding="0" cellspacing="0">
+								<tbody>
+									<tr>
+										<th align="left" colspan="2" valign="top">
+											<p align="center">
+												<br />
+												General<br />
+												&nbsp;</p>
+										</th>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="941145092" href="http://chuos.genezys.net/wiki/Questions%20for%20an%20OS%20designer" last_modified="941144904" last_visit="941144904">Questions For an OS Designer</a></td>
+										<td align="left" valign="top">
+											So, why are you doing this anyway?&nbsp; This should be required reading for anyone contemplating starting an OS project</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="942169435" href="http://wiki.osdev.org/Main_Page" last_modified="942169427" last_visit="956860285">The OSDev.org wiki</a></td>
+										<td align="left" valign="top">
+											Almost everything you need to know about OS development</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="936812205" href="http://www.nondot.org/sabre/os/" last_modified="936812199" last_visit="947741046">The Operating Systems Resource Center</a></td>
+										<td align="left" valign="top">
+											Great collection of technical information and tutorials</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="944517138" href="http://www.acm.uiuc.edu/sigops/roll_your_own/" last_modified="944517129" last_visit="956694396">SigOps: Create Your Own Operating System</a></td>
+										<td align="left" valign="top">
+											This is a broadly focused site about OS theory</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="944155995" href="http://www.cs.cmu.edu/afs/cs/user/ralf/pub/WWW/files.html" last_modified="944155986" last_visit="957927099">Ralf Brown&#39;s Interrupt List</a>&nbsp;<a add_date="910562877" href="http://ctyme.com/rbrown.htm" last_modified="910562874" last_visit="954626368">(also try this HTML Version)</a></td>
+										<td align="left" valign="top">
+											Don&#39;t start any OS project on an x86 machine without getting this first.</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="957927954" href="http://docs.huihoo.com/help-pc/" last_modified="957927942" last_visit="957927975">HelpPC WWW conversion&nbsp;</a><a add_date="937975683" href="ftp://ftp.simtel.net/pub/simtelnet/msdos/info/helppc21.zip" last_modified="0" last_visit="0">(or download the actual HelpPC application)</a></td>
+										<td align="left" valign="top">
+											Likewise.</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="917740542" href="http://www.sandpile.org/80x86/index.shtml" last_modified="917740506" last_visit="939708597">sandpile.org -- 80x86 index</a></td>
+										<td align="left" valign="top">
+											Lots of good information about x86 processors.</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="905722436" href="http://sourceforge.net/projects/nasm" last_modified="905722431" last_visit="958004961">NASM - The Netwide Assembler Project - FREE 80x86 assembler</a></td>
+										<td align="left" valign="top">
+											A GREAT little open- source assembler for x86 machines.</td>
+									</tr>
+								</tbody>
+							</table>
+							<p>
+								&nbsp;</p>
+							<table border="1" cellpadding="0" cellspacing="0">
+								<tbody>
+									<tr>
+										<td align="left" colspan="2" valign="top">
+											<p align="center">
+												<br />
+												<b>File systems<br />
+												&nbsp;</b></p>
+										</td>
+									</tr>
+									<tr>
+										<th align="left" valign="top">
+											<span style="font-weight: 400;"><a href="http://e2fsprogs.sourceforge.net/ext2intro.html">Design and Implementation of the Second Extended File System</a></span></th>
+										<th align="left" valign="top">
+											<span style="font-weight: 400;">The original EXT2 white paper</span></th>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a href="http://www.science.unitn.it/~fiorella/guidelinux/tlk/node95.html">The Second Extended File System</a></td>
+										<td align="left" valign="top">
+											Another EXT2 doc from a Linux site</td>
+									</tr>
+									<tr>
+										<th align="left" valign="top">
+											<span style="font-weight: 400;"><a href="http://www.penguin.cz/~mhi/fs/Filesystems-HOWTO/Filesystems-HOWTO.html">The Filesystems HOWTO</a></span></th>
+										<th align="left" valign="top">
+											<span style="font-weight: 400;">Info about lots of different filesystems</span></th>
+									</tr>
+									<tr>
+										<th align="left" valign="top">
+											<span style="font-weight: 400;"><a href="http://www.dfsee.com/fsinfo.htm">File System Info</a></span></th>
+										<th align="left" valign="top">
+											<span style="font-weight: 400;">HPFS, FAT, NTFS info</span></th>
+									</tr>
+									<tr>
+										<th align="left" valign="top">
+											<span style="font-weight: 400;"><a href="http://www.nongnu.org/ext2-doc/ext2.html">The Second Extended (EXT2) File System</a></span></th>
+										<th align="left" valign="top">
+											<span style="font-weight: 400;">An EXT2 &quot;book&quot; by Dave Poirier.&nbsp; Very good.</span></th>
+									</tr>
+									<tr>
+										<th align="left" valign="top">
+											<span style="font-weight: 400;"><a href="http://www.nondot.org/sabre/os/files/FileSystems/Ext2fs-overview-0.1.pdf">The Extended-2 (EXT2) Filesystem Overview</a></span></th>
+										<th align="left" valign="top">
+											<span style="font-weight: 400;">A white paper by Gadi Oxman.&nbsp; A bit dated, but good as an alternative source of EXT2 information.</span></th>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a href="http://www.osta.org/specs">UDF (DVD) filesystem</a></td>
+										<td align="left" valign="top">
+											DVD-ROM filesystem format specifications</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a href="http://homepage.mac.com/wenguangwang/myhome/udf.html">UDF (DVD) filesystem</a></td>
+										<td align="left" valign="top">
+											Good intoduction to UDF</td>
+									</tr>
+								</tbody>
+							</table>
+							<p>
+								&nbsp;</p>
+							<table border="1" cellpadding="0" cellspacing="0">
+								<tbody>
+									<tr>
+										<th align="left" colspan="2" valign="top">
+											<p align="center">
+												<br />
+												File Formats<br />
+												&nbsp;</p>
+										</th>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="922861319" href="http://www.wotsit.org/" last_modified="922861311" last_visit="960751669">Wotsit&#39;s Format: The programmer&#39;s file formats and data formats resource.</a></td>
+										<td align="left" valign="top">
+											This site is a godsend.&nbsp; Information on file formats of almost any kind. &nbsp; Look here before you go anywhere else.</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="952632826" href="http://www.maverick-os.dk/FileSystemFormats/Standard_DiskFormat.html" last_modified="952632769" last_visit="953150996">Standard Disk Format (Maverick)</a></td>
+										<td align="left" valign="top">
+											All about the format of the x86 Master Boot Sector</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="948823955" href="http://www.delorie.com/djgpp/doc/coff/" last_modified="948823940" last_visit="948824026">DJGPP COFF Spec</a></td>
+										<td align="left" valign="top">
+											About the COFF object file format</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="939713004" href="http://www.dcs.ed.ac.uk/~mxr/gfx/" last_modified="939713001" last_visit="939713001">The Graphics File Format Page</a></td>
+										<td align="left" valign="top">
+											Info about lots of graphic file formats</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a href="http://fontforge.sourceforge.net/pcf-format.html">PCF Bitmap Font Files</a></td>
+										<td align="left" valign="top">
+											X11 (Linux, Unix) font file format</td>
+									</tr>
+								</tbody>
+							</table>
+							<p>
+								&nbsp;</p>
+							<table border="1" cellpadding="0" cellspacing="0">
+								<tbody>
+									<tr>
+										<th align="left" colspan="2" valign="top">
+											<p align="center">
+												<br />
+												PC Hardware References<br />
+												&nbsp;</p>
+										</th>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="936035099" href="http://www.intel.com/products/processor/manuals/index.htm" last_modified="936035094" last_visit="937975603">Pentium(r)Processor - Manuals</a></td>
+										<td align="left" valign="top">
+											You need this if you&#39;re going to do any coding in x86 Assembly language</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="940438338" href="http://www.ata-atapi.com/" last_modified="940438321" last_visit="949559132">ATA-ATAPI.COM -- ATA ATAPI IDE EIDE</a><br />
+											<a add_date="947283126" href="http://www.repairfaq.org/filipg/LINK/F_IDE-tech.html" last_modified="947283121" last_visit="953416474">Fil&#39;s FAQ-Link-In Corner: IDE Ref.</a><br />
+											<a href="http://suif.stanford.edu/~csapuntz/blackmagic.html">ATA/ATAPI Errata</a></td>
+										<td align="left" valign="top">
+											Programming the PC&#39;s IDE controller</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a href="http://wiki.osdev.org/AHCI">OSDev.org&#39;s AHCI (native SATA) page</a><br />
+											<a href="http://linuxmafia.com/faq/Hardware/sata.html">SATA on Linux</a></td>
+										<td align="left" valign="top">
+											Programming the PC&#39;s SATA controller</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="939883140" href="http://atschool.eduweb.co.uk/camdean/pupils/amac/vga.htm" last_modified="939882924" last_visit="957999110">VGA graphics Programming</a><br />
+											<a add_date="939711347" href="http://www.monstersoft.com/tutorial1/" last_modified="939711345" last_visit="960854272">High-res high-speed VESA tutorial</a><br />
+											<a add_date="939712551" href="http://gameprogrammer.com/" last_modified="939712542" last_visit="939869549">Game Programming and graphics programming</a><br />
+											<a add_date="939880909" href="http://www.brackeen.com/home/vga/" last_modified="939880891" last_visit="939880891">256-Color VGA Programming in C - Home</a><br />
+											<a add_date="942167526" href="http://www.hornet.org/" last_modified="942167525" last_visit="942340497">Graphics and sound - The Hornet Archive</a></td>
+										<td align="left" valign="top">
+											Programming the PC&#39;s video hardware</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a href="http://www.computer-engineering.org/ps2keyboard/">The PS/2 Keyboard Interface</a></td>
+										<td align="left" valign="top">
+											Programming the PC keyboard</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a href="http://www.computer-engineering.org/ps2mouse/">PS/2 Mouse Interfacing</a></td>
+										<td align="left" valign="top">
+											Programming the PC mouse</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="936145651" href="http://www.lvr.com/serport.htm" last_modified="936145642" last_visit="936145642">Serial Links using RS-232 and RS-485</a></td>
+										<td align="left" valign="top">
+											Serial port programming information</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a add_date="939229824" href="ftp://rtfm.mit.edu/pub/usenet/news.answers/pc-hardware-faq/" last_modified="939229087" last_visit="939708137">/pub/usenet/news.answers/pc-hardware-faq</a></td>
+										<td align="left" valign="top">
+											PC hardware Usenet FAQ</td>
+									</tr>
+								</tbody>
+							</table>
+							<p>
+								&nbsp;</p>
+							<table border="1" cellpadding="0" cellspacing="0">
+								<tbody>
+									<tr>
+										<td align="left" colspan="2" valign="top">
+											<p align="center">
+												<br />
+												<b>Networking<br />
+												&nbsp;</b></p>
+										</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a href="http://www.freesoft.org/CIE/Course/Section3/">The IP Protocol</a></td>
+										<td align="left" valign="top">
+											The IP networking protocol (you need to implement this before TCP, UDP, etc.)</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a href="http://www.fefe.de/linuxeth/">Choosing an Ethernet NIC</a></td>
+										<td align="left" valign="top">
+											Some Linux-related general info about network cards</td>
+									</tr>
+								</tbody>
+							</table>
+							<p>
+								&nbsp;</p>
+							<table border="1" cellpadding="0" cellspacing="0">
+								<tbody>
+									<tr>
+										<td align="left" colspan="2" valign="top">
+											<p align="center">
+												<br />
+												<b>Graphics<br />
+												&nbsp;</b></p>
+										</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a href="http://en.wikipedia.org/wiki/JPEG">Wikipedia&#39;s JPEG page</a><br />
+											<a href="http://www.impulseadventure.com/photo/jpeg-decoder.html">Calvin Hass&#39;s JPEG decoding pages</a><br />
+											&nbsp;&nbsp;&nbsp;&nbsp; -&nbsp;<a href="http://www.impulseadventure.com/photo/jpeg-huffman-coding.html">Huffman coding</a><br />
+											&nbsp;&nbsp;&nbsp;&nbsp; -&nbsp;<a href="http://www.impulseadventure.com/photo/jpeg-minimum-coded-unit.html">MCUs</a><br />
+											&nbsp;&nbsp;&nbsp;&nbsp; -&nbsp;<a href="http://www.impulseadventure.com/photo/chroma-subsampling.html">Chroma subsampling</a><br />
+											&nbsp;&nbsp;&nbsp;&nbsp; -&nbsp;<a href="http://www.impulseadventure.com/photo/jpeg-snoop.html">JPEGsnoop</a>&nbsp;(dumps JPEG data)<br />
+											&nbsp;&nbsp;&nbsp;&nbsp; -&nbsp;<a href="http://www.impulseadventure.com/photo/lossless-rotation.html">Lossless rotation</a><br />
+											&nbsp;&nbsp;&nbsp;&nbsp; -&nbsp;<a href="http://www.impulseadventure.com/photo/rotation-partial-mcu.html">Lossless rotation of partial MCUs</a><br />
+											<a href="http://www.ddj.com/184409589?pgno=8">Dr. Dobb&#39;s JPEG-like image compression</a></td>
+										<td align="left" valign="top">
+											JPEG image decoding and the JFIF file format</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a href="http://en.wikipedia.org/wiki/Bicubic_interpolation">Wikipedia&#39;s bicubic interpolation page</a><br />
+											<a href="http://en.wikipedia.org/wiki/Bilinear_filtering">Wikipedia&#39;s bilinear filtering page</a></td>
+										<td align="left" valign="top">
+											Image resizing</td>
+									</tr>
+								</tbody>
+							</table>
+							<p>
+								&nbsp;</p>
+							<table border="1" cellpadding="0" cellspacing="0">
+								<tbody>
+									<tr>
+										<td align="left" colspan="2" valign="top">
+											<p align="center">
+												<br />
+												<b>Miscellaneous<br />
+												&nbsp;</b></p>
+										</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a href="http://www.freesoft.org/CIE/RFC/1321/index.htm">RFC 1321 - The MD5 Message-Digest Algorithm</a></td>
+										<td align="left" valign="top">
+											The MD5 hashing algorithm (for passwords, etc.)</td>
+									</tr>
+									<tr>
+										<td align="left" valign="top">
+											<a href="http://www.microsoft.com/whdc/system/platform/64bit/default.mspx">EFI: 64-bit System Design</a></td>
+										<td align="left" valign="top">
+											Documents and links describing EFI firmware, GPT partition tables, etc. from Microsoft</td>
+									</tr>
+								</tbody>
+							</table>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+			<p>
+				&nbsp;</p>
+			<p>
+				&nbsp;</p>
+		</center>
+	</div>
+</div>
+                      </div>
+      </div>
+    
+    <div class="clearfix"></div>
+    <div id="footer">                 
+                                <small><br/>Copyright &copy; 1999-2014 J. Andrew McLaughlin<br/>Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin.<br/><a href="mailto:andy@visopsys.org">Contact</a> | Design by <a href="http://www.fosforito.net/">Jens L. Wagner</a><br/><br/></small>                  </div>
+  <!-- End Wrap2 -->
+</div>
+<!-- End Wrap -->
+</body>
+</html>

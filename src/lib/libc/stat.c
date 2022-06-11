@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -29,46 +29,46 @@
 
 int stat(const char *fileName, struct stat *buf)
 {
-  // Returns information about the specified file
+	// Returns information about the specified file
 
-  int status = 0;
-  file theFile;
-  disk theDisk;
+	int status = 0;
+	file theFile;
+	disk theDisk;
 
-  if (visopsys_in_kernel)
-    return (errno = ERR_BUG);
+	if (visopsys_in_kernel)
+		return (errno = ERR_BUG);
 
-  // Try to find the file
-  bzero(&theFile, sizeof(file));
-  status = fileFind(fileName, &theFile);
-  if (status < 0)
-    {
-      errno = status;
-      return (-1);
-    }
+	// Try to find the file
+	bzero(&theFile, sizeof(file));
+	status = fileFind(fileName, &theFile);
+	if (status < 0)
+	{
+		errno = status;
+		return (-1);
+	}
 
-  // Get the disk
-  bzero(&theDisk, sizeof(disk));
-  status = fileGetDisk(fileName, &theDisk);
-  if (status < 0)
-    {
-      errno = status;
-      return (-1);
-    }
+	// Get the disk
+	bzero(&theDisk, sizeof(disk));
+	status = fileGetDisk(fileName, &theDisk);
+	if (status < 0)
+	{
+		errno = status;
+		return (-1);
+	}
 
-  buf->st_dev = theDisk.deviceNumber;
-  buf->st_ino = 1;      // bogus
-  buf->st_mode = 0;     // bogus
-  buf->st_nlink = 1;    // bogus
-  buf->st_uid = 1;      // bogus
-  buf->st_gid = 1;      // bogus
-  buf->st_rdev = 0;     // bogus
-  buf->st_size = theFile.size;
-  buf->st_blksize = theFile.blockSize;
-  buf->st_blocks = theFile.blocks;
-  buf->st_atime = theFile.accessedDate;
-  buf->st_mtime = theFile.modifiedDate;
-  buf->st_ctime = theFile.creationDate;
+	buf->st_dev = theDisk.deviceNumber;
+	buf->st_ino = 1;      // bogus
+	buf->st_mode = 0;     // bogus
+	buf->st_nlink = 1;    // bogus
+	buf->st_uid = 1;      // bogus
+	buf->st_gid = 1;      // bogus
+	buf->st_rdev = 0;     // bogus
+	buf->st_size = theFile.size;
+	buf->st_blksize = theFile.blockSize;
+	buf->st_blocks = theFile.blocks;
+	buf->st_atime = theFile.accessedDate;
+	buf->st_mtime = theFile.modifiedDate;
+	buf->st_ctime = theFile.creationDate;
 
-  return (0);
+	return (0);
 }

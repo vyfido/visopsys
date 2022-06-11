@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,11 +26,11 @@
 
 float fabsf(float x)
 {
-  // The fabsf() function returns the absolute value of the floating-point
-  // number x.
+	// The fabsf() function returns the absolute value of the floating-point
+	// number x.
 
-  if (x < 0)
-    return (x *= -1.0);
-  else
-    return (x);
+	if (x < 0)
+		return (x *= -1.0);
+	else
+		return (x);
 }

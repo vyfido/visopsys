@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,157 +57,168 @@ example above will fail if there is already a file or directory called /cdrom.
 #include <sys/api.h>
 #include <sys/vsh.h>
 
+#define MAX_VARIABLE_LEN	128
+
 
 static void usage(char *name)
 {
-  fprintf(stderr, "usage:\n");
-  fprintf(stderr, "%s <disk> [mount point]\n", name);
-  return;
+	fprintf(stderr, "usage:\n");
+	fprintf(stderr, "%s <disk> [mount point]\n", name);
+	return;
 }
 
 
 static int getMountPoint(const char *diskName, char *mountPoint)
 {
-  // Given a disk name, see if we can't find the mount point.
+	// Given a disk name, see if we can't find the mount point.
 
-  int status = 0;
-  char variable[128];
+	int status = 0;
+	char variable[MAX_VARIABLE_LEN];
+	char tmpMountPoint[MAX_VARIABLE_LEN];
 
-  snprintf(variable, 128, "%s.mountpoint", diskName);
+	snprintf(variable, MAX_VARIABLE_LEN, "%s.mountpoint", diskName);
 
-  // See if a mount point is specified
-  status = configGet(DISK_MOUNT_CONFIG, variable, mountPoint, MAX_PATH_LENGTH);
+	// Try getting the mount point from the configuration file
+	status = configGet(DISK_MOUNT_CONFIG, variable, tmpMountPoint,
+		MAX_VARIABLE_LEN);
+	if (status < 0)
+		return (status);
 
-  return (status);
+	if (tmpMountPoint[0] == '\0')
+		return (status = ERR_NODATA);
+
+	strncpy(mountPoint, tmpMountPoint, MAX_VARIABLE_LEN);
+
+	return (status = 0);
 }
 
 
 static void setMountPoint(const char *diskName, char *mountPoint)
 {
-  // Given a disk name, try to set the mount point in the mount configuration
-  // file.
+	// Given a disk name, try to set the mount point in the mount configuration
+	// file.
 
-  int status = 0;
-  variableList mountConfig;
-  disk theDisk;
-  char variable[128];
+	int status = 0;
+	variableList mountConfig;
+	disk theDisk;
+	char variable[MAX_VARIABLE_LEN];
 
-  // Don't attempt to set the mount point if the config file's filesystem
-  // is read-only
-  if (!fileGetDisk(DISK_MOUNT_CONFIG, &theDisk) && theDisk.readOnly)
-    return;
+	// Don't attempt to set the mount point if the config file's filesystem
+	// is read-only
+	if (!fileGetDisk(DISK_MOUNT_CONFIG, &theDisk) && theDisk.readOnly)
+		return;
 
-  // Try reading the mount configuration file
-  status = configRead(DISK_MOUNT_CONFIG, &mountConfig);
-  if (status < 0)
-    return;
+	// Try reading the mount configuration file
+	status = configRead(DISK_MOUNT_CONFIG, &mountConfig);
+	if (status < 0)
+		return;
 
-  // Set the mount point
-  snprintf(variable, 128, "%s.mountpoint", diskName);
-  status = variableListSet(&mountConfig, variable, mountPoint);
-  if (status < 0)
-    {
-      variableListDestroy(&mountConfig);
-      return;
-    }
+	// Set the mount point
+	snprintf(variable, MAX_VARIABLE_LEN, "%s.mountpoint", diskName);
+	status = variableListSet(&mountConfig, variable, mountPoint);
+	if (status < 0)
+	{
+		variableListDestroy(&mountConfig);
+		return;
+	}
 
-  // Set automount to off
-  snprintf(variable, 128, "%s.automount", diskName);
-  status = variableListSet(&mountConfig, variable, "no");
-  if (status < 0)
-    {
-      variableListDestroy(&mountConfig);
-      return;
-    }
+	// Set automount to off
+	snprintf(variable, MAX_VARIABLE_LEN, "%s.automount", diskName);
+	status = variableListSet(&mountConfig, variable, "no");
+	if (status < 0)
+	{
+		variableListDestroy(&mountConfig);
+		return;
+	}
 
-  configWrite(DISK_MOUNT_CONFIG, &mountConfig);
-  variableListDestroy(&mountConfig);
-  return;
+	configWrite(DISK_MOUNT_CONFIG, &mountConfig);
+	variableListDestroy(&mountConfig);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  // Attempts to mount the named filesystem to the named mount point
+	// Attempts to mount the named filesystem to the named mount point
 
-  int status = 0;
-  char *diskName = NULL;
-  char *mountPoint = NULL;
-  disk *theDisk = NULL;
-  
-  if (argc < 2)
-    {
-      usage(argv[0]);
-      status = ERR_ARGUMENTCOUNT;
-      goto out;
-    }
-
-  diskName = argv[1];
-
-  mountPoint = calloc(MAX_PATH_LENGTH, 1);
-  if (!mountPoint)
-    {
-      status = ERR_MEMORY;
-      goto out;
-    }
-
-  if (argc < 3)
-    {
-      status = getMountPoint(diskName, mountPoint);
-      if (status < 0)
+	int status = 0;
+	char *diskName = NULL;
+	char *mountPoint = NULL;
+	disk *theDisk = NULL;
+	
+	if (argc < 2)
 	{
-	  fprintf(stderr, "No mount point specified for %s in %s\n", diskName,
-		  DISK_MOUNT_CONFIG);
-	  usage(argv[0]);
-	  status = ERR_ARGUMENTCOUNT;
-	  goto out;
+		usage(argv[0]);
+		status = ERR_ARGUMENTCOUNT;
+		goto out;
 	}
-    }
-  else
-    strncpy(mountPoint, argv[argc - 1], MAX_PATH_LENGTH);
 
-  theDisk = calloc(1, sizeof(disk));
-  if (!theDisk)
-    {
-      perror(argv[0]);
-      status = ERR_MEMORY;
-      goto out;
-    }
+	diskName = argv[1];
 
-  // Get the disk and try to check whether there's media
-  status = diskGet(diskName, theDisk);
-  if (status >= 0)
-    {
-      // If it's removable, see if there is any media present
-      if ((theDisk->type & DISKTYPE_REMOVABLE) &&
-	  !diskGetMediaState(theDisk->name))
+	mountPoint = calloc(MAX_PATH_LENGTH, 1);
+	if (!mountPoint)
 	{
-	  fprintf(stderr, "No media in disk %s\n", theDisk->name);
-	  status = ERR_INVALID;
-	  goto out;
+		status = ERR_MEMORY;
+		goto out;
 	}
-    }
 
-  // Mount
-  status = filesystemMount(diskName, mountPoint);
-  if (status < 0)
-    {
-      perror(argv[0]);
-      goto out;
-    }
+	if (argc < 3)
+	{
+		status = getMountPoint(diskName, mountPoint);
+		if (status < 0)
+		{
+			fprintf(stderr, "No mount point specified for %s in %s\n", diskName,
+				DISK_MOUNT_CONFIG);
+			usage(argv[0]);
+			status = ERR_ARGUMENTCOUNT;
+			goto out;
+		}
+	}
+	else
+		strncpy(mountPoint, argv[argc - 1], MAX_PATH_LENGTH);
 
-  // Should we save the mount point in the mount.conf file?
-  if ((argc >= 3) && (getMountPoint(diskName, mountPoint) < 0))
-    setMountPoint(diskName, mountPoint);
- 
-  // Finished
-  status = 0;
+	theDisk = calloc(1, sizeof(disk));
+	if (!theDisk)
+	{
+		perror(argv[0]);
+		status = ERR_MEMORY;
+		goto out;
+	}
 
- out:
-  if (mountPoint)
-    free(mountPoint);
-  if (theDisk)
-    free(theDisk);
+	// Get the disk and try to check whether there's media
+	status = diskGet(diskName, theDisk);
+	if (status >= 0)
+	{
+		// If it's removable, see if there is any media present
+		if ((theDisk->type & DISKTYPE_REMOVABLE) &&
+			!diskMediaPresent(theDisk->name))
+		{
+			fprintf(stderr, "No media in disk %s\n", theDisk->name);
+			status = ERR_INVALID;
+			goto out;
+		}
+	}
 
-  return (status);
+	// Mount
+	status = filesystemMount(diskName, mountPoint);
+	if (status < 0)
+	{
+		perror(argv[0]);
+		goto out;
+	}
+
+	// Should we save the mount point in the mount.conf file?
+	if ((argc >= 3) && (getMountPoint(diskName, mountPoint) < 0))
+		setMountPoint(diskName, mountPoint);
+	 
+	// Finished
+	status = 0;
+
+out:
+	if (mountPoint)
+		free(mountPoint);
+	if (theDisk)
+		free(theDisk);
+
+	return (status);
 }

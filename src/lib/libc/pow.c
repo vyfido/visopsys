@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,25 +27,25 @@
 
 double pow(double x, double y)
 {
-  // The pow() function returns the value of x raised to the power of y.
+	// The pow() function returns the value of x raised to the power of y.
 
-  int count;
+	int count;
 
-  if ((x < 0) && (floor(y) != y))
-    {
-      // The argument x is negative and y is not an integral value.  This
-      // would result in a complex number.
-      errno = ERR_DOMAIN;
-      return (0);
-    }
+	if ((x < 0) && (floor(y) != y))
+	{
+		// The argument x is negative and y is not an integral value.  This
+		// would result in a complex number.
+		errno = ERR_DOMAIN;
+		return (0);
+	}
 
-  if (y == 0)
-    x = 1;
-  else
-    {
-      for (count = 1; count < y; count ++)
-	x *= x;
-    }
+	if (y == 0)
+		x = 1;
+	else
+	{
+		for (count = 1; count < y; count ++)
+		x *= x;
+	}
 
-  return (x);
+	return (x);
 }

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -43,23 +43,24 @@ extern void libwindowInitialize(void);
 
 _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const char *message)
 {
-  // Desc: Create a 'query' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have an 'OK' button and a 'CANCEL' button.  If the user presses OK, the function returns the value 1.  Otherwise it returns 0.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
+	// Desc: Create a 'query' dialog box, with the parent window 'parentWindow', and the given titlebar text and main message.  The dialog will have an 'OK' button and a 'CANCEL' button.  If the user presses OK, the function returns the value 1.  Otherwise it returns 0.  If 'parentWindow' is NULL, the dialog box is actually created as an independent window that looks the same as a dialog.  This is a blocking call that returns when the user closes the dialog window (i.e. the dialog is 'modal').
 
-  int status = 0;
-  
-  if (!libwindow_initialized)
-    libwindowInitialize();
+	int status = 0;
+	
+	if (!libwindow_initialized)
+		libwindowInitialize();
 
-  // Check params.  It's okay for parentWindow to be NULL.
-  if ((title == NULL) || (message == NULL))
-    return (status = ERR_NULLPARAMETER);
+	// Check params.  It's okay for parentWindow to be NULL.
+	if ((title == NULL) || (message == NULL))
+		return (status = ERR_NULLPARAMETER);
 
-  if (windowNewChoiceDialog(parentWindow, title, message,
-			    (char *[]) { _("OK"), _("Cancel") }, 2, 0) == 0)
-    // OK button
-    return (status = 1);
-
-  else
-    // Cancel button or error or whatever
-    return (status = 0);
+	if (windowNewChoiceDialog(parentWindow, title, message,
+		(char *[]) { _("OK"), _("Cancel") }, 2, 0) == 0)
+	{
+		// OK button
+		return (status = 1);
+	}
+	else
+		// Cancel button or error or whatever
+		return (status = 0);
 }

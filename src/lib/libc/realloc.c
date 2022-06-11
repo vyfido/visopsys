@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -29,45 +29,45 @@
 
 void *_realloc(void *oldMemory, size_t size, const char *function)
 {
-  // This is what the linux man page says about this function:
-  // realloc() changes the size of the memory block pointed to by ptr to
-  // size bytes.  The contents will be unchanged to the minimum of the old
-  // and new sizes; newly allocated memory will be uninitialized.  If ptr is
-  // NULL, the call is equivalent to malloc(size); if size is equal to zero,
-  // the call is equivalent to free(ptr).  Unless ptr is NULL, it must have
-  // been returned by an earlier call to malloc(), calloc() or realloc().
-  // If the area pointed to was moved, a free(ptr) is done.
+	// This is what the linux man page says about this function:
+	// realloc() changes the size of the memory block pointed to by ptr to
+	// size bytes.  The contents will be unchanged to the minimum of the old
+	// and new sizes; newly allocated memory will be uninitialized.  If ptr is
+	// NULL, the call is equivalent to malloc(size); if size is equal to zero,
+	// the call is equivalent to free(ptr).  Unless ptr is NULL, it must have
+	// been returned by an earlier call to malloc(), calloc() or realloc().
+	// If the area pointed to was moved, a free(ptr) is done.
 
-  int status = 0;
-  memoryBlock oldBlock;
-  void *memoryPointer = NULL;
+	int status = 0;
+	memoryBlock oldBlock;
+	void *memoryPointer = NULL;
 
-  if (oldMemory == NULL)
-    return (memoryPointer = _malloc(size, function));
+	if (oldMemory == NULL)
+		return (memoryPointer = _malloc(size, function));
 
-  else if (!size)
-    {
-      _free(oldMemory, function);
-      return (memoryPointer = NULL);
-    }
+	else if (!size)
+	{
+		_free(oldMemory, function);
+		return (memoryPointer = NULL);
+	}
 
-  // Get stats about the old memory
-  status = _mallocBlockInfo(oldMemory, &oldBlock);
-  if (status < 0)
-    {
-      errno = status;
-      return (memoryPointer = NULL);
-    }
-  
-  memoryPointer = _malloc(size, function);
+	// Get stats about the old memory
+	status = _mallocBlockInfo(oldMemory, &oldBlock);
+	if (status < 0)
+	{
+		errno = status;
+		return (memoryPointer = NULL);
+	}
+	
+	memoryPointer = _malloc(size, function);
 
-  if (memoryPointer)
-    {
-      size = min(size, ((oldBlock.endLocation - oldBlock.startLocation) + 1));
-      memcpy(memoryPointer, oldMemory, size);
-      _free(oldMemory, function);
-    }
+	if (memoryPointer)
+	{
+		size = min(size, ((oldBlock.endLocation - oldBlock.startLocation) + 1));
+		memcpy(memoryPointer, oldMemory, size);
+		_free(oldMemory, function);
+	}
 
-  // Return this value, whether or not we were successful
-  return (memoryPointer);
+	// Return this value, whether or not we were successful
+	return (memoryPointer);
 }

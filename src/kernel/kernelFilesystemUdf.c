@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -152,7 +152,7 @@ static void decodeDstring(char *dest, const char *src, int length)
 
 	int count;
 
-	kernelDebugHex((char *)src, length);
+	//kernelDebugHex((char *)src, length);
 
 	// Not interested in the byte at the end.
 	length -= 1;
@@ -596,19 +596,6 @@ static int detect(kernelDisk *theDisk)
 }
 
 
-static uquad_t getFreeBytes(kernelDisk *theDisk)
-{
-	// This function returns the amount of free disk space, in bytes,
-	// which is always zero.
-
-	// This is unnecessary, but keeps the compiler happy
-	if (theDisk == NULL)
-		return (0);
-
-	return (0);
-}
-
-
 static int mount(kernelDisk *theDisk)
 {
 	// This function initializes the filesystem driver by gathering all of
@@ -868,7 +855,7 @@ static kernelFilesystemDriver defaultUdfDriver = {
 	NULL,	// driverCheck
 	NULL,	// driverDefragment
 	NULL,	// driverStat
-	getFreeBytes,
+	NULL,	// getFreeBytes
 	NULL,	// driverResizeConstraints
 	NULL,	// driverResize
 	mount,

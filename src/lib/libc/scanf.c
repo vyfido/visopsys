@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -32,30 +32,30 @@
 
 int scanf(const char *format, ...)
 {
-  va_list list;
-  int matchItems = 0;
-  char *input = NULL;
+	va_list list;
+	int matchItems = 0;
+	char *input = NULL;
 
-  if (visopsys_in_kernel)
-    return (errno = ERR_BUG);
+	if (visopsys_in_kernel)
+		return (errno = ERR_BUG);
 
-  // Read a line of input
-  input = readline(NULL);
-  if (input == NULL)
-    // We matched zero items
-    return (matchItems = 0);
+	// Read a line of input
+	input = readline(NULL);
+	if (input == NULL)
+		// We matched zero items
+		return (matchItems = 0);
 
-  // Initialize the argument list
-  va_start(list, format);
+	// Initialize the argument list
+	va_start(list, format);
 
-  // Now assign the input values based on the input data and the format
-  // string
-  matchItems = _fmtinpt(input, format, list);
+	// Now assign the input values based on the input data and the format
+	// string
+	matchItems = _fmtinpt(input, format, list);
 
-  va_end(list);
-  
-  // This gets malloc'd by readline, but we're finished with it.
-  free(input);
+	va_end(list);
+	
+	// This gets malloc'd by readline, but we're finished with it.
+	free(input);
 
-  return (matchItems);
+	return (matchItems);
 }

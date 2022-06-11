@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,7 +23,7 @@
 // These are just kernelWindowTextFields that echo '*' instead of the
 // typed text.
 
-#include "kernelWindow.h"     // Our prototypes are here
+#include "kernelWindow.h"	// Our prototypes are here
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include <string.h>
@@ -39,21 +39,21 @@
 
 
 kernelWindowComponent *kernelWindowNewPasswordField(objectKey parent,
-				    int columns, componentParameters *params)
+	int columns, componentParameters *params)
 {
-  // Formats a kernelWindowComponent as a kernelWindowPasswordField.
-  // Really it just returns a modified kernelWindowTextField that only
-  // echoes asterisks.
+	// Formats a kernelWindowComponent as a kernelWindowPasswordField.
+	// Really it just returns a modified kernelWindowTextField that only
+	// echoes asterisks.
 
-  kernelWindowComponent *component = NULL;
-  kernelWindowTextArea *area = NULL;
+	kernelWindowComponent *component = NULL;
+	kernelWindowTextArea *area = NULL;
 
-  component = kernelWindowNewTextField(parent, columns, params);
-  if (component == NULL)
-    return (component = NULL);
+	component = kernelWindowNewTextField(parent, columns, params);
+	if (component == NULL)
+		return (component = NULL);
 
-  area = component->data;
-  area->area->hidden = 1;
+	area = component->data;
+	area->area->hidden = 1;
 
-  return (component);
+	return (component);
 }

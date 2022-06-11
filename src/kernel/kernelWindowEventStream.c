@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -39,111 +39,111 @@
 
 int kernelWindowEventStreamNew(windowEventStream *newStream)
 {
-  // This function initializes the new window event stream structure.
-  // Returns 0 on success, negative otherwise.
+	// This function initializes the new window event stream structure.
+	// Returns 0 on success, negative otherwise.
 
-  int status = 0;
+	int status = 0;
 
-  // Check arguments
-  if (newStream == NULL)
-    {
-      kernelError(kernel_error, "NULL stream parameter");
-      return (status = ERR_NULLPARAMETER);
-    }
+	// Check arguments
+	if (newStream == NULL)
+	{
+		kernelError(kernel_error, "NULL stream parameter");
+		return (status = ERR_NULLPARAMETER);
+	}
 
-  // We need to get a new stream and attach it to the window event stream
-  // structure
-  status =
-    kernelStreamNew(newStream, (WINDOW_MAX_EVENTS * WINDOW_EVENT_DWORDS),
-		    itemsize_dword);
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Unable to create the window event stream");
-      return (status);
-    }
+	// We need to get a new stream and attach it to the window event stream
+	// structure
+	status =
+		kernelStreamNew(newStream, (WINDOW_MAX_EVENTS * WINDOW_EVENT_DWORDS),
+			itemsize_dword);
+	if (status < 0)
+	{
+		kernelError(kernel_error, "Unable to create the window event stream");
+		return (status);
+	}
 
-  // Yahoo, all set. 
-  return (status = 0);
+	// Yahoo, all set. 
+	return (status = 0);
 }
 
 
 int kernelWindowEventStreamPeek(windowEventStream *theStream)
 {
-  // This function will peek at the next window event from the window event
-  // stream, and return the type, if any.
+	// This function will peek at the next window event from the window event
+	// stream, and return the type, if any.
 
-  int type = 0;
+	int type = 0;
 
-  // Check arguments
-  if (theStream == NULL)
-    {
-      kernelError(kernel_error, "NULL event stream");
-      return (ERR_NULLPARAMETER);
-    }
+	// Check arguments
+	if (theStream == NULL)
+	{
+		kernelError(kernel_error, "NULL event stream");
+		return (ERR_NULLPARAMETER);
+	}
 
-  if (theStream->count >= WINDOW_EVENT_DWORDS)
-    {
-      if (theStream->pop(theStream, &type))
-	return (type = 0);
-      theStream->push(theStream, type);
-    }
+	if (theStream->count >= WINDOW_EVENT_DWORDS)
+	{
+		if (theStream->pop(theStream, &type))
+			return (type = 0);
+		theStream->push(theStream, type);
+	}
 
-  // Return the type, or NULL
-  return (type);
+	// Return the type, or NULL
+	return (type);
 }
 
 
 int kernelWindowEventStreamRead(windowEventStream *theStream,
-				windowEvent *event)
+	windowEvent *event)
 {
-  // This function will read a window event from the window event stream
-  // into the supplied windowEvent structure
+	// This function will read a window event from the window event stream
+	// into the supplied windowEvent structure
 
-  int status = 0;
+	int status = 0;
 
-  // Check arguments
-  if ((theStream == NULL) || (event == NULL))
-    {
-      kernelError(kernel_error, "NULL event stream or event argument");
-      return (status = ERR_NULLPARAMETER);
-    }
+	// Check arguments
+	if ((theStream == NULL) || (event == NULL))
+	{
+		kernelError(kernel_error, "NULL event stream or event argument");
+		return (status = ERR_NULLPARAMETER);
+	}
 
-  if (theStream->count < WINDOW_EVENT_DWORDS)
-    return (status = 0);
+	if (theStream->count < WINDOW_EVENT_DWORDS)
+		return (status = 0);
 
-  // Read the requisite number of dwords from the stream
-  if (theStream->popN(theStream, WINDOW_EVENT_DWORDS, event) <
-      (int) WINDOW_EVENT_DWORDS)
-    {
-      kernelDebugError("Error reading complete window event from stream");
-      return (status = ERR_NODATA);
-    }
+	// Read the requisite number of dwords from the stream
+	if (theStream->popN(theStream, WINDOW_EVENT_DWORDS, event) <
+		(int) WINDOW_EVENT_DWORDS)
+	{
+		kernelDebugError("Error reading complete window event from stream");
+		return (status = ERR_NODATA);
+	}
 
-  return (status = 1);
+	return (status = 1);
 }
 
 
 int kernelWindowEventStreamWrite(windowEventStream *theStream,
-				 windowEvent *event)
+	windowEvent *event)
 {
-  // This function will write the data from the supplied windowEvent structure
-  // to the window event stream 
+	// This function will write the data from the supplied windowEvent structure
+	// to the window event stream 
 
-  int status = 0;
+	int status = 0;
 
-  // Check arguments
-  if ((theStream == NULL) || (event == NULL))
-    {
-      kernelError(kernel_error, "NULL event stream or event argument");
-      return (status = ERR_NULLPARAMETER);
-    }
+	// Check arguments
+	if ((theStream == NULL) || (event == NULL))
+	{
+		kernelError(kernel_error, "NULL event stream or event argument");
+		return (status = ERR_NULLPARAMETER);
+	}
 
-  // Append the requisite number of unsigneds to the stream
-  if (theStream->appendN(theStream, WINDOW_EVENT_DWORDS, event) < 0)
-    {
-      kernelDebugError("Error writing complete window event to stream");
-      return (status = ERR_NODATA);
-    }
+	// Append the requisite number of unsigneds to the stream
+	if (theStream->appendN(theStream, WINDOW_EVENT_DWORDS, event) < 0)
+	{
+		kernelDebugError("Error writing complete window event to stream");
+		return (status = ERR_NODATA);
+	}
 
-  return (status = 0);
+	return (status = 0);
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,50 +22,50 @@
 // This code is for managing kernelWindowDivider objects.
 // These are just horizontal or vertical lines on the screen.
 
-#include "kernelWindow.h"     // Our prototypes are here
+#include "kernelWindow.h"	// Our prototypes are here
+#include "kernelError.h"
 
 
 static int draw(kernelWindowComponent *component)
 {
-  // First draw the line.
+	// First draw the line.
 
-  int status = 0;
-  color tmpColor;
+	int status = 0;
+	color tmpColor;
 
-  tmpColor.red = (component->params.background.red / 2);
-  tmpColor.green = (component->params.background.green / 2);
-  tmpColor.blue = (component->params.background.blue / 2);
+	tmpColor.red = (component->params.background.red / 2);
+	tmpColor.green = (component->params.background.green / 2);
+	tmpColor.blue = (component->params.background.blue / 2);
 
-  if (component->width > component->height)
-    // Horizontal line
-    kernelGraphicDrawLine(component->buffer, &tmpColor, draw_normal,
-			  component->xCoord, component->yCoord,
-			  (component->xCoord + component->width - 2),
-			  component->yCoord);
-  else
-    // Vertical line
-    kernelGraphicDrawLine(component->buffer, &tmpColor, draw_normal,
-			  component->xCoord, component->yCoord,
-			  component->xCoord,
-			  (component->yCoord + component->height - 2));
-  
-  tmpColor.red += (component->params.background.red / 3);
-  tmpColor.green += (component->params.background.green / 3);
-  tmpColor.blue += (component->params.background.blue / 3);
+	if (component->width > component->height)
+		// Horizontal line
+		kernelGraphicDrawLine(component->buffer, &tmpColor, draw_normal,
+			component->xCoord, component->yCoord,
+			(component->xCoord + component->width - 2), component->yCoord);
+	else
+		// Vertical line
+		kernelGraphicDrawLine(component->buffer, &tmpColor, draw_normal,
+			component->xCoord, component->yCoord,
+			component->xCoord, (component->yCoord + component->height - 2));
+	
+	tmpColor.red += (component->params.background.red / 3);
+	tmpColor.green += (component->params.background.green / 3);
+	tmpColor.blue += (component->params.background.blue / 3);
 
-  if (component->width > component->height)
-    // Horizontal line
-    kernelGraphicDrawLine(component->buffer, &tmpColor, draw_normal,
-			  (component->xCoord + 1), (component->yCoord + 1),
-			  (component->xCoord + component->width - 1),
-			  (component->yCoord + 1));
-  else
-    // Vertical line
-    kernelGraphicDrawLine(component->buffer, &tmpColor, draw_normal,
-			  (component->xCoord + 1), (component->yCoord + 1),
-			  (component->xCoord + 1),
-			  (component->yCoord + component->height - 1));
-  return (status = 0);
+	if (component->width > component->height)
+		// Horizontal line
+		kernelGraphicDrawLine(component->buffer, &tmpColor, draw_normal,
+			(component->xCoord + 1), (component->yCoord + 1),
+			(component->xCoord + component->width - 1),
+			(component->yCoord + 1));
+	else
+		// Vertical line
+		kernelGraphicDrawLine(component->buffer, &tmpColor, draw_normal,
+			(component->xCoord + 1), (component->yCoord + 1),
+			(component->xCoord + 1),
+			(component->yCoord + component->height - 1));
+
+	return (status = 0);
 }
 
 
@@ -79,41 +79,43 @@ static int draw(kernelWindowComponent *component)
 
 
 kernelWindowComponent *kernelWindowNewDivider(objectKey parent,
-					      dividerType type,
-					      componentParameters *params)
+	dividerType type, componentParameters *params)
 {
-  // Formats a kernelWindowComponent as a kernelWindowDivider.
+	// Formats a kernelWindowComponent as a kernelWindowDivider.
 
-  kernelWindowComponent *component = NULL;
+	kernelWindowComponent *component = NULL;
 
-  // Check params
-  if ((parent == NULL) || (params == NULL))
-    return (component = NULL);
+	// Check params
+	if ((parent == NULL) || (params == NULL))
+	{
+		kernelError(kernel_error, "NULL window component parameter");
+		return (component = NULL);
+	}
 
-  if ((type != divider_horizontal) && (type != divider_vertical))
-    return (component = NULL);
+	if ((type != divider_horizontal) && (type != divider_vertical))
+		return (component = NULL);
 
-  // Get a new window component
-  component = kernelWindowComponentNew(parent, params);
-  if (component == NULL)
-    return (component);
+	// Get a new window component
+	component = kernelWindowComponentNew(parent, params);
+	if (component == NULL)
+		return (component);
 
-  // Now override some bits
-  if (type == divider_horizontal)
-    {
-      component->width = 3;
-      component->height = 2;
-      component->flags |= WINFLAG_RESIZABLEX;
-    }
-  else
-    {
-      component->width = 2;
-      component->height = 3;
-      component->flags |= WINFLAG_RESIZABLEY;
-    }
+	// Now override some bits
+	if (type == divider_horizontal)
+	{
+		component->width = 3;
+		component->height = 2;
+		component->flags |= WINFLAG_RESIZABLEX;
+	}
+	else
+	{
+		component->width = 2;
+		component->height = 3;
+		component->flags |= WINFLAG_RESIZABLEY;
+	}
 
-  // The functions
-  component->draw = &draw;
+	// The functions
+	component->draw = &draw;
 
-  return (component);
+	return (component);
 }

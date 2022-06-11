@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,14 +27,16 @@
 
 size_t strnlen(const char *string, size_t maxlen)
 {
-  size_t count = 0;
+	size_t count = 0;
 
-  while ((string[count] != '\0') && (count < MAXSTRINGLENGTH) &&
-	 (count < maxlen))
-    count ++;
+	while ((string[count] != '\0') && (count < MAXSTRINGLENGTH) &&
+		 (count < maxlen))
+	{
+		count ++;
+	}
 
-  if ((count >= MAXSTRINGLENGTH) || (count >= maxlen))
-    return (min(MAXSTRINGLENGTH, maxlen));
-  else
-    return (count);
+	if ((count >= MAXSTRINGLENGTH) || (count >= maxlen))
+		return (min(MAXSTRINGLENGTH, maxlen));
+	else
+		return (count);
 }

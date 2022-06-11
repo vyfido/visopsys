@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -395,14 +395,6 @@ static int detect(kernelDisk *theDisk)
 }
 
 
-static uquad_t getFreeBytes(kernelDisk *theDisk __attribute__((unused)))
-{
-	// This function returns the amount of free disk space, in bytes,
-	// which is always zero.
-	return (0);
-}
-
-
 static int mount(kernelDisk *theDisk)
 {
 	// This function initializes the filesystem driver by gathering all of
@@ -646,7 +638,7 @@ static kernelFilesystemDriver defaultIsoDriver = {
 	NULL,	// driverCheck
 	NULL,	// driverDefragment
 	NULL,	// driverStat
-	getFreeBytes,
+	NULL,	// getFreeBytes
 	NULL,	// driverResizeConstraints
 	NULL,	// driverResize
 	mount,

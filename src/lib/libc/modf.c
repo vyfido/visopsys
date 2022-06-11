@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,20 +28,20 @@
 
 double modf(double x, double *pint)
 {
-  // The modf() function breaks the argument x into an integral part and
-  // a fractional  part, each of which has the same sign as x.  The
-  // integral part is stored in pint
+	// The modf() function breaks the argument x into an integral part and
+	// a fractional  part, each of which has the same sign as x.  The
+	// integral part is stored in pint
 
-  int i;
+	int i;
 
-  if (pint == NULL)
-    {
-      errno = ERR_NULLPARAMETER;
-      return (0);
-    }
+	if (pint == NULL)
+	{
+		errno = ERR_NULLPARAMETER;
+		return (0);
+	}
 
-  i = (int) x;
-  *pint = (double) i;
+	i = (int) x;
+	*pint = (double) i;
 
-  return (x - ((double) i));
+	return (x - ((double) i));
 }

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,25 +27,25 @@
 
 size_t strlen(const char *string)
 {
-  int count = 0;
+	int count = 0;
 
-  if (string == NULL)
-    {
-      errno = ERR_NULLPARAMETER;
-      return (count = 0);
-    }
+	if (string == NULL)
+	{
+		errno = ERR_NULLPARAMETER;
+		return (count = 0);
+	}
 
-  while ((string[count] != '\0') && (count < MAXSTRINGLENGTH))
-    count ++;
+	while ((string[count] != '\0') && (count < MAXSTRINGLENGTH))
+		count ++;
 
-  // If this is true, then we probably have an unterminated string
-  // constant.  Checking for a string that exceeds MAXSTRINGLENGTH will
-  // help to prevent the routine from running off too far into memory.
-  if (count >= MAXSTRINGLENGTH)
-    {
-      errno = ERR_BOUNDS;
-      return (count = 0);
-    }
+	// If this is true, then we probably have an unterminated string
+	// constant.  Checking for a string that exceeds MAXSTRINGLENGTH will
+	// help to prevent the routine from running off too far into memory.
+	if (count >= MAXSTRINGLENGTH)
+	{
+		errno = ERR_BOUNDS;
+		return (count = 0);
+	}
 
-  return (count);
+	return (count);
 }

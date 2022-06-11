@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,12 +28,12 @@
 
 #include "kernelDevice.h"
 
-#define RAMDISK_MAX_DISKS    16
-#define RAMDISK_SECTOR_SIZE  512
+#define RAMDISK_MAX_DISKS		16
+#define RAMDISK_SECTOR_SIZE		512
 
 typedef struct {
-  kernelDevice dev;
-  void *data;
+	kernelDevice dev;
+	void *data;
 
 } kernelRamDisk;  
 

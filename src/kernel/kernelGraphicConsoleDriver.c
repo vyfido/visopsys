@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -22,10 +22,12 @@
 // This is the graphic console screen driver.  Manipulates character images
 // using the kernelGraphic functions.
 
-#include "kernelWindow.h"
-#include "kernelMisc.h"
-#include "kernelMemory.h"
 #include "kernelError.h"
+#include "kernelFont.h"
+#include "kernelMalloc.h"
+#include "kernelMemory.h"
+#include "kernelMisc.h"
+#include "kernelWindow.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -90,9 +92,9 @@ static void setCursor(kernelTextArea *area, int onOff)
 	{
 		// Clear out the position and redraw the character
 		kernelGraphicClearArea(buffer, (color *) &(area->background),
-			 (area->xCoord + (area->cursorColumn * area->font->charWidth)),
-			 (area->yCoord + (area->cursorRow * area->font->charHeight)),
-			 area->font->charWidth, area->font->charHeight);
+			(area->xCoord + (area->cursorColumn * area->font->charWidth)),
+			(area->yCoord + (area->cursorRow * area->font->charHeight)),
+			area->font->charWidth, area->font->charHeight);
 		kernelGraphicDrawText(buffer, (color *) &(area->foreground),
 			(color *) &(area->background), area->font, string, draw_normal,
 			(area->xCoord + (area->cursorColumn * area->font->charWidth)),
@@ -100,9 +102,9 @@ static void setCursor(kernelTextArea *area, int onOff)
 	}
 
 	// Tell the window manager to update the graphic buffer
-	kernelWindowUpdateBuffer(buffer, (area->xCoord + (area->cursorColumn *
-		area->font->charWidth)), (area->yCoord + (area->cursorRow *
-			area->font->charHeight)),
+	kernelWindowUpdateBuffer(buffer,
+		(area->xCoord + (area->cursorColumn * area->font->charWidth)),
+		(area->yCoord + (area->cursorRow * area->font->charHeight)),
 		area->font->charWidth, area->font->charHeight);
 
 	area->cursorState = onOff;
@@ -115,46 +117,55 @@ static int scrollLine(kernelTextArea *area)
 {
 	// Scrolls the text by 1 line in the text area provided.
 
-	kernelGraphicBuffer *buffer =
-		((kernelWindowComponent *) area->windowComponent)->buffer;
+	kernelWindowComponent *component = area->windowComponent;
+	kernelWindowTextArea *windowTextArea = component->data;
+	kernelGraphicBuffer *buffer = component->buffer;
+	int maxWidth = 0;
 	int longestLine = 0;
-	int lineLength = 0;
+	int lineWidth = 0;
 	int count;
+
+	if (windowTextArea)
+		maxWidth = windowTextArea->areaWidth;
+	else if (component->width)
+		maxWidth = component->width;
+	else
+		maxWidth = buffer->width;
 
 	// Figure out the length of the longest line
 	for (count = 0; count < area->rows; count ++)
 	{
-		lineLength =
-			strlen((char *) area->visibleData + (count * area->columns));
+		lineWidth =
+			(strlen((char *)(area->visibleData + (count * area->columns))) *
+				area->font->charWidth);
 
-		if (lineLength > area->columns)
+		if (lineWidth > maxWidth)
 		{
-			longestLine = area->columns;
+			longestLine = maxWidth;
 			break;
 		}
 
-		if (lineLength > longestLine)
-			longestLine = lineLength;
+		if (lineWidth > longestLine)
+			longestLine = lineWidth;
 	}
 
 	if (buffer->height > area->font->charHeight)
+	{
 		// Copy everything up by one line
 		kernelGraphicCopyArea(buffer, area->xCoord,
-				(area->yCoord + area->font->charHeight),
-				(longestLine * area->font->charWidth),
-				((area->rows - 1) * area->font->charHeight),
-				area->xCoord, area->yCoord);
+			(area->yCoord + area->font->charHeight), longestLine,
+			((area->rows - 1) * area->font->charHeight),
+			area->xCoord, area->yCoord);
+	}
 
 	// Erase the last line
-	kernelGraphicClearArea(buffer, (color *) &(area->background),
-		area->xCoord, (area->yCoord + ((area->rows - 1) *
-			area->font->charHeight)),
-		(longestLine * area->font->charWidth), area->font->charHeight);
+	kernelGraphicClearArea(buffer, (color *) &(area->background), area->xCoord,
+		(area->yCoord + ((area->rows - 1) * area->font->charHeight)),
+		longestLine, area->font->charHeight);
 
 	// Tell the window manager to update the whole graphic buffer
 	kernelWindowUpdateBuffer(buffer, area->xCoord, area->yCoord,
-		(longestLine * area->font->charWidth),
-		(area->rows * area->font->charHeight));
+		longestLine, (area->rows * area->font->charHeight));
 
 	// Move the buffer up by one
 	scrollBuffer(area, 1);
@@ -187,8 +198,12 @@ static int screenDraw(kernelTextArea *area)
 	kernelGraphicBuffer *buffer =
 		((kernelWindowComponent *) area->windowComponent)->buffer;
 	unsigned char *bufferAddress = NULL;
-	char lineBuffer[1024];
+	char *lineBuffer = NULL;
 	int count;
+
+	lineBuffer = kernelMalloc(area->columns + 1);
+	if (lineBuffer == NULL)
+		return (ERR_MEMORY);
 
 	// Clear the area
 	kernelGraphicClearArea(buffer, (color *) &(area->background), area->xCoord,
@@ -202,12 +217,15 @@ static int screenDraw(kernelTextArea *area)
 	for (count = 0; count < area->rows; count ++)
 	{
 		strncpy(lineBuffer, (char *) bufferAddress, area->columns);
+		lineBuffer[area->columns] = '\0';
 		kernelGraphicDrawText(buffer, (color *) &(area->foreground),
 			(color *) &(area->background), area->font,
 			lineBuffer, draw_normal, area->xCoord,
 			(area->yCoord + (count * area->font->charHeight)));
 		bufferAddress += area->columns;
 	}
+
+	kernelFree(lineBuffer);
 
 	// Tell the window manager to update the whole area buffer
 	kernelWindowUpdateBuffer(buffer, area->xCoord, area->yCoord,
@@ -269,11 +287,15 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
 	int length = 0;
 	color *foreground = (color *) &(area->foreground);
 	color *background = (color *) &(area->background);
-	char lineBuffer[1024];
+	char *lineBuffer = NULL;
 	int inputCounter = 0;
 	int bufferCounter = 0;
 	unsigned tabChars = 0;
 	unsigned count;
+
+	lineBuffer = kernelMalloc(area->columns + 1);
+	if (lineBuffer == NULL)
+		return (ERR_MEMORY);
 
 	// See whether we're printing with special attributes
 	if (attrs)
@@ -342,10 +364,12 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
 					lineBuffer, (area->columns - area->cursorColumn));
 			}
 			else
+			{
 				strncpy((char *) (area->visibleData + TEXTAREA_CURSORPOS(area)),
 					(char *) (TEXTAREA_FIRSTVISIBLE(area) +
 					TEXTAREA_CURSORPOS(area)),
 					(area->columns - area->cursorColumn));
+			}
 
 			// Draw it
 			kernelGraphicDrawText(buffer, foreground, background, area->font,
@@ -381,6 +405,8 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
 				area->cursorColumn += bufferCounter;
 		}
 	}
+
+	kernelFree(lineBuffer);
 
 	if (cursorState)
 		// Turn on the cursor

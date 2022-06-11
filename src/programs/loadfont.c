@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -63,54 +63,54 @@ Options:
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s [-f] <font file> <font name>\n", name);
-  return;
+	printf("usage:\n");
+	printf("%s [-f] <font file> <font name>\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  char *fileName = NULL;
-  char *fontName = NULL;
-  int fixedWidth = 0;
-  objectKey font;
+	int status = 0;
+	char *fileName = NULL;
+	char *fontName = NULL;
+	int fixedWidth = 0;
+	objectKey font;
 
-  // Only work in graphics mode
-  if (!graphicsAreEnabled())
-    {
-      printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
-      errno = ERR_NOTINITIALIZED;
-      return (status = errno);
-    }
+	// Only work in graphics mode
+	if (!graphicsAreEnabled())
+	{
+		printf("\nThe \"%s\" command only works in graphics mode\n", argv[0]);
+		errno = ERR_NOTINITIALIZED;
+		return (status = errno);
+	}
 
-  // Check for -f ('fixed width') option
-  if (getopt(argc, argv, "f") == 'f')
-    fixedWidth = 1;
+	// Check for -f ('fixed width') option
+	if (getopt(argc, argv, "f") == 'f')
+		fixedWidth = 1;
 
-  if (argc < 3)
-    {
-      usage(argv[0]);
-      errno = ERR_ARGUMENTCOUNT;
-      return (status = errno);
-    }
-  
-  fileName = argv[argc - 2];
-  fontName = argv[argc - 1];
+	if (argc < 3)
+	{
+		usage(argv[0]);
+		errno = ERR_ARGUMENTCOUNT;
+		return (status = errno);
+	}
+	
+	fileName = argv[argc - 2];
+	fontName = argv[argc - 1];
 
-  // Call the kernel to load the font
-  status = fontLoad(fileName, fontName, &font, fixedWidth);
-  if (status < 0)
-    {
-      errno = status;
-      perror(argv[0]);
-      return (status);
-    }
+	// Call the kernel to load the font
+	status = fontLoad(fileName, fontName, &font, fixedWidth);
+	if (status < 0)
+	{
+		errno = status;
+		perror(argv[0]);
+		return (status);
+	}
 
-  // Switch to it
-  fontSetDefault(fontName);
+	// Switch to it
+	fontSetDefault(fontName);
 
-  errno = status;
-  return (status);
+	errno = status;
+	return (status);
 }

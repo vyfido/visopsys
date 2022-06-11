@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,23 +27,23 @@
 
 double fmod(double x, double y)
 {
-  // The fmod() function computes the remainder of dividing x by y.
-  // The return value is x - n * y, where n is the quotient of x / y,
-  // rounded towards zero to an integer.
+	// The fmod() function computes the remainder of dividing x by y.
+	// The return value is x - n * y, where n is the quotient of x / y,
+	// rounded towards zero to an integer.
 
-  // In other words, the fmod() function returns the value x - n * y,
-  // for some integer n such that, if y is non-zero, the result has the
-  // same sign as x and magnitude less than the magnitude of y.
+	// In other words, the fmod() function returns the value x - n * y,
+	// for some integer n such that, if y is non-zero, the result has the
+	// same sign as x and magnitude less than the magnitude of y.
 
-  double m = 0;
+	double m = 0;
 
-  if (y == 0)
-    {
-      m = 0;
-      errno = ERR_DIVIDEBYZERO;
-    }
-  else
-    m = (x - (floor(x / y) * y));
+	if (y == 0)
+	{
+		m = 0;
+		errno = ERR_DIVIDEBYZERO;
+	}
+	else
+		m = (x - (floor(x / y) * y));
 
-  return (m);
+	return (m);
 }

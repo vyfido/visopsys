@@ -1,0 +1,213 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+    <title>Visopsys | Visual Operating System | Multitasker And Scheduler</title>
+    <meta id="description" name="description" content="Visopsys | Visual Operating System"/>
+    <link rel="icon" href="../favicon.ico" type="image/x-icon"/>
+    <link rel="shortcut icon" href="../favicon.ico" type="image/x-icon"/>
+    <font face="arial">
+    </head><body><div align="center">
+      <center>
+		<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" id="main">
+		  <tr>
+			<td bgcolor="#1C42A7" nowrap align="left">
+			  <p align="center">
+			  <img border="0" src="../img/visopsys-upper.gif" align="left" width="193" height="35"></td>
+			<td bgcolor="#1C42A7" nowrap align="left">
+    <font face="arial">
+			  <font color="#EEEEFF" size="2">
+			  <b>
+              &nbsp; <a href="http://visopsys.org/index.php"><img border="0" src="../img/nav_buttons/home.gif"></a>&nbsp; 
+              <a href="index.php"><img border="0" src="../img/nav_buttons/about.gif"></a>&nbsp;&nbsp; <a href="news.php"><img border="0" src="../img/nav_buttons/news.gif"></a>&nbsp;&nbsp; <a href="screenshots.php"><img border="0" src="../img/nav_buttons/screenshots.gif"></a>&nbsp;&nbsp; 
+              <a href="../download/index.php"><img border="0" src="../img/nav_buttons/download.gif"></a>&nbsp;&nbsp; <a href="../forums/index.php"><img border="0" src="../img/nav_buttons/forum.gif"></a>&nbsp; <a href="../developers/index.php"><img border="0" src="../img/nav_buttons/developers.gif"></a></b></font><font color="#EEEEFF" size="2" face="arial"><b>&nbsp;&nbsp; 
+              <a href="../osdev/index.php"><img border="0" src="../img/nav_buttons/osdev.gif"></a>&nbsp;&nbsp; 
+              <a href="../search.php"><img border="0" src="../img/nav_buttons/search.gif"></a></b></font></font></td>
+		  </tr>
+		  <tr>
+			<td bgcolor="#1C42A7" nowrap align="left" colspan="3">
+				<img border="0" src="../img/visopsys-lower.gif" align="left" width="299" height="15"></td>
+		  </tr>
+		  <tr>
+			<td height="1" colspan="2">
+            <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111">
+              <tr>
+                <td align="left" valign="top" bgcolor="#C4D0E0">
+                <table border="0" cellpadding="5" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" id="AutoNumber1" width="700">
+	  <tr>
+		<td>
+
+<p align="left"><b><font size="4">About Visopsys</font></b></p>
+
+<div align="center">
+  <center>
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" width="700">
+    <tr>
+      <td>THE VISOPSYS MULTITASKER AND SCHEDULER<p>
+      OVERVIEW</p>
+
+<p>Visopsys is a multitasking operating system kernel.&nbsp; In lay terms this means
+that the kernel's &quot;scheduler&quot; -- a small piece of independent code inside the
+kernel -- parcels out small packets of time to all of the running programs in very rapid
+succession. &nbsp; One such running program is the operating system kernel itself.&nbsp;
+Since a single garden- variety microprocessor (such as x86 chips from AMD, Cyrix, or
+Intel) can only do one thing at a time, the illusion of multiple processes working
+simultaneously is achieved through this rapid switching between tasks.&nbsp; This is
+called &quot;task switching&quot; or &quot;context switching&quot;.&nbsp; If the
+multitasker is doing its job properly, and the work load is not too great, the user should
+never perceive that these switches are even occurring.</p>
+
+<p>What follows is a more technical description of the method by which Visopsys'
+scheduler performs these context switches.</p>
+
+<p>Visopsys' scheduler combines a number of common ideas into a cohesive algorithm.
+&nbsp; Its major features include:
+
+<ul>
+  <li>Pre-emptive</li>
+  <li>Arbitrary number of priority queues</li>
+  <li>Fair scheduling algorithm, except for the highest- and lowest- priority queues</li>
+  <li>Real- time scheduling in the highest- priority queue</li>
+  <li>Background scheduling in the lowest- priority queue</li>
+</ul>
+
+<p>Following is a description of the algorithm by which Visopsys' scheduler
+determines task execution order.&nbsp; </p>
+
+<p>There will be two &quot;special&quot; queues in the multitasker. The first
+(highest- priority) queue will be the &quot;real time&quot; queue.&nbsp; When there are
+any processes running and ready at this priority level, they will be serviced to the
+exclusion of all processes from other queues. Not even the kernel process will reside in
+this queue. </p>
+
+<p>The last (lowest- priority) queue will be the &quot;background&quot; queue.
+Processes in this queue will only receive processor time when there are no ready processes
+in any other queue. Unlike all of the &quot;normal&quot; or &quot;middle&quot; queues, it
+will be entirely possible for processes in this background queue to starve.</p>
+
+<p>Because of the existence of these two special- case queues, there must be a
+minimum of 3 priority queues in the Visopsys multitasker.</p>
+
+<p>The number of priority queues will be flexibly based on a configuration macro in
+the multitasker's header file, and other than the minor restriction outlined above, is
+arbitrary.&nbsp; Increasing the number of priority queues introduces no extra overhead
+into the kernel (i.e. there really aren't separate queues). &nbsp; However, regardless of
+the number of queues, the &quot;special&quot; queues mentioned above will always exhibit
+their distinct behaviors.&nbsp; </p>
+
+<p>Thus, using these multiple priority queues, the Administrator can exercise a very
+fine-grained control over the performance of the various processes in the system. </p>
+
+<p>Amongst all of the processes in the &quot;normal&quot; priority queues, there will
+be a fair approach to scheduling. This fair algorithm utilizes a weighting scheme.&nbsp;
+When the scheduler gains control of the processor, each waiting task's weight is
+calculated.&nbsp; In the general case, the task with the highest weight &quot;wins&quot;
+and is granted the next timeslice.</p>
+
+<p>Among the variables which contribute to a process' weight will be the following:
+priority, waiting time, and &quot;shortness&quot;. &nbsp; Shortness will be implemented
+later (shortest job first), so for now we will concentrate on priority and waiting time.
+The formula will look like this:</p>
+
+<blockquote>
+  <p><font face="Courier New">weight = (task priority * priority ratio) + waiting time</font></p>
+</blockquote>
+
+<p>[ 0 is the highest possible priority value. &nbsp; In the calculation above,
+&quot;task priority&quot; is actually the inverse of the task's real priority value.&nbsp;
+It is calculated as: the lowest possible priority value minus the task's priority
+value.&nbsp; So, for example, if the range of possible priority values was 0 (highest)
+through 7 (lowest), a highest- priority task would be: 7 - 0 = 7. ]</p>
+
+<p>The task's priority will be multiplied by the &quot;priority ratio&quot;.&nbsp;
+The priority ratio determines the importance of priority vs. waiting time in the scheduler
+queues.&nbsp; A priority ratio of zero, for example, would give higher- priority processes
+no advantage over lower- priority ones, and waiting time alone would determine execution
+order.&nbsp; By contrast, a very high ratio would ensure that lower- priority tasks must
+wait a very long time before usurping the timeslice of a higher- priority task.</p>
+
+<p>To this value will be added the current waiting time.&nbsp; The waiting time of
+each task in the queue starts at zero.&nbsp; Each time a task is passed over for execution
+by the scheduler, its waiting time value is increased by one.&nbsp; Whenever a task is
+selected to run by the scheduler, its waiting time value is subsequently reset to zero.</p>
+
+<p>After performing this simple calculation for each waiting task, the scheduler can
+select the &quot;winner&quot; by running the task with the highest weight.</p>
+
+<p>For example, if we have 4 possible priority levels, the priority ratio is set to
+3, and we have two tasks waiting as follows:</p>
+
+<blockquote>
+  <p><font face="Courier New">Task #1: priority=0, waiting time=7<br>
+  Task #2: priority=2, waiting time=12</font></p>
+</blockquote>
+
+<p>then</p>
+
+<blockquote>
+  <p><font face="Courier New">task1Weight = ((4 - 0) * 3) + 7&nbsp; = 19</font>
+  &nbsp;&nbsp;&nbsp; &lt;- winner<br>
+  <font face="Courier New">task2Weight = ((4 - 2) * 3) + 12 = 18</font></p>
+</blockquote>
+
+<p>Thus, even though task 2 has been waiting considerably longer, task 1's higher
+priority wins.&nbsp; However in a slightly different scenario -- using the same constants
+-- if we had:</p>
+
+<blockquote>
+  <p><font face="Courier New">Task 1: priority=0, waiting time=7<br>
+  Task 2: priority=2, waiting time=14</font></p>
+</blockquote>
+
+<p>then</p>
+
+<blockquote>
+  <p><font face="Courier New">task1Weight = ((4 - 0) * 3) + 7&nbsp; = 19<br>
+  task2Weight = ((4 - 2) * 3) + 14 = 20</font>&nbsp;&nbsp;&nbsp; &lt;- winner</p>
+</blockquote>
+
+<p>In this case, task 2 gets to run since it has been waiting long enough to overcome
+task 1's higher priority. This possibility helps to ensure that no processes will starve. </p>
+
+<p>A tie between the highest-weighted tasks is resolved by round- robin queue order.</p>
+
+      </td>
+    </tr>
+  </table>
+  </center>
+</div>
+
+        &nbsp;</td>
+	  </tr>
+	</table>
+  </td>
+                <td rowspan="2" width="10">
+				  &nbsp;</td>
+                <td align="left" valign="top" rowspan="2">
+				  <script type="text/javascript"><!--
+					google_ad_client = "ca-pub-2784580927617241";
+					/* orig */
+					google_ad_slot = "8342665437";
+					google_ad_width = 160;
+					google_ad_height = 600;
+					//-->
+				  </script>
+				  <script type="text/javascript"
+					src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+				  </script>
+                </td>
+              </tr>
+              <tr>
+                <td nowrap align="left" valign="bottom">
+			  <font size="1">Copyright &#169; 1999-2013 J. Andrew McLaughlin | 
+              Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin.&nbsp;&nbsp;&nbsp
+              <a href="mailto:andy@visopsys.org">Contact</a></font></td>
+              </tr>
+            </table>
+	        </td>
+		  </tr>
+		  </table>
+	  </center>
+	</font>
+	</div>
+  </body>
+</html>

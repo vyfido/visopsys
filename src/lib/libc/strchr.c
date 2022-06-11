@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -29,17 +29,17 @@
 
 char *strchr(const char *string, int character)
 {
-  // Check params
-  if (string == NULL)
-    return ((char *) string);
+	// Check params
+	if (string == NULL)
+		return ((char *) string);
 
-  while (string[0] != '\0')
-    {
-      if (string[0] == (char) character)
-	return ((char *) string);
-      string += 1;
-    }
-  
-  // Return failure
-  return (NULL);
+	while (string[0] != '\0')
+	{
+		if (string[0] == (char) character)
+			return ((char *) string);
+		string += 1;
+	}
+	
+	// Return failure
+	return (NULL);
 }

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,20 +28,20 @@
 
 int sscanf(const char *input, const char *format, ...)
 {
-  // This function will scan input using the format string and arguments that
-  // are passed.  Returns the number of data items scanned from the input.
+	// This function will scan input using the format string and arguments that
+	// are passed.  Returns the number of data items scanned from the input.
 
-  va_list list;
-  int inputItems = 0;
+	va_list list;
+	int inputItems = 0;
 
-  // Initialize the argument list
-  va_start(list, format);
+	// Initialize the argument list
+	va_start(list, format);
 
-  // Fill out the output line based on 
-  inputItems = _fmtinpt(input, format, list);
+	// Fill out the output line based on 
+	inputItems = _fmtinpt(input, format, list);
 
-  va_end(list);
+	va_end(list);
 
-  // Return the number of items we scanned.
-  return (inputItems);
+	// Return the number of items we scanned.
+	return (inputItems);
 }

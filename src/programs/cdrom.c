@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,7 +52,6 @@ command to print out the names of all disks.
 #include <errno.h>
 #include <sys/api.h>
 
-
 static int numberDisks = 0;
 static disk *diskInfo = NULL;
 static disk *selectedDisk = NULL;
@@ -60,132 +59,140 @@ static disk *selectedDisk = NULL;
 
 static int scanDisks(void)
 {
-  int status = 0;
-  int tmpNumberDisks = 0;
-  disk *tmpDiskInfo = NULL;
-  int count;
+	int status = 0;
+	int tmpNumberDisks = 0;
+	disk *tmpDiskInfo = NULL;
+	int count;
 
-  // Call the kernel to give us the number of available disks
-  tmpNumberDisks = diskGetPhysicalCount();
-  if (tmpNumberDisks <= 0)
-    {
-      status = ERR_NOSUCHENTRY;
-      goto out;
-    }
+	// Call the kernel to give us the number of available disks
+	tmpNumberDisks = diskGetPhysicalCount();
+	if (tmpNumberDisks <= 0)
+	{
+		status = ERR_NOSUCHENTRY;
+		goto out;
+	}
 
-  tmpDiskInfo = malloc(tmpNumberDisks * sizeof(disk));
-  diskInfo = malloc(tmpNumberDisks * sizeof(disk));
-  if (!diskInfo || !tmpDiskInfo)
-    {
-      status = ERR_MEMORY;
-      goto out;
-    }
+	tmpDiskInfo = malloc(tmpNumberDisks * sizeof(disk));
+	diskInfo = malloc(tmpNumberDisks * sizeof(disk));
+	if (!diskInfo || !tmpDiskInfo)
+	{
+		status = ERR_MEMORY;
+		goto out;
+	}
 
-  // Read disk info into our temporary structure
-  status = diskGetAllPhysical(tmpDiskInfo, (tmpNumberDisks * sizeof(disk)));
-  if (status < 0)
-    // Eek.  Problem getting disk info
-    goto out;
+	// Read disk info into our temporary structure
+	status = diskGetAllPhysical(tmpDiskInfo, (tmpNumberDisks * sizeof(disk)));
+	if (status < 0)
+		// Eek.  Problem getting disk info
+		goto out;
 
-  // Loop through these disks, figuring out which ones are CD-ROMS
-  // and putting them into the regular array
-  for (count = 0; count < tmpNumberDisks; count ++)
-    if (tmpDiskInfo[count].type & DISKTYPE_CDROM)
-      {
-	memcpy(&diskInfo[numberDisks], &tmpDiskInfo[count], sizeof(disk));
-	numberDisks ++;
-      }
+	// Loop through these disks, figuring out which ones are CD-ROMS
+	// and putting them into the regular array
+	for (count = 0; count < tmpNumberDisks; count ++)
+	{
+		if (tmpDiskInfo[count].type & DISKTYPE_CDROM)
+		{
+			memcpy(&diskInfo[numberDisks], &tmpDiskInfo[count], sizeof(disk));
+			numberDisks ++;
+		}
+	}
 
-  status = 0;
+	status = 0;
 
- out:
-  if (tmpDiskInfo)
-    free(tmpDiskInfo);
+out:
+	if (tmpDiskInfo)
+		free(tmpDiskInfo);
 
-  if ((status < 0) && diskInfo)
-    {
-      free(diskInfo);
-      diskInfo = NULL;
-    }
+	if ((status < 0) && diskInfo)
+	{
+		free(diskInfo);
+		diskInfo = NULL;
+	}
 
-  return (status);
+	return (status);
 }
 
 
 static void printDisks(void)
 {
-  // Print disk info
+	// Print disk info
 
-  int count;
-  
-  for (count = 0; count < numberDisks; count ++)
-    printf("%s\n", diskInfo[count].name);
+	int count;
+	
+	for (count = 0; count < numberDisks; count ++)
+		printf("%s\n", diskInfo[count].name);
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  int count;
+	int status = 0;
+	int count;
 
-  // Gather the disk info
-  status = scanDisks();
-  if (status < 0)
-    {
-      printf("\n\nProblem getting CD-ROM info\n\n");
-      goto out;
-    }
+	// Gather the disk info
+	status = scanDisks();
+	if (status < 0)
+	{
+		printf("\n\nProblem getting CD-ROM info\n\n");
+		goto out;
+	}
 
-  if (argc < 2)
-    {
-      printDisks();
-      status = 0;
-      goto out;
-    }
+	if (argc < 2)
+	{
+		printDisks();
+		status = 0;
+		goto out;
+	}
 
-  // There needs to be at least one CD-ROM to continue
-  if (numberDisks < 1)
-    {
-      printf("\n\nNo CD-ROMS registered\n\n");
-      status = ERR_NOSUCHENTRY;
-      goto out;
-    }
+	// There needs to be at least one CD-ROM to continue
+	if (numberDisks < 1)
+	{
+		printf("\n\nNo CD-ROMS registered\n\n");
+		status = ERR_NOSUCHENTRY;
+		goto out;
+	}
 
-  // Determine which disk is requested.  If there's only one it's easy
-  if ((numberDisks > 1) && (argc > 2))
-    {
-      // Did the user specify which cdrom to use?
-      for (count = 0; count < numberDisks; count ++)
-	if (!strcmp(argv[1], diskInfo[count].name))
-	  {
-	    selectedDisk = &diskInfo[count];
-	    break;
-	  }
-    }
+	// Determine which disk is requested.  If there's only one it's easy
+	if ((numberDisks > 1) && (argc > 2))
+	{
+		// Did the user specify which cdrom to use?
+		for (count = 0; count < numberDisks; count ++)
+		{
+			if (!strcmp(argv[1], diskInfo[count].name))
+			{
+				selectedDisk = &diskInfo[count];
+				break;
+			}
+		}
+	}
 
-  if (selectedDisk == NULL)
-    selectedDisk = &(diskInfo[0]);
+	if (selectedDisk == NULL)
+		selectedDisk = &(diskInfo[0]);
 
-  if (!strcasecmp(argv[argc - 1], "open") ||
-      !strcasecmp(argv[argc - 1], "eject"))
-    status = diskSetDoorState(selectedDisk->name, 1);
+	if (!strcasecmp(argv[argc - 1], "open") ||
+		!strcasecmp(argv[argc - 1], "eject"))
+	{
+		status = diskSetDoorState(selectedDisk->name, 1);
+	}
+	else if (!strcasecmp(argv[argc - 1], "lock"))
+	{
+		status = diskSetLockState(selectedDisk->name, 1);
+	}
+	else if (!strcasecmp(argv[argc - 1], "unlock"))
+	{
+		status = diskSetLockState(selectedDisk->name, 0);
+	}
+	else if (!strcasecmp(argv[argc - 1], "close"))
+	{
+		status = diskSetDoorState(selectedDisk->name, 0);
+	}
+	else
+	{
+		printf("\n\nUnknown command \"%s\"\n\n", argv[argc - 1]);
+		status = ERR_INVALID;
+	}
 
-  else if (!strcasecmp(argv[argc - 1], "lock"))
-    status = diskSetLockState(selectedDisk->name, 1);
-
-  else if (!strcasecmp(argv[argc - 1], "unlock"))
-    status = diskSetLockState(selectedDisk->name, 0);
-
-  else if (!strcasecmp(argv[argc - 1], "close"))
-    status = diskSetDoorState(selectedDisk->name, 0);
-
-  else
-    {
-      printf("\n\nUnknown command \"%s\"\n\n", argv[argc - 1]);
-      status = ERR_INVALID;
-    }
-
- out:
-  free(diskInfo);
-  return (status);
+out:
+	free(diskInfo);
+	return (status);
 }

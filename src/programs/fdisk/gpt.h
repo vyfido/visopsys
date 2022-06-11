@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,36 +26,36 @@
 #include <sys/guid.h>
 #include <sys/types.h>
 
-#define GPT_SIG  "EFI PART"
+#define GPT_SIG		"EFI PART"
 
 // The header for the disk label
 typedef struct {
-  char signature[8];
-  unsigned revision;
-  unsigned headerBytes;
-  unsigned headerCRC32;
-  unsigned reserved1;
-  uquad_t myLBA;
-  uquad_t altLBA;
-  uquad_t firstUsableLBA;
-  uquad_t lastUsableLBA;
-  guid diskGUID;
-  uquad_t partEntriesLBA;
-  unsigned numPartEntries;
-  unsigned partEntryBytes;
-  unsigned partEntriesCRC32;
-  char reserved2[512 - 92];
+	char signature[8];
+	unsigned revision;
+	unsigned headerBytes;
+	unsigned headerCRC32;
+	unsigned reserved1;
+	uquad_t myLBA;
+	uquad_t altLBA;
+	uquad_t firstUsableLBA;
+	uquad_t lastUsableLBA;
+	guid diskGUID;
+	uquad_t partEntriesLBA;
+	unsigned numPartEntries;
+	unsigned partEntryBytes;
+	unsigned partEntriesCRC32;
+	char reserved2[512 - 92];
 
 } __attribute__((packed)) gptHeader;
 
 // An individual partition entry
 typedef struct {
-  guid typeGuid;
-  guid partGuid;
-  uquad_t startingLBA;
-  uquad_t endingLBA;
-  uquad_t attributes;
-  char partName[72];
+	guid typeGuid;
+	guid partGuid;
+	uquad_t startingLBA;
+	uquad_t endingLBA;
+	uquad_t attributes;
+	char partName[72];
 
 } __attribute__((packed)) gptEntry;
 

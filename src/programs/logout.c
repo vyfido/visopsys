@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -42,6 +42,6 @@ Usage:
 
 int main(void)
 {
-  userLogout(NULL);
-  return (0);
+	userLogout(NULL);
+	return (0);
 }

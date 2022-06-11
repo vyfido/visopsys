@@ -1,0 +1,316 @@
+@charset "utf-8";
+/*-------------------------------------------------------------*/
+/* CSS Document                                                */
+/* Template Name: ClearLooks	                               */
+/* Designed By: Santhosh                                       */
+/* Homepage: www.themebin.com                                  */
+/*-------------------------------------------------------------*/
+
+body {
+	font: 75%/150% Verdana, Arial, Helvetica, sans-serif;
+	color: #000;
+	background: url(body.gif);
+        background-attachment:fixed;
+	text-align: justify;
+	margin: 0;
+}
+/* HTML */
+
+h1 {
+	margin: 0;
+}
+h2 {
+	font-size: 14px;
+	color: #333;
+}
+h3 {
+	font-size: 12px;
+	color: #000;
+}
+a {
+	color:#5D5D5D;
+}
+a:hover {
+	color:#551A8B;
+}
+/* Wrap */
+
+#wrap {
+	width: 840px;
+	margin: 0 auto;
+	background: #fff;
+	border: solid 1px #E8E8E8;
+}
+#wrap2 {
+	width: 830px;
+	margin: 0 auto;
+}
+/* Header */
+
+#header {
+	height: 100px;
+	/*background: #6699CC url(header.png) repeat-x;*/
+        background: #ffffff;
+	margin-top: 5px;
+	border-bottom: solid 1px #00CCFF;
+	position: relative;
+	color: #fff;
+}
+#logo {
+	font-size: 30px;
+	color: #fff;
+	padding-left: 10px;
+	padding-top: 5px;
+	position: relative;
+	width: 600px;
+}
+#slogan {
+	font-size: 14px;
+	color: #fff;
+	margin-top: 10px;
+	margin-left: 20px;
+	width: 600px;
+}
+/* Navbar */
+
+#nav {
+	height: 30px;
+	background: #34689C;
+	position: relative;
+}
+#nbar {
+	position: relative;
+	width: auto;
+	height: 30px;
+	margin: 0;
+	padding : 0 0 0 0;
+	font: bold 12px/25px Verdana, Arial, Tahoma, Sans-serif;
+}
+#nbar ul {
+	float: left;
+	list-style : none;
+	margin: 0;
+	padding: 0;
+	padding-top: 2px;
+}
+#nbar ul li {
+	display: inline;
+}
+#nbar ul li a {
+	display: block;
+	float: left;
+	padding: 0 10px;
+	color: #DFDFDF;
+	text-decoration: none;
+}
+#nbar ul li a:hover {
+	color: #FAFAFA;
+}
+#nbar ul li#selected a {
+	color: #fff;
+}
+#content-wrap {
+	margin-top: 5px;
+}
+/* Search */ 
+
+form.search {
+	position: relative;
+	background: none;
+	width: 170px;
+	border: none;
+	float: right;
+	margin: 0;
+	height: 44px;
+}
+form.search input.textbox {
+	margin: 0;
+	height: 16px;
+	font-size: 11px;
+	padding-left: 2px;
+	width: 120px;
+	background: #fff url(gradtop.gif) top repeat-x;
+	border: solid 1px #6699CC;
+	color: #000;
+}
+form.search input.button {
+	background : url(search-button.png) no-repeat;
+	color: #333;
+	border: none;
+	width: 25px;
+	cursor: pointer;
+	height: 18px;
+}
+/* Content */
+
+#content {
+	width: 630px;
+	padding: 20px 5px 5px 5px;
+}
+#content h1 {
+	font-size: 18px;
+	color: #34689C;
+	border-bottom: dotted 1px #ccc;
+}
+.post-footer {
+	border-bottom: solid 1px #D9D9D9;
+	margin-bottom: 20px;
+	text-align: right;
+}
+.dated {
+	padding-top: 2px;
+	background: url(calendar.png) left no-repeat;
+	padding-left: 20px;
+	float: left;
+}
+.category {
+	background: url(category.png) left no-repeat;
+	padding-left: 20px;
+	margin-left: 10px;
+	float: left;
+	height: 16px;
+}
+.author {
+	padding-left: 20px;
+	padding-bottom: 5px;
+	background: url(user.png) no-repeat;
+}
+.more {
+	padding-left: 20px;
+	margin-left: 10px;
+	padding-bottom: 5px;
+	background: url(more.png) no-repeat;
+}
+/* Sidebar */
+
+#sidebar {
+	width: 160px;
+	float: right;
+	padding: 5px 5px 5px 5px;
+	border-left: solid 1px #CCCCCC;
+	border-bottom: dotted 1px #CCCCCC;
+}
+#sidebar ul.menu {
+	list-style: none;
+	text-decoration: none;
+	margin : 3px 0 2px 0;
+	padding: 0;
+}
+#sidebar ul.menu li {
+	background:url(bullet.png) no-repeat;
+	padding : 2px 0 0px 15px;
+	margin : 0 2px;
+}
+#sidebar ul.menu a {
+	text-decoration : none;
+	background-image : none;
+}
+#sidebar ul.menu a:hover {
+	color:#551A8B;
+}
+#sidebar h1 {
+	font-size: 14px;
+	color: #34689C;
+}
+#left_sidebar {
+	width: 160px;
+	float: left;
+	margin-top: 10px;
+}
+#right_sidebar {
+	width: 160px;
+	float: right;
+	margin-top: 10px;
+}
+.widgetspace {
+	border-bottom: solid 1px #D9D9D9;
+	margin-bottom: 5px;
+}
+/* Addition Stuffs */
+
+blockquote {
+	background: #F2F2F2 url(quote.png) no-repeat left top;
+	border-left: solid 5px #D7D7D7;
+	padding: 5px 5px 5px 25px;
+}
+code {
+	margin : 4px 8px;
+	padding : 8px;
+	text-align : left;
+	display : block;
+	overflow : auto;
+	font : 500 1em/1.5em 'Lucida Console', 'courier new', monospace;
+	background: #f8f4f1;
+	border : 1px dashed #D7C3C3;
+}
+ul, ol {
+	margin: 5px 20px;
+	padding: 0 20px;
+	color: #333333;
+}
+ul span, ol span {
+	color: #333333;
+}
+/* Ads CSS */
+
+#side_ad {
+	width: 300px;
+	height: 250px;
+	margin: 0 auto;
+	background: #F8F8F8;
+}
+#side_sky_ad {
+	width: 160px;
+	height: 600px;
+	margin: 0 auto;
+	background: #F8F8F8;
+}
+#banner_ad {
+	width: 468px;
+	height: 60px;
+	margin: 0 auto;
+	background: #F8F8F8;
+}
+/* Images */
+
+img {
+	border: none;
+	background: none;
+}
+img.float-right {
+	margin : 5px 0 10px 10px;
+	padding: 2px;
+}
+img.float-left {
+	margin : 5px 10px 10px 0;
+	padding: 2px;
+}
+
+/* Footer */
+
+#footer {
+	height: auto;
+	padding-top: 5px;
+	margin: 0;
+	text-align: center;
+	border-top: solid 2px #6699CC;
+	background: #34689C;
+	color: #fff;
+}
+#footer ul{
+	list-style-type: none;
+}
+#footer ul li{
+        padding: 0px 5px 0px 5px;
+	display: inline;
+}
+#footer a {
+	color:#fff;
+}
+#footer a:hover {
+	text-decoration:none;
+}
+.clearfix {
+	clear:both;
+	overflow: hidden
+}

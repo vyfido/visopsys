@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -45,36 +45,36 @@ to set the password).
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s <username>\n", name);
-  return;
+	printf("usage:\n");
+	printf("%s <username>\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
+	int status = 0;
 
-  if (argc != 2)
-    {
-      usage(argv[0]);
-      return (status = ERR_ARGUMENTCOUNT);
-    }      
+	if (argc != 2)
+	{
+		usage(argv[0]);
+		return (status = ERR_ARGUMENTCOUNT);
+	}      
 
-  // With the user name, we try to authenticate with no password
-  status = userAuthenticate(argv[1], "");
-  if (status == ERR_PERMISSION)
-    {
-      errno = status;
-      printf("User %s already exists.\n", argv[1]);
-      return (status);
-    }
+	// With the user name, we try to authenticate with no password
+	status = userAuthenticate(argv[1], "");
+	if (status == ERR_PERMISSION)
+	{
+		errno = status;
+		printf("User %s already exists.\n", argv[1]);
+		return (status);
+	}
 
-  status = userAdd(argv[1], "");
-  errno = status;
+	status = userAdd(argv[1], "");
+	errno = status;
 
-  printf("User added.\n");
+	printf("User added.\n");
 
-  // Done
-  return (status);
+	// Done
+	return (status);
 }

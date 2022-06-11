@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,15 +28,15 @@
 
 int fls(int i)
 {
-  // Returns the most significant bit set in the word.
+	// Returns the most significant bit set in the word.
 
-  int count;
+	int count;
 
-  if (!i)
-    return (0);
+	if (!i)
+		return (0);
 
-  for (count = INTBITS; !(i & 0x80000000) && (count > 0); count --)
-    i <<= 1;
+	for (count = INTBITS; !(i & 0x80000000) && (count > 0); count --)
+		i <<= 1;
 
-  return (count);
+	return (count);
 }

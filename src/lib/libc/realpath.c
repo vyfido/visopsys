@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,24 +28,24 @@
 
 char *realpath(const char *path, char *fullPath)
 {
-  // Takes a pathname, possibly relative, possibly containing symbolic links,
-  // '.' and '..' elements, and extra separators, and returns a proper
-  // canonical pathname.
+	// Takes a pathname, possibly relative, possibly containing symbolic links,
+	// '.' and '..' elements, and extra separators, and returns a proper
+	// canonical pathname.
 
-  int status = 0;
+	int status = 0;
 
-  if (visopsys_in_kernel)
-    {
-      errno = ERR_BUG;
-      return (fullPath = NULL);
-    }
+	if (visopsys_in_kernel)
+	{
+		errno = ERR_BUG;
+		return (fullPath = NULL);
+	}
 
-  status = fileFixupPath(path, fullPath);
-  if (status < 0)
-    {
-      errno = status;
-      return (fullPath = NULL);
-    }
+	status = fileFixupPath(path, fullPath);
+	if (status < 0)
+	{
+		errno = status;
+		return (fullPath = NULL);
+	}
 
-  return (fullPath);
+	return (fullPath);
 }

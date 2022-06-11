@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -54,37 +54,37 @@ Will produce the output:
 
 static void usage(char *name)
 {
-  printf("usage:\n%s <file1> [file2] [...]\n", name);
-  return;
+	printf("usage:\n%s <file1> [file2] [...]\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  loaderFileClass class;
-  int count;
+	loaderFileClass class;
+	int count;
 
-  // Need at least one argument
-  if (argc < 2)
-    {
-      usage(argv[0]);
-      return (errno = ERR_ARGUMENTCOUNT);
-    }
+	// Need at least one argument
+	if (argc < 2)
+	{
+		usage(argv[0]);
+		return (errno = ERR_ARGUMENTCOUNT);
+	}
 
-  errno = 0;
+	errno = 0;
 
-  for (count = 1; count < argc; count ++)
-    {
-      // Initialize the file class structure
-      bzero(&class, sizeof(loaderFileClass));
+	for (count = 1; count < argc; count ++)
+	{
+		// Initialize the file class structure
+		bzero(&class, sizeof(loaderFileClass));
 
-      // Get the file class information
-      if (loaderClassifyFile(argv[count], &class) == NULL)
-	strcpy(class.className, "unknown file class");
+		// Get the file class information
+		if (loaderClassifyFile(argv[count], &class) == NULL)
+			strcpy(class.className, "unknown file class");
 
-      // Print this item
-      printf("%s: %s\n", argv[count], class.className);
-    }
+		// Print this item
+		printf("%s: %s\n", argv[count], class.className);
+	}
 
-  return (errno);
+	return (errno);
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -41,73 +41,73 @@ static kernelDmaOps *ops = NULL;
 
 int kernelDmaInitialize(kernelDevice *dev)
 {
-  // This function initializes the DMA controller.
+	// This function initializes the DMA controller.
 
-  int status = 0;
+	int status = 0;
 
-  if (dev == NULL)
-    {
-      kernelError(kernel_error, "The DMA device is NULL");
-      return (status = ERR_NOTINITIALIZED);
-    }
+	if (dev == NULL)
+	{
+		kernelError(kernel_error, "The DMA device is NULL");
+		return (status = ERR_NOTINITIALIZED);
+	}
 
-  systemDma = dev;
+	systemDma = dev;
 
-  if ((systemDma->driver == NULL) || (systemDma->driver->ops == NULL))
-    {
-      kernelError(kernel_error, "The DMA driver or ops are NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
+	if ((systemDma->driver == NULL) || (systemDma->driver->ops == NULL))
+	{
+		kernelError(kernel_error, "The DMA driver or ops are NULL");
+		return (status = ERR_NULLPARAMETER);
+	}
 
-  ops = systemDma->driver->ops;
+	ops = systemDma->driver->ops;
 
-  return (status);
+	return (status);
 }
 
 
 int kernelDmaOpenChannel(int channelNumber, void *address, int count, int mode)
 {
-  // This function is used to set up a DMA channel and prepare it to 
-  // read or write data.  It is a generic routine which calls the 
-  // specific associated device driver function.
+	// This function is used to set up a DMA channel and prepare it to 
+	// read or write data.  It is a generic routine which calls the 
+	// specific associated device driver function.
 
-  int status = 0;
+	int status = 0;
 
-  if (systemDma == NULL)
-    return (status = ERR_NOTINITIALIZED);
+	if (systemDma == NULL)
+		return (status = ERR_NOTINITIALIZED);
 
-  // Make sure the driver's "open channel" routine has been initialized
-  if (ops->driverOpenChannel == NULL)
-    {
-      // Ooops.  Driver function is NULL.
-      kernelError(kernel_error, "Driver function is NULL");
-      return (status = ERR_NOSUCHFUNCTION);
-    }
+	// Make sure the driver's "open channel" routine has been initialized
+	if (ops->driverOpenChannel == NULL)
+	{
+		// Ooops.  Driver function is NULL.
+		kernelError(kernel_error, "Driver function is NULL");
+		return (status = ERR_NOSUCHFUNCTION);
+	}
 
-  status = ops->driverOpenChannel(channelNumber, address, count, mode);
-  return (status);
+	status = ops->driverOpenChannel(channelNumber, address, count, mode);
+	return (status);
 }
 
 
 int kernelDmaCloseChannel(int channelNumber)
 {
-  // This function is used to close a DMA channel after the desired
-  // "read" or "write" operation has been completed.  It is a generic 
-  // routine which calls the specific associated device driver function.
+	// This function is used to close a DMA channel after the desired
+	// "read" or "write" operation has been completed.  It is a generic 
+	// routine which calls the specific associated device driver function.
 
-  int status = 0;
+	int status = 0;
 
-  if (systemDma == NULL)
-    return (status = ERR_NOTINITIALIZED);
+	if (systemDma == NULL)
+		return (status = ERR_NOTINITIALIZED);
 
-  // Make sure the driver's "close channel" routine has been initialized
-  if (ops->driverCloseChannel == NULL)
-    {
-      // Ooops.  Driver function is NULL.
-      kernelError(kernel_error, "Driver function is NULL");
-      return (status = ERR_NOSUCHFUNCTION);
-    }
+	// Make sure the driver's "close channel" routine has been initialized
+	if (ops->driverCloseChannel == NULL)
+	{
+		// Ooops.  Driver function is NULL.
+		kernelError(kernel_error, "Driver function is NULL");
+		return (status = ERR_NOSUCHFUNCTION);
+	}
 
-  status = ops->driverCloseChannel(channelNumber);
-  return (status);
+	status = ops->driverCloseChannel(channelNumber);
+	return (status);
 }

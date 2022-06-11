@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,13 +26,13 @@
 
 int tolower(int c)
 {
-  // If the argument of tolower() represents an upper-case letter, and there
-  // exists a corresponding lower-case letter, the result is the
-  // corresponding lower-case letter.  All other arguments are returned
-  // unchanged.
+	// If the argument of tolower() represents an upper-case letter, and there
+	// exists a corresponding lower-case letter, the result is the
+	// corresponding lower-case letter.  All other arguments are returned
+	// unchanged.
 
-  if ((c >= 65) && (c <= 90))
-    return (c + 32);
-  else
-    return (c);
+	if ((c >= 65) && (c <= 90))
+		return (c + 32);
+	else
+		return (c);
 }

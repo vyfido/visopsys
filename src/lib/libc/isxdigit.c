@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -31,9 +31,8 @@
 
 int isxdigit(int c)
 {
-  // checks  for a hexadecimal digits, i.e. one of 0 1 2 3 4 5 6 7 8 9
-  // a b c d e f A B C D E F.
-  return (((c >= '0') && (c <= '9')) ||
-	  ((c >= 'a') && (c <= 'f')) ||
-	  ((c >= 'A') && (c <= 'F')));
+	// checks  for a hexadecimal digits, i.e. one of 0 1 2 3 4 5 6 7 8 9
+	// a b c d e f A B C D E F.
+	return (((c >= '0') && (c <= '9')) || ((c >= 'a') && (c <= 'f')) ||
+		((c >= 'A') && (c <= 'F')));
 }

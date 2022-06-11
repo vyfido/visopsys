@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,14 +30,14 @@
 
 // These are 8-bit bitwise numbers sent to the controller's
 // mode registers.
-#define DMA_READMODE  0x08
-#define DMA_WRITEMODE 0x04
+#define DMA_READMODE	0x08
+#define DMA_WRITEMODE	0x04
 
 // A structure used to register a DMA driver.
 
 typedef struct {
-  int (*driverOpenChannel) (int, void *, int, int);
-  int (*driverCloseChannel) (int);
+	int (*driverOpenChannel) (int, void *, int, int);
+	int (*driverCloseChannel) (int);
 
 } kernelDmaOps;
 

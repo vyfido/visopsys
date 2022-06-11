@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -28,41 +28,41 @@
 #include <sys/disk.h>
 
 // Definitions
-#define MAX_BUFFERED_FILES 1024
+#define MAX_BUFFERED_FILES		1024
 // MicrosoftTM's filesystems can't handle too many directory entries
-#define MAX_DIRECTORY_ENTRIES 0xFFFE
+#define MAX_DIRECTORY_ENTRIES	0xFFFE
 
 // Can't include kernelDisk.h, it's circular.
 struct _kernelDisk;
 
 // This structure defines a file or directory entry
 typedef volatile struct _kernelFileEntry {
-  char name[MAX_NAME_LENGTH];
-  fileType type;
-  int flags;
-  unsigned creationTime;
-  unsigned creationDate;
-  unsigned accessedTime;
-  unsigned accessedDate;
-  unsigned modifiedTime;
-  unsigned modifiedDate;
-  unsigned size;
-  unsigned blocks;
+	char name[MAX_NAME_LENGTH];
+	fileType type;
+	int flags;
+	unsigned creationTime;
+	unsigned creationDate;
+	unsigned accessedTime;
+	unsigned accessedDate;
+	unsigned modifiedTime;
+	unsigned modifiedDate;
+	unsigned size;
+	unsigned blocks;
 
-  // Misc
-  volatile struct _kernelDisk *disk;     // parent filesystem
-  void *driverData;                      // private fs-driver-specific data
-  int openCount;
-  lock lock;
+	// Misc
+	volatile struct _kernelDisk *disk;	// parent filesystem
+	void *driverData;					// private fs-driver-specific data
+	int openCount;
+	lock lock;
 
-  // Linked-list stuff.
-  volatile struct _kernelFileEntry *parentDirectory;
-  volatile struct _kernelFileEntry *previousEntry;
-  volatile struct _kernelFileEntry *nextEntry;
-  unsigned lastAccess;
+	// Linked-list stuff.
+	volatile struct _kernelFileEntry *parentDirectory;
+	volatile struct _kernelFileEntry *previousEntry;
+	volatile struct _kernelFileEntry *nextEntry;
+	unsigned lastAccess;
 
-  // (The following additional stuff only applies to directories and links)
-  volatile struct _kernelFileEntry *contents;
+	// (The following additional stuff only applies to directories and links)
+	volatile struct _kernelFileEntry *contents;
 
 } kernelFileEntry;
 

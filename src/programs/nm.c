@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,87 +52,86 @@ items are shown, along with their bindings (such as 'local', 'global', or
 
 static void usage(char *name)
 {
-  printf("usage:\n%s <file1> [file2] [...]\n", name);
-  return;
+	printf("usage:\n%s <file1> [file2] [...]\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  void *fileData = NULL;
-  file theFile;
-  loaderFileClass class;
-  loaderSymbolTable *symTable = NULL;
-  int count1, count2;
+	void *fileData = NULL;
+	file theFile;
+	loaderFileClass class;
+	loaderSymbolTable *symTable = NULL;
+	int count1, count2;
 
-  static char *bindings[] = {
-    "local", "global", "weak"
-  };
-  static char *types[] = {
-    "none", "object", "function", "section", "file"
-  };
+	static char *bindings[] = {
+		"local", "global", "weak"
+	};
+	static char *types[] = {
+		"none", "object", "function", "section", "file"
+	};
 
-  // Need at least one argument
-  if (argc < 2)
-    {
-      usage(argv[0]);
-      return (errno = ERR_ARGUMENTCOUNT);
-    }
-
-  errno = 0;
-
-  for (count1 = 1; count1 < argc; count1 ++)
-    {
-      // Initialize the file and file class structures
-      bzero(&theFile, sizeof(file));
-      bzero(&class, sizeof(loaderFileClass));
-
-      // Load the file
-      fileData = loaderLoad(argv[count1], &theFile);
-      if (fileData == NULL)
+	// Need at least one argument
+	if (argc < 2)
 	{
-	  errno = ERR_NODATA;
-	  printf("Can't load file \"%s\"\n", argv[count1]);
-	  continue;
+		usage(argv[0]);
+		return (errno = ERR_ARGUMENTCOUNT);
 	}
 
-      // Make sure it's a dynamic library or executable
-      if (loaderClassify(argv[count1], fileData, theFile.size, &class) == NULL)
+	errno = 0;
+
+	for (count1 = 1; count1 < argc; count1 ++)
 	{
-	  printf("File type of \"%s\" is unknown\n", argv[count1]);
-	  continue;
-	}
-      if (!(class.class & (LOADERFILECLASS_EXEC | LOADERFILECLASS_LIB)) ||
-	  !(class.subClass & LOADERFILESUBCLASS_DYNAMIC))
-	{
-	  errno = ERR_INVALID;
-	  printf("\"%s\" is not a dynamic library or executable\n",
-		 argv[count1]);
-	  continue;
+		// Initialize the file and file class structures
+		bzero(&theFile, sizeof(file));
+		bzero(&class, sizeof(loaderFileClass));
+
+		// Load the file
+		fileData = loaderLoad(argv[count1], &theFile);
+		if (fileData == NULL)
+		{
+			errno = ERR_NODATA;
+			printf("Can't load file \"%s\"\n", argv[count1]);
+			continue;
+		}
+
+		// Make sure it's a dynamic library or executable
+		if (loaderClassify(argv[count1], fileData, theFile.size, &class) == NULL)
+		{
+			printf("File type of \"%s\" is unknown\n", argv[count1]);
+			continue;
+		}
+		if (!(class.class & (LOADERFILECLASS_EXEC | LOADERFILECLASS_LIB)) ||
+			!(class.subClass & LOADERFILESUBCLASS_DYNAMIC))
+		{
+			errno = ERR_INVALID;
+			printf("\"%s\" is not a dynamic library or executable\n",
+				argv[count1]);
+			continue;
+		}
+
+		// Free the file data now.  We want the symbol information.
+		memoryRelease(fileData);
+		fileData = NULL;
+
+		// Get the symbol table
+		symTable = loaderGetSymbols(argv[count1]);
+		if (symTable == NULL)
+		{
+			printf("Unable to get dynamic symbols from \"%s\".\n", argv[count1]);
+			continue;
+		}
+
+		for (count2 = 0; count2 < symTable->numSymbols; count2 ++)
+		{
+			if (symTable->symbols[count2].name[0])
+			printf("%08x  %s  %s,%s\n", (unsigned)
+				symTable->symbols[count2].value, symTable->symbols[count2].name,
+				bindings[symTable->symbols[count2].binding],
+				types[symTable->symbols[count2].type]);
+		}
 	}
 
-      // Free the file data now.  We want the symbol information.
-      memoryRelease(fileData);
-      fileData = NULL;
-
-      // Get the symbol table
-      symTable = loaderGetSymbols(argv[count1]);
-      if (symTable == NULL)
-	{
-	  printf("Unable to get dynamic symbols from \"%s\".\n", argv[count1]);
-	  continue;
-	}
-
-      for (count2 = 0; count2 < symTable->numSymbols; count2 ++)
-	{
-	  if (symTable->symbols[count2].name[0])
-	    printf("%08x  %s  %s,%s\n", (unsigned)
-		   symTable->symbols[count2].value,
-		   symTable->symbols[count2].name,
-		   bindings[symTable->symbols[count2].binding],
-		   types[symTable->symbols[count2].type]);
-	}
-    }
-
-  return (errno);
+	return (errno);
 }

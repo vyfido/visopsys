@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,10 +47,10 @@ Options:
 #include <sys/api.h>
 #include <sys/font.h>
 
-#define COLUMNS           60
-#define NORMAL_ROWS       25
-#define MORE_ROWS         40
-#define SCROLLBACK_LINES  200
+#define COLUMNS				60
+#define NORMAL_ROWS			25
+#define MORE_ROWS			40
+#define SCROLLBACK_LINES	200
 
 #define _(string) gettext(string)
 
@@ -120,6 +120,7 @@ static void printTree(device *dev, int level)
 	return;
 }
 
+
 __attribute__((noreturn))
 static void quit(int status)
 {
@@ -159,8 +160,10 @@ static void constructWindow(void)
 
 	status = fileFind(FONT_SYSDIR "/xterm-normal-10.vbf", NULL);
 	if (status >= 0)
+	{
 		status = fontLoad("xterm-normal-10.vbf", "xterm-normal-10",
 			&(params.font), 1);
+	}
 	if (status < 0)
 	{
 		params.font = NULL;
@@ -178,8 +181,8 @@ static void constructWindow(void)
 	params.padBottom = 1;
 	params.orientationX = orient_center;
 	params.orientationY = orient_middle;
-	textArea =
-		windowNewTextArea(window, COLUMNS, rows, SCROLLBACK_LINES, &params);
+	textArea = windowNewTextArea(window, COLUMNS, rows, SCROLLBACK_LINES,
+		&params);
 	windowSetTextOutput(textArea);
 	textSetCursor(0);
 	textInputSetEcho(0);
@@ -199,9 +202,9 @@ int main(int argc, char *argv[])
 	char opt;
 	device dev;
 
-#ifdef BUILDLANG
-	language=BUILDLANG;
-#endif
+	#ifdef BUILDLANG
+		language=BUILDLANG;
+	#endif
 	setlocale(LC_ALL, language);
 	textdomain("lsdev");
 

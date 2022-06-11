@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -56,57 +56,57 @@ directories then the flag has no effect.
 
 static void usage(char *name)
 {
-  fprintf(stderr, "usage:\n");
-  fprintf(stderr, "%s [-R] <source1> [source2] ... <destination>\n", name);
-  return;
+	fprintf(stderr, "usage:\n");
+	fprintf(stderr, "%s [-R] <source1> [source2] ... <destination>\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  char opt;
-  int recurse = 0;
-  int count;
+	int status = 0;
+	char opt;
+	int recurse = 0;
+	int count;
 
-  // There need to be at least a source and destination name
-  if (argc < 3)
-    {
-      usage(argv[0]);
-      return (status = ERR_ARGUMENTCOUNT);
-    }
-
-  while (strchr("Rr?", (opt = getopt(argc, argv, "Rr"))))
-    {
-      switch (opt)
+	// There need to be at least a source and destination name
+	if (argc < 3)
 	{
-	case 'r':
-	case 'R':
-	  // Recurse
-	  recurse = 1;
-	  break;
-
-	default:
-	  fprintf(stderr, "Unknown option '%c'\n", optopt);
-	  usage(argv[0]);
-	  return (status = ERR_INVALID);
+		usage(argv[0]);
+		return (status = ERR_ARGUMENTCOUNT);
 	}
-    }
 
-  for (count = optind; count < (argc - 1); count ++)
-    {
-      if (recurse)
-	status = fileCopyRecursive(argv[count], argv[argc - 1]);
-      else
-	status = fileCopy(argv[count], argv[argc - 1]);
-
-      if (status < 0)
+	while (strchr("Rr?", (opt = getopt(argc, argv, "Rr"))))
 	{
-	  fprintf(stderr, "%s: ", argv[count]);
-	  errno = status;
-	  perror(argv[0]);
-	}
-    }
+		switch (opt)
+		{
+			case 'r':
+			case 'R':
+				// Recurse
+				recurse = 1;
+				break;
 
-  return (status);
+			default:
+				fprintf(stderr, "Unknown option '%c'\n", optopt);
+				usage(argv[0]);
+				return (status = ERR_INVALID);
+		}
+	}
+
+	for (count = optind; count < (argc - 1); count ++)
+	{
+		if (recurse)
+			status = fileCopyRecursive(argv[count], argv[argc - 1]);
+		else
+			status = fileCopy(argv[count], argv[argc - 1]);
+
+		if (status < 0)
+		{
+			fprintf(stderr, "%s: ", argv[count]);
+			errno = status;
+			perror(argv[0]);
+		}
+	}
+
+	return (status);
 }

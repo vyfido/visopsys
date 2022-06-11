@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -31,9 +31,9 @@
 
 int isascii(int c)
 {
-  // checks whether c is a  7-bit  unsigned  char  value that fits into the
-  // ASCII character set.  This function is a BSD extension and is also an
-  // SVID  extension.
+	// checks whether c is a  7-bit  unsigned  char  value that fits into the
+	// ASCII character set.  This function is a BSD extension and is also an
+	// SVID  extension.
 
-  return ((c >= 0) && (c <= 127));
+	return ((c >= 0) && (c <= 127));
 }

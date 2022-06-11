@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -31,7 +31,7 @@
 
 int isblank(int c)
 {
-  // checks for a blank character; that is, a space or a tab.  This function
-  // is a GNU extension.
-  return ((c == ' ') || (c == '\t'));
+	// checks for a blank character; that is, a space or a tab.  This function
+	// is a GNU extension.
+	return ((c == ' ') || (c == '\t'));
 }

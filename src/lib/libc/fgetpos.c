@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,18 +28,18 @@
 
 int fgetpos(FILE *theStream, fpos_t *pos)
 {
-  // The fgetpos() function stores the current value of the file position
-  // indicator for the stream pointed to by stream in the object pointed
-  // to by pos.  The value stored contains unspecified information usable
-  // by fsetpos() for repositioning the stream to its position at the time
-  // of the call to fgetpos().  Upon successful completion, fgetpos()
-  // returns 0.  Otherwise, it returns a non-zero value and sets errno to
-  // indicate the error.
+	// The fgetpos() function stores the current value of the file position
+	// indicator for the stream pointed to by stream in the object pointed
+	// to by pos.  The value stored contains unspecified information usable
+	// by fsetpos() for repositioning the stream to its position at the time
+	// of the call to fgetpos().  Upon successful completion, fgetpos()
+	// returns 0.  Otherwise, it returns a non-zero value and sets errno to
+	// indicate the error.
 
-  // This call is not applicable for stdin, stdout, and stderr
-  if ((theStream == stdin) || (theStream == stdout) || (theStream == stderr))
-    return (errno = ERR_NOTAFILE);
+	// This call is not applicable for stdin, stdout, and stderr
+	if ((theStream == stdin) || (theStream == stdout) || (theStream == stderr))
+		return (errno = ERR_NOTAFILE);
 
-  *pos = theStream->offset;
-  return (0);
+	*pos = theStream->offset;
+	return (0);
 }

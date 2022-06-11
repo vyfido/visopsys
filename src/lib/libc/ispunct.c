@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -31,14 +31,10 @@
 
 int ispunct(int c)
 {
-  // checks for any printable character which is not a space or an
-  // alphanumeric character.
-  return ((((c >= 1) && (c <= 7)) ||
-	   (c == 11) || (c == 12) ||
-	   ((c >= 14) && (c <= 25)) ||
-	   ((c >= 27) && (c <= 31)) ||
-	   ((c >= 33) && (c <= 255))) &&
-	  (((c < 'a') || (c > 'z')) &&
-	   ((c < 'A') || (c > 'Z')) &&
-	   ((c < '0') || (c > '9'))));
+	// checks for any printable character which is not a space or an
+	// alphanumeric character.
+	return ((((c >= 1) && (c <= 7)) || (c == 11) || (c == 12) ||
+		 ((c >= 14) && (c <= 25)) || ((c >= 27) && (c <= 31)) ||
+		 ((c >= 33) && (c <= 255))) && (((c < 'a') || (c > 'z')) &&
+		 ((c < 'A') || (c > 'Z')) && ((c < '0') || (c > '9'))));
 }

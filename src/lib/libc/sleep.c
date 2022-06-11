@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,18 +28,18 @@
 
 unsigned sleep(unsigned seconds)
 {
-  // Sleep for the specified number of seconds. Returns 0 if the requested
-  // time has elapsed, or the number of seconds left to sleep.
+	// Sleep for the specified number of seconds. Returns 0 if the requested
+	// time has elapsed, or the number of seconds left to sleep.
 
-  if (visopsys_in_kernel)
-    {
-      errno = ERR_BUG;
-      return (seconds);
-    }
+	if (visopsys_in_kernel)
+	{
+		errno = ERR_BUG;
+		return (seconds);
+	}
 
-  for ( ; seconds > 0; seconds --)
-    // 18 timer ticks is about 1 second
-    multitaskerWait(18);
+	for ( ; seconds > 0; seconds --)
+		// 18 timer ticks is about 1 second
+		multitaskerWait(18);
 
-  return (seconds);
+	return (seconds);
 }

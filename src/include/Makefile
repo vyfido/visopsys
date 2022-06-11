@@ -1,11 +1,11 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2013 J. Andrew McLaughlin
+##  Copyright (C) 1998-2014 J. Andrew McLaughlin
 ##  
 ##  Makefile
 ##
 
-BUILDDIR=../../build/system/headers
+BUILDDIR	= ../../build/system/headers
 
 all:
 	mkdir -p ${BUILDDIR}

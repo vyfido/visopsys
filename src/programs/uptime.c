@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -41,28 +41,28 @@ Usage:
 
 int main(void)
 {
-  int i = 0;
+	int i = 0;
 
-  // Get the number of "up" seconds
-  i = rtcUptimeSeconds();
+	// Get the number of "up" seconds
+	i = rtcUptimeSeconds();
 
-  printf("Up %d days, ", (i / (60 * 60 * 24)));
+	printf("Up %d days, ", (i / (60 * 60 * 24)));
 
-  i %= (60 * 60 * 24);
-  if ((i / (60 * 60)) < 10)
-    printf("0");
-  printf("%d:", (i / (60 * 60)));
+	i %= (60 * 60 * 24);
+	if ((i / (60 * 60)) < 10)
+		printf("0");
+	printf("%d:", (i / (60 * 60)));
 
-  i %= (60 * 60);
-  if ((i / 60) < 10)
-    printf("0");
-  printf("%d:", (i / 60));
+	i %= (60 * 60);
+	if ((i / 60) < 10)
+		printf("0");
+	printf("%d:", (i / 60));
 
-  i %= 60;
-  if (i < 10)
-    printf("0");
-  printf("%d\n", i);
+	i %= 60;
+	if (i < 10)
+		printf("0");
+	printf("%d\n", i);
 
-  // Done
-  return (0);
+	// Done
+	return (0);
 }

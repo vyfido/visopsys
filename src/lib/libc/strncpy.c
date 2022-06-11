@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -32,35 +32,35 @@
 
 char *strncpy(char *destString, const char *sourceString, size_t maxLength)
 {
-  unsigned count;
+	unsigned count;
 
-  // Make sure neither of the pointers are NULL
-  if ((destString == (char *) NULL) || (sourceString == (char *) NULL))
-    {
-      errno = ERR_NULLPARAMETER;
-      return (destString = NULL);
-    }
+	// Make sure neither of the pointers are NULL
+	if ((destString == (char *) NULL) || (sourceString == (char *) NULL))
+	{
+		errno = ERR_NULLPARAMETER;
+		return (destString = NULL);
+	}
 
-  if (maxLength > MAXSTRINGLENGTH)
-    maxLength = MAXSTRINGLENGTH;
+	if (maxLength > MAXSTRINGLENGTH)
+		maxLength = MAXSTRINGLENGTH;
 
-  for (count = 0; count < maxLength; count ++)
-    {
-      destString[count] = sourceString[count];
-      
-      if (sourceString[count] == '\0')
-	break;
-    }
+	for (count = 0; count < maxLength; count ++)
+	{
+		destString[count] = sourceString[count];
+		
+		if (sourceString[count] == '\0')
+			break;
+	}
 
-  // If this is true, then we probably have an unterminated string
-  // constant.  Checking for a string that exceeds MAXSTRINGLENGTH will
-  // help to prevent the routine from running off too far into memory.
-  if (count >= MAXSTRINGLENGTH)
-    {
-      errno = ERR_BOUNDS;
-      return (destString = NULL);
-    }
+	// If this is true, then we probably have an unterminated string
+	// constant.  Checking for a string that exceeds MAXSTRINGLENGTH will
+	// help to prevent the routine from running off too far into memory.
+	if (count >= MAXSTRINGLENGTH)
+	{
+		errno = ERR_BOUNDS;
+		return (destString = NULL);
+	}
 
-  // Return success
-  return (destString);
+	// Return success
+	return (destString);
 }

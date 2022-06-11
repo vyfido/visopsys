@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,33 +28,33 @@
 
 int getc(FILE *theStream)
 {
-  // getc() is equivalent to fgetc() except that it may be implemented as
-  // a macro which evaluates stream more than once.  OK, it's not a macro,
-  // and it's only going to be partially implemented right now.
+	// getc() is equivalent to fgetc() except that it may be implemented as
+	// a macro which evaluates stream more than once.  OK, it's not a macro,
+	// and it's only going to be partially implemented right now.
 
-  int status = 0;
-  char c = '\0';
+	int status = 0;
+	char c = '\0';
 
-  if (visopsys_in_kernel)
-    {
-      errno = ERR_BUG;
-      return (EOF);
-    }
+	if (visopsys_in_kernel)
+	{
+		errno = ERR_BUG;
+		return (EOF);
+	}
 
-  if (theStream != stdin)
-    {
-      // We are only implementing for stdin at the moment
-      errno = ERR_NOTIMPLEMENTED;
-      return (EOF);
-    }
+	if (theStream != stdin)
+	{
+		// We are only implementing for stdin at the moment
+		errno = ERR_NOTIMPLEMENTED;
+		return (EOF);
+	}
 
-  // Get a character from the text input stream
-  status = textInputGetc(&c);
-  if (status < 0)
-    {
-      errno = status;
-      return (EOF);
-    }
+	// Get a character from the text input stream
+	status = textInputGetc(&c);
+	if (status < 0)
+	{
+		errno = status;
+		return (EOF);
+	}
 
-  return ((int) c);
+	return ((int) c);
 }

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -27,23 +27,23 @@
 
 void *_calloc(size_t items, size_t itemSize, const char *function)
 {
-  // This is what the linux man page says about this function:
-  // calloc() allocates memory for an array of  nmemb  elements
-  // of  size bytes each and returns a pointer to the allocated
-  // memory.  The memory is set to zero.
+	// This is what the linux man page says about this function:
+	// calloc() allocates memory for an array of  nmemb  elements
+	// of  size bytes each and returns a pointer to the allocated
+	// memory.  The memory is set to zero.
 
-  size_t totalSize = 0;
-  void *memoryPointer = NULL;
+	size_t totalSize = 0;
+	void *memoryPointer = NULL;
 
-  // Total size is (items * itemSize)
-  totalSize = (items * itemSize);
+	// Total size is (items * itemSize)
+	totalSize = (items * itemSize);
 
-  memoryPointer = _malloc(totalSize, function);
+	memoryPointer = _malloc(totalSize, function);
 
-  if (memoryPointer)
-    // Clear the memory
-    memset(memoryPointer, 0, totalSize);
+	if (memoryPointer)
+		// Clear the memory
+		memset(memoryPointer, 0, totalSize);
 
-  // Return this value, whether or not we were successful
-  return (memoryPointer);
+	// Return this value, whether or not we were successful
+	return (memoryPointer);
 }

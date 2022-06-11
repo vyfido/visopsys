@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,8 +30,42 @@
 #include <string.h>
 #include <sys/ntfs.h>
 
-
 static int initialized = 0;
+
+
+#ifdef DEBUG
+static inline void debugBootFile(ntfsBootFile *bootFile)
+{
+	char *oemName = kernelMalloc(9);
+
+	strncpy(oemName, bootFile->oemName, 8);
+	oemName[8] = '\0';
+
+	kernelDebug(debug_fs, "NTFS debug $Boot file:\n"
+		"    oemName=\"%s\"\n"
+		"    bytesPerSect=%d\n"
+		"    sectsPerClust=%d\n"
+		"    media=%02x\n"
+		"    sectsPerTrack=%d\n"
+		"    numHeads=%d\n"
+		"    biosDriveNum=%04x\n"
+		"    sectsPerVolume=%llu\n"
+		"    mftStart=%llu\n"
+		"    mftMirrStart=%llu\n"
+		"    clustersPerMftRec=%u\n"
+		"    clustersPerIndexRec=%u\n"
+		"    volSerial=%llu",
+		oemName, bootFile->bytesPerSect, bootFile->sectsPerClust,
+		bootFile->media, bootFile->sectsPerTrack, bootFile->numHeads,
+		bootFile->biosDriveNum, bootFile->sectsPerVolume, bootFile->mftStart,
+		bootFile->mftMirrStart, bootFile->clustersPerMftRec,
+		bootFile->clustersPerIndexRec, bootFile->volSerial);
+
+	kernelFree(oemName);
+}
+#else
+	#define debugBootFile(bootFile) do { } while (0)
+#endif // DEBUG
 
 
 static int readBootFile(const kernelDisk *theDisk, ntfsBootFile *bootFile)
@@ -42,9 +76,6 @@ static int readBootFile(const kernelDisk *theDisk, ntfsBootFile *bootFile)
 	int status = 0;
 	unsigned sectors = 0;
 	kernelPhysicalDisk *physicalDisk = NULL;
-
-	// Initialize the buffer we were given
-	kernelMemClear(bootFile, sizeof(ntfsBootFile));
 
 	physicalDisk = theDisk->physical;
 
@@ -59,8 +90,9 @@ static int readBootFile(const kernelDisk *theDisk, ntfsBootFile *bootFile)
 		((sizeof(ntfsBootFile) % physicalDisk->sectorSize)? 1 : 0));
 
 	// Read the $Boot file
-	status =
-		kernelDiskReadSectors((char *) theDisk->name, 0, sectors, bootFile);
+	status = kernelDiskReadSectors((char *) theDisk->name, 0, sectors,
+		bootFile);
+
 	return (status);
 }
 
@@ -87,8 +119,9 @@ static int writeBootFile(const kernelDisk *theDisk, ntfsBootFile *bootFile)
 		((sizeof(ntfsBootFile) % physicalDisk->sectorSize)? 1 : 0));
 
 	// Write the $Boot file
-	status =
-		kernelDiskWriteSectors((char *) theDisk->name, 0, sectors, bootFile);
+	status = kernelDiskWriteSectors((char *) theDisk->name, 0, sectors,
+		bootFile);
+
 	return (status);
 }
 
@@ -112,21 +145,33 @@ static int detect(kernelDisk *theDisk)
 		return (status = ERR_NULLPARAMETER);
 	}
 
+	kernelDebug(debug_fs, "NTFS try to detect on disk %s",
+		theDisk->physical->name);
+
+	kernelMemClear(&bootFile, sizeof(ntfsBootFile));
 	status = readBootFile(theDisk, &bootFile);
 	if (status < 0)
 		// Not NTFS
 		return (status);
 
+	debugBootFile(&bootFile);
+
 	// Check for the NTFS OEM text
 	if (!strncmp(bootFile.oemName, "NTFS    ", 8))
 	{
 		// NTFS
+		kernelDebug(debug_fs, "NTFS disk %s is NTFS",
+			theDisk->physical->name);
 		strcpy((char *) theDisk->fsType, FSNAME_NTFS);
 		return (status = 1);
 	}
 	else
+	{
 		// Not NTFS
+		kernelDebug(debug_fs, "NTFS disk %s is not NTFS",
+			theDisk->physical->name);
 		return (status = 0);
+	}
 }
 
 
@@ -148,6 +193,7 @@ static int clobber(kernelDisk *theDisk)
 		return (status = ERR_NULLPARAMETER);
 	}
 
+	kernelMemClear(&bootFile, sizeof(ntfsBootFile));
 	status = readBootFile(theDisk, &bootFile);
 	if (status < 0)
 		return (status);
@@ -172,27 +218,15 @@ static int mount(kernelDisk *theDisk)
 	unsigned long long count1;
 	unsigned count2; //, count3;
 
+	kernelMemClear(&bootFile, sizeof(ntfsBootFile));
 	status = readBootFile(theDisk, &bootFile);
 	if (status < 0)
 		return (status);
 
-	bootFile.oemName[7] = '\0';
-	kernelDebug(debug_fs, "oemName=\"%s\"\n", bootFile.oemName);
-	kernelDebug(debug_fs, "bytesPerSect=%d\n", bootFile.bytesPerSect);
-	kernelDebug(debug_fs, "sectsPerClust=%d\n", bootFile.sectsPerClust);
-	kernelDebug(debug_fs, "media=%02x\n", bootFile.media);
-	kernelDebug(debug_fs, "sectsPerTrack=%d\n", bootFile.sectsPerTrack);
-	kernelDebug(debug_fs, "numHeads=%d\n", bootFile.numHeads);
-	kernelDebug(debug_fs, "biosDriveNum=%04x\n", bootFile.biosDriveNum);
-	kernelDebug(debug_fs, "sectsPerVolume=%llu\n", bootFile.sectsPerVolume);
-	kernelDebug(debug_fs, "mftStart=%llu\n", bootFile.mftStart);
-	kernelDebug(debug_fs, "mftMirrStart=%llu\n", bootFile.mftMirrStart);
-	kernelDebug(debug_fs, "clustersPerMftRec=%u\n", bootFile.clustersPerMftRec);
-	kernelDebug(debug_fs, "clustersPerIndexRec=%u\n",
-	bootFile.clustersPerIndexRec);
-	kernelDebug(debug_fs, "volSerial=%llu\n", bootFile.volSerial);
+	debugBootFile(&bootFile);
 
-	sectorsPerFileRecord = (bootFile.sectsPerClust * bootFile.clustersPerMftRec);
+	sectorsPerFileRecord =
+		(bootFile.sectsPerClust * bootFile.clustersPerMftRec);
 
 	// Now we can alloc a buffer for file records based on the number of
 	// sectors per cluster and clusters per MFT record

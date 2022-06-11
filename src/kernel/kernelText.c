@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -176,8 +176,8 @@ int kernelTextInitialize(int columns, int rows)
 
 	// Get some buffer space
 	consoleArea.bufferData = (unsigned char *)
-	kernelMalloc((rows + TEXT_DEFAULT_SCROLLBACKLINES) * columns *
-		 consoleArea.bytesPerChar);
+		kernelMalloc((rows + TEXT_DEFAULT_SCROLLBACKLINES) * columns *
+			consoleArea.bytesPerChar);
 	if (consoleArea.bufferData == NULL)
 		return (status = ERR_MEMORY);
 	consoleArea.maxBufferLines = (rows + TEXT_DEFAULT_SCROLLBACKLINES);
@@ -216,7 +216,8 @@ int kernelTextInitialize(int columns, int rows)
 	consoleArea.outputStream = consoleOutput;
 
 	// Set up our console input stream
-	status = kernelStreamNew(&(consoleInput->s), TEXT_STREAMSIZE, itemsize_byte);
+	status = kernelStreamNew(&(consoleInput->s), TEXT_STREAMSIZE,
+		itemsize_byte);
 	if (status < 0)
 		return (status);
 

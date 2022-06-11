@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,29 +48,29 @@ Each file name listed after the command name will be printed in sequence.
 
 static void usage(char *name)
 {
-  printf("usage:\n%s <file1> [file2] [...]\n", name);
-  return;
+	printf("usage:\n%s <file1> [file2] [...]\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  int count;
+	int status = 0;
+	int count;
 
-  if (argc < 2)
-    {
-      usage(argv[0]);
-      return (status = ERR_ARGUMENTCOUNT);
-    }
+	if (argc < 2)
+	{
+		usage(argv[0]);
+		return (status = ERR_ARGUMENTCOUNT);
+	}
 
-  for (count = 1; count < argc; count ++)
-    {
-      status = vshDumpFile(argv[count]);
-      if (status < 0)
-	perror(argv[0]);
-    }
+	for (count = 1; count < argc; count ++)
+	{
+		status = vshDumpFile(argv[count]);
+		if (status < 0)
+			perror(argv[0]);
+	}
 
-  // Return success
-  return (status = 0);
+	// Return success
+	return (status = 0);
 }

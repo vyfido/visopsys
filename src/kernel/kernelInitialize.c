@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -294,7 +294,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	kernelLogSetToConsole(0);
 
 	// Log a starting message
-	sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2013 J. Andrew "
+	sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2014 J. Andrew "
 		"McLaughlin", kernelVersion[0], kernelVersion[1]);
 	kernelLog("%s", welcomeMessage);
 
@@ -397,19 +397,6 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 		if (status < 0)
 		{
 			kernelError(kernel_error, "Mounting root filesystem failed");
-
-			// Is the root disk a SATA disk?  If so we can print an error
-			// message that might be useful
-			rootDisk = kernelDiskGetByName(rootDiskName);
-			if (rootDisk && rootDisk->physical &&
-				((rootDisk->physical->type & DISKTYPE_SATADISK) ||
-				(rootDisk->physical->type & DISKTYPE_SATACDROM)))
-				kernelTextPrintLine("%s", _("\n *** Your boot disk appears "
-					"to be running in unsupported native-SATA mode.\n"
-					" *** You may be able to temporarily enable "
-					"ATA or 'legacy' IDE mode in\n *** your "
-					"BIOS setup.\n"));
-
 			return (status = ERR_NOTINITIALIZED);
 		}
 	}
@@ -515,15 +502,12 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 			{
 				// Loaded successfully.  Put it in the middle of the screen.
 				kernelGraphicDrawImage(NULL, &splashImage, draw_normal, 
-					((kernelGraphicGetScreenWidth() -
-						splashImage.width) / 2),
-					((kernelGraphicGetScreenHeight() -
-						splashImage.height) / 2), 0, 0, 0, 0);
+					((kernelGraphicGetScreenWidth() - splashImage.width) / 2),
+					((kernelGraphicGetScreenHeight() - splashImage.height) / 2),
+					0, 0, 0, 0);
 				kernelGraphicDrawRect(NULL, &COLOR_BLACK, draw_normal,
-					((kernelGraphicGetScreenWidth() -
-						splashImage.width) / 2),
-					((kernelGraphicGetScreenHeight() -
-						splashImage.height) / 2),
+					((kernelGraphicGetScreenWidth() - splashImage.width) / 2),
+					((kernelGraphicGetScreenHeight() - splashImage.height) / 2),
 					splashImage.width, splashImage.height, 1, 0);
 			}
 		}

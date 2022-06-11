@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -104,6 +104,11 @@
 // USB mass storage command and status block signatures
 #define USB_CMDBLOCKWRAPPER_SIG		0x43425355
 #define USB_CMDSTATUSWRAPPER_SIG	0x53425355
+
+// USB mass storage CSW status codes
+#define USB_CMDSTATUS_GOOD			0x00
+#define USB_CMDSTATUS_FAILED		0x01
+#define USB_CMDSTATUS_PHASEERROR	0x02
 
 // The 4 USB data transfer types
 typedef enum {

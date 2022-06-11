@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -24,19 +24,19 @@
 
 #if !defined(_KEYBOARD_H)
 
-#define KEYSCAN_CODES   86
-#define KEYMAP_DIR      "/system/keymaps"
-#define KEYMAP_MAGIC    "keymap"
-#define KEYMAP_NAMELEN  32
+#define KEYSCAN_CODES	86
+#define KEYMAP_DIR		"/system/keymaps"
+#define KEYMAP_MAGIC	"keymap"
+#define KEYMAP_NAMELEN	32
 
 // A structure for holding keyboard key mappings
 typedef struct {
-  char magic[8];
-  char name[KEYMAP_NAMELEN];
-  char regMap[KEYSCAN_CODES];
-  char shiftMap[KEYSCAN_CODES];
-  char controlMap[KEYSCAN_CODES];
-  char altGrMap[KEYSCAN_CODES];
+	char magic[8];
+	char name[KEYMAP_NAMELEN];
+	char regMap[KEYSCAN_CODES];
+	char shiftMap[KEYSCAN_CODES];
+	char controlMap[KEYSCAN_CODES];
+	char altGrMap[KEYSCAN_CODES];
 
 } keyMap;
 

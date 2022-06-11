@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,24 +28,24 @@
 
 int getchar(void)
 {
-  // getchar() is equivalent to getc(stdin).
+	// getchar() is equivalent to getc(stdin).
 
-  int status = 0;
-  char c = '\0';
+	int status = 0;
+	char c = '\0';
 
-  if (visopsys_in_kernel)
-    {
-      errno = ERR_BUG;
-      return (EOF);
-    }
+	if (visopsys_in_kernel)
+	{
+		errno = ERR_BUG;
+		return (EOF);
+	}
 
-  // Get a character from the text input stream
-  status = textInputGetc(&c);
-  if (status < 0)
-    {
-      errno = status;
-      return (EOF);
-    }
+	// Get a character from the text input stream
+	status = textInputGetc(&c);
+	if (status < 0)
+	{
+		errno = status;
+		return (EOF);
+	}
 
-  return ((int) c);
+	return ((int) c);
 }

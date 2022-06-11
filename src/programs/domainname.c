@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,30 +46,30 @@ has not been enabled, this command has no effect.
 
 int main(int argc, char *argv[])
 {
-  char buffer[NETWORK_MAX_DOMAINNAMELENGTH];
+	char buffer[NETWORK_MAX_DOMAINNAMELENGTH];
 
-  int status = 0;
+	int status = 0;
 
-  if (argc > 1)
-    {
-      // Set the domain name
+	if (argc > 1)
+	{
+		// Set the domain name
 
-      strncpy(buffer, argv[argc - 1], NETWORK_MAX_DOMAINNAMELENGTH);
+		strncpy(buffer, argv[argc - 1], NETWORK_MAX_DOMAINNAMELENGTH);
 
-      status = networkSetDomainName(buffer, NETWORK_MAX_DOMAINNAMELENGTH);
-      if (status < 0)
-	return (status);
-    }
-  else
-    {
-      // Just print the current domain name
+		status = networkSetDomainName(buffer, NETWORK_MAX_DOMAINNAMELENGTH);
+		if (status < 0)
+			return (status);
+	}
+	else
+	{
+		// Just print the current domain name
 
-      status = networkGetDomainName(buffer, NETWORK_MAX_DOMAINNAMELENGTH);
-      if (status < 0)
-	return (status);
+		status = networkGetDomainName(buffer, NETWORK_MAX_DOMAINNAMELENGTH);
+		if (status < 0)
+			return (status);
 
-      printf("%s\n", buffer);
-    }
+		printf("%s\n", buffer);
+	}
 
-  return (status = 0);
+	return (status = 0);
 }

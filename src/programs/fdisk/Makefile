@@ -1,30 +1,30 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2013 J. Andrew McLaughlin
+##  Copyright (C) 1998-2014 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
 
-ROOT=../../..
-UTILSDIR=${ROOT}/utils
-BUILDDIR=${ROOT}/build/programs
-INCDIR=../../include
-LIBDIR=${ROOT}/build/system/libraries
-MSGDIR=${ROOT}/build/system/locale
+ROOT		= ../../..
+UTILSDIR	= ${ROOT}/utils
+BUILDDIR	= ${ROOT}/build/programs
+INCDIR		= ../../include
+LIBDIR		= ${ROOT}/build/system/libraries
+MSGDIR		= ${ROOT}/build/system/locale
 
 include ${ROOT}/Makefile.include
 
 ifneq (${BUILDLANG},)
-	DEFLANG = -DBUILDLANG=\"${BUILDLANG}\"
-	MAKEMSGS = ${UTILSDIR}/makemsgs.sh de ${MSGDIR}
+	DEFLANG		= -DBUILDLANG=\"${BUILDLANG}\"
+	MAKEMSGS	= ${UTILSDIR}/makemsgs.sh de ${MSGDIR}
 endif
 
 STDDEPS		= ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h *.h ${LIBDIR}/crt0.o
-INCLUDE         = -nostdinc -I${INCDIR}
+INCLUDE		= -nostdinc -I${INCDIR}
 DEBUG		= # -DDEBUG # Uncomment to turn on debugging
 CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG} \
-		 ${PARTLOGIC} ${DEFLANG} ${PLUS}
+		${PARTLOGIC} ${DEFLANG} ${PLUS}
 LFLAGS		= -L${LIBDIR} -nostdlib \
 		-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
 
@@ -33,11 +33,11 @@ ifeq (${DEBUG},)
 endif 
 
 NAMES	= fdisk \
-	gpt \
-	msdos
+		gpt \
+		msdos
 
-OBJS = $(addprefix obj/, $(addsuffix .o, ${NAMES}))
-FDISK = ${BUILDDIR}/fdisk
+OBJS	= $(addprefix obj/, $(addsuffix .o, ${NAMES}))
+FDISK	= ${BUILDDIR}/fdisk
 
 # Targets
 

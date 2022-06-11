@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -29,104 +29,104 @@
 
 void _dbl2str(double num, char *string, int roundPlaces)
 {
-  int charCount = 0;
-  unsigned long long *u = NULL;
-  int sign = 0;
-  long long exponent = 0;
-  unsigned long long intPart = 0;
-  unsigned long long fractPart = 0;
-  unsigned long long place = 0;
-  unsigned long long outputFraction = 0;
-  unsigned long long rem = 0;
-  unsigned long long count;
+	int charCount = 0;
+	unsigned long long *u = NULL;
+	int sign = 0;
+	long long exponent = 0;
+	unsigned long long intPart = 0;
+	unsigned long long fractPart = 0;
+	unsigned long long place = 0;
+	unsigned long long outputFraction = 0;
+	unsigned long long rem = 0;
+	unsigned long long count;
 
-  if (string == NULL)
-    {
-      errno = ERR_NULLPARAMETER;
-      return;
-    }
-
-  string[0] = '\0';
-
-  u = (unsigned long long *) &num;
-  sign = (int)(*u >> 63);
-  exponent = (((*u & (0x7FFULL << 52)) >> 52) - 1023);
-  intPart = 1;
-  fractPart = ((*u & 0x000FFFFFFFFFFFFFULL) << 12);
-
-  // Output the sign, if any
-  if (sign)
-    string[charCount++] = '-';
-
-  // Special case exponents
-  if (exponent == 0x7FF)
-    {
-      strcat((string + charCount), "Infinity");
-      return;
-    }
-
-  while (exponent)
-    {
-      if (exponent > 0)
+	if (string == NULL)
 	{
-	  intPart <<= 1;
-	  if (fractPart & (0x1ULL << 63))
-	    intPart |= 1;
-	  fractPart <<= 1;
-	  exponent -= 1;
-	}
-      else
-	{
-	  fractPart >>= 1;
-	  if (intPart & 0x1ULL)
-	    fractPart |= (0x1ULL << 63);
-	  intPart >>= 1;
-	  exponent += 1;
-	}
-    }
-
-  // Output the whole number part
-  _lnum2str(intPart, (string + charCount), 10, 0);
-  charCount = strlen(string);
-
-  string[charCount++] = '.';
-
-  // Calculate the fraction part
-  place = 10000000000000000000ULL;
-  for (count = 2; fractPart; count *= 2)
-    {
-      if (!count)
-	break;
-
-      if (fractPart & (0x1ULL << 63))
-	outputFraction += (place / count);
-
-      fractPart <<= 1;
-    }
-
-  // Output the fraction part
-  place = 1000000000000000000ULL;
-  while (place)
-    {
-      rem = (outputFraction % place);
-      outputFraction = (outputFraction / place);
-
-      if (roundPlaces)
-	{
-	  string[charCount++] = ('0' + outputFraction);
-	  roundPlaces -= 1;
-	}
-      else
-	{
-	  if ((string[charCount - 1] < '9') && (outputFraction > 4))
-	    string[charCount - 1] += 1; 
-	  break;
+		errno = ERR_NULLPARAMETER;
+		return;
 	}
 
-      outputFraction = rem;
-      place /= 10;
-    }
+	string[0] = '\0';
 
-  string[charCount] = '\0';
-  return;
+	u = (unsigned long long *) &num;
+	sign = (int)(*u >> 63);
+	exponent = (((*u & (0x7FFULL << 52)) >> 52) - 1023);
+	intPart = 1;
+	fractPart = ((*u & 0x000FFFFFFFFFFFFFULL) << 12);
+
+	// Output the sign, if any
+	if (sign)
+		string[charCount++] = '-';
+
+	// Special case exponents
+	if (exponent == 0x7FF)
+	{
+		strcat((string + charCount), "Infinity");
+		return;
+	}
+
+	while (exponent)
+	{
+		if (exponent > 0)
+		{
+			intPart <<= 1;
+			if (fractPart & (0x1ULL << 63))
+				intPart |= 1;
+			fractPart <<= 1;
+			exponent -= 1;
+		}
+		else
+		{
+			fractPart >>= 1;
+			if (intPart & 0x1ULL)
+				fractPart |= (0x1ULL << 63);
+			intPart >>= 1;
+			exponent += 1;
+		}
+	}
+
+	// Output the whole number part
+	_lnum2str(intPart, (string + charCount), 10, 0);
+	charCount = strlen(string);
+
+	string[charCount++] = '.';
+
+	// Calculate the fraction part
+	place = 10000000000000000000ULL;
+	for (count = 2; fractPart; count *= 2)
+	{
+		if (!count)
+			break;
+
+		if (fractPart & (0x1ULL << 63))
+			outputFraction += (place / count);
+
+		fractPart <<= 1;
+	}
+
+	// Output the fraction part
+	place = 1000000000000000000ULL;
+	while (place)
+	{
+		rem = (outputFraction % place);
+		outputFraction = (outputFraction / place);
+
+		if (roundPlaces)
+		{
+			string[charCount++] = ('0' + outputFraction);
+			roundPlaces -= 1;
+		}
+		else
+		{
+			if ((string[charCount - 1] < '9') && (outputFraction > 4))
+				string[charCount - 1] += 1; 
+			break;
+		}
+
+		outputFraction = rem;
+		place /= 10;
+	}
+
+	string[charCount] = '\0';
+	return;
 }

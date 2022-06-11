@@ -1,5 +1,149 @@
 
 --------------
+ Version 0.73   27/01/2014
+--------------
+
+  Overview: This is a hardware support update and bugfix release, adding
+  native SATA and USB CD/DVD support and a Calculator program, as well as
+  numerous usability and reliability fixes.
+
+- Implemented a full SATA (AHCI) driver.
+- Implemented an ATAPI-over-USB driver for USB CD/DVD drives.
+- Added the 'calc' calculator program written by Giuseppe Gatta
+  <tails92@gmail.com>
+- The code that detects GPT partition tables (both in the kernel
+  and in the Disk Manager) now checks whether the MS-DOS "guard table" is
+  really a guard table, for more reliable GPT detection.
+- Improved SCSI disk initialization and fixed USB mass storage error
+  detection.
+- Improved timing precision for IDE port polling timeouts and channel
+  resets.
+- Improved the kernel's pseudo-random number generation.
+- The USB 2 (EHCI) driver now handles controller-level error interrupts
+  (host system errors).
+- Improved formatting of the CPU model string for display output in the
+  'lsdev' (Devices) program.
+- Added a PCI subclass for SCSI-attached storage.
+- Changed the 'bootmenu', 'copy-mbr', and 'fdisk' (Disk Manager) programs
+  to preserve the 'disk signature' field when installing a new MBR secor.
+  This solves the problem of Windows requiring a 'repair' after installing
+  the basic MBR or MBR boot menu.  Also removed a warning/confirmation
+  message about the repair thing from the 'bootmenu' program.
+- In the computer browser, inapplicable context menu items are now greyed
+  out, such as 'mount' when a disk is already mounted.
+- Window menu items are now set to the same width as their parent
+  menu, so that they're all the same length when highlighted/selected.
+- Ensured that all GUI widgets call kernelWindowComponentDestroy() if
+  they encounter an error after using kernelWindowComponentNew(), and the
+  destroy() function, and any allocated memory being attached to pointers in
+  the component structure, are ordered such that things can be deallocated
+  correctly.
+- Added driverMediaPresent() functions to the disk drivers, to
+  more elegantly determine whether removable disks have media present (we
+  still fall back to attempting a read if the function is not implemented
+  by the driver).  Renamed the kernelDiskGetMediaState() function to
+  kernelDiskMediaPresent() and also renamed the kernelDiskChanged() function
+  to kernelDiskMediaChanged().  Also removed filesystem driver getFreeBytes()
+  functions that always return 0.
+- Added "interrupt number out of range" debug error messages to the
+  kernel's interrupt code.
+- Removed the unused 'driverReset()' function from the list of disk
+  driver operations.
+- Removed the unused and obsolete 'recalibrate' function from the
+  disk driver architecture.
+- Fixed: espectalll123 gave us a corrected Spanish keyboard map.
+- Fixed: Modified the USB 2.0 (EHCI) and SATA (AHCI) drivers so that they
+  don't fail if PCI bus mastering can't be enabled.
+- Fixed: SCSI protocol command sizes and status packet handling for USB
+  mass storage devices.
+- Fixed: On some systems, the NTFS code was not detecting the filesystem due
+  to a debug-mode stack corruption issue.
+- Fixed: When clicking on the CD-ROM icon in the Computer Browser, there
+  was an error message "Can't mount disk on" (even though the CD could be
+  mounted from the command line).
+- Fixed: USB 2.0 (EHCI) hot-plugging of USB mass-storage devices would tend
+  to fail.  The devices were being detected, but were generating
+  communication errors.
+- Fixed: Eliminated a kernel API error message coming from the ifconfig
+  'Network Devices' program.
+- Fixed: When scrolling up and down - for example in the default startup
+  console - text was sometimes being drawn outside the text area boundaries.
+- Fixed: Dismissing a dialog box could cause the mouse pointer to disappear,
+  when the mouse was somewhere within the parent window. 
+- Fixed: Newer GNU linkers create executables with non-page-aligned data
+  segments.  These were not being loaded correctly by the runtime linker.
+- Fixed: Window resizing was very difficult and the correct mouse position
+  to do so didn't really correspond with the point where the mouse cursor
+  would change to a resize cursor.
+- Fixed: Right-clicking in a menu would cause the menu item to show
+  selected.  Right-clicks aren't currently relevant for menu items, so now
+  we just ignore them.
+- Fixed: If a CD-ROM is mounted, the computer browser would access it
+  continually.  Made this better, but getting the disk properties causes the
+  kernel to check the removable media status, so it's not entirely avoidable.
+- Fixed: Right-clicking anywhere in the computer browser would bring up
+  the context menu for the selected disk.  That should only happen when
+  right-clicking on an actual item.  Added a getData() and eventComp()
+  functions to the windowList component, to return the objectKeys of all
+  the windowListItems, and to let windowListItems receive right-click
+  context menu events, respectively.
+
+--------------
+ Version 0.72   22/08/2013
+--------------
+
+  Overview: This release consists of hardware support updates and bug fixes,
+  with particular focus on USB. Support for USB 2 controllers and devices has
+  been added.
+
+- Added initial USB2 (EHCI) support.
+- Added a stub USB3 (XHCI) driver.
+- Implemented interrupt sharing and chaining, so that USB controllers (for
+  example) can share interrupts with one other, as well as other devices such
+  as disk controllers.
+- Improved the output of the Devices program so that it's a little bit more
+  readable.
+- Improved the collection and recording of the CPU vendor string.
+- Did a bit more development of the simple ACPI driver.
+- Added a kernelPause() function, that will wait for the specified number of
+  seconds, or a keypress.
+- Added additional error checking and debugging to the 'bus' subsystem and the
+  kernel linked list functions.
+- Added some extra PCI structure definitions, needed mostly if we ever get
+  around to doing PCI interrupt routing.
+- Made some small improvements to PCI - comments, detection, debugging,
+  iterating and debugging the capabilities list, etc.
+- Added functions for interrupt handlers to get and set the current interrupt
+  number (the previous implementation failed when the interrupt number is 0).
+- Ensured that all ISRs disable interrupts whilst inside their handlers, and
+  save/restore the flags register too (changing the kernelProcessorIsrEnter
+  and kernelProcessorIsrExit macros).
+- Added "interrupt number out of range" debug error messages to the
+  kernelInterrupt code.
+- Made build configuration changes for development on newer systems (like
+  Ubuntu 11) and newer GNU tools (like GCC 4.6), and tweaked some ELF loading
+  code in the OS loader. Additional ELF loading changes may need to be make
+  in the kernel.
+- Fixed: USB hub detection could happen twice - once during the controller's
+  initial device connection detection, and again when device driver detection
+  happened for hubs.
+- Fixed: The first (number 1) USB port didn't work on many systems.
+- Fixed: Certain USB hard disks not working, and/or causing boot failure.
+- Fixed: The AHCI driver no longer fails to initialize if PCI bus mastering
+  can't be enabled.
+- Fixed: ACPI (soft) power off could cause some systems not to boot the
+  operating system on the next attempt.
+- Fixed: Removed possible infinite loop condition in the 'real time clock'
+  driver.
+- Fixed: When the OS was installed somewhere via the native installer (for
+  example on a USB stick) with a FAT32 filesystem type, the volume label was
+  not being set properly.
+- Fixed: The graphical native installer would often skip the password setting
+  box (flashing up and then disappearing).
+- Fixed: The TAB key was not working when using a USB keyboard.
+- Fixed: GCC compile errors under Ubuntu 11.10
+
+--------------
  Version 0.71   28/10/2011
 --------------
 

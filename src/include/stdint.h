@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,14 +23,14 @@
 
 #if !defined(_STDINT_H)
 
-typedef unsigned char       uint8_t;
-typedef unsigned short      uint16_t;
-typedef unsigned            uint32_t;
-typedef unsigned long long  uint64_t;
-typedef char                int8_t;
-typedef short               int16_t;
-typedef int                 int32_t;
-typedef long long           int64_t;
+typedef unsigned char		uint8_t;
+typedef unsigned short		uint16_t;
+typedef unsigned			uint32_t;
+typedef unsigned long long	uint64_t;
+typedef char				int8_t;
+typedef short				int16_t;
+typedef int					int32_t;
+typedef long long			int64_t;
 
 #define _STDINT_H
 #endif

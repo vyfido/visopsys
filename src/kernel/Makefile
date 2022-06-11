@@ -1,17 +1,17 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2013 J. Andrew McLaughlin
+##  Copyright (C) 1998-2014 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
 
 ##  This file is the Makefile for the Visopsys kernel itself.
 
-ROOT=../..
-UTILSDIR=${ROOT}/utils
-BUILDDIR=${ROOT}/build
-INCDIR=../include
-LIBDIR=${BUILDDIR}/system/libraries
+ROOT		= ../..
+UTILSDIR	= ${ROOT}/utils
+BUILDDIR	= ${ROOT}/build
+INCDIR		= ../include
+LIBDIR		= ${BUILDDIR}/system/libraries
 
 include ${ROOT}/Makefile.include
 
@@ -22,9 +22,9 @@ ifneq (${PLUS},)
 	PLUSNAMES = kernelLicense kernelFilesystemFatPlus
 endif
 ifneq (${BUILDLANG},)
-	DEFLANG = -DBUILDLANG=\"${BUILDLANG}\"
-	MAKELANG = make -C ${BUILDLANG}
-	MAKELANGCLEAN = make -C ${BUILDLANG} clean
+	DEFLANG		= -DBUILDLANG=\"${BUILDLANG}\"
+	MAKELANG	= make -C ${BUILDLANG}
+	MAKELANGCLEAN	= make -C ${BUILDLANG} clean
 endif
 
 STDDEPS		= ${ROOT}/Makefile.include Makefile *.h ${INCDIR}/sys/*.h \
@@ -128,36 +128,37 @@ NAMES =	kernelMain \
 	kernelWindowTextLabel \
 	kernelWindowTitleBar
 
-DRIVERNAMES = kernelAcpiDriver \
-	kernelDmaDriver \
-	kernelFloppyDriver \
-	kernelFramebufferGraphicDriver \
-	kernelGraphicConsoleDriver \
-	kernelIdeDriver \
-	kernelLanceDriver \
-	kernelPciDriver \
-	kernelPicDriver \
-	kernelPs2KeyboardDriver \
-	kernelPs2MouseDriver \
-	kernelRamDiskDriver \
-	kernelRtcDriver \
-	kernelSataAhciDriver \
-	kernelScsiDiskDriver \
-	kernelSysTimerDriver \
-	kernelSystemDriver \
-	kernelTextConsoleDriver \
-	kernelUsbDriver \
-	kernelUsbEhciDriver \
-	kernelUsbHidDriver \
-	kernelUsbHubDriver \
-	kernelUsbOhciDriver \
-	kernelUsbUhciDriver \
-	kernelUsbXhciDriver
+DRIVERNAMES	= kernelAcpiDriver \
+		kernelAtaDriver \
+		kernelDmaDriver \
+		kernelFloppyDriver \
+		kernelFramebufferGraphicDriver \
+		kernelGraphicConsoleDriver \
+		kernelIdeDriver \
+		kernelLanceDriver \
+		kernelPciDriver \
+		kernelPicDriver \
+		kernelPs2KeyboardDriver \
+		kernelPs2MouseDriver \
+		kernelRamDiskDriver \
+		kernelRtcDriver \
+		kernelSataAhciDriver \
+		kernelScsiDiskDriver \
+		kernelSysTimerDriver \
+		kernelSystemDriver \
+		kernelTextConsoleDriver \
+		kernelUsbAtapiDriver \
+		kernelUsbDriver \
+		kernelUsbEhciDriver \
+		kernelUsbHidDriver \
+		kernelUsbHubDriver \
+		kernelUsbOhciDriver \
+		kernelUsbUhciDriver \
+		kernelUsbXhciDriver
 
-ALLNAMES = ${NAMES} ${DRIVERNAMES} ${PLUSNAMES}
-
-OBJS = $(addprefix obj/, $(addsuffix .o, ${ALLNAMES}))
-KERNEL = ${BUILDDIR}/visopsys
+ALLNAMES	= ${NAMES} ${DRIVERNAMES} ${PLUSNAMES}
+OBJS		= $(addprefix obj/, $(addsuffix .o, ${ALLNAMES}))
+KERNEL		= ${BUILDDIR}/visopsys
 
 # Targets
 

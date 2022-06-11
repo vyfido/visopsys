@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,45 +28,45 @@
 #include <string.h>
 #include <errno.h>
 
-#define writeBytes(value, dest, count)   \
-  __asm__ __volatile__ ("pushal \n\t"    \
-			"pushfl \n\t"    \
-			"cld \n\t"       \
-			"rep stosb \n\t" \
-			"popfl \n\t"     \
-			"popal"          \
-			: : "a" (value), "D" (dest), "c" (count))
+#define writeBytes(value, dest, count)	\
+	__asm__ __volatile__ ("pushal \n\t"	\
+		"pushfl \n\t"					\
+		"cld \n\t"						\
+		"rep stosb \n\t"				\
+		"popfl \n\t"					\
+		"popal"							\
+		: : "a" (value), "D" (dest), "c" (count))
 
-#define writeDwords(value, dest, count)  \
-  __asm__ __volatile__ ("pushal \n\t"    \
-			"pushfl \n\t"    \
-			"cld \n\t"       \
-			"rep stosl \n\t" \
-			"popfl \n\t"     \
-			"popal"          \
-			: : "a" (value), "D" (dest), "c" (count))
+#define writeDwords(value, dest, count)	\
+	__asm__ __volatile__ ("pushal \n\t"	\
+		"pushfl \n\t"					\
+		"cld \n\t"						\
+		"rep stosl \n\t"				\
+		"popfl \n\t"					\
+		"popal"							\
+		: : "a" (value), "D" (dest), "c" (count))
 
 
 void *memset(void *dest, int value, size_t bytes)
 {
-  unsigned dwords = (bytes >> 2);
-  unsigned tmpDword = 0;
+	unsigned dwords = (bytes >> 2);
+	unsigned tmpDword = 0;
 
-  // Check params
-  if (dest == NULL)
-    {
-      errno = ERR_NULLPARAMETER;
-      return (NULL);
-    }
+	// Check params
+	if (dest == NULL)
+	{
+		errno = ERR_NULLPARAMETER;
+		return (NULL);
+	}
 
-  if (dwords)
-    tmpDword = ((value << 24) | (value << 16) |	(value << 8) | value);
+	if (dwords)
+		tmpDword = ((value << 24) | (value << 16) |	(value << 8) | value);
 
-  if (((unsigned) dest % 4) || (bytes % 4))
-    writeBytes(value, dest, bytes);
-  else
-    writeDwords(tmpDword, dest, dwords);
+	if (((unsigned) dest % 4) || (bytes % 4))
+		writeBytes(value, dest, bytes);
+	else
+		writeDwords(tmpDword, dest, dwords);
 
-  // Return success
-  return (dest);
+	// Return success
+	return (dest);
 }

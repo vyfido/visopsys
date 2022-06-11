@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,8 +21,7 @@
 
 // This code is for managing kernelWindowRadioButton objects.
 
-
-#include "kernelWindow.h"     // Our prototypes are here
+#include "kernelWindow.h"	// Our prototypes are here
 #include "kernelError.h"
 #include "kernelFont.h"
 #include "kernelGraphic.h"
@@ -35,211 +34,208 @@ extern kernelWindowVariables *windowVariables;
 
 static int draw(kernelWindowComponent *component)
 {
-  // Draw the radio button component
+	// Draw the radio button component
 
-  int status = 0;
-  kernelWindowRadioButton *radio = component->data;
-  asciiFont *font = (asciiFont *) component->params.font;
-  int xCoord = 0, yCoord = 0;
-  color tmpColor;
-  int count1, count2;
+	int status = 0;
+	kernelWindowRadioButton *radio = component->data;
+	asciiFont *font = (asciiFont *) component->params.font;
+	int xCoord = 0, yCoord = 0;
+	color tmpColor;
+	int count1, count2;
 
-  char *tmp = radio->text;
-  for (count1 = 0; count1 < radio->numItems; count1 ++)
-    {
-      xCoord = (component->xCoord + (windowVariables->radioButton.size / 2));
-      yCoord = (component->yCoord + (windowVariables->radioButton.size / 2));
-      if (font)
-	yCoord += (font->charHeight * count1);
-
-      kernelMemCopy((color *) &component->window->background, &tmpColor,
-		    sizeof(color));
-      for (count2 = 0; count2 < 3; count2 ++)
+	char *tmp = radio->text;
+	for (count1 = 0; count1 < radio->numItems; count1 ++)
 	{
-	  tmpColor.red -= windowVariables->border.shadingIncrement;
-	  tmpColor.green -= windowVariables->border.shadingIncrement;
-	  tmpColor.blue -= windowVariables->border.shadingIncrement;
-	  kernelGraphicDrawOval(component->buffer, &tmpColor, draw_normal,
-				xCoord, yCoord,
-				(windowVariables->radioButton.size - count2),
-				(windowVariables->radioButton.size - count2),
-				1, 0);
+		xCoord = (component->xCoord + (windowVariables->radioButton.size / 2));
+		yCoord = (component->yCoord + (windowVariables->radioButton.size / 2));
+		if (font)
+			yCoord += (font->charHeight * count1);
+
+		kernelMemCopy((color *) &component->window->background, &tmpColor,
+			sizeof(color));
+		for (count2 = 0; count2 < 3; count2 ++)
+		{
+			tmpColor.red -= windowVariables->border.shadingIncrement;
+			tmpColor.green -= windowVariables->border.shadingIncrement;
+			tmpColor.blue -= windowVariables->border.shadingIncrement;
+			kernelGraphicDrawOval(component->buffer, &tmpColor, draw_normal,
+				xCoord, yCoord,	(windowVariables->radioButton.size - count2),
+				(windowVariables->radioButton.size - count2), 1, 0);
+		}
+
+		kernelGraphicDrawOval(component->buffer, &COLOR_WHITE, draw_normal,
+			xCoord, yCoord, (windowVariables->radioButton.size - 3),
+			(windowVariables->radioButton.size - 3), 1, 1);
+
+		if (radio->selectedItem == count1)
+			kernelGraphicDrawOval(component->buffer,
+				(color *) &(component->params.foreground), draw_normal, xCoord,
+				yCoord,	(windowVariables->radioButton.size - 5),
+				(windowVariables->radioButton.size - 5), 1, 1);
+
+		if (font)
+		{
+			status =
+				kernelGraphicDrawText(component->buffer,
+					(color *) &(component->params.foreground),
+					(color *) &component->window->background,
+					font, tmp, draw_normal,
+					(component->xCoord + windowVariables->radioButton.size + 2),
+					(component->yCoord + (font->charHeight * count1)));
+			if (status < 0)
+				break;
+		}
+
+		tmp += (strlen(tmp) + 1);
 	}
 
-      kernelGraphicDrawOval(component->buffer, &COLOR_WHITE, draw_normal,
-			    xCoord, yCoord,
-			    (windowVariables->radioButton.size - 3),
-			    (windowVariables->radioButton.size - 3), 1, 1);
+	if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
+		component->drawBorder(component, 1);
 
-      if (radio->selectedItem == count1)
-	kernelGraphicDrawOval(component->buffer,
-			      (color *) &(component->params.foreground),
-			      draw_normal, xCoord, yCoord,
-			      (windowVariables->radioButton.size - 5),
-			      (windowVariables->radioButton.size - 5), 1, 1);
-
-      if (font)
-	status =
-	  kernelGraphicDrawText(component->buffer,
-				(color *) &(component->params.foreground),
-				(color *) &component->window->background,
-				font, tmp, draw_normal,
-				(component->xCoord +
-				 windowVariables->radioButton.size + 2),
-				(component->yCoord +
-				 (font->charHeight * count1)));
-      if (status < 0)
-	break;
-
-      tmp += (strlen(tmp) + 1);
-    }
-
-  if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
-    component->drawBorder(component, 1);
-
-  return (status);
+	return (status);
 }
 
 
 static int focus(kernelWindowComponent *component, int yesNo)
 {
-  if (component->drawBorder)
-    component->drawBorder(component, yesNo);
+	if (component->drawBorder)
+		component->drawBorder(component, yesNo);
 
-  component->window->update(component->window, (component->xCoord - 2),
-			    (component->yCoord - 2), (component->width + 4),
-			    (component->height + 4));
-  return (0);
+	component->window->update(component->window, (component->xCoord - 2),
+		(component->yCoord - 2), (component->width + 4),
+		(component->height + 4));
+
+	return (0);
 }
 
 
 static int getSelected(kernelWindowComponent *component, int *selection)
 {
-  kernelWindowRadioButton *radio = component->data;
-  *selection = radio->selectedItem;
-  return (0);
+	kernelWindowRadioButton *radio = component->data;
+	*selection = radio->selectedItem;
+	return (0);
 }
 
 
 static int setSelected(kernelWindowComponent *component, int selected)
 {
-  int status = 0;
-  kernelWindowRadioButton *radio = component->data;
+	int status = 0;
+	kernelWindowRadioButton *radio = component->data;
 
-  // Check params
-  if ((selected < 0) || (selected >= radio->numItems))
-    {
-      kernelError(kernel_error, "Illegal component number %d", selected);
-      return (status = ERR_BOUNDS);
-    }
+	// Check params
+	if ((selected < 0) || (selected >= radio->numItems))
+	{
+		kernelError(kernel_error, "Illegal component number %d", selected);
+		return (status = ERR_BOUNDS);
+	}
 
-  radio->selectedItem = selected;
+	radio->selectedItem = selected;
 
-  // Re-draw
-  draw(component);
-  component->window
-    ->update(component->window, component->xCoord, component->yCoord,
-	     component->width, component->height);
+	// Re-draw
+	draw(component);
+	component->window
+		->update(component->window, component->xCoord, component->yCoord,
+			component->width, component->height);
 
-  return (status = 0);
+	return (status = 0);
 }
 
 
 static int mouseEvent(kernelWindowComponent *component, windowEvent *event)
 {
-  // When mouse events happen to list components, we pass them on to the
-  // appropriate kernelWindowListItem component
+	// When mouse events happen to list components, we pass them on to the
+	// appropriate kernelWindowListItem component
 
-  kernelWindowRadioButton *radio = component->data;
-  int clickedItem = 0;
-  
-  if (radio->numItems && (event->type == EVENT_MOUSE_LEFTDOWN))
-    {
-      // Figure out which item was clicked based on the coordinates of the
-      // event
-      clickedItem =
-	(event->yPosition - (component->window->yCoord + component->yCoord));
-      if (component->params.font)
-	clickedItem /= ((asciiFont *) component->params.font)->charHeight;
-
-      // Is this item different from the currently selected item?
-      if (clickedItem != radio->selectedItem)
+	kernelWindowRadioButton *radio = component->data;
+	int clickedItem = 0;
+	
+	if (radio->numItems && (event->type == EVENT_MOUSE_LEFTDOWN))
 	{
-	  radio->selectedItem = clickedItem;
+		// Figure out which item was clicked based on the coordinates of the
+		// event
+		clickedItem =
+			(event->yPosition - (component->window->yCoord + component->yCoord));
+		if (component->params.font)
+			clickedItem /= ((asciiFont *) component->params.font)->charHeight;
 
-	  if (component->draw)
-	    component->draw(component);
+		// Is this item different from the currently selected item?
+		if (clickedItem != radio->selectedItem)
+		{
+			radio->selectedItem = clickedItem;
 
-	  component->window
-	    ->update(component->window, component->xCoord, component->yCoord,
-		     component->width, component->height);
+			if (component->draw)
+				component->draw(component);
 
-	  // Make this also a 'selection' event
-	  event->type |= EVENT_SELECTION;
+			component->window
+				->update(component->window, component->xCoord, component->yCoord,
+					component->width, component->height);
+
+			// Make this also a 'selection' event
+			event->type |= EVENT_SELECTION;
+		}
 	}
-    }
 
-  return (0);
+	return (0);
 }
 
 
 static int keyEvent(kernelWindowComponent *component, windowEvent *event)
 {
-  // We allow the user to control the list widget with key presses, such
-  // as cursor movements.  The radio button accepts cursor up and cursor
-  // down movements.
+	// We allow the user to control the list widget with key presses, such
+	// as cursor movements.  The radio button accepts cursor up and cursor
+	// down movements.
 
-  kernelWindowRadioButton *radio = component->data;
+	kernelWindowRadioButton *radio = component->data;
 
-  if ((event->type == EVENT_KEY_DOWN) &&
-      ((event->key == ASCII_CRSRUP) || (event->key == ASCII_CRSRDOWN)))
-    {
-      if (event->key == ASCII_CRSRUP)
+	if ((event->type == EVENT_KEY_DOWN) &&
+		((event->key == ASCII_CRSRUP) || (event->key == ASCII_CRSRDOWN)))
 	{
-	  // UP cursor
-	  if (radio->selectedItem > 0)
-	    radio->selectedItem -= 1;
+		if (event->key == ASCII_CRSRUP)
+		{
+			// UP cursor
+			if (radio->selectedItem > 0)
+				radio->selectedItem -= 1;
+		}
+		else
+		{
+			// DOWN cursor
+			if (radio->selectedItem < (radio->numItems - 1))
+				radio->selectedItem += 1;
+		}
+
+		if (component->draw)
+			component->draw(component);
+
+		component->window
+			->update(component->window, component->xCoord, component->yCoord,
+				component->width, component->height);
+
+		// Make this also a 'selection' event
+		event->type |= EVENT_SELECTION;
 	}
-      else
-	{
-	  // DOWN cursor
-	  if (radio->selectedItem < (radio->numItems - 1))
-	    radio->selectedItem += 1;
-	}
 
-      if (component->draw)
-	component->draw(component);
-
-      component->window
-	->update(component->window, component->xCoord, component->yCoord,
-		 component->width, component->height);
-
-      // Make this also a 'selection' event
-      event->type |= EVENT_SELECTION;
-    }
-
-  return (0);
+	return (0);
 }
 
 
 static int destroy(kernelWindowComponent *component)
 {
-  kernelWindowRadioButton *radio = component->data;
+	kernelWindowRadioButton *radio = component->data;
 
-  // Release all our memory
-  if (radio)
-    {
-      if (radio->text)
+	// Release all our memory
+	if (radio)
 	{
-	  kernelFree((void *) radio->text);
-	  radio->text = NULL;
+		if (radio->text)
+		{
+			kernelFree((void *) radio->text);
+			radio->text = NULL;
+		}
+
+		kernelFree(component->data);
+		component->data = NULL;
 	}
 
-      kernelFree(component->data);
-      component->data = NULL;
-    }
-
-  return (0);
+	return (0);
 }
 
 
@@ -253,102 +249,105 @@ static int destroy(kernelWindowComponent *component)
 
 
 kernelWindowComponent *kernelWindowNewRadioButton(objectKey parent,
-				  int rows, int columns, const char **items,
-				  int numItems, componentParameters *params)
+	int rows, int columns, const char **items, int numItems,
+	componentParameters *params)
 {
-  // Formats a kernelWindowComponent as a kernelWindowRadioButton
+	// Formats a kernelWindowComponent as a kernelWindowRadioButton
 
-  kernelWindowComponent *component = NULL;
-  kernelWindowRadioButton *radioButton = NULL;
-  int textMemorySize = 0;
-  char *tmp = NULL;
-  int count;
+	kernelWindowComponent *component = NULL;
+	kernelWindowRadioButton *radioButton = NULL;
+	int textMemorySize = 0;
+	char *tmp = NULL;
+	int count;
 
-  // Check parameters.
-  if ((parent == NULL) || (items == NULL) || (params == NULL))
-    return (component = NULL);
+	// Check parameters.
+	if ((parent == NULL) || (items == NULL) || (params == NULL))
+	{
+		kernelError(kernel_error, "NULL window component parameter");
+		return (component = NULL);
+	}
 
-  // We ignore 'rows' and 'columns' for now.  This keeps the compiler happy.
-  if (!rows || !columns)
-    return (component = NULL);
+	// We ignore 'rows' and 'columns' for now.  This keeps the compiler happy.
+	if (!rows || !columns)
+		return (component = NULL);
 
-  // Get the basic component structure
-  component = kernelWindowComponentNew(parent, params);
-  if (component == NULL)
-    return (component);
+	// Get the basic component structure
+	component = kernelWindowComponentNew(parent, params);
+	if (component == NULL)
+		return (component);
 
-  // If font is NULL, use the default
-  if (component->params.font == NULL)
-    component->params.font = windowVariables->font.varWidth.small.font;
+	component->type = radioButtonComponentType;
+	component->flags |= WINFLAG_CANFOCUS;
 
-  // Now populate it
-  component->type = radioButtonComponentType;
-  component->flags |= WINFLAG_CANFOCUS;
+	// Set the functions
+	component->draw = &draw;
+	component->focus = &focus;
+	component->getSelected = &getSelected;
+	component->setSelected = &setSelected;
+	component->mouseEvent = &mouseEvent;
+	component->keyEvent = &keyEvent;
+	component->destroy = &destroy;
 
-  // The functions
-  component->draw = &draw;
-  component->focus = &focus;
-  component->getSelected = &getSelected;
-  component->setSelected = &setSelected;
-  component->mouseEvent = &mouseEvent;
-  component->keyEvent = &keyEvent;
-  component->destroy = &destroy;
+	// If font is NULL, use the default
+	if (component->params.font == NULL)
+		component->params.font = windowVariables->font.varWidth.small.font;
 
-  // Get the radio button
-  radioButton = kernelMalloc(sizeof(kernelWindowRadioButton));
-  if (radioButton == NULL)
-    {
-      kernelFree((void *) component);
-      return (component = NULL);
-    }
+	// Get the radio button
+	radioButton = kernelMalloc(sizeof(kernelWindowRadioButton));
+	if (radioButton == NULL)
+	{
+		kernelWindowComponentDestroy(component);
+		return (component = NULL);
+	}
 
-  radioButton->selectedItem = 0;
+	component->data = (void *) radioButton;
 
-  // If no items, nothing to do
-  if (numItems == 0)
-    return (component);
+	radioButton->selectedItem = 0;
 
-  // Calculate how much memory we need for our text data
-  for (count = 0; count < numItems; count ++)
-    textMemorySize += (strlen(items[count]) + 1);
+	// If no items, nothing to do
+	if (numItems == 0)
+		return (component);
 
-  // Try to get memory
-  radioButton->text = kernelMalloc(textMemorySize);
-  if (radioButton->text == NULL)
-    {
-      kernelFree((void *) component);
-      kernelFree((void *) radioButton);
-      return (component = NULL);
-    }
+	// Calculate how much memory we need for our text data
+	for (count = 0; count < numItems; count ++)
+		textMemorySize += (strlen(items[count]) + 1);
 
-  // Loop through the strings (items) and add them to our text memory
-  tmp = radioButton->text;
-  for (count = 0; count < numItems; count ++)
-    {
-      strcpy(tmp, items[count]);
-      tmp += (strlen(items[count]) + 1);
+	// Try to get memory
+	radioButton->text = kernelMalloc(textMemorySize);
+	if (radioButton->text == NULL)
+	{
+		kernelWindowComponentDestroy(component);
+		return (component = NULL);
+	}
 
-      if (component->params.font &&
-	  ((kernelFontGetPrintedWidth((asciiFont *) component->params.font,
-				      items[count]) +
-	    windowVariables->radioButton.size + 3) > component->width))
-	component->width = 
-	  (kernelFontGetPrintedWidth((asciiFont *) component->params.font,
-				     items[count]) +
-	   windowVariables->radioButton.size + 3);
+	// Loop through the strings (items) and add them to our text memory
+	tmp = radioButton->text;
+	for (count = 0; count < numItems; count ++)
+	{
+		strcpy(tmp, items[count]);
+		tmp += (strlen(items[count]) + 1);
 
-      radioButton->numItems += 1;
-    }
+		if (component->params.font &&
+			((kernelFontGetPrintedWidth((asciiFont *) component->params.font,
+				items[count]) + windowVariables->radioButton.size + 3) >
+			component->width))
+		{
+			component->width = 
+				(kernelFontGetPrintedWidth((asciiFont *) component->params.font,
+					items[count]) +	windowVariables->radioButton.size + 3);
+		}
 
-  // The height of the radio button is the height of the font times the number
-  // of items.
-  if (component->params.font)
-    component->height =
-      (numItems * ((asciiFont *) component->params.font)->charHeight);
-  
-  component->minWidth = component->width;
-  component->minHeight = component->height;
-  component->data = (void *) radioButton;
+		radioButton->numItems += 1;
+	}
 
-  return (component);
+	// The height of the radio button is the height of the font times the number
+	// of items.
+	if (component->params.font)
+		component->height =
+			(numItems * ((asciiFont *) component->params.font)->charHeight);
+	
+	component->minWidth = component->width;
+	component->minHeight = component->height;
+
+	return (component);
 }

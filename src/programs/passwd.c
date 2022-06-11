@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -50,74 +50,74 @@ to enter the old password (if one exists).
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s <username>\n", name);
-  return;
+	printf("usage:\n");
+	printf("%s <username>\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  char oldPassword[17];
-  char newPassword[17];
-  char vrfyPassword[17];
+	int status = 0;
+	char oldPassword[17];
+	char newPassword[17];
+	char vrfyPassword[17];
 
-  if (argc != 2)
-    {
-      usage(argv[0]);
-      return (status = ERR_ARGUMENTCOUNT);
-    }      
-
-  // With the user name, we try to authenticate with no password
-  status = userAuthenticate(argv[1], "");
-  if (status < 0)
-    {
-      if (status == ERR_PERMISSION)
-	vshPasswordPrompt("Enter current password: ", oldPassword);
-      else
+	if (argc != 2)
 	{
-	  errno = status;
-	  perror(argv[0]);
-	  return (status);
+		usage(argv[0]);
+		return (status = ERR_ARGUMENTCOUNT);
+	}      
+
+	// With the user name, we try to authenticate with no password
+	status = userAuthenticate(argv[1], "");
+	if (status < 0)
+	{
+		if (status == ERR_PERMISSION)
+			vshPasswordPrompt("Enter current password: ", oldPassword);
+		else
+		{
+			errno = status;
+			perror(argv[0]);
+			return (status);
+		}
 	}
-    }
 
-  status = userAuthenticate(argv[1], oldPassword);
-  if (status < 0)
-    {
-      errno = status;
+	status = userAuthenticate(argv[1], oldPassword);
+	if (status < 0)
+	{
+		errno = status;
 
-      if (status == ERR_PERMISSION)
-	printf("Password incorrect\n");
-      else
-	perror(argv[0]);
-      return (status);
-    }
+		if (status == ERR_PERMISSION)
+			printf("Password incorrect\n");
+		else
+			perror(argv[0]);
+		return (status);
+	}
 
-  while(1)
-    {
-      char prompt[80];
-      sprintf(prompt, "Enter new password for %s: ", argv[1]);
-      vshPasswordPrompt(prompt, newPassword);
-      vshPasswordPrompt("Confirm password: ", vrfyPassword);
+	while(1)
+	{
+		char prompt[80];
+		sprintf(prompt, "Enter new password for %s: ", argv[1]);
+		vshPasswordPrompt(prompt, newPassword);
+		vshPasswordPrompt("Confirm password: ", vrfyPassword);
 
-      if (!strcmp(newPassword, vrfyPassword))
-	break;
+		if (!strcmp(newPassword, vrfyPassword))
+			break;
 
-      printf("\nPasswords do not match.\n\n");
-    }
+		printf("\nPasswords do not match.\n\n");
+	}
 
-  status = userSetPassword(argv[1], oldPassword, newPassword);
-  if (status < 0)
-    {
-      errno = status;
-      perror(argv[0]);
-      return (status);
-    }
+	status = userSetPassword(argv[1], oldPassword, newPassword);
+	if (status < 0)
+	{
+		errno = status;
+		perror(argv[0]);
+		return (status);
+	}
 
-  printf("Password changed.\n");
+	printf("Password changed.\n");
 
-  // Done
-  return (errno = status = 0);
+	// Done
+	return (errno = status = 0);
 }

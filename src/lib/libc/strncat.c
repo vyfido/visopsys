@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -32,48 +32,48 @@
 
 char *strncat(char *destString, const char *sourceString, size_t maxLength)
 {
-  unsigned count1, count2;
-  int endFlag = 0;
-  char sourceChar;
-  
-  // Find the end of the first String
-  for (count1 = 0; count1 < MAXSTRINGLENGTH; )
-    {
-      if (destString[count1] == '\0')
-	break;
-      else
-	count1++;
-    }
-
-  // If this is true, then we probably have an unterminated string
-  // constant.  Checking for a string that exceeds MAXSTRINGLENGTH will
-  // help to prevent the routine from running off too far into memory.
-  if (count1 >= MAXSTRINGLENGTH)
-    {
-      errno = ERR_BOUNDS;
-      return (destString = NULL);
-    }
-
-  // Now copy the source string into the dest.  If source is shorter than
-  // maxLength, pad dest with NULL characters.
-  for (count2 = 0; count2 < maxLength; )
-    {
-      if ((sourceString[count2] == '\0') || (endFlag == 1))
+	unsigned count1, count2;
+	int endFlag = 0;
+	char sourceChar;
+	
+	// Find the end of the first String
+	for (count1 = 0; count1 < MAXSTRINGLENGTH; )
 	{
-	  endFlag = 1;
-	  sourceChar = (char) NULL;
+		if (destString[count1] == '\0')
+			break;
+		else
+			count1++;
 	}
-      
-      else
-	sourceChar = sourceString[count2];
 
-      destString[count1] = sourceChar;
-      count1++; count2++;
-    }
+	// If this is true, then we probably have an unterminated string
+	// constant.  Checking for a string that exceeds MAXSTRINGLENGTH will
+	// help to prevent the routine from running off too far into memory.
+	if (count1 >= MAXSTRINGLENGTH)
+	{
+		errno = ERR_BOUNDS;
+		return (destString = NULL);
+	}
 
-  // Make sure there's a NULL at the end
-  destString[count1] = NULL;
+	// Now copy the source string into the dest.  If source is shorter than
+	// maxLength, pad dest with NULL characters.
+	for (count2 = 0; count2 < maxLength; )
+	{
+		if ((sourceString[count2] == '\0') || (endFlag == 1))
+		{
+			endFlag = 1;
+			sourceChar = (char) NULL;
+		}
+		
+		else
+			sourceChar = sourceString[count2];
 
-  // Return success
-  return (destString);
+		destString[count1] = sourceChar;
+		count1++; count2++;
+	}
+
+	// Make sure there's a NULL at the end
+	destString[count1] = NULL;
+
+	// Return success
+	return (destString);
 }

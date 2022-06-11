@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -56,54 +56,53 @@ Currently only the uncompressed, 24-bit bitmap format is supported.
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  char *language = "";
-  char fileName[MAX_PATH_NAME_LENGTH];
+	int status = 0;
+	char *language = "";
+	char fileName[MAX_PATH_NAME_LENGTH];
 
-#ifdef BUILDLANG
-  language=BUILDLANG;
-#endif
-  setlocale(LC_ALL, language);
-  textdomain("screenshot");
+	#ifdef BUILDLANG
+		language=BUILDLANG;
+	#endif
+	setlocale(LC_ALL, language);
+	textdomain("screenshot");
 
-  // Only work in graphics mode
-  if (!graphicsAreEnabled())
-    {
-      printf(_("\nThe \"%s\" command only works in graphics mode\n"), argv[0]);
-      errno = ERR_NOTINITIALIZED;
-      return (status = errno);
-    }
-
-  // Did the user supply a file name?
-  if (argc > 1)
-    strncpy(fileName, argv[argc - 1], MAX_PATH_NAME_LENGTH);
-
-  else
-    {
-      // Prompt for a file name
-      status =
-	windowNewFileDialog(NULL, _("Enter file name"),
-			    _("Please enter the file name to use:"), NULL,
-			    fileName, MAX_PATH_NAME_LENGTH, 1);
-      if (status != 1)
+	// Only work in graphics mode
+	if (!graphicsAreEnabled())
 	{
-	  errno = status;
-	  if (errno)
-	    perror(argv[0]);
-	  return (errno);
+		printf(_("\nThe \"%s\" command only works in graphics mode\n"), argv[0]);
+		errno = ERR_NOTINITIALIZED;
+		return (status = errno);
 	}
-    }
-  fileName[MAX_PATH_NAME_LENGTH - 1] = '\0';
 
-  status = windowSaveScreenShot(fileName);
-  if (status < 0)
-    {
-      windowNewErrorDialog(NULL, _("Error"),
-			   _("Couldn't save the screenshot.\n"
-			     "I'm sure it would have been nice."));
-      errno = status;
-      perror(argv[0]);
-    }
+	// Did the user supply a file name?
+	if (argc > 1)
+		strncpy(fileName, argv[argc - 1], MAX_PATH_NAME_LENGTH);
 
-  return (status);
+	else
+	{
+		// Prompt for a file name
+		status = windowNewFileDialog(NULL, _("Enter file name"),
+			_("Please enter the file name to use:"), NULL, fileName,
+			MAX_PATH_NAME_LENGTH, 1);
+		if (status != 1)
+		{
+			errno = status;
+			if (errno)
+				perror(argv[0]);
+			return (errno);
+		}
+	}
+	fileName[MAX_PATH_NAME_LENGTH - 1] = '\0';
+
+	status = windowSaveScreenShot(fileName);
+	if (status < 0)
+	{
+		windowNewErrorDialog(NULL, _("Error"),
+			_("Couldn't save the screenshot.\n"
+			"I'm sure it would have been nice."));
+		errno = status;
+		perror(argv[0]);
+	}
+
+	return (status);
 }

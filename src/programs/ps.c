@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -43,84 +43,84 @@ privilege level, priority level, CPU utilization and other statistics.
 #include <string.h>
 #include <sys/api.h>
 
-#define SHOW_MAX_PROCESSES 100
+#define SHOW_MAX_PROCESSES	100
 
 int main(int argc __attribute__((unused)), char *argv[])
 {
-  // This command will query the kernel for a list of all active processes,
-  // and print information about them on the screen.
+	// This command will query the kernel for a list of all active processes,
+	// and print information about them on the screen.
 
-  unsigned bufferSize = 0;
-  process *processes = NULL;
-  int numProcesses = 0;
-  process *tmpProcess;
-  char lineBuffer[160];
-  int count;
-  
-  bufferSize = (SHOW_MAX_PROCESSES * sizeof(process));
+	unsigned bufferSize = 0;
+	process *processes = NULL;
+	int numProcesses = 0;
+	process *tmpProcess;
+	char lineBuffer[160];
+	int count;
+	
+	bufferSize = (SHOW_MAX_PROCESSES * sizeof(process));
 
-  processes = malloc(bufferSize);
-  if (processes == NULL)
-    {
-      perror(argv[0]);
-      return (ERR_MEMORY);
-    }
-
-  numProcesses = multitaskerGetProcesses(processes, bufferSize);
-  if (numProcesses < 0)
-    {
-      errno = numProcesses;
-      perror(argv[0]);
-      free(processes);
-      return (numProcesses);
-    }
-
-  printf("Process list:\n");
-  for (count = 0; count < numProcesses; count ++)
-    {
-      tmpProcess = &processes[count];
-	  
-      snprintf(lineBuffer, 160, "\"%s\"  PID=%d UID=%d priority=%d "
-	       "priv=%d parent=%d\n        %d%% CPU State=",
-	       tmpProcess->name, tmpProcess->processId, tmpProcess->userId,
-	       tmpProcess->priority, tmpProcess->privilege,
-	       tmpProcess->parentProcessId, tmpProcess->cpuPercent);
-
-      // Get the state
-      switch(tmpProcess->state)
+	processes = malloc(bufferSize);
+	if (processes == NULL)
 	{
-	case proc_running:
-	  strcat(lineBuffer, "running");
-	  break;
-	case proc_ready:
-	case proc_ioready:
-	  strcat(lineBuffer, "ready");
-	  break;
-	case proc_waiting:
-	  strcat(lineBuffer, "waiting");
-	  break;
-	case proc_sleeping:
-	  strcat(lineBuffer, "sleeping");
-	  break;
-	case proc_stopped:
-	  strcat(lineBuffer, "stopped");
-	  break;
-	case proc_finished:
-	  strcat(lineBuffer, "finished");
-	  break;
-	case proc_zombie:
-	  strcat(lineBuffer, "zombie");
-	  break;
-	default:
-	  strcat(lineBuffer, "unknown");
-	  break;
+		perror(argv[0]);
+		return (ERR_MEMORY);
 	}
-      printf("%s\n", lineBuffer);
-      //textPrintLine(lineBuffer);
-    }
 
-  free(processes);
+	numProcesses = multitaskerGetProcesses(processes, bufferSize);
+	if (numProcesses < 0)
+	{
+		errno = numProcesses;
+		perror(argv[0]);
+		free(processes);
+		return (numProcesses);
+	}
 
-  // Return success
-  return (0);
+	printf("Process list:\n");
+	for (count = 0; count < numProcesses; count ++)
+	{
+		tmpProcess = &processes[count];
+			
+		snprintf(lineBuffer, 160, "\"%s\"  PID=%d UID=%d priority=%d "
+			"priv=%d parent=%d\n        %d%% CPU State=",
+			tmpProcess->name, tmpProcess->processId, tmpProcess->userId,
+			tmpProcess->priority, tmpProcess->privilege,
+			tmpProcess->parentProcessId, tmpProcess->cpuPercent);
+
+		// Get the state
+		switch(tmpProcess->state)
+		{
+			case proc_running:
+				strcat(lineBuffer, "running");
+				break;
+			case proc_ready:
+			case proc_ioready:
+				strcat(lineBuffer, "ready");
+				break;
+			case proc_waiting:
+				strcat(lineBuffer, "waiting");
+				break;
+			case proc_sleeping:
+				strcat(lineBuffer, "sleeping");
+				break;
+			case proc_stopped:
+				strcat(lineBuffer, "stopped");
+				break;
+			case proc_finished:
+				strcat(lineBuffer, "finished");
+				break;
+			case proc_zombie:
+				strcat(lineBuffer, "zombie");
+				break;
+			default:
+				strcat(lineBuffer, "unknown");
+				break;
+		}
+
+		printf("%s\n", lineBuffer);
+	}
+
+	free(processes);
+
+	// Return success
+	return (0);
 }

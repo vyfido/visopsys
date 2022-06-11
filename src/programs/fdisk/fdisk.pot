@@ -149,7 +149,7 @@ msgstr ""
 #, c-format
 msgid ""
 "%s\n"
-"Copyright (C) 1998-2013 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2014 J. Andrew McLaughlin\n"
 msgstr ""
 
 #: fdisk.c:2195 fdisk.c:2209 fdisk.c:3437

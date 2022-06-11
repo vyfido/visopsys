@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -29,25 +29,25 @@
 
 int _digits(unsigned num, int base, int sign)
 {
-  int digits = 1;
+	int digits = 1;
 
-  if (base < 2)
-    {
-      errno = ERR_INVALID;
-      return (digits = -1);
-    }
+	if (base < 2)
+	{
+		errno = ERR_INVALID;
+		return (digits = -1);
+	}
 
-  if (sign && ((int) num < 0))
-    {
-      num = ((int) num * -1);
-      digits += 1;
-    }
+	if (sign && ((int) num < 0))
+	{
+		num = ((int) num * -1);
+		digits += 1;
+	}
 
-  while (num >= (unsigned) base)
-    {
-      digits += 1;
-      num /= (unsigned) base;
-    }
+	while (num >= (unsigned) base)
+	{
+		digits += 1;
+		num /= (unsigned) base;
+	}
 
-  return (digits);
+	return (digits);
 }

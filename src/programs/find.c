@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -53,81 +53,81 @@ of filesystem drivers (as a testing mechanism)
 
 static void recurseDirectory(const char *dirPath)
 {
-  int status = 0;
-  file theFile;
-  char newDirPath[MAX_PATH_LENGTH];
+	int status = 0;
+	file theFile;
+	char newDirPath[MAX_PATH_LENGTH];
 
-  // Initialize the file structure
-  bzero(&theFile, sizeof(file));
+	// Initialize the file structure
+	bzero(&theFile, sizeof(file));
 
-  // Get the first item in the directory
-  status = fileFirst(dirPath, &theFile);
-  if (status < 0)
-    return;
+	// Get the first item in the directory
+	status = fileFirst(dirPath, &theFile);
+	if (status < 0)
+	return;
 
-  // Loop through the contents of the directory
-  while (1)
-    {
-      if (strcmp(theFile.name, ".") && strcmp(theFile.name, ".."))
+	// Loop through the contents of the directory
+	while (1)
 	{
-	  // Print the item
-	  printf("%s/%s\n", dirPath, theFile.name);
+		if (strcmp(theFile.name, ".") && strcmp(theFile.name, ".."))
+		{
+			// Print the item
+			printf("%s/%s\n", dirPath, theFile.name);
 
-	  if (theFile.type == dirT)
-	    {
-	      // Construct the relative pathname for this directory
-	      sprintf(newDirPath, "%s/%s", dirPath, theFile.name);
-	      recurseDirectory(newDirPath);
-	    }
+			if (theFile.type == dirT)
+			{
+				// Construct the relative pathname for this directory
+				sprintf(newDirPath, "%s/%s", dirPath, theFile.name);
+				recurseDirectory(newDirPath);
+			}
+		}
+
+		// Move to the next item
+		status = fileNext(dirPath, &theFile);
+		if (status < 0)
+			break;
 	}
-
-      // Move to the next item
-      status = fileNext(dirPath, &theFile);
-      if (status < 0)
-	break;
-    }
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  file theFile;
-  char fileName[MAX_PATH_NAME_LENGTH];
+	int status = 0;
+	file theFile;
+	char fileName[MAX_PATH_NAME_LENGTH];
 
-  // Initialize the file structure
-  bzero(&theFile, sizeof(file));
+	// Initialize the file structure
+	bzero(&theFile, sizeof(file));
 
-  if (argc == 1)
-    // No args.  Assume current directory
-    strcpy(fileName, ".");
-  else
-    strcpy(fileName, argv[1]);
+	if (argc == 1)
+		// No args.  Assume current directory
+		strcpy(fileName, ".");
+	else
+		strcpy(fileName, argv[1]);
 
-  // Remove any trailing separators
-  int lastChar = (strlen(fileName) - 1);
-  while ((fileName[lastChar] == '/') || (fileName[lastChar] == '\\'))
-    {
-      fileName[lastChar] = '\0';
-      lastChar--;
-    }
+	// Remove any trailing separators
+	int lastChar = (strlen(fileName) - 1);
+	while ((fileName[lastChar] == '/') || (fileName[lastChar] == '\\'))
+	{
+		fileName[lastChar] = '\0';
+		lastChar--;
+	}
 
-  // Call the "find file" routine to see if the file exists
-  status = fileFind(fileName, &theFile);
-  if (status < 0)
-    {
-      errno = status;
-      perror(argv[0]);
-      return (status);
-    }
+	// Call the "find file" routine to see if the file exists
+	status = fileFind(fileName, &theFile);
+	if (status < 0)
+	{
+		errno = status;
+		perror(argv[0]);
+		return (status);
+	}
 
-  // Print this item
-  printf("%s\n", fileName);
+	// Print this item
+	printf("%s\n", fileName);
 
-  if (theFile.type == dirT)
-    // If it's a directory, we start our recursion.  Otherwise just print it
-    recurseDirectory(fileName);
+	if (theFile.type == dirT)
+		// If it's a directory, we start our recursion.  Otherwise just print it
+		recurseDirectory(fileName);
 
-  // Return success
-  return (status = 0);
+	// Return success
+	return (status = 0);
 }

@@ -1,20 +1,20 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2013 J. Andrew McLaughlin
+##  Copyright (C) 1998-2014 J. Andrew McLaughlin
 ##  
 ##  Makefile
 ##
 
-ROOT=../../..
-UTILSDIR=${ROOT}/utils
-BUILDDIR=${ROOT}/build/system/libraries
-INCDIR=../../include
+ROOT		= ../../..
+UTILSDIR	= ${ROOT}/utils
+BUILDDIR	= ${ROOT}/build/system/libraries
+INCDIR		= ../../include
 
 include ${ROOT}/Makefile.include
 
 STDDEPS		= ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h
-INCLUDE         = -nostdinc -I${INCDIR}
+INCLUDE		= -nostdinc -I${INCDIR}
 DEBUG		= # -DDEBUG # Uncomment to turn on debugging
 CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
 
@@ -169,18 +169,19 @@ UNISTDNAMES	= close \
 
 MISCNAMES	= readline
 
-ALLNAMES = ${CDEFNAMES} ${CTYPENAMES} ${FCNTLNAMES} ${LIBGENNAMES} \
-	${LOCALENAMES} ${MATHNAMES} ${SIGNALNAMES} ${STDIONAMES} \
-	${STDLIBNAMES} ${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES} ${MISCNAMES}
+ALLNAMES	= ${CDEFNAMES} ${CTYPENAMES} ${FCNTLNAMES} ${LIBGENNAMES} \
+		${LOCALENAMES} ${MATHNAMES} ${SIGNALNAMES} ${STDIONAMES} \
+		${STDLIBNAMES} ${STRINGNAMES} ${TIMENAMES} ${UNISTDNAMES} \
+		${MISCNAMES}
 
-OBJDIR = obj
-PICOBJDIR = picobj
-OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${ALLNAMES}))
-PICOBJS = $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${ALLNAMES}))
-CRT0 = ${BUILDDIR}/crt0.o
-LIBRARY = ${BUILDDIR}/libc.a
-SONAME = libc.so
-SHAREDLIB = ${BUILDDIR}/${SONAME}
+OBJDIR		= obj
+PICOBJDIR	= picobj
+OBJS		= $(addprefix ${OBJDIR}/, $(addsuffix .o, ${ALLNAMES}))
+PICOBJS		= $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${ALLNAMES}))
+CRT0		= ${BUILDDIR}/crt0.o
+LIBRARY		= ${BUILDDIR}/libc.a
+SONAME		= libc.so
+SHAREDLIB	= ${BUILDDIR}/${SONAME}
 
 # Targets
 

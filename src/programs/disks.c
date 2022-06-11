@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -57,59 +57,59 @@ hd0.  Logical partitions are specified with letters, in partition table order
 
 int main(int argc __attribute__((unused)), char *argv[])
 {
-  int status = 0;
-  int availableDisks = 0;
-  disk *diskInfo = NULL;
-  int count;
+	int status = 0;
+	int availableDisks = 0;
+	disk *diskInfo = NULL;
+	int count;
 
-  // Call the kernel to give us the number of available disks
-  availableDisks = diskGetCount();
+	// Call the kernel to give us the number of available disks
+	availableDisks = diskGetCount();
 
-  diskInfo = malloc(DISK_MAXDEVICES * sizeof(disk));
-  if (diskInfo == NULL)
-    {
-      perror(argv[0]);
-      return (status = ERR_MEMORY);
-    }
-
-  status = diskGetAll(diskInfo, (DISK_MAXDEVICES * sizeof(disk)));
-  if (status < 0)
-    {
-      // Eek.  Problem getting disk info
-      errno = status;
-      perror(argv[0]);
-      free(diskInfo);
-      return (status);
-    }
-
-  printf("\nDisk name");
-  textSetColumn(11);
-  printf("Partition");
-  textSetColumn(37);
-  printf("Filesystem");
-  textSetColumn(49);
-  printf("Mount\n");
-
-  for (count = 0; count < availableDisks; count ++)
-    {
-      // Print disk info
-      printf("%s", diskInfo[count].name);
-      textSetColumn(11);
-      printf("%s", diskInfo[count].partType);
-      if (strcmp(diskInfo[count].fsType, "unknown"))
+	diskInfo = malloc(DISK_MAXDEVICES * sizeof(disk));
+	if (diskInfo == NULL)
 	{
-	  textSetColumn(37);
-	  printf("%s", diskInfo[count].fsType);
+		perror(argv[0]);
+		return (status = ERR_MEMORY);
 	}
-      if (diskInfo[count].mounted)
-	{
-	  textSetColumn(49);
-	  printf("%s", diskInfo[count].mountPoint);
-	}
-      printf("\n");
-    }
 
-  errno = 0;
-  free(diskInfo);
-  return (status = errno);
+	status = diskGetAll(diskInfo, (DISK_MAXDEVICES * sizeof(disk)));
+	if (status < 0)
+	{
+		// Eek.  Problem getting disk info
+		errno = status;
+		perror(argv[0]);
+		free(diskInfo);
+		return (status);
+	}
+
+	printf("\nDisk name");
+	textSetColumn(11);
+	printf("Partition");
+	textSetColumn(37);
+	printf("Filesystem");
+	textSetColumn(49);
+	printf("Mount\n");
+
+	for (count = 0; count < availableDisks; count ++)
+	{
+		// Print disk info
+		printf("%s", diskInfo[count].name);
+		textSetColumn(11);
+		printf("%s", diskInfo[count].partType);
+		if (strcmp(diskInfo[count].fsType, "unknown"))
+		{
+			textSetColumn(37);
+			printf("%s", diskInfo[count].fsType);
+		}
+		if (diskInfo[count].mounted)
+		{
+			textSetColumn(49);
+			printf("%s", diskInfo[count].mountPoint);
+		}
+		printf("\n");
+	}
+
+	errno = 0;
+	free(diskInfo);
+	return (status = errno);
 }

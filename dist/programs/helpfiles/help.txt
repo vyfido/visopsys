@@ -60,6 +60,7 @@ vsh               Start a new command shell
 
  -- Additional (graphics mode only) --
 
+calc              A calculator program
 clock             Show a simple clock in the corner of the screen
 cmdwin            Open a new command window
 computer          Navigate the resources of the computer

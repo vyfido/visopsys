@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -256,18 +256,6 @@ static int clobber(kernelDisk *theDisk)
 }
 
 
-static uquad_t getFreeBytes(kernelDisk *theDisk __attribute__((unused)))
-{
-	// This function returns the amount of free disk space, in bytes,
-	// which is always zero.
-
-	if (!initialized)
-		return (ERR_NOTINITIALIZED);
-
-	return (0);
-}
-
-
 static int resizeConstraints(kernelDisk *theDisk, uquad_t *minSectors,
 	uquad_t *maxSectors, progress *prog)
 {
@@ -439,7 +427,7 @@ static kernelFilesystemDriver defaultLinuxSwapDriver = {
 	NULL,	// driverCheck
 	NULL,	// driverDefragment
 	NULL,	// driverStat
-	getFreeBytes,
+	NULL,	// getFreeBytes
 	resizeConstraints,
 	resize,
 	mount,
@@ -450,8 +438,8 @@ static kernelFilesystemDriver defaultLinuxSwapDriver = {
 	NULL,	// driverReadFile
 	NULL,	// driverWriteFile
 	NULL,	// driverCreateFile
-	NULL,	// driverDeleteFile,
-	NULL,	// driverFileMoved,
+	NULL,	// driverDeleteFile
+	NULL,	// driverFileMoved
 	readDir,
 	NULL,	// driverWriteDir
 	NULL,	// driverMakeDir

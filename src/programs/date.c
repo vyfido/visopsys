@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -38,22 +38,23 @@ Usage:
 #include <time.h>
 #include <sys/api.h>
 
+
 int main(int argc __attribute__((unused)), char *argv[])
 {
-  int status = 0;
-  struct tm theTime;
-  
-  // Get the current date and time structure
-  status = rtcDateTime(&theTime);
-  if (status < 0)
-    {
-      perror(argv[0]);
-      return (status);
-    }
+	int status = 0;
+	struct tm theTime;
+	
+	// Get the current date and time structure
+	status = rtcDateTime(&theTime);
+	if (status < 0)
+	{
+		perror(argv[0]);
+		return (status);
+	}
 
-  // Turn it into an ascii string and print it
-  printf("%s\n", asctime(&theTime));
+	// Turn it into an ascii string and print it
+	printf("%s\n", asctime(&theTime));
 
-  // Done
-  return (0);
+	// Done
+	return (0);
 }

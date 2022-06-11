@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,48 +49,48 @@ but for an empty string (which is "d41d8cd98f00b204e9800998ecf8427e").
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  unsigned outputSize = 0;
-  char *output;
-  int count1, count2;
+	int status = 0;
+	unsigned outputSize = 0;
+	char *output;
+	int count1, count2;
 
-  // If no parameter is supplied, use an empty string.
-  if (argc < 2)
-    {
-      argv[1] = "";
-      argc = 2;
-    }
-
-  for (count1 = 1; count1 < argc; count1 ++)
-    {
-      // Get a buffer to hold the digest result.  This may  be bigger than it
-      // needs to be but that's okay
-      outputSize = (((strlen(argv[count1]) / 56) + 1) * 4);
-
-      // Get memory
-      output = malloc(outputSize);
-      if (output == NULL)
+	// If no parameter is supplied, use an empty string.
+	if (argc < 2)
 	{
-	  errno = ERR_MEMORY;
-	  perror(argv[0]);
-	  return (status = errno);
+		argv[1] = "";
+		argc = 2;
 	}
 
-      status = encryptMD5(argv[count1], output);
-      if (status < 0)
+	for (count1 = 1; count1 < argc; count1 ++)
 	{
-	  errno = status;
-	  perror(argv[0]);
-	  free(output);
-	  return (status);
+		// Get a buffer to hold the digest result.  This may  be bigger than it
+		// needs to be but that's okay
+		outputSize = (((strlen(argv[count1]) / 56) + 1) * 4);
+
+		// Get memory
+		output = malloc(outputSize);
+		if (output == NULL)
+		{
+			errno = ERR_MEMORY;
+			perror(argv[0]);
+			return (status = errno);
+		}
+
+		status = encryptMD5(argv[count1], output);
+		if (status < 0)
+		{
+			errno = status;
+			perror(argv[0]);
+			free(output);
+			return (status);
+		}
+
+		for (count2 = 0; count2 < status; count2 ++)
+			printf("%02x", output[count2]);
+		printf("\n");
+
+		free(output);
 	}
 
-      for (count2 = 0; count2 < status; count2 ++)
-	printf("%02x", output[count2]);
-      printf("\n");
-
-      free(output);
-    }
-
-  return (status = 0);
+	return (status = 0);
 }

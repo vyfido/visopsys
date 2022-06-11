@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -50,63 +50,63 @@ To see a list of running processes, use the 'ps' command.
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s <priority> <process1> [process2] [...]\n", name);
-  return;
+	printf("usage:\n");
+	printf("%s <priority> <process1> [process2] [...]\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  // This command will prompt the multitasker to set the priority of the
-  // process with the supplied process id
-  
-  int status = 0;
-  int processId = 0;
-  int newPriority = 0;
-  int count;
+	// This command will prompt the multitasker to set the priority of the
+	// process with the supplied process id
+	
+	int status = 0;
+	int processId = 0;
+	int newPriority = 0;
+	int count;
 
-  if (argc < 3)
-    {
-      usage(argv[0]);
-      return (status = ERR_ARGUMENTCOUNT);
-    }
-
-  // What is the requested priority
-  newPriority = atoi(argv[1]);
-      
-  // OK?
-  if (errno)
-    {
-      perror(argv[0]);
-      usage(argv[0]);
-      return (status = errno);
-    }
-
-  // Loop through all of our process ID arguments
-  for (count = 2; count < argc; count ++)
-    {
-      processId = atoi(argv[count]);
-
-      // OK?
-      if (errno)
+	if (argc < 3)
 	{
-	  perror(argv[0]);
-	  usage(argv[0]);
-	  return (status = errno);
+		usage(argv[0]);
+		return (status = ERR_ARGUMENTCOUNT);
 	}
-      
-      // Set the process
-      status = multitaskerSetProcessPriority(processId, newPriority);
-      if (status < 0)
+
+	// What is the requested priority
+	newPriority = atoi(argv[1]);
+	
+	// OK?
+	if (errno)
 	{
-	  errno = status;
-	  perror(argv[0]);
+		perror(argv[0]);
+		usage(argv[0]);
+		return (status = errno);
 	}
-      else
-	printf("%d changed\n", processId);
-    }
-  
-  // Return success
-  return (status = 0);
+
+	// Loop through all of our process ID arguments
+	for (count = 2; count < argc; count ++)
+	{
+		processId = atoi(argv[count]);
+
+		// OK?
+		if (errno)
+		{
+			perror(argv[0]);
+			usage(argv[0]);
+			return (status = errno);
+		}
+		
+		// Set the process
+		status = multitaskerSetProcessPriority(processId, newPriority);
+		if (status < 0)
+		{
+			errno = status;
+			perror(argv[0]);
+		}
+		else
+			printf("%d changed\n", processId);
+	}
+	
+	// Return success
+	return (status = 0);
 }

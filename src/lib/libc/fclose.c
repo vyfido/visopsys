@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -29,19 +29,19 @@
 
 int fclose(FILE *theStream)
 {
-  // Given a file stream pointer, close the file stream.
+	// Given a file stream pointer, close the file stream.
 
-  int status = 0;
+	int status = 0;
 
-  if (visopsys_in_kernel)
-    return (errno = ERR_BUG);
+	if (visopsys_in_kernel)
+		return (errno = ERR_BUG);
 
-  // Check params
-  if (theStream == NULL)
-    return (errno = ERR_NULLPARAMETER);
+	// Check params
+	if (theStream == NULL)
+		return (errno = ERR_NULLPARAMETER);
 
-  status = fileStreamClose(theStream);
-  free(theStream);
+	status = fileStreamClose(theStream);
+	free(theStream);
 
-  return (status);
+	return (status);
 }

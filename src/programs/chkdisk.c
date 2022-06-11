@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -49,67 +49,67 @@ function.
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s <disk_name>\n", name);
-  return;
+	printf("usage:\n");
+	printf("%s <disk_name>\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  char *diskName = NULL;
-  int force = 0;
-  int repair = 0;
-  char yesNo = '\0';
+	int status = 0;
+	char *diskName = NULL;
+	int force = 0;
+	int repair = 0;
+	char yesNo = '\0';
 
-  // Our argument is the disk number
-  if (argc < 2)
-    {
-      usage(argv[0]);
-
-      // Try to list the disks in the system
-      loaderLoadAndExec("/programs/disks", 3 /* user */, 1 /* block */);
-      printf("\n");
-
-      errno = ERR_ARGUMENTCOUNT;
-      return (status = errno);
-    }
-
-  diskName = argv[1];
-
-  // Print a message
-  printf("\nVisopsys CHKDISK Utility\nCopyright (C) 1998-2013 J. Andrew "
-	 "McLaughlin\n\n");
-
-  status = filesystemCheck(diskName, force, repair, NULL);
-  
-  if ((status < 0) && !repair)
-    {
-      // It's possible that the filesystem driver has no 'check' function.
-      if (status != ERR_NOSUCHFUNCTION)
+	// Our argument is the disk number
+	if (argc < 2)
 	{
-	  // The filesystem may contain errors.  Before we fail the whole
-	  // operation, ask whether the user wants to try and repair it.
-	  printf("\nThe filesystem may contain errors.\nDo you want to try to "
-		 "repair it? (y/n): ");
-	  yesNo = getchar();
-	  printf("\n");
+		usage(argv[0]);
 
-	  if ((yesNo == 'y') || (yesNo == 'Y'))
-	    // Force, repair
-	    status = filesystemCheck(diskName, force, 1 /*repair*/, NULL);
+		// Try to list the disks in the system
+		loaderLoadAndExec("/programs/disks", 3 /* user */, 1 /* block */);
+		printf("\n");
+
+		errno = ERR_ARGUMENTCOUNT;
+		return (status = errno);
 	}
 
-      if (status < 0)
-	{
-	  // Make the error
-	  printf("Filesystem consistency check failed.\n");
-	  errno = status;
-	  return (status);
-	}
-    }
+	diskName = argv[1];
 
-  errno = 0;
-  return (status = errno);
+	// Print a message
+	printf("\nVisopsys CHKDISK Utility\nCopyright (C) 1998-2014 J. Andrew "
+		"McLaughlin\n\n");
+
+	status = filesystemCheck(diskName, force, repair, NULL);
+	
+	if ((status < 0) && !repair)
+	{
+		// It's possible that the filesystem driver has no 'check' function.
+		if (status != ERR_NOSUCHFUNCTION)
+		{
+			// The filesystem may contain errors.  Before we fail the whole
+			// operation, ask whether the user wants to try and repair it.
+			printf("\nThe filesystem may contain errors.\nDo you want to try to "
+				"repair it? (y/n): ");
+			yesNo = getchar();
+			printf("\n");
+
+			if ((yesNo == 'y') || (yesNo == 'Y'))
+				// Force, repair
+				status = filesystemCheck(diskName, force, 1 /*repair*/, NULL);
+		}
+
+		if (status < 0)
+		{
+			// Make the error
+			printf("Filesystem consistency check failed.\n");
+			errno = status;
+			return (status);
+		}
+	}
+
+	errno = 0;
+	return (status = errno);
 }

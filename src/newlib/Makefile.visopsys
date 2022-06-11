@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2013 J. Andrew McLaughlin
+##  Copyright (C) 1998-2014 J. Andrew McLaughlin
 ## 
 ##  Makefile
 ##
@@ -8,17 +8,17 @@
 # This stuff is compile-only.  It is not linked except into a single
 # cohesive object file.
 
-ROOT=../..
-INCDIR=../include
+ROOT	= ../..
+INCDIR	= ../include
 
 include ${ROOT}/Makefile.include
 
-STDDEP		= ${ROOT}/Makefile.include Makefile.visopsys sys/*.h
-INCLUDE         = -nostdinc -I. -I ${INCDIR}
-CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE}
-LFLAGS		= -nostdlib
+STDDEP	= ${ROOT}/Makefile.include Makefile.visopsys sys/*.h
+INCLUDE	= -nostdinc -I. -I ${INCDIR}
+CFLAGS	= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE}
+LFLAGS	= -nostdlib
 
-OBJS  	= close.o \
+OBJS	= close.o \
 	crt0.o \
 	execve.o \
 	fcntl.o \

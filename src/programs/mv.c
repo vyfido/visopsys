@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,37 +52,36 @@ names.
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s <source 1> [source 2] ... <destination>\n",
-	 name);
-  return;
+	printf("usage:\n");
+	printf("%s <source 1> [source 2] ... <destination>\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  int count;
+	int status = 0;
+	int count;
 
-  // There need to be at least a source and destination file
-  if (argc < 3)
-    {
-      usage(argv[0]);
-      return (status = ERR_ARGUMENTCOUNT);
-    }
-
-  // Attempt to move the file(s)
-  for (count = 1; count < (argc - 1); count ++)
-    {
-      status = fileMove(argv[count], argv[argc - 1]);
-      if (status < 0)
+	// There need to be at least a source and destination file
+	if (argc < 3)
 	{
-	  errno = status;
-	  perror(argv[0]);
-	  return (status);
+		usage(argv[0]);
+		return (status = ERR_ARGUMENTCOUNT);
 	}
-    }
 
-  // Return success
-  return (status = 0);
+	// Attempt to move the file(s)
+	for (count = 1; count < (argc - 1); count ++)
+	{
+		status = fileMove(argv[count], argv[argc - 1]);
+		if (status < 0)
+		{
+			errno = status;
+			perror(argv[0]);
+			return (status);
+		}
+	}
+
+	// Return success
+	return (status = 0);
 }

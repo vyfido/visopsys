@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -31,6 +31,6 @@
 
 int isupper(int c)
 {
-  // checks for an uppercase letter.
-  return ((c >= 'A') && (c <= 'Z'));
+	// checks for an uppercase letter.
+	return ((c >= 'A') && (c <= 'Z'));
 }

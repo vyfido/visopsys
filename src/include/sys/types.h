@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -23,18 +23,18 @@
 
 #if !defined(_TYPES_H)
 
-typedef int                 dev_t;
-typedef int                 ino_t;
-typedef unsigned            off_t;
-typedef int                 uid_t;
-typedef int                 gid_t;
-typedef int                 pid_t;
-typedef int                 mode_t;
-typedef unsigned            nlink_t;
-typedef unsigned            blksize_t;
-typedef unsigned            blkcnt_t;
-typedef long long           quad_t;
-typedef unsigned long long  uquad_t;
+typedef int					dev_t;
+typedef int					ino_t;
+typedef unsigned			off_t;
+typedef int					uid_t;
+typedef int					gid_t;
+typedef int					pid_t;
+typedef int					mode_t;
+typedef unsigned			nlink_t;
+typedef unsigned			blksize_t;
+typedef unsigned			blkcnt_t;
+typedef long long			quad_t;
+typedef unsigned long long	uquad_t;
 
 #define _TYPES_H
 #endif

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,28 +28,28 @@
 
 clock_t clock(void)
 {
-  // The clock() function returns an approximation of processor time used
-  // by the program.  The value returned is the CPU time used so far as a
-  // clock_t; to get the number of seconds used, divide by CLOCKS_PER_SEC.
-  // POSIX requires that CLOCKS_PER_SEC equals 1000000 independent of the
-  // actual resolution.  The C standard allows for arbitrary values at the
-  // start of the program; take the difference between the value returned
-  // from a call to clock() at the start of the program and the end to get
-  // maximum portability.
+	// The clock() function returns an approximation of processor time used
+	// by the program.  The value returned is the CPU time used so far as a
+	// clock_t; to get the number of seconds used, divide by CLOCKS_PER_SEC.
+	// POSIX requires that CLOCKS_PER_SEC equals 1000000 independent of the
+	// actual resolution.  The C standard allows for arbitrary values at the
+	// start of the program; take the difference between the value returned
+	// from a call to clock() at the start of the program and the end to get
+	// maximum portability.
 
-  int status = 0;
-  clock_t clk = 0;
+	int status = 0;
+	clock_t clk = 0;
 
-  if (visopsys_in_kernel)
-    {
-      errno = ERR_BUG;
-      return (clk = 0);
-    }
+	if (visopsys_in_kernel)
+	{
+		errno = ERR_BUG;
+		return (clk = 0);
+	}
 
-  // Call the api function to get the current CPU time
-  status = multitaskerGetProcessorTime(&clk);
-  if (status < 0)
-    errno = status;
+	// Call the api function to get the current CPU time
+	status = multitaskerGetProcessorTime(&clk);
+	if (status < 0)
+		errno = status;
 
-  return (clk);
+	return (clk);
 }

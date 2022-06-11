@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,26 +26,26 @@
 
 char *strcasestr(const char *s1, const char *s2)
 {
-  // The strcasestr() function finds the first occurrence of the substring s2
-  // in the string s1, ignoring case.  The terminating `\0' characters are not
-  // compared.  The strcasestr() function returns a pointer to the beginning of
-  // the substring, or NULL if the substring is not found.
+	// The strcasestr() function finds the first occurrence of the substring s2
+	// in the string s1, ignoring case.  The terminating `\0' characters are not
+	// compared.  The strcasestr() function returns a pointer to the beginning of
+	// the substring, or NULL if the substring is not found.
 
-  int count = 0;
-  char *ptr = NULL;
-  int s1_length = strlen(s1);
-  int s2_length = strlen(s2);
+	int count = 0;
+	char *ptr = NULL;
+	int s1_length = strlen(s1);
+	int s2_length = strlen(s2);
 
-  ptr = (char *) s1;
+	ptr = (char *) s1;
 
-  for (count = 0; count < s1_length; count ++)
-    {
-      if (!strncasecmp(ptr, s2, s2_length))
-	return (ptr);
-      else
-	ptr++;
-    }
+	for (count = 0; count < s1_length; count ++)
+	{
+		if (!strncasecmp(ptr, s2, s2_length))
+			return (ptr);
+		else
+			ptr++;
+	}
 
-  // Not found
-  return (ptr = NULL);
+	// Not found
+	return (ptr = NULL);
 }

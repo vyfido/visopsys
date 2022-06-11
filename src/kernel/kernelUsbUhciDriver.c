@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -848,7 +848,6 @@ static int runQueue(usbUhciTransDesc *descs, unsigned numDescs)
 	unsigned prevFirstActive = 0;
 	unsigned firstActive = 0;
 	unsigned currTime = 0;
-	unsigned startTime = 0;
 	unsigned activeTime = 0;
 	int active = 0;
 	int error = 0;
@@ -857,7 +856,6 @@ static int runQueue(usbUhciTransDesc *descs, unsigned numDescs)
 	kernelDebug(debug_usb, "UHCI run transaction with %d transfers", numDescs);
 
 	currTime = kernelSysTimerRead();
-	startTime = currTime;
 	activeTime = currTime;
 
 	// Now wait while some TD is active, or until we detect an error
@@ -908,9 +906,9 @@ static int runQueue(usbUhciTransDesc *descs, unsigned numDescs)
 			activeTime = currTime;
 			prevFirstActive = firstActive;
 		}
-		if ((currTime > (activeTime + 20)) || (currTime > (startTime + 100)))
+		if (currTime > (activeTime + 200))
 		{
-			// Software timeout after ~1 seconds per descriptor, or ~5 seconds
+			// Software timeout after ~10 seconds per descriptor, or ~5 seconds
 			// for the whole operation.
 			kernelDebugError("Software timeout on TD %d", firstActive);
 			status = ERR_NODATA;

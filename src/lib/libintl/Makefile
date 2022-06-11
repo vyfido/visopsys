@@ -1,20 +1,20 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2013 J. Andrew McLaughlin
+##  Copyright (C) 1998-2014 J. Andrew McLaughlin
 ##  
 ##  Makefile
 ##
 
-ROOT=../../..
-UTILSDIR=${ROOT}/utils
-BUILDDIR=${ROOT}/build/system/libraries
-INCDIR=../../include
+ROOT		= ../../..
+UTILSDIR	= ${ROOT}/utils
+BUILDDIR	= ${ROOT}/build/system/libraries
+INCDIR		= ../../include
 
 include ${ROOT}/Makefile.include
 
 STDDEPS		= ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h
-INCLUDE         = -nostdinc -I${INCDIR}
+INCLUDE		= -nostdinc -I${INCDIR}
 CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE}
 LFLAGS		= -nostdlib
 
@@ -22,17 +22,17 @@ ifeq (${DEBUG},)
 	STRIP = strip -s ${SHAREDLIB}
 endif 
 
-NAMES		= bindtextdomain \
-		gettext \
-		textdomain
+NAMES	= bindtextdomain \
+	gettext \
+	textdomain
 
-OBJDIR = obj
-OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${NAMES}))
-PICOBJDIR = picobj
-PICOBJS = $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${NAMES}))
-LIBRARY = ${BUILDDIR}/libintl.a
-SONAME = libintl.so
-SHAREDLIB = ${BUILDDIR}/${SONAME}
+OBJDIR		= obj
+OBJS		= $(addprefix ${OBJDIR}/, $(addsuffix .o, ${NAMES}))
+PICOBJDIR	= picobj
+PICOBJS		= $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${NAMES}))
+LIBRARY		= ${BUILDDIR}/libintl.a
+SONAME		= libintl.so
+SHAREDLIB	= ${BUILDDIR}/${SONAME}
 
 # Targets
 
@@ -45,7 +45,7 @@ ${LIBRARY}: ${OBJS}
 	${AR} -rs $@ ${OBJS}
 
 ${SHAREDLIB}: ${PICOBJS}
-	${LD} -shared -soname=${SONAME} ${PICOBJS} -o $@
+	${LD} -shared -nostdlib -z norelro -soname=${SONAME} ${PICOBJS} -o $@
 
 strip: ${SHAREDLIB}
 	${STRIP}

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -29,104 +29,104 @@
 
 void _flt2str(float num, char *string, int roundPlaces)
 {
-  int charCount = 0;
-  unsigned *u = NULL;
-  int sign = 0;
-  int exponent = 0;
-  unsigned intPart = 0;
-  unsigned fractPart = 0;
-  unsigned place = 0;
-  unsigned outputFraction = 0;
-  unsigned rem = 0;
-  unsigned count;
+	int charCount = 0;
+	unsigned *u = NULL;
+	int sign = 0;
+	int exponent = 0;
+	unsigned intPart = 0;
+	unsigned fractPart = 0;
+	unsigned place = 0;
+	unsigned outputFraction = 0;
+	unsigned rem = 0;
+	unsigned count;
 
-  if (string == NULL)
-    {
-      errno = ERR_NULLPARAMETER;
-      return;
-    }
-
-  string[0] = '\0';
-
-  u = (unsigned *) &num;
-  sign = (*u >> 31);
-  exponent = (((*u & 0x7F800000) >> 23) - 127);
-  intPart = 1;
-  fractPart = ((*u & 0x007FFFFF) << 9);
-
-  // Output the sign, if any
-  if (sign)
-    string[charCount++] = '-';
-
-  // Special case exponents
-  if (exponent == 0xFF)
-    {
-      strcat((string + charCount), "Infinity");
-      return;
-    }
-
-  while (exponent)
-    {
-      if (exponent > 0)
+	if (string == NULL)
 	{
-	  intPart <<= 1;
-	  if (fractPart & (0x1 << 31))
-	    intPart |= 1;
-	  fractPart <<= 1;
-	  exponent -= 1;
-	}
-      else
-	{
-	  fractPart >>= 1;
-	  if (intPart & 0x01)
-	    fractPart |= (0x1 << 31);
-	  intPart >>= 1;
-	  exponent += 1;
-	}
-    }
-
-  // Output the whole number part
-  _num2str(intPart, (string + charCount), 10, 0);
-  charCount = strlen(string);
-
-  string[charCount++] = '.';
-
-  // Calculate the fraction part
-  place = 1000000000;
-  for (count = 2; fractPart; count *= 2)
-    {
-      if (!count)
-	break;
-
-      if (fractPart & (0x1 << 31))
-	outputFraction += (place / count);
-
-      fractPart <<= 1;
-    }
-
-  // Output the fraction part
-  place = 100000000;
-  while (place)
-    {
-      rem = (outputFraction % place);
-      outputFraction = (outputFraction / place);
-
-      if (roundPlaces)
-	{
-	  string[charCount++] = ('0' + outputFraction);
-	  roundPlaces -= 1;
-	}
-      else
-	{
-	  if ((string[charCount - 1] < '9') && (outputFraction > 4))
-	    string[charCount - 1] += 1; 
-	  break;
+		errno = ERR_NULLPARAMETER;
+		return;
 	}
 
-      outputFraction = rem;
-      place /= 10;
-    }
+	string[0] = '\0';
 
-  string[charCount] = '\0';
-  return;
+	u = (unsigned *) &num;
+	sign = (*u >> 31);
+	exponent = (((*u & 0x7F800000) >> 23) - 127);
+	intPart = 1;
+	fractPart = ((*u & 0x007FFFFF) << 9);
+
+	// Output the sign, if any
+	if (sign)
+		string[charCount++] = '-';
+
+	// Special case exponents
+	if (exponent == 0xFF)
+	{
+		strcat((string + charCount), "Infinity");
+		return;
+	}
+
+	while (exponent)
+	{
+		if (exponent > 0)
+		{
+			intPart <<= 1;
+			if (fractPart & (0x1 << 31))
+				intPart |= 1;
+			fractPart <<= 1;
+			exponent -= 1;
+		}
+		else
+		{
+			fractPart >>= 1;
+			if (intPart & 0x01)
+				fractPart |= (0x1 << 31);
+			intPart >>= 1;
+			exponent += 1;
+		}
+	}
+
+	// Output the whole number part
+	_num2str(intPart, (string + charCount), 10, 0);
+	charCount = strlen(string);
+
+	string[charCount++] = '.';
+
+	// Calculate the fraction part
+	place = 1000000000;
+	for (count = 2; fractPart; count *= 2)
+	{
+		if (!count)
+			break;
+
+		if (fractPart & (0x1 << 31))
+			outputFraction += (place / count);
+
+		fractPart <<= 1;
+	}
+
+	// Output the fraction part
+	place = 100000000;
+	while (place)
+	{
+		rem = (outputFraction % place);
+		outputFraction = (outputFraction / place);
+
+		if (roundPlaces)
+		{
+			string[charCount++] = ('0' + outputFraction);
+			roundPlaces -= 1;
+		}
+		else
+		{
+			if ((string[charCount - 1] < '9') && (outputFraction > 4))
+				string[charCount - 1] += 1; 
+			break;
+		}
+
+		outputFraction = rem;
+		place /= 10;
+	}
+
+	string[charCount] = '\0';
+	return;
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,49 +30,48 @@
 #include <sys/types.h>
 #include <sys/window.h>
 
-#define TEMP_DIR                       "/temp"
-#define BOOT_DIR                       "/system/boot"
-#define BACKUP_MBR                     BOOT_DIR"/backup-%s.mbr"
-#define SIMPLE_MBR_FILE                BOOT_DIR"/mbr.simple"
+#define TEMP_DIR						"/temp"
+#define BOOT_DIR						"/system/boot"
+#define BACKUP_MBR						BOOT_DIR"/backup-%s.mbr"
+#define SIMPLE_MBR_FILE					BOOT_DIR"/mbr.simple"
 
-#define ENTRYOFFSET_DRV_ACTIVE         0
-#define ENTRYOFFSET_START_HEAD         1
-#define ENTRYOFFSET_START_CYLSECT      2
-#define ENTRYOFFSET_START_CYL          3
-#define ENTRYOFFSET_TYPE               4
-#define ENTRYOFFSET_END_HEAD           5
-#define ENTRYOFFSET_END_CYLSECT        6
-#define ENTRYOFFSET_END_CYL            7
-#define ENTRYOFFSET_START_LBA          8
-#define ENTRYOFFSET_SIZE_LBA           12
-#define MAX_SLICES                     ((DISK_MAX_PARTITIONS * 2) + 1)
-#define MAX_DESCSTRING_LENGTH          128
+#define ENTRYOFFSET_DRV_ACTIVE			0
+#define ENTRYOFFSET_START_HEAD			1
+#define ENTRYOFFSET_START_CYLSECT		2
+#define ENTRYOFFSET_START_CYL			3
+#define ENTRYOFFSET_TYPE				4
+#define ENTRYOFFSET_END_HEAD			5
+#define ENTRYOFFSET_END_CYLSECT			6
+#define ENTRYOFFSET_END_CYL				7
+#define ENTRYOFFSET_START_LBA			8
+#define ENTRYOFFSET_SIZE_LBA			12
+#define MAX_SLICES						((DISK_MAX_PARTITIONS * 2) + 1)
+#define MAX_DESCSTRING_LENGTH			128
 
 #ifdef PARTLOGIC
-#define SLICESTRING_DISKFIELD_WIDTH    3
+#define SLICESTRING_DISKFIELD_WIDTH		3
 #else
-#define SLICESTRING_DISKFIELD_WIDTH    5
+#define SLICESTRING_DISKFIELD_WIDTH		5
 #endif
-#define SLICESTRING_LABELFIELD_WIDTH   22
-#define SLICESTRING_FSTYPEFIELD_WIDTH  12
-#define SLICESTRING_CYLSFIELD_WIDTH    14
-#define SLICESTRING_SIZEFIELD_WIDTH    10
-#define SLICESTRING_ATTRIBFIELD_WIDTH  15
-#define SLICESTRING_LENGTH             (SLICESTRING_DISKFIELD_WIDTH +   \
-					SLICESTRING_LABELFIELD_WIDTH +  \
-					SLICESTRING_FSTYPEFIELD_WIDTH + \
-					SLICESTRING_CYLSFIELD_WIDTH +   \
-					SLICESTRING_SIZEFIELD_WIDTH +   \
-					SLICESTRING_ATTRIBFIELD_WIDTH)
+#define SLICESTRING_LABELFIELD_WIDTH	22
+#define SLICESTRING_FSTYPEFIELD_WIDTH	12
+#define SLICESTRING_CYLSFIELD_WIDTH		14
+#define SLICESTRING_SIZEFIELD_WIDTH		10
+#define SLICESTRING_ATTRIBFIELD_WIDTH	15
+#define SLICESTRING_LENGTH				(SLICESTRING_DISKFIELD_WIDTH + \
+	SLICESTRING_LABELFIELD_WIDTH + SLICESTRING_FSTYPEFIELD_WIDTH + \
+	SLICESTRING_CYLSFIELD_WIDTH + SLICESTRING_SIZEFIELD_WIDTH +   \
+	SLICESTRING_ATTRIBFIELD_WIDTH)
 
 #define ISLOGICAL(slc) ((slc)->raw.type == partition_logical)
 
 // Types of slices
 typedef enum {
-  partition_none = 0,
-  partition_primary,
-  partition_logical,
-  partition_any
+	partition_none = 0,
+	partition_primary,
+	partition_logical,
+	partition_any
+
 } sliceType;
 
 // Slice flags
@@ -80,12 +79,12 @@ typedef enum {
 
 // This structure represents the disk geometry of a raw slice
 typedef struct {
-  unsigned startCylinder;
-  unsigned startHead;
-  unsigned startSector;
-  unsigned endCylinder;
-  unsigned endHead;
-  unsigned endSector;
+	unsigned startCylinder;
+	unsigned startHead;
+	unsigned startSector;
+	unsigned endCylinder;
+	unsigned endHead;
+	unsigned endSector;
 
 } rawGeom;  
 
@@ -94,49 +93,50 @@ typedef struct {
 // for example, msdos.c or gpt.c, to represent either a partition or empty
 // space.
 typedef struct {
-  int order;
-  sliceType type;
-  unsigned flags;
-  unsigned tag;
-  uquad_t startLogical;
-  uquad_t sizeLogical;
-  rawGeom geom;
+	int order;
+	sliceType type;
+	unsigned flags;
+	unsigned tag;
+	uquad_t startLogical;
+	uquad_t sizeLogical;
+	rawGeom geom;
 
-  // For GPT
-  guid typeGuid;
-  guid partGuid;
-  uquad_t attributes;
+	// For GPT
+	guid typeGuid;
+	guid partGuid;
+	uquad_t attributes;
 
 } rawSlice;
 
 // This stucture represents both used partitions and empty spaces.
 typedef struct {
-  // This comes directly from the disk label
-  rawSlice raw;
-  // Below here, the fields are generated internally
-  char diskName[6];
-  char showSliceName[6];
-  unsigned opFlags;
-  char fsType[FSTYPE_MAX_NAMELENGTH];
-  char string[MAX_DESCSTRING_LENGTH];
-  int pixelX;
-  int pixelWidth;
-  color *color;
+	// This comes directly from the disk label
+	rawSlice raw;
+	// Below here, the fields are generated internally
+	char diskName[6];
+	char showSliceName[6];
+	unsigned opFlags;
+	char fsType[FSTYPE_MAX_NAMELENGTH];
+	char string[MAX_DESCSTRING_LENGTH];
+	int pixelX;
+	int pixelWidth;
+	color *color;
 
 } slice;
 
 // Types of disk labels
 typedef enum {
-  label_none,
-  label_msdos,
-  label_gpt
+	label_none,
+	label_msdos,
+	label_gpt
+
 } labelType;
 
 // Label flags
-#define LABELFLAG_PRIMARYPARTS  0x01
-#define LABELFLAG_LOGICALPARTS  0x02
-#define LABELFLAG_USETAGS       0x04
-#define LABELFLAG_USEGUIDS      0x08
+#define LABELFLAG_PRIMARYPARTS  		0x01
+#define LABELFLAG_LOGICALPARTS			0x02
+#define LABELFLAG_USETAGS				0x04
+#define LABELFLAG_USEGUIDS				0x08
 
 // A default GUID for partition creation: "Windows data"
 #define DEFAULT_GUID GUID_WINDATA
@@ -145,55 +145,55 @@ struct _partitionTable;
 
 // This structure represents a generic disk label.
 typedef struct {
-  labelType type;
-  unsigned flags;
+	labelType type;
+	unsigned flags;
 
-  // Disk label operations
-  int (*detect) (const disk *);
-  int (*readTable) (const disk *, rawSlice *, int *);
-  int (*writeTable) (const disk *, rawSlice *, int);
-  int (*getSliceDesc)(rawSlice *, char *);
-  sliceType (*canCreate) (slice *, int, int);
-  int (*canHide) (slice *);
-  void (*hide) (slice *);
-  int (*getTypes) (listItemParameters **);
-  int (*setType) (slice *, int);
+	// Disk label operations
+	int (*detect) (const disk *);
+	int (*readTable) (const disk *, rawSlice *, int *);
+	int (*writeTable) (const disk *, rawSlice *, int);
+	int (*getSliceDesc)(rawSlice *, char *);
+	sliceType (*canCreate) (slice *, int, int);
+	int (*canHide) (slice *);
+	void (*hide) (slice *);
+	int (*getTypes) (listItemParameters **);
+	int (*setType) (slice *, int);
 
 } diskLabel;
 
 typedef struct {
-  disk *disk;
-  int diskNumber;
-  diskLabel *label;
-  rawSlice rawSlices[DISK_MAX_PARTITIONS];
-  int numRawSlices;
-  slice slices[MAX_SLICES];
-  int numSlices;
-  int selectedSlice;
-  int changesPending;
-  int backupAvailable;
+	disk *disk;
+	int diskNumber;
+	diskLabel *label;
+	rawSlice rawSlices[DISK_MAX_PARTITIONS];
+	int numRawSlices;
+	slice slices[MAX_SLICES];
+	int numSlices;
+	int selectedSlice;
+	int changesPending;
+	int backupAvailable;
 
 } partitionTable;
 
 // A struct for managing concurrent read/write IO during things like
 // disk-to-disk copies
 typedef struct {
-  struct {
-    unsigned char *data;
-    int full;
-  } buffer[2];
-  unsigned bufferSize;
+	struct {
+		unsigned char *data;
+		int full;
+	} buffer[2];
+	unsigned bufferSize;
 
 } ioBuffer;
 
 // Arguments for the reader/writer threads during things like disk-to-disk
 // copies
 typedef struct {
-  disk *theDisk;
-  uquad_t startSector;
-  uquad_t numSectors;
-  ioBuffer *buffer;
-  progress *prog;
+	disk *theDisk;
+	uquad_t startSector;
+	uquad_t numSectors;
+	ioBuffer *buffer;
+	progress *prog;
 
 } ioThreadArgs;
 

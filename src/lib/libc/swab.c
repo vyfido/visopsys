@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,36 +26,36 @@
 
 void swab(const void *from, void *to, ssize_t num)
 {
-  // From the GNU man page:
-  // The swab() function copies n bytes from the array pointed to by from to
-  // the array pointed to by to, exchanging adjacent even and odd bytes.
-  // This function is used to exchange data between machines that have
-  // different low/high byte ordering.
-  //
-  // This function does nothing when n is negative.  When n is positive and
-  // odd, it handles n-1 bytes as above, and does something unspecified with
-  // the last byte.  (In other words, n should be even.)
+	// From the GNU man page:
+	// The swab() function copies n bytes from the array pointed to by from to
+	// the array pointed to by to, exchanging adjacent even and odd bytes.
+	// This function is used to exchange data between machines that have
+	// different low/high byte ordering.
+	//
+	// This function does nothing when n is negative.  When n is positive and
+	// odd, it handles n-1 bytes as above, and does something unspecified with
+	// the last byte.  (In other words, n should be even.)
 
-  int count;
+	int count;
 
-  if (num < 0)
-    return;
+	if (num < 0)
+		return;
 
-  // Make the number even
-  num &= ~1;
+	// Make the number even
+	num &= ~1;
 
-  if (to != from)
-    // Copy data
-    for (count = 0; count < num; count ++)
-      ((char *) to)[count] = ((const char *) from)[count];
+	if (to != from)
+		// Copy data
+		for (count = 0; count < num; count ++)
+			((char *) to)[count] = ((const char *) from)[count];
 
-  // Swappem.
-  for (count = 0; count < (num - 1); count ++)
-    {
-      unsigned char tmp = ((char *) to)[count];
-      ((char *) to)[count] = ((char *) to)[count + 1];
-      ((char *) to)[count + 1] = tmp;
-    }
+	// Swappem.
+	for (count = 0; count < (num - 1); count ++)
+	{
+		unsigned char tmp = ((char *) to)[count];
+		((char *) to)[count] = ((char *) to)[count + 1];
+		((char *) to)[count + 1] = tmp;
+	}
 
-  return;
+	return;
 }

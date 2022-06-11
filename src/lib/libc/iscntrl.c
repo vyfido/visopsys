@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -31,6 +31,6 @@
 
 int iscntrl(int c)
 {
-  // checks for a control character.
-  return ((c >= 1) && (c <= 31));
+	// checks for a control character.
+	return ((c >= 1) && (c <= 31));
 }

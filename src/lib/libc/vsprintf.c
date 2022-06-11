@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -29,16 +29,16 @@
 
 int vsprintf(char *output, const char *format, va_list list)
 {
-  int len = 0;
-  
-  // Fill out the output line
-  len = _xpndfmt(output, MAXSTRINGLENGTH, format, list);
+	int len = 0;
+	
+	// Fill out the output line
+	len = _xpndfmt(output, MAXSTRINGLENGTH, format, list);
 
-  if (len < 0)
-    {
-      errno = len;
-      return (0);
-    }
-  else
-    return (len);
+	if (len < 0)
+	{
+		errno = len;
+		return (0);
+	}
+	else
+		return (len);
 }

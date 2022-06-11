@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -30,22 +30,22 @@
 
 int vprintf(const char *format, va_list list)
 {
-  int len = 0;
-  char output[MAXSTRINGLENGTH];
-  textAttrs attrs;
+	int len = 0;
+	char output[MAXSTRINGLENGTH];
+	textAttrs attrs;
 
-  if (visopsys_in_kernel)
-    return (errno = ERR_BUG);
+	if (visopsys_in_kernel)
+		return (errno = ERR_BUG);
 
-  // Fill out the output line based on 
-  len = _xpndfmt(output, MAXSTRINGLENGTH, format, list);
+	// Fill out the output line based on 
+	len = _xpndfmt(output, MAXSTRINGLENGTH, format, list);
 
-  if (len > 0)
-    {
-      bzero(&attrs, sizeof(textAttrs));
-      attrs.flags |= TEXT_ATTRS_NOFORMAT;
-      textPrintAttrs(&attrs, output);
-    }
-  
-  return (len);
+	if (len > 0)
+	{
+		bzero(&attrs, sizeof(textAttrs));
+		attrs.flags |= TEXT_ATTRS_NOFORMAT;
+		textPrintAttrs(&attrs, output);
+	}
+	
+	return (len);
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -55,60 +55,58 @@ Currently, bitmap (.bmp) and JPEG (.jpg) image formats are supported.
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  char *language = "";
-  char fileName[MAX_PATH_NAME_LENGTH];
+	int status = 0;
+	char *language = "";
+	char fileName[MAX_PATH_NAME_LENGTH];
 
-#ifdef BUILDLANG
-  language=BUILDLANG;
-#endif
-  setlocale(LC_ALL, language);
-  textdomain("wallpaper");
+	#ifdef BUILDLANG
+		language=BUILDLANG;
+	#endif
+	setlocale(LC_ALL, language);
+	textdomain("wallpaper");
 
-  // Only work in graphics mode
-  if (!graphicsAreEnabled())
-    {
-      printf(_("\nThe \"%s\" command only works in graphics mode\n"), argv[0]);
-      return (status = ERR_NOTINITIALIZED);
-    }
-
-  bzero(fileName, MAX_PATH_NAME_LENGTH);
-
-  if (argc < 2)
-    {
-      // The user did not specify a file.  We will prompt them.
-      status =
-	windowNewFileDialog(NULL, _("Enter filename"),
-			    _("Please choose the background image:"),
-			    "/system/wallpaper", fileName,
-			    MAX_PATH_NAME_LENGTH, 1);
-      if (status != 1)
+	// Only work in graphics mode
+	if (!graphicsAreEnabled())
 	{
-	  if (status == 0)
-	    return (status);
-
-	  printf("%s", _("No filename specified\n"));
-	  return (status);
-	}
-    }
-
-  else
-    strncpy(fileName, argv[1], MAX_PATH_NAME_LENGTH);
-
-  if (strncmp(fileName, "none", MAX_PATH_NAME_LENGTH))
-    {
-      status = fileFind(fileName, NULL);
-      if (status < 0)
-	{
-	  printf("%s", _("File not found\n"));
-	  return (status);
+		printf(_("\nThe \"%s\" command only works in graphics mode\n"), argv[0]);
+		return (status = ERR_NOTINITIALIZED);
 	}
 
-      status = windowTileBackground(fileName);
-    }
+	bzero(fileName, MAX_PATH_NAME_LENGTH);
 
-  else
-    status = windowTileBackground(NULL);
+	if (argc < 2)
+	{
+		// The user did not specify a file.  We will prompt them.
+		status = windowNewFileDialog(NULL, _("Enter filename"),
+			_("Please choose the background image:"), "/system/wallpaper",
+			fileName, MAX_PATH_NAME_LENGTH, 1);
+		if (status != 1)
+		{
+			if (status == 0)
+				return (status);
 
-  return (status);
+			printf("%s", _("No filename specified\n"));
+			return (status);
+		}
+	}
+
+	else
+		strncpy(fileName, argv[1], MAX_PATH_NAME_LENGTH);
+
+	if (strncmp(fileName, "none", MAX_PATH_NAME_LENGTH))
+	{
+		status = fileFind(fileName, NULL);
+		if (status < 0)
+		{
+			printf("%s", _("File not found\n"));
+			return (status);
+		}
+
+		status = windowTileBackground(fileName);
+	}
+
+	else
+		status = windowTileBackground(NULL);
+
+	return (status);
 }

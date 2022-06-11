@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -30,31 +30,31 @@
 
 int vfscanf(FILE *theStream, const char *format, va_list list)
 {
-  int status = 0;
-  int matchItems = 0;
-  char input[MAXSTRINGLENGTH];
+	int status = 0;
+	int matchItems = 0;
+	char input[MAXSTRINGLENGTH];
 
-  if (visopsys_in_kernel)
-    return (errno = ERR_BUG);
+	if (visopsys_in_kernel)
+		return (errno = ERR_BUG);
 
-  if ((theStream == stdout) || (theStream == stderr))
-    {
-      status = vscanf(format, list);
-      return (status);
-    }
+	if ((theStream == stdout) || (theStream == stderr))
+	{
+		status = vscanf(format, list);
+		return (status);
+	}
 
-  // Read a line of input
-  status = fileStreamReadLine(theStream, MAXSTRINGLENGTH, input);
-  if (status <= 0)
-    {
-      // We matched zero items
-      errno = status;
-      return (matchItems = 0);
-    }
+	// Read a line of input
+	status = fileStreamReadLine(theStream, MAXSTRINGLENGTH, input);
+	if (status <= 0)
+	{
+		// We matched zero items
+		errno = status;
+		return (matchItems = 0);
+	}
 
-  // Now assign the input values based on the input data and the format
-  // string
-  matchItems = _fmtinpt(input, format, list);
+	// Now assign the input values based on the input data and the format
+	// string
+	matchItems = _fmtinpt(input, format, list);
 
-  return (matchItems);
+	return (matchItems);
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,67 +46,69 @@ intended for developers who want to look at binary files in detail.
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s <file_name>\n", name);
-  return;
+	printf("usage:\n");
+	printf("%s <file_name>\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  FILE *dumpFile = NULL;
-  size_t read = 0;
-  unsigned offset = 0;
-  unsigned char fileBuff[16];
-  char lineBuff[160];
-  unsigned count;
+	int status = 0;
+	FILE *dumpFile = NULL;
+	size_t read = 0;
+	unsigned offset = 0;
+	unsigned char fileBuff[16];
+	char lineBuff[160];
+	unsigned count;
 
-  if (argc < 2)
-    {
-      usage(argv[0]);
-      errno = ERR_ARGUMENTCOUNT;
-      return (status = errno);
-    }
-  
-  dumpFile = fopen(argv[argc - 1], "r");
-  if (!dumpFile)
-    {
-      perror(argv[0]);
-      return (status = errno);
-    }
-
-  while ((read = fread(fileBuff, 1, 16, dumpFile)))
-    {
-      sprintf(lineBuff, "%08x  ", offset);
-
-      for (count = 0; count < 16; count ++)
+	if (argc < 2)
 	{
-	  if (count < read)
-	    sprintf((lineBuff + strlen(lineBuff)), "%02x ", fileBuff[count]);
-	  else
-	    strcat(lineBuff, "   ");
-
-	  if ((count == 7) || (count == 15))
-	    strcat(lineBuff, " ");
+		usage(argv[0]);
+		errno = ERR_ARGUMENTCOUNT;
+		return (status = errno);
+	}
+	
+	dumpFile = fopen(argv[argc - 1], "r");
+	if (!dumpFile)
+	{
+		perror(argv[0]);
+		return (status = errno);
 	}
 
-      strcat(lineBuff, "|");
-      for (count = 0; count < 16; count ++)
+	while ((read = fread(fileBuff, 1, 16, dumpFile)))
 	{
-	  if ((count < read) &&
-	      (fileBuff[count] >= 32) && (fileBuff[count] <= 126))
-	    sprintf((lineBuff + strlen(lineBuff)), "%c", fileBuff[count]);
-	  else
-	    strcat(lineBuff, ".");
+		sprintf(lineBuff, "%08x  ", offset);
+
+		for (count = 0; count < 16; count ++)
+		{
+			if (count < read)
+				sprintf((lineBuff + strlen(lineBuff)), "%02x ", fileBuff[count]);
+			else
+				strcat(lineBuff, "   ");
+
+			if ((count == 7) || (count == 15))
+				strcat(lineBuff, " ");
+		}
+
+		strcat(lineBuff, "|");
+		for (count = 0; count < 16; count ++)
+		{
+			if ((count < read) && (fileBuff[count] >= 32) &&
+				(fileBuff[count] <= 126))
+			{
+				sprintf((lineBuff + strlen(lineBuff)), "%c", fileBuff[count]);
+			}
+			else
+				strcat(lineBuff, ".");
+		}
+		strcat(lineBuff, "|");
+
+		printf("%s\n", lineBuff);
+		offset += read;
 	}
-      strcat(lineBuff, "|");
 
-      printf("%s\n", lineBuff);
-      offset += read;
-    }
+	fclose(dumpFile);
 
-  fclose(dumpFile);
-
-  return (status);
+	return (status);
 }

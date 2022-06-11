@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -51,33 +51,33 @@ files are displayed.
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  char fileName[MAX_PATH_NAME_LENGTH];
-  int count;
+	int status = 0;
+	char fileName[MAX_PATH_NAME_LENGTH];
+	int count;
 
-  // If we got no arguments, then we assume we are operating on the
-  // current directory.
-  if (argc == 1)
-    {
-      // Get the current directory
-      multitaskerGetCurrentDirectory(fileName, MAX_PATH_NAME_LENGTH);
-
-      status = vshFileList(fileName);
-      if (status < 0)
+	// If we got no arguments, then we assume we are operating on the
+	// current directory.
+	if (argc == 1)
 	{
-	  perror(argv[0]);
-	  return (status);
+		// Get the current directory
+		multitaskerGetCurrentDirectory(fileName, MAX_PATH_NAME_LENGTH);
+
+		status = vshFileList(fileName);
+		if (status < 0)
+		{
+			perror(argv[0]);
+			return (status);
+		}
 	}
-    }
 
-  else
-    for (count = 1; count < argc; count ++)
-      {
-	status = vshFileList(argv[count]);
-	if (status < 0)
-	  perror(argv[0]);
-      }
+	else
+	for (count = 1; count < argc; count ++)
+	{
+		status = vshFileList(argv[count]);
+		if (status < 0)
+			perror(argv[0]);
+	}
 
-  // Return success
-  return (status = 0);
+	// Return success
+	return (status = 0);
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -48,18 +48,18 @@ command causes all such data to be committed at once.
 
 int main(int argc, char *argv[])
 {
-  // Attempts to synchronize all disks
+	// Attempts to synchronize all disks
 
-  int status = 0;
+	int status = 0;
 
-  // This will sync all disks
-  status = diskSyncAll();
-  if (status < 0)
-    {
-      errno = status;
-      if (argc)
-	perror(argv[0]);
-    }
+	// This will sync all disks
+	status = diskSyncAll();
+	if (status < 0)
+	{
+		errno = status;
+		if (argc)
+			perror(argv[0]);
+	}
 
-  return (status);
+	return (status);
 }

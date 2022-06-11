@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,9 +23,8 @@
 
 #include "kernelBus.h"
 #include "kernelUsbDriver.h"
-#include "kernelScsiDriver.h"
 
-#define SCSI_MAX_DISKS 16
+#define SCSI_MAX_DISKS	16
 
 typedef struct {
 	kernelBusTarget *busTarget;
@@ -40,26 +39,10 @@ typedef struct {
 		unsigned char bulkInEndpoint;
 		usbEndpointDesc *bulkOutDesc;
 		unsigned char bulkOutEndpoint;
-		usbEndpointDesc *intrInDesc;
-		unsigned char intrInEndpoint;
 		unsigned tag;
 	} usb;
+
 } kernelScsiDisk;
-
-typedef struct {
-	unsigned char byte[12];
-
-} __attribute__((packed)) scsiUsbCmd12;
-
-typedef struct {
-	scsiModeParamHeader header;
-	unsigned char code;
-	unsigned char length;
-	unsigned char cylinders[3];
-	unsigned char heads;
-	unsigned char pad[18];
-  
-} __attribute__((packed)) scsiDiskGeomPage;
 
 #define _KERNELSCSIDISKDRIVER_H
 #endif

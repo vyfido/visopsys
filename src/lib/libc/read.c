@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -29,20 +29,20 @@
 
 size_t read(int fd, void *buf, size_t count)
 {
-  // Read count bytes from the stream
+	// Read count bytes from the stream
 
-  int status = 0;
+	int status = 0;
 
-  if (visopsys_in_kernel)
-    return (errno = ERR_BUG);
+	if (visopsys_in_kernel)
+		return (errno = ERR_BUG);
 
-  if (fd == (int) stdin)
-    status = textInputStreamReadN(multitaskerGetTextInput(), count, buf);
-  else
-    status = fileStreamRead((fileStream *) fd, count, buf);
+	if (fd == (int) stdin)
+		status = textInputStreamReadN(multitaskerGetTextInput(), count, buf);
+	else
+		status = fileStreamRead((fileStream *) fd, count, buf);
 
-  if (status < 0)
-    return (errno = status);
+	if (status < 0)
+		return (errno = status);
 
-  return (count);
+	return (count);
 }

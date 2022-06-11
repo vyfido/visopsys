@@ -2,6 +2,7 @@
 # basic ones, comprise the full Visopsys installation
 /programs/adduser
 /programs/cal
+/programs/calc
 /programs/chkdisk
 /programs/clock
 /programs/confedit
@@ -15,6 +16,7 @@
 /programs/helpfiles/adduser.txt
 /programs/helpfiles/bootmenu.txt
 /programs/helpfiles/cal.txt
+/programs/helpfiles/calc.txt
 /programs/helpfiles/cat.txt
 /programs/helpfiles/cd.txt
 /programs/helpfiles/cdrom.txt
@@ -187,6 +189,7 @@
 /system/headers/sys/lock.h
 /system/headers/sys/memory.h
 /system/headers/sys/message.h
+/system/headers/sys/msdos.h
 /system/headers/sys/network.h
 /system/headers/sys/ntfs.h
 /system/headers/sys/process.h
@@ -204,6 +207,7 @@
 /system/headers/sys/window.h
 /system/icons/archicon.ico
 /system/icons/booticon.ico
+/system/icons/calcicon.ico
 /system/icons/calicon.ico
 /system/icons/cameraicon.bmp
 /system/icons/cardicon.ico

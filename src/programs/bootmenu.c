@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -56,35 +56,32 @@ choices for the first hard disk, hd0.
 #include <sys/vsh.h>
 
 #define _(string) gettext(string)
-#define MBR_FILENAME        "/system/boot/mbr.bootmenu"
-#define BOOTMENU_FILENAME   "/system/boot/bootmenu"
-#define VBM_MAGIC           "VBM2"
-#define SLICESTRING_LENGTH  60
-#define TITLE               _("Visopsys Boot Menu Installer\n"		\
-			      "Copyright (C) 1998-2013 J. Andrew McLaughlin")
-#define PERM                _("You must be a privileged user to use this " \
-			      "command.\n(Try logging in as user \"admin\")")
-#define WINWARNING          _("Windows Vista and later versions may require " \
-			      "you to \"repair\"\nyour boot configuration " \
-			      "using the installation CD.  Continue?")
-#define PARTITIONS          _("Partitions on the disk:")
-#define ENTRIES             _("Chain-loadable entries for the boot menu:")
-#define WRITTEN             _("Boot menu written.")
-#define DEFAULTTIMEOUT      10 // Seconds
+#define MBR_FILENAME		"/system/boot/mbr.bootmenu"
+#define BOOTMENU_FILENAME	"/system/boot/bootmenu"
+#define VBM_MAGIC			"VBM2"
+#define SLICESTRING_LENGTH	60
+#define TITLE				_("Visopsys Boot Menu Installer\n" \
+	"Copyright (C) 1998-2014 J. Andrew McLaughlin")
+#define PERM				_("You must be a privileged user to use this " \
+	"command.\n(Try logging in as user \"admin\")")
+#define PARTITIONS			_("Partitions on the disk:")
+#define ENTRIES				_("Chain-loadable entries for the boot menu:")
+#define WRITTEN				_("Boot menu written.")
+#define DEFAULTTIMEOUT		10 // Seconds
 
 // Structures we write into the bootmenu
 typedef struct {
-  char string[SLICESTRING_LENGTH];
-  unsigned startSector;
+	char string[SLICESTRING_LENGTH];
+	unsigned startSector;
 
 } __attribute__((packed)) entryStruct;
 
 typedef struct {
-  entryStruct entries[DISK_MAX_PRIMARY_PARTITIONS];
-  int numberEntries;
-  int defaultEntry;
-  int timeoutSeconds;
-  char magic[4];
+	entryStruct entries[DISK_MAX_PRIMARY_PARTITIONS];
+	int numberEntries;
+	int defaultEntry;
+	int timeoutSeconds;
+	char magic[4];
 
 } __attribute__((packed)) entryStructArray;
 
@@ -108,932 +105,857 @@ static objectKey cancelButton = NULL;
 
 static void usage(char *name)
 {
-  printf(_("usage:\n%s <disk name>\n"), name);
-  return;
+	printf(_("usage:\n%s <disk name>\n"), name);
+	return;
 }
 
 
 __attribute__((format(printf, 1, 2)))
 static void error(const char *format, ...)
 {
-  // Generic error message code for either text or graphics modes
-  
-  va_list list;
-  char output[MAXSTRINGLENGTH];
-  
-  va_start(list, format);
-  vsnprintf(output, MAXSTRINGLENGTH, format, list);
-  va_end(list);
+	// Generic error message code for either text or graphics modes
+	
+	va_list list;
+	char output[MAXSTRINGLENGTH];
+	
+	va_start(list, format);
+	vsnprintf(output, MAXSTRINGLENGTH, format, list);
+	va_end(list);
 
-  if (graphics)
-    windowNewErrorDialog(window, _("Error"), output);
-  else
-    printf("\n\n%s\n", output);
+	if (graphics)
+		windowNewErrorDialog(window, _("Error"), output);
+	else
+		printf("\n\n%s\n", output);
 }
 
 
 static void quit(void)
 {
-  // Shut everything down
+	// Shut everything down
 
-  errno = 0;
+	errno = 0;
 
-  if (graphics && window)
-    {
-      windowGuiStop();
-      // Crashing?  Eh?
-      windowDestroy(window);
-    }
-
-  // Try to deallocate any memory we've allocated
-
-  if (logicalDisks)
-    free(logicalDisks);
-  if (buffer)
-    free(buffer);
-
-  return;
-}
-
-
-static int yesOrNo(char *question)
-{
-  char character;
-
-  if (graphics)
-    return (windowNewQueryDialog(window, _("Confirmation"), question));
-
-  else
-    {
-      printf(_("\n%s (y/n): "), question);
-      textInputSetEcho(0);
-
-      while(1)
+	if (graphics && window)
 	{
-	  character = getchar();
-      
-	  if ((character == 'y') || (character == 'Y'))
-	    {
-	      printf("%s", _("Yes\n"));
-	      textInputSetEcho(1);
-	      return (1);
-	    }
-	  else if ((character == 'n') || (character == 'N'))
-	    {
-	      printf("%s", _("No\n"));
-	      textInputSetEcho(1);
-	      return (0);
-	    }
+		windowGuiStop();
+		// Crashing?  Eh?
+		windowDestroy(window);
 	}
-    }
+
+	// Try to deallocate any memory we've allocated
+
+	if (logicalDisks)
+		free(logicalDisks);
+	if (buffer)
+		free(buffer);
+
+	return;
 }
 
 
 static void setEntryString(int entryNumber, const char *string)
 {
-  int length = strlen(string);
+	int length = strlen(string);
 
-  memset(entryArray->entries[entryNumber].string, (int) ' ',
-	 SLICESTRING_LENGTH);
-  entryArray->entries[entryNumber].string[SLICESTRING_LENGTH - 1] = '\0';
+	memset(entryArray->entries[entryNumber].string, (int) ' ',
+		SLICESTRING_LENGTH);
+	entryArray->entries[entryNumber].string[SLICESTRING_LENGTH - 1] = '\0';
 
-  strncpy(entryArray->entries[entryNumber].string, string, length);
+	strncpy(entryArray->entries[entryNumber].string, string, length);
 }
 
 
 static void refreshList(void)
 {
-  listItemParameters entryParams[DISK_MAX_PRIMARY_PARTITIONS];
-  int count;
+	listItemParameters entryParams[DISK_MAX_PRIMARY_PARTITIONS];
+	int count;
 
-  if (graphics)
-    {
-      for (count = 0; count < entryArray->numberEntries; count ++)
-	sprintf(entryParams[count].text, "%s%s",
-		((count == entryArray->defaultEntry)? " * " : "   "),
-		entryArray->entries[count].string);
+	if (graphics)
+	{
+		for (count = 0; count < entryArray->numberEntries; count ++)
+			sprintf(entryParams[count].text, "%s%s",
+				((count == entryArray->defaultEntry)? " * " : "   "),
+				entryArray->entries[count].string);
 
-      windowComponentSetData(entryList, entryParams,
-			     entryArray->numberEntries);
-      windowComponentSetEnabled(deleteButton, (entryArray->numberEntries > 1));
-    }
+		windowComponentSetData(entryList, entryParams,
+			entryArray->numberEntries);
+		windowComponentSetEnabled(deleteButton, (entryArray->numberEntries > 1));
+	}
 }
 
 
 static void editEntryLabel(int entryNumber)
 {
-  // Let the user edit the label string.
+	// Let the user edit the label string.
 
-  objectKey dialogWindow = NULL;
-  componentParameters params;
-  objectKey newLabelField = NULL;
-  objectKey okBut = NULL;
-  objectKey cancelBut = NULL;
-  char string[SLICESTRING_LENGTH];
-  windowEvent event;
-  int count;
+	objectKey dialogWindow = NULL;
+	componentParameters params;
+	objectKey newLabelField = NULL;
+	objectKey okBut = NULL;
+	objectKey cancelBut = NULL;
+	char string[SLICESTRING_LENGTH];
+	windowEvent event;
+	int count;
 
-  if (graphics)
-    {
-      // Create the dialog
-      dialogWindow = windowNewDialog(window, _("Edit entry label"));
-      if (dialogWindow == NULL)
-	return;
-
-      bzero(&params, sizeof(componentParameters));
-      params.gridWidth = 2;
-      params.gridHeight = 1;
-      params.padLeft = 5;
-      params.padRight = 5;
-      params.padTop = 5;
-      params.orientationX = orient_left;
-      params.orientationY = orient_middle;
-      windowNewTextLabel(dialogWindow, entryArray->entries[entryNumber].string,
-			 &params);
-
-      params.gridY = 1;
-      newLabelField =
-	windowNewTextField(dialogWindow, (SLICESTRING_LENGTH - 1), &params);
-      windowComponentFocus(newLabelField);
-
-      // Create the OK button
-      params.gridY = 2;
-      params.gridWidth = 1;
-      params.padBottom = 5;
-      params.padRight = 0;
-      params.orientationX = orient_right;
-      params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
-      okBut = windowNewButton(dialogWindow, _("OK"), NULL, &params);
-
-      // Create the Cancel button
-      params.gridX = 1;
-      params.padRight = 5;
-      params.orientationX = orient_left;
-      cancelBut = windowNewButton(dialogWindow, _("Cancel"), NULL, &params);
-
-      windowCenterDialog(window, dialogWindow);
-      windowSetVisible(dialogWindow, 1);
-  
-      while(1)
+	if (graphics)
 	{
-	  // Check for the OK button
-	  if (((windowComponentEventGet(newLabelField, &event) > 0) &&
-	       (event.key == (unsigned char) ASCII_ENTER) &&
-	       (event.type == EVENT_KEY_DOWN)) ||
-	      ((windowComponentEventGet(okBut, &event) > 0) &&
-	       (event.type == EVENT_MOUSE_LEFTUP)))
-	    break;
-	  
-	  // Check for window close or cancel button events
-	  if (((windowComponentEventGet(dialogWindow, &event) > 0) &&
-	       (event.type == EVENT_WINDOW_CLOSE)) ||
-	      ((windowComponentEventGet(cancelBut, &event) > 0) &&
-	       (event.type == EVENT_MOUSE_LEFTUP)))
-	    {
-	      windowDestroy(dialogWindow);
-	      return;
-	    }
+		// Create the dialog
+		dialogWindow = windowNewDialog(window, _("Edit entry label"));
+		if (dialogWindow == NULL)
+			return;
 
-	  // Done
-	  multitaskerYield();
-	}
-  
-      windowComponentGetData(newLabelField, string, (SLICESTRING_LENGTH - 1));
+		bzero(&params, sizeof(componentParameters));
+		params.gridWidth = 2;
+		params.gridHeight = 1;
+		params.padLeft = 5;
+		params.padRight = 5;
+		params.padTop = 5;
+		params.orientationX = orient_left;
+		params.orientationY = orient_middle;
+		windowNewTextLabel(dialogWindow, entryArray->entries[entryNumber].string,
+			&params);
 
-      windowDestroy(dialogWindow);
-    }
+		params.gridY = 1;
+		newLabelField =
+		windowNewTextField(dialogWindow, (SLICESTRING_LENGTH - 1), &params);
+		windowComponentFocus(newLabelField);
 
-  else
-    {
-      printf(_("Enter new label (%d characters max.):\n [%s]\n ["),
-	     (SLICESTRING_LENGTH - 1),
-	     entryArray->entries[entryNumber].string);
-      int column = textGetColumn();
-      for (count = 0; count < (SLICESTRING_LENGTH - 1); count ++)
-	printf(" ");
-      printf("]");
-      textSetColumn(column);
+		// Create the OK button
+		params.gridY = 2;
+		params.gridWidth = 1;
+		params.padBottom = 5;
+		params.padRight = 0;
+		params.orientationX = orient_right;
+		params.flags |= WINDOW_COMPFLAG_FIXEDWIDTH;
+		okBut = windowNewButton(dialogWindow, _("OK"), NULL, &params);
 
-      textInputSetEcho(0);
+		// Create the Cancel button
+		params.gridX = 1;
+		params.padRight = 5;
+		params.orientationX = orient_left;
+		cancelBut = windowNewButton(dialogWindow, _("Cancel"), NULL, &params);
 
-      for (count = 0; count < SLICESTRING_LENGTH; count ++)
-	{
-	  string[count] = getchar();
-      
-	  if (string[count] == 10) // Newline
-	    {
-	      string[count] = '\0';
-	      textInputSetEcho(1);
-
-	      if (count == 0)
-		// Assume they want to quit
-		return;
-
-	      break;
-	    }
+		windowCenterDialog(window, dialogWindow);
+		windowSetVisible(dialogWindow, 1);
 	
-	  if (string[count] == 8) // Backspace
-	    {
-	      if (count > 0)
+		while(1)
 		{
-		  textBackSpace();
-		  count -= 2;
-		}
-	      else
-		count -= 1;
-	      continue;
-	    }
+			// Check for the OK button
+			if (((windowComponentEventGet(newLabelField, &event) > 0) &&
+				(event.key == (unsigned char) ASCII_ENTER) &&
+				(event.type == EVENT_KEY_DOWN)) ||
+				((windowComponentEventGet(okBut, &event) > 0) &&
+					(event.type == EVENT_MOUSE_LEFTUP)))
+			{
+				break;
+			}
 
-	  else
-	    printf("%c", string[count]);
+			// Check for window close or cancel button events
+			if (((windowComponentEventGet(dialogWindow, &event) > 0) &&
+					(event.type == EVENT_WINDOW_CLOSE)) ||
+				((windowComponentEventGet(cancelBut, &event) > 0) &&
+					(event.type == EVENT_MOUSE_LEFTUP)))
+			{
+				windowDestroy(dialogWindow);
+				return;
+			}
+
+			// Done
+			multitaskerYield();
+		}
+	
+		windowComponentGetData(newLabelField, string, (SLICESTRING_LENGTH - 1));
+
+		windowDestroy(dialogWindow);
 	}
 
-      // Reached the end of the buffer.
-      string[SLICESTRING_LENGTH - 1] = '\0';
-    }
+	else
+	{
+		printf(_("Enter new label (%d characters max.):\n [%s]\n ["),
+			(SLICESTRING_LENGTH - 1), entryArray->entries[entryNumber].string);
+		int column = textGetColumn();
+		for (count = 0; count < (SLICESTRING_LENGTH - 1); count ++)
+			printf(" ");
+		printf("]");
+		textSetColumn(column);
 
-  setEntryString(entryNumber, string);
-  
-  refreshList();
+		textInputSetEcho(0);
 
-  return;
+		for (count = 0; count < SLICESTRING_LENGTH; count ++)
+		{
+			string[count] = getchar();
+		
+			if (string[count] == 10) // Newline
+			{
+				string[count] = '\0';
+				textInputSetEcho(1);
+
+				if (count == 0)
+					// Assume they want to quit
+					return;
+
+				break;
+			}
+	
+			if (string[count] == 8) // Backspace
+			{
+				if (count > 0)
+				{
+					textBackSpace();
+					count -= 2;
+				}
+				else
+					count -= 1;
+				continue;
+			}
+			else
+				printf("%c", string[count]);
+		}
+
+		// Reached the end of the buffer.
+		string[SLICESTRING_LENGTH - 1] = '\0';
+	}
+
+	setEntryString(entryNumber, string);
+	
+	refreshList();
+
+	return;
 }
 
 
 static void deleteEntryLabel(int entryNumber)
 {
-  int count;
+	int count;
 
-  bzero(&entryArray->entries[entryNumber], sizeof(entryStruct));
+	bzero(&entryArray->entries[entryNumber], sizeof(entryStruct));
 
-  entryArray->numberEntries -= 1;
+	entryArray->numberEntries -= 1;
 
-  if (entryNumber < entryArray->numberEntries)
-    {
-      for (count = entryNumber; count < entryArray->numberEntries; count ++)
-	memcpy(&entryArray->entries[count], &entryArray->entries[count + 1],
-	       sizeof(entryStruct));
-    }
-  
-  refreshList();
+	if (entryNumber < entryArray->numberEntries)
+	{
+		for (count = entryNumber; count < entryArray->numberEntries; count ++)
+			memcpy(&entryArray->entries[count], &entryArray->entries[count + 1],
+				sizeof(entryStruct));
+	}
+	
+	refreshList();
 }
 
 
 static int getLogicalDisks(disk *physicalDisk)
 {
-  int status = 0;
-  int tmpNumberLogical = diskGetCount();
-  int count;
+	int status = 0;
+	int tmpNumberLogical = diskGetCount();
+	int count;
 
-  logicalDisks = malloc(tmpNumberLogical * sizeof(disk));
-  if (logicalDisks == NULL)
-    {
-      error("%s", _("Can't get memory for the logical disk list"));
-      return (status = ERR_MEMORY);
-    }
+	logicalDisks = malloc(tmpNumberLogical * sizeof(disk));
+	if (logicalDisks == NULL)
+	{
+		error("%s", _("Can't get memory for the logical disk list"));
+		return (status = ERR_MEMORY);
+	}
 
-  status = diskGetAll(logicalDisks, (tmpNumberLogical * sizeof(disk)));
-  if (status < 0)
-    {
-      error("%s", _("Can't get the logical disk list\n"));
-      return (status);
-    }
+	status = diskGetAll(logicalDisks, (tmpNumberLogical * sizeof(disk)));
+	if (status < 0)
+	{
+		error("%s", _("Can't get the logical disk list\n"));
+		return (status);
+	}
 
-  // Now we need to get the list of logical disks that reside on our
-  // physical disk which are also primary partitions.
-  for (count = 0; ((count < tmpNumberLogical) &&
-		   (numberLogical < DISK_MAX_PRIMARY_PARTITIONS)); count ++)
-    if (!strncmp(logicalDisks[count].name, physicalDisk->name,
-		 strlen(physicalDisk->name)))
-      {
-	if (logicalDisks[count].type & DISKTYPE_PRIMARY)
-	  // This logical resides on our physical disk
-	  memcpy(&logicalDisks[numberLogical++], &logicalDisks[count],
-		 sizeof(disk));
-      }
+	// Now we need to get the list of logical disks that reside on our
+	// physical disk which are also primary partitions.
+	for (count = 0; ((count < tmpNumberLogical) &&
+		(numberLogical < DISK_MAX_PRIMARY_PARTITIONS)); count ++)
+	{
+		if (!strncmp(logicalDisks[count].name, physicalDisk->name,
+			 strlen(physicalDisk->name)))
+		{
+			if (logicalDisks[count].type & DISKTYPE_PRIMARY)
+				// This logical resides on our physical disk
+				memcpy(&logicalDisks[numberLogical++], &logicalDisks[count],
+					sizeof(disk));
+		}
+	}
 
-  return (status = 0);
+	return (status = 0);
 }
 
 
 static int readBootMenu(file *theFile)
 {
-  int status = 0;
+	int status = 0;
 
-  // Open the boot menu program file and read it into memory
-  status = fileOpen(BOOTMENU_FILENAME, OPENMODE_READ, theFile);
-  if (status < 0)
-    {
-      error(_("Can't open %s file\n"), BOOTMENU_FILENAME);
-      return (status);
-    }
+	// Open the boot menu program file and read it into memory
+	status = fileOpen(BOOTMENU_FILENAME, OPENMODE_READ, theFile);
+	if (status < 0)
+	{
+		error(_("Can't open %s file\n"), BOOTMENU_FILENAME);
+		return (status);
+	}
 
-  buffer = malloc(theFile->blocks * theFile->blockSize);
-  if (buffer == NULL)
-    {
-      error("%s", _("Can't get buffer memory\n"));
-      return (status = ERR_MEMORY);
-    }
+	buffer = malloc(theFile->blocks * theFile->blockSize);
+	if (buffer == NULL)
+	{
+		error("%s", _("Can't get buffer memory\n"));
+		return (status = ERR_MEMORY);
+	}
 
-  status = fileRead(theFile, 0, theFile->blocks, buffer);
-  if (status < 0)
-    {
-      error(_("Can't read %s file\n"), BOOTMENU_FILENAME);
-      return (status);
-    }
+	status = fileRead(theFile, 0, theFile->blocks, buffer);
+	if (status < 0)
+	{
+		error(_("Can't read %s file\n"), BOOTMENU_FILENAME);
+		return (status);
+	}
 
-  fileClose(theFile);
-  return (status = 0);
+	fileClose(theFile);
+	return (status = 0);
 }
 
 
 static void getOldEntries(disk *physicalDisk, entryStructArray *oldEntries)
 {
-  // Read the second sector of the disk to see whether there are existing
-  // boot menu entries there.
+	// Read the second sector of the disk to see whether there are existing
+	// boot menu entries there.
 
-  int status = 0;
-  entryStructArray *tmpEntries = NULL;
-  char *buf = NULL;
+	int status = 0;
+	entryStructArray *tmpEntries = NULL;
+	char *buf = NULL;
 
-  bzero(oldEntries, sizeof(entryStructArray));
+	bzero(oldEntries, sizeof(entryStructArray));
 
-  buf = malloc(physicalDisk->sectorSize);
-  if (!buf)
-    return;
+	buf = malloc(physicalDisk->sectorSize);
+	if (!buf)
+		return;
 
-  // Read the second sector
-  status = diskReadSectors(physicalDisk->name, 1, 1, buf);
-  if (status < 0)
-    {
-      free(buf);
-      return;
-    }
+	// Read the second sector
+	status = diskReadSectors(physicalDisk->name, 1, 1, buf);
+	if (status < 0)
+	{
+		free(buf);
+		return;
+	}
 
-  tmpEntries = (entryStructArray *)(buf + 4);
+	tmpEntries = (entryStructArray *)(buf + 4);
 
-  // Is the magic there?
-  if (!strncmp(tmpEntries->magic, VBM_MAGIC, 4))
-    // Make a copy of the existing entries
-    memcpy(oldEntries, tmpEntries, sizeof(entryStructArray));
+	// Is the magic there?
+	if (!strncmp(tmpEntries->magic, VBM_MAGIC, 4))
+		// Make a copy of the existing entries
+		memcpy(oldEntries, tmpEntries, sizeof(entryStructArray));
 
-  free(buf);
-  return;
+	free(buf);
+	return;
 }
 
 
 static int bootable(const char *diskName)
 {
-  // Return 1 if the disk seems bootable
-  
-  int status = 0;
-  unsigned char buf[512];
+	// Return 1 if the disk seems bootable
+	
+	int status = 0;
+	unsigned char buf[512];
 
-  status = diskReadSectors(diskName, 0, 1, &buf);
-  if (status < 0)
-    // Can't read the boot sector?  Fooey.
-    return (0);
+	status = diskReadSectors(diskName, 0, 1, &buf);
+	if (status < 0)
+		// Can't read the boot sector?  Fooey.
+		return (0);
 
-  // Check for boot sector signature
-  if ((buf[510] == 0x55) && (buf[511] == 0xAA))
-    return (1);
-  else
-    return (0);
+	// Check for boot sector signature
+	if ((buf[510] == 0x55) && (buf[511] == 0xAA))
+		return (1);
+	else
+		return (0);
 }
 
 
 static void printPartitions(void)
 {
-  int count;
+	int count;
 
-  // Print out the primary partitions and info about them
-  for (count = 0; count < numberLogical; count ++)
-    printf(_("Disk %s\n  Label: %s\n  Filesystem: %s\n  Chain-loadable: "
-	     "%s\n\n"), logicalDisks[count].name, logicalDisks[count].partType,
-	   logicalDisks[count].fsType,
-	   (bootable(logicalDisks[count].name)? _("yes") : _("no")));
+	// Print out the primary partitions and info about them
+	for (count = 0; count < numberLogical; count ++)
+		printf(_("Disk %s\n  Label: %s\n  Filesystem: %s\n  Chain-loadable: "
+			"%s\n\n"), logicalDisks[count].name, logicalDisks[count].partType,
+			logicalDisks[count].fsType,
+			(bootable(logicalDisks[count].name)? _("yes") : _("no")));
 }
 
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
-  int selected = 0;
+	int selected = 0;
 
-  // Check for the window being closed by a GUI event.
-  if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
-      ((key == cancelButton) && (event->type == EVENT_MOUSE_LEFTUP)))
-    {
-      quit();
-      exit(0);
-    }
+	// Check for the window being closed by a GUI event.
+	if (((key == window) && (event->type == EVENT_WINDOW_CLOSE)) ||
+		((key == cancelButton) && (event->type == EVENT_MOUSE_LEFTUP)))
+	{
+		quit();
+		exit(0);
+	}
 
-  if ((key == timeoutCheckbox) && (event->type & EVENT_SELECTION))
-    {
-      windowComponentGetSelected(timeoutCheckbox, &selected);
-      windowComponentSetEnabled(timeoutValueField, selected);
-    }
+	if ((key == timeoutCheckbox) && (event->type & EVENT_SELECTION))
+	{
+		windowComponentGetSelected(timeoutCheckbox, &selected);
+		windowComponentSetEnabled(timeoutValueField, selected);
+	}
 
-  if ((key == editButton) && (event->type == EVENT_MOUSE_LEFTUP))
-    {
-      windowComponentGetSelected(entryList, &selected);
-      if (selected >= 0)
-	editEntryLabel(selected);
-    }
+	if ((key == editButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	{
+		windowComponentGetSelected(entryList, &selected);
+		if (selected >= 0)
+		editEntryLabel(selected);
+	}
 
-  if ((key == defaultButton) && (event->type == EVENT_MOUSE_LEFTUP))
-    {
-      windowComponentGetSelected(entryList, &selected);
-      entryArray->defaultEntry = selected;
-      refreshList();
-    }
+	if ((key == defaultButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	{
+		windowComponentGetSelected(entryList, &selected);
+		entryArray->defaultEntry = selected;
+		refreshList();
+	}
 
-  if ((key == deleteButton) && (event->type == EVENT_MOUSE_LEFTUP))
-    {
-      windowComponentGetSelected(entryList, &selected);
-      if (selected >= 0)
-	deleteEntryLabel(selected);
-    }
+	if ((key == deleteButton) && (event->type == EVENT_MOUSE_LEFTUP))
+	{
+		windowComponentGetSelected(entryList, &selected);
+		if (selected >= 0)
+			deleteEntryLabel(selected);
+	}
 
-  if ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP))
-    windowGuiStop();
+	if ((key == okButton) && (event->type == EVENT_MOUSE_LEFTUP))
+		windowGuiStop();
 }
 
 
 static void constructWindow(void)
 {
-  // If we are in graphics mode, make a window rather than operating on the
-  // command line.
+	// If we are in graphics mode, make a window rather than operating on the
+	// command line.
 
-  componentParameters params;
-  listItemParameters entryParams[DISK_MAX_PRIMARY_PARTITIONS];
-  objectKey timeoutContainer = NULL;
-  objectKey buttonContainer = NULL;
-  char tmp[40];
-  int count;
+	componentParameters params;
+	listItemParameters entryParams[DISK_MAX_PRIMARY_PARTITIONS];
+	objectKey timeoutContainer = NULL;
+	objectKey buttonContainer = NULL;
+	char tmp[40];
+	int count;
 
-  // Create a new window, with small, arbitrary size and location
-  window = windowNew(processId, _("Boot Menu Installer"));
-  if (window == NULL)
-    return;
+	// Create a new window, with small, arbitrary size and location
+	window = windowNew(processId, _("Boot Menu Installer"));
+	if (window == NULL)
+		return;
 
-  bzero(&params, sizeof(componentParameters));
-  params.gridWidth = 1;
-  params.gridHeight = 1;
-  params.padTop = 10;
-  params.padLeft = 5;
-  params.padRight = 5;
-  params.orientationX = orient_left;
-  params.orientationY = orient_middle;
-  windowNewTextLabel(window, PARTITIONS, &params);
+	bzero(&params, sizeof(componentParameters));
+	params.gridWidth = 1;
+	params.gridHeight = 1;
+	params.padTop = 10;
+	params.padLeft = 5;
+	params.padRight = 5;
+	params.orientationX = orient_left;
+	params.orientationY = orient_middle;
+	windowNewTextLabel(window, PARTITIONS, &params);
 
-  params.gridY = 1;
-  params.padTop = 5;
-  textArea = windowNewTextArea(window, 45, 20, 200, &params);
+	params.gridY = 1;
+	params.padTop = 5;
+	textArea = windowNewTextArea(window, 45, 20, 200, &params);
 
-  // Use the text area for all our input and output
-  windowSetTextOutput(textArea);
-  textSetCursor(0);
+	// Use the text area for all our input and output
+	windowSetTextOutput(textArea);
+	textSetCursor(0);
 
-  params.gridY = 2;
-  params.flags = 0;
-  windowNewTextLabel(window, ENTRIES, &params);
+	params.gridY = 2;
+	params.flags = 0;
+	windowNewTextLabel(window, ENTRIES, &params);
 
-  params.gridY = 3;
-  params.gridHeight = 3;
-  bzero(&entryParams, (DISK_MAX_PRIMARY_PARTITIONS *
-		       sizeof(listItemParameters)));
-  for (count = 0; count < entryArray->numberEntries; count ++)
-    sprintf(entryParams[count].text, "%s%s",
-	    ((count == entryArray->defaultEntry)? " * " : "   "),
-	    entryArray->entries[count].string);
-  entryList =
-    windowNewList(window, windowlist_textonly, DISK_MAX_PRIMARY_PARTITIONS,
-		  1, 0, entryParams, entryArray->numberEntries, &params);
-  windowComponentFocus(entryList);
+	params.gridY = 3;
+	params.gridHeight = 3;
+	bzero(&entryParams, (DISK_MAX_PRIMARY_PARTITIONS *
+			 sizeof(listItemParameters)));
+	for (count = 0; count < entryArray->numberEntries; count ++)
+		sprintf(entryParams[count].text, "%s%s",
+			((count == entryArray->defaultEntry)? " * " : "   "),
+			entryArray->entries[count].string);
+	entryList =
+		windowNewList(window, windowlist_textonly, DISK_MAX_PRIMARY_PARTITIONS,
+			1, 0, entryParams, entryArray->numberEntries, &params);
+	windowComponentFocus(entryList);
 
-  params.gridX = 1;
-  params.gridHeight = 1;
-  editButton = windowNewButton(window, _("Edit"), NULL, &params);
-  windowRegisterEventHandler(editButton, &eventHandler);
+	params.gridX = 1;
+	params.gridHeight = 1;
+	editButton = windowNewButton(window, _("Edit"), NULL, &params);
+	windowRegisterEventHandler(editButton, &eventHandler);
 
-  params.gridY = 4;
-  defaultButton = windowNewButton(window, _("Default"), NULL, &params);
-  windowRegisterEventHandler(defaultButton, &eventHandler);
+	params.gridY = 4;
+	defaultButton = windowNewButton(window, _("Default"), NULL, &params);
+	windowRegisterEventHandler(defaultButton, &eventHandler);
 
-  params.gridY = 5;
-  deleteButton = windowNewButton(window, _("Delete"), NULL, &params);
-  windowRegisterEventHandler(deleteButton, &eventHandler);
-  windowComponentSetEnabled(deleteButton, (entryArray->numberEntries > 1));
+	params.gridY = 5;
+	deleteButton = windowNewButton(window, _("Delete"), NULL, &params);
+	windowRegisterEventHandler(deleteButton, &eventHandler);
+	windowComponentSetEnabled(deleteButton, (entryArray->numberEntries > 1));
 
-  params.gridX = 0;
-  params.gridY = 6;
-  params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
-  timeoutContainer = windowNewContainer(window, "timeout container", &params);
+	params.gridX = 0;
+	params.gridY = 6;
+	params.flags = WINDOW_COMPFLAG_FIXEDWIDTH;
+	timeoutContainer = windowNewContainer(window, "timeout container", &params);
 
-  params.gridX = 0;
-  params.gridY = 0;
-  params.gridWidth = 1;
-  timeoutCheckbox =
-    windowNewCheckbox(timeoutContainer, _("Automatically boot default "
-					  "selection after (seconds)"),
-		      &params);
-  windowComponentSetSelected(timeoutCheckbox, 1);
-  windowRegisterEventHandler(timeoutCheckbox, &eventHandler);
+	params.gridX = 0;
+	params.gridY = 0;
+	params.gridWidth = 1;
+	timeoutCheckbox =
+		windowNewCheckbox(timeoutContainer, _("Automatically boot default "
+			"selection after (seconds)"), &params);
+	windowComponentSetSelected(timeoutCheckbox, 1);
+	windowRegisterEventHandler(timeoutCheckbox, &eventHandler);
 
-  params.gridX = 1;
-  timeoutValueField = windowNewTextField(timeoutContainer, 4, &params);
-  sprintf(tmp, "%d", entryArray->timeoutSeconds);
-  windowComponentSetData(timeoutValueField, tmp, strlen(tmp));
+	params.gridX = 1;
+	timeoutValueField = windowNewTextField(timeoutContainer, 4, &params);
+	sprintf(tmp, "%d", entryArray->timeoutSeconds);
+	windowComponentSetData(timeoutValueField, tmp, strlen(tmp));
 
-  params.gridX = 0;
-  params.gridY = 7;
-  params.gridWidth = 2;
-  params.padBottom = 5;
-  params.orientationX = orient_center;
-  buttonContainer = windowNewContainer(window, "button container", &params);
+	params.gridX = 0;
+	params.gridY = 7;
+	params.gridWidth = 2;
+	params.padBottom = 5;
+	params.orientationX = orient_center;
+	buttonContainer = windowNewContainer(window, "button container", &params);
 
-  params.gridY = 0;
-  params.gridWidth = 1;
-  params.padTop = 0;
-  params.padBottom = 0;
-  params.orientationX = orient_right;
-  okButton = windowNewButton(buttonContainer, _("OK"), NULL, &params);
-  windowRegisterEventHandler(okButton, &eventHandler);
+	params.gridY = 0;
+	params.gridWidth = 1;
+	params.padTop = 0;
+	params.padBottom = 0;
+	params.orientationX = orient_right;
+	okButton = windowNewButton(buttonContainer, _("OK"), NULL, &params);
+	windowRegisterEventHandler(okButton, &eventHandler);
 
-  params.gridX = 1;
-  params.orientationX = orient_left;
-  cancelButton = windowNewButton(buttonContainer, _("Cancel"), NULL, &params);
-  windowRegisterEventHandler(cancelButton, &eventHandler);
+	params.gridX = 1;
+	params.orientationX = orient_left;
+	cancelButton = windowNewButton(buttonContainer, _("Cancel"), NULL, &params);
+	windowRegisterEventHandler(cancelButton, &eventHandler);
 
-  // Register an event handler to catch window close events
-  windowRegisterEventHandler(window, &eventHandler);
+	// Register an event handler to catch window close events
+	windowRegisterEventHandler(window, &eventHandler);
 
-  // Go
-  windowSetVisible(window, 1);
+	// Go
+	windowSetVisible(window, 1);
 
-  return;
-}
-
-
-static void warnWindows(void)
-{
-  if (yesOrNo(WINWARNING) != 1)
-    {
-      quit();
-      exit(0);
-    }
+	return;
 }
 
 
 static int writeOut(unsigned numSectors, disk *physicalDisk)
 {
-  int status = 0;
-  int selected = 0;
-  char tmpChar[80];
+	int status = 0;
+	int selected = 0;
+	char tmpChar[80];
 
-  if (graphics)
-    {
-      windowComponentGetSelected(timeoutCheckbox, &selected);
-
-      if (selected)
+	if (graphics)
 	{
-	  windowComponentGetData(timeoutValueField, tmpChar, 5);
-	  entryArray->timeoutSeconds = atoi(tmpChar);
-	  if ((entryArray->timeoutSeconds < 0) ||
-	      (entryArray->timeoutSeconds > 999))
-	    // User is a dummy.  Ignore them; no timeout.
-	    entryArray->timeoutSeconds = 0;
+		windowComponentGetSelected(timeoutCheckbox, &selected);
+
+		if (selected)
+		{
+			windowComponentGetData(timeoutValueField, tmpChar, 5);
+			entryArray->timeoutSeconds = atoi(tmpChar);
+			if ((entryArray->timeoutSeconds < 0) ||
+				(entryArray->timeoutSeconds > 999))
+			{
+				// User is a dummy.  Ignore them; no timeout.
+				entryArray->timeoutSeconds = 0;
+			}
+		}
+		else
+			entryArray->timeoutSeconds = 0;
 	}
-      else
-	entryArray->timeoutSeconds = 0;
-    }
 
-  // Stick the magic number in
-  strncpy(entryArray->magic, VBM_MAGIC, 4);
+	// Stick the magic number in
+	strncpy(entryArray->magic, VBM_MAGIC, 4);
 
-  status = diskWriteSectors(physicalDisk->name, 1, numSectors , buffer);
-  if (status < 0)
-    {
-      error("%s", _("Can't write boot menu\n"));
-      return (status);
-    }
+	status = diskWriteSectors(physicalDisk->name, 1, numSectors , buffer);
+	if (status < 0)
+	{
+		error("%s", _("Can't write boot menu\n"));
+		return (status);
+	}
 
-  // Copy the boot menu boot sector to the MBR
+	// Copy the boot menu boot sector to the MBR
 
-  sprintf(tmpChar, "/programs/copy-mbr %s %s", MBR_FILENAME,
-	  physicalDisk->name);
+	sprintf(tmpChar, "/programs/copy-mbr %s %s", MBR_FILENAME,
+		physicalDisk->name);
 
-  status = system(tmpChar);
-  if (status < 0)
-    {
-      error(_("Can't write MBR %s to %s\n"), MBR_FILENAME, physicalDisk->name);
-      return (status);
-    }
+	status = system(tmpChar);
+	if (status < 0)
+	{
+		error(_("Can't write MBR %s to %s\n"), MBR_FILENAME, physicalDisk->name);
+		return (status);
+	}
 
-  return (status = 0);
+	return (status = 0);
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  char *language = "";
-  disk theDisk;
-  file theFile;
-  entryStructArray oldEntries;
-  entryStruct *oldEntry = NULL;
-  int haveWindows = 0;
-  int oldWasDefault = 0;
-  char string[SLICESTRING_LENGTH];
-  textAttrs attrs;
-  int count1, count2;
+	int status = 0;
+	char *language = "";
+	disk theDisk;
+	file theFile;
+	entryStructArray oldEntries;
+	entryStruct *oldEntry = NULL;
+	int oldWasDefault = 0;
+	char string[SLICESTRING_LENGTH];
+	textAttrs attrs;
+	int count1, count2;
 
 #ifdef BUILDLANG
-  language=BUILDLANG;
+	language=BUILDLANG;
 #endif
-  setlocale(LC_ALL, language);
-  textdomain("bootmenu");
+	setlocale(LC_ALL, language);
+	textdomain("bootmenu");
 
-  if (argc != 2)
-    {
-      usage(argv[0]);
-      errno = EINVAL;
-      return (status = -1);
-    }
-
-  bzero(&attrs, sizeof(textAttrs));
-
-  // Are graphics enabled?
-  graphics = graphicsAreEnabled();
-
-  processId = multitaskerGetCurrentProcessId();
-
-  // Check privilege level
-  if (multitaskerGetProcessPrivilege(processId) != 0)
-    {
-      if (graphics)
-	windowNewErrorDialog(NULL, _("Permission Denied"), PERM);
-      else
-	printf("\n%s\n\n", PERM);
-      return (errno = ERR_PERMISSION);
-    }
-
-  // Get the disk specified by the name
-  bzero(&theDisk, sizeof(disk));
-  status = diskGet(argv[1], &theDisk);
-  if (status < 0)
-    {
-      error(_("Can't get disk %s\n"), argv[1]);
-      return (errno = status);
-    }
-
-  // Make sure it's a physical hard disk device, and not a logical disk,
-  // floppy, CD-ROM, etc.
-  if (!(theDisk.type & DISKTYPE_PHYSICAL) ||
-      !(theDisk.type & DISKTYPE_HARDDISK))
-    {
-      error(_("Disk %s is not a physical hard disk device\n"), theDisk.name);
-      return (errno = ERR_INVALID);
-    }
-
-  // Get all of the logical disks
-  status = getLogicalDisks(&theDisk);
-  if (status < 0)
-    {
-      error("%s", _("Can't get the list of logical disks"));
-      return (errno = status);
-    }
-
-  // Read the boot menu file into memory
-  bzero(&theFile, sizeof(file));
-  status = readBootMenu(&theFile);
-  if (status < 0)
-    {
-      quit();
-      return (errno = status);
-    }
-
-  // The entries come at this offset
-  entryArray = (entryStructArray *)(buffer + 4);
-
-  // Clear the entries
-  bzero(entryArray, sizeof(entryStructArray));
-  entryArray->timeoutSeconds = DEFAULTTIMEOUT;
-
-  // Is there an existing boot menu on the disk?
-  getOldEntries(&theDisk, &oldEntries);
-
-  // Make strings for each of the logical disks
-  for (count1 = 0; count1 < numberLogical; count1 ++)
-    if (bootable(logicalDisks[count1].name))
-      {
-	// See whether we think this might be a windows partition
-	if (!strcasecmp(logicalDisks[count1].fsType, "ntfs"))
-	  haveWindows = 1;
-	else
-	  {
-	    for (count2 = 0;
-		 ((count2 < (int) sizeof(logicalDisks[count1].partType)) &&
-		  logicalDisks[count1].partType[count2]); count2 ++)
-	      {
-		if (!strcasecmp((logicalDisks[count1].partType + count2),
-				"ntfs") ||
-		    !strcasecmp((logicalDisks[count1].partType + count2),
-				"windows") ||
-		    !strcasecmp((logicalDisks[count1].partType + count2),
-				"microsoft"))
-		  {
-		    haveWindows = 1;
-		    break;
-		  }
-	      }
-	  }
-
-	// Make sure we move up logical disks in our list for after
-	memcpy(&logicalDisks[entryArray->numberEntries],
-	       &logicalDisks[count1], sizeof(disk));
-
-	// Was there an old entry for this logical disk?
-	oldEntry = NULL;
-	oldWasDefault = 0;
-	for (count2 = 0; count2 < oldEntries.numberEntries; count2 ++)
-	  if (oldEntries.entries[count2].startSector ==
-	      logicalDisks[count1].startSector)
-	    {
-	      oldEntry = &oldEntries.entries[count2];
-
-	      if (oldEntries.defaultEntry == count2)
-		oldWasDefault = 1;
-
-	      break;
-	    }
-
-	if (oldEntry)
-	  strncpy(string, oldEntry->string, SLICESTRING_LENGTH);
-	else
-	  sprintf(string, _("\"%s\" [Filesystem: %s]"),
-		  logicalDisks[count1].partType, logicalDisks[count1].fsType);
-
-	// Set the string
-	setEntryString(entryArray->numberEntries, string);
-
-	// Set the start sector
-	entryArray->entries[entryArray->numberEntries]
-	  .startSector = logicalDisks[count1].startSector;
-
-	if (oldWasDefault)
-	  // In the previous installation, this was the default.
-	  entryArray->defaultEntry = entryArray->numberEntries;
-
-	entryArray->numberEntries += 1;
-      }
-
-  if (oldEntries.numberEntries && oldEntries.timeoutSeconds)
-    entryArray->timeoutSeconds = oldEntries.timeoutSeconds;
-
-  if (!entryArray->numberEntries)
-    {
-      error("%s", _("\nThere are no chain-loadable operating systems on "
-		    "this disk.\n\n"));
-      quit();
-      return (errno = ERR_NODATA);
-    }
-
-  if (graphics)
-    {
-      constructWindow();
-      printPartitions();
-
-      // If we think this might be Windows, warn and check before proceeding
-      if (haveWindows)
-	warnWindows();
-
-      windowGuiRun();
-    }
-  else
-    {
-      // If we think this might be Windows, warn and check before
-      // proceeding
-      if (haveWindows)
+	if (argc != 2)
 	{
-	  textScreenClear();
-	  printf("%s\n", TITLE);
-	  warnWindows();
+		usage(argv[0]);
+		errno = EINVAL;
+		return (status = -1);
 	}
 
-      textSetCursor(0);
-      textInputSetEcho(0);
-      int selected = 0;
+	bzero(&attrs, sizeof(textAttrs));
 
-      while(1)
+	// Are graphics enabled?
+	graphics = graphicsAreEnabled();
+
+	processId = multitaskerGetCurrentProcessId();
+
+	// Check privilege level
+	if (multitaskerGetProcessPrivilege(processId) != 0)
 	{
-	  textScreenClear();
-	  printf("%s\n", TITLE);
-	  printf("\n%s\n\n", PARTITIONS);
-	  printPartitions();
-	  printf("\n%s\n\n", ENTRIES);
-	  
-	  for (count1 = 0; count1 < entryArray->numberEntries; count1 ++)
-	    {
-	      printf(" ");
+		if (graphics)
+			windowNewErrorDialog(NULL, _("Permission Denied"), PERM);
+		else
+			printf("\n%s\n\n", PERM);
+		return (errno = ERR_PERMISSION);
+	}
 
-	      if (count1 == selected)
-		attrs.flags = TEXT_ATTRS_REVERSE;
-	      else
-		attrs.flags = 0;
+	// Get the disk specified by the name
+	bzero(&theDisk, sizeof(disk));
+	status = diskGet(argv[1], &theDisk);
+	if (status < 0)
+	{
+		error(_("Can't get disk %s\n"), argv[1]);
+		return (errno = status);
+	}
 
-	      if (count1 == entryArray->defaultEntry)
-		textPrintAttrs(&attrs, " * ");
-	      else
-		textPrintAttrs(&attrs, "   ");
-	      textPrintAttrs(&attrs, entryArray->entries[count1].string);
+	// Make sure it's a physical hard disk device, and not a logical disk,
+	// floppy, CD-ROM, etc.
+	if (!(theDisk.type & DISKTYPE_PHYSICAL) ||
+		!(theDisk.type & DISKTYPE_HARDDISK))
+	{
+		error(_("Disk %s is not a physical hard disk device\n"), theDisk.name);
+		return (errno = ERR_INVALID);
+	}
 
-	      printf("\n");
-	    }
+	// Get all of the logical disks
+	status = getLogicalDisks(&theDisk);
+	if (status < 0)
+	{
+		error("%s", _("Can't get the list of logical disks"));
+		return (errno = status);
+	}
 
-	  printf("%s", _("\n  [Cursor up/down to select, 'e' edit, '*' "
-			 "default\n   'd' delete, Enter to accept, 'Q' "
-			 "to quit]"));
+	// Read the boot menu file into memory
+	bzero(&theFile, sizeof(file));
+	status = readBootMenu(&theFile);
+	if (status < 0)
+	{
+		quit();
+		return (errno = status);
+	}
 
-	  char character = getchar();
+	// The entries come at this offset
+	entryArray = (entryStructArray *)(buffer + 4);
 
-	  switch (character)
-	    {
-	    case (char) ASCII_ENTER:
-	      // Accept
-	      textInputSetEcho(1);
-	      textSetCursor(1);
-	      printf("\n\n");
-	      break;
+	// Clear the entries
+	bzero(entryArray, sizeof(entryStructArray));
+	entryArray->timeoutSeconds = DEFAULTTIMEOUT;
 
-	    case (char) ASCII_CRSRUP:
-	      // Cursor up.
-	      if (selected > 0)
-		selected -= 1;
-	      continue;
+	// Is there an existing boot menu on the disk?
+	getOldEntries(&theDisk, &oldEntries);
 
-	    case (char) ASCII_CRSRDOWN:
-	      // Cursor down.
-	      if (selected < (entryArray->numberEntries - 1))
-		selected += 1;
-	      continue;
-	      
-	    case 'e':
-	      textInputSetEcho(1);
-	      textSetCursor(1);
-	      printf("\n\n\n");
-	      editEntryLabel(selected);
-	      textInputSetEcho(0);
-	      textSetCursor(0);
-	      continue;
-
-	    case '*':
-	      entryArray->defaultEntry = selected;
-	      continue;
-
-	    case 'd':
-	      if (entryArray->numberEntries > 1)
+	// Make strings for each of the logical disks
+	for (count1 = 0; count1 < numberLogical; count1 ++)
+	{
+		if (bootable(logicalDisks[count1].name))
 		{
-		  deleteEntryLabel(selected);
-		  if (selected >= entryArray->numberEntries)
-		    selected -= 1;
+			// Make sure we move up logical disks in our list for after
+			memcpy(&logicalDisks[entryArray->numberEntries],
+				&logicalDisks[count1], sizeof(disk));
+
+			// Was there an old entry for this logical disk?
+			oldEntry = NULL;
+			oldWasDefault = 0;
+			for (count2 = 0; count2 < oldEntries.numberEntries; count2 ++)
+			{
+				if (oldEntries.entries[count2].startSector ==
+					logicalDisks[count1].startSector)
+				{
+					oldEntry = &oldEntries.entries[count2];
+
+					if (oldEntries.defaultEntry == count2)
+						oldWasDefault = 1;
+
+					break;
+				}
+			}
+
+			if (oldEntry)
+				strncpy(string, oldEntry->string, SLICESTRING_LENGTH);
+			else
+				sprintf(string, _("\"%s\" [Filesystem: %s]"),
+					logicalDisks[count1].partType, logicalDisks[count1].fsType);
+
+			// Set the string
+			setEntryString(entryArray->numberEntries, string);
+
+			// Set the start sector
+			entryArray->entries[entryArray->numberEntries]
+				.startSector = logicalDisks[count1].startSector;
+
+			if (oldWasDefault)
+				// In the previous installation, this was the default.
+				entryArray->defaultEntry = entryArray->numberEntries;
+
+			entryArray->numberEntries += 1;
 		}
-	      continue;
-
-	    case 'q':
-	    case 'Q':
-	      textInputSetEcho(1);
-	      textSetCursor(1);
-	      printf("\n\n");
-	      quit();
-	      return (errno = 0);
-	      
-	    default:
-	      continue;
-	    }
-
-	  break;
 	}
-    }
 
-  // Now write the boot menu and MBR sector
-  status = writeOut((theFile.blocks * (theFile.blockSize / 512)), &theDisk);
-  if (status < 0)
-    {
-      error("%s", _("Can't write boot menu or MBR\n"));
-      quit();
-      return (errno = status);
-    }
+	if (oldEntries.numberEntries && oldEntries.timeoutSeconds)
+		entryArray->timeoutSeconds = oldEntries.timeoutSeconds;
 
-  if (graphics)
-    {
-      windowSetVisible(window, 0);
-      windowNewInfoDialog(NULL, _("Done"), WRITTEN);
-    }
-  else
-    printf("%s\n\n", WRITTEN);
+	if (!entryArray->numberEntries)
+	{
+		error("%s", _("\nThere are no chain-loadable operating systems on "
+			"this disk.\n\n"));
+		quit();
+		return (errno = ERR_NODATA);
+	}
 
-  quit();
+	if (graphics)
+	{
+		constructWindow();
+		printPartitions();
+		windowGuiRun();
+	}
+	else
+	{
+		textSetCursor(0);
+		textInputSetEcho(0);
+		int selected = 0;
 
-  return (0);
+		while(1)
+		{
+			textScreenClear();
+			printf("%s\n", TITLE);
+			printf("\n%s\n\n", PARTITIONS);
+			printPartitions();
+			printf("\n%s\n\n", ENTRIES);
+	
+			for (count1 = 0; count1 < entryArray->numberEntries; count1 ++)
+			{
+				printf(" ");
+
+				if (count1 == selected)
+					attrs.flags = TEXT_ATTRS_REVERSE;
+				else
+					attrs.flags = 0;
+
+				if (count1 == entryArray->defaultEntry)
+					textPrintAttrs(&attrs, " * ");
+				else
+					textPrintAttrs(&attrs, "   ");
+				textPrintAttrs(&attrs, entryArray->entries[count1].string);
+
+				printf("\n");
+			}
+
+			printf("%s", _("\n  [Cursor up/down to select, 'e' edit, '*' "
+				"default\n   'd' delete, Enter to accept, 'Q' to quit]"));
+
+			char character = getchar();
+
+			switch (character)
+			{
+				case (char) ASCII_ENTER:
+					// Accept
+					textInputSetEcho(1);
+					textSetCursor(1);
+					printf("\n\n");
+					break;
+
+				case (char) ASCII_CRSRUP:
+					// Cursor up.
+					if (selected > 0)
+						selected -= 1;
+					continue;
+
+				case (char) ASCII_CRSRDOWN:
+					// Cursor down.
+					if (selected < (entryArray->numberEntries - 1))
+						selected += 1;
+					continue;
+	
+				case 'e':
+					textInputSetEcho(1);
+					textSetCursor(1);
+					printf("\n\n\n");
+					editEntryLabel(selected);
+					textInputSetEcho(0);
+					textSetCursor(0);
+					continue;
+
+				case '*':
+					entryArray->defaultEntry = selected;
+					continue;
+
+				case 'd':
+					if (entryArray->numberEntries > 1)
+					{
+						deleteEntryLabel(selected);
+						if (selected >= entryArray->numberEntries)
+						selected -= 1;
+					}
+					continue;
+
+				case 'q':
+				case 'Q':
+					textInputSetEcho(1);
+					textSetCursor(1);
+					printf("\n\n");
+					quit();
+					return (errno = 0);
+	
+				default:
+					continue;
+			}
+			break;
+		}
+	}
+
+	// Now write the boot menu and MBR sector
+	status = writeOut((theFile.blocks * (theFile.blockSize / 512)), &theDisk);
+	if (status < 0)
+	{
+		error("%s", _("Can't write boot menu or MBR\n"));
+		quit();
+		return (errno = status);
+	}
+
+	if (graphics)
+	{
+		windowSetVisible(window, 0);
+		windowNewInfoDialog(NULL, _("Done"), WRITTEN);
+	}
+	else
+		printf("%s\n\n", WRITTEN);
+
+	quit();
+
+	return (0);
 }

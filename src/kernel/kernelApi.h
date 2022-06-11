@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -21,34 +21,34 @@
 	
 #if !defined(_KERNELAPI_H)
 
-#define API_ARG_NONNULLPTR  0x04
-#define API_ARG_USERPTR     0x02
-#define API_ARG_KERNPTR     0x01
-#define API_ARG_ANYPTR      0x00
-#define API_ARG_NONZEROVAL  0x02
-#define API_ARG_POSINTVAL   0x01
-#define API_ARG_ANYVAL      0x00
+#define API_ARG_NONNULLPTR	0x04
+#define API_ARG_USERPTR		0x02
+#define API_ARG_KERNPTR		0x01
+#define API_ARG_ANYPTR		0x00
+#define API_ARG_NONZEROVAL	0x02
+#define API_ARG_POSINTVAL	0x01
+#define API_ARG_ANYVAL		0x00
 
 typedef enum {
-  type_void, type_ptr, type_val
+	type_void, type_ptr, type_val
 
 } kernelArgRetType;
   
 
 typedef struct {
-  int dwords;
-  kernelArgRetType type;
-  int content;
+	int dwords;
+	kernelArgRetType type;
+	int content;
 
 } kernelArgInfo;
 
 typedef struct {
-  int functionNumber;
-  void *functionPointer;
-  int privilege;
-  int argCount;
-  kernelArgInfo *args;
-  kernelArgRetType returnType;
+	int functionNumber;
+	void *functionPointer;
+	int privilege;
+	int argCount;
+	kernelArgInfo *args;
+	kernelArgRetType returnType;
 
 } kernelFunctionIndex;
 

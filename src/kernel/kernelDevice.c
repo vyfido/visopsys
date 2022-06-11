@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -73,6 +73,7 @@ static kernelDeviceClass allSubClasses[] = {
 	{ DEVICESUBCLASS_DISK_IDE,			"IDE"					},
 	{ DEVICESUBCLASS_DISK_SATA,			"SATA"					},
 	{ DEVICESUBCLASS_DISK_SCSI,			"SCSI"					},
+	{ DEVICESUBCLASS_DISK_CDDVD,		"CD/DVD"				},
 	{ DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER, "framebuffer"			},
 	{ DEVICESUBCLASS_NETWORK_ETHERNET,	"ethernet"				},
 	{ DEVICESUBCLASS_HUB_USB,			"USB"					},
@@ -125,13 +126,15 @@ static kernelDriver deviceDrivers[] = {
 		kernelPs2KeyboardDriverRegister, NULL, NULL, NULL				},
 	{ DEVICECLASS_KEYBOARD, DEVICESUBCLASS_KEYBOARD_USB,
 		kernelUsbKeyboardDriverRegister, NULL, NULL, NULL				},
-	// Then do disk controllers and disks
+	// Then do disks and disk controllers
 	{ DEVICECLASS_DISK, DEVICESUBCLASS_DISK_RAMDISK,
 		kernelRamDiskDriverRegister, NULL, NULL, NULL					},
 	{ DEVICECLASS_DISK, DEVICESUBCLASS_DISK_FLOPPY,
 		kernelFloppyDriverRegister, NULL, NULL, NULL					},
 	{ DEVICECLASS_DISK, DEVICESUBCLASS_DISK_SCSI,
 		kernelScsiDiskDriverRegister, NULL, NULL, NULL					},
+	{ DEVICECLASS_DISK, DEVICESUBCLASS_DISK_CDDVD,
+		kernelUsbAtapiDriverRegister, NULL, NULL, NULL					},
 	{ DEVICECLASS_DISKCTRL, DEVICESUBCLASS_DISKCTRL_SATA,
 		kernelSataAhciDriverRegister, NULL, NULL, NULL					},
 	{ DEVICECLASS_DISKCTRL, DEVICESUBCLASS_DISKCTRL_IDE,
@@ -167,8 +170,10 @@ static int isDevInTree(kernelDevice *root, kernelDevice *dev)
 			return (1);
       
 		if (root->device.firstChild)
+		{
 			if (isDevInTree(root->device.firstChild, dev) == 1)
 				return (1);
+		}
 
 		root = root->device.next;
 	}
@@ -488,7 +493,7 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 	char model[64];
 	char driverString[128];
 
-	kernelDebug(debug_device, "Device add %p", new);
+	kernelDebug(debug_device, "Device add %p parent=%p", new, parent);
 
 	// Check params
 	if (new == NULL)
@@ -533,6 +538,8 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 			new->device.subClass->name);
 	if (new->device.class)
 		strcat(driverString, new->device.class->name);
+
+	new->device.firstChild = new->device.previous = new->device.next = NULL;
 
 	// If the parent has no children, make this the first one.
 	if (parent->device.firstChild == NULL)

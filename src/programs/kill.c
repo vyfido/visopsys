@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -54,69 +54,69 @@ Options:
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s [-f] <process1> [process2] [...]\n", name);
-  return;
+	printf("usage:\n");
+	printf("%s [-f] <process1> [process2] [...]\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  // This command will prompt the multitasker to kill the process with
-  // the supplied process id
-  
-  int status = 0;
-  int processId = 0;
-  int force = 0;
-  int count = 1;
+	// This command will prompt the multitasker to kill the process with
+	// the supplied process id
+	
+	int status = 0;
+	int processId = 0;
+	int force = 0;
+	int count = 1;
 
-  if (argc < 2)
-    {
-      usage(argv[0]);
-      return (status = ERR_ARGUMENTCOUNT);
-    }
-
-  // Check for -f ('force') option
-  if (getopt(argc, argv, "f") == 'f')
-    {
-      if (argc < 3)
+	if (argc < 2)
 	{
-	  usage(argv[0]);
-	  return (status = ERR_ARGUMENTCOUNT);
+		usage(argv[0]);
+		return (status = ERR_ARGUMENTCOUNT);
 	}
 
-      force = 1;
-      count++;
-    }
-
-  // Loop through all of our process ID arguments
-  for ( ; count < argc; count ++)
-    {
-      // Make sure our argument isn't NULL
-      if (argv[count] == NULL)
-	return (status = ERR_NULLPARAMETER);
-      
-      processId = atoi(argv[count]);
-
-      // OK?
-      if (errno)
+	// Check for -f ('force') option
+	if (getopt(argc, argv, "f") == 'f')
 	{
-	  perror(argv[0]);
-	  usage(argv[0]);
-	  return (status = errno);
+		if (argc < 3)
+		{
+			usage(argv[0]);
+			return (status = ERR_ARGUMENTCOUNT);
+		}
+
+		force = 1;
+		count++;
 	}
 
-      // Kill a process
-      status = multitaskerKillProcess(processId, force);
-      if (status < 0)
+	// Loop through all of our process ID arguments
+	for ( ; count < argc; count ++)
 	{
-	  errno = status;
-	  perror(argv[0]);
+		// Make sure our argument isn't NULL
+		if (argv[count] == NULL)
+			return (status = ERR_NULLPARAMETER);
+		
+		processId = atoi(argv[count]);
+
+		// OK?
+		if (errno)
+		{
+			perror(argv[0]);
+			usage(argv[0]);
+			return (status = errno);
+		}
+
+		// Kill a process
+		status = multitaskerKillProcess(processId, force);
+		if (status < 0)
+		{
+			errno = status;
+			perror(argv[0]);
+		}
+		else
+			printf("%d killed\n", processId);
 	}
-      else
-	printf("%d killed\n", processId);
-    }
-  
-  // Return success
-  return (status = 0);
+	
+	// Return success
+	return (status = 0);
 }

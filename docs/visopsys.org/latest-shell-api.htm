@@ -1,0 +1,181 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Visopsys &#126; Shell Library</title>
+    <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=iso-8859-1" />
+    <link rel="stylesheet" href="blade_packs/system_razorSiteSearch/css/sitesearch.css" type="text/css" media="screen" />    <link rel="stylesheet" type="text/css" href="blade_packs/theme_ClearBlue/ClearBlue_css.css" />
+    <!-- WIN IE Style Sheets -->
+<!--[if IE]>
+  <![if gte IE 5.5]>
+   <![if gte IE 7]><link rel="stylesheet" 
+	type="text/css" media="screen,projection" 
+	href="ie.css" />
+	<![endif]>
+   <![if lt IE 7]><link rel="stylesheet" 
+	type="text/css" media="screen,projection" 
+	href="ie.css" />
+	<![endif]>
+  <![endif]>
+  <![if lt IE 5.5]>
+   <link rel="stylesheet"
+	type="text/css" media="screen,projection" 
+	href="ie.css" />
+    <![endif]>
+<![endif]-->
+        <link rel="shortcut icon" href="favicon.ico" />
+</head>
+<body>
+<div id="wrap">
+  <div id="wrap2">
+    <div id="header">
+
+<h1 id="logo"><img src="visopsys-logo1.png" width="300px" height="85px" /></h1>
+
+      <!--<h1 id="logo">Visopsys</h1>
+            <div id="slogan">Visual Operating System</div>-->
+
+	    <div id='searchBoxHeader'><div><form action='http://visopsys.org/razor-SiteSearch.htm' method='post'><input class='searchText' type='text' name='siteSearch' /><input class='searchButton' type='submit' value='Search' /></form></div></div>    </div>
+    <div id="nav">
+      <div id="nbar">
+            <ul class="first"><li><a href='index.html'>Home</a></li><li><a href='about.htm'>About</a></li><li><a href='news.htm'>News</a></li><li><a href='screenshots.htm'>Screenshots</a></li><li><a href='downloads.htm'>Downloads</a></li><li><a href='forums/index.php'>Forum</a></li><li><a href='developers.htm'>Developers</a></li><li><a href='os-dev.htm'>OS Dev</a></li></ul>	             </div>
+    </div>
+    <div id="content-wrap">
+      <div id="sidebar">
+      <div id="right_sidebar">
+          <div id="side_sky_ad">
+          	<!-- Sidebar Sky Scraper Ad -->
+            <!-- 160 x 600 Google ad code -->
+                                <script type="text/javascript"><!--
+					google_ad_client = "ca-pub-2784580927617241";
+					/* orig */
+					google_ad_slot = "8342665437";
+					google_ad_width = 160;
+					google_ad_height = 600;
+					//-->
+				  </script>
+				  <script type="text/javascript"
+					src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+				  </script>
+          </div>
+        </div>
+      <!--<div id="left_sidebar">
+                                Edit this sidebar with the Filemanager in<br/>
+root/blade_packs/ theme_ClearBlue/ ClearBlue_xhtml.php
+          </div>-->
+      </div>
+      <div id="content">
+                <p align="left" style="color: rgb(0, 0, 0); font-family: arial; font-size: medium;">
+	<b><font face="Arial" size="4">Developers</font></b></p>
+<div align="center" style="color: rgb(0, 0, 0); font-family: arial; font-size: medium;">
+	<center>
+		<table border="0" bordercolor="#111111" cellpadding="0" cellspacing="0" style="border-collapse: collapse;" width="100%">
+			<tbody>
+				<tr>
+					<td>
+						<b>THE VISOPSYS SHELL LIBRARY (Version 0.7)</b><br />
+						<p>
+							The shell library is a small set of functions created for the Visopsys shell, /programs/vsh, and provided as a library for other programs to use.</p>
+						<p>
+							The functions are defined in the header file &lt;sys/vsh.h&gt; and the code is contained in libvsh.a (link with &#39;-lvsh&#39;). This code also requires a C library to link correctly (link with &#39;-lc&#39;).<br />
+							&nbsp;</p>
+						<p>
+							<font face="Courier New">void vshCompleteFilename(char *buffer)</font></p>
+						<blockquote>
+							<p>
+								Attempts to complete a portion of a filename, &#39;buffer&#39;. The function will append either the remainder of the complete filename, or if possible, some portion thereof. The result simply depends on whether a good completion or partial completion exists. &#39;buffer&#39; must of course be large enough to contain any potential filename completion.</p>
+						</blockquote>
+						<p>
+							<font face="Courier New">int vshCursorMenu(const char *prompt, char *items[], int numItems, int defaultSelection)</font></p>
+						<blockquote>
+							<p>
+								This will create a pretty cursor-changeable text menu with the supplied &#39;prompt&#39; string at the stop. Returns the integer (zero-based) selected item number, or else negative on error or no selection.</p>
+						</blockquote>
+						<p>
+							<font face="Courier New">int vshDeleteFile(const char *deleteFile)</font></p>
+						<blockquote>
+							<p>
+								Delete the file specified by the name &#39;deleteFile&#39;. &#39;deleteFile&#39; must be an absolute pathname, beginning with &#39;/&#39;.</p>
+						</blockquote>
+						<p>
+							<font face="Courier New">int vshDumpFile(const char *fileName)</font></p>
+						<blockquote>
+							<p>
+								Print the contents of the file, specified by &#39;fileName&#39;, to standard output. &#39;fileName&#39; must be an absolute pathname, beginning with &#39;/&#39;.</p>
+						</blockquote>
+						<p>
+							<font face="Courier New">int vshFileList(const char *itemName)</font></p>
+						<blockquote>
+							<p>
+								Print a listing of a file or directory named &#39;itemName&#39;. &#39;itemName&#39; must be an absolute pathname, beginning with &#39;/&#39;.</p>
+						</blockquote>
+						<p>
+							<font face="Courier New">void vshMakeAbsolutePath(const char *orig, char *new)</font></p>
+						<blockquote>
+							<p>
+								Turns a filename, specified by &#39;orig&#39;, into an absolute pathname &#39;new&#39;. This basically just amounts to prepending the name of the current directory (plus a &#39;/&#39;) to the supplied name. &#39;new&#39; must be a buffer large enough to hold the entire filename.</p>
+						</blockquote>
+						<p>
+							<font face="Courier New">int vshMoveFile(const char *srcFile, const char *destFile)</font></p>
+						<blockquote>
+							<p>
+								Move (rename) the file specified by the name &#39;srcFile&#39; to the destination &#39;destFile&#39;. Both filenames must be absolute pathnames -- beginning with &#39;/&#39; -- and must be within the same filesystem.</p>
+						</blockquote>
+						<p>
+							<font face="Courier New">int vshParseCommand(char *commandLine, char *command, int *argCount, char *args[])</font></p>
+						<blockquote>
+							<p>
+								Attempts to take a raw &#39;commandLine&#39; string and parse it into a command filename and arguments, suitable for passing to the kernel API functionn loaderLoadAndExec. The commandLine string will be modified, with NULLs placed at the end of each argument. &#39;command&#39; must be a buffer suitable for a full filename. &#39;argCount&#39; will receive the number of argument pointers placed in the &#39;args&#39; array. Returns 0 on success, negative otherwise.</p>
+						</blockquote>
+						<p>
+							<font face="Courier New">void vshPasswordPrompt(const char *prompt, char *buffer)</font></p>
+						<blockquote>
+							<p>
+								Produces a text-mode prompt for the user to enter a password. The prompt message is the first parameter, and a buffer to contain the result is the second parameter.</p>
+						</blockquote>
+						<p>
+							<font face="Courier New">void vshPrintDate(char *buffer, unsigned unformattedDate)</font></p>
+						<blockquote>
+							<p>
+								Print the packed date value, specified by the unsigned integer &#39;unformattedDate&#39; -- such as that found in the file.modifiedDate field -- into &#39;buffer&#39; in a (for now, arbitrary) human-readable format.</p>
+						</blockquote>
+						<p>
+							<font face="Courier New">void vshPrintTime(char *buffer, unsigned unformattedTime)</font></p>
+						<blockquote>
+							<p>
+								Print the packed time value, specified by the unsigned integer &#39;unformattedTime&#39; -- such as that found in the file.modifiedTime field -- into &#39;buffer&#39; in a (for now, arbitrary) human-readable format to standard output.</p>
+						</blockquote>
+						<p>
+							<font face="Courier New">int vshProgressBar(progress *tmpProg)</font></p>
+						<blockquote>
+							<p>
+								Given a progress structure &#39;tmpProg&#39;, make a text progress bar that monitors the structure and updates itself (in a non-blocking way). After the operation has completed, vshProgressBarDestroy() should be called to shut down the thread.</p>
+						</blockquote>
+						<p>
+							<font face="Courier New">int vshProgressBarDestroy(progress *tmpProg)</font></p>
+						<blockquote>
+							<p>
+								Given a progress structure &#39;tmpProg&#39;, indicate 100%, shut down and deallocate anything associated with a previous call to vshProgressBar().</p>
+						</blockquote>
+						<p>
+							<font face="Courier New">int vshSearchPath(const char *orig, char *new)</font></p>
+						<blockquote>
+							<p>
+								Search the current path (defined by the PATH environment variable) for the first occurrence of the filename specified in &#39;orig&#39;, and place the complete, absolete pathname result in &#39;new&#39;. If a match is found, the function returns zero. Otherwise, it returns a negative error code. &#39;new&#39; must be large enough to hold the complete absolute filename of any match found.</p>
+						</blockquote>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</center>
+</div>
+                      </div>
+      </div>
+    
+    <div class="clearfix"></div>
+    <div id="footer">                 
+                                <small><br/>Copyright &copy; 1999-2014 J. Andrew McLaughlin<br/>Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin.<br/><a href="mailto:andy@visopsys.org">Contact</a> | Design by <a href="http://www.fosforito.net/">Jens L. Wagner</a><br/><br/></small>                  </div>
+  <!-- End Wrap2 -->
+</div>
+<!-- End Wrap -->
+</body>
+</html>

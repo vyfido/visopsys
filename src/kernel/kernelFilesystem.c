@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -175,7 +175,6 @@ static void checkRemovable(kernelDisk *theDisk)
 	// Check whether a removable disk has had its media changed, etc., and if
 	// so, re-scan the filesystem
 
-	int status = 0;
 	kernelPhysicalDisk *physicalDisk = NULL;
 
 	physicalDisk = theDisk->physical;
@@ -183,11 +182,10 @@ static void checkRemovable(kernelDisk *theDisk)
 	if (!(physicalDisk->type & DISKTYPE_REMOVABLE))
 		return;
 
-	status = kernelDiskGetMediaState((char *) physicalDisk->name);
-	if (status < 0)
+	if (!kernelDiskMediaPresent((char *) physicalDisk->name))
 		goto changed;
 
-	if (kernelDiskChanged((char *) physicalDisk->name))
+	if (kernelDiskMediaChanged((char *) physicalDisk->name))
 		goto changed;
 
 	return;
@@ -230,7 +228,7 @@ int kernelFilesystemScan(kernelDisk *theDisk)
 	// Is it removable?  If so, make sure there's media
 	if (physicalDisk->type & DISKTYPE_REMOVABLE)
 	{
-		if (!kernelDiskGetMediaState((char *) physicalDisk->name))
+		if (!kernelDiskMediaPresent((char *) physicalDisk->name))
 			return (status = ERR_NOMEDIA);
 	}
 
@@ -936,12 +934,8 @@ uquad_t kernelFilesystemGetFreeBytes(const char *path)
 	// OK, we just have to check on the filsystem driver function we want
 	// to call
 	if (theDriver->driverGetFreeBytes == NULL)
-	{
-		kernelError(kernel_error, "The filesystem driver does not support the "
-			"'getFreeBytes' operation");
 		// Report NO free space
 		return (freeSpace = 0);
-	}
 
 	// Lastly, we can call our target function
 	return (freeSpace = theDriver->driverGetFreeBytes(theDisk));

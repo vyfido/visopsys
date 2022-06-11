@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -30,43 +30,43 @@
 
 char *fgets(char *string, int size, FILE *theStream)
 {
-  // fgets() reads a line from the file stream into the buffer pointed to by
-  // string until either a terminating newline or EOF, which it replaces with
-  // '\0'.  No check for buffer overrun is performed.
+	// fgets() reads a line from the file stream into the buffer pointed to by
+	// string until either a terminating newline or EOF, which it replaces with
+	// '\0'.  No check for buffer overrun is performed.
 
-  int status = 0;
-  char *tmpString = NULL;
+	int status = 0;
+	char *tmpString = NULL;
 
-  if (visopsys_in_kernel)
-    {
-      errno = ERR_BUG;
-      return (string = NULL);
-    }
-
-  if (theStream == stdin)
-    {
-      tmpString = readline(NULL);
-      
-      if (tmpString == NULL)
+	if (visopsys_in_kernel)
 	{
-	  errno = ERR_IO;
-	  return (string = NULL);
+		errno = ERR_BUG;
+		return (string = NULL);
 	}
 
-      strncpy(string, tmpString, size);
-      free(tmpString);
-    }
-  else
-    {
-      status = fileStreamReadLine(theStream, (size - 1), string);
-      if (status <= 0)
+	if (theStream == stdin)
 	{
-	  errno = status;
-	  return (string = NULL);
+		tmpString = readline(NULL);
+		
+		if (tmpString == NULL)
+		{
+			errno = ERR_IO;
+			return (string = NULL);
+		}
+
+		strncpy(string, tmpString, size);
+		free(tmpString);
 	}
-    }
+	else
+	{
+		status = fileStreamReadLine(theStream, (size - 1), string);
+		if (status <= 0)
+		{
+			errno = status;
+			return (string = NULL);
+		}
+	}
 
-  string[size - 1] = '\0';
+	string[size - 1] = '\0';
 
-  return (string);
+	return (string);
 }

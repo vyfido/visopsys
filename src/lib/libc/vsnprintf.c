@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -30,19 +30,19 @@
 
 int vsnprintf(char *output, size_t size, const char *format, va_list list)
 {
-  // This function will construct a single string out of the format
-  // string and arguments that are passed, up to 'size' bytes.  Returns the
-  // number of characters copied to the output string.
+	// This function will construct a single string out of the format
+	// string and arguments that are passed, up to 'size' bytes.  Returns the
+	// number of characters copied to the output string.
 
-  int len = 0;
+	int len = 0;
 
-  size = min(size, MAXSTRINGLENGTH);
+	size = min(size, MAXSTRINGLENGTH);
 
-  bzero(output, size);
+	bzero(output, size);
 
-  // Fill out the output line based on 
-  len = _xpndfmt(output, size, format, list);
+	// Fill out the output line based on 
+	len = _xpndfmt(output, size, format, list);
 
-  // Return the number of characters we wrote to the string
-  return (len);
+	// Return the number of characters we wrote to the string
+	return (len);
 }

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -28,16 +28,16 @@
 
 long ftell(FILE *theStream)
 {
-  // The ftell() function obtains the current value of the file-position
-  // indicator for the stream pointed to by stream.  Upon successful
-  // completion, the ftell() function returns the current value of the
-  // file-position indicator for the stream measured in bytes from the
-  // beginning of the file.  Otherwise, they return -1 and sets errno to
-  // indicate the error.
+	// The ftell() function obtains the current value of the file-position
+	// indicator for the stream pointed to by stream.  Upon successful
+	// completion, the ftell() function returns the current value of the
+	// file-position indicator for the stream measured in bytes from the
+	// beginning of the file.  Otherwise, they return -1 and sets errno to
+	// indicate the error.
 
-  // This call is not applicable for stdin, stdout, and stderr
-  if ((theStream == stdin) || (theStream == stdout) || (theStream == stderr))
-    return (errno = ERR_NOTAFILE);
+	// This call is not applicable for stdin, stdout, and stderr
+	if ((theStream == stdin) || (theStream == stdout) || (theStream == stderr))
+		return (errno = ERR_NOTAFILE);
 
-  return (theStream->offset);
+	return (theStream->offset);
 }

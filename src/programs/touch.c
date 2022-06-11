@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -46,73 +46,73 @@ or directories.
 
 static void usage(char *name)
 {
-  printf("usage:\n");
-  printf("%s <file1> [file2] [...]\n", name);
-  return;
+	printf("usage:\n");
+	printf("%s <file1> [file2] [...]\n", name);
+	return;
 }
 
 
 int main(int argc, char *argv[])
 {
-  // This command is the "touch" command.  It does one of two things based
-  // on the filename argument.  If the file does not exist, it creates a
-  // new, empty file.  If the file does exist, it updates the date and time
-  // of the file to the current date and time.
+	// This command is the "touch" command.  It does one of two things based
+	// on the filename argument.  If the file does not exist, it creates a
+	// new, empty file.  If the file does exist, it updates the date and time
+	// of the file to the current date and time.
 
-  int status = 0;
-  file theFile;
-  int count;
+	int status = 0;
+	file theFile;
+	int count;
 
-  if (argc < 2)
-    {
-      usage(argv[0]);
-      return (status = ERR_ARGUMENTCOUNT);
-    }
-
-  // Loop through all of our file name arguments
-  for (count = 1; count < argc; count ++)
-    {
-      // Make sure the name isn't NULL
-      if (argv[count] == NULL)
-	return (status = ERR_NULLPARAMETER);
-
-      // Initialize the file structure
-      bzero(&theFile, sizeof(file));
-
-      // Call the "find file" routine to see if the file exists
-      status = fileFind(argv[count], &theFile);
-
-      // Now, either the file exists or it doesn't...
-      
-      if (status < 0)
+	if (argc < 2)
 	{
-	  // The file doesn't exist.  We will create the file.
-	  status = fileOpen(argv[count], (OPENMODE_WRITE | OPENMODE_CREATE),
-			    &theFile);
-	  if (status < 0)
-	    {
-	      errno = status;
-	      perror(argv[0]);
-	      return (status);
-	    }
-
-	  // Now close the file
-	  fileClose(&theFile);
+		usage(argv[0]);
+		return (status = ERR_ARGUMENTCOUNT);
 	}
 
-      else
+	// Loop through all of our file name arguments
+	for (count = 1; count < argc; count ++)
 	{
-	  // The file exists.  We need to update the date and time of the file
-	  status = fileTimestamp(argv[count]);
-	  if (status < 0)
-	    {
-	      errno = status;
-	      perror(argv[0]);
-	      return (status);
-	    }
-	}
-    }
+		// Make sure the name isn't NULL
+			if (argv[count] == NULL)
+		return (status = ERR_NULLPARAMETER);
 
-  // Return success
-  return (status = 0);
+		// Initialize the file structure
+		bzero(&theFile, sizeof(file));
+
+		// Call the "find file" routine to see if the file exists
+		status = fileFind(argv[count], &theFile);
+
+		// Now, either the file exists or it doesn't...
+		
+		if (status < 0)
+		{
+			// The file doesn't exist.  We will create the file.
+			status = fileOpen(argv[count], (OPENMODE_WRITE | OPENMODE_CREATE),
+				&theFile);
+			if (status < 0)
+			{
+				errno = status;
+				perror(argv[0]);
+				return (status);
+			}
+
+			// Now close the file
+			fileClose(&theFile);
+		}
+
+		else
+		{
+			// The file exists.  We need to update the date and time of the file
+			status = fileTimestamp(argv[count]);
+			if (status < 0)
+			{
+				errno = status;
+				perror(argv[0]);
+				return (status);
+			}
+		}
+	}
+
+	// Return success
+	return (status = 0);
 }

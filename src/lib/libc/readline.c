@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -43,42 +43,42 @@
 
 char *readline(const char *prompt)
 {
-  char *returnString = NULL;
-  int inputCount = 0;
-  char oneChar;
+	char *returnString = NULL;
+	int inputCount = 0;
+	char oneChar;
 
-  if (visopsys_in_kernel)
-    {
-      errno = ERR_BUG;
-      return (returnString = NULL);
-    }
+	if (visopsys_in_kernel)
+	{
+		errno = ERR_BUG;
+		return (returnString = NULL);
+	}
 
-  // Allocate an array to hold the data
-  returnString = malloc(MAXSTRINGLENGTH);
-  if (returnString == NULL)
-    return (returnString);
+	// Allocate an array to hold the data
+	returnString = malloc(MAXSTRINGLENGTH);
+	if (returnString == NULL)
+		return (returnString);
 
-  // Output the prompt, if there is any
-  if (prompt != NULL)
-    textPrint(prompt);
+	// Output the prompt, if there is any
+	if (prompt != NULL)
+		textPrint(prompt);
 
-  while(1)
-    {
-      // Get one char
-      while (!textInputCount())
-	multitaskerYield();
-      textInputGetc(&oneChar);
+	while(1)
+	{
+		// Get one char
+		while (!textInputCount())
+			multitaskerYield();
+		textInputGetc(&oneChar);
 
-      // Is it a newline?  If so, quit
-      if (oneChar == '\n')
-	break;
+		// Is it a newline?  If so, quit
+		if (oneChar == '\n')
+			break;
 
-      // Put it into the array
-      returnString[inputCount++] = oneChar;
-    }
+		// Put it into the array
+		returnString[inputCount++] = oneChar;
+	}
 
-  // Put a NULL at the end
-  returnString[inputCount] = '\0';
+	// Put a NULL at the end
+	returnString[inputCount] = '\0';
 
-  return (returnString);
+	return (returnString);
 }

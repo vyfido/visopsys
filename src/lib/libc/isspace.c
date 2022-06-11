@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -31,9 +31,9 @@
 
 int isspace(int c)
 {
-  // checks for white-space characters.  In the "C" and "POSIX" locales,
-  // these are: space, form-feed ('\f'), newline ('\n'), carriage return
-  // ('\r'), horizontal tab ('\t'), and vertical tab ('\v').
-  return ((c == ' ') || (c == '\f') || (c == '\n') || (c == '\r') ||
-	  (c == '\t') || (c == '\v'));
+	// checks for white-space characters.  In the "C" and "POSIX" locales,
+	// these are: space, form-feed ('\f'), newline ('\n'), carriage return
+	// ('\r'), horizontal tab ('\t'), and vertical tab ('\v').
+	return ((c == ' ') || (c == '\f') || (c == '\n') || (c == '\r') ||
+		(c == '\t') || (c == '\v'));
 }

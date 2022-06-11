@@ -1,15 +1,15 @@
 ## 
 ##  Visopsys
-##  Copyright (C) 1998-2013 J. Andrew McLaughlin
+##  Copyright (C) 1998-2014 J. Andrew McLaughlin
 ##  
 ##  Makefile
 ##
 
-ROOT=../../..
-BUILDDIR=${ROOT}/build/system/libraries
-INCDIR=../include/ntfs/
-PROGDIR=../ntfsprogs
-SYSINCDIR=${ROOT}/src/include
+ROOT		= ../../..
+BUILDDIR	= ${ROOT}/build/system/libraries
+INCDIR		= ../include/ntfs/
+PROGDIR		= ../ntfsprogs
+SYSINCDIR	= ${ROOT}/src/include
 
 include ${ROOT}/Makefile.include
 
@@ -19,7 +19,7 @@ endif
 
 STDDEPS		= ${ROOT}/Makefile.include Makefile.visopsys ${INCDIR}/*.h \
 		${SYSINCDIR}/*.h ${SYSINCDIR}/sys/*.h
-INCLUDE         = -nostdinc -I${INCDIR} -I${SYSINCDIR}
+INCLUDE		= -nostdinc -I${INCDIR} -I${SYSINCDIR}
 CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEFLANG} \
 		-DHAVE_CONFIG_H #-DDEBUG
 LFLAGS		= -nostdlib
@@ -55,13 +55,13 @@ NAMES	= attrib \
 	upcase \
 	volume
 
-OBJDIR = obj
-OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${NAMES}))
-PICOBJDIR = picobj
-PICOBJS = $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${NAMES}))
-LIBRARY = ${BUILDDIR}/libntfs.a
-SONAME = libntfs.so
-SHAREDLIB = ${BUILDDIR}/${SONAME}
+OBJDIR		= obj
+OBJS		= $(addprefix ${OBJDIR}/, $(addsuffix .o, ${NAMES}))
+PICOBJDIR 	= picobj
+PICOBJS		= $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${NAMES}))
+LIBRARY		= ${BUILDDIR}/libntfs.a
+SONAME		= libntfs.so
+SHAREDLIB	= ${BUILDDIR}/${SONAME}
 
 # Targets
 

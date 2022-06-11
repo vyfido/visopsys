@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,23 +30,23 @@
 
 int system(const char *command)
 {
-  int status = 0;
-  int privilege = 0;
+	int status = 0;
+	int privilege = 0;
 
-  // Check params
-  if (command == NULL)
-    return (status = ERR_NULLPARAMETER);
+	// Check params
+	if (command == NULL)
+		return (status = ERR_NULLPARAMETER);
 
-  if (visopsys_in_kernel)
-    return (errno = ERR_BUG);
+	if (visopsys_in_kernel)
+		return (errno = ERR_BUG);
 
-  // What is my privilege level?
-  privilege = multitaskerGetProcessPrivilege(multitaskerGetCurrentProcessId());
-  if (privilege < 0)
-    return (status = privilege);
+	// What is my privilege level?
+	privilege = multitaskerGetProcessPrivilege(multitaskerGetCurrentProcessId());
+	if (privilege < 0)
+		return (status = privilege);
 
-  // Try to execute the command
-  status = loaderLoadAndExec(command, privilege, 1 /* block */);
+	// Try to execute the command
+	status = loaderLoadAndExec(command, privilege, 1 /* block */);
 
-  return (status);
+	return (status);
 }

@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,21 +26,21 @@
 
 size_t strspn(const char *s1, const char *s2)
 {
-  // The strspn() function calculates the length of the initial segment of
-  // s1 which consists entirely of characters in s2.
+	// The strspn() function calculates the length of the initial segment of
+	// s1 which consists entirely of characters in s2.
 
-  int match = 0;
-  int s1_length = strlen(s1);
-  int s2_length = strlen(s2);
-  int count;
+	int match = 0;
+	int s1_length = strlen(s1);
+	int s2_length = strlen(s2);
+	int count;
 
-  for (count = 0; ((count < s1_length) && (count < s2_length)); count ++)
-    {
-      if (s1[count] != s2[count])
-	break;
-      
-      match++;
-    }
+	for (count = 0; ((count < s1_length) && (count < s2_length)); count ++)
+	{
+		if (s1[count] != s2[count])
+			break;
+		
+		match++;
+	}
 
-  return (match);
+	return (match);
 }

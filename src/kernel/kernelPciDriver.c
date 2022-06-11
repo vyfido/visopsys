@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -52,6 +52,7 @@ static pciSubClass subclass_diskctrl[] = {
 	{ 0x04, "RAID", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_NONE },
 	{ 0x05, "ATA", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_NONE },
 	{ 0x06, "SATA", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_DISKCTRL_SATA },
+	{ 0x07, "SAS", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_NONE },
 	{ 0x80, "other", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_NONE },
 	{ PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };

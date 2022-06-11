@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -23,7 +23,7 @@
 // These are just lines of text that occur inside windows
 
 
-#include "kernelWindow.h"     // Our prototypes are here
+#include "kernelWindow.h"	// Our prototypes are here
 #include "kernelError.h"
 #include "kernelFont.h"
 #include "kernelGraphic.h"
@@ -34,137 +34,138 @@ extern kernelWindowVariables *windowVariables;
 
 
 static int setText(kernelWindowComponent *component, const char *text,
-		   int length)
+	int length)
 {
-  // Set the label text
-  
-  int status = 0;
-  kernelWindowTextLabel *label = component->data;
-  asciiFont *font = (asciiFont *) component->params.font;
-  int width = 0;
-  int count;
+	// Set the label text
+	
+	int status = 0;
+	kernelWindowTextLabel *label = component->data;
+	asciiFont *font = (asciiFont *) component->params.font;
+	int width = 0;
+	int count;
 
-  // Set the text
-  if (label->text)
-    {
-      kernelFree((void *) label->text);
-      label->text = NULL;
-    }
+	// Set the text
+	if (label->text)
+	{
+		kernelFree((void *) label->text);
+		label->text = NULL;
+	}
 
-  label->text = kernelMalloc(length + 1);
-  if (label->text == NULL)
-    return (status = ERR_NOCREATE);
+	label->text = kernelMalloc(length + 1);
+	if (label->text == NULL)
+		return (status = ERR_NOCREATE);
 
-  strncpy((char *) label->text, text, length);
+	strncpy((char *) label->text, text, length);
 
-  // How many lines?  We replace any newlines with NULLS and count them
-  label->lines = 1;
-  for (count = 0; count < length; count ++)
-    if (label->text[count] == '\n')
-      {
-	label->text[count] = '\0';
-	label->lines += 1;
-      }
+	// How many lines?  We replace any newlines with NULLS and count them
+	label->lines = 1;
+	for (count = 0; count < length; count ++)
+	{
+		if (label->text[count] == '\n')
+		{
+			label->text[count] = '\0';
+			label->lines += 1;
+		}
+	}
 
-  // Set the width and height of the component based on the widest line and
-  // the number of lines, respectively
-  char *tmp  = label->text;
-  for (count = 0; count < label->lines; count ++)
-    {
-      width = 0;
-      if (font)
-	width = kernelFontGetPrintedWidth(font, tmp);
-      if (width > component->width)
-	component->width = width;
-      
-      tmp += (strlen(tmp) + 1);
-    }
+	// Set the width and height of the component based on the widest line and
+	// the number of lines, respectively
+	char *tmp  = label->text;
+	for (count = 0; count < label->lines; count ++)
+	{
+		width = 0;
+		if (font)
+			width = kernelFontGetPrintedWidth(font, tmp);
+		if (width > component->width)
+			component->width = width;
+		
+		tmp += (strlen(tmp) + 1);
+	}
 
-  if (font)
-    component->height = (font->charHeight * label->lines);
-  component->minWidth = component->width;
-  component->minHeight = component->height;
+	if (font)
+		component->height = (font->charHeight * label->lines);
+	component->minWidth = component->width;
+	component->minHeight = component->height;
 
-  return (status = 0);
+	return (status = 0);
 }
 
 
 static int draw(kernelWindowComponent *component)
 {
-  // Draw the label component
+	// Draw the label component
 
-  int status = 0;
-  kernelWindowTextLabel *label = component->data;
-  asciiFont *font = (asciiFont *) component->params.font;
-  int count;
+	int status = 0;
+	kernelWindowTextLabel *label = component->data;
+	asciiFont *font = (asciiFont *) component->params.font;
+	int count;
 
-  char *tmp = label->text;
-  for (count = 0; count < label->lines; count ++)
-    {
-      if (font)
+	char *tmp = label->text;
+	for (count = 0; count < label->lines; count ++)
 	{
-	  status =
-	    kernelGraphicDrawText(component->buffer,
-				  (color *) &(component->params.foreground),
-				  (color *) &(component->params.background),
-				  font, tmp, draw_normal, component->xCoord,
-				  (component->yCoord +
-				   (font->charHeight * count)));
-	  if (status < 0)
-	    break;
+		if (font)
+		{
+			status =
+				kernelGraphicDrawText(component->buffer,
+					(color *) &(component->params.foreground),
+					(color *) &(component->params.background),
+					font, tmp, draw_normal, component->xCoord,
+					(component->yCoord + (font->charHeight * count)));
+			if (status < 0)
+				break;
+		}
+
+		tmp += (strlen(tmp) + 1);
 	}
 
-      tmp += (strlen(tmp) + 1);
-    }
+	if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
+		component->drawBorder(component, 1);
 
-  if (component->params.flags & WINDOW_COMPFLAG_HASBORDER)
-    component->drawBorder(component, 1);
-
-  return (status);
+	return (status);
 }
 
 
 static int setData(kernelWindowComponent *component, void *text, int length)
 {
-  // Set the label text
+	// Set the label text
 
-  int status = 0;
+	int status = 0;
 
-  if (component->erase)
-    component->erase(component);
+	if (component->erase)
+		component->erase(component);
 
-  status = setText(component, text, length);
-  if (status < 0)
-    return (status);
+	status = setText(component, text, length);
+	if (status < 0)
+		return (status);
 
-  draw(component);
+	draw(component);
 
-  component->window
-    ->update(component->window, component->xCoord, component->yCoord,
-	     component->width, component->height);
+	component->window
+		->update(component->window, component->xCoord, component->yCoord,
+			component->width, component->height);
 
-  return (status = 0);
+	return (status = 0);
 }
 
 
 static int destroy(kernelWindowComponent *component)
 {
-  kernelWindowTextLabel *label = component->data;
+	kernelWindowTextLabel *label = component->data;
 
-  // Release all our memory
-  if (label)
-    {
-      if (label->text)
+	// Release all our memory
+	if (label)
 	{
-	  kernelFree((void *) label->text);
-	  label->text = NULL;
+		if (label->text)
+		{
+			kernelFree((void *) label->text);
+			label->text = NULL;
+		}
+
+		kernelFree(component->data);
+		component->data = NULL;
 	}
 
-      kernelFree(component->data);
-      component->data = NULL;
-    }
-
-  return (0);
+	return (0);
 }
 
 
@@ -178,54 +179,54 @@ static int destroy(kernelWindowComponent *component)
 
 
 kernelWindowComponent *kernelWindowNewTextLabel(objectKey parent,
-						const char *text,
-						componentParameters *params)
+	const char *text, componentParameters *params)
 {
-  // Formats a kernelWindowComponent as a kernelWindowTextLabel
+	// Formats a kernelWindowComponent as a kernelWindowTextLabel
 
-  int status = 0;
-  kernelWindowComponent *component = NULL;
-  kernelWindowTextLabel *textLabelComponent = NULL;
+	int status = 0;
+	kernelWindowComponent *component = NULL;
+	kernelWindowTextLabel *textLabel = NULL;
 
-  // Check parameters.
-  if ((parent == NULL) || (text == NULL) || (params == NULL))
-    return (component = NULL);
+	// Check parameters.
+	if ((parent == NULL) || (text == NULL) || (params == NULL))
+	{
+		kernelError(kernel_error, "NULL window component parameter");
+		return (component = NULL);
+	}
 
-  // Get the basic component structure
-  component = kernelWindowComponentNew(parent, params);
-  if (component == NULL)
-    return (component);
+	// Get the basic component structure
+	component = kernelWindowComponentNew(parent, params);
+	if (component == NULL)
+		return (component);
 
-  // If font is NULL, use the default
-  if (component->params.font == NULL)
-    component->params.font = windowVariables->font.varWidth.medium.font;
+	component->type = textLabelComponentType;
 
-  // Now populate it
-  component->type = textLabelComponentType;
+	// Set the functions
+	component->draw = &draw;
+	component->setData = &setData;
+	component->destroy = &destroy;
 
-  // The functions
-  component->draw = &draw;
-  component->setData = &setData;
-  component->destroy = &destroy;
+	// If font is NULL, use the default
+	if (component->params.font == NULL)
+		component->params.font = windowVariables->font.varWidth.medium.font;
 
-  // Get the label component
-  textLabelComponent = kernelMalloc(sizeof(kernelWindowTextLabel));
-  if (textLabelComponent == NULL)
-    {
-      kernelFree((void *) component);
-      return (component = NULL);
-    }
+	// Get the label component
+	textLabel = kernelMalloc(sizeof(kernelWindowTextLabel));
+	if (textLabel == NULL)
+	{
+		kernelWindowComponentDestroy(component);
+		return (component = NULL);
+	}
 
-  component->data = (void *) textLabelComponent;
+	component->data = (void *) textLabel;
 
-  // Set the label data
-  status = setText(component, text, strlen(text));
-  if (status < 0)
-    {
-      kernelFree((void *) textLabelComponent);
-      kernelFree((void *) component);
-      return (component = NULL);
-    }
+	// Set the label data
+	status = setText(component, text, strlen(text));
+	if (status < 0)
+	{
+		kernelWindowComponentDestroy(component);
+		return (component = NULL);
+	}
 
-  return (component);
+	return (component);
 }

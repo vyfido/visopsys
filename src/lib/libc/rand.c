@@ -1,6 +1,6 @@
 // 
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 //  
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -31,16 +31,16 @@ unsigned __random_seed = 1;
 
 int rand(void)
 {
-  // The rand() function returns a pseudo-random integer between 0 and
-  // RAND_MAX (defined in <stdlib.h>).  The man pages in linux and solaris
-  // say that it uses 'a multiplicative congruential random-number generator
-  // with period 2^32'.  Right, ok, well, we'll use the kernel's one instead.
+	// The rand() function returns a pseudo-random integer between 0 and
+	// RAND_MAX (defined in <stdlib.h>).  The man pages in linux and solaris
+	// say that it uses 'a multiplicative congruential random-number generator
+	// with period 2^32'.  Right, ok, well, we'll use the kernel's one instead.
 
-  if (visopsys_in_kernel)
-    return (errno = ERR_BUG);
+	if (visopsys_in_kernel)
+		return (errno = ERR_BUG);
 
-  // __random_seed is initialized with a value of 1.  If the user wants to
-  // initialize it, he/she should call srand() first
-  __random_seed = randomSeededFormatted(__random_seed, 0, RAND_MAX);
-  return (__random_seed);
+	// __random_seed is initialized with a value of 1.  If the user wants to
+	// initialize it, he/she should call srand() first
+	__random_seed = randomSeededFormatted(__random_seed, 0, RAND_MAX);
+	return (__random_seed);
 }

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2013 J. Andrew McLaughlin
+//  Copyright (C) 1998-2014 J. Andrew McLaughlin
 // 
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -55,71 +55,71 @@ objectKey window = NULL;
 
 static void eventHandler(objectKey key, windowEvent *event)
 {
-  // This is just to handle a window shutdown event.
+	// This is just to handle a window shutdown event.
 
-  if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
-    windowGuiStop();
+	if ((key == window) && (event->type == EVENT_WINDOW_CLOSE))
+		windowGuiStop();
 }
 
 
 int main(int argc, char *argv[])
 {
-  int status = 0;
-  char *language = "";
-  int processId = 0;
+	int status = 0;
+	char *language = "";
+	int processId = 0;
 
-#ifdef BUILDLANG
-  language=BUILDLANG;
-#endif
-  setlocale(LC_ALL, language);
-  textdomain("console");
+	#ifdef BUILDLANG
+		language=BUILDLANG;
+	#endif
+	setlocale(LC_ALL, language);
+	textdomain("console");
 
-  // Only work in graphics mode
-  if (!graphicsAreEnabled())
-    {
-      printf(_("\nThe \"%s\" command only works in graphics mode\n"),
-	     (argc? argv[0] : ""));
-      errno = ERR_NOTINITIALIZED;
-      return (status = errno);
-    }
+	// Only work in graphics mode
+	if (!graphicsAreEnabled())
+	{
+		printf(_("\nThe \"%s\" command only works in graphics mode\n"),
+			(argc? argv[0] : ""));
+		errno = ERR_NOTINITIALIZED;
+		return (status = errno);
+	}
 
-  processId = multitaskerGetCurrentProcessId();
+	processId = multitaskerGetCurrentProcessId();
 
-  // Create a new window, with small, arbitrary size and location
-  window = windowNew(processId, _("Console Window"));
+	// Create a new window, with small, arbitrary size and location
+	window = windowNew(processId, _("Console Window"));
 
-  // Put the console text area in the window
-  status = windowAddConsoleTextArea(window);
-  if (status < 0)
-    {
-      if (status == ERR_ALREADY)
-	// There's already a console window open somewhere
-	windowNewErrorDialog(NULL, _("Error"), _("Cannot open more than one "
-						 "console window!"));
-      
-      else
-	windowNewErrorDialog(NULL, _("Error"), _("Error opening the console "
-						 "window!"));
+	// Put the console text area in the window
+	status = windowAddConsoleTextArea(window);
+	if (status < 0)
+	{
+		if (status == ERR_ALREADY)
+			// There's already a console window open somewhere
+			windowNewErrorDialog(NULL, _("Error"), _("Cannot open more than one "
+				"console window!"));
+		
+		else
+			windowNewErrorDialog(NULL, _("Error"), _("Error opening the console "
+				"window!"));
 
-      windowDestroy(window);
-      return (status);
-    }
+		windowDestroy(window);
+		return (status);
+	}
 
-  // Not resizable
-  windowSetResizable(window, 0);
+	// Not resizable
+	windowSetResizable(window, 0);
 
-  // Register an event handler to catch window close events
-  windowRegisterEventHandler(window, &eventHandler);
+	// Register an event handler to catch window close events
+	windowRegisterEventHandler(window, &eventHandler);
 
-  // Make it visible
-  windowSetVisible(window, 1);
+	// Make it visible
+	windowSetVisible(window, 1);
 
-  // Run the GUI
-  windowGuiRun();
+	// Run the GUI
+	windowGuiRun();
 
-  // Destroy the window
-  windowDestroy(window);
+	// Destroy the window
+	windowDestroy(window);
 
-  // Done
-  return (status);
+	// Done
+	return (status);
 }
