@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,10 +19,13 @@
 //  kernelDescriptor.h
 //
 
-// This is the header file to go with the kernel's descriptor manager
+// This is the header file to go with the kernel's descriptor handling code
+// for X86 processors
 
 #ifndef _KERNELDESCRIPTOR_H
 #define _KERNELDESCRIPTOR_H
+
+#ifdef ARCH_X86
 
 // Definitions
 #define PRIV_CODE				0x00000008
@@ -67,6 +70,8 @@ int kernelDescriptorSet(volatile kernelSelector, volatile void *,
 int kernelDescriptorGet(volatile kernelSelector, kernelDescriptor *);
 int kernelDescriptorSetIDTInterruptGate(int, void *);
 int kernelDescriptorSetIDTTaskGate(int, kernelSelector);
+
+#endif // ARCH_X86
 
 #endif
 

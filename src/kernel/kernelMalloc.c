@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,8 +19,8 @@
 //  kernelMalloc.c
 //
 
-// These functions are wrapper functions around the now-external, libc
-// malloc functions which also work for the kernel.
+// These functions are wrapper functions around the now-external, libc malloc
+// functions - which also work for the kernel
 
 #include "kernelMalloc.h"
 #include "kernelDebug.h"
@@ -48,7 +48,7 @@ static int initialized = 0;
 void *_kernelMalloc(unsigned size, const char *function)
 {
 	// Just like a malloc(), for kernel memory, but the data is cleared like
-	// calloc.
+	// calloc
 
 	void *address = NULL;
 
@@ -63,7 +63,7 @@ void *_kernelMalloc(unsigned size, const char *function)
 
 	address = _doMalloc(size, function);
 
-	// If we got the memory, clear it.
+	// If we got the memory, clear it
 	if (address)
 		memset(address, 0, size);
 
@@ -95,9 +95,9 @@ int _kernelFree(void *start, const char *function)
 }
 
 
-void *_kernelRealloc(void *oldAddress, size_t size, const char *function)
+void *_kernelRealloc(void *oldAddress, unsigned size, const char *function)
 {
-	// Just like realloc(), for kernel memory.
+	// Just like realloc(), for kernel memory
 
 	int status = 0;
 	memoryBlock oldBlock;
@@ -124,7 +124,8 @@ void *_kernelRealloc(void *oldAddress, size_t size, const char *function)
 
 	if (address)
 	{
-		size = min(size, ((oldBlock.endLocation - oldBlock.startLocation) + 1));
+		size = min(size, ((oldBlock.endLocation -
+			oldBlock.startLocation) + 1));
 		memcpy(address, oldAddress, size);
 		_kernelFree(oldAddress, function);
 	}
@@ -169,8 +170,8 @@ void _kernelMallocCheck(const char *srcFile, int line)
 
 	if (_mallocCheck() < 0)
 	{
-		kernelError(kernel_error, "kernelMallocCheck failed at %s:%d", srcFile,
-			line);
+		kernelError(kernel_error, "kernelMallocCheck failed at %s:%d",
+			srcFile, line);
 		while (1);
 	}
 }

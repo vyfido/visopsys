@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,8 +19,8 @@
 //  kernelFilesystemExt.c
 //
 
-// This file contains the functions designed to interpret the EXT2 filesystem
-// (commonly found on Linux disks)
+// This file contains the functions designed to interpret the EXT-FS
+// filesystem commonly found on Linux disks
 
 #include "kernelFilesystemExt.h"
 #include "kernelDebug.h"
@@ -204,11 +204,12 @@ static inline void debugExtentNode(extExtent *extent)
 #endif // DEBUG
 
 
-static int readSuperblock(const kernelDisk *theDisk, extSuperblock *superblock)
+static int readSuperblock(const kernelDisk *theDisk,
+	extSuperblock *superblock)
 {
 	// This simple function will read the superblock into the supplied buffer
-	// and ensure that it is (at least trivially) valid.  Returns 0 on success,
-	// negative on error.
+	// and ensure that it is (at least trivially) valid.  Returns 0 on
+	// success, negative on error.
 
 	int status = 0;
 	kernelPhysicalDisk *physicalDisk = theDisk->physical;
@@ -234,8 +235,10 @@ static int readSuperblock(const kernelDisk *theDisk, extSuperblock *superblock)
 
 	// Check for the EXT magic number
 	if (superblock->magic != (unsigned short) EXT_SUPERBLOCK_MAGIC)
+	{
 		// Not EXT2
 		return (status = ERR_BADDATA);
+	}
 
 	return (status = 0);
 }
@@ -244,7 +247,7 @@ static int readSuperblock(const kernelDisk *theDisk, extSuperblock *superblock)
 static int writeSuperblock(const kernelDisk *theDisk,
 	extSuperblock *superblock)
 {
-	// This simple function will write the superblock from the supplied buffer.
+	// This simple function will write the superblock from the supplied buffer
 
 	int status = 0;
 	kernelPhysicalDisk *physicalDisk = theDisk->physical;
@@ -276,7 +279,7 @@ static int isSuperGroup(int groupNumber)
 	int do3 = 1, do5 = 1, do7 = 1;
 	int count, tmp3, tmp5, tmp7;
 
-	// Shortcut some little ones.
+	// Shortcut some little ones
 	if ((groupNumber == 0) || (groupNumber == 1) || (groupNumber == 3) ||
 		(groupNumber == 5) || (groupNumber == 7))
 	{
@@ -350,8 +353,8 @@ static extInternalData *getExtData(kernelDisk *theDisk)
 
 	kernelDebug(debug_fs, "EXT get filesystem data");
 
-	// We must allocate some new memory to hold information about
-	// the filesystem
+	// We must allocate some new memory to hold information about the
+	// filesystem
 	extData = kernelMalloc(sizeof(extInternalData));
 	if (!extData)
 		return (extData = NULL);
@@ -368,13 +371,16 @@ static extInternalData *getExtData(kernelDisk *theDisk)
 
 	// Check that the inode size is the same size as our structure
 	if (extData->superblock.inode_size != sizeof(extInode))
+	{
 		kernelError(kernel_warn, "Inode size (%u) does not match structure "
-			"size (%u)", extData->superblock.inode_size, sizeof(extInode));
+			"size (%lu)", extData->superblock.inode_size, sizeof(extInode));
+	}
 
 	extData->blockSize = (1024 << extData->superblock.log_block_size);
 
 	// Save the sectors per block so we don't have to keep calculating it
-	extData->sectorsPerBlock = (extData->blockSize / physicalDisk->sectorSize);
+	extData->sectorsPerBlock = (extData->blockSize /
+		physicalDisk->sectorSize);
 
 	// Calculate the number of block groups
 	extData->numGroups = ((extData->superblock.blocks_count +
@@ -423,7 +429,7 @@ static extInternalData *getExtData(kernelDisk *theDisk)
 	theDisk->filesystem.blockSize = extData->blockSize;
 
 	// 'minSectors' and 'maxSectors' are the same as the current sectors,
-	// since we don't yet support resizing.
+	// since we don't yet support resizing
 	theDisk->filesystem.minSectors = theDisk->numSectors;
 	theDisk->filesystem.maxSectors = theDisk->numSectors;
 
@@ -449,7 +455,7 @@ static int readInode(extInternalData *extData, unsigned number,
 		return (status = ERR_BOUNDS);
 	}
 
-	// We use the number as a base-zero but the filesystem counts from 1.
+	// We use the number as a base-zero but the filesystem counts from 1
 	number--;
 
 	kernelDebug(debug_fs, "EXT inodes per group %u",
@@ -490,8 +496,9 @@ static int readInode(extInternalData *extData, unsigned number,
 		return (status);
 	}
 
-	// Copy the inode structure.
-	memcpy(inode, (buffer + (((number % extData->superblock.inodes_per_group) *
+	// Copy the inode structure
+	memcpy(inode, (buffer +
+		(((number % extData->superblock.inodes_per_group) *
 		extData->superblock.inode_size) % extData->blockSize)),
 		sizeof(extInode));
 
@@ -505,13 +512,15 @@ static int readInode(extInternalData *extData, unsigned number,
 
 
 static int readExtentNode(extInternalData *extData, extExtent *extent,
-	unsigned *startBlock, unsigned *numBlocks, void **buffer)
+	unsigned startBlock, unsigned numBlocks, unsigned *doneBlocks,
+	void *buffer)
 {
 	int status = 0;
 	extExtent *nextExtent = NULL;
 	extExtentIdx *extentIdx = NULL;
 	extExtentLeaf *extentLeaf = NULL;
-	unsigned readBlocks = 0;
+	unsigned readBlocksStart = 0;
+	unsigned readBlocksLen = 0;
 	int count;
 
 	kernelDebug(debug_fs, "EXT extent %d entries", extent->header.entries);
@@ -526,8 +535,8 @@ static int readExtentNode(extInternalData *extData, extExtent *extent,
 		if (!nextExtent)
 			return (status = ERR_MEMORY);
 
-		for (count = 0; (*numBlocks && (count < extent->header.entries));
-			count ++)
+		for (count = 0; ((*doneBlocks < numBlocks) && (count <
+			extent->header.entries)); count ++)
 		{
 			extentIdx = &extent->node[count].idx;
 
@@ -540,8 +549,8 @@ static int readExtentNode(extInternalData *extData, extExtent *extent,
 				break;
 
 			// Do the next node recursively
-			status = readExtentNode(extData, nextExtent, startBlock, numBlocks,
-				buffer);
+			status = readExtentNode(extData, nextExtent, startBlock,
+				numBlocks, doneBlocks, buffer);
 			if (status < 0)
 				break;
 		}
@@ -554,30 +563,43 @@ static int readExtentNode(extInternalData *extData, extExtent *extent,
 		kernelDebug(debug_fs, "EXT extent leaf node");
 		debugExtentNode(extent);
 
-		for (count = 0; (*numBlocks && (count < extent->header.entries));
-			count ++)
+		for (count = 0; ((*doneBlocks < numBlocks) && (count <
+			extent->header.entries)); count ++)
 		{
 			extentLeaf = &extent->node[count].leaf;
 
-			if ((extentLeaf->block <= *startBlock) &&
-				((extentLeaf->block + extentLeaf->len) > *startBlock))
+			if (((extentLeaf->block >= startBlock) &&
+				(extentLeaf->block < (startBlock + numBlocks))) |
+				((startBlock >= extentLeaf->block) &&
+				(startBlock < (extentLeaf->block + extentLeaf->len))))
 			{
-				readBlocks = min(*numBlocks, (extentLeaf->len - (*startBlock -
-					extentLeaf->block)));
+				readBlocksStart = extentLeaf->block;
+				readBlocksLen = extentLeaf->len;
+
+				if (extentLeaf->block < startBlock)
+				{
+					readBlocksStart = startBlock;
+					readBlocksLen -= (startBlock - extentLeaf->block);
+				}
+				if ((extentLeaf->block + extentLeaf->len) > (startBlock +
+					numBlocks))
+				{
+					readBlocksLen -= ((extentLeaf->block + extentLeaf->len) -
+						(startBlock + numBlocks));
+				}
 
 				kernelDebug(debug_fs, "EXT read %u from leaf node entry %d",
-					readBlocks, count);
+					readBlocksLen, count);
 
 				status = kernelDiskReadSectors((char *) extData->disk->name,
 					getSectorNumber(extData, (extentLeaf->start_lo +
-						(*startBlock - extentLeaf->block))),
-					(readBlocks * extData->sectorsPerBlock), *buffer);
+						(readBlocksStart - extentLeaf->block))),
+					(readBlocksLen * extData->sectorsPerBlock), (buffer +
+					((readBlocksStart - startBlock) * extData->blockSize)));
 				if (status < 0)
 					break;
 
-				*startBlock += readBlocks;
-				*numBlocks -= readBlocks;
-				*buffer += (readBlocks * extData->blockSize);
+				*doneBlocks += readBlocksLen;
 			}
 		}
 	}
@@ -589,19 +611,21 @@ static int readExtentNode(extInternalData *extData, extExtent *extent,
 static int readExtent(extInternalData *extData, extInode *inode,
 	unsigned startBlock, unsigned numBlocks, void *buffer)
 {
-	// Call the recursive function to walk the extent tree (modifies several
-	// of its arguments)
-	return (readExtentNode(extData, &inode->u.extent, &startBlock, &numBlocks,
-		&buffer));
+	// Call the recursive function to walk the extent tree
+
+	unsigned doneBlocks = 0;
+
+	return (readExtentNode(extData, &inode->u.extent, startBlock, numBlocks,
+		&doneBlocks, buffer));
 }
 
 
-static int readIndirectBlocks(extInternalData *extData, unsigned indirectBlock,
-	unsigned *skipBlocks, unsigned *numBlocks, void **buffer,
-	int indirectionLevel)
+static int readIndirectBlocks(extInternalData *extData,
+	unsigned indirectBlock, unsigned *skipBlocks, unsigned *numBlocks,
+	void **buffer, int indirectionLevel)
 {
 	// This function will read indirect blocks, starting with startBlock.
-	// the indirectionLevel parameter being greater than 1 causes a recursion.
+	// The indirectionLevel parameter being greater than 1 causes a recursion.
 
 	int status = 0;
 	unsigned *indexBuffer = NULL;
@@ -745,7 +769,7 @@ static int read(extInternalData *extData, kernelFileEntry *fileEntry,
 	unsigned startBlock, unsigned numBlocks, void *buffer)
 {
 	// Read numBlocks blocks of a file (or directory) starting at startBlock
-	// into buffer.
+	// into buffer
 
 	int status = 0;
 	extInode *inode = NULL;
@@ -754,7 +778,10 @@ static int read(extInternalData *extData, kernelFileEntry *fileEntry,
 
 	// If numBlocks is zero, that means read the whole file
 	if (!numBlocks)
-		numBlocks = (inode->blocks512 / (extData->blockSize >> 9));
+	{
+		numBlocks = ((inode->size + (extData->blockSize - 1)) /
+			extData->blockSize);
+	}
 
 	kernelDebug(debug_fs, "EXT read %u blocks of \"%s\" at %u", numBlocks,
 		fileEntry->name, startBlock);
@@ -764,6 +791,15 @@ static int read(extInternalData *extData, kernelFileEntry *fileEntry,
 	{
 		// This inode uses the newer 'extents' feature
 		kernelDebug(debug_fs, "EXT inode uses extents");
+
+		// If this is a sparse file, with 'holes', make sure the buffer is
+		// initialized with zeros
+		if ((inode->blocks512 << 9) < inode->size)
+		{
+			kernelDebug(debug_fs, "EXT file is sparse");
+			memset(buffer, 0, (numBlocks * extData->blockSize));
+		}
+
 		status = readExtent(extData, inode, startBlock, numBlocks, buffer);
 	}
 	else
@@ -810,7 +846,7 @@ static unsigned makeSystemTime(unsigned theTime)
 static unsigned makeSystemDate(unsigned date)
 {
 	// This function takes a UNIX time value and returns the equivalent in
-	// packed-BCD system format.
+	// packed-BCD system format
 
 	unsigned temp = 0;
 	unsigned returnedDate = 0;
@@ -839,6 +875,7 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 {
 	int status = 0;
 	extInode *dirInode = NULL;
+	unsigned dirBlocks = 0;
 	unsigned bufferSize = 0;
 	void *buffer = NULL;
 	void *entry = NULL;
@@ -856,16 +893,18 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 	}
 
 	dirInode = (extInode *) dirEntry->driverData;
+	dirBlocks = ((dirInode->size + (extData->blockSize - 1)) /
+		extData->blockSize);
 
 	// Make sure it's not zero-length.  Shouldn't ever happen.
-	if (!dirInode->blocks512)
+	if (!dirBlocks)
 	{
 		kernelError(kernel_error, "Directory \"%s\" has no data",
 			dirEntry->name);
 		return (status = ERR_NODATA);
 	}
 
-	bufferSize = (dirInode->blocks512 << 9);
+	bufferSize = (dirBlocks * extData->blockSize);
 	if (bufferSize < dirEntry->size)
 	{
 		kernelError(kernel_error, "Invalid buffer size for directory!");
@@ -894,8 +933,10 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 		if (!realEntry.inode)
 		{
 			if (!realEntry.rec_len)
+			{
 				// End of entries, we must suppose
 				break;
+			}
 
 			// Deleted file perhaps?
 			entry += realEntry.rec_len;
@@ -964,7 +1005,8 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 		fileEntry->modifiedTime = makeSystemTime(inode->mtime);
 		fileEntry->modifiedDate = makeSystemDate(inode->mtime);
 		fileEntry->size = inode->size;
-		fileEntry->blocks = (inode->blocks512 / (extData->blockSize >> 9));
+		fileEntry->blocks = ((inode->size + (extData->blockSize - 1)) /
+			extData->blockSize);
 		fileEntry->lastAccess = kernelSysTimerRead();
 
 		// Add it to the directory
@@ -973,7 +1015,7 @@ static int scanDirectory(extInternalData *extData, kernelFileEntry *dirEntry)
 			goto out;
 
 		// Prevent a situation of getting into a bad loop if the rec_len field
-		// isn't some positive number.
+		// isn't some positive number
 		if (realEntry.rec_len <= 0)
 		{
 			kernelError(kernel_error, "Corrupt directory record \"%s\" in "
@@ -998,7 +1040,7 @@ static int readRootDir(extInternalData *extData, kernelDisk *theDisk)
 {
 	// This function reads the root directory (which uses a reserved inode
 	// number) and attaches the root directory kernelFileEntry pointer to the
-	// filesystem structure.
+	// filesystem structure
 
 	int status = 0;
 	kernelFileEntry *rootEntry = theDisk->filesystem.filesystemRoot;
@@ -1037,8 +1079,8 @@ static int detect(kernelDisk *theDisk)
 	// This function is used to determine whether the data on a disk structure
 	// is using a EXT filesystem.  It uses a simple test or two to determine
 	// simply whether this is a EXT volume.  Any data that it gathers is
-	// discarded when the call terminates.  It returns 1 for true, 0 for false,
-	// and negative if it encounters an error
+	// discarded when the call terminates.  It returns 1 for true, 0 for
+	// false, and negative if it encounters an error
 
 	int status = 0;
 	extSuperblock superblock;
@@ -1060,7 +1102,8 @@ static int detect(kernelDisk *theDisk)
 	{
 		// EXT
 		strcpy((char *) theDisk->fsType, FSNAME_EXT);
-		strncpy((char *) theDisk->filesystem.label, superblock.volume_name, 16);
+		strncpy((char *) theDisk->filesystem.label, superblock.volume_name,
+			16);
 		return (status = 1);
 	}
 	else
@@ -1074,7 +1117,7 @@ static int detect(kernelDisk *theDisk)
 static int format(kernelDisk *theDisk, const char *type, const char *label,
 	int longFormat __attribute__((unused)), progress *prog)
 {
-	// This function does a basic format of an EXT2 filesystem.
+	// This function does a basic format of an EXT2 filesystem
 
 	int status = 0;
 	kernelPhysicalDisk *physicalDisk = NULL;
@@ -1119,7 +1162,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
 	physicalDisk = theDisk->physical;
 
-	// Only format disk with 512-byte sectors
+	// Only format a disk with 512-byte sectors
 	if (physicalDisk->sectorSize != 512)
 	{
 		kernelError(kernel_error, "Cannot format a disk with sector size of "
@@ -1138,8 +1181,8 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	memset(&superblock, 0, sizeof(extSuperblock));
 
 	// "Heuristically" determine the block size.  Everything else flows from
-	// this, but it is rubbish.  Not based on anything sensible really: If it's
-	// a floppy, use 1K blocks.  Otherwise use 4K blocks.
+	// this, but it is rubbish.  Not based on anything sensible really: If
+	// it's a floppy, use 1K blocks.  Otherwise use 4K blocks.
 	if (physicalDisk->type & DISKTYPE_FLOPPY)
 		blockSize = 1024;
 	else
@@ -1153,7 +1196,7 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	for (count1 = 0; ((blockSize >> count1) >= 1024); count1 ++)
 		superblock.log_block_size = count1;
 	superblock.log_cluster_size = superblock.log_block_size;
-	superblock.blocks_per_group = (blockSize * 8); // Bits in 1-block bitmap.
+	superblock.blocks_per_group = (blockSize * 8); // Bits in 1-block bitmap
 	superblock.clusters_per_group = superblock.blocks_per_group;
 	superblock.mtime = kernelUnixTime();
 	superblock.wtime = superblock.mtime;
@@ -1176,9 +1219,9 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	blockGroups = ((superblock.blocks_count +
 		(superblock.blocks_per_group - 1)) / superblock.blocks_per_group);
 
-	superblock.inodes_per_group = (((((superblock.blocks_count / blockGroups) *
-		EXT_GOOD_OLD_INODE_SIZE) / blockSize) * blockSize) /
-			EXT_GOOD_OLD_INODE_SIZE);
+	superblock.inodes_per_group = (((((superblock.blocks_count /
+		blockGroups) * EXT_GOOD_OLD_INODE_SIZE) / blockSize) * blockSize) /
+		EXT_GOOD_OLD_INODE_SIZE);
 
 	superblock.inodes_count = (blockGroups * superblock.inodes_per_group);
 
@@ -1211,17 +1254,17 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
 		if (count1 < (blockGroups - 1))
 		{
-			groupDescs[count1].free_blocks_count = superblock.blocks_per_group;
-			groupDescs[count1].free_inodes_count = superblock.inodes_per_group;
+			groupDescs[count1].free_blocks_count =
+				superblock.blocks_per_group;
+			groupDescs[count1].free_inodes_count =
+				superblock.inodes_per_group;
 		}
 		else
 		{
-			groupDescs[count1].free_blocks_count =
-				(superblock.blocks_count -
-					(count1 * superblock.blocks_per_group));
-			groupDescs[count1].free_inodes_count =
-				(superblock.inodes_count -
-					(count1 * superblock.inodes_per_group));
+			groupDescs[count1].free_blocks_count = (superblock.blocks_count -
+				(count1 * superblock.blocks_per_group));
+			groupDescs[count1].free_inodes_count = (superblock.inodes_count -
+				(count1 * superblock.inodes_per_group));
 		}
 
 		if (isSuperGroup(count1))
@@ -1276,14 +1319,15 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 			if (!currentBlock)
 			{
 				status = kernelDiskWriteSectors((char *) theDisk->name,
-					(1024 / physicalDisk->sectorSize), (sizeof(extSuperblock) /
-						physicalDisk->sectorSize), &superblock);
+					(1024 / physicalDisk->sectorSize),
+					(sizeof(extSuperblock) / physicalDisk->sectorSize),
+					&superblock);
 			}
 			else
 			{
 				status = kernelDiskWriteSectors((char *) theDisk->name,
 					CURRENTSECTOR, (sizeof(extSuperblock) /
-						physicalDisk->sectorSize), &superblock);
+					physicalDisk->sectorSize), &superblock);
 			}
 
 			if (status < 0)
@@ -1321,10 +1365,10 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 		if (!count1)
 		{
 			// Mark the blocks for the root and lost+found directories
-			setBitmap(bitmaps,
-				(1 + groupDescBlocks + 2 + inodeTableBlocks), 1);
-			setBitmap(bitmaps,
-				(1 + groupDescBlocks + 2 + inodeTableBlocks + 1), 1);
+			setBitmap(bitmaps, (1 + groupDescBlocks + 2 + inodeTableBlocks),
+				1);
+			setBitmap(bitmaps, (1 + groupDescBlocks + 2 + inodeTableBlocks +
+				1), 1);
 
 			// Mark the reserved inodes, plus 1 for the lost+found directory
 			for (count2 = 0; count2 < superblock.first_ino; count2 ++)
@@ -1333,9 +1377,9 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
 		if (count1 == (blockGroups - 1))
 		{
-			// Mark any nonexistant blocks as used.
-			for (count2 = (superblock.blocks_count -
-					(count1 * superblock.blocks_per_group));
+			// Mark any nonexistant blocks as used
+			for (count2 = (superblock.blocks_count - (count1 *
+				superblock.blocks_per_group));
 				count2 < superblock.blocks_per_group; count2 ++)
 			{
 				setBitmap(bitmaps, count2, 1);
@@ -1455,8 +1499,8 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 
 	kernelDiskWriteSectors((char *) theDisk->name,
 		(inodeTable[superblock.first_ino - 1].u.block[0] * sectsPerBlock),
-		(inodeTable[superblock.first_ino - 1].size / physicalDisk->sectorSize),
-		dirBuffer);
+		(inodeTable[superblock.first_ino - 1].size /
+		physicalDisk->sectorSize), dirBuffer);
 
 	strcpy((char *) theDisk->fsType, FSNAME_EXT"2");
 
@@ -1495,8 +1539,8 @@ out:
 
 static int clobber(kernelDisk *theDisk)
 {
-	// This function destroys anything that might cause this disk to be detected
-	// as having an EXT filesystem.
+	// This function destroys anything that might cause this disk to be
+	// detected as having an EXT filesystem
 
 	int status = 0;
 	extSuperblock superblock;
@@ -1511,11 +1555,13 @@ static int clobber(kernelDisk *theDisk)
 	kernelDebug(debug_fs, "EXT clobber disk %s", theDisk->name);
 
 	// In the case of EXT, we simply remove the EXT signature from where the
-	// superblock would be.
+	// superblock would be
 	status = readSuperblock(theDisk, &superblock);
 	if (status < 0)
+	{
 		// Not EXT
 		return (status = 0);
+	}
 
 	superblock.magic = 0;
 
@@ -1526,7 +1572,7 @@ static int clobber(kernelDisk *theDisk)
 
 static uquad_t getFreeBytes(kernelDisk *theDisk)
 {
-	// This function returns the amount of free disk space, in bytes.
+	// This function returns the amount of free disk space, in bytes
 
 	extInternalData *extData = NULL;
 
@@ -1648,7 +1694,7 @@ static int mount(kernelDisk *theDisk)
 static int unmount(kernelDisk *theDisk)
 {
 	// This function releases all of the stored information about a given
-	// filesystem.
+	// filesystem
 
 	int status = 0;
 	extInternalData *extData = NULL;
@@ -1702,11 +1748,12 @@ static int newEntry(kernelFileEntry *entry)
 
 	kernelDebug(debug_fs, "EXT get new file entry");
 
-	// Make sure there isn't already some sort of data attached to this
-	// file entry, and that there is a filesystem attached
+	// Make sure there isn't already some sort of data attached to this file
+	// entry, and that there is a filesystem attached
 	if (entry->driverData)
 	{
-		kernelError(kernel_error, "Entry already has private filesystem data");
+		kernelError(kernel_error, "Entry already has private filesystem "
+			"data");
 		return (status = ERR_ALREADY);
 	}
 
@@ -1748,14 +1795,15 @@ static int inactiveEntry(kernelFileEntry *entry)
 
 	if (!entry->driverData)
 	{
-		kernelError(kernel_error, "File entry has no private filesystem data");
+		kernelError(kernel_error, "File entry has no private filesystem "
+			"data");
 		return (status = ERR_ALREADY);
 	}
 
 	// Erase all of the data in this entry
 	memset(entry->driverData, 0, sizeof(extInode));
 
-	// Release the inode data structure attached to this file entry.
+	// Release the inode data structure attached to this file entry
 	kernelFree(entry->driverData);
 
 	// Remove the reference
@@ -1767,11 +1815,11 @@ static int inactiveEntry(kernelFileEntry *entry)
 
 static int resolveLink(kernelFileEntry *linkEntry)
 {
-	// This is called by the kernelFile.c code when we have registered a
-	// file or directory as a link, but not resolved it, and now it needs
-	// to be resolved.  By default this driver never resolves EXT symbolic
-	// links until they are needed, so this will get called when the system
-	// wants to read/write the symbolically-linked directory or file.
+	// This is called by the kernelFile.c code when we have registered a file
+	// or directory as a link, but not resolved it, and now it needs to be
+	// resolved.  By default this driver never resolves EXT symbolic links
+	// until they are needed, so this will get called when the system wants to
+	// read/write the symbolically-linked directory or file.
 
 	int status = 0;
 	extInternalData *extData = NULL;
@@ -1805,15 +1853,15 @@ static int resolveLink(kernelFileEntry *linkEntry)
 		return (status = ERR_NODATA);
 	}
 
-	// If the file size is 64 bytes or less, the name will be stored right
-	// in the inode.
+	// If the file size is 64 bytes or less, the name will be stored right in
+	// the inode
 	if (inode->size <= 64)
 	{
 		strncpy(fileName, (char *) inode->u.block, inode->size);
 	}
 	else
 	{
-		// We have to read the first data block in order to get the filename.
+		// We have to read the first data block in order to get the filename
 
 		buffer = kernelMalloc(extData->blockSize);
 		if (!buffer)
@@ -1835,7 +1883,7 @@ static int resolveLink(kernelFileEntry *linkEntry)
 
 	fileName[inode->size] = '\0';
 
-	// Need to make sure it's an absolute pathname.
+	// Need to make sure it's an absolute pathname
 	if (fileName[0] != '/')
 	{
 		char tmpPath[MAX_PATH_LENGTH + 1];
@@ -1850,8 +1898,8 @@ static int resolveLink(kernelFileEntry *linkEntry)
 	if (!targetEntry)
 	{
 		// Not found.  We'll try one more thing.  If the fileName *is* an
-		// absolute path, we will try prepending the mount point in case
-		// it's supposed to be relative to the start of the filesystem.
+		// absolute path, we will try prepending the mount point in case it's
+		// supposed to be relative to the start of the filesystem.
 
 		if (fileName[0] != '/')
 			return (status = ERR_NOSUCHFILE);
@@ -1874,10 +1922,10 @@ static int resolveLink(kernelFileEntry *linkEntry)
 static int readFile(kernelFileEntry *theFile, unsigned blockNum,
 	unsigned blocks, unsigned char *buffer)
 {
-	// This function is the "read file" function that the filesystem
-	// driver exports to the world.  It is mainly a wrapper for the
-	// internal function of the same purpose, but with some additional
-	// argument checking.  Returns 0 on success, negative otherwise.
+	// This function is the "read file" function that the filesystem driver
+	// exports to the world.  It is mainly a wrapper for the internal function
+	// of the same purpose, but with some additional argument checking.
+	// Returns 0 on success, negative otherwise.
 
 	int status = 0;
 	extInternalData *extData = NULL;

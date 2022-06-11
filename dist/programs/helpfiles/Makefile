@@ -1,17 +1,18 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
-BUILDDIR = ../../../build/programs/helpfiles
+BUILDDIR = build
+OUTPUTDIR = ../../../${BUILDDIR}/programs/helpfiles
 
 all:
-	mkdir -p ${BUILDDIR}
-	cp *.txt ${BUILDDIR}
+	mkdir -p ${OUTPUTDIR}
+	cp *.txt ${OUTPUTDIR}
 
 clean:
 	rm -f *~ core
-	rm -Rf ${BUILDDIR}
+	rm -Rf ${OUTPUTDIR}
 

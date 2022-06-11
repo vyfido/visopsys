@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -20,7 +20,7 @@
 //
 
 // This file contains the C functions belonging to the kernel's descriptor
-// manager.
+// handling code for X86 processors
 
 #include "kernelDescriptor.h"
 #include "kernelApi.h"
@@ -28,6 +28,8 @@
 #include "kernelParameters.h"
 #include <string.h>
 #include <sys/processor.h>
+
+#ifdef ARCH_X86
 
 // Space for the global descriptor table
 static volatile kernelDescriptor globalDescriptorTable[GDT_SIZE];
@@ -565,4 +567,6 @@ int kernelDescriptorSetIDTTaskGate(int number, kernelSelector selector)
 	// There.  We made a task gate descriptor.
 	return (status = 0);
 }
+
+#endif
 

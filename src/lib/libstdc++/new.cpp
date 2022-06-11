@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -26,29 +26,27 @@
 #include <cstddef>
 #include <cstdlib>
 
-using namespace std;
 
-
-void *operator new(size_t size)
+void *operator new(std::size_t size)
 {
-	return (malloc(size));
+	return (std::malloc(size));
 }
 
 
-void *operator new[](size_t size)
+void *operator new[](std::size_t size)
 {
-	return (malloc(size));
+	return (std::malloc(size));
 }
 
 
 void operator delete(void *ptr)
 {
-	free(ptr);
+	std::free(ptr);
 }
 
 
 void operator delete[](void *ptr)
 {
-	free(ptr);
+	std::free(ptr);
 }
 

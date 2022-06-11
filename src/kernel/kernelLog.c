@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,8 +19,8 @@
 //  kernelLog.c
 //
 
-// This file contains the functions designed to facilitate a variety
-// of kernel logging features.
+// This file contains the functions designed to facilitate a variety of kernel
+// logging features
 
 #include "kernelLog.h"
 #include "kernelDebug.h"
@@ -47,8 +47,8 @@ static spinLock logLock;
 static int flushLogStream(void)
 {
 	// This function is internal, and will take whatever is currently in the
-	// log stream and output it to the log file, if applicable.  Returns
-	// 0 on success, negative otherwise
+	// log stream and output it to the log file, if applicable.  Returns 0 on
+	// success, negative otherwise
 
 	int status = 0;
 	int bytes = 0;
@@ -76,7 +76,7 @@ static int flushLogStream(void)
 			status = kernelFileStreamWrite(logFileStream, bytes, buffer);
 			if (status < 0)
 			{
-				// Oops, couldn't write to the log file.
+				// Couldn't write to the log file
 				logToFile = 0;
 				goto out;
 			}
@@ -85,7 +85,7 @@ static int flushLogStream(void)
 			status = kernelFileStreamFlush(logFileStream);
 			if (status < 0)
 			{
-				// Oops, couldn't write to the log file.
+				// Couldn't write to the log file
 				logToFile = 0;
 				goto out;
 			}
@@ -104,8 +104,8 @@ out:
 
 static void logUpdater(void)
 {
-	// This function will be a new thread spawned by the kernel which
-	// flushes the log file stream as a low-priority process.
+	// This function will be a new thread spawned by the kernel which flushes
+	// the log file stream as a low-priority process
 
 	int status = 0;
 
@@ -115,7 +115,7 @@ static void logUpdater(void)
 		status = flushLogStream();
 		if (status < 0)
 		{
-			// Eek!  Make logToFile = 0 and try to close it
+			// Make logToFile = 0 and try to close it
 			logToFile = 0;
 			kernelFileStreamClose(logFileStream);
 			break;
@@ -168,8 +168,8 @@ int kernelLogInitialize(void)
 
 int kernelLogSetFile(const char *logFileName)
 {
-	// This function will initiate the logging of messages to the log
-	// file specified.  Returns 0 on success, negative otherwise.
+	// This function will initiate the logging of messages to the log file
+	// specified.  Returns 0 on success, negative otherwise.
 
 	int status = 0;
 
@@ -194,7 +194,7 @@ int kernelLogSetFile(const char *logFileName)
 		OPENMODE_CREATE), logFileStream);
 	if (status < 0)
 	{
-		// We couldn't open or create a log file, for whatever reason.
+		// We couldn't open or create a log file, for whatever reason
 		kernelError(kernel_error, "Couldn't open or create kernel log file");
 		logToFile = 0;
 		return (status);
@@ -226,8 +226,8 @@ int kernelLogSetFile(const char *logFileName)
 		(PRIORITY_LEVELS - 2));
 	if (status < 0)
 	{
-		// Oops, we couldn't make it low-priority.  This is probably
-		// bad, but not fatal.  Make a kernelError.
+		// We couldn't make it low-priority.  This is probably bad, but not
+		// fatal.  Make a kernelError.
 		kernelError(kernel_warn, "Couldn't re-nice the logging thread");
 	}
 
@@ -244,16 +244,14 @@ int kernelLogGetToConsole(void)
 
 void kernelLogSetToConsole(int onOff)
 {
-	// Ya want console logging or not?
 	logToConsole = onOff;
-	return;
 }
 
 
 int kernelLog(const char *format, ...)
 {
-	// This is the function that does all of the kernel logging.
-	// Returns 0 on success, negative otherwise
+	// This is the function that does all of the kernel logging.  Returns 0 on
+	// success, negative otherwise.
 
 	int status = 0;
 	va_list list;
@@ -287,7 +285,7 @@ int kernelLog(const char *format, ...)
 	status = kernelRtcDateTime(&theTime);
 	if (status < 0)
 	{
-		// Before RTC initialization (at boot time) the above will fail.
+		// Before RTC initialization (at boot time) the above will fail
 		sprintf(streamOutput, "%s\n", output);
 	}
 	else
@@ -302,7 +300,8 @@ int kernelLog(const char *format, ...)
 		return (status = ERR_NOLOCK);
 
 	// Put it all into the log stream
-	status = logStream.appendN(&logStream, strlen(streamOutput), streamOutput);
+	status = logStream.appendN(&logStream, strlen(streamOutput),
+		streamOutput);
 
 	kernelLockRelease(&logLock);
 
@@ -312,7 +311,7 @@ int kernelLog(const char *format, ...)
 
 int kernelLogShutdown(void)
 {
-	// This function stops kernel logging to the log file.
+	// This function stops kernel logging to the log file
 
 	int status = 0;
 
@@ -326,7 +325,10 @@ int kernelLogShutdown(void)
 			// Close the log file
 			status = kernelFileStreamClose(logFileStream);
 			if (status < 0)
-				kernelError(kernel_warn, "Unable to close the kernel log file");
+			{
+				kernelError(kernel_warn, "Unable to close the kernel log "
+					"file");
+			}
 
 			kernelFree(logFileStream);
 		}

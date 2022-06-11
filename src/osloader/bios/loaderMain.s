@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2020 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -66,23 +66,23 @@
 
 
 loaderMain:
-	;; This is the main OS loader driver code.  It calls a number
-	;; of other routines for the puposes of detecting hardware,
-	;; loading the kernel, etc.  After everything else is done, it
-	;; switches the processor to protected mode and starts the kernel.
+	;; This is the main OS loader driver code.  It calls a number of other
+	;; functions for the puposes of detecting hardware, loading the kernel,
+	;; etc.  After everything else is done, it switches the processor to
+	;; protected mode and starts the kernel.
 
 	cli
 
-	;; Make sure all of the data segment registers point to the same
-	;; segment as the code segment
+	;; Make sure all of the data segment registers point to the same segment
+	;; as the code segment
 	mov EAX, (LDRCODESEGMENTLOCATION / 16)
 	mov DS, EAX
 	mov ES, EAX
 	mov FS, EAX
 	mov GS, EAX
 
-	;; Now ensure the stack segment and stack pointer are set to
-	;; something more appropriate for the loader
+	;; Now ensure the stack segment and stack pointer are set to something
+	;; more appropriate for the loader
 	mov EAX, (LDRSTCKSEGMENTLOCATION / 16)
 	mov SS, EAX
 	mov SP, LDRSTCKBASE
@@ -96,9 +96,9 @@ loaderMain:
 	;; It should also have put the boot sector signature in EBX
 	mov dword [BOOTSECTSIG], EBX
 
-	;; If we are not booting from a floppy, then the boot sector code
-	;; should have put a pointer to the MBR record for this partition
-	;; in SI.  Copy the partition entry.
+	;; If we are not booting from a floppy, then the boot sector code should
+	;; have put a pointer to the MBR record for this partition in SI.  Copy
+	;; the partition entry
 	cmp word [DRIVENUMBER], 80h
 	jb .setTextDisplay
 	push DS
@@ -136,9 +136,9 @@ loaderMain:
 	;; volume correctly
 	call loaderCalcVolInfo
 
-	;; Before we print any other info, determine whether the user wants
-	;; to see any hardware info messages.  If the BOOTINFO file exists,
-	;; then we print the messages
+	;; Before we print any other info, determine whether the user wants to see
+	;; any hardware info messages.  If the BOOTINFO file exists, then we print
+	;; the messages.
 	push word BOOTINFO
 	call loaderFindFile
 	add SP, 2
@@ -172,15 +172,15 @@ loaderMain:
 	add byte [FATALERROR], 1
 
 	.okLoad:
-	;; Enable the A20 address line so that we will have access to the
-	;; entire extended memory space.
+	;; Have we been asked to load the entire boot media into a RAM disk?
+	call loadRamDisk
+
+	;; Enable the A20 address line so that we will have access to the entire
+	;; extended memory space
 	call loaderEnableA20
 
 	;; Check for user requesting a boot menu
 	call bootMenu
-
-	;; Have we been asked to load the entire boot media into a RAM disk?
-	call loadRamDisk
 
 	;; Check for fatal errors before attempting to start the kernel
 	call fatalErrorCheck
@@ -200,14 +200,13 @@ loaderMain:
 	mov AH, 01h
 	int 10h
 
-	;; Disable interrupts.  The kernel's initial state will be with
-	;; interrupts disabled.  It will have to do the appropriate setup
-	;; before re-enabling them.
+	;; Disable interrupts.  The kernel's initial state will be with interrupts
+	;; disabled.  It will have to do the appropriate setup before re-enabling
+	;; them.
 	cli
 
-	;; Set up a temporary GDT (Global Descriptor Table) for the protected
-	;; mode switch.  The kernel will replace it later with a permanent
-	;; version
+	;; Set up a temporary GDT (Global Descriptor Table) for the protected mode
+	;; switch.  The kernel will replace it later with a permanent version.
 	lgdt [GDTSTART]
 
 	;; Save the kernel's entry point address in EBX
@@ -228,8 +227,8 @@ loaderMain:
 	;; Now enable very basic paging
 	call pagingSetup
 
-	;; Make the data and stack segment registers contain correct
-	;; values for the kernel in protected mode
+	;; Make the data and stack segment registers contain correct values for
+	;; the kernel in protected mode
 
 	;; First the data registers (all point to the whole memory as data)
 	mov EAX, PRIV_DATASELECTOR
@@ -246,7 +245,7 @@ loaderMain:
 	add EAX, (KERNELSTACKSIZE - 4)
 	mov ESP, EAX
 
-	;; Pass the kernel arguments.
+	;; Pass the kernel arguments
 
 	;; First the hardware structure
 	push dword (LDRCODESEGMENTLOCATION + HARDWAREINFO)
@@ -259,19 +258,19 @@ loaderMain:
 	add EAX, dword [LDRCODESEGMENTLOCATION + KERNELSIZE]
 	push EAX
 
-	;; Next the amount of used kernel memory.  We need to add the
-	;; size of the stack we allocated to the kernel image size.
+	;; Next the amount of used kernel memory.  We need to add the size of the
+	;; stack we allocated to the kernel image size.
 	mov EAX, dword [LDRCODESEGMENTLOCATION + KERNELSIZE]
 	add EAX, KERNELSTACKSIZE
 	push EAX
 
-	;; Waste some space on the stack that would normally be used to
-	;; store the return address in a call.  This will ensure that the
-	;; kernel's arguments are located where gcc thinks they should be
-	;; for a "normal" function call.  We will use a NULL return address
+	;; Waste some space on the stack that would normally be used to store the
+	;; return address in a call.  This will ensure that the kernel's arguments
+	;; are located where gcc thinks they should be for a "normal" function
+	;; call.  We will use a NULL return address.
 	push dword 0
 
-	;; Start the kernel.
+	;; Start the kernel
 	push dword PRIV_CODESELECTOR
 	push dword EBX
 	retf
@@ -282,13 +281,13 @@ loaderMain:
 
 
 bootDevice:
-	;; This function will gather some needed information about the
-	;; boot device (and print messages about what it finds)
+	;; This function will gather some needed information about the boot device
+	;; (and print messages about what it finds)
 
 	pusha
 
-	;; Gather some more disk information directly from the
-	;; BIOS using interrupt 13, subfunction 8
+	;; Gather some more disk information directly from the BIOS using
+	;; interrupt 13, subfunction 8
 
 	;; This interrupt call will destroy ES, so save it
 	push ES
@@ -309,8 +308,7 @@ bootDevice:
 
 	jnc .gotDiskInfo
 
-	;; Ooops, the BIOS isn't helping us...
-	;; Print out the fatal error message
+	;; Ooops, the BIOS isn't helping us.  Print out the fatal error message.
 
 	;; Change to the error color
 	mov DL, BADCOLOR
@@ -328,8 +326,8 @@ bootDevice:
 	call loaderPrint
 	call loaderPrintNewline
 
-	;; We can't continue with any disk-related stuff, so we can't load
-	;; the kernel.
+	;; We can't continue with any disk-related stuff, so we can't load the
+	;; kernel
 	add  byte [FATALERROR], 1
 	jmp .done
 
@@ -338,28 +336,28 @@ bootDevice:
 	;; Heads
 	xor EAX, EAX
 	mov AL, DH
-	inc AX							; Number is 0-based
+	inc AX					; Number is 0-based
 	mov dword [HEADS], EAX
 
-	;; cylinders
+	;; Cylinders
 	xor EAX, EAX
-	mov AL, CL						; Two bits of cylinder number in bits 6&7
-	and AL, 11000000b				; Mask it
-	shl AX, 2						; Move them to bits 8&9
-	mov AL, CH						; Rest of the cylinder bits
-	inc AX							; Number is 0-based
+	mov AL, CL				; Two bits of cylinder number in bits 6&7
+	and AL, 11000000b		; Mask it
+	shl AX, 2				; Move them to bits 8&9
+	mov AL, CH				; Rest of the cylinder bits
+	inc AX					; Number is 0-based
 	mov dword [CYLINDERS], EAX
 
-	;; sectors
+	;; Sectors
 	xor EAX, EAX
-	mov AL, CL			; Bits 0-5
-	and AL, 00111111b	; Mask it
+	mov AL, CL				; Bits 0-5
+	and AL, 00111111b		; Mask it
 	mov dword [SECPERTRACK], EAX
 
-	;; Determine whether we can use an extended BIOS function to give
-	;; us the number of sectors
+	;; Determine whether we can use an extended BIOS function to give us the
+	;; number of sectors
 
-	mov word [HDDINFO], 42h  		; Size of the info buffer we provide
+	mov word [HDDINFO], 42h	; Size of the info buffer we provide
 	mov AH, 48h
 	mov DX, word [DRIVENUMBER]
 	mov SI, HDDINFO
@@ -382,13 +380,13 @@ bootDevice:
 
 	.recalcNumCylinders:
 	;; Recalculate the number of cylinders
-	mov EAX, dword [HEADS]			; heads
-	mul dword [SECPERTRACK]			; sectors per cyl
-	mov ECX, EAX					; total secs per cyl
+	mov EAX, dword [HEADS]		; heads
+	mul dword [SECPERTRACK]		; sectors per cyl
+	mov ECX, EAX				; total secs per cyl
 	xor EDX, EDX
 	mov EAX, dword [TOTALSECS]
 	div ECX
-	mov dword [CYLINDERS], EAX		; new cyls value
+	mov dword [CYLINDERS], EAX	; new cyls value
 
 	.done:
 	popa
@@ -400,9 +398,9 @@ fatInfo:
 
 	pusha
 
-	;; The boot sector is loaded at location 7C00h and starts with
-	;; some info about the filesystem.  Grab the info we need and store
-	;; it in some more convenient locations
+	;; The boot sector is loaded at location 7C00h and starts with some info
+	;; about the filesystem.  Grab the info we need and store it in some more
+	;; convenient locations.
 
 	push FS
 	xor AX, AX
@@ -419,21 +417,21 @@ fatInfo:
 	mov AX, word [FS:7C16h]
 	mov word [FATSECS], AX
 
-	;; Determine the type of FAT filesystem just based on the FSType
-	;; field.  Not reliable, but it's what we do anyway.
+	;; Determine the type of FAT filesystem just based on the FSType field.
+	;; Not reliable, but it's what we do anyway.
 	mov EAX, dword [FS:7C37h]
-	cmp EAX, 0x32315441				; ('AT12')
+	cmp EAX, 0x32315441		; ('AT12')
 	jne .checkFat16
 	mov word [FSTYPE], FS_FAT12
 	jmp .done
 	.checkFat16:
-	cmp EAX, 0x36315441				; ('AT16')
+	cmp EAX, 0x36315441		; ('AT16')
 	jne .checkFat32
 	mov word [FSTYPE], FS_FAT16
 	jmp .done
 	.checkFat32:
 	mov EAX, dword [FS:7C53h]
-	cmp EAX, 0x32335441				; ('AT32')
+	cmp EAX, 0x32335441		; ('AT32')
 	jne .unknown
 	mov word [FSTYPE], FS_FAT32
 	;; With FAT32, some of the values are in different places
@@ -456,12 +454,12 @@ printBootDevice:
 
 	pusha
 
-	mov DL, GOODCOLOR				; Use good color
+	mov DL, GOODCOLOR		; Use good color
 	mov SI, HAPPY
 	call loaderPrint
 	mov SI, BOOTDEV1
 	call loaderPrint
-	mov DL, FOREGROUNDCOLOR			; Switch to foreground color
+	mov DL, FOREGROUNDCOLOR	; Switch to foreground color
 
 	xor EAX, EAX
 	mov AX, word [DRIVENUMBER]
@@ -540,7 +538,7 @@ printBootDevice:
 
 loadRamDisk:
 	;; This gets called to check whether we are supposed to load the entire
-	;; boot medium into a RAM disk.
+	;; boot medium into a RAM disk
 
 	pusha
 
@@ -559,7 +557,7 @@ loadRamDisk:
 	call loaderPrint
 	call loaderPrintNewline
 
-	push word 1		; show progress
+	push word 1				; show progress
 
 	;; Number of sectors to load
 	mov EAX, dword [TOTALSECS]
@@ -579,7 +577,7 @@ loadRamDisk:
 	;; Note where we put it
 	mov dword [RAMDISKMEM], EAX
 
-	push dword 0	; starting sector
+	push dword 0			; starting sector
 
 	call loaderLoadSectorsHi
 	add SP, 14
@@ -596,7 +594,7 @@ loadRamDisk:
 	call loaderPrint
 	call loaderPrintNewline
 
-	;; We won't have a boot device, so we can't continue.
+	;; We won't have a boot device, so we can't continue
 	add  byte [FATALERROR], 1
 	jmp .out
 
@@ -611,9 +609,9 @@ loadRamDisk:
 
 bootMenu:
 	;; This gets called to check whether the user has pressed the ESC key
-	;; during the loading process, to give them a menu of options.
+	;; during the loading process, to give them a menu of options
 	;;
-	;; At the moment, it's only for video mode selection.
+	;; At the moment, it's only for video mode selection
 
 	pusha
 
@@ -626,7 +624,7 @@ bootMenu:
 	mov AX, 0000h
 	int 16h
 
-	cmp AH, 01h		; ESC
+	cmp AH, 01h				; ESC
 	jne .out
 
 	call loaderPrintNewline
@@ -654,8 +652,7 @@ fatalErrorCheck:
 	.errors:
 	call loaderPrintNewline
 
-	;; Print the fact that fatal errors were detected,
-	;; and stop
+	;; Print the fact that fatal errors were detected, and stop
 	xor EAX, EAX
 	mov AL, byte [FATALERROR]
 	call loaderPrintNumber
@@ -702,12 +699,11 @@ fatalErrorCheck:
 
 
 pagingSetup:
-	;; This will setup a simple paging environment for the kernel and
-	;; enable it.  This involves making a master page directory plus
-	;; one page table, and enabling paging.  The kernel can make its own
-	;; tables at startup, so this only needs to be temporary.  This
-	;; function takes no arguments and returns nothing.  Called only
-	;; after protected mode has been entered.
+	;; This will setup a simple paging environment for the kernel and enable
+	;; it.  This involves making a master page directory plus one page table,
+	;; and enabling paging.  The kernel can make its own tables at startup, so
+	;; this only needs to be temporary.  This function takes no arguments and
+	;; returns nothing.  Called only after protected mode has been entered.
 
 	BITS 32
 
@@ -720,83 +716,82 @@ pagingSetup:
 	mov EAX, PRIV_DATASELECTOR
 	mov ES, AX
 
-	;; Create a page table to identity-map the first 4 megabytes of
-	;; the system's memory.  This is so that the loader can operate
-	;; normally after paging has been enabled.  This is 1024 entries,
-	;; each one representing 4Kb of real memory.  We will start the table
-	;; at the address (LDRPAGINGDATA + 1000h)
+	;; Create a page table to identity-map the first 4 megabytes of the
+	;; system's memory.  This is so that the loader can operate normally after
+	;; paging has been enabled.  This is 1024 entries, each one representing
+	;; 4Kb of real memory.  We will start the table at the address
+	;; (LDRPAGINGDATA + 1000h).
 
 	mov EBX, 0						; Location we're mapping
 	mov ECX, 1024					; 1024 entries
 	mov EDI, (LDRPAGINGDATA + 1000h)
 
 	.entryLoop1:
-	;; Make one page table entry.
+	;; Make one page table entry
 	mov EAX, EBX
 	and AX, 0F000h					; Clear bits 0-11, just in case
-	;; Set the entry's page present bit, the writable bit, and the
-	;; write-through bit.
+	;; Set the entry's page present bit, the writable bit, and the write-
+	;; through bit
 	or AL, 00001011b
 	stosd							; Store the page table entry at ES:EDI
 	add EBX, 1000h					; Move to next 4Kb
 	loop .entryLoop1
 
-	;; Create a page table to represent the virtual address space that
-	;; the kernel's code will occupy.  Start this table at address
-	;; (PAGINGDATA + 2000h)
+	;; Create a page table to represent the virtual address space that the
+	;; kernel's code will occupy.  Start this table at address (PAGINGDATA +
+	;; 2000h).
 
 	mov EBX, KERNELLOADADDRESS		; Location we're mapping
 	mov ECX, 1024					; 1024 entries
 	mov EDI, (LDRPAGINGDATA + 2000h) ; location in LDRPAGINGDATA
 
 	.entryLoop2:
-	;; Make one page table entry.
+	;; Make one page table entry
 	mov EAX, EBX
 	and AX, 0F000h					; Clear bits 0-11, just in case
-	;; Set the entry's page present bit, the writable bit, and the
-	;; write-through bit.
+	;; Set the entry's page present bit, the writable bit, and the write-
+	;; through bit
 	or AL, 00001011b
 	stosd							; Store the page table entry at ES:EDI
 	add EBX, 1000h					; Move to next 4Kb
 	loop .entryLoop2
 
-	;; We will create a master page directory with two entries
-	;; representing the page tables we created.  The master page
-	;; directory will start at PAGINGDATA
+	;; We will create a master page directory with two entries representing
+	;; the page tables we created.  The master page directory will start at
+	;; PAGINGDATA.
 
-	;; Make sure there are NULL entries throughout the table
-	;; to start
+	;; Make sure there are NULL entries throughout the table to start
 	xor EAX, EAX
 	mov ECX, 1024
 	mov EDI, LDRPAGINGDATA
 	rep stosd
 
-	;; The first entry we need to create in this table represents
-	;; the first page table we made, which identity-maps the first
-	;; 4 megs of address space.  This will be the first entry in our
-	;; new table.
+	;; The first entry we need to create in this table represents the first
+	;; page table we made, which identity-maps the first 4 megs of address
+	;; space.  This will be the first entry in our new table.
+
 	;; The address of the first table
 	mov EAX, (LDRPAGINGDATA + 1000h)
 	and AX, 0F000h					; Clear bits 0-11, just in case
-	;; Set the entry's page present bit, the writable bit, and the
-	;; write-through bit.
+	;; Set the entry's page present bit, the writable bit, and the write-
+	;; through bit
 	or AL, 00001011b
 	;; Put it in the first entry
 	mov EDI, LDRPAGINGDATA
 	stosd
 
-	;; We make the second entry based on the virtual address of the
-	;; kernel.
+	;; We make the second entry based on the virtual address of the kernel
+
 	;; The address of the second table
 	mov EAX, (LDRPAGINGDATA + 2000h)
 	and AX, 0F000h					; Clear bits 0-11, just in case
-	;; Set the entry's page present bit, the writable bit, and the
-	;; write-through bit.
+	;; Set the entry's page present bit, the writable bit, and the write-
+	;; through bit
 	or AL, 00001011b
 	mov EDI, KERNELVIRTUALADDRESS	; Kernel's virtual address
-	;; We shift right by 22, to make it a multiple of 4 megs, but then
-	;; we shift it right again by 2, since the offsets of entries in the
-	;; table are multiples of 4 bytes
+	;; We shift right by 22, to make it a multiple of 4 megs, but then we
+	;; shift it right again by 2, since the offsets of entries in the table
+	;; are multiples of 4 bytes
 	shr EDI, 20
 	;; Add the offset of the table
 	add EDI, LDRPAGINGDATA
@@ -816,9 +811,8 @@ pagingSetup:
 	and EAX, 9FFFFFFFh				; Clear CD (30) and NW (29)
 	mov CR0, EAX
 
-	;; Clear out the page cache before we turn on paging, since if
-	;; we don't, rebooting from Windows or other OSes can cause us to
-	;; crash
+	;; Clear out the page cache before we turn on paging, since if we don't,
+	;; rebooting from Windows or other OSes can cause us to crash
 	wbinvd
 	invd
 
@@ -832,7 +826,6 @@ pagingSetup:
 	.pagingOn:
 
 	.done:
-	;; Done
 	popa
 	ret
 
@@ -860,7 +853,7 @@ loaderMemCopy:
 	mov DS, EAX
 	mov ES, EAX
 
-	;; Using this method we can only transfer 64K at a time.
+	;; Using this method we can only transfer 64K at a time
 	.copyLoop:
 
 	mov ECX, dword [SS:(BP + 28)]	; Size in bytes
@@ -917,7 +910,7 @@ loaderMemCopy:
 
 
 loaderMemSet:
-	;; Uses a 'big real mode' method for initializing a memory region.
+	;; Uses a 'big real mode' method for initializing a memory region
 	;; Proto:
 	;;   void loaderMemSet(word byte_value, dword *dest, dword size);
 
@@ -926,8 +919,8 @@ loaderMemSet:
 	;; Save the stack pointer
 	mov BP, SP
 
-	;; Use our loader data buffer to copy the value.  First we need to
-	;; fill it.
+	;; Use our loader data buffer to copy the value.  First we need to fill
+	;; it.
 	mov EBX, dword [SS:(BP + 24)]	; Size in bytes
 	;; Don't overrun the buffer
 	cmp EBX, DATABUFFERSIZE
@@ -952,8 +945,8 @@ loaderMemSet:
 	pop ES							; Restore ES
 	sti								; Re-enable ints
 
-	;; Use the loaderMemCopy function as many times as necessary to
-	;; set the value
+	;; Use the loaderMemCopy function as many times as necessary to set the
+	;; value
 
 	.copyLoop:
 	mov ECX, dword [SS:(BP + 24)]	; Size in bytes
@@ -992,7 +985,7 @@ PRINTINFO	dw 0	;; Show hardware information messages?
 FATALERROR	db 0 	;; Fatal error encountered?
 
 ;;
-;; Info about our boot device and filesystem.
+;; Info about our boot device and filesystem
 ;;
 	ALIGN 4
 
@@ -1009,7 +1002,7 @@ SECPERTRACK		dd 0
 SECPERCLUST		dw 0
 FATS			dw 0
 DRIVENUMBER		dw 0
-HDDINFO			times 42h  db 0	;; Space for info ret by EBIOS
+HDDINFO			times 42h  db 0		; Space for info ret by EBIOS
 
 ;;
 ;; Tables, desciptors, etc., used for protected mode
@@ -1018,7 +1011,7 @@ HDDINFO			times 42h  db 0	;; Space for info ret by EBIOS
 
 GDTSTART	dw GDTLENGTH
 		dd (LDRCODESEGMENTLOCATION + dummy_desc)
-dummy_desc	times 8 db 0		;; The empty first descriptor
+dummy_desc	times 8 db 0			; The empty first descriptor
 allcode_desc	dw 0FFFFh
 		dw 0
 		db 0
@@ -1047,22 +1040,22 @@ GDTLENGTH	equ $-dummy_desc
 
 	ALIGN 4
 
-;; This temporary GDT is for int 15h calls to move data into high memory
-;; in the loaderMemCopy() function.
+;; This temporary GDT is for int 15h calls to move data into high memory in
+;; the loaderMemCopy() function
 TMPGDT:
 	TMPGDT.empty1	times 16 db 0	; empty (used by BIOS)
-	TMPGDT.srclenlo dw 0FFFFh	; source segment length in bytes
-	TMPGDT.srclow	dw 0		; low word of linear source address
-	TMPGDT.srcmid	db 0		; middle byte of linear source address
-					db 93h		; source segment access rights
-	TMPGDT.srclenhi	db 0Fh		; source extended access rights
-	TMPGDT.srchi	db 0		; high byte of source address
-	TMPGDT.dstlenlo dw 0FFFFh	; dest segment length in bytes
-	TMPGDT.dstlow	dw 0		; low word of linear dest address
-	TMPGDT.dstmid	db 0		; middle byte of linear dest address
-					db 93h		; dest segment access rights
-	TMPGDT.dstlenhi	db 0Fh		; dest extended access rights
-	TMPGDT.dsthi	db 0		; high byte of dest address
+	TMPGDT.srclenlo dw 0FFFFh		; source segment length in bytes
+	TMPGDT.srclow	dw 0			; low word of linear source address
+	TMPGDT.srcmid	db 0			; middle byte of linear source address
+					db 93h			; source segment access rights
+	TMPGDT.srclenhi	db 0Fh			; source extended access rights
+	TMPGDT.srchi	db 0			; high byte of source address
+	TMPGDT.dstlenlo dw 0FFFFh		; dest segment length in bytes
+	TMPGDT.dstlow	dw 0			; low word of linear dest address
+	TMPGDT.dstmid	db 0			; middle byte of linear dest address
+					db 93h			; dest segment access rights
+	TMPGDT.dstlenhi	db 0Fh			; dest extended access rights
+	TMPGDT.dsthi	db 0			; high byte of dest address
 	TMPGDT.empty2	times 16 db 0	; empty (used by BIOS)
 	TMPGDT.empty3	times 16 db 0	; empty (used by BIOS)
 
@@ -1072,8 +1065,8 @@ TMPGDT:
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys BIOS OS Loader v0.9', 0
-LOADMSG2	db 'Copyright (C) 1998-2020 J. Andrew McLaughlin', 0
+LOADMSG1	db 'Visopsys BIOS OS Loader v0.91', 0
+LOADMSG2	db 'Copyright (C) 1998-2021 J. Andrew McLaughlin', 0
 BOOTDEV1	db 'Boot device  ', 10h, ' ', 0
 BOOTFLOPPY	db 'fd', 0
 BOOTHDD		db 'hd', 0

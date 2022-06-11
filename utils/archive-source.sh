@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  archive-source.sh
 ##
@@ -42,16 +42,26 @@ mv /tmp/"$DESTDIR" ./
 # Make sure it's clean
 echo -n "Making clean... "
 make -C "$DESTDIR" clean > /dev/null 2>&1
+
 # Remove all the things we don't want to distribute
+
 # CVS droppings
 find "$DESTDIR" -name CVS -exec rm -R {} \; > /dev/null 2>&1
+
 # Other stuff
+rm -f "$DESTDIR"/*.diff
 rm -f "$DESTDIR"/*.patch
 rm -f "$DESTDIR"/RELEASE.txt
 rm -Rf "$DESTDIR"/docs/visopsys.org
-rm -f "$DESTDIR"/src/ISSUES.txt
 rm -Rf "$DESTDIR"/patches
+rm -Rf $(realpath "$DESTDIR"/ports/binutils/src)
+rm -Rf "$DESTDIR"/ports/binutils/build
+rm -Rf $(realpath "$DESTDIR"/ports/gcc/src)
+rm -Rf "$DESTDIR"/ports/gcc/build
+rm -f "$DESTDIR"/src/ISSUES.txt
+rm -Rf "$DESTDIR"/toolchain/*
 rm -Rf "$DESTDIR"/work
+
 # Stuff from the 'plus' distribution
 rm -Rf "$DESTDIR"/src/lib/liblic
 rm -f "$DESTDIR"/src/include/sys/keygen.h
@@ -59,7 +69,7 @@ echo Done
 
 echo -n "Archiving... "
 echo "Visopsys $RELEASE Source Release" > /tmp/comment
-echo "Copyright (C) 1998-2020 J. Andrew McLaughlin" >> /tmp/comment
+echo "Copyright (C) 1998-2021 J. Andrew McLaughlin" >> /tmp/comment
 rm -f "$DESTDIR".zip
 zip -9 -z -r "$DESTDIR".zip "$DESTDIR" < /tmp/comment > $ZIPLOG 2>&1
 if [ $? -ne 0 ] ; then

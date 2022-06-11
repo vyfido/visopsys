@@ -1,13 +1,15 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  image-usb.sh
 ##
 
 # Installs the Visopsys system into a zipped USB image file
 
+ARCH=x86
+BUILDDIR=../build
 BLANKUSB=./blankusb.gz
 INSTSCRIPT=./install.sh
 MOUNTDIR=./tmp_mnt
@@ -16,7 +18,7 @@ ZIPLOG=./zip.log
 echo ""
 echo "Making Visopsys USB IMAGE file"
 
-while [ "$1" != "" ] ; do
+while [ -n "$1" ] ; do
 	# Are we doing a release version?  If the argument is "-r" then we use the
 	# release number in the destination directory name.  Otherwise, we assume
 	# an interim package and use the date instead.
@@ -24,6 +26,17 @@ while [ "$1" != "" ] ; do
 		# What is the current release version?
 		RELEASE=`./release.sh`
 		echo " - doing RELEASE version $RELEASE"
+
+	# Was an architecture specified?
+	elif [ -d "$BUILDDIR/$1" ] ; then
+		ARCH="$1"
+		echo " - using architecture $ARCH"
+
+	else
+		echo ""
+		echo "Unexpected argument $1.  Terminating"
+		echo ""
+		exit 1
 	fi
 
 	shift
@@ -39,13 +52,13 @@ for FILE in $BLANKUSB $INSTSCRIPT ; do
 	fi
 done
 
-if [ "$RELEASE" = "" ] ; then
+if [ -z "$RELEASE" ] ; then
 	# What is the date?
 	RELEASE=`date +%Y-%m-%d`
 	echo " - doing INTERIM version $RELEASE (use -r flag for RELEASES)"
 fi
 
-NAME=visopsys-"$RELEASE"
+NAME="visopsys-$RELEASE-$ARCH"
 IMAGEFILE="$NAME"-usb.img
 ZIPFILE="$NAME"-usb-img.zip
 rm -f $IMAGEFILE
@@ -66,7 +79,7 @@ LOOPDEV=$(/sbin/losetup -f)
 /sbin/losetup -o $STARTOFF $LOOPDEV "$IMAGEFILE"
 
 # Run the installation script
-$INSTSCRIPT $LOOPDEV
+$INSTSCRIPT "$ARCH" "$LOOPDEV"
 STATUS=$?
 
 # Disconnect the loop device
@@ -81,7 +94,7 @@ fi
 
 echo -n "Archiving... "
 echo "Visopsys $RELEASE USB Image Release" > /tmp/comment
-echo "Copyright (C) 1998-2020 J. Andrew McLaughlin" >> /tmp/comment
+echo "Copyright (C) 1998-2021 J. Andrew McLaughlin" >> /tmp/comment
 rm -f $ZIPFILE
 zip -9 -z -r $ZIPFILE $IMAGEFILE < /tmp/comment > $ZIPLOG 2>&1
 if [ $? -ne 0 ] ; then

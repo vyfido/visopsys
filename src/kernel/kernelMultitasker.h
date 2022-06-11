@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -30,6 +30,7 @@
 #include <sys/file.h>
 #include <sys/loader.h>
 #include <sys/process.h>
+#include <sys/processor.h>
 #include <sys/user.h>
 #include <sys/vis.h>
 
@@ -43,10 +44,6 @@
 #define CPU_PERCENT_TIMESLICES		(TIME_SLICES_PER_SEC / 2) // every 1/2 sec
 #define PRIORITY_RATIO				3
 #define PRIORITY_DEFAULT			((PRIORITY_LEVELS / 2) - 1)
-#define FPU_STATE_LEN				108
-#define IO_PORTS					65536
-#define PORTS_BYTES					(IO_PORTS / 8)
-#define IOBITMAP_OFFSET				0x68
 
 // Exception vector numbers
 #define EXCEPTION_DIVBYZERO			0
@@ -69,38 +66,15 @@
 #define EXCEPTION_ALIGNCHECK		17
 #define EXCEPTION_MACHCHECK			18
 
-// A structure representing x86 TSSes (Task State Sements)
 typedef volatile struct {
-	unsigned oldTSS;
-	unsigned ESP0;
-	unsigned SS0;
-	unsigned ESP1;
-	unsigned SS1;
-	unsigned ESP2;
-	unsigned SS2;
-	unsigned CR3;
-	unsigned EIP;
-	unsigned EFLAGS;
-	unsigned EAX;
-	unsigned ECX;
-	unsigned EDX;
-	unsigned EBX;
-	unsigned ESP;
-	unsigned EBP;
-	unsigned ESI;
-	unsigned EDI;
-	unsigned ES;
-	unsigned CS;
-	unsigned SS;
-	unsigned DS;
-	unsigned FS;
-	unsigned GS;
-	unsigned LDTSelector;
-	unsigned short pad;
-	unsigned short IOMapBase;
-	unsigned char IOMap[PORTS_BYTES];
+#ifdef ARCH_X86
+	kernelSelector tssSelector;
+	x86TSS taskStateSegment;
+	unsigned char fpuState[X86_FPU_STATE_LEN];
+	int fpuStateSaved;
+#endif
 
-} __attribute__((packed)) kernelTSS;
+} kernelProcessContext;
 
 // A structure for processes
 typedef volatile struct {
@@ -127,8 +101,7 @@ typedef volatile struct {
 	void *superStack;
 	unsigned superStackSize;
 	kernelPageDirectory *pageDirectory;
-	kernelSelector tssSelector;
-	kernelTSS taskStateSegment;
+	kernelProcessContext context;
 	char currentDirectory[MAX_PATH_LENGTH + 1];
 	variableList *environment;
 	kernelTextInputStream *textInputStream;
@@ -136,8 +109,6 @@ typedef volatile struct {
 	kernelTextOutputStream *textOutputStream;
 	unsigned signalMask;
 	stream signalStream;
-	unsigned char fpuState[FPU_STATE_LEN];
-	int fpuStateSaved;
 	loaderSymbolTable *symbols;
 
 } kernelProcess;

@@ -1,51 +1,54 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
-BUILDDIR = ../../build/system/libraries
+BUILDDIR = build
+OUTPUTDIR = ../../${BUILDDIR}/system/libraries
 
 all:
-	mkdir -p ${BUILDDIR}
-	${MAKE} -C libc DEBUG=${DEBUG}
-	${MAKE} -C libcompress DEBUG=${DEBUG}
-	${MAKE} -C libdl DEBUG=${DEBUG}
-	${MAKE} -C libhtml DEBUG=${DEBUG}
-	${MAKE} -C libhttp DEBUG=${DEBUG}
-	${MAKE} -C libinstall DEBUG=${DEBUG}
-	${MAKE} -C libintl DEBUG=${DEBUG}
-	${MAKE} -C ../../ports/ntfsprogs -f Makefile.visopsys DEBUG=${DEBUG}
-	${MAKE} -C libpthread DEBUG=${DEBUG}
-	${MAKE} -C libstdc++ DEBUG=${DEBUG}
-	${MAKE} -C libtelnet DEBUG=${DEBUG}
-	${MAKE} -C libtimer DEBUG=${DEBUG}
-	${MAKE} -C libvis DEBUG=${DEBUG}
-	${MAKE} -C libvsh DEBUG=${DEBUG}
-	${MAKE} -C libwindow DEBUG=${DEBUG}
-	${MAKE} -C libxml DEBUG=${DEBUG}
+	mkdir -p ${OUTPUTDIR}
+	${MAKE} -C libc BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C libcompress BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C libdl BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C libhtml BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C libhttp BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C libinstall BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C libintl BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C ../../ports/ntfsprogs -f Makefile.visopsys \
+		BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C libpthread BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C libstdc++ BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C libtelnet BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C libtimer BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C libvis BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C libvsh BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C libwindow BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
+	${MAKE} -C libxml BUILDDIR=${BUILDDIR} DEBUG=${DEBUG}
 
 debug:
 	${MAKE} all DEBUG=1
 
 clean:
-	${MAKE} -C libc clean
-	${MAKE} -C libcompress clean
-	${MAKE} -C libdl clean
-	${MAKE} -C libhtml clean
-	${MAKE} -C libhttp clean
-	${MAKE} -C libinstall clean
-	${MAKE} -C libintl clean
-	${MAKE} -C ../../ports/ntfsprogs -f Makefile.visopsys clean
-	${MAKE} -C libpthread clean
-	${MAKE} -C libstdc++ clean
-	${MAKE} -C libtelnet clean
-	${MAKE} -C libtimer clean
-	${MAKE} -C libvis clean
-	${MAKE} -C libvsh clean
-	${MAKE} -C libwindow clean
-	${MAKE} -C libxml clean
+	${MAKE} -C libc BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C libcompress BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C libdl BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C libhtml BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C libhttp BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C libinstall BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C libintl BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C ../../ports/ntfsprogs -f Makefile.visopsys \
+		BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C libpthread BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C libstdc++ BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C libtelnet BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C libtimer BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C libvis BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C libvsh BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C libwindow BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C libxml BUILDDIR=${BUILDDIR} clean
 	rm -f *~ *.o core
-	rm -Rf ${BUILDDIR}
+	rm -Rf ${OUTPUTDIR}
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -3038,121 +3038,119 @@ static int setup(xhciData *xhci)
 	// Check the sizes of some structures
 	if (sizeof(xhciSlotCtxt64) != 64)
 	{
-		kernelDebugError("sizeof(xhciSlotCtxt64) is %u, not 64",
+		kernelDebugError("sizeof(xhciSlotCtxt64) is %lu, not 64",
 			sizeof(xhciSlotCtxt64));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciSlotCtxt32) != 32)
 	{
-		kernelDebugError("sizeof(xhciSlotCtxt32) is %u, not 32",
+		kernelDebugError("sizeof(xhciSlotCtxt32) is %lu, not 32",
 			sizeof(xhciSlotCtxt32));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciEndpointCtxt64) != 64)
 	{
-		kernelDebugError("sizeof(xhciEndpointCtxt64) is %u, not 64",
+		kernelDebugError("sizeof(xhciEndpointCtxt64) is %lu, not 64",
 			sizeof(xhciEndpointCtxt64));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciEndpointCtxt32) != 32)
 	{
-		kernelDebugError("sizeof(xhciEndpointCtxt32) is %u, not 32",
+		kernelDebugError("sizeof(xhciEndpointCtxt32) is %lu, not 32",
 			sizeof(xhciEndpointCtxt32));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciInputCtrlCtxt64) != 64)
 	{
-		kernelDebugError("sizeof(xhciInputCtrlCtxt64) is %u, not 64",
+		kernelDebugError("sizeof(xhciInputCtrlCtxt64) is %lu, not 64",
 			sizeof(xhciInputCtrlCtxt64));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciInputCtrlCtxt32) != 32)
 	{
-		kernelDebugError("sizeof(xhciInputCtrlCtxt32) is %u, not 32",
+		kernelDebugError("sizeof(xhciInputCtrlCtxt32) is %lu, not 32",
 			sizeof(xhciInputCtrlCtxt32));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciInputCtxt64) != 2112)
 	{
-		kernelDebugError("sizeof(xhciInputCtxt64) is %u, not 2112",
+		kernelDebugError("sizeof(xhciInputCtxt64) is %lu, not 2112",
 			sizeof(xhciDevCtxt64));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciInputCtxt32) != 1056)
 	{
-		kernelDebugError("sizeof(xhciInputCtxt32) is %u, not 1056",
+		kernelDebugError("sizeof(xhciInputCtxt32) is %lu, not 1056",
 			sizeof(xhciDevCtxt32));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciDevCtxt64) != 2048)
 	{
-		kernelDebugError("sizeof(xhciDevCtxt64) is %u, not 2048",
+		kernelDebugError("sizeof(xhciDevCtxt64) is %lu, not 2048",
 			sizeof(xhciDevCtxt64));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciDevCtxt32) != 1024)
 	{
-		kernelDebugError("sizeof(xhciDevCtxt32) is %u, not 1024",
+		kernelDebugError("sizeof(xhciDevCtxt32) is %lu, not 1024",
 			sizeof(xhciDevCtxt32));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciTrb) != 16)
 	{
-		kernelDebugError("sizeof(xhciTrb) is %u, not 16", sizeof(xhciTrb));
+		kernelDebugError("sizeof(xhciTrb) is %lu, not 16", sizeof(xhciTrb));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciPortRegSet) != 16)
 	{
-		kernelDebugError("sizeof(xhciPortRegSet) is %u, not 16",
+		kernelDebugError("sizeof(xhciPortRegSet) is %lu, not 16",
 			sizeof(xhciPortRegSet));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciOpRegs) != 5120)
 	{
-		kernelDebugError("sizeof(xhciOpRegs) is %u, not 5120",
+		kernelDebugError("sizeof(xhciOpRegs) is %lu, not 5120",
 			sizeof(xhciOpRegs));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciCapRegs) != 28)
 	{
-		kernelDebugError("sizeof(xhciCapRegs) is %u, not 28",
+		kernelDebugError("sizeof(xhciCapRegs) is %lu, not 28",
 			sizeof(xhciCapRegs));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciIntrRegSet) != 32)
 	{
-		kernelDebugError("sizeof(xhciIntrRegSet) is %u, not 32",
+		kernelDebugError("sizeof(xhciIntrRegSet) is %lu, not 32",
 			sizeof(xhciIntrRegSet));
 		status = ERR_ALIGN;
 		goto err_out;
 	}
 	if (sizeof(xhciRuntimeRegs) != 32)
 	{
-		kernelDebugError("sizeof(xhciRuntimeRegs) is %u, not 32",
+		kernelDebugError("sizeof(xhciRuntimeRegs) is %lu, not 32",
 			sizeof(xhciRuntimeRegs));
 		status = ERR_ALIGN;
 
 		goto err_out;
 	}
-
 	if (sizeof(xhciDoorbellRegs) != 1024)
 	{
-
-		kernelDebugError("sizeof(xhciDoorbellRegs) is %u, not 1024",
+		kernelDebugError("sizeof(xhciDoorbellRegs) is %lu, not 1024",
 			sizeof(xhciDoorbellRegs));
 
 		status = ERR_ALIGN;
@@ -3161,7 +3159,7 @@ static int setup(xhciData *xhci)
 	}
 	if (sizeof(xhciEventRingSegTable) != 16)
 	{
-		kernelDebugError("sizeof(xhciEventRingSegTable) is %u, not 16",
+		kernelDebugError("sizeof(xhciEventRingSegTable) is %lu, not 16",
 			sizeof(xhciEventRingSegTable));
 		status = ERR_ALIGN;
 		goto err_out;

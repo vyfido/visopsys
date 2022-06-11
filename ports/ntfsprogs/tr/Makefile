@@ -1,14 +1,15 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
-ROOT		= ../../..
-UTILSDIR	= ${ROOT}/utils
-BUILDDIR	= ${ROOT}/build
-MSGDIR		= ${BUILDDIR}/system/locale/tr
+ROOT = ../../..
+BUILDDIR = build
+UTILSDIR = ${ROOT}/utils
+OUTPUTDIR = ${ROOT}/${BUILDDIR}
+MSGDIR = ${OUTPUTDIR}/system/locale/tr
 
 all:
 	mkdir -p ${MSGDIR}

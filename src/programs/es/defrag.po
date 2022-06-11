@@ -97,11 +97,11 @@ msgstr "Error al determinar la información del disco"
 msgid ""
 "\n"
 "Visopsys DEFRAG Utility\n"
-"Copyright (C) 1998-2020 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2021 J. Andrew McLaughlin\n"
 msgstr ""
 "\n"
 "Herramienta de DEFRAGMENTACIÓN Visopsys\n"
-"Copyright (C) 1998-2020 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2021 J. Andrew McLaughlin\n"
 
 #: defrag.c:388
 msgid ""

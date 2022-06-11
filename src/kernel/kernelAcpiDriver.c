@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -304,7 +304,7 @@ static int driverDetectAcpi(void *parent, kernelDriver *driver)
 	if (checkChecksum(ptr, sizeof(acpiRsdp)))
 		goto out;
 
-	kernelDebug(debug_power, "ACPI found at 0x%08x, RSDT at 0x%08x",
+	kernelDebug(debug_power, "ACPI found at 0x%08lx, RSDT at 0x%08x",
 		(BIOSROM_START + ((void *) dataStruct - rom)),
 		dataStruct->rsdtAddr);
 

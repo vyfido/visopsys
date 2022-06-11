@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -395,7 +395,7 @@ static int popBytes(stream *theStream, unsigned number, unsigned char *buffer)
 
 	// Check params
 	if (!theStream || !buffer)
-		return (removed = ERR_NULLPARAMETER);
+		return (status = ERR_NULLPARAMETER);
 
 	status = kernelLockGet(&theStream->lock);
 	if (status < 0)
@@ -445,7 +445,7 @@ static int popDwords(stream *theStream, unsigned number, unsigned *buffer)
 
 	// Check params
 	if (!theStream || !buffer)
-		return (removed = ERR_NULLPARAMETER);
+		return (status = ERR_NULLPARAMETER);
 
 	status = kernelLockGet(&theStream->lock);
 	if (status < 0)

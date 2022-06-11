@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -65,7 +65,7 @@ void kernelMain(unsigned kernelMemory, void *kernelStack,
 	unsigned kernelStackSize, loaderInfoStruct *info)
 {
 	// This is the kernel entry point -- and main function -- which starts the
-	// entire show and, of course, never returns.
+	// entire show and, of course, never returns
 
 	int status = 0;
 	const char *startProgram = NULL;
@@ -77,15 +77,15 @@ void kernelMain(unsigned kernelMemory, void *kernelStack,
 	status = kernelInitialize(kernelMemory, kernelStack, kernelStackSize);
 	if (status < 0)
 	{
-		// Kernel initialization failed.  Crap.  We don't exactly know
-		// what failed.  That makes it a little bit risky to call the
-		// error function, but we'll do it anyway.
+		// Kernel initialization failed.  We don't exactly know what failed,
+		// which makes it a little bit risky to call the error function, but
+		// we'll do it anyway.
 
 		kernelError(kernel_error, "Initialization failed.  Press any key "
 			"(or the \"reset\" button) to reboot.");
 
-		// Do a loop, manually polling the keyboard input buffer
-		// looking for the key press to reboot.
+		// Do a loop, manually polling the keyboard input buffer looking for
+		// the key press to reboot
 		while (!kernelTextInputCount())
 			kernelMultitaskerYield();
 
@@ -113,10 +113,10 @@ void kernelMain(unsigned kernelMemory, void *kernelStack,
 	while (1)
 	{
 		// Finally, we will change the kernel state to 'sleeping'.  This is
-		// done because there's nothing that needs to be actively done by
-		// the kernel process itself; it just needs to remain resident in
-		// memory.  Changing to a 'sleeping' state means that it won't get
-		// invoked again by the scheduler.
+		// done because there's nothing that needs to be actively done by the
+		// kernel process itself; it just needs to remain resident in memory.
+		// Changing to a 'sleeping' state means that it won't get invoked
+		// again by the scheduler.
 		status = kernelMultitaskerSetProcessState(KERNELPROCID,
 			proc_sleeping);
 		if (status < 0)

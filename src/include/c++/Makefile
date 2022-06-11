@@ -1,21 +1,22 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
-BUILDDIR = ../../../build/system/headers/c++
+BUILDDIR = build
+OUTPUTDIR = ../../../${BUILDDIR}/system/headers/c++
 
 all:
-	mkdir -p ${BUILDDIR}
+	mkdir -p ${OUTPUTDIR}
 	for FILE in * ; do \
 		if [ -f "$$FILE" -a "$$FILE" != "Makefile" ] ; then \
-			cp $$FILE ${BUILDDIR} ; \
+			cp $$FILE ${OUTPUTDIR} ; \
 		fi \
 	done
 
 clean:
 	rm -f *~
-	rm -Rf ${BUILDDIR}
+	rm -Rf ${OUTPUTDIR}
 

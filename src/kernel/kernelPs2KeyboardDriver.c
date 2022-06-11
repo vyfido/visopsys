@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -485,8 +485,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	kernelDebug(debug_io, "Ps2Key hook interrupt");
 
 	// Register our interrupt handler
-	status = kernelInterruptHook(INTERRUPT_NUM_KEYBOARD, &interrupt,
-		NULL /* handlerTask */);
+	status = kernelInterruptHook(INTERRUPT_NUM_KEYBOARD, &interrupt);
 	if (status < 0)
 		goto out;
 

@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2020 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -16,7 +16,7 @@
 ;;  with this program; if not, write to the Free Software Foundation, Inc.,
 ;;  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 ;;
-;;  loaderPrintRoutines.s
+;;  loaderPrintfunctions.s
 ;;
 
 	EXTERN CURRENTGMODE
@@ -37,13 +37,12 @@
 
 
 loaderGetCursorAddress:
-	;; This routine gathers the current cursor address
-	;; and returns it in AX
+	;; This function gathers the current cursor address and returns it in AX
 
 	push DX
 
-	;; If we are currently in graphics mode, use the saved cursor
-	;; address instead of the on the BIOS tells us
+	;; If we are currently in graphics mode, use the saved cursor address
+	;; instead of the on the BIOS tells us
 	cmp word [CURRENTGMODE], 0
 	je .textMode
 
@@ -51,18 +50,18 @@ loaderGetCursorAddress:
 	jmp .done
 
 	.textMode:
-	mov DX, 03D4h	;; The port for the selection register
-	mov AL, 0Eh		;; MSB of cursor address
-	out DX, AL		;; Select the correct register
-	mov DX, 03D5h	;; The data port
+	mov DX, 03D4h			; The port for the selection register
+	mov AL, 0Eh				; MSB of cursor address
+	out DX, AL				; Select the correct register
+	mov DX, 03D5h			; The data port
 	in AL, DX
 
 	shl AX, 8
 
-	mov DX, 03D4h	;; The port for the selection register
-	mov AL, 0Fh		;; LSB of cursor address
-	out DX, AL		;; Select the correct register
-	mov DX, 03D5h	;; The data port
+	mov DX, 03D4h			; The port for the selection register
+	mov AL, 0Fh				; LSB of cursor address
+	out DX, AL				; Select the correct register
+	mov DX, 03D5h			; The data port
 	in AL, DX
 
 	.done:
@@ -71,11 +70,11 @@ loaderGetCursorAddress:
 
 
 loaderSetCursorAddress:
-	;; This routine takes a new cursor address offset in AX
+	;; This function takes a new cursor address offset in AX
 	pusha
 
-	;; If we are currently in graphics mode, set the saved cursor
-	;; address instead of the one the BIOS tells us
+	;; If we are currently in graphics mode, set the saved cursor address
+	;; instead of the one the BIOS tells us
 	cmp word [CURRENTGMODE], 0
 	je .textMode
 
@@ -85,17 +84,17 @@ loaderSetCursorAddress:
 	.textMode:
 	mov CX, AX
 
-	mov DX, 03D4h	;; The port for the selection register
-	mov AL, 0Fh		;; LSB of cursor address
-	out DX, AL		;; Select the correct register
-	mov DX, 03D5h	;; The data port
+	mov DX, 03D4h			; The port for the selection register
+	mov AL, 0Fh				; LSB of cursor address
+	out DX, AL				; Select the correct register
+	mov DX, 03D5h			; The data port
 	mov AL, CL
 	out DX, AL
 
-	mov DX, 03D4h	;; The port for the selection register
-	mov AL, 0Eh		;; MSB of cursor address
-	out DX, AL		;; Select the correct register
-	mov DX, 03D5h	;; The data port
+	mov DX, 03D4h			; The port for the selection register
+	mov AL, 0Eh				; MSB of cursor address
+	out DX, AL				; Select the correct register
+	mov DX, 03D5h			; The data port
 	mov AL, CH
 	out DX, AL
 
@@ -105,13 +104,12 @@ loaderSetCursorAddress:
 
 
 loaderPrint:
-	;; This routine takes a pointer to the chars to print in DS:SI,
-	;; and the color in DL.
+	;; This function takes a pointer to the chars to print in DS:SI, and the
+	;; color in DL
 
-	pusha
+	pushad
 
-	;; OR the desired foreground color with the desired
-	;; background color
+	;; OR the desired foreground color with the desired background color
 	mov DH, BACKGROUNDCOLOR
 	and DH, 00000111b
 	shl DH, 4
@@ -126,9 +124,9 @@ loaderPrint:
 	call loaderGetCursorAddress
 
 	;; Now AX has the offset we write to
-	push AX		;; Save it
+	push AX					; Save it
 
-	mov BP, SP	;; BP will keep a copy of the new stack pointer
+	mov BP, SP				; BP will keep a copy of the new stack pointer
 
 	;; Make it a screen address (multiply by 2)
 	shl AX, 1
@@ -160,9 +158,9 @@ loaderPrint:
 	pop DS
 	pop ES
 
-	;; Lastly, we want to make the cursor position in the BIOS
-	;; data area reflect the correct values
-	mov AX, word [SS:(BP + 4)]	;; Number of chars written
+	;; Lastly, we want to make the cursor position in the BIOS data area
+	;; reflect the correct values
+	mov AX, word [SS:(BP + 4)]	; Number of chars written
 	;; Add the current cursor offset (get it from the stack)
 	add AX, word [SS:BP]
 
@@ -171,7 +169,7 @@ loaderPrint:
 
 	;; Clean up the stack
 	add SP, 6
-	popa
+	popad
 	ret
 
 
@@ -181,8 +179,8 @@ loaderPrintNewline:
 	;; Get the current cursor position
 	call loaderGetCursorAddress
 
-	;; Determine whether the cursor is on the last line of the
-	;; screen; If it is, we have to scroll everything up
+	;; Determine whether the cursor is on the last line of the screen; If it
+	;; is, we have to scroll everything up
 	cmp AX, (COLUMNS * (ROWS - 1))
 	jnae .noScroll
 
@@ -209,7 +207,7 @@ loaderPrintNewline:
 
 
 loaderPrintNumber:
-	pusha
+	pushad
 
 	mov dword [REMAINDER], EAX
 	mov ECX, 1000000000
@@ -225,7 +223,7 @@ loaderPrintNumber:
 	cmp EAX, 0
 	jne .notZero
 	cmp ECX, 1
-	je .notZero ;; If the value is 0 we still want it to print
+	je .notZero				; If the value is 0 we still want it to print
 
 	cmp byte [LEADZERO], 01h
 	je .afterPrint
@@ -259,13 +257,12 @@ loaderPrintNumber:
 	cmp ECX, 0
 	ja .nextChar
 
-	popa
+	popad
 	ret
 
 
 scrollLine:
-	;; This routine will scroll the contents of the text console
-	;; screen
+	;; This function will scroll the contents of the text console screen
 	pusha
 
 	;; Disable interrupts while we do this
@@ -290,7 +287,7 @@ scrollLine:
 	mov DI, (COLUMNS * (ROWS - 1) * 2)
 	mov CX, COLUMNS
 
-	xor AL, AL		; 'null' character;
+	xor AL, AL				; 'null' character;
 	mov AH, BACKGROUNDCOLOR
 	and AH, 00000111b
 	shl AH, 4
@@ -301,8 +298,8 @@ scrollLine:
 	;; Re-enable interrupts
 	sti
 
-	;; Make the cursor maintain its position in relation to the
-	;; most recent text
+	;; Make the cursor maintain its position in relation to the most recent
+	;; text
 	call loaderGetCursorAddress
 	sub AX, COLUMNS
 	call loaderSetCursorAddress

@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2020 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -51,7 +51,7 @@
 
 
 loadFAT:
-	;; This routine will load up to a segment of the FAT table into memory at
+	;; This function will load up to a segment of the FAT table into memory at
 	;; location [FATSEGMENT:0000]
 
 	;; Save 1 word for our return code
@@ -81,7 +81,7 @@ loadFAT:
 	cmp AX, 0
 	je .done
 
-	;; Call the 'disk error' routine
+	;; Call the 'disk error' function
 	call loaderDiskError
 	;; Put a -1 as our return code
 	mov word [SS:(BP + 16)], -1
@@ -142,7 +142,7 @@ loadDirectory:
 	cmp AX, 0
 	je .done
 
-	;; Call the 'disk error' routine
+	;; Call the 'disk error' function
 	call loaderDiskError
 
 	;; Put a -1 as our return code
@@ -190,7 +190,7 @@ searchFile:
 	mov DI, word [ENTRYSTART]
 	mov AL, byte [ES:DI]
 	cmp AL, 0E5h
-	je .notThisEntry	; Deleted
+	je .notThisEntry		; Deleted
 	;; 00 means that there are no more entries
 	cmp AL, 0
 	je .noFile
@@ -274,25 +274,25 @@ clusterToLogical:
 	;; Save the stack pointer
 	mov BP, SP
 
-	sub EAX, 2						; Subtract 2 (because they start at 2)
+	sub EAX, 2					; Subtract 2 (because they start at 2)
 	xor EBX, EBX
-	mov BX, word [SECPERCLUST]		; How many sectors per cluster?
+	mov BX, word [SECPERCLUST]	; How many sectors per cluster?
 	mul EBX
 
 	;; This little sequence figures out where the data clusters
 	;; start on this volume
 
 	xor EBX, EBX
-	mov BX, word [RESSECS]			; The reserved sectors
+	mov BX, word [RESSECS]		; The reserved sectors
 	add EAX, EBX
 	mov EBX, dword [FATSECS]
-	shl EBX, 1						; Add sectors for both FATs
+	shl EBX, 1					; Add sectors for both FATs
 	add EAX, EBX
 
 	cmp word [FSTYPE], FS_FAT32
 	je .noAddDir
 	xor EBX, EBX
-	mov BX, word [DIRSECTORS]		; Root dir sectors
+	mov BX, word [DIRSECTORS]	; Root dir sectors
 	add EAX, EBX
 	.noAddDir:
 
@@ -354,9 +354,7 @@ loadFile:
 	mov EAX, dword [NEXTCLUSTER]
 	call clusterToLogical
 
-	;; Use the portion of loader's data buffer that comes AFTER the
-	;; FAT data.  This is where we will initially load each cluster's
-	;; contents.
+	;; Read a cluster
 	push word 0					; We have our own progress indicator
 	xor EBX, EBX
 	mov BX, word [SECPERCLUST]	; Read 1 cluster's worth of sectors
@@ -418,13 +416,13 @@ loadFile:
 	.fat12:
 	mov EAX, dword [NEXTCLUSTER]
 	mov BX, FAT12_NYBBLESPERCLUST
-	mul BX   						; We can ignore DX because it shouldn't
-									; be bigger than a word
+	mul BX   					; We can ignore DX because it shouldn't
+								; be bigger than a word
 	mov BX, AX
 	;; There are 2 nybbles per byte.  We will shift the register
 	;; right by 1, and the remainder (1 or 0) will be in the
 	;; carry flag.
-	shr BX, 1	; Divide by 2
+	shr BX, 1					; Divide by 2
 	;; Now we have to shift or mask the value in AX depending
 	;; on whether CF is 1 or 0
 	jnc .mask
@@ -514,9 +512,8 @@ loaderCalcVolInfo:
 	mov word [DIRSECTORS], AX
 
 	.doneRoot:
-	;; Calculate the segment where we will keep FAT (and directory)
-	;; data after loading them.  It comes at the beginning of the
-	;; LDRDATABUFFER
+	;; Calculate the segment where we will keep FAT (and directory) data after
+	;; loading them.  It comes at the beginning of the LDRDATABUFFER.
 	mov AX, (LDRDATABUFFER / 16)
 	mov word [FATSEGMENT], AX
 
@@ -535,6 +532,8 @@ loaderCalcVolInfo:
 	mov EAX, dword [FATSECSLOADED]
 	mul word [BYTESPERSECT]
 	add EAX, LDRDATABUFFER
+	add EAX, 0000000Fh	; round up
+	and AL, 0F0h		; to 16 bytes
 	mov dword [FILEDATABUFFER], EAX
 
 	popa
@@ -593,7 +592,7 @@ loaderFindFile:
 
 	.done:
 	popa
-	pop AX							; return code
+	pop AX					; return code
 	ret
 
 

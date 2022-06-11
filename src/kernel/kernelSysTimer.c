@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -106,8 +106,7 @@ int kernelSysTimerHook(void)
 	int status = 0;
 
 	// Register our interrupt handler
-	status = kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, &timerInterrupt,
-		NULL /* handlerTask */);
+	status = kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, &timerInterrupt);
 	if (status < 0)
 		return (status);
 
@@ -227,41 +226,5 @@ int kernelSysTimerGetOutput(int timer)
 
 	// Return the result from the driver call
 	return (value);
-}
-
-
-void kernelSysTimerWaitTicks(int waitTicks)
-{
-	// This function waits for a specified number of timer ticks to occur
-
-	int targetTime = 0;
-
-	if (!systemTimer)
-		return;
-
-	// Now make sure the device driver read timer function has been installed
-	if (!ops->driverRead)
-	{
-		kernelError(kernel_error, "The device driver function is NULL");
-		return;
-	}
-
-	// One more thing: make sure the number to wait is reasonable
-	if (waitTicks < 0)
-	{
-		// Not possible in this dimension.  Assume zero.
-		waitTicks = 0;
-	}
-
-	// Now we can call the driver function safely
-
-	// Find out the current time
-	targetTime = ops->driverRead();
-
-	// Add the ticks-to-wait to that number
-	targetTime += waitTicks;
-
-	// Now loop until the time reaches the specified mark
-	while (targetTime >= ops->driverRead());
 }
 

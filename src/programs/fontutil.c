@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -605,8 +605,6 @@ static void dumpHeader(vbfFileHeader *vbfHeader)
 	printf(" numGlyphs=%d\n", vbfHeader->numGlyphs);
 	printf(" glyphWidth=%d\n", vbfHeader->glyphWidth);
 	printf(" glyphHeight=%d\n", vbfHeader->glyphHeight);
-	if (vbfHeader->numGlyphs)
-		printf(" first code=%u\n", vbfHeader->codes[0]);
 }
 
 

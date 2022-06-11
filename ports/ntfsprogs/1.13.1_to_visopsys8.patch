@@ -1,0 +1,34 @@
+Index: libntfs/Makefile.visopsys
+===================================================================
+RCS file: /home/andymc/Prog/cvs/visopsys/ports/ntfsprogs/libntfs/Makefile.visopsys,v
+retrieving revision 1.40
+diff -u -r1.40 Makefile.visopsys
+--- libntfs/Makefile.visopsys	5 Apr 2021 22:20:19 -0000	1.40
++++ libntfs/Makefile.visopsys	27 Jun 2021 11:09:19 -0000
+@@ -73,8 +73,8 @@
+ 	${AR} -rs ${LIBRARY} ${OBJS}
+ 
+ ${SHAREDLIB}: ${PICOBJS}
+-	${CC} ${ARCHFLAGS} -shared -nostdlib -Wl,--soname=${SONAME},-z,norelro \
+-		${PICOBJS} -static -lgcc -o $@
++	${CC} ${ARCHFLAGS} -nostdlib -Wl,-shared -Wl,--soname=${SONAME} \
++		-Wl,-z,norelro ${PICOBJS} -static -lgcc -o $@
+ 
+ strip: ${SHAREDLIB}
+ 	${STRIP}
+Index: libntfs/compress.c
+===================================================================
+RCS file: /home/andymc/Prog/cvs/visopsys/ports/ntfsprogs/libntfs/compress.c,v
+retrieving revision 1.4
+diff -u -r1.4 compress.c
+--- libntfs/compress.c	28 Jan 2007 16:46:29 -0000	1.4
++++ libntfs/compress.c	27 Jun 2021 11:09:19 -0000
+@@ -98,7 +98,7 @@
+ 
+ 	ntfs_log_trace("Entering, cb_size = 0x%x.\n", (unsigned)cb_size);
+ do_next_sb:
+-	ntfs_log_debug("Beginning sub-block at offset = 0x%x in the cb.\n",
++	ntfs_log_debug("Beginning sub-block at offset = 0x%lx in the cb.\n",
+ 			cb - cb_start);
+ 	/*
+ 	 * Have we reached the end of the compression block or the end of the

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -42,11 +42,10 @@ void *__dso_handle = NULL;
 
 void _start(void)
 {
-	// This is the code that first gets invoked when the program starts
-	// to run.  This function will setup an easy termination function
-	// that gets called when the program returns.  This file should
-	// be compiled into object format and linked with any programs
-	// built for use with Visopsys.
+	// This is the code that first gets invoked when the program starts to
+	// run.  This function will setup an easy termination function that gets
+	// called when the program returns.  This file should be compiled into
+	// object format and linked with any programs built for use with Visopsys.
 
 	// NO AUTOMATIC (STACK) VARIABLE DECLARATIONS.
 
@@ -70,7 +69,7 @@ void _start(void)
 	// Clear the stack frame
 	processorPopFrame();
 
-	// Call the regular program.
+	// Call the regular program
 	_exit_status = main();
 
 	// Do an exit call to properly terminate the program after main returns

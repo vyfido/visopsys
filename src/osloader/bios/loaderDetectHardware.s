@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2020 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -43,16 +43,15 @@
 
 
 loaderDetectHardware:
-	;; This routine is called by the main program.  It is the master
-	;; routine for detecting hardware, and is responsible for filling
-	;; out the data structure which contains all of the information
-	;; about the hardware detected, which in turn gets passed to
-	;; the kernel.
+	;; This function is called by the main program.  It is the master function
+	;; for detecting hardware, and is responsible for filling out the data
+	;; structure which contains all of the information about the hardware
+	;; detected, which in turn gets passed to the kernel.
 
-	;; The routine is also responsible for stopping the boot process
-	;; in the event that the system does not meet hardware requirements.
-	;; The function returns a single value representing the number of
-	;; fatal errors encountered during this process.
+	;; The function is also responsible for stopping the boot process in the
+	;; event that the system does not meet hardware requirements.  The
+	;; function returns a single value representing the number of fatal errors
+	;; encountered during this process.
 
 	;; Save regs
 	pusha
@@ -60,24 +59,24 @@ loaderDetectHardware:
 	;; Detect the memory
 	call detectMemory
 
-	;; Before we check video, make sure that the user hasn't specified
-	;; text-only mode
+	;; Before we check video, make sure that the user hasn't specified text-
+	;; only mode
 	push word NOGRAPHICS
 	call loaderFindFile
 	add SP, 2
 
 	;; Does the file exist?
 	cmp AX, 1
-	je .skipVideo	; The user doesn't want graphics
+	je .skipVideo			; The user doesn't want graphics
 
-	;; Detect video.  Push a pointer to the start of the video
-	;; information in the hardware structure
+	;; Detect video.  Push a pointer to the start of the video information in
+	;; the hardware structure.
 	push word VIDEO
 	call loaderDetectVideo
 	add SP, 2
 
 	.skipVideo:
-	;; Check for CD-ROM emulation stuffs
+	;; Check for CD-ROM emulation
 	call detectCdEmul
 
 	;; Detect floppy drives, if any
@@ -117,35 +116,35 @@ detectMemory:
 
 	mov dword [EXTENDEDMEMORY], 0
 
-	;; This BIOS function will give us the amount of extended memory
-	;; (even greater than 64M), but it is not found in old BIOSes.  We'll
-	;; have to assume that if the function is not available, the
-	;; extended memory is less than 64M.
+	;; This BIOS function will give us the amount of extended memory (even
+	;; greater than 64M), but it is not found in old BIOSes.  We'll have to
+	;; assume that if the function is not available, the extended memory is
+	;; less than 64M.
 
-	mov EAX, 0000E801h	; Subfunction
+	mov EAX, 0000E801h		; Subfunction
 	int 15h
 	jc .noE801
 
-	and EAX, 0000FFFFh	; 16-bit value, memory under 16M in 1K blocks
-	and EBX, 0000FFFFh	; 16-bit, memory over 16M in 64K blocks
-	shl EBX, 6		; Multiply by 64 to get 1K blocks
+	and EAX, 0000FFFFh		; 16-bit value, memory under 16M in 1K blocks
+	and EBX, 0000FFFFh		; 16-bit, memory over 16M in 64K blocks
+	shl EBX, 6				; Multiply by 64 to get 1K blocks
 	add EAX, EBX
 	mov dword [EXTENDEDMEMORY], EAX
 
 	jmp .printMemory
 
 	.noE801:
-	;; We will use this as a last-resort method for getting memory
-	;; size.  We just grab the 16-bit value from CMOS
+	;; We will use this as a last-resort method for getting memory size.  We
+	;; just grab the 16-bit value from CMOS
 
-	mov AL, 17h	;; Select the address we need to get the data
-	out 70h, AL	;; from
+	mov AL, 17h				; Select the address we need to get the data from
+	out 70h, AL
 
 	in AL, 71h
 	mov byte [EXTENDEDMEMORY], AL
 
-	mov AL, 18h	;; Select the address we need to get the data
-	out 70h, AL	;; from
+	mov AL, 18h				; Select the address we need to get the data from
+	out 70h, AL
 
 	in AL, 71h
 	mov byte [(EXTENDEDMEMORY + 1)], AL
@@ -156,20 +155,20 @@ detectMemory:
 	call printMemoryInfo
 	.noPrint:
 
-	;; Now, can the system supply us with a memory map?  If it can,
-	;; this will allow us to supply a list of unusable memory to the
-	;; kernel (which will improve reliability, we hope).  Try to call
-	;; the appropriate BIOS function.
+	;; Now, can the system supply us with a memory map?  If it can, this will
+	;; allow us to supply a list of unusable memory to the kernel (which will
+	;; improve reliability, we hope).  Try to call the appropriate BIOS
+	;; function.
 
 	;; This function might dink with ES
 	push ES
 
-	xor EBX, EBX		; Continuation counter
-	mov DI, MEMORYMAP	; The buffer
+	xor EBX, EBX			; Continuation counter
+	mov DI, MEMORYMAP		; The buffer
 
 	.smapLoop:
-	mov EAX, 0000E820h		; Function number
-	mov EDX, 534D4150h		; ('SMAP')
+	mov EAX, 0000E820h				; Function number
+	mov EDX, 534D4150h				; ('SMAP')
 	mov ECX, memoryInfoBlock_size	; Size of buffer
 	int 15h
 
@@ -177,7 +176,7 @@ detectMemory:
 	jc .doneSmap
 
 	;; Function supported?
-	cmp EAX, 534D4150h	; ('SMAP')
+	cmp EAX, 534D4150h		; ('SMAP')
 	jne .doneSmap
 
 	;; All done?
@@ -199,7 +198,7 @@ detectMemory:
 
 
 detectCdEmul:
-	;; This routine will detect CD-ROM emulation stuffs
+	;; This function will detect CD-ROM emulation
 
 	;; Save regs
 	pusha
@@ -213,16 +212,16 @@ detectCdEmul:
 	int 13h
 	jnc .emulCheck
 
-	;; Couldn't check for CD-ROM emulation.  This might cause CD-ROM
-	;; booting to fail on this system.  *However*, it appers that in
-	;; some of these cases, the number of cylinders will be
-	;; unrealistically large, so we will assume in that case.
+	;; Couldn't check for CD-ROM emulation.  This might cause CD-ROM booting
+	;; to fail on this system.  *However*, it appers that in some of these
+	;; cases, the number of cylinders will be unrealistically large, so we
+	;; will assume in that case.
 
 	cmp dword [CYLINDERS], 256
 	ja .isEmul
 
-	;; Else, print a warning.
-	mov DL, BADCOLOR	; Use error color
+	;; Else, print a warning
+	mov DL, BADCOLOR		; Use error color
 	mov SI, SAD
 	call loaderPrint
 	mov SI, EMULCHECKBAD
@@ -247,8 +246,8 @@ detectCdEmul:
 
 
 detectFloppies:
-	;; This routine will detect the number and types of floppy
-	;; disk drives on board
+	;; This function will detect the number and types of floppy disk drives on
+	;; board
 
 	;; Save regs
 	pusha
@@ -256,27 +255,26 @@ detectFloppies:
 	;; Initialize 'number of floppies' value
 	mov dword [FLOPPYDISKS], 0
 
-	;; This is a buggy, overloaded, screwy interrupt call.  We need to
-	;; do this carefully to make sure we get good/real info.  It will
-	;; destroy ES, so save it
+	;; This is a buggy, overloaded, screwy interrupt call.  We need to do this
+	;; carefully to make sure we get good/real info.  It will destroy ES, so
+	;; save it.
 	push ES
 
 	mov SI, FD0
-	push word 0		; Disk number counter
+	push word 0				; Disk number counter
 
 	.floppyLoop:
 
-	;; Pre-increment the disk counter so we can 'continue' if we get
-	;; any funny things, without missing any following devices
+	;; Pre-increment the disk counter so we can 'continue' if we get any funny
+	;; things, without missing any following devices
 	pop DX
 	mov AX, DX
 	inc AX
 	push AX
 
-	;; My Toshiba laptop reports the 'fake' floppy from bootable
-	;; CD-ROM emulations as a real one, indistinguishable from real
-	;; ones.  So, if the emulation disk number is the same as this one,
-	;; skip it.
+	;; My Toshiba laptop reports the 'fake' floppy from bootable CD-ROM
+	;; emulations as a real one, indistinguishable from real ones.  So, if the
+	;; emulation disk number is the same as this one, skip it.
 	cmp dword [BOOTCD], 1
 	jne .noEmul
 	cmp DL, byte [EMUL_SAVE + 2]
@@ -324,10 +322,10 @@ detectFloppies:
 	xor EAX, EAX
 	mov AL, BL
 	mov dword [SI + fddInfoBlock.type], EAX
-	inc DH			; Number is 0-based
+	inc DH					; Number is 0-based
 	mov AL, DH
 	mov dword [SI + fddInfoBlock.heads], EAX
-	inc CH			; Number is 0-based
+	inc CH					; Number is 0-based
 	mov AL, CH
 	mov dword [SI + fddInfoBlock.tracks], EAX
 	mov AL, CL
@@ -339,8 +337,8 @@ detectFloppies:
 	jmp .floppyLoop
 
 	.print:
-	sti	; Buggy BIOSes can apparently leave ints disabled
-	pop AX	; Loop control
+	sti						; Buggy BIOSes can apparently leave ints disabled
+	pop AX					; Loop control
 	pop ES
 	cmp word [PRINTINFO], 1
 	jne .done
@@ -362,13 +360,13 @@ detectFloppies:
 
 	cmp dword [FLOPPYDISKS], 1
 	jb .done
-	;; Print information about the disk.  EBX contains the pointer...
+	;; Print information about the disk.  EBX contains the pointer.
 	mov EBX, FD0
 	call printFddInfo
 
 	cmp dword [FLOPPYDISKS], 2
 	jb .done
-	;; Print information about the disk.  EBX contains the pointer...
+	;; Print information about the disk.  EBX contains the pointer.
 	mov EBX, FD1
 	call printFddInfo
 
@@ -380,7 +378,7 @@ detectFloppies:
 
 
 printMemoryInfo:
-	;;  Takes no parameters and prints out the amount of memory detected
+	;; Takes no parameters and prints out the amount of memory detected
 
 	pusha
 
@@ -402,8 +400,8 @@ printMemoryInfo:
 
 
 printFddInfo:
-	;; This takes a pointer to the disk data in EBX, and prints
-	;; disk info to the console
+	;; This takes a pointer to the disk data in EBX, and prints disk info to
+	;; the console
 
 	;; Save regs
 	pusha
@@ -448,14 +446,13 @@ printFddInfo:
 	SEGMENT .data
 	ALIGN 4
 
-;; This is the data structure that these routines will fill.  The
-;; (flat-mode) address of this structure is eventually passed to
-;; the kernel at invocation
+;; This is the data structure that these functions will fill.  The (flat-mode)
+;; address of this structure is eventually passed to the kernel at invocation
 
 	ALIGN 4
 
 HARDWAREINFO:
-	EXTENDEDMEMORY	dd 0			;; In Kbytes
+	EXTENDEDMEMORY	dd 0	; In Kbytes
 
 	;; Info returned by int 15h function E820h
 	MEMORYMAP:
@@ -467,15 +464,15 @@ HARDWAREINFO:
 	IEND
 
 	;; If we've created a RAM disk as the boot device
-	RAMDISKMEM		dd 0			;; RAM disk memory
-	RAMDISKSIZE		dd 0			;; RAM disk size (bytes)
+	RAMDISKMEM		dd 0	; RAM disk memory
+	RAMDISKSIZE		dd 0	; RAM disk size (bytes)
 
 	;; This is the info about the boot device and booted sector
-	BOOTSECTSIG		dd 0			;; Boot sector signature
-	BOOTCD			dd 0			;; Booting from a CD
+	BOOTSECTSIG		dd 0	; Boot sector signature
+	BOOTCD			dd 0	; Booting from a CD
 
 	;; This is an array of info about up to 2 floppy disks in the system
-	FLOPPYDISKS		dd 0			;; Number present
+	FLOPPYDISKS		dd 0	; Number present
 	;; Floppy 0
 	FD0: ISTRUC fddInfoBlock
 		times fddInfoBlock_size db 0

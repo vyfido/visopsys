@@ -1,17 +1,18 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
-BUILDDIR = ../../../build/system/headers/arpa
+BUILDDIR = build
+OUTPUTDIR = ../../../${BUILDDIR}/system/headers/arpa
 
 all:
-	mkdir -p ${BUILDDIR}
-	cp *.h ${BUILDDIR}
+	mkdir -p ${OUTPUTDIR}
+	cp *.h ${OUTPUTDIR}
 
 clean:
 	rm -f *~
-	rm -Rf ${BUILDDIR}
+	rm -Rf ${OUTPUTDIR}
 

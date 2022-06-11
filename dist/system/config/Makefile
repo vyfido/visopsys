@@ -1,25 +1,26 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
-BUILDDIR = ../../../build/system/config
+BUILDDIR = build
+OUTPUTDIR = ../../../${BUILDDIR}/system/config
 
 all:
-	mkdir -p ${BUILDDIR}
-	cp *.conf ${BUILDDIR}
-	mkdir -p ${BUILDDIR}/de
-	cp de/*.conf ${BUILDDIR}/de
-	mkdir -p ${BUILDDIR}/es
-	cp es/*.conf ${BUILDDIR}/es
-	mkdir -p ${BUILDDIR}/ru
-	cp ru/*.conf ${BUILDDIR}/ru
-	mkdir -p ${BUILDDIR}/tr
-	cp tr/*.conf ${BUILDDIR}/tr
+	mkdir -p ${OUTPUTDIR}
+	cp *.conf ${OUTPUTDIR}
+	mkdir -p ${OUTPUTDIR}/de
+	cp de/*.conf ${OUTPUTDIR}/de
+	mkdir -p ${OUTPUTDIR}/es
+	cp es/*.conf ${OUTPUTDIR}/es
+	mkdir -p ${OUTPUTDIR}/ru
+	cp ru/*.conf ${OUTPUTDIR}/ru
+	mkdir -p ${OUTPUTDIR}/tr
+	cp tr/*.conf ${OUTPUTDIR}/tr
 
 clean:
 	rm -f *~ core
-	rm -Rf ${BUILDDIR}
+	rm -Rf ${OUTPUTDIR}
 

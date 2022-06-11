@@ -1,6 +1,6 @@
 #
 #  Visopsys
-#  Copyright (C) 1998-2020 J. Andrew McLaughlin
+#  Copyright (C) 1998-2021 J. Andrew McLaughlin
 #
 #  This German translation provided by Proxma AG - www.proxma.com
 #
@@ -25,10 +25,10 @@ msgstr "Installationsprogramm im Boot-Menü"
 #: bootmenu.c:66
 msgid ""
 "Visopsys Boot Menu Installer\n"
-"Copyright (C) 1998-2020 J. Andrew McLaughlin"
+"Copyright (C) 1998-2021 J. Andrew McLaughlin"
 msgstr ""
 "Visopsys Installationsprogramm für das Boot-Menü\n"
-"Copyright (C) 1998-2020 J. Andrew McLaughlin"
+"Copyright (C) 1998-2021 J. Andrew McLaughlin"
 
 #: bootmenu.c:68
 msgid ""

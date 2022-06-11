@@ -1,12 +1,13 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
 ROOT = ../../..
-BUILDDIR = ${ROOT}/build/system/libraries
+BUILDDIR = build
+OUTPUTDIR = ${ROOT}/${BUILDDIR}/system/libraries
 INCDIR = ../../include
 
 include ${ROOT}/Makefile.include
@@ -19,7 +20,7 @@ endif
 
 STDDEPS = ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h ${INCDIR}/sys/*.h
 INCLUDE = -nostdinc -I${INCDIR}
-CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
+CFLAGS = ${OPT} ${ARCHFLAGS} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
 
 CDEFNAMES = \
 	_dbl2str \
@@ -249,17 +250,17 @@ OBJDIR = obj
 PICOBJDIR = picobj
 OBJS = $(addprefix ${OBJDIR}/, $(addsuffix .o, ${ALLNAMES}))
 PICOBJS = $(addprefix ${PICOBJDIR}/, $(addsuffix .o, ${ALLNAMES}))
-CRT0 = ${BUILDDIR}/crt0.o
-LIBRARY = ${BUILDDIR}/libc.a
+CRT0 = ${OUTPUTDIR}/crt0.o
+LIBRARY = ${OUTPUTDIR}/libc.a
 SONAME = libc.so
-SHAREDLIB = ${BUILDDIR}/${SONAME}
+SHAREDLIB = ${OUTPUTDIR}/${SONAME}
 
 # Targets
 
 all: target-dirs ${CRT0} ${LIBRARY} ${SHAREDLIB} strip
 
 target-dirs:
-	mkdir -p ${OBJDIR} ${PICOBJDIR} ${BUILDDIR}
+	mkdir -p ${OBJDIR} ${PICOBJDIR} ${OUTPUTDIR}
 
 ${CRT0}: crt0.c ${STDDEPS}
 	${CC} ${CFLAGS} -c $< -o $@
@@ -268,8 +269,8 @@ ${LIBRARY}: ${OBJS}
 	${AR} -rs $@ ${OBJS}
 
 ${SHAREDLIB}: ${PICOBJS}
-	${CC} ${ARCH} -shared -nostdlib -Wl,--soname=${SONAME},-z,norelro \
-		${PICOBJS} -static -lgcc -o $@
+	${CC} ${ARCHFLAGS} -nostdlib -Wl,-shared -Wl,--soname=${SONAME} \
+		-Wl,-z,norelro ${PICOBJS} -static -lgcc -o $@
 
 strip: ${SHAREDLIB}
 	${STRIP}

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -111,9 +111,9 @@ static void walkStack(kernelProcess *traceProcess, void *stackMemory,
 	while (STILLWALKING(stackMemory, stackBase, *framePointer, oldFramePointer))
 	{
 		// The return address of each frame is sizeof(void *) bytes past the
-		// frame pointer.
-		returnAddress = (void *)
-			*((unsigned long *)(*framePointer + memoryOffset + sizeof(void *)));
+		// frame pointer
+		returnAddress = (void *) *((unsigned long *)
+			(*framePointer + memoryOffset + sizeof(void *)));
 
 		// Walk to the next frame
 		oldFramePointer = *framePointer;
@@ -125,12 +125,17 @@ static void walkStack(kernelProcess *traceProcess, void *stackMemory,
 				oldFramePointer))
 		{
 			symbolName = kernelLookupClosestSymbol(traceProcess, returnAddress);
+
 			if (symbolName)
+			{
 				snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
 					"  %p  %s\n", returnAddress, symbolName);
+			}
 			else
+			{
 				snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
 					"  %p\n", returnAddress);
+			}
 		}
 	}
 }
@@ -138,7 +143,7 @@ static void walkStack(kernelProcess *traceProcess, void *stackMemory,
 
 static int configRead(const char *fileName, variableList *list, int system)
 {
-	// Read a config file into the supplied variable list structure.
+	// Read a config file into the supplied variable list structure
 
 	int status = 0;
 	fileStream *configFile = NULL;
@@ -188,8 +193,10 @@ static int configRead(const char *fileName, variableList *list, int system)
 	{
 		status = kernelFileStreamReadLine(configFile, 256, lineBuffer);
 		if (status < 0)
+		{
 			// End of file?
 			break;
+		}
 
 		// See if there's anything but whitespace, or comment here
 		hasContent = 0;
@@ -218,8 +225,10 @@ static int configRead(const char *fileName, variableList *list, int system)
 		}
 
 		if (strlen(variable) < 255)
+		{
 			// Everything after the '=' is the value
 			value = (lineBuffer + count + 1);
+		}
 
 		// Store it
 		variableListSet(list, variable, value);
@@ -242,20 +251,16 @@ static int configRead(const char *fileName, variableList *list, int system)
 
 void kernelGetVersion(char *buffer, int bufferSize)
 {
-	// This function creates and returns a pointer to the kernel's version
-	// string.
+	// This function creates the kernel's version string
 
-	// Construct the version string
 	snprintf(buffer, bufferSize, "%s v%s", kernelVersion[0], kernelVersion[1]);
-
-	return;
 }
 
 
 int kernelSystemInfo(struct utsname *uts)
 {
 	// This function gathers some info about the system and puts it into
-	// a 'utsname' structure, just like the one returned by 'uname' in Unix.
+	// a 'utsname' structure, just like the one returned by 'uname' in Unix
 
 	int status = 0;
 	kernelDevice *cpuDevice = NULL;
@@ -287,10 +292,14 @@ const char *kernelLookupClosestSymbol(kernelProcess *lookupProcess,
 	int count = 0;
 
 	if (address >= (void *) KERNEL_VIRTUAL_ADDRESS)
+	{
 		// Try to get the symbol from the kernel's process
 		symTable = kernelMultitaskerGetSymbols(KERNELPROCID);
+	}
 	else
+	{
 		symTable = lookupProcess->symbols;
+	}
 
 	if (!symTable)
 		return (NULL);
@@ -371,11 +380,13 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 	}
 	else
 	{
-		instPointer = (void *) traceProcess->taskStateSegment.EIP;
-		framePointer = (void *) traceProcess->taskStateSegment.EBP;
+#ifdef ARCH_X86
+		instPointer = (void *) traceProcess->context.taskStateSegment.EIP;
+		framePointer = (void *) traceProcess->context.taskStateSegment.EBP;
+#endif
 
 		// If we're tracing some other process, we need to map its stack into
-		// our address space.
+		// our address space
 		if (traceProcess != kernelCurrentProcess)
 		{
 			stackPhysical = kernelPageGetPhysical(traceProcess->processId,
@@ -390,7 +401,7 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 				return (status);
 
 			// Calculate the difference between the process' stack addresses
-			// and the memory we mapped.
+			// and the memory we mapped
 			if (stackVirtual > traceProcess->userStack)
 				memoryOffset = (stackVirtual - traceProcess->userStack);
 			else
@@ -404,7 +415,7 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 		snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
 			"  %p  %s\n", instPointer, symbolName);
 
-	// If there is a separate, privileged stack, show that first.
+	// If there is a separate, privileged stack, show that first
 	if (traceProcess->superStack &&
 		(framePointer >= traceProcess->superStack) &&
 		(framePointer <
@@ -432,8 +443,10 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 	snprintf((buffer + strlen(buffer)), (len - strlen(buffer)), "<--\n");
 
 	if (stackVirtual)
+	{
 		kernelPageUnmap(kernelCurrentProcess->processId, stackVirtual,
 			(traceProcess->userStackSize + traceProcess->superStackSize));
+	}
 
 	return (status = 0);
 }
@@ -482,7 +495,7 @@ int kernelConsoleLogin(const char *loginProgram)
 
 int kernelConfigRead(const char *fileName, variableList *list)
 {
-	// Read a config file into the supplied variable list structure.
+	// Read a config file into the supplied variable list structure
 
 	return (configRead(fileName, list, 0 /* not system memory */));
 }
@@ -491,7 +504,7 @@ int kernelConfigRead(const char *fileName, variableList *list)
 int kernelConfigReadSystem(const char *fileName, variableList *list)
 {
 	// Read a config file into the supplied variable list structure, with
-	// memory allocated from kernel system memory.
+	// memory allocated from kernel system memory
 
 	return (configRead(fileName, list, 1 /* system memory */));
 }
@@ -501,7 +514,7 @@ int kernelConfigWrite(const char *fileName, variableList *list)
 {
 	// Writes a variable list out to a config file, with a little bit of
 	// extra sophistication so that if the file already exists, comments and
-	// blank lines are (hopefully) preserved.
+	// blank lines are (hopefully) preserved
 
 	int status = 0;
 	char tmpName[MAX_PATH_NAME_LENGTH + 1];
@@ -695,7 +708,7 @@ int kernelConfigGet(const char *fileName, const char *variable, char *buffer,
 		status = ERR_NOSUCHENTRY;
 	}
 
-	// Deallocate the list.
+	// Deallocate the list
 	variableListDestroy(&list);
 
 	return (status);
@@ -763,7 +776,7 @@ int kernelConfigUnset(const char *fileName, const char *variable)
 	status = kernelConfigWrite(fileName, &list);
 
 out:
-	// Deallocate the list.
+	// Deallocate the list
 	variableListDestroy(&list);
 	return (status);
 }
@@ -772,12 +785,12 @@ out:
 int kernelReadSymbols(void)
 {
 	// This will attempt to read the symbol table from the kernel executable,
-	// and attach it to the kernel process.
+	// and attach it to the kernel process
 
 	int status = 0;
 	loaderSymbolTable *kernelSymbols = NULL;
 
-	// See if there is a kernel file.
+	// See if there is a kernel file
 	status = kernelFileFind(KERNEL_FILE, NULL);
 	if (status < 0)
 	{
@@ -856,7 +869,7 @@ int kernelGuidGenerate(guid *g)
 
 	// Get the time as a 60-bit value representing a count of 100-nanosecond
 	// intervals since 00:00:00.00, 15 October 1582 (the date of Gregorian
-	// reform to the Christian calendar).
+	// reform to the Christian calendar)
 	//
 	// Umm.  Overkill on the time thing?  Maybe?  Nanoseconds since 1582?
 	// Why are we wasting the number of nanoseconds in the 400 years before
@@ -881,7 +894,7 @@ int kernelGuidGenerate(guid *g)
 
 unsigned kernelCrc32(void *buff, unsigned len, unsigned *lastCrc)
 {
-	// Generates a CRC32.
+	// Generates a CRC32
 
 	register char *p = buff;
 	register unsigned crc = 0;

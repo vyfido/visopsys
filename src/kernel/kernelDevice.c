@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -110,8 +110,7 @@ static kernelDriver deviceDrivers[] = {
 	{ DEVICECLASS_POWER, DEVICESUBCLASS_POWER_ACPI,
 		kernelAcpiDriverRegister, NULL, NULL, NULL						},
 	// Do motherboard-type devices.  The PICs must be before most drivers,
-	// specifically anything that uses interrupts (which is almost
-	// everything)
+	// specifically anything that uses interrupts (which is almost everything)
 	{ DEVICECLASS_INTCTRL, DEVICESUBCLASS_INTCTRL_PIC,
 		kernelPicDriverRegister, NULL, NULL, NULL						},
 	{ DEVICECLASS_INTCTRL, DEVICESUBCLASS_INTCTRL_APIC,
@@ -120,8 +119,8 @@ static kernelDriver deviceDrivers[] = {
 		kernelSysTimerDriverRegister, NULL, NULL, NULL					},
 	{ DEVICECLASS_RTC, 0, kernelRtcDriverRegister, NULL, NULL, NULL		},
 	{ DEVICECLASS_DMA, 0, kernelDmaDriverRegister, NULL, NULL, NULL		},
-	// Do buses before other non-motherboard devices, so that drivers can
-	// find their devices on the buses.
+	// Do buses before other non-motherboard devices, so that drivers can find
+	// their devices on the buses
 	{ DEVICECLASS_BUS, DEVICESUBCLASS_BUS_PCI,
 		kernelPciDriverRegister, NULL, NULL, NULL						},
 	{ DEVICECLASS_BUS, DEVICESUBCLASS_BUS_USB,
@@ -132,9 +131,9 @@ static kernelDriver deviceDrivers[] = {
 	// Also do hubs before most other devices (same reason as above)
 	{ DEVICECLASS_HUB, DEVICESUBCLASS_HUB_USB,
 		kernelUsbHubDriverRegister, NULL, NULL, NULL					},
-	// Do keyboards.  We do these fairly early in case we have a problem
-	// and we need to interact with the user (even if it's just "boot
-	// failed, press any key", etc)
+	// Do keyboards.  We do these fairly early in case we have a problem and
+	// we need to interact with the user (even if it's just "boot failed,
+	// press any key", etc)
 	{ DEVICECLASS_KEYBOARD, DEVICESUBCLASS_KEYBOARD_PS2,
 		kernelPs2KeyboardDriverRegister, NULL, NULL, NULL				},
 	{ DEVICECLASS_KEYBOARD, DEVICESUBCLASS_KEYBOARD_USB,
@@ -153,15 +152,14 @@ static kernelDriver deviceDrivers[] = {
 	{ DEVICECLASS_DISKCTRL, DEVICESUBCLASS_DISKCTRL_IDE,
 		kernelIdeDriverRegister, NULL, NULL, NULL						},
 	// Do the pointer devices after the graphic device so we can get screen
-	// parameters, etc.  Also needs to be after the keyboard driver since
-	// PS2 mouses use the keyboard controller.
+	// parameters, etc.  Also needs to be after the keyboard driver since PS2
+	// mice use the keyboard controller.
 	{ DEVICECLASS_MOUSE, DEVICESUBCLASS_MOUSE_PS2,
 		kernelPs2MouseDriverRegister, NULL, NULL, NULL					},
 	// USB mice and touchscreens can look very much alike in their HID
-	// descriptors, but the mouse driver at least restricts itself to
-	// claiming interfaces that declare themselves as using "boot mouse"
-	// protocol.  The touchscreen driver is more promiscuous, so do mouse
-	// first.
+	// descriptors, but the mouse driver at least restricts itself to claiming
+	// interfaces that declare themselves as using "boot mouse" protocol.  The
+	// touchscreen driver is more promiscuous, so do mouse first.
 	{ DEVICECLASS_MOUSE, DEVICESUBCLASS_MOUSE_USB,
 		kernelUsbMouseDriverRegister, NULL, NULL, NULL					},
 	{ DEVICECLASS_TOUCHSCR, DEVICESUBCLASS_TOUCHSCR_USB,
@@ -183,7 +181,7 @@ static int numTreeDevices = 0;
 static int isDevInTree(kernelDevice *root, kernelDevice *dev)
 {
 	// This is for checking device pointers passed in from user space to make
-	// sure that they point to devices in our tree.
+	// sure that they point to devices in our tree
 
 	while (root)
 	{
@@ -308,7 +306,7 @@ int kernelDeviceInitialize(void)
 	numTreeDevices = 1;
 
 	// Loop through our static structures of built-in device drivers and
-	// initialize them.
+	// initialize them
 
 	for (driverCount = 0; displayDrivers[driverCount].class; driverCount ++)
 	{
@@ -470,8 +468,8 @@ kernelDeviceClass *kernelDeviceGetClass(int classNum)
 }
 
 
-int kernelDeviceFindType(kernelDeviceClass *class, kernelDeviceClass *subClass,
-	kernelDevice *devPointers[], int maxDevices)
+int kernelDeviceFindType(kernelDeviceClass *class,
+	kernelDeviceClass *subClass, kernelDevice *devPointers[], int maxDevices)
 {
 	// Calls findDevice to return the first device it finds, with the
 	// requested device class and subclass
@@ -493,8 +491,8 @@ int kernelDeviceHotplug(kernelDevice *parent, int classNum, int busType,
 	int target, int connected)
 {
 	// Call the hotplug detection function for any driver that matches the
-	// supplied class (and subclass).  This was added to support, for example,
-	// USB devices that can be added or removed at any time.
+	// requested class (and subclass).  This was added to support, for
+	// example, USB devices that can be added or removed at any time.
 
 	int status = 0;
 	int count;
@@ -548,7 +546,7 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 		return (status = ERR_ALREADY);
 	}
 
-	// NULL parent means use the root system device.
+	// NULL parent means use the root system device
 	if (!parent)
 		parent = deviceTree;
 
@@ -579,10 +577,11 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 
 	new->device.firstChild = new->device.previous = new->device.next = NULL;
 
-	// If the parent has no children, make this the first one.
+	// If the parent has no children, make this the first one
 	if (!parent->device.firstChild)
+	{
 		parent->device.firstChild = new;
-
+	}
 	else
 	{
 		// The parent has at least one child.  Follow the linked list to the
@@ -591,7 +590,7 @@ int kernelDeviceAdd(kernelDevice *parent, kernelDevice *new)
 		while (listPointer->device.next)
 			listPointer = listPointer->device.next;
 
-		// listPointer points to the last child.
+		// listPointer points to the last child
 		listPointer->device.next = new;
 		new->device.previous = listPointer;
 	}
@@ -637,7 +636,7 @@ int kernelDeviceRemove(kernelDevice *old)
 	if (parent && (parent->device.firstChild == old))
 		parent->device.firstChild = next;
 
-	// Connect our 'previous' and 'next' devices, as applicable.
+	// Connect our 'previous' and 'next' devices, as applicable
 	if (previous)
 		previous->device.next = next;
 	if (next)
@@ -688,8 +687,8 @@ int kernelDeviceTreeGetChild(device *parentDev, device *childDev)
 		return (status = ERR_NULLPARAMETER);
 	}
 
-	if (!parentDev->firstChild ||
-		!isDevInTree(deviceTree, parentDev->firstChild))
+	if (!parentDev->firstChild || !isDevInTree(deviceTree,
+		parentDev->firstChild))
 	{
 		return (status = ERR_NOSUCHENTRY);
 	}
@@ -701,8 +700,8 @@ int kernelDeviceTreeGetChild(device *parentDev, device *childDev)
 
 int kernelDeviceTreeGetNext(device *dev)
 {
-	// Returns the user-space portion of the supplied device's 'next' (sibling)
-	// device
+	// Returns the user-space portion of the supplied device's 'next'
+	// (sibling) device
 
 	int status = 0;
 

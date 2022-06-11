@@ -1,17 +1,18 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
-BUILDDIR = ../../../build/system/wallpaper
+BUILDDIR = build
+OUTPUTDIR = ../../../${BUILDDIR}/system/wallpaper
 
 all:
-	mkdir -p ${BUILDDIR}
-	cp *.jpg ${BUILDDIR}
+	mkdir -p ${OUTPUTDIR}
+	cp *.jpg ${OUTPUTDIR}
 
 clean:
 	rm -f *~ core
-	rm -Rf ${BUILDDIR}
+	rm -Rf ${OUTPUTDIR}
 

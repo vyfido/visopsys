@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -908,8 +908,7 @@ static int setupController(ahciController *controller)
 
 	// Register the interrupt handler and turn on interrupts at the system
 	// level
-	status = kernelInterruptHook(controller->interrupt, &interruptHandler,
-		NULL /* handlerTask */);
+	status = kernelInterruptHook(controller->interrupt, &interruptHandler);
 	if (status < 0)
 		return (status);
 
@@ -1172,7 +1171,7 @@ static int errorRecovery(ahciController *controller, int portNum)
 
 			// Is the device in a stable state?
 			if (!(portRegs->TFD & AHCI_PXTFD_STS_ERR) ||
-				(portRegs->TFD & (AHCI_PXTFD_STS_BSY || AHCI_PXTFD_STS_DRQ)))
+				(portRegs->TFD & (AHCI_PXTFD_STS_BSY | AHCI_PXTFD_STS_DRQ)))
 			{
 				kernelDebug(debug_io, "AHCI device on port %d not stable - "
 					"may need COMRESET", portNum);
@@ -1521,7 +1520,7 @@ static int detectDisks(kernelDriver *driver, kernelDevice *controllerDevice,
 
 		if (sizeof(ataIdentifyData) != 512)
 		{
-			kernelDebugError("ATA identify structure size is %d, not 512",
+			kernelDebugError("ATA identify structure size is %lu, not 512",
 				sizeof(ataIdentifyData));
 		}
 

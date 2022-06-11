@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -150,50 +150,50 @@ typedef unsigned		Elf32_Word;
 
 // The ELF header
 typedef struct {
-	Elf32_Byte e_magic[4];
-	Elf32_Byte e_class;
-	Elf32_Byte e_byteorder;
-	Elf32_Byte e_hversion;
-	Elf32_Byte e_pad[9];
-	Elf32_Half e_type;
-	Elf32_Half e_machine;
-	Elf32_Word e_version;
-	Elf32_Addr e_entry;
-	Elf32_Off e_phoff;
-	Elf32_Off e_shoff;
-	Elf32_Word e_flags;
-	Elf32_Half e_ehsize;
-	Elf32_Half e_phentsize;
-	Elf32_Half e_phnum;
-	Elf32_Half e_shentsize;
-	Elf32_Half e_shnum;
-	Elf32_Half e_shstrndx;
+	Elf32_Byte e_magic[4];		// 00-03
+	Elf32_Byte e_class;			// 04
+	Elf32_Byte e_byteorder;		// 05
+	Elf32_Byte e_hversion;		// 06
+	Elf32_Byte e_pad[9];		// 07-0F
+	Elf32_Half e_type;			// 10-11
+	Elf32_Half e_machine;		// 12-13
+	Elf32_Word e_version;		// 14-17
+	Elf32_Addr e_entry;			// 18-1B
+	Elf32_Off e_phoff;			// 1C-1F
+	Elf32_Off e_shoff;			// 20-23
+	Elf32_Word e_flags;			// 24-27
+	Elf32_Half e_ehsize;		// 28-29
+	Elf32_Half e_phentsize;		// 2A-2B
+	Elf32_Half e_phnum;			// 2C-2D
+	Elf32_Half e_shentsize;		// 2E-2F
+	Elf32_Half e_shnum;			// 30-31
+	Elf32_Half e_shstrndx;		// 32-33
 
 } __attribute__((packed)) Elf32Header;
 
 // ELF section header
 typedef struct {
-	Elf32_Word sh_name;
-	Elf32_Word sh_type;
-	Elf32_Word sh_flags;
-	Elf32_Addr sh_addr;
-	Elf32_Off sh_offset;
-	Elf32_Word sh_size;
-	Elf32_Word sh_link;
-	Elf32_Word sh_info;
-	Elf32_Word sh_addralign;
-	Elf32_Word sh_entsize;
+	Elf32_Word sh_name;			// 00-03
+	Elf32_Word sh_type;			// 04-07
+	Elf32_Word sh_flags;		// 08-0B
+	Elf32_Addr sh_addr;			// 0C-0F
+	Elf32_Off sh_offset;		// 10-13
+	Elf32_Word sh_size;			// 14-17
+	Elf32_Word sh_link;			// 18-1B
+	Elf32_Word sh_info;			// 1C-1F
+	Elf32_Word sh_addralign;	// 20-23
+	Elf32_Word sh_entsize;		// 24-27
 
 } __attribute__((packed)) Elf32SectionHeader;
 
 // ELF symbol table entry
 typedef struct {
-	Elf32_Word st_name;
-	Elf32_Addr st_value;
-	Elf32_Word st_size;
-	Elf32_Byte st_info;
-	Elf32_Byte st_other;
-	Elf32_Half st_shndx;
+	Elf32_Word st_name;			// 00-03
+	Elf32_Addr st_value;		// 04-07
+	Elf32_Word st_size;			// 08-0B
+	Elf32_Byte st_info;			// 0C
+	Elf32_Byte st_other;		// 0D
+	Elf32_Half st_shndx;		// 0E-0F
 
 } __attribute__((packed)) Elf32Symbol;
 
@@ -224,14 +224,14 @@ typedef struct {
 
 // ELF program header
 typedef struct {
-	Elf32_Word p_type;
-	Elf32_Off p_offset;
-	Elf32_Addr p_vaddr;
-	Elf32_Addr p_paddr;
-	Elf32_Word p_filesz;
-	Elf32_Word p_memsz;
-	Elf32_Word p_flags;
-	Elf32_Word p_align;
+	Elf32_Word p_type;			// 00-03
+	Elf32_Off p_offset;			// 04-07
+	Elf32_Addr p_vaddr;			// 08-0B
+	Elf32_Addr p_paddr;			// 0C-0F
+	Elf32_Word p_filesz;		// 10-13
+	Elf32_Word p_memsz;			// 14-17
+	Elf32_Word p_flags;			// 18-1B
+	Elf32_Word p_align;			// 1C-1F
 
 } __attribute__((packed)) Elf32ProgramHeader;
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -62,7 +62,7 @@ Options:
 #define gettext_noop(string) (string)
 
 #define WINDOW_TITLE		_("Install")
-#define TITLE_STRING		_("Visopsys Installer\nCopyright (C) 1998-2020 " \
+#define TITLE_STRING		_("Visopsys Installer\nCopyright (C) 1998-2021 " \
 	"J. Andrew McLaughlin")
 #define INSTALL_DISK		_("[ Installing on disk %s ]")
 #define BASIC_INSTALL		_("Basic install")

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,7 +47,6 @@ unsigned kernelSysTimerRead(void);
 int kernelSysTimerReadValue(int);
 int kernelSysTimerSetupTimer(int, int, int);
 int kernelSysTimerGetOutput(int);
-void kernelSysTimerWaitTicks(int);
 
 #endif
 

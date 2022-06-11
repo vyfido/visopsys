@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -72,9 +72,8 @@ static void writeLoaderLog(unsigned char *screen, int chars, int bytesPerChar)
 	for (count = 0; count < chars; count ++)
 		buffer[count] = screen[count * bytesPerChar];
 
-	if (kernelFileStreamOpen(PATH_SYSTEM "/vloader.log",
-		(OPENMODE_WRITE | OPENMODE_CREATE | OPENMODE_TRUNCATE),
-		&tmpFile) < 0)
+	if (kernelFileStreamOpen(PATH_SYSTEM "/vloader.log", (OPENMODE_WRITE |
+		OPENMODE_CREATE | OPENMODE_TRUNCATE), &tmpFile) < 0)
 	{
 		kernelFree(buffer);
 		return;
@@ -83,7 +82,6 @@ static void writeLoaderLog(unsigned char *screen, int chars, int bytesPerChar)
 	kernelFileStreamWrite(&tmpFile, chars, buffer);
 	kernelFileStreamClose(&tmpFile);
 	kernelFree(buffer);
-	return;
 }
 
 
@@ -106,18 +104,23 @@ static void logLoaderInfo(void)
 			case available:
 				memType = "available";
 				break;
+
 			case reserved:
 				memType = "reserved";
 				break;
+
 			case acpi_reclaim:
 				memType = "acpi reclaim";
 				break;
+
 			case acpi_nvs:
 				memType = "acpi nvs";
 				break;
+
 			case bad:
 				memType = "bad";
 				break;
+
 			default:
 				memType = "unknown";
 				break;
@@ -164,6 +167,7 @@ static void logLoaderInfo(void)
 			kernelOsLoaderInfo->ramDiskMemory,
 			kernelOsLoaderInfo->ramDiskSize);
 	}
+
 	kernelLog("OS Loader: boot signature=0x%08x",
 		kernelOsLoaderInfo->bootSectorSig);
 	kernelLog("OS Loader: boot from CD: %s",
@@ -178,8 +182,6 @@ static void logLoaderInfo(void)
 			kernelOsLoaderInfo->fddInfo[count].tracks,
 			kernelOsLoaderInfo->fddInfo[count].sectors);
 	}
-
-	return;
 }
 
 
@@ -256,8 +258,8 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	unsigned kernelStackSize)
 {
 	// Does a bunch of calls involved in initializing the kernel.
-	// kernelMain passes all of the kernel's arguments to this function
-	// for processing.  Returns 0 if successful, negative on error.
+	// kernelMain() passes all of the kernel's arguments to this function for
+	// processing.  Returns 0 if successful, negative on error.
 
 	int status;
 	textScreen screen;
@@ -272,7 +274,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 
 	extern char *kernelVersion[];
 
-	// The kernel config file.  We read it later on in this function
+	// The kernel config file.  We read it later on in this function.
 	extern variableList *kernelVariables;
 
 	// The default colors
@@ -308,6 +310,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 	if (status < 0)
 		return (status);
 
+#ifdef ARCH_X86
 	// Initialize the descriptor tables (GDT and IDT)
 	status = kernelDescriptorInitialize();
 	if (status < 0)
@@ -315,6 +318,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 		kernelError(kernel_error, "Descriptor table initialization failed");
 		return (status);
 	}
+#endif
 
 	// Do device initialization
 	status = kernelDeviceInitialize();
@@ -324,10 +328,10 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 		return (status);
 	}
 
-	// Initialize the interrupt vector tables and default handlers.  Note
-	// that interrupts are not enabled here; that is done during hardware
-	// enumeration after the Programmable Interrupt Controller has been
-	// set up.
+	// Initialize the interrupt vector tables and default handlers.  Note that
+	// interrupts are not enabled here; that is done during hardware
+	// enumeration after the Programmable Interrupt Controller has been set
+	// up.
 	status = kernelInterruptInitialize();
 	if (status < 0)
 	{
@@ -367,16 +371,16 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 		return (status);
 	}
 
-	// Disable console logging by default, since it fills up the screen
-	// with unnecessary details.
+	// Disable console logging by default, since it fills up the screen with
+	// unnecessary details
 	kernelLogSetToConsole(0);
 
 	// Log a starting message
-	sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2020 J. Andrew "
+	sprintf(welcomeMessage, "%s %s\nCopyright (C) 1998-2021 J. Andrew "
 		"McLaughlin", kernelVersion[0], kernelVersion[1]);
 	kernelLog("%s", welcomeMessage);
 
-	// Print the welcome message.
+	// Print the welcome message
 	kernelTextPrintLine("%s\nStarting, one moment please...", welcomeMessage);
 
 	// Log the hardware information passed to us by the BIOS
@@ -456,7 +460,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 		return (status);
 	}
 
-	// Mount the root filesystem.
+	// Mount the root filesystem
 	status = kernelFilesystemMount(rootDiskName, "/");
 	if (status < 0)
 	{
@@ -496,7 +500,7 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 		return (status = ERR_INVALID);
 	}
 
-	// See whether any other disks should be auto-mounted.
+	// See whether any other disks should be auto-mounted
 	kernelDebug(debug_misc, "Automounting filesystems");
 	kernelDiskAutoMountAll();
 
@@ -606,8 +610,10 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 
 		status = kernelLogSetFile(DEFAULT_LOGFILE);
 		if (status < 0)
+		{
 			// Make a warning, but don't return error.  This is not fatal.
 			kernelError(kernel_warn, "Unable to open the kernel log file");
+		}
 
 		// Write the saved screen contents to a "boot log"
 		kernelDebug(debug_misc, "Writing loader log");
@@ -634,8 +640,10 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 
 			status = kernelNetworkEnable();
 			if (status < 0)
+			{
 				// Make a warning, but don't return error.  This is not fatal.
 				kernelError(kernel_warn, "Network enabling failed");
+			}
 		}
 	}
 	else
@@ -661,8 +669,10 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 
 		status = kernelWindowInitialize();
 		if (status < 0)
+		{
 			// Make a warning, but don't return error.  This is not fatal.
 			kernelError(kernel_warn, "Unable to start the window manager");
+		}
 	}
 	else
 	{
@@ -672,7 +682,6 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
 
 	kernelDebug(debug_misc, "Finished kernel initialization");
 
-	// Done setup.  Return success.
 	return (status = 0);
 }
 

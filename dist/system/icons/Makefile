@@ -1,17 +1,18 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
-BUILDDIR = ../../../build/system/icons
+BUILDDIR = build
+OUTPUTDIR = ../../../${BUILDDIR}/system/icons
 
 all:
-	mkdir -p ${BUILDDIR}
-	cp *.ico ${BUILDDIR}
+	mkdir -p ${OUTPUTDIR}
+	cp *.ico ${OUTPUTDIR}
 
 clean:
 	rm -f *~ core
-	rm -Rf ${BUILDDIR}
+	rm -Rf ${OUTPUTDIR}
 

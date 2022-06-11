@@ -251,6 +251,9 @@
 /system/headers/values.h
 /system/headers/wchar.h
 /system/headers/wctype.h
+/system/headers/arch/
+/system/headers/arch/x86/
+/system/headers/arch/x86/processor.h
 /system/headers/arpa/
 /system/headers/arpa/inet.h
 /system/headers/c++/

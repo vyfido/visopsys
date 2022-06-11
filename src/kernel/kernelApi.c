@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -2025,6 +2025,8 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
 	// This funcion does the far return.
 
 	quad_t status = 0;
+	unsigned statusLo = 0;
+	unsigned statusHi = 0;
 	int functionNumber = 0;
 	unsigned *functionArgs = 0;
 	kernelFunctionIndex *functionEntry = NULL;
@@ -2211,11 +2213,14 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
 	// Call the function
 	status = functionPointer();
 
+	statusLo = (status & 0xFFFFFFFF);
+	statusHi = (status >> 32);
+
 out:
 	#if defined(DEBUG)
 	kernelDebug(debug_api, "ret=%lld", status);
 	#endif
 
-	processorApiExit(stackAddress, (status & 0xFFFFFFFF), (status >> 32));
+	processorApiExit(stackAddress, statusLo, statusHi);
 }
 

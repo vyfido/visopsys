@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-14 01:39+0100\n"
+"POT-Creation-Date: 2021-07-26 01:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,7 +21,7 @@ msgstr ""
 msgid "Shutting down"
 msgstr ""
 
-#: store.c:113 store.c:136 store.c:183 store.c:496
+#: store.c:113 store.c:136 store.c:183 store.c:497
 msgid "I/O error"
 msgstr ""
 
@@ -33,7 +33,7 @@ msgstr ""
 msgid "Request length"
 msgstr ""
 
-#: store.c:157 store.c:277 store.c:359 store.c:369 store.c:452 store.c:762
+#: store.c:157 store.c:278 store.c:360 store.c:370 store.c:453 store.c:763
 msgid "Memory error"
 msgstr ""
 
@@ -50,122 +50,122 @@ msgstr ""
 msgid "Send %u bytes\n"
 msgstr ""
 
-#: store.c:255
+#: store.c:254
 msgid "Opened directory"
 msgstr ""
 
-#: store.c:263
+#: store.c:265
 msgid "Error reading directory"
 msgstr ""
 
-#: store.c:306
+#: store.c:307
 msgid "Sending package list for"
 msgstr ""
 
-#: store.c:324
+#: store.c:325
 msgid "Error opening"
 msgstr ""
 
-#: store.c:329
+#: store.c:330
 msgid "Reading"
 msgstr ""
 
-#: store.c:335
+#: store.c:336
 msgid "Skipping"
 msgstr ""
 
-#: store.c:378
+#: store.c:379
 msgid "Reading more"
 msgstr ""
 
-#: store.c:386
+#: store.c:387
 msgid "Error reading"
 msgstr ""
 
-#: store.c:393
+#: store.c:394
 msgid "Added"
 msgstr ""
 
-#: store.c:402 store.c:577
+#: store.c:403 store.c:578
 msgid "Sending reply"
 msgstr ""
 
-#: store.c:462
+#: store.c:463
 msgid "Couldn't open"
 msgstr ""
 
-#: store.c:518
+#: store.c:519
 msgid "Request download of"
 msgstr ""
 
-#: store.c:519
+#: store.c:520
 msgid "for"
 msgstr ""
 
-#: store.c:532
+#: store.c:533
 msgid "No matching package found"
 msgstr ""
 
-#: store.c:539
+#: store.c:540
 msgid "Error getting info for"
 msgstr ""
 
-#: store.c:565
+#: store.c:566
 msgid "Found package file"
 msgstr ""
 
-#: store.c:573
+#: store.c:574
 msgid "Couldn't stat()"
 msgstr ""
 
-#: store.c:620
+#: store.c:621
 msgid "Unknown address family"
 msgstr ""
 
-#: store.c:625
+#: store.c:626
 msgid "Connection from"
 msgstr ""
 
-#: store.c:647
+#: store.c:648
 msgid "Unknown request"
 msgstr ""
 
-#: store.c:657
+#: store.c:658
 msgid "Error handling request"
 msgstr ""
 
-#: store.c:662
+#: store.c:663
 msgid "disconnecting"
 msgstr ""
 
-#: store.c:684
+#: store.c:685
 msgid "Visopsys store"
 msgstr ""
 
-#: store.c:691
+#: store.c:692
 msgid "Error setting signal handler"
 msgstr ""
 
-#: store.c:706
+#: store.c:707
 msgid "Failed to get host info"
 msgstr ""
 
-#: store.c:720
+#: store.c:721
 msgid "Couldn't open socket"
 msgstr ""
 
-#: store.c:730
+#: store.c:731
 msgid "Couldn't bind to port"
 msgstr ""
 
-#: store.c:739
+#: store.c:740
 msgid "Couldn't listen for connections"
 msgstr ""
 
-#: store.c:743
+#: store.c:744
 msgid "Waiting for connections on port"
 msgstr ""
 
-#: store.c:754
+#: store.c:755
 msgid "Connection attempt failed"
 msgstr ""

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -240,7 +240,6 @@ static char *iterateDirectory(DIR **dir, char *osVersion)
 {
 	char *fileName = NULL;
 	char packageDir[64];
-	struct dirent entry;
 	struct dirent *result;
 
 	sprintf(packageDir, "packages/%s", osVersion);
@@ -257,15 +256,17 @@ static char *iterateDirectory(DIR **dir, char *osVersion)
 
 	while (!stop)
 	{
-		if (readdir_r(*dir, &entry, &result))
+		result = readdir(*dir);
+		if (!result)
 		{
-			perror("readdir_r");
-			fprintf(stderr, "%s\n", _("Error reading directory"));
+			if (errno)
+			{
+				perror("readdir");
+				fprintf(stderr, "%s\n", _("Error reading directory"));
+			}
+
 			break;
 		}
-
-		if (!result)
-			break;
 
 		if (result->d_type != DT_REG)
 			continue;

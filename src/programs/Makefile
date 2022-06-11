@@ -1,14 +1,15 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
 ROOT = ../..
-BUILDDIR = ${ROOT}/build/programs
+BUILDDIR = build
+OUTPUTDIR = ${ROOT}/${BUILDDIR}/programs
 INCDIR = ../include
-LIBDIR = ${ROOT}/build/system/libraries
+LIBDIR = ${ROOT}/${BUILDDIR}/system/libraries
 UTILSDIR = ${ROOT}/utils
 
 include ${ROOT}/Makefile.include
@@ -16,8 +17,8 @@ include ${ROOT}/Makefile.include
 STDDEPS = ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h \
 	${INCDIR}/sys/*.h ${INCDIR}/c++/* ${LIBDIR}/crt0.o
 INCLUDE = -nostdinc -I${INCDIR} -I${INCDIR}/c++
-CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
-C++FLAGS = ${OPT} ${ARCH} ${C++CODEGEN} ${C++WARN} ${INCLUDE} ${DEBUG}
+CFLAGS = ${OPT} ${ARCHFLAGS} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
+C++FLAGS = ${OPT} ${ARCHFLAGS} ${C++CODEGEN} ${C++WARN} ${INCLUDE} ${DEBUG}
 LFLAGS = -L${LIBDIR} -nostdlib \
 	-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
 RELEASE = $(shell ${UTILSDIR}/release.sh)
@@ -123,79 +124,79 @@ CNAMES = \
 	who \
 	zip
 
-COBJS = $(addprefix ${BUILDDIR}/, ${CNAMES})
-C++OBJS = $(addprefix ${BUILDDIR}/, ${C++NAMES})
+COBJS = $(addprefix ${OUTPUTDIR}/, ${CNAMES})
+C++OBJS = $(addprefix ${OUTPUTDIR}/, ${C++NAMES})
 
 # Targets
 
 all: target-dirs strip
-	${MAKE} -C fdisk
-	${MAKE} -C de
-	${MAKE} -C es
-	${MAKE} -C ru
-	${MAKE} -C tr
+	${MAKE} -C fdisk ARCH=${ARCH} BUILDDIR=${BUILDDIR}
+	${MAKE} -C de BUILDDIR=${BUILDDIR}
+	${MAKE} -C es BUILDDIR=${BUILDDIR}
+	${MAKE} -C ru BUILDDIR=${BUILDDIR}
+	${MAKE} -C tr BUILDDIR=${BUILDDIR}
 
 target-dirs:
-	mkdir -p ${BUILDDIR}
+	mkdir -p ${OUTPUTDIR}
 
-${BUILDDIR}/%: %.c ${STDDEPS}
+${OUTPUTDIR}/%: %.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lvis -lintl -lvsh -lc -lgcc -o $@
 
-${BUILDDIR}/%: %.cpp ${STDDEPS}
+${OUTPUTDIR}/%: %.cpp ${STDDEPS}
 	${CC++} ${C++FLAGS} ${LFLAGS} $< -lstdc++ -lc -lgcc -o $@
 
 strip: ${COBJS} ${C++OBJS}
 	${STRIP}
 
 clean:
-	${MAKE} -C fdisk clean
-	${MAKE} -C de clean
-	${MAKE} -C es clean
-	${MAKE} -C ru clean
-	${MAKE} -C tr clean
+	${MAKE} -C fdisk BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C de BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C es BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C ru BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C tr BUILDDIR=${BUILDDIR} clean
 	rm -Rf *~ *.o core ${COBJS} ${C++OBJS}
 
 # Object files with explicit rules
 
-${BUILDDIR}/archman: archman.c ${STDDEPS}
+${OUTPUTDIR}/archman: archman.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lwindow -lvis -lintl -lc -lgcc -o $@
 
-${BUILDDIR}/copy-boot: copy-boot.c ${STDDEPS}
+${OUTPUTDIR}/copy-boot: copy-boot.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lintl -lc -lgcc -o $@
 
-${BUILDDIR}/format: format.c ${STDDEPS}
+${OUTPUTDIR}/format: format.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lvis -lintl -ldl -lvsh -lc -o $@
 
-${BUILDDIR}/software: software.c ${STDDEPS}
+${OUTPUTDIR}/software: software.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -linstall -lcompress -lwindow -lvis -lintl -lvsh -lc -lgcc -o $@
 
-${BUILDDIR}/store: store.c ${STDDEPS}
+${OUTPUTDIR}/store: store.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} -D_VERSION_=\"${RELEASE}\" $< -linstall -lcompress -lpthread -lintl -lc -o $@
 
-${BUILDDIR}/tar: tar.c ${STDDEPS}
+${OUTPUTDIR}/tar: tar.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -lgcc -o $@
 
-${BUILDDIR}/telnet: telnet.c ${STDDEPS}
+${OUTPUTDIR}/telnet: telnet.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -ltelnet -lwindow -lvis -lintl -lc -lgcc -o $@
 
-${BUILDDIR}/test: test.c ${STDDEPS}
+${OUTPUTDIR}/test: test.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lvis -lintl -ldl -lc -lgcc -o $@
 
-${BUILDDIR}/unzip: unzip.c ${STDDEPS}
+${OUTPUTDIR}/unzip: unzip.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -lgcc -o $@
 
-${BUILDDIR}/view: view.c ${STDDEPS}
+${OUTPUTDIR}/view: view.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lhtml -lxml -lwindow -lvis -lintl -lc -lgcc -o $@
 
-${BUILDDIR}/vspinst: vspinst.c ${STDDEPS}
+${OUTPUTDIR}/vspinst: vspinst.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -linstall -lcompress -lintl -lc -lgcc -o $@
 
-${BUILDDIR}/vspmake: vspmake.c ${STDDEPS}
+${OUTPUTDIR}/vspmake: vspmake.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -linstall -lcompress -lintl -lc -lgcc -o $@
 
-${BUILDDIR}/wget: wget.c ${STDDEPS}
+${OUTPUTDIR}/wget: wget.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lhttp -lvis -lintl -lvsh -lc -o $@
 
-${BUILDDIR}/zip: zip.c ${STDDEPS}
+${OUTPUTDIR}/zip: zip.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lcompress -lintl -lvsh -lc -lgcc -o $@
 

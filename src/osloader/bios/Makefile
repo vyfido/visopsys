@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -8,7 +8,8 @@
 # Builds all the BIOS MBRs, boot sectors, and the OS loader
 
 ROOT = ../../..
-LOADBUILDDIR = ${ROOT}/build
+BUILDDIR = build
+LOADBUILDDIR = ${ROOT}/${BUILDDIR}
 BOOTBUILDDIR = ${LOADBUILDDIR}/system/boot
 
 include ${ROOT}/Makefile.include
@@ -81,7 +82,7 @@ ${BOOTBUILDDIR}/bootsect.fatnoboot32: bootsect-fatnoboot.s ${STDDEPS}
 #
 
 ${LOADBUILDDIR}/vloader: ${LOADOBJS} ${STDDEPS}
-	${CC} ${ARCH} -nodefaultlibs -nostartfiles ${LINKOPTS} ${LOADOBJS} -o $@
+	${CC} -m32 -nodefaultlibs -nostartfiles ${LINKOPTS} ${LOADOBJS} -o $@
 
 obj/%.o: %.s ${STDDEPS}
 	${NASM} ${LOADOPTS} $< -o $@

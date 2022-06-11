@@ -1,5 +1,5 @@
 # Visopsys
-# Copyright (C) 1998-2020 J. Andrew McLaughlin
+# Copyright (C) 1998-2021 J. Andrew McLaughlin
 #
 # Spanish Translation - 2013 - marianopbernacki@gmail.com
 msgid ""
@@ -113,10 +113,10 @@ msgstr "Error"
 #, c-format
 msgid ""
 "%s\n"
-"Copyright (C) 1998-2020 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2021 J. Andrew McLaughlin\n"
 msgstr ""
 "%s\n"
-"Copyright (C) 1998-2020 J. Andrew McLaughlin\n"
+"Copyright (C) 1998-2021 J. Andrew McLaughlin\n"
 
 #: sysdiag.c:224
 msgid "Please choose the disk to test:"

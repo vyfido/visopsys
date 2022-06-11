@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -828,7 +828,7 @@ static int port_io(void)
 	int setClear = 0;
 	unsigned portN = 0;
 	int res = 0;
-	unsigned char ch;
+	unsigned char ch __attribute__((unused));
 	int count;
 
 	pid = multitaskerGetCurrentProcessId();
@@ -851,8 +851,10 @@ static int port_io(void)
 		}
 
 		if (setClear)
+		{
 			// Read from the port
 			processorInPort8(portN, ch);
+		}
 
 		// Clear permissions again
 		res = multitaskerSetIoPerm(pid, portN, 0);

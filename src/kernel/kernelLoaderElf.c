@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -47,8 +47,10 @@ static Elf32SectionHeader *getSectionHeader(void *data, const char *name)
 	int count;
 
 	if (!header->e_shoff || !header->e_shstrndx)
+	{
 		// No section headers
 		return (returnHeader = NULL);
+	}
 
 	// Store a pointer to the start of the section headers
 	sectionHeaders = (Elf32SectionHeader *)((void *) data + header->e_shoff);
@@ -392,7 +394,7 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
 
 			kernelDebug(debug_loader, "ELF srcAddr=%p+0x%08x", loadAddress,
 				programHeader[count].p_offset);
-			kernelDebug(debug_loader, "ELF destAddr=%p+(%p-%p=0x%08x)",
+			kernelDebug(debug_loader, "ELF destAddr=%p+(%p-%p=0x%08lx)",
 				imageMemory, (void *) programHeader[count].p_vaddr,
 				execImage->virtualAddress,
 				((void *) programHeader[count].p_vaddr -

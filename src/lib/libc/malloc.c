@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -39,7 +39,7 @@ static volatile unsigned totalBlocks = 0;
 static volatile unsigned vacantBlocks = 0;
 static volatile unsigned totalMemory = 0;
 static volatile unsigned usedMemory = 0;
-static spinLock blocksLock;
+static spinLock blocksLock = { 0 };
 
 unsigned mallocHeapMultiple = USER_MEMORY_HEAP_MULTIPLE;
 
@@ -47,7 +47,7 @@ unsigned mallocHeapMultiple = USER_MEMORY_HEAP_MULTIPLE;
 #define FREELIST_REF (&freeBlockList)
 #define blockEnd(block) (block->start + (block->size - 1))
 
-// Malloc debugging messages are off by default even in a debug build.
+// Malloc debugging messages are off by default, even in a debug build
 #undef DEBUG
 
 #if defined(DEBUG)
@@ -165,7 +165,7 @@ static inline void appendBlock(mallocBlock *appBlock, mallocBlock *prevBlock)
 
 static int sortInsertBlock(mallocBlock **list, mallocBlock *block)
 {
-	// Find the correct (sorted) place for in the block list for this block.
+	// Find the correct (sorted) place for in the block list for this block
 
 	int status = 0;
 	mallocBlock *nextBlock = NULL;
@@ -208,7 +208,7 @@ static int sortInsertBlock(mallocBlock **list, mallocBlock *block)
 
 static int allocVacantBlocks(void)
 {
-	// This gets 1 memory page of memory for a new batch of vacant blocks.
+	// This gets 1 memory page of memory for a new batch of vacant blocks
 
 	int status = 0;
 	int numBlocks = 0;
@@ -253,7 +253,7 @@ static int allocVacantBlocks(void)
 
 static mallocBlock *getBlock(void)
 {
-	// Get a block from the vacant block list.
+	// Get a block from the vacant block list
 
 	mallocBlock *block = NULL;
 
@@ -294,17 +294,15 @@ static void removeBlock(mallocBlock **list, mallocBlock *block)
 
 	block->prev = NULL;
 	block->next = NULL;
-
-	return;
 }
 
 
 static void putBlock(mallocBlock **list, mallocBlock *block)
 {
-	// This function gets called when a block is no longer needed.  We
-	// zero out its fields and move it to the end of the used blocks.
+	// This function gets called when a block is no longer needed.  We zero
+	// out its fields and move it to the end of the used blocks.
 
-	// Remove the block from the list.
+	// Remove the block from the list
 	removeBlock(list, block);
 
 	// Clear it
@@ -315,15 +313,13 @@ static void putBlock(mallocBlock **list, mallocBlock *block)
 	vacantBlockList = block;
 
 	vacantBlocks += 1;
-
-	return;
 }
 
 
 static int createBlock(mallocBlock **list, unsigned start, unsigned size,
 	unsigned heapAlloc, unsigned heapAllocSize)
 {
-	// Creates a used or free block in the supplied block list.
+	// Creates a used or free block in the supplied block list
 
 	int status = 0;
 	mallocBlock *block = NULL;
@@ -347,7 +343,7 @@ static int createBlock(mallocBlock **list, unsigned start, unsigned size,
 
 static int growHeap(unsigned minSize)
 {
-	// This grows the pool of heap memory by at least minSize bytes.
+	// This grows the pool of heap memory by at least minSize bytes
 
 	void *newHeap = NULL;
 
@@ -429,7 +425,7 @@ static mallocBlock *findFree(unsigned size)
 
 static void *allocateBlock(unsigned size, const char *function)
 {
-	// Find a block of unused memory, and return the start pointer.
+	// Find a block of unused memory, and return the start pointer
 
 	int status = 0;
 	mallocBlock *block = NULL;
@@ -457,7 +453,7 @@ static void *allocateBlock(unsigned size, const char *function)
 		block = findFree(size);
 		if (!block)
 		{
-			// Something really wrong.
+			// Something really wrong
 			error("Unable to allocate block of size %u (%s)", size, function);
 			return (NULL);
 		}
@@ -499,8 +495,8 @@ static void *allocateBlock(unsigned size, const char *function)
 
 static void mergeFree(mallocBlock *block)
 {
-	// Merge this free block with the previous and/or next blocks if they
-	// are also free.
+	// Merge this free block with the previous and/or next blocks if they are
+	// also free
 
 	// Check whether we're contiguous with the previous block
 	if (block->prev && (block->prev->heapAlloc == block->heapAlloc) &&
@@ -523,13 +519,13 @@ static void mergeFree(mallocBlock *block)
 
 static void cleanupHeap(mallocBlock *block)
 {
-	// If the supplied free block comprises an entire heap allocation,
-	// return that heap memory and get rid of the block.
+	// If the supplied free block comprises an entire heap allocation, return
+	// that heap memory and get rid of the block
 
 	if (block->size != block->heapAllocSize)
 		return;
 
-	// Looks like we can return this memory.
+	// Looks like we can return this memory
 	debug("Release heap memory allocation %08x->%08x (%u)", block->start,
 		blockEnd(block), block->size);
 
@@ -541,7 +537,7 @@ static void cleanupHeap(mallocBlock *block)
 
 static int deallocateBlock(void *start, const char *function)
 {
-	// Find an allocated (used) block and deallocate it.
+	// Find an allocated (used) block and deallocate it
 
 	int status = 0;
 	mallocBlock *block = usedBlockList;
@@ -573,7 +569,7 @@ static int deallocateBlock(void *start, const char *function)
 			cleanupHeap(block);
 
 			// Don't try to use 'block' after this point, it might have
-			// disappeared.
+			// disappeared
 			block = NULL;
 
 			return (status = 0);
@@ -752,8 +748,8 @@ void *_doMalloc(unsigned size, const char *function)
 
 	debug("%s alloc %u", function, size);
 
-	// If the requested block size is zero, forget it.  We can probably
-	// assume something has gone wrong in the calling program
+	// If the requested block size is zero, forget it.  We can probably assume
+	// that something has gone wrong in the calling program.
 	if (!size)
 	{
 		error("Can't allocate zero bytes (%s)", function);
@@ -866,7 +862,7 @@ void _free(void *start, const char *function)
 int _mallocBlockInfo(void *start, memoryBlock *meBlock)
 {
 	// Try to find the block that starts at the supplied address and fill out
-	// the structure with information about it.
+	// the structure with information about it
 
 	int status = 0;
 	mallocBlock *maBlock = usedBlockList;

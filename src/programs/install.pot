@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-14 01:39+0100\n"
+"POT-Creation-Date: 2021-07-26 01:02+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -24,7 +24,7 @@ msgstr ""
 #: install.c:65
 msgid ""
 "Visopsys Installer\n"
-"Copyright (C) 1998-2020 J. Andrew McLaughlin"
+"Copyright (C) 1998-2021 J. Andrew McLaughlin"
 msgstr ""
 
 #: install.c:67

@@ -23,8 +23,8 @@ msgid "Welcome to %s"
 msgstr "Bienvenido a %s"
 
 #: imgboot.c:66
-msgid "Copyright (C) 1998-2020 J. Andrew McLaughlin"
-msgstr "Copyright (C) 1998-2020 J. Andrew McLaughlin"
+msgid "Copyright (C) 1998-2021 J. Andrew McLaughlin"
+msgstr "Copyright (C) 1998-2021 J. Andrew McLaughlin"
 
 #: imgboot.c:68
 #, fuzzy

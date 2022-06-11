@@ -1,14 +1,15 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
 ROOT = ../..
-BUILDDIR = build
+BUILDROOT = build
+OUTPUTDIR = ${BUILDROOT}/${ARCH}
 INCDIR = ${ROOT}/src/include
-LIBDIR = ${ROOT}/build/system/libraries
+LIBDIR = ${ROOT}/${BUILDDIR}/system/libraries
 UTILSDIR = ${ROOT}/utils
 
 include ${ROOT}/Makefile.include
@@ -16,7 +17,7 @@ include ${ROOT}/Makefile.include
 STDDEPS = ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h \
 	${INCDIR}/sys/*.h ${LIBDIR}/crt0.o
 INCLUDE = -nostdinc -I${INCDIR}
-CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
+CFLAGS = ${OPT} ${ARCHFLAGS} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
 LFLAGS = -L${LIBDIR} -nostdlib \
 	-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
 
@@ -28,24 +29,27 @@ endif
 
 NAMES = helloworld
 
-OBJS = $(addprefix ${BUILDDIR}/, ${NAMES})
+OBJS = $(addprefix ${OUTPUTDIR}/, ${NAMES})
 
 # Targets
 
 all: target-dirs strip package
 
 target-dirs:
-	mkdir -p ${BUILDDIR}
+	mkdir -p ${OUTPUTDIR}
 
-${BUILDDIR}/%: %.c ${STDDEPS}
+${OUTPUTDIR}/%: %.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} $< -lwindow -lvis -lintl -lc -o $@
 
 strip: ${OBJS}
 	${STRIP}
 
 package: ${OBJS} helloworld-manifest.txt
-	${UTILSDIR}/vspmake helloworld-manifest.txt
+	sed "s/#ARCH#/${ARCH}/" helloworld-manifest.txt > \
+		helloworld-${ARCH}-manifest.txt
+	${UTILSDIR}/vspmake helloworld-${ARCH}-manifest.txt
 
 clean:
-	rm -Rf *~ *.o core ${OBJS} ${BUILDDIR} installtmp-* *.vsp
+	rm -Rf *~ *.o core ${OBJS} ${BUILDROOT} helloworld-*-manifest.txt\
+		installtmp-* *.vsp
 

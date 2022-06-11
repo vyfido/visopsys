@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -26,9 +26,16 @@
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
+#include "kernelParameters.h"
 #include "kernelPic.h"
 #include <sys/processor.h>
 #include <sys/vis.h>
+
+typedef struct {
+	int intNumber;
+	void *handler;
+
+} interruptHook;
 
 static linkedList hookList;
 static volatile int processingInterrupt = 0;
@@ -42,6 +49,7 @@ static int initialized = 0;
 	processorExceptionExit(exInterrupts);	\
 }
 
+#ifdef ARCH_X86
 static void exHandler0(void) EXHANDLERX(EXCEPTION_DIVBYZERO)
 static void exHandler1(void) EXHANDLERX(EXCEPTION_DEBUG)
 static void exHandler2(void) EXHANDLERX(EXCEPTION_NMI)
@@ -61,12 +69,6 @@ static void exHandler15(void) EXHANDLERX(EXCEPTION_RESERVED)
 static void exHandler16(void) EXHANDLERX(EXCEPTION_FLOAT)
 static void exHandler17(void) EXHANDLERX(EXCEPTION_ALIGNCHECK)
 static void exHandler18(void) EXHANDLERX(EXCEPTION_MACHCHECK)
-
-typedef struct {
-	int intNumber;
-	void *handler;
-
-} interruptHook;
 
 
 static void intHandlerUnimp(void)
@@ -95,6 +97,8 @@ static void intHandlerUnimp(void)
 	processorIsrExit(address);
 }
 
+#endif
+
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
@@ -111,6 +115,8 @@ int kernelInterruptInitialize(void)
 	// Returns 0 on success, negative otherwise.
 
 	int status = 0;
+
+#ifdef ARCH_X86
 	int count;
 
 	// Set all the exception handlers
@@ -138,6 +144,7 @@ int kernelInterruptInitialize(void)
 	// "unimplemented" interrupt vector
 	for (count = 19; count < IDT_SIZE; count ++)
 		kernelDescriptorSetIDTInterruptGate(count, intHandlerUnimp);
+#endif
 
 	// Initialize our empty list of interrupt handlers (to be filled as
 	// interrupts are hooked)
@@ -151,8 +158,7 @@ int kernelInterruptInitialize(void)
 }
 
 
-int kernelInterruptHook(int intNumber, void *handlerAddress,
-	kernelSelector handlerTask)
+int kernelInterruptHook(int intNumber, void *handler)
 {
 	// This allows the requested interrupt number to be hooked by a new
 	// handler, and allows chaining by calling kernelInterruptNextHandler()
@@ -166,13 +172,8 @@ int kernelInterruptHook(int intNumber, void *handlerAddress,
 		return (status = ERR_NOTINITIALIZED);
 
 	// Check params
-	if (!((handlerAddress && !handlerTask) ||
-		(!handlerAddress && handlerTask)))
-	{
-		kernelError(kernel_error, "Exactly one of handlerAddress or "
-			"handlerTask must be set");
-		return (status = ERR_INVALID);
-	}
+	if (!handler)
+		return (status = ERR_NULLPARAMETER);
 
 	vector = kernelPicGetVector(intNumber);
 	if (vector < 0)
@@ -181,10 +182,12 @@ int kernelInterruptHook(int intNumber, void *handlerAddress,
 		return (status = vector);
 	}
 
-	if (handlerAddress)
-		status = kernelDescriptorSetIDTInterruptGate(vector, handlerAddress);
+#ifdef ARCH_X86
+	if (handler >= (void *) KERNEL_VIRTUAL_ADDRESS)
+		status = kernelDescriptorSetIDTInterruptGate(vector, handler);
 	else
-		status = kernelDescriptorSetIDTTaskGate(vector, handlerTask);
+		status = kernelDescriptorSetIDTTaskGate(vector, (int) handler);
+#endif
 
 	if (status >= 0)
 	{
@@ -193,9 +196,7 @@ int kernelInterruptHook(int intNumber, void *handlerAddress,
 		hook = linkedListIterStart(&hookList, &iter);
 		while (hook)
 		{
-			if ((hook->intNumber == intNumber) &&
-				((hook->handler == handlerAddress) ||
-				(hook->handler == (void *) handlerTask)))
+			if ((hook->intNumber == intNumber) && (hook->handler == handler))
 			{
 				// Remove it from the list
 				linkedListRemove(&hookList, hook);
@@ -211,8 +212,7 @@ int kernelInterruptHook(int intNumber, void *handlerAddress,
 			if (hook)
 			{
 				hook->intNumber = intNumber;
-				hook->handler = (handlerAddress? handlerAddress : (void *)
-					handlerTask);
+				hook->handler = handler;
 			}
 		}
 

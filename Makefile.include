@@ -1,28 +1,35 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile.include
 ##
 
 # Top-level include file for code Makefiles.  Sets global compile options.
 
+ifeq (${ARCH},x86)
+	TARGET = i686-elf
+	ARCHFLAGS = -DARCH_X86
+endif
+
 NASM = nasm
-CC = gcc
-CC++ = g++
-AR = ar
-LD = ld
+TOOLCHAIN_BIN = ${ROOT}/toolchain/${ARCH}/bin
+CC = ${TOOLCHAIN_BIN}/${TARGET}-gcc
+CC++ = ${TOOLCHAIN_BIN}/${TARGET}-g++
+AR = ${TOOLCHAIN_BIN}/${TARGET}-ar
+LD = ${TOOLCHAIN_BIN}/${TARGET}-ld
+
 OPT = -Os
-ARCH = -m32
 CODEGEN = -pipe -fno-common -fno-strict-aliasing -fno-builtin \
 	-fno-omit-frame-pointer -fno-asynchronous-unwind-tables \
 	-fno-stack-protector
 CCODEGEN = ${CODEGEN} -ffreestanding
-C++CODEGEN = ${CODEGEN} -ffreestanding -fno-rtti -fno-exceptions
+C++CODEGEN = ${CODEGEN} -std=c++11 -ffreestanding -fno-rtti -fno-exceptions
 WARN = -Wall -W -Wshadow -Wcast-align -Wsign-compare -Waggregate-return \
-	-Wmissing-format-attribute -Wredundant-decls -Werror
+	-Wmissing-format-attribute -Wredundant-decls \
+	-Wno-address-of-packed-member -Wno-deprecated -Werror
 CWARN = ${WARN} -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations
 C++WARN = ${WARN}
 
-export NASM CC CC++ AR LD OPT ARCH CCODEGEN C++CODEGEN CWARN C++WARN
+export ARCHFLAGS NASM CC CC++ AR LD OPT CCODEGEN C++CODEGEN CWARN C++WARN
 

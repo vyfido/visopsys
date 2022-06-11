@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2020 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -32,8 +32,7 @@
 
 
 loaderDiskError:
-	;; This routine is for outputting disk-specific error
-	;; messages
+	;; This function is for outputting disk-specific error messages
 
 	;; Save regs
 	pusha
@@ -256,7 +255,7 @@ IOERR		db 'Disk IO error:  ', 0
 IOERR2		db 'The boot device or media may require service.', 0
 
 ;;
-;; Disk error status messages:
+;; Disk error status messages
 ;;
 
 DSM1		db 'Bad command passed to driver.', 0

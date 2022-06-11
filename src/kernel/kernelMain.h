@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -25,7 +25,7 @@
 #include <sys/osloader.h>
 
 // So that hardware detection, etc., can access the kernel's copy of the
-// system info provided by the loader.
+// system info provided by the loader
 extern loaderInfoStruct *kernelOsLoaderInfo;
 
 // The only function exported by kernelMain.c

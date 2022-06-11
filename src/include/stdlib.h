@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -77,7 +77,7 @@ int wctomb(char *, wchar_t);
 #define offsetof(type, field) ((unsigned long) &(((type *)0L)->field))
 
 // These are unofficial, Andy-special extensions of the atoi() and atoll()
-// paradigm.
+// paradigm
 #define atou(string) ((unsigned) _str2num(string, 10, 0, NULL))
 #define atoull(string) _str2num(string, 10, 0, NULL)
 #define atoo(string) ((unsigned) _str2num(string, 8, 0, NULL))

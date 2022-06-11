@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -38,13 +38,13 @@ debug:
 
 libinstall.o: ${LIBINSTALLDIR}/libinstall.c ${LIBINSTALLDIR}/libinstall.h \
 	${STDDEPS}
-	${CC} ${CFLAGS} -DPORTABLE -c $< -o $@
+	cc ${CFLAGS} -DPORTABLE -c $< -o $@
 
 libinstall.a: libinstall.o
-	${AR} -rs $@ libinstall.o
+	ar -rs $@ libinstall.o
 
 store: ${PROGSDIR}/store.c libinstall.a ${STDDEPS}
-	${CC} ${CFLAGS} -DPORTABLE -D_VERSION_=\"${RELEASE}\" ${LFLAGS} \
+	cc ${CFLAGS} -DPORTABLE -D_VERSION_=\"${RELEASE}\" ${LFLAGS} \
 		$< -linstall -lpthread -o $@
 
 clean:

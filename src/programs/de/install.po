@@ -24,10 +24,10 @@ msgstr "Installieren"
 #: install.c:65
 msgid ""
 "Visopsys Installer\n"
-"Copyright (C) 1998-2020 J. Andrew McLaughlin"
+"Copyright (C) 1998-2021 J. Andrew McLaughlin"
 msgstr ""
 "Visopsys Installierer\n"
-"Copyright (C) 1998-2020 J. Andrew McLaughlin"
+"Copyright (C) 1998-2021 J. Andrew McLaughlin"
 
 #: install.c:67
 #, c-format

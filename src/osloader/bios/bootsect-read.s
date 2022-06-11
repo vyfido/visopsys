@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2020 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -19,8 +19,8 @@
 ;;  bootsect-read.s
 ;;
 
-;; This code is a common disk reading routine for boot sector code.  It's just
-;; meant to be %included, not compiled separately.
+;; This code is a common disk reading function for boot sector code.  It's
+;; just meant to be %included, not compiled separately.
 
 
 read:
@@ -35,19 +35,19 @@ read:
 	cmp byte [DISK], 80h
 	jb .noExtended
 
-	;; We have a nice extended read function which will allow us to
-	;; just use the logical sector number for the read
+	;; We have a nice extended read function which will allow us to just use
+	;; the logical sector number for the read
 
-	mov word [DISKPACKET], 0010h		; Packet size
+	mov word [DISKPACKET], 0010h	; Packet size
 	mov AX, word [SS:(BP + 26)]
-	mov word [DISKPACKET + 2], AX		; Sector count
+	mov word [DISKPACKET + 2], AX	; Sector count
 	mov AX, word [SS:(BP + 24)]
-	mov word [DISKPACKET + 4], AX		; Offset
+	mov word [DISKPACKET + 4], AX	; Offset
 	mov AX, word [SS:(BP + 22)]
-	mov word [DISKPACKET + 6], AX		; Segment
+	mov word [DISKPACKET + 6], AX	; Segment
 	mov EAX, dword [SS:(BP + 18)]
-	mov dword [DISKPACKET + 8], EAX		; > Logical sector
-	mov dword [DISKPACKET + 12], 0		; >
+	mov dword [DISKPACKET + 8], EAX	; > Logical sector
+	mov dword [DISKPACKET + 12], 0	; >
 	mov AX, 4200h
 	mov DL, byte [DISK]
 	mov SI, DISKPACKET
@@ -61,7 +61,7 @@ read:
 	;; No extended functionality.  Read the sectors one at a time.
 
 	.readSector:
-	;; Calculate the CHS.  First the sector
+	;; Calculate the CHS.  First the sector.
 	mov EAX, dword [SS:(BP + 18)]	; Logical sector
 	xor EBX, EBX
 	xor EDX, EDX

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -43,14 +43,14 @@ typedef enum {
 // Data structures
 
 typedef volatile struct {
-	unsigned table[X86_PAGE_TABLES_PER_DIR];
+	unsigned table[PROCESSOR_PAGE_TABLES_PER_DIR];
 
 } kernelPageDirPhysicalMem;
 
 typedef kernelPageDirPhysicalMem kernelPageDirVirtualMem;
 
 typedef volatile struct {
-	unsigned page[X86_PAGES_PER_TABLE];
+	unsigned page[PROCESSOR_PAGES_PER_TABLE];
 
 } kernelPageTablePhysicalMem;
 

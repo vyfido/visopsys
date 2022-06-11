@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -146,7 +146,7 @@ void kernelNetworkIcmpProcessPacket(kernelNetworkDevice *netDev,
 			checksum = icmpChecksum(icmpHeader, icmpLen);
 			icmpHeader->checksum = htons(checksum);
 
-			kernelDebug(debug_net, "ICMP echo reply %u bytes of data",
+			kernelDebug(debug_net, "ICMP echo reply %lu bytes of data",
 				(icmpLen - sizeof(networkIcmpHeader) - 4));
 
 			// Send, but only queue it for output so that ICMP packets don't

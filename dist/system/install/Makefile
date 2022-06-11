@@ -1,16 +1,17 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
-BUILDDIR = ../../../build/system/install
+BUILDDIR = build
+OUTPUTDIR = ../../../${BUILDDIR}/system/install
 
 all:
-	mkdir -p ${BUILDDIR}
+	mkdir -p ${OUTPUTDIR}
 
 clean:
 	rm -f *~ core
-	rm -Rf ${BUILDDIR}
+	rm -Rf ${OUTPUTDIR}
 

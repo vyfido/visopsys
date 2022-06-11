@@ -98,7 +98,7 @@ static int ntfs_decompress(u8 *dest, const u32 dest_size,
 
 	ntfs_log_trace("Entering, cb_size = 0x%x.\n", (unsigned)cb_size);
 do_next_sb:
-	ntfs_log_debug("Beginning sub-block at offset = 0x%x in the cb.\n",
+	ntfs_log_debug("Beginning sub-block at offset = 0x%lx in the cb.\n",
 			cb - cb_start);
 	/*
 	 * Have we reached the end of the compression block or the end of the

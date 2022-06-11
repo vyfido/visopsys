@@ -1,25 +1,28 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
-BUILDDIR = ../../build/system/headers
+BUILDDIR = build
+OUTPUTDIR = ../../${BUILDDIR}/system/headers
 
 all:
-	mkdir -p ${BUILDDIR}
-	cp *.h ${BUILDDIR}
-	${MAKE} -C arpa
-	${MAKE} -C c++
-	${MAKE} -C netinet
-	${MAKE} -C sys
+	mkdir -p ${OUTPUTDIR}
+	cp *.h ${OUTPUTDIR}
+	${MAKE} -C arch/x86 BUILDDIR=${BUILDDIR}
+	${MAKE} -C arpa BUILDDIR=${BUILDDIR}
+	${MAKE} -C c++ BUILDDIR=${BUILDDIR}
+	${MAKE} -C netinet BUILDDIR=${BUILDDIR}
+	${MAKE} -C sys BUILDDIR=${BUILDDIR}
 
 clean:
-	${MAKE} -C arpa clean
-	${MAKE} -C c++ clean
-	${MAKE} -C netinet clean
-	${MAKE} -C sys clean
+	${MAKE} -C arch/x86 BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C arpa BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C c++ BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C netinet BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C sys BUILDDIR=${BUILDDIR} clean
 	rm -f *~
-	rm -Rf ${BUILDDIR}
+	rm -Rf ${OUTPUTDIR}
 

@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -501,8 +501,7 @@ static int addController(kernelDevice *dev, int numControllers,
 	if (controller->interruptNum != 0xFF)
 	{
 		// Register the interrupt handler
-		status = kernelInterruptHook(controller->interruptNum, &usbInterrupt,
-			NULL /* handlerTask */);
+		status = kernelInterruptHook(controller->interruptNum, &usbInterrupt);
 		if (status < 0)
 			return (status);
 	}

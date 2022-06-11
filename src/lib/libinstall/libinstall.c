@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -1147,7 +1147,6 @@ static int removeDirRecursive(const char *path)
 {
 	int status = 0;
 	DIR *dir = NULL;
-	struct dirent entry;
 	struct dirent *result;
 	char *childPath = NULL;
 
@@ -1160,12 +1159,14 @@ static int removeDirRecursive(const char *path)
 	// Recursively remove the directory contents
 	while (1)
 	{
-		status = readdir_r(dir, &entry, &result);
-		if (status)
-			return (status = errno);
-
+		result = readdir(dir);
 		if (!result)
-			break;
+		{
+			if (errno)
+				return (status = errno);
+			else
+				break;
+		}
 
 		if (!strcmp(result->d_name, ".") || !strcmp(result->d_name, ".."))
 			continue;

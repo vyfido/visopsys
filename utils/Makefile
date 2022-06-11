@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -8,6 +8,7 @@
 ##  Makefile for the Visopsys utilities
 
 ROOT = ..
+BUILDDIR = build
 SRCDIR = ${ROOT}/src
 INCDIR = ${SRCDIR}/include/sys
 LIBDIR = .
@@ -35,17 +36,17 @@ debug:
 	${MAKE} all DEBUG=1
 
 copy-boot: ${PROGSDIR}/copy-boot.c ${STDDEPS}
-	${CC} ${CFLAGS} -DPORTABLE $< -o $@
+	cc ${CFLAGS} -DPORTABLE -DBUILDDIR=\"${ROOT}/${BUILDDIR}\" $< -o $@
 
 libinstall.o: ${LIBINSTALLDIR}/libinstall.c ${LIBINSTALLDIR}/libinstall.h \
 	${STDDEPS}
-	${CC} ${CFLAGS} -DPORTABLE -c $< -o $@
+	cc ${CFLAGS} -DPORTABLE -c $< -o $@
 
 libinstall.a: libinstall.o
-	${AR} -rs $@ libinstall.o
+	ar -rs $@ libinstall.o
 
 vspmake: ${PROGSDIR}/vspmake.c libinstall.a ${STDDEPS}
-	${CC} ${CFLAGS} -DPORTABLE ${LFLAGS} $< -linstall -o $@
+	cc ${CFLAGS} -DPORTABLE ${LFLAGS} $< -linstall -o $@
 
 clean:
 	rm -f *~ core *.zip *.iso *.img copy-boot libinstall.* vspmake *.log

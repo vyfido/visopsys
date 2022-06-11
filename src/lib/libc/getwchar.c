@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -32,7 +32,7 @@ wint_t getwchar(void)
 	// This is the wide-character equivalent of the getchar function
 
 	int status = 0;
-	wint_t wc = 0;
+	wchar_t wc = 0;
 
 	if (visopsys_in_kernel)
 	{
@@ -48,6 +48,6 @@ wint_t getwchar(void)
 		return (WEOF);
 	}
 
-	return (wc);
+	return ((wint_t) wc);
 }
 

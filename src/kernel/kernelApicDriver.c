@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -181,21 +181,14 @@ static int timerIrqMapped(kernelDevice *mpDevice)
 }
 
 
-static int enableLocalApic(kernelDevice *mpDevice, unsigned char *logicalDest)
+static unsigned getLocalApicBase(void)
 {
-	// Detect whether the CPU has a local APIC, and if so, enable it
-
-	int status = 0;
+	unsigned apicBase = 0;
+#ifdef ARCH_X86
 	x86CpuFeatures cpuFeatures;
 	int hasLocal = 0;
 	int hasMsrs = 0;
 	unsigned rega = 0, regd = 0;
-	unsigned apicBase = 0;
-	int apicId = 0;
-	kernelMultiProcOps *mpOps = NULL;
-	multiProcLocalIntAssEntry *intEntry = NULL;
-	unsigned lint = 0;
-	int count;
 
 	memset(&cpuFeatures, 0, sizeof(x86CpuFeatures));
 
@@ -204,7 +197,7 @@ static int enableLocalApic(kernelDevice *mpDevice, unsigned char *logicalDest)
 
 	// Required feature bits supported?
 	if (!cpuFeatures.cpuid1)
-		return (status = ERR_NOTINITIALIZED);
+		return (apicBase = 0);
 
 	// Is there a local APIC?
 	hasLocal = ((cpuFeatures.cpuid1Edx >> 9) & 1);
@@ -213,7 +206,7 @@ static int enableLocalApic(kernelDevice *mpDevice, unsigned char *logicalDest)
 		"does not have"));
 
 	if (!hasLocal)
-		return (status = ERR_NOTINITIALIZED);
+		return (apicBase = 0);
 
 	// Does the CPU have model-specific registers?
 	hasMsrs = ((cpuFeatures.cpuid1Edx >> 5) & 1);
@@ -222,7 +215,7 @@ static int enableLocalApic(kernelDevice *mpDevice, unsigned char *logicalDest)
 		"does not have"));
 
 	if (!hasMsrs)
-		return (status = ERR_NOTINITIALIZED);
+		return (apicBase = 0);
 
 	// Read the local APIC base MSR
 	processorReadMsr(X86_MSR_APICBASE, rega, regd);
@@ -236,6 +229,27 @@ static int enableLocalApic(kernelDevice *mpDevice, unsigned char *logicalDest)
 	processorWriteMsr(X86_MSR_APICBASE, apicBase, regd);
 
 	apicBase &= X86_MSR_APICBASE_BASEADDR;
+#endif
+
+	return (apicBase);
+}
+
+
+static int enableLocalApic(kernelDevice *mpDevice, unsigned char *logicalDest)
+{
+	// Detect whether the CPU has a local APIC, and if so, enable it
+
+	int status = 0;
+	unsigned apicBase = 0;
+	int apicId = 0;
+	kernelMultiProcOps *mpOps = NULL;
+	multiProcLocalIntAssEntry *intEntry = NULL;
+	unsigned lint = 0;
+	int count;
+
+	apicBase = getLocalApicBase();
+	if (!apicBase)
+		return (status = ERR_NOTINITIALIZED);
 
 	kernelDebug(debug_io, "APIC CPU local APIC base=0x%08x", apicBase);
 

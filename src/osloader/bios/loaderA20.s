@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2020 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -35,9 +35,9 @@
 biosQuery:
 	;; Ask the BIOS which A20 methods are supported
 
-	push word -1	; return code
-	pusha			; save regs
-	mov BP, SP		; save stack ptr
+	push word -1			; return code
+	pusha					; save regs
+	mov BP, SP				; save stack ptr
 
 	;; SYSTEM - later PS/2s - QUERY A20 GATE SUPPORT
 	mov AX, 2403h
@@ -53,12 +53,12 @@ biosQuery:
 
 
 biosMethod:
-	;; This method attempts the easiest thing, which is to try to let the
-	;; BIOS set A20 for us.
+	;; This method attempts the easiest thing, which is to try to let the BIOS
+	;; set A20 for us
 
-	push word -1	; return code
-	pusha			; save regs
-	mov BP, SP		; save stack ptr
+	push word -1			; return code
+	pusha					; save regs
+	mov BP, SP				; save stack ptr
 
 	;; Check
 
@@ -94,7 +94,7 @@ biosMethod:
 	cmp AL, 01h
 	jne .done
 
-	;; The BIOS did it for us.
+	;; The BIOS did it for us
 	mov word [SS:(BP + 16)], 0
 
 	.done:
@@ -104,12 +104,12 @@ biosMethod:
 
 
 port92Method:
-	;; This method attempts the second easiest thing, which is to try
-	;; writing a bit to port 92h
+	;; This method attempts the second easiest thing, which is to try writing
+	;; a bit to port 92h
 
-	push word -1	; return code
-	pusha			; save regs
-	mov BP, SP		; save stack ptr
+	push word -1			; return code
+	pusha					; save regs
+	mov BP, SP				; save stack ptr
 
 	;; Read port 92h
 	xor AX, AX
@@ -171,8 +171,8 @@ keyboardRead60:
 	;; Wait for the controller to be ready for a command
 	call keyboardCommandWait
 
-	;; Tell the controller we want to read the current status.
-	;; Send the command D0h: read output port.
+	;; Tell the controller we want to read the current status.  Send the
+	;; command D0h: read output port.
 	mov AL, 0D0h
 	out 64h, AL
 
@@ -205,17 +205,17 @@ keyboardWrite60:
 	;; Wait for the controller to be ready for a command
 	call keyboardCommandWait
 
-	;; Write the new value to port 60h.  Remember we saved the old value
-	;; on the stack
+	;; Write the new value to port 60h.  Remember we saved the old value on
+	;; the stack.
 	pop AX
 	out 60h, AL
 	ret
 
 
 keyboardMethod:
-	push word -1	; return code
-	pusha			; save regs
-	mov BP, SP		; save stack ptr
+	push word -1			; return code
+	pusha					; save regs
+	mov BP, SP				; save stack ptr
 
 	;; Make sure interrupts are disabled
 	cli
@@ -223,11 +223,11 @@ keyboardMethod:
 	;; Read the current port 60h status
 	call keyboardRead60
 
-	;; Turn on the A20 enable bit and write it.
+	;; Turn on the A20 enable bit and write it
 	or AL, 2
 	call keyboardWrite60
 
-	;; Read back the A20 status to ensure it was enabled.
+	;; Read back the A20 status to ensure it was enabled
 	call keyboardRead60
 
 	;; Check the result
@@ -246,11 +246,11 @@ keyboardMethod:
 
 altKeyboardMethod:
 	;; This is alternate way to set A20 using the keyboard (which is
-	;; supposedly not supported on many chipsets).
+	;; supposedly not supported on many chipsets)
 
-	push word -1	; return code
-	pusha			; save regs
-	mov BP, SP		; save stack ptr
+	push word -1			; return code
+	pusha					; save regs
+	mov BP, SP				; save stack ptr
 
 	;; Make sure interrupts are disabled
 	cli
@@ -265,7 +265,7 @@ altKeyboardMethod:
 	;; Delay
 	call delay
 
-	;; Attempt to read back the A20 status to ensure it was enabled.
+	;; Attempt to read back the A20 status to ensure it was enabled
 	call keyboardRead60
 
 	;; Check the result
@@ -283,8 +283,8 @@ altKeyboardMethod:
 
 
 loaderEnableA20:
-	;; This routine will attempt to enable the A20 address line using
-	;; various methods, if necessary.
+	;; This function will attempt to enable the A20 address line using various
+	;; methods, if necessary
 
 	pusha
 
@@ -294,10 +294,10 @@ loaderEnableA20:
 	;; Try asking the BIOS what methods are supported
 	call biosQuery
 	cmp AX, 0
-	jl .try		; unknown - just try everything
+	jl .try					; unknown - just try everything
 
-	;; Bitmask of supported methods.  Specifically, don't try something if
-	;; the BIOS told us it's unsupported
+	;; Bitmask of supported methods.  Specifically, don't try something if the
+	;; BIOS told us it's unsupported.
 	and BL, AL
 
 	.try:
@@ -327,7 +327,7 @@ loaderEnableA20:
 	jz .done
 
 	.noKeyboard:
-	;; Didn't work, or not supported.
+	;; Didn't work, or not supported
 
 	;; Try an alternate keyboard method
 	call altKeyboardMethod

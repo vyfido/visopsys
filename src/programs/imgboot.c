@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -63,7 +63,7 @@ Options:
 #define gettext_noop(string) (string)
 
 #define WELCOME			_("Welcome to %s")
-#define COPYRIGHT		_("Copyright (C) 1998-2020 J. Andrew McLaughlin")
+#define COPYRIGHT		_("Copyright (C) 1998-2021 J. Andrew McLaughlin")
 #define GPL				_( \
 	"  This program is free software; you can redistribute it and/or modify it\n" \
 	"  under the terms of the GNU General Public License as published by the\n" \

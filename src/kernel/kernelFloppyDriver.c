@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -955,6 +955,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 					"unknown.  Assuming 1.44 MB.",
 					disks[numberFloppies].deviceNumber,
 					kernelOsLoaderInfo->fddInfo[count].type);
+				// fall through
 
 			case 4:
 				// This is a 1.44 MB 3.5" disk
@@ -981,7 +982,6 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	}
 
 	// Get memory for a disk transfer area
-
 	status = kernelMemoryGetIo(DISK_CACHE_ALIGN, DISK_CACHE_ALIGN,
 		1 /* low memory */, "floppy cache", &xferArea);
 	if (status < 0)
@@ -992,8 +992,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	readStatusOnInterrupt = 0;
 
 	// Register our interrupt handler
-	status = kernelInterruptHook(INTERRUPT_NUM_FLOPPY, &floppyInterrupt,
-		NULL /* handlerTask */);
+	status = kernelInterruptHook(INTERRUPT_NUM_FLOPPY, &floppyInterrupt);
 	if (status < 0)
 		goto out;
 

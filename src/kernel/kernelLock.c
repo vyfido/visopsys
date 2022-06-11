@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -19,10 +19,9 @@
 //  kernelLock.c
 //
 
-// This header file contains source code for the kernel's standard
-// locking facilities.  These facilities can be used for locking any
-// desired resource (i.e. it is not specific to devices, or anything
-// in particular).
+// This header file contains source code for the kernel's standard locking
+// facilities.  These facilities can be used for locking any desired resource
+// (i.e. it is not specific to devices, or anything in particular).
 
 #include "kernelLock.h"
 #include "kernelError.h"
@@ -59,8 +58,8 @@ int kernelLockGet(spinLock *lock)
 	// basis for the time being.  Waiters wait in a queue.
 
 	// As a safeguard, this loop will make sure that the holding process is
-	// still viable (i.e. it still exists, and is not stopped or anything
-	// like that).
+	// still viable (i.e. it still exists, and is not stopped or anything like
+	// that).
 
 	// This yielding loop serves the dual purpose of maintaining exclusivity
 	// and also allows the first process to terminate more quickly, since it
@@ -68,8 +67,8 @@ int kernelLockGet(spinLock *lock)
 	// time.
 
 	// The void* argument passed to the function must be a pointer to some
-	// identifiable part of the resource (shared by all requesting
-	// processes) such as a pointer to a data structure, or to a 'lock' flag.
+	// identifiable part of the resource (shared by all requesting processes)
+	// such as a pointer to a data structure, or to a 'lock' flag.
 
 	int status = 0;
 	int interrupts = 0;
@@ -95,7 +94,7 @@ int kernelLockGet(spinLock *lock)
 		// until it is allowed to use the resource
 
 		// Disable interrupts from here, so that we don't get the lock granted
-		// or released out from under us.
+		// or released out from under us
 		processorSuspendInts(interrupts);
 
 		processorLock(lock->processId, currentProcId);
@@ -111,18 +110,19 @@ int kernelLockGet(spinLock *lock)
 		// to that process.
 		if (!kernelLockVerify(lock))
 		{
-			// We might give the lock to the requesting process at the the
-			// start of the next loop.  Clear the current lock and restart the
-			// loop.
+			// We might give the lock to the requesting process at the start
+			// of the next loop.  Clear the current lock and restart the loop.
 			lock->processId = 0;
 			continue;
 		}
 
-		// We didn't get the lock.
+		// We didn't get the lock
 
 		if (kernelProcessingInterrupt())
+		{
 			// We can't grant this lock to the interrupt service function
 			return (status = ERR_BUSY);
+		}
 
 		// This process will now have to continue waiting until the lock has
 		// been released or becomes invalid
@@ -140,8 +140,8 @@ int kernelLockGet(spinLock *lock)
 
 int kernelLockRelease(spinLock *lock)
 {
-	// This function corresponds to the lock function.  It enables a
-	// process to release a resource that it had previously locked.
+	// This function corresponds to the lock function.  It enables a process
+	// to release a resource that it had previously locked.
 
 	int status = 0;
 	int currentProcId = 0;
@@ -157,7 +157,7 @@ int kernelLockRelease(spinLock *lock)
 	if (currentProcId < 0)
 		return (currentProcId);
 
-	// Make sure that the current lock, if any, really belongs to this process.
+	// Make sure that the current lock, if any, really belongs to this process
 
 	if (lock->processId == currentProcId)
 	{
@@ -177,8 +177,8 @@ int kernelLockVerify(spinLock *lock)
 	// This function should be used to determine whether a lock is still
 	// valid.  This means checking to see whether the locking process still
 	// exists, and if so, that it is still viable (i.e. not sleeping, stopped,
-	// or zombie.  If the lock is still valid, the function returns 1.  If
-	// it is invalid, the function returns 0.
+	// or zombie.  If the lock is still valid, the function returns 1.  If it
+	// is invalid, the function returns 0.
 
 	int status = 0;
 	processState tmpState;
@@ -199,8 +199,8 @@ int kernelLockVerify(spinLock *lock)
 		(tmpState == proc_sleeping) || (tmpState == proc_stopped) ||
 		(tmpState == proc_finished) || (tmpState == proc_zombie))
 	{
-		// This process either no longer exists, or else it shouldn't
-		// continue holding this lock.
+		// This process either no longer exists, or else it shouldn't continue
+		// holding this lock
 		return (status = 0);
 	}
 	else

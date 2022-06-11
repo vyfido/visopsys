@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -24,8 +24,6 @@
 #ifndef _KERNELINTERRUPT_H
 #define _KERNELINTERRUPT_H
 
-#include "kernelDescriptor.h"
-
 #define INTERRUPT_VECTORSTART			0x20
 
 // ISA/PIC interrupt numbers
@@ -47,7 +45,7 @@
 #define INTERRUPT_NUM_SECONDARYIDE		15
 
 int kernelInterruptInitialize(void);
-int kernelInterruptHook(int, void *, kernelSelector);
+int kernelInterruptHook(int, void *);
 void kernelInterruptNextHandler(int, void *);
 int kernelProcessingInterrupt(void);
 int kernelInterruptGetCurrent(void);

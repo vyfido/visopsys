@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -329,7 +329,7 @@ static int waitOperationComplete(int diskNum, int yield, int dataWait,
 	int status = 0;
 	uquad_t endTime = 0;
 	unsigned char statReg = 0;
-	unsigned char data = 0;
+	unsigned char data __attribute__((unused)) = 0;
 
 	kernelDebug(debug_io, "IDE disk %02x wait (%s) for interrupt %d "
 		"dataWait=%d ack=%d", diskNum, (yield? "yield" : "poll"),
@@ -2854,8 +2854,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 		{
 			// Hook the PCI interrupt
 			status = kernelInterruptHook(
-				controllers[controllerCount].pciInterrupt, &pciIdeInterrupt,
-				NULL /* handlerTask */);
+				controllers[controllerCount].pciInterrupt, &pciIdeInterrupt);
 			if (status < 0)
 				continue;
 
@@ -2890,13 +2889,13 @@ static int driverDetect(void *parent __attribute__((unused)),
 				{
 					status = kernelInterruptHook(
 						CHANNEL(controllerCount, count).interrupt,
-						&primaryIdeInterrupt, NULL /* handlerTask */);
+						&primaryIdeInterrupt);
 				}
 				else
 				{
 					status = kernelInterruptHook(
 						CHANNEL(controllerCount, count).interrupt,
-						&secondaryIdeInterrupt, NULL /* handlerTask */);
+						&secondaryIdeInterrupt);
 				}
 
 				if (status < 0)

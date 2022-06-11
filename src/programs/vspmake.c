@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -65,10 +65,10 @@ Example:
   name=foo
   desc=Foo Package!
   arch=x86
-  version=0.82.0
+  version=0.91.0
   depend=bar|>=|4.51
-  depend=baz|=|0.82
-  obsolete=foo|<=|0.82.0
+  depend=baz|=|0.91
+  obsolete=foo|<=|0.91.0
 
   preexec=build/premature
   postexec=/tmp/aprez-vous

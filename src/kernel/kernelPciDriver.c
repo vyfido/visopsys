@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -727,7 +727,6 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	kernelDevice *dev = NULL;
 	kernelBus *bus = NULL;
 	unsigned short commandReg = 0;
-
 
 	// Check for a configuration mechanism #1 able PCI controller
 	processorOutPort32(PCI_CONFIG_PORT, 0x80000000L);

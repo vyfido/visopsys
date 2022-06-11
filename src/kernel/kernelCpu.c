@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -34,6 +34,8 @@
 #include <sys/processor.h>
 #include <sys/vis.h>
 
+#ifdef ARCH_X86
+
 static struct {
 	char *string;
 	char *vendor;
@@ -56,23 +58,29 @@ static struct {
 };
 
 static x86CpuFeatures features;
+
+#endif
+
 static uquad_t timestampFreq = 0;
 
 
 static int driverDetectCpu(void *parent, kernelDriver *driver)
 {
 	int status = 0;
+	kernelDevice *dev = NULL;
+	int longMode = 0;
+
+#ifdef ARCH_X86
 	unsigned cpuIdLimit = 0;
 	char vendorString[13];
 	unsigned rega = 0, regb = 0, regc = 0, regd = 0;
-	kernelDevice *dev = NULL;
 	char variable[80];
 	char value[80];
-	int longMode = 0;
 	int whitespace = 1;
 	unsigned count1, count2;
 
 	memset(&features, 0, sizeof(x86CpuFeatures));
+#endif
 
 	// Allocate memory for the device
 	dev = kernelMalloc(sizeof(kernelDevice));
@@ -89,6 +97,7 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 
 	// Try to identify the CPU
 
+#ifdef ARCH_X86
 	// The initial call gives us the vendor string and tells us how many other
 	// functions are supported
 
@@ -217,6 +226,7 @@ static int driverDetectCpu(void *parent, kernelDriver *driver)
 
 		variableListSet(&dev->device.attrs, DEVICEATTRNAME_MODEL, value);
 	}
+#endif
 
 	// Complete the kernel device depending on what we detected
 
@@ -268,7 +278,11 @@ void kernelCpuGetFeatures(void *buffer, unsigned bufferSize)
 	if (!buffer)
 		return;
 
+#ifdef ARCH_X86
 	memcpy(buffer, &features, min(bufferSize, sizeof(x86CpuFeatures)));
+#else
+	memset(buffer, 0, bufferSize);
+#endif
 }
 
 

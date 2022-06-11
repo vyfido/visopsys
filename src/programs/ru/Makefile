@@ -1,21 +1,22 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
 ROOT = ../../..
-BUILDDIR = ${ROOT}/build/system/locale/ru
+BUILDDIR = build
+OUTPUTDIR = ${ROOT}/${BUILDDIR}/system/locale/ru
 UTILSDIR = ${ROOT}/utils
 
 all:
-	mkdir -p ${BUILDDIR}
-	${UTILSDIR}/makemsgs.sh . ${BUILDDIR}
+	mkdir -p ${OUTPUTDIR}
+	${UTILSDIR}/makemsgs.sh . ${OUTPUTDIR}
 
 clean:
 	rm -f *~ core
-	${shell if [ -d ${BUILDDIR} ] ; then for FILE in *.po ; \
-		do find ${BUILDDIR} -name `basename $$FILE .po`.mo -exec rm {} \; ; \
+	${shell if [ -d ${OUTPUTDIR} ] ; then for FILE in *.po ; \
+		do find ${OUTPUTDIR} -name `basename $$FILE .po`.mo -exec rm {} \; ; \
 			done ; fi }
 

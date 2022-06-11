@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -20,7 +20,7 @@
 //
 
 // Describes the generic description/classification mechanism for hardware
-// devices.
+// devices
 
 #ifndef _KERNELDEVICE_H
 #define _KERNELDEVICE_H
@@ -29,7 +29,7 @@
 #include <sys/device.h>
 
 // A structure for device classes and subclasses, which just allows us to
-// associate the different types with string names.
+// associate the different types with string names
 typedef struct {
 	int class;
 	char *name;

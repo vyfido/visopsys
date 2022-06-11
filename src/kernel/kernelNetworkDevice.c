@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -416,7 +416,7 @@ int kernelNetworkDeviceRegister(kernelDevice *dev)
 	{
 		// Register our interrupt handler for this device
 		status = kernelInterruptHook(netDev->device.interruptNum,
-			&networkInterrupt, NULL /* handlerTask */);
+			&networkInterrupt);
 		if (status < 0)
 			return (status);
 

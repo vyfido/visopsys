@@ -1,17 +1,18 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
-BUILDDIR = ../../../build/programs/snake.dir
+BUILDDIR = build
+OUTPUTDIR = ../../../${BUILDDIR}/programs/snake.dir
 
 all:
-	mkdir -p ${BUILDDIR}
-	cp *.bmp ${BUILDDIR}
+	mkdir -p ${OUTPUTDIR}
+	cp *.bmp ${OUTPUTDIR}
 
 clean:
 	rm -f *~ core
-	rm -Rf ${BUILDDIR}
+	rm -Rf ${OUTPUTDIR}
 

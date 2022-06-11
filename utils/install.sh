@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  install.sh
 ##
@@ -10,12 +10,10 @@
 # with Visopsys SOURCE distribution.  Note that the device must have
 # permissions which allow direct writes by the invoking user.
 
+ARCH=x86
 BUILDDIR=../build
-BOOTSECTOR="$BUILDDIR"/system/boot/bootsect.fat
 OSLOADER=vloader
 FSTAB=/etc/fstab
-BASICFILES="$BUILDDIR"/system/install-files.basic
-FULLFILES="$BUILDDIR"/system/install-files.full
 INSTTYPE=full
 COPYBOOTLOG=./copy-boot.log
 MKDOSFSLOG=./mkdosfs.log
@@ -24,24 +22,46 @@ echo ""
 echo "Visopsys installation script for UNIX"
 echo ""
 
-if [ "$1" = "-basic" ] ; then
-	INSTTYPE=basic
+while [ -n "$1" ] ; do
+	LAST="$1"
+
+	if [ "$1" = "-basic" ] ; then
+		INSTTYPE=basic
+
+	elif [ "$1" = "-isoboot" ] ; then
+		INSTTYPE=isoboot
+
+	elif [ -d "$BUILDDIR/$1" ] ; then
+		ARCH="$1"
+	fi
+
 	shift
-elif [ "$1" = "-isoboot" ] ; then
-	INSTTYPE=isoboot
-	shift
+done
+
+BUILDDIR="$BUILDDIR/$ARCH"
+
+# Just to a quick check to see whether we think a build has been done
+if [ ! -d "$BUILDDIR" ] ; then
+	echo "$BUILDDIR is missing.  Have you done a make yet?"
+	echo "Terminating."
+	echo ""
+	exit 1
 fi
 
-DEVICE=$1
+BOOTSECTOR="$BUILDDIR"/system/boot/bootsect.fat
+BASICFILES="$BUILDDIR"/system/install-files.basic
+FULLFILES="$BUILDDIR"/system/install-files.full
+
+DEVICE=$LAST
 if [ "$DEVICE" = "" ] ; then
 	echo "No installation device specified."
-	echo "Usage: $0 <installation device>"
+	echo "Usage: $0 [arch] <installation device>"
 	echo "Terminating."
 	echo ""
 	exit 1
 elif [ ! -e $DEVICE ] ; then
 	echo "Installation device does not exist."
-	echo "Usage: $0 <installation device>"
+	echo "Usage: $0 [arch] <installation device>"
 	echo "Terminating."
 	echo ""
 	exit 1
@@ -53,15 +73,6 @@ if [ ! -w "$DEVICE" ] ; then
 	echo ""
 	echo "You do not have permission to write directly to the disk device"
 	echo "file ($DEVICE) on this system.  (try 'chmod go+rw $DEVICE')."
-	echo "Terminating."
-	echo ""
-	exit 1
-fi
-
-# Just to a quick check to see whether we think a build has been done
-if [ ! -e "$BUILDDIR" ] ; then
-	echo ""
-	echo "$BUILDDIR is missing.  Have you done a make yet?"
 	echo "Terminating."
 	echo ""
 	exit 1
@@ -124,6 +135,7 @@ rm -f $COPYBOOTLOG
 # fix the following command).
 MOUNTDIR=`cat $FSTAB | grep ^$DEVICE | awk '{print $2}'`
 
+# Mount the filesystem
 if [ "$MOUNTDIR" != "" ] ; then
 	mount $DEVICE
 else
@@ -132,7 +144,6 @@ else
 	mount $MNTARGS $DEVICE $MOUNTDIR
 fi
 
-# Mount the filesystem
 if [ $? -ne 0 ] ; then
 	echo ""
 	echo "Not able (or not permitted) to mount disk $DEVICE.  Terminating."

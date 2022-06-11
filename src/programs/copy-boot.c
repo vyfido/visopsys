@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -59,7 +59,7 @@ Example:
 
 #ifdef PORTABLE
 	#define _GNU_SOURCE
-	#define OSLOADER	"../build/vloader"
+	#define OSLOADER	BUILDDIR "/vloader"
 #else
 	#include <sys/api.h>
 	#include <sys/env.h>

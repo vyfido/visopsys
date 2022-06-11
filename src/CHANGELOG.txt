@@ -1,5 +1,32 @@
 --------------
- Version 0.9   16/04/2020
+ Version 0.91   30/07/2021
+--------------
+
+  Overview: This maintenance release fixes RAM disk boot support, adds sparse
+file support to the EXT filesystem driver, and updates various build-related
+things.
+
+- Added support for sparse files to the EXT filesystem driver.
+- Fixed some problems with the RAM disk boot feature, first introduced in
+version 0.85.
+- Added a cross-compiling toolchain to the build system, to reduce the
+fragility of relying on the host system's compiler and associated programs,
+and fixed a number of warnings and errors that emerged from that.
+- Updated the administration.conf files for German, Spanish, Russian, and
+Turkish.
+- Updated sources and fixed some warnings and errors, when building with GCC
+versions 7 through 10.
+- Added a kernel linker script, so that we have finer control over the layout
+of the kernel binary.
+- Isolated architecture-dependent code and parameterized the build system with
+the architecture.  For now, still just 32-bit x86.
+- Renamed the floppy image file to include the word 'floppy'.
+- Factored some code in the BIOS OS loader and fixed some rounding errors.
+- Added byte offsets to various structures described in <sys/elf.h>.
+- Removed the unused kernel function kernelSysTimerWaitTicks().
+
+--------------
+ Version 0.9    16/04/2020
 --------------
 
   Overview: This major release offers a subtly updated look, enhanced

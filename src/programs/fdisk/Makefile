@@ -1,21 +1,23 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
 ROOT = ../../..
-BUILDDIR = ${ROOT}/build/programs
+BUILDDIR = build
+OUTPUTDIR = ${ROOT}/${BUILDDIR}/programs
 INCDIR = ../../include
-LIBDIR = ${ROOT}/build/system/libraries
+LIBDIR = ${ROOT}/${BUILDDIR}/system/libraries
 
 include ${ROOT}/Makefile.include
 
 STDDEPS = ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h ${INCDIR}/sys/*.h \
 	*.h ${LIBDIR}/crt0.o
 INCLUDE = -nostdinc -I${INCDIR}
-CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG} ${PARTLOGIC}
+CFLAGS = ${OPT} ${ARCHFLAGS} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG} \
+	${PARTLOGIC}
 LFLAGS = -L${LIBDIR} -nostdlib \
 	-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
 
@@ -31,16 +33,16 @@ NAMES = \
 	msdos
 
 OBJS = $(addprefix obj/, $(addsuffix .o, ${NAMES}))
-FDISK = ${BUILDDIR}/fdisk
+FDISK = ${OUTPUTDIR}/fdisk
 
 # Targets
 
 all: target-dirs ${FDISK} strip
-	${MAKE} -C de
+	${MAKE} -C de BUILDDIR=${BUILDDIR}
 
 target-dirs:
 	mkdir -p obj
-	mkdir -p ${BUILDDIR}
+	mkdir -p ${OUTPUTDIR}
 
 ${FDISK}: ${OBJS}
 	${CC} ${CFLAGS} ${LFLAGS} ${OBJS} -lintl -lwindow -lvis -lvsh -ldl -lc -lgcc -o $@
@@ -52,6 +54,6 @@ obj/%.o: %.c ${STDDEPS}
 	${CC} ${CFLAGS} -c $< -o $@
 
 clean:
-	${MAKE} -C de clean
+	${MAKE} -C de BUILDDIR=${BUILDDIR} clean
 	rm -Rf *~ *.o core obj ${FDISK}
 

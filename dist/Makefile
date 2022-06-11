@@ -1,22 +1,23 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
-BUILDDIR = ../build
+BUILDDIR = build
+OUTPUTDIR = ../${BUILDDIR}
 
 all:
-	mkdir -p ${BUILDDIR}/temp
-	mkdir -p ${BUILDDIR}/users
-	${MAKE} -C programs
-	${MAKE} -C system
+	mkdir -p ${OUTPUTDIR}/temp
+	mkdir -p ${OUTPUTDIR}/users
+	${MAKE} -C programs BUILDDIR=${BUILDDIR}
+	${MAKE} -C system BUILDDIR=${BUILDDIR}
 
 clean:
-	${MAKE} -C programs clean
-	${MAKE} -C system clean
+	${MAKE} -C programs BUILDDIR=${BUILDDIR} clean 
+	${MAKE} -C system BUILDDIR=${BUILDDIR} clean
 	rm -f *~ core
-	rm -Rf ${BUILDDIR}/temp
-	rm -Rf ${BUILDDIR}/users
+	rm -Rf ${OUTPUTDIR}/temp
+	rm -Rf ${OUTPUTDIR}/users
 

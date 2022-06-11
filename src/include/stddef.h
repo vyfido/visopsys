@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -25,16 +25,16 @@
 #define _STDDEF_H
 
 #ifndef NULL
-	#define NULL	0
+	#define NULL		0
 #endif
 
-typedef int       	ptrdiff_t;
-typedef unsigned  	size_t;
-typedef int       	ssize_t;
-typedef unsigned	wint_t;
+typedef long int		ptrdiff_t;
+typedef long unsigned  	size_t;
+typedef long int       	ssize_t;
+typedef long int		wint_t;
 
 #if !defined(__cplusplus)
-typedef unsigned	wchar_t;
+typedef unsigned		wchar_t;
 #endif
 
 #endif

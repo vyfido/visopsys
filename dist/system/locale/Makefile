@@ -1,17 +1,18 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
 
-BUILDDIR = ../../../build/system/locale
+BUILDDIR = build
+OUTPUTDIR = ../../../${BUILDDIR}/system/locale
 
 all:
-	mkdir -p ${BUILDDIR}
-	cp flag-*.bmp ${BUILDDIR}
+	mkdir -p ${OUTPUTDIR}
+	cp flag-*.bmp ${OUTPUTDIR}
 
 clean:
 	rm -f *~ core
-	rm -Rf ${BUILDDIR}
+	rm -Rf ${OUTPUTDIR}
 

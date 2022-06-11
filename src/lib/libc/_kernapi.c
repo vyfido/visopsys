@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This library is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU Lesser General Public License as published by
@@ -38,6 +38,7 @@
 		: "=r" (codeLo), "=r" (codeHi)			\
 		: "r" (fnum), "r" (args)				\
 		: "%eax", "memory");
+
 #define _U_ __attribute__((unused))
 
 
@@ -46,15 +47,19 @@ static quad_t _syscall(int fnum, void *args)
 	// This function sets up the stack and arguments, invokes the kernel API,
 	// cleans up the stack, and returns the return code.
 
-	quad_t statusLo = 0;
-	quad_t statusHi = 0;
+	unsigned statusLo = 0;
+	unsigned statusHi = 0;
 	quad_t status = 0;
 
 	if (!visopsys_in_kernel)
+	{
 		// Call the kernel
 		kernelCall(fnum, args, statusLo, statusHi);
+	}
 
-	status = ((statusHi << 32) | statusLo);
+	status = ((quad_t) statusHi << 32);
+	status += statusLo;
+
 	return (status);
 }
 

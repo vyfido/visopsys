@@ -1,6 +1,6 @@
 ;;
 ;;  Visopsys
-;;  Copyright (C) 1998-2020 J. Andrew McLaughlin
+;;  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ;;
 ;;  This program is free software; you can redistribute it and/or modify it
 ;;  under the terms of the GNU General Public License as published by the Free
@@ -167,11 +167,11 @@ loaderLoadSectors:
 
 
 loaderLoadSectorsHi:
-	;; Loads the requested sectors into the requested high memory location.
+	;; Loads the requested sectors into the requested high memory location
 	;;
 	;; Proto:
-	;;   word loadFile(dword logical, dword memory_address, dword count,
-	;;		word showProgress);
+	;;   word loaderLoadSectorsHi(dword logical, dword memory_address,
+	;;		dword count, word showProgress);
 
 	;; Save a word for our return code
 	push word 0
@@ -182,10 +182,10 @@ loaderLoadSectorsHi:
 	;; Save the stack pointer
 	mov BP, SP
 
-	;; The first parameter is the starting sector we're supposed to load.
+	;; The first parameter is the starting sector we're supposed to load
 
-	;; The second parameter is a DWORD pointer to the absolute memory
-	;; location where we should load the file
+	;; The second parameter is a DWORD pointer to the absolute memory location
+	;; where we should load the file
 
 	;; Put the starting sector number in NEXTSECTOR
 	mov EAX, dword [SS:(BP + 36)]
@@ -213,15 +213,13 @@ loaderLoadSectorsHi:
 
 	.sectorLoop:
 	mov ECX, dword [NUMSECTORS]
-	cmp ECX, 127		; Max sectors for one operation
+	cmp ECX, 64			; Max sectors for one operation
 	jbe .sectorsOk
-	mov ECX, 127
+	mov ECX, 64
 	.sectorsOk:
-	mov word [DOSECTORS], CX
+	mov dword [DOSECTORS], ECX
 	push word CX
-	;; Use the portion of loader's data buffer that comes AFTER the
-	;; FAT data.  This is where we will initially load each cluster's
-	;; contents.
+	;; Use the portion of loader's data buffer that comes AFTER the FAT data
 	mov EAX, dword [FILEDATABUFFER]
 	shr EAX, 4
 	push word 0			; >
@@ -261,8 +259,7 @@ loaderLoadSectorsHi:
 	add SP, 2
 
 	.noProgress3:
-	xor EAX, EAX
-	mov AX, word [DOSECTORS]
+	mov EAX, dword [DOSECTORS]
 	mov BX, word [BYTESPERSECT]
 	mul BX
 	push dword EAX					; Bytes to copy

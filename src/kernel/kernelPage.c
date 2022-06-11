@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -87,15 +87,15 @@ static unsigned countFreePages(kernelPageDirectory *directory)
 	// Returns the number of unallocated pages in all the page tables
 	// of the supplied page directory
 
-	kernelPageTable *table;
 	int freePages = 0;
 	int tableNumber = 0;
 	int maxTables = 0;
+	kernelPageTable *table;
 
 	if (directory == kernelPageDir)
 	{
 		tableNumber = getTableNumber(KERNEL_VIRTUAL_ADDRESS);
-		maxTables = X86_PAGE_TABLES_PER_DIR;
+		maxTables = PROCESSOR_PAGE_TABLES_PER_DIR;
 	}
 	else
 	{
@@ -126,7 +126,7 @@ static int findFreeTableNumber(kernelPageDirectory *directory)
 	if (directory == kernelPageDir)
 	{
 		tableNumber = getTableNumber(KERNEL_VIRTUAL_ADDRESS);
-		maxTables = X86_PAGE_TABLES_PER_DIR;
+		maxTables = PROCESSOR_PAGE_TABLES_PER_DIR;
 	}
 	else
 	{
@@ -163,7 +163,7 @@ static int findFreePages(kernelPageDirectory *directory, int pages,
 	if (directory == kernelPageDir)
 	{
 		tableNumber = getTableNumber(KERNEL_VIRTUAL_ADDRESS);
-		maxTables = X86_PAGE_TABLES_PER_DIR;
+		maxTables = PROCESSOR_PAGE_TABLES_PER_DIR;
 	}
 	else
 	{
@@ -189,7 +189,7 @@ static int findFreePages(kernelPageDirectory *directory, int pages,
 		// freeStart to NULL.  If the table number is zero, skip the first
 		// page.
 		for (pageNumber = (tableNumber == 0);
-			(pageNumber < X86_PAGES_PER_TABLE); pageNumber++)
+			(pageNumber < PROCESSOR_PAGES_PER_TABLE); pageNumber++)
 		{
 			if (!table->virtual->page[pageNumber])
 			{
@@ -280,10 +280,13 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
 	// Put the real address into the page table entry.  Set the global bit,
 	// the writable bit, and the page present bit.
 	kernelTable->virtual->page[kernelPageNumber] = (unsigned) physicalAddr;
-	kernelTable->virtual->page[kernelPageNumber] |= (X86_PAGEFLAG_WRITABLE |
-		X86_PAGEFLAG_PRESENT);
+	kernelTable->virtual->page[kernelPageNumber] |=
+		(PROCESSOR_PAGEFLAG_WRITABLE | PROCESSOR_PAGEFLAG_PRESENT);
 	if (haveGlobalPages)
-		kernelTable->virtual->page[kernelPageNumber] |= X86_PAGEFLAG_GLOBAL;
+	{
+		kernelTable->virtual->page[kernelPageNumber] |=
+			PROCESSOR_PAGEFLAG_GLOBAL;
+	}
 	kernelTable->freePages--;
 
 	// Clear this memory block, since kernelMemoryGetPhysical can't do it for
@@ -298,7 +301,7 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
 	// Fill in this page table
 	newTable->directory = directory;
 	newTable->tableNumber = number;
-	newTable->freePages = X86_PAGES_PER_TABLE;
+	newTable->freePages = PROCESSOR_PAGES_PER_TABLE;
 	newTable->physical = physicalAddr;
 	newTable->virtual = virtualAddr;
 
@@ -306,12 +309,12 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
 	// real page table to the requested slot number.  Always enable
 	// read/write and page-present
 	directory->virtual->table[number] = (unsigned) newTable->physical;
-	directory->virtual->table[number] |= (X86_PAGEFLAG_WRITABLE |
-		X86_PAGEFLAG_PRESENT);
+	directory->virtual->table[number] |= (PROCESSOR_PAGEFLAG_WRITABLE |
+		PROCESSOR_PAGEFLAG_PRESENT);
 
 	// Set the 'user' bit, if this page table is not privileged
 	if (directory->privilege != PRIVILEGE_SUPERVISOR)
-		directory->virtual->table[number] |= X86_PAGEFLAG_USER;
+		directory->virtual->table[number] |= PROCESSOR_PAGEFLAG_USER;
 
 	// A couple of extra things we do if this new page table belongs to the
 	// kernel or one of its threads
@@ -321,7 +324,7 @@ static kernelPageTable *createPageTable(kernelPageDirectory *directory,
 		// processor, the page table won't be invalidated during a context
 		// switch
 		if (haveGlobalPages)
-			directory->virtual->table[number] |= X86_PAGEFLAG_GLOBAL;
+			directory->virtual->table[number] |= PROCESSOR_PAGEFLAG_GLOBAL;
 
 		// It needs to be 'shared' with all of the other real page
 		// directories.
@@ -481,7 +484,7 @@ static int arePagesAt(kernelPageDirectory *directory, int numPages,
 	int pageNumber = 0;
 
 	if (directory == kernelPageDir)
-		maxTables = X86_PAGE_TABLES_PER_DIR;
+		maxTables = PROCESSOR_PAGE_TABLES_PER_DIR;
 	else
 		maxTables = getTableNumber(KERNEL_VIRTUAL_ADDRESS);
 
@@ -503,7 +506,7 @@ static int arePagesAt(kernelPageDirectory *directory, int numPages,
 
 		// Loop through the pages in this page table.  If we find a used
 		// page before 'numberOk' equals 'numPages', return 0
-		for ( ; pageNumber < X86_PAGES_PER_TABLE; pageNumber++)
+		for ( ; pageNumber < PROCESSOR_PAGES_PER_TABLE; pageNumber++)
 		{
 			if ((!used && table->virtual->page[pageNumber]) ||
 				(used && !table->virtual->page[pageNumber]))
@@ -531,6 +534,8 @@ static void detectCpuPagingFeatures(void)
 	// appropriately.  For example, if the CPU supports the Page Attribute
 	// Table (PAT), make sure that the table contains the expected default
 	// values.
+
+#ifdef ARCH_X86
 
 	unsigned rega = 0, regb = 0, regc = 0, regd = 0;
 
@@ -577,6 +582,8 @@ static void detectCpuPagingFeatures(void)
 			havePageAttributeTable = 1;
 		}
 	}
+
+#endif
 }
 
 
@@ -679,8 +686,8 @@ static int map(kernelPageDirectory *directory, unsigned physicalAddress,
 		// Put the real address into the page table entry.  Set the
 		// writable bit and the page present bit.
 		pageTable->virtual->page[pageNumber] = currentPhysicalAddress;
-		pageTable->virtual->page[pageNumber] |= (X86_PAGEFLAG_WRITABLE |
-			X86_PAGEFLAG_PRESENT);
+		pageTable->virtual->page[pageNumber] |= (PROCESSOR_PAGEFLAG_WRITABLE |
+			PROCESSOR_PAGEFLAG_PRESENT);
 
 		if (directory == kernelPageDir)
 		{
@@ -688,12 +695,15 @@ static int map(kernelPageDirectory *directory, unsigned physicalAddress,
 			// better processor, the page table won't be invalidated during a
 			// context switch
 			if (haveGlobalPages)
-				pageTable->virtual->page[pageNumber] |= X86_PAGEFLAG_GLOBAL;
+			{
+				pageTable->virtual->page[pageNumber] |=
+					PROCESSOR_PAGEFLAG_GLOBAL;
+			}
 		}
 
 		// Set the 'user' bit, if this page is not privileged
 		if (directory->privilege != PRIVILEGE_SUPERVISOR)
-			pageTable->virtual->page[pageNumber] |= X86_PAGEFLAG_USER;
+			pageTable->virtual->page[pageNumber] |= PROCESSOR_PAGEFLAG_USER;
 
 		// Decrease the count of free pages
 		pageTable->freePages--;
@@ -771,9 +781,11 @@ static int unmap(kernelPageDirectory *directory, void *virtualAddress,
 		pageTable->freePages++;
 
 		// Is the table now unused?
-		if (pageTable->freePages == X86_PAGES_PER_TABLE)
+		if (pageTable->freePages == PROCESSOR_PAGES_PER_TABLE)
+		{
 			// Try to deallocate it
 			deletePageTable(directory, pageTable);
+		}
 
 		// Increment the working memory addresses
 		virtualAddress += MEMORY_PAGE_SIZE;
@@ -977,7 +989,7 @@ static int firstPageTable(void)
 
 	table->directory = kernelPageDir;
 	table->tableNumber = tableNumber;
-	table->freePages = X86_PAGES_PER_TABLE;
+	table->freePages = PROCESSOR_PAGES_PER_TABLE;
 
 	table->physical = (kernelPageTablePhysicalMem *)(kernelPagingData +
 		sizeof(kernelPageDirPhysicalMem));
@@ -994,8 +1006,8 @@ static int firstPageTable(void)
 	// Write the page table entry into the kernel's page directory.  Enable
 	// read/write and page-present
 	kernelPageDir->physical->table[tableNumber] = (unsigned) table->physical;
-	kernelPageDir->physical->table[tableNumber] |= (X86_PAGEFLAG_WRITABLE |
-		X86_PAGEFLAG_PRESENT);
+	kernelPageDir->physical->table[tableNumber] |=
+		(PROCESSOR_PAGEFLAG_WRITABLE | PROCESSOR_PAGEFLAG_PRESENT);
 
 	return (status = 0);
 }
@@ -1027,7 +1039,7 @@ static int kernelPaging(unsigned kernelMemory)
 	// the physical address we get back from this call can be used like a
 	// virtual address, since the lower part of memory should presently be
 	// identity-mapped.
-	processorGetCR3(oldPageDirectory);
+	processorGetPageDir(oldPageDirectory);
 	oldPageDirectory = (kernelPageDirPhysicalMem *)
 		((unsigned) oldPageDirectory & 0xFFFFF800);
 
@@ -1098,7 +1110,7 @@ static int kernelPaging(unsigned kernelMemory)
 	// Now we should be able to switch the processor to our new page directory
 	// and table(s).
 
-	processorSetCR3(kernelPageDir->physical);
+	processorSetPageDir(kernelPageDir->physical);
 
 	// Return success
 	return (status = 0);
@@ -1119,7 +1131,7 @@ static void shareKernelPages(kernelPageDirectory *directory)
 
 	// We will do a loop, copying the table entries from the kernel's page
 	// directory to the target page directory.
-	for (count = kernelStartingTable; count < X86_PAGE_TABLES_PER_DIR;
+	for (count = kernelStartingTable; count < PROCESSOR_PAGE_TABLES_PER_DIR;
 		count ++)
 	{
 		directory->virtual->table[count] =
@@ -1149,7 +1161,7 @@ static int setPageAttrs(kernelPageDirectory *directory,
 
 		pageNumber = getPageNumber(virtualAddress);
 
-		for ( ; (pages > 0) && (pageNumber < X86_PAGES_PER_TABLE);
+		for ( ; (pages > 0) && (pageNumber < PROCESSOR_PAGES_PER_TABLE);
 			pageNumber ++)
 		{
 			if (!pageTable->virtual->page[pageNumber])
@@ -1163,33 +1175,37 @@ static int setPageAttrs(kernelPageDirectory *directory,
 			{
 				case pageattr_readonly:
 					pageTable->virtual->page[pageNumber] &=
-						~X86_PAGEFLAG_WRITABLE;
+						~PROCESSOR_PAGEFLAG_WRITABLE;
 					break;
 
 				case pageattr_privileged:
 					pageTable->virtual->page[pageNumber] &=
-						~X86_PAGEFLAG_USER;
+						~PROCESSOR_PAGEFLAG_USER;
 					break;
 
 				case pageattr_writecombine:
 					if (havePageAttributeTable)
 					{
+#ifdef ARCH_X86
 						X86_PATSELECTOR(pageTable->virtual->page[pageNumber],
 							X86_PAT_WC);
+#endif
 					}
 					break;
 
 				case pageattr_uncacheable:
 					if (havePageAttributeTable)
 					{
+#ifdef ARCH_X86
 						X86_PATSELECTOR(pageTable->virtual->page[pageNumber],
 							X86_PAT_UC);
+#endif
 					}
 					else
 					{
 						pageTable->virtual->page[pageNumber] |=
-							(X86_PAGEFLAG_CACHEDISABLE |
-							X86_PAGEFLAG_WRITETHROUGH);
+							(PROCESSOR_PAGEFLAG_CACHEDISABLE |
+							PROCESSOR_PAGEFLAG_WRITETHROUGH);
 					}
 					break;
 
@@ -1410,7 +1426,7 @@ int kernelPageDeleteDirectory(int processId)
 
 	// We need to walk through all of its page tables, deallocating them as we
 	// go
-	for (count = 0; count < X86_PAGES_PER_TABLE; count ++)
+	for (count = 0; count < PROCESSOR_PAGES_PER_TABLE; count ++)
 	{
 		table = findPageTable(directory, count);
 

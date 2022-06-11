@@ -1,8 +1,8 @@
 # Package manifest for the 'helloworld' program
 name=helloworld
 desc=A demonstration add-on software package.  Installs /programs/helloworld which shows the famous, eponymous message.
-arch=x86
+arch=#ARCH#
 version=0.9
 
-build/helloworld=/programs/helloworld
+build/#ARCH#/helloworld=/programs/helloworld
 

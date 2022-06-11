@@ -1,6 +1,6 @@
 //
 //  Visopsys
-//  Copyright (C) 1998-2020 J. Andrew McLaughlin
+//  Copyright (C) 1998-2021 J. Andrew McLaughlin
 //
 //  This program is free software; you can redistribute it and/or modify it
 //  under the terms of the GNU General Public License as published by the Free
@@ -115,51 +115,57 @@ static struct {
 };
 
 
-static void debugTSS(kernelProcess *proc, char *buffer, int len)
+static void debugContext(kernelProcess *proc, char *buffer, int len)
 {
 	if (!buffer)
 		return;
 
+#ifdef ARCH_X86
 	snprintf(buffer, len, "Multitasker debug TSS selector:\n");
 	snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
-		"  oldTSS=%08x", proc->taskStateSegment.oldTSS);
+		"  oldTss=%08x", proc->context.taskStateSegment.oldTss);
 
 	snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
-		"  ESP0=%08x SS0=%08x\n", proc->taskStateSegment.ESP0,
-		proc->taskStateSegment.SS0);
+		"  ESP0=%08x SS0=%08x\n", proc->context.taskStateSegment.ESP0,
+		proc->context.taskStateSegment.SS0);
 
 	snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
-		"  ESP1=%08x SS1=%08x\n", proc->taskStateSegment.ESP1,
-		proc->taskStateSegment.SS1);
+		"  ESP1=%08x SS1=%08x\n", proc->context.taskStateSegment.ESP1,
+		proc->context.taskStateSegment.SS1);
 
 	snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
-		"  ESP2=%08x SS2=%08x\n", proc->taskStateSegment.ESP2,
-		proc->taskStateSegment.SS2);
+		"  ESP2=%08x SS2=%08x\n", proc->context.taskStateSegment.ESP2,
+		proc->context.taskStateSegment.SS2);
 
 	snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
-		"  CR3=%08x EIP=%08x EFLAGS=%08x\n", proc->taskStateSegment.CR3,
-		proc->taskStateSegment.EIP, proc->taskStateSegment.EFLAGS);
+		"  CR3=%08x EIP=%08x EFLAGS=%08x\n",
+		proc->context.taskStateSegment.CR3,
+		proc->context.taskStateSegment.EIP,
+		proc->context.taskStateSegment.EFLAGS);
 
 	// Skip general-purpose registers for now -- not terribly interesting
 
 	snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
 		"  ESP=%08x EBP=%08x ESI=%08x EDI=%08x\n",
-		proc->taskStateSegment.ESP, proc->taskStateSegment.EBP,
-		proc->taskStateSegment.ESI, proc->taskStateSegment.EDI);
+		proc->context.taskStateSegment.ESP,
+		proc->context.taskStateSegment.EBP,
+		proc->context.taskStateSegment.ESI,
+		proc->context.taskStateSegment.EDI);
 
 	snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
-		"  CS=%08x SS=%08x\n", proc->taskStateSegment.CS,
-		proc->taskStateSegment.SS);
+		"  CS=%08x SS=%08x\n", proc->context.taskStateSegment.CS,
+		proc->context.taskStateSegment.SS);
 
 	snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
-		"  ES=%08x DS=%08x FS=%08x GS=%08x\n", proc->taskStateSegment.ES,
-		proc->taskStateSegment.DS, proc->taskStateSegment.FS,
-		proc->taskStateSegment.GS);
+		"  ES=%08x DS=%08x FS=%08x GS=%08x\n",
+		proc->context.taskStateSegment.ES, proc->context.taskStateSegment.DS,
+		proc->context.taskStateSegment.FS, proc->context.taskStateSegment.GS);
 
 	snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
 		"  LDTSelector=%08x IOMapBase=%04x\n",
-		proc->taskStateSegment.LDTSelector,
-		proc->taskStateSegment.IOMapBase);
+		proc->context.taskStateSegment.LDTSelector,
+		proc->context.taskStateSegment.IOMapBase);
+#endif
 }
 
 
@@ -208,21 +214,17 @@ static kernelProcess *getProcessByName(const char *name)
 }
 
 
-static inline int requestProcess(kernelProcess **procPointer)
+static inline int allocProcess(kernelProcess **procPointer)
 {
-	// This function is used to allocate new process control memory.  It
-	// should be passed a reference to a pointer that will point to the new
-	// process, if allocated successfully.
+	// Allocate new process control memory.  It should be passed a reference
+	// to a pointer for the new process.
 
 	int status = 0;
 	kernelProcess *proc = NULL;
 
-	// Make sure the process pointer parameter we were passed isn't NULL
+	// Check params
 	if (!procPointer)
-	{
-		// Oops.
 		return (status = ERR_NULLPARAMETER);
-	}
 
 	proc = kernelMalloc(sizeof(kernelProcess));
 	if (!proc)
@@ -234,17 +236,11 @@ static inline int requestProcess(kernelProcess **procPointer)
 }
 
 
-static inline int releaseProcess(kernelProcess *proc)
+static inline int freeProcess(kernelProcess *proc)
 {
-	// This function is used to free process control memory.  It should be
-	// passed the process Id of the process to kill.  It returns 0 on success,
-	// negative otherwise.
+	// Free process control memory
 
-	int status = 0;
-
-	status = kernelFree((void *) proc);
-
-	return (status);
+	return (kernelFree((void *) proc));
 }
 
 
@@ -320,10 +316,7 @@ static int removeProcessFromList(kernelProcess *proc)
 
 	// Make sure we found the process
 	if (listProc != proc)
-	{
-		// The process is not in the process list
 		return (status = ERR_NOSUCHPROCESS);
-	}
 
 	// OK, now we can remove the process from the list
 	status = linkedListRemove(&processList, (void *) proc);
@@ -335,34 +328,36 @@ static int removeProcessFromList(kernelProcess *proc)
 }
 
 
-static int createTaskStateSegment(kernelProcess *proc)
+static int createProcessContext(kernelProcess *proc)
 {
-	// This function will create a TSS (Task State Segment) for a new process
-	// based on the attributes of the process.  This function relies on the
-	// privilege, userStackSize, and superStackSize attributes having been
-	// previously set.  Returns 0 on success, negative on error.
+	// This function will create a processor context (for x86 it's a TSS -
+	// Task State Segment) for a new process based on the attributes of the
+	// process.  This function relies on the privilege, userStackSize, and
+	// superStackSize attributes having been previously set.  Returns 0 on
+	// success, negative on error.
 
 	int status = 0;
 
+#ifdef ARCH_X86
 	// Get a free descriptor for the process's TSS
-	status = kernelDescriptorRequest(&proc->tssSelector);
-	if ((status < 0) || !proc->tssSelector)
+	status = kernelDescriptorRequest(&proc->context.tssSelector);
+	if ((status < 0) || !proc->context.tssSelector)
 		return (status);
 
 	// Fill in the process's Task State Segment descriptor
 	status = kernelDescriptorSet(
-		proc->tssSelector,			// TSS selector number
-		&proc->taskStateSegment, 	// Starts at...
-		sizeof(kernelTSS),			// Limit of a TSS segment
-		1,							// Present in memory
-		PRIVILEGE_SUPERVISOR,		// TSSs are supervisor privilege level
-		0,							// TSSs are system segs
-		0xB,						// TSS, 32-bit, busy
-		0,							// 0 for SMALL size granularity
-		0);							// Must be 0 in TSS
+		proc->context.tssSelector,		// TSS selector number
+		&proc->context.taskStateSegment, // Starts at...
+		sizeof(x86TSS),					// Limit of a TSS segment
+		1,								// Present in memory
+		PRIVILEGE_SUPERVISOR,			// TSSs are supervisor privilege level
+		0,								// TSSs are system segs
+		0xB,							// TSS, 32-bit, busy
+		0,								// 0 for SMALL size granularity
+		0);								// Must be 0 in TSS
 	if (status < 0)
 	{
-		kernelDescriptorRelease(proc->tssSelector);
+		kernelDescriptorRelease(proc->context.tssSelector);
 		return (status);
 	}
 
@@ -370,46 +365,49 @@ static int createTaskStateSegment(kernelProcess *proc)
 	// of this will be different depending on whether this is a user or
 	// supervisor mode process.
 
-	memset((void *) &proc->taskStateSegment, 0, sizeof(kernelTSS));
+	memset((void *) &proc->context.taskStateSegment, 0, sizeof(x86TSS));
 
 	// Set the IO bitmap's offset
-	proc->taskStateSegment.IOMapBase = IOBITMAP_OFFSET;
+	proc->context.taskStateSegment.IOMapBase = X86_IOBITMAP_OFFSET;
 
 	if (proc->processorPrivilege == PRIVILEGE_SUPERVISOR)
 	{
-		proc->taskStateSegment.CS = PRIV_CODE;
-		proc->taskStateSegment.DS = PRIV_DATA;
-		proc->taskStateSegment.SS = PRIV_STACK;
+		proc->context.taskStateSegment.CS = PRIV_CODE;
+		proc->context.taskStateSegment.DS = PRIV_DATA;
+		proc->context.taskStateSegment.SS = PRIV_STACK;
 	}
 	else
 	{
-		proc->taskStateSegment.CS = USER_CODE;
-		proc->taskStateSegment.DS = USER_DATA;
-		proc->taskStateSegment.SS = USER_STACK;
+		proc->context.taskStateSegment.CS = USER_CODE;
+		proc->context.taskStateSegment.DS = USER_DATA;
+		proc->context.taskStateSegment.SS = USER_STACK;
 
 		// Turn off access to all I/O ports by default
-		memset((void *) proc->taskStateSegment.IOMap, 0xFF, PORTS_BYTES);
+		memset((void *) proc->context.taskStateSegment.IOMap, 0xFF,
+			X86_PORTS_BYTES);
 	}
 
 	// All other data segments same as DS
-	proc->taskStateSegment.ES = proc->taskStateSegment.FS =
-		proc->taskStateSegment.GS = proc->taskStateSegment.DS;
+	proc->context.taskStateSegment.ES = proc->context.taskStateSegment.FS =
+		proc->context.taskStateSegment.GS = proc->context.taskStateSegment.DS;
 
-	proc->taskStateSegment.ESP = ((unsigned) proc->userStack +
+	proc->context.taskStateSegment.ESP = ((unsigned) proc->userStack +
 		(proc->userStackSize - sizeof(void *)));
 
 	if (proc->processorPrivilege != PRIVILEGE_SUPERVISOR)
 	{
-		proc->taskStateSegment.SS0 = PRIV_STACK;
-		proc->taskStateSegment.ESP0 = ((unsigned) proc->superStack +
+		proc->context.taskStateSegment.SS0 = PRIV_STACK;
+		proc->context.taskStateSegment.ESP0 = ((unsigned) proc->superStack +
 			(proc->superStackSize - sizeof(int)));
 	}
 
-	proc->taskStateSegment.EFLAGS = 0x00000202; // Interrupts enabled
-	proc->taskStateSegment.CR3 = (unsigned) proc->pageDirectory->physical;
+	proc->context.taskStateSegment.EFLAGS = 0x00000202; // Interrupts enabled
+	proc->context.taskStateSegment.CR3 = (unsigned)
+		proc->pageDirectory->physical;
 
 	// All remaining values will be NULL from initialization.  Note that this
 	// includes the EIP.
+#endif
 
 	// Return success
 	return (status = 0);
@@ -443,7 +441,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	// have done this already
 
 	// We need to see if we can get some fresh process control memory
-	status = requestProcess(&proc);
+	status = allocProcess(&proc);
 	if (status < 0)
 		return (status);
 
@@ -457,7 +455,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	// the process's data (after initializing it, of course).
 	memset((void *) proc, 0, sizeof(kernelProcess));
 
-	// Fill in the process name
+	// Set the process name
 	strncpy((char *) proc->name, name, MAX_PROCNAME_LENGTH);
 	proc->name[MAX_PROCNAME_LENGTH] = '\0';
 
@@ -465,7 +463,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	memcpy((processImage *) &proc->execImage, &execImage,
 		sizeof(processImage));
 
-	// Fill in the process's Id number
+	// Set the Id number
 	proc->processId = processIdCounter++;
 
 	// By default, the type is a normal process
@@ -485,29 +483,31 @@ static int createNewProcess(const char *name, int priority, int privilege,
 		// Make sure the current process isn't NULL
 		if (!kernelCurrentProcess)
 		{
-			kernelError(kernel_error, "No current process!");
+			kernelError(kernel_error, "Can't determine the current process");
 			status = ERR_NOSUCHPROCESS;
 			goto out;
 		}
 
 		// Inherit the parent process's user session (if any)
 		proc->session = kernelCurrentProcess->session;
-		// Fill in the process's parent Id number
+
+		// Set the parent Id number
 		proc->parentProcessId = kernelCurrentProcess->processId;
-		// Fill in the current working directory
+
+		// Set the current working directory
 		strncpy((char *) proc->currentDirectory,
 			(char *) kernelCurrentProcess->currentDirectory, MAX_PATH_LENGTH);
 		proc->currentDirectory[MAX_PATH_LENGTH] = '\0';
 	}
 
-	// Fill in the process's priority level
+	// Set the priority level
 	proc->priority = priority;
 
-	// Fill in the process's privilege level
+	// Set the privilege level
 	proc->privilege = privilege;
 
-	// Fill in the process's processor privilege level.  The kernel and its
-	// threads get PRIVILEGE_SUPERVISOR, all others get PRIVILEGE_USER.
+	// Set the processor privilege level.  The kernel and its threads get
+	// PRIVILEGE_SUPERVISOR, all others get PRIVILEGE_USER.
 	if (execImage->virtualAddress >= (void *) KERNEL_VIRTUAL_ADDRESS)
 		proc->processorPrivilege = PRIVILEGE_SUPERVISOR;
 	else
@@ -520,10 +520,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	// things like changing memory ownerships
 	status = addProcessToList(proc);
 	if (status < 0)
-	{
-		// Not able to add the process
 		goto out;
-	}
 
 	// Do we need to create a new page directory and a set of page tables for
 	// this process?
@@ -557,19 +554,13 @@ static int createNewProcess(const char *name, int priority, int privilege,
 		status = kernelMemoryChangeOwner(proc->parentProcessId,
 			proc->processId, 0, execImage->code, NULL);
 		if (status < 0)
-		{
-			// Couldn't make the process own its memory
 			goto out;
-		}
 
 		// Remap the code/data to the requested virtual address
 		status = kernelPageMap(proc->processId, physicalCodeData,
 			execImage->virtualAddress, execImage->imageSize);
 		if (status < 0)
-		{
-			// Couldn't map the process memory
 			goto out;
-		}
 
 		// Code should be read-only
 		status = kernelPageSetAttrs(proc->processId, pageattr_readonly,
@@ -598,8 +589,6 @@ static int createNewProcess(const char *name, int priority, int privilege,
 		proc->superStackSize), "process stack");
 	if (!stackMemoryAddr)
 	{
-		// We couldn't make a stack for the new process.  Maybe the system
-		// doesn't have anough available memory?
 		status = ERR_MEMORY;
 		goto out;
 	}
@@ -627,7 +616,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	}
 
 	// Change ownership to the new process.  If it has its own page directory,
-	// renap, and share it back with this process.
+	// remap, and share it back with this process.
 
 	if (kernelMemoryChangeOwner(proc->parentProcessId, proc->processId,
 		(newPageDir? 1 : 0 /* remap */), argMemory,
@@ -688,10 +677,7 @@ static int createNewProcess(const char *name, int priority, int privilege,
 	status = kernelMemoryChangeOwner(proc->parentProcessId, proc->processId,
 		1 /* remap */, stackMemoryAddr, (void **) &proc->userStack);
 	if (status < 0)
-	{
-		// Couldn't make the process own its stack memory
 		goto out;
-	}
 
 	stackMemoryAddr = NULL;
 
@@ -711,20 +697,22 @@ static int createNewProcess(const char *name, int priority, int privilege,
 			proc->superStack, proc->superStackSize);
 	}
 
-	// Create the TSS (Task State Segment) for this process
-	status = createTaskStateSegment(proc);
+	// Create the processor context for this process
+	status = createProcessContext(proc);
 	if (status < 0)
 	{
 		// Not able to create the TSS
 		goto out;
 	}
 
+#ifdef ARCH_X86
 	// Adjust the stack pointer to account for the arguments that we copied to
 	// the process's stack
-	proc->taskStateSegment.ESP -= sizeof(int);
+	proc->context.taskStateSegment.ESP -= sizeof(int);
 
 	// Set the EIP to the entry point
-	proc->taskStateSegment.EIP = (unsigned) execImage->entryPoint;
+	proc->context.taskStateSegment.EIP = (unsigned) execImage->entryPoint;
+#endif
 
 	// Get memory for the user process environment structure
 	proc->environment = kernelMalloc(sizeof(variableList));
@@ -747,7 +735,7 @@ out:
 			kernelMemoryRelease(argMemory);
 
 		removeProcessFromList(proc);
-		releaseProcess(proc);
+		freeProcess(proc);
 	}
 
 	return (status);
@@ -756,9 +744,8 @@ out:
 
 static int deleteProcess(kernelProcess *proc)
 {
-	// Does all the work of actually destroyng a process when there's really
-	// no more use for it.  This occurs after all descendent threads have
-	// terminated, for example.
+	// Does all the work of fully destroyng a process.  This occurs after all
+	// descendent threads have terminated, for example.
 
 	int status = 0;
 
@@ -770,11 +757,12 @@ static int deleteProcess(kernelProcess *proc)
 		return (status = ERR_INVALID);
 	}
 
+#ifdef ARCH_X86
 	// We need to deallocate the TSS descriptor allocated to the process, if
 	// it has one
-	if (proc->tssSelector)
+	if (proc->context.tssSelector)
 	{
-		status = kernelDescriptorRelease(proc->tssSelector);
+		status = kernelDescriptorRelease(proc->context.tssSelector);
 		if (status < 0)
 		{
 			// If this was unsuccessful, we don't want to continue and "lose"
@@ -783,6 +771,7 @@ static int deleteProcess(kernelProcess *proc)
 			return (status);
 		}
 	}
+#endif
 
 	// If the process has a signal stream, destroy it
 	if (proc->signalStream.buffer)
@@ -849,7 +838,7 @@ static int deleteProcess(kernelProcess *proc)
 	}
 
 	// Finally, release the process structure
-	status = releaseProcess(proc);
+	status = freeProcess(proc);
 	if (status < 0)
 	{
 		kernelError(kernel_error, "Can't release process structure");
@@ -956,7 +945,7 @@ static void exceptionHandler(void)
 		if (multitaskingEnabled)
 		{
 			// Get process info
-			debugTSS(proc, details, MAXSTRINGLENGTH);
+			debugContext(proc, details, MAXSTRINGLENGTH);
 
 			// Try a stack trace
 			kernelStackTrace(proc, (details + strlen(details)),
@@ -1024,21 +1013,23 @@ static int spawnExceptionThread(void)
 	// Set the process state to sleep
 	exceptionProc->state = proc_sleeping;
 
+#ifdef ARCH_X86
 	status = kernelDescriptorSet(
-		exceptionProc->tssSelector,	// TSS selector
-		&exceptionProc->taskStateSegment, // Starts at...
-		sizeof(kernelTSS),			// Maximum size of a TSS selector
-		1,							// Present in memory
-		PRIVILEGE_SUPERVISOR,		// Highest privilege level
-		0,							// TSS's are system segs
-		0x9,						// TSS, 32-bit, non-busy
-		0,							// 0 for SMALL size granularity
-		0);							// Must be 0 in TSS
+		exceptionProc->context.tssSelector,	// TSS selector
+		&exceptionProc->context.taskStateSegment, // Starts at...
+		sizeof(x86TSS),						// Maximum size of a TSS selector
+		1,									// Present in memory
+		PRIVILEGE_SUPERVISOR,				// Highest privilege level
+		0,									// TSS's are system segs
+		0x9,								// TSS, 32-bit, non-busy
+		0,									// 0 for SMALL size granularity
+		0);									// Must be 0 in TSS
 	if (status < 0)
 		return (status);
 
 	// Interrupts should always be disabled for this task
-	exceptionProc->taskStateSegment.EFLAGS = 0x00000002;
+	exceptionProc->context.taskStateSegment.EFLAGS = 0x00000002;
+#endif
 
 	return (status = 0);
 }
@@ -1112,37 +1103,36 @@ static int spawnIdleThread(void)
 }
 
 
-static int markTaskBusy(int tssSelector, int busy)
+static int markProcessBusy(kernelProcess *proc, int busy)
 {
 	// This function gets the requested TSS selector from the GDT and marks it
 	// as busy/not busy.  Returns negative on error.
 
 	int status = 0;
+
+#ifdef ARCH_X86
 	kernelDescriptor descriptor;
 
-	// Initialize our empty descriptor
-	memset(&descriptor, 0, sizeof(kernelDescriptor));
-
-	// Fill out our descriptor with data from the "official" one from the GDT
-	// that corresponds to the selector we were given
-	status = kernelDescriptorGet(tssSelector, &descriptor);
+	status = kernelDescriptorGet(proc->context.tssSelector, &descriptor);
 	if (status < 0)
 		return (status);
 
-	// Ok, now we can change the selector in the table
 	if (busy)
 		descriptor.attributes1 |= 0x2;
 	else
 		descriptor.attributes1 &= ~0x2;
 
 	// Re-set the descriptor in the GDT
-	status =  kernelDescriptorSetUnformatted(tssSelector,
+	status =  kernelDescriptorSetUnformatted(proc->context.tssSelector,
 		descriptor.segSizeByte1, descriptor.segSizeByte2,
 		descriptor.baseAddress1, descriptor.baseAddress2,
 		descriptor.baseAddress3, descriptor.attributes1,
 		descriptor.attributes2, descriptor.baseAddress4);
 	if (status < 0)
 		return (status);
+#else
+	if (proc && busy) { }
+#endif
 
 	// Return success
 	return (status = 0);
@@ -1175,9 +1165,11 @@ static int schedulerShutdown(void)
 	if (status < 0)
 		kernelError(kernel_warn, "Couldn't hook system timer interrupt");
 
+#ifdef ARCH_X86
 	// Give exclusive control to the current task
-	markTaskBusy(kernelCurrentProcess->tssSelector, 0);
-	processorFarJump(kernelCurrentProcess->tssSelector);
+	markProcessBusy(kernelCurrentProcess, 0);
+	processorFarJump(kernelCurrentProcess->context.tssSelector);
+#endif
 
 	// We should never get here
 	return (status = 0);
@@ -1525,7 +1517,7 @@ static int scheduler(void)
 		// re-start the old one.  This should only be likely to happen if
 		// something kills the idle thread.
 		if (!nextProc)
-			nextProc = kernelCurrentProcess;
+			nextProc = prevProc;
 
 		// Update some info about the next process
 		nextProc->waitTime = 0;
@@ -1559,12 +1551,15 @@ static int scheduler(void)
 		// Mark the exception handler and scheduler tasks as not busy so they
 		// can be jumped back to
 		if (exceptionProc)
-			markTaskBusy(exceptionProc->tssSelector, 0);
-		markTaskBusy(schedulerProc->tssSelector, 0);
+			markProcessBusy(exceptionProc, 0);
+		markProcessBusy(schedulerProc, 0);
 
 		// Mark the next task as not busy and jump to it
-		markTaskBusy(nextProc->tssSelector, 0);
-		processorFarJump(nextProc->tssSelector);
+		markProcessBusy(nextProc, 0);
+
+#ifdef ARCH_X86
+		processorFarJump(nextProc->context.tssSelector);
+#endif
 
 		// Continue to loop
 	}
@@ -1606,14 +1601,16 @@ static int schedulerInitialize(void)
 	removeProcessFromList(schedulerProc);
 
 	// Interrupts should always be disabled for this task
-	schedulerProc->taskStateSegment.EFLAGS = 0x00000002;
+#ifdef ARCH_X86
+	schedulerProc->context.taskStateSegment.EFLAGS = 0x00000002;
+#endif
 
 	// Not busy
-	markTaskBusy(schedulerProc->tssSelector, 0);
+	markProcessBusy(schedulerProc, 0);
 
 	kernelDebug(debug_multitasker, "Multitasker initialize scheduler");
 
-	// Disable interrupts, so we can insure that we don't immediately get a
+	// Disable interrupts, so we can ensure that we don't immediately get a
 	// timer interrupt
 	processorSuspendInts(interrupts);
 
@@ -1623,8 +1620,8 @@ static int schedulerInitialize(void)
 	// Install a task gate for the interrupt, which will be the scheduler's
 	// timer interrupt.  After this point, our new scheduler task will run
 	// with every clock tick.
-	status = kernelInterruptHook(INTERRUPT_NUM_SYSTIMER,
-		NULL /* handlerAddress */, schedulerProc->tssSelector);
+	status = kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, (void *)
+		schedulerProc->context.tssSelector);
 	if (status < 0)
 	{
 		processorRestoreInts(interrupts);
@@ -1636,12 +1633,12 @@ static int schedulerInitialize(void)
 
 	// Before we load the kernel's selector into the task reg, mark it as not
 	// busy, since one cannot load the task register with a busy TSS selector
-	markTaskBusy(kernelProc->tssSelector, 0);
+	markProcessBusy(kernelProc, 0);
 
-	// Make the kernel's Task State Segment be the current one.  In reality,
-	// it IS still the currently running code.
-	kernelDebug(debug_multitasker, "Multitasker load task reg");
-	processorLoadTaskReg(kernelProc->tssSelector);
+#ifdef ARCH_X86
+	// Make the kernel's Task State Segment be the current one
+	processorLoadTaskReg(kernelProc->context.tssSelector);
+#endif
 
 	// Make note that the multitasker has been enabled
 	multitaskingEnabled = 1;
@@ -1655,6 +1652,22 @@ static int schedulerInitialize(void)
 	kernelMultitaskerYield();
 
 	return (status = 0);
+}
+
+
+static void floatingPointInitialize(void)
+{
+#ifdef ARCH_X86
+	unsigned cr0 = 0;
+
+	// Initialize the CPU for floating point operation.  We set
+	// CR0[MP]=1 (math present)
+	// CR0[EM]=0 (no emulation)
+	// CR0[NE]=1 (floating point errors cause exceptions)
+	processorGetCR0(cr0);
+	cr0 = ((cr0 & ~0x04U) | 0x22);
+	processorSetCR0(cr0);
+#endif
 }
 
 
@@ -1675,27 +1688,23 @@ static int createKernelProcess(void *kernelStack, unsigned kernelStackSize)
 	};
 
 	// The kernel process is its own parent, of course, and it is owned by
-	// "admin".  We create no page table, and there are no arguments.
+	// "admin".  We create no page directory, and there are no arguments.
 	kernelProcId = createNewProcess("kernel process", 1, PRIVILEGE_SUPERVISOR,
 		&kernImage, 0 /* no page directory */);
 	if (kernelProcId < 0)
-	{
-		// Damn.  Not able to create the kernel process
 		return (kernelProcId);
-	}
 
 	// Get the pointer to the kernel's process
 	kernelProc = getProcessById(kernelProcId);
 
 	// Make sure it's not NULL
 	if (!kernelProc)
-	{
-		// Can't access the kernel process
 		return (status = ERR_NOSUCHPROCESS);
-	}
 
+#ifdef ARCH_X86
 	// Interrupts are initially disabled for the kernel
-	kernelProc->taskStateSegment.EFLAGS = 0x00000002;
+	kernelProc->context.taskStateSegment.EFLAGS = 0x00000002;
+#endif
 
 	// Set the current process to initially be the kernel process
 	kernelCurrentProcess = kernelProc;
@@ -1808,6 +1817,9 @@ static int fpuExceptionHandler(void)
 	//		FP operation, and we need to restore the state.
 
 	int status = 0;
+
+#ifdef ARCH_X86
+
 	unsigned short fpuReg = 0;
 
 	//kernelDebug(debug_multitasker, "Multitasker FPU exception start");
@@ -1839,16 +1851,16 @@ static int fpuExceptionHandler(void)
 		//	kernelCurrentProcess->name);
 		//kernelDebug(debug_multitasker, "Multitasker save FPU state for %s",
 		//	fpuProcess->name);
-		processorFpuStateSave(fpuProcess->fpuState[0]);
-		fpuProcess->fpuStateSaved = 1;
+		processorFpuStateSave(fpuProcess->context.fpuState[0]);
+		fpuProcess->context.fpuStateSaved = 1;
 	}
 
-	if (kernelCurrentProcess->fpuStateSaved)
+	if (kernelCurrentProcess->context.fpuStateSaved)
 	{
 		// Restore the FPU state
 		//kernelDebug(debug_multitasker, "Multitasker restore FPU state for "
 		//	"%s", kernelCurrentProcess->name);
-		processorFpuStateRestore(kernelCurrentProcess->fpuState[0]);
+		processorFpuStateRestore(kernelCurrentProcess->context.fpuState[0]);
 	}
 	else
 	{
@@ -1862,11 +1874,13 @@ static int fpuExceptionHandler(void)
 		processorSetFpuControl(fpuReg);
 	}
 
-	kernelCurrentProcess->fpuStateSaved = 0;
+	kernelCurrentProcess->context.fpuStateSaved = 0;
 
 	processorFpuClearEx();
 
 	fpuProcess = kernelCurrentProcess;
+
+#endif
 
 	//kernelDebug(debug_multitasker, "Multitasker FPU exception end");
 	return (status = 0);
@@ -1949,7 +1963,6 @@ int kernelMultitaskerInitialize(void *kernelStack, unsigned kernelStackSize)
 	// This function intializes the kernel's multitasker
 
 	int status = 0;
-	unsigned cr0 = 0;
 
 	// Make sure multitasking is NOT enabled already
 	if (multitaskingEnabled)
@@ -1958,13 +1971,8 @@ int kernelMultitaskerInitialize(void *kernelStack, unsigned kernelStackSize)
 	// Initialize the process list
 	memset(&processList, 0, sizeof(linkedList));
 
-	// Initialize the CPU for floating point operation.  We set
-	// CR0[MP]=1 (math present)
-	// CR0[EM]=0 (no emulation)
-	// CR0[NE]=1 (floating point errors cause exceptions)
-	processorGetCR0(cr0);
-	cr0 = ((cr0 & ~0x04U) | 0x22);
-	processorSetCR0(cr0);
+	// Initialize floating point handling
+	floatingPointInitialize();
 
 	// We need to create the kernel's own process
 	status = createKernelProcess(kernelStack, kernelStackSize);
@@ -2066,12 +2074,14 @@ void kernelException(int num, unsigned address)
 		return;
 	}
 
+#ifdef ARCH_X86
 	// If multitasking is enabled, switch to the exception thread.  Otherwise
 	// just call the exception handler as a function.
 	if (multitaskingEnabled)
-		processorFarJump(exceptionProc->tssSelector);
+		processorFarJump(exceptionProc->context.tssSelector);
 	else
 		exceptionHandler();
+#endif
 
 	// If the exception is handled, then we return
 }
@@ -2257,7 +2267,10 @@ int kernelMultitaskerSpawn(void *startAddress, const char *name, int argc,
 
 	// Make sure the current process isn't NULL
 	if (!kernelCurrentProcess)
+	{
+		kernelError(kernel_error, "Can't determine the current process");
 		return (status = ERR_NOSUCHPROCESS);
+	}
 
 	memset(&execImage, 0, sizeof(processImage));
 	execImage.virtualAddress = startAddress;
@@ -2295,7 +2308,9 @@ int kernelMultitaskerSpawn(void *startAddress, const char *name, int argc,
 	// Since we assume that the thread is invoked as a function call, subtract
 	// additional bytes from the stack pointer to account for the space where
 	// the return address would normally go
-	proc->taskStateSegment.ESP -= sizeof(void *);
+#ifdef ARCH_X86
+	proc->context.taskStateSegment.ESP -= sizeof(void *);
+#endif
 
 	// Share the environment of the parent
 
@@ -2489,7 +2504,10 @@ int kernelMultitaskerGetCurrentProcessId(void)
 
 	// Double-check the current process to make sure it's not NULL
 	if (!kernelCurrentProcess)
+	{
+		kernelError(kernel_error, "Can't determine the current process");
 		return (status = ERR_NOSUCHPROCESS);
+	}
 
 	// OK, we can return process Id of the currently running process
 	return (status = kernelCurrentProcess->processId);
@@ -3185,7 +3203,10 @@ void kernelMultitaskerYield(void)
 	// We accomplish a yield by doing a far call to the scheduler's task.  The
 	// scheduler sees this almost as if the current timeslice had expired.
 	schedulerSwitchedByCall = 1;
-	processorFarJump(schedulerProc->tssSelector);
+
+#ifdef ARCH_X86
+	processorFarJump(schedulerProc->context.tssSelector);
+#endif
 }
 
 
@@ -3216,8 +3237,7 @@ void kernelMultitaskerWait(unsigned milliseconds)
 	// Make sure the current process isn't NULL
 	if (!kernelCurrentProcess)
 	{
-		// Can't return an error code, but we can't perform the specified
-		// action either
+		kernelError(kernel_error, "Can't determine the current process");
 		return;
 	}
 
@@ -3788,14 +3808,16 @@ int kernelMultitaskerGetIoPerm(int processId, int portNum)
 		return (status = ERR_NOSUCHPROCESS);
 	}
 
-	if (portNum >= IO_PORTS)
+#ifdef ARCH_X86
+	if (portNum >= X86_IO_PORTS)
 		return (status = ERR_BOUNDS);
 
-	// If the bit is set, permission is not granted
-	if (GET_PORT_BIT(proc->taskStateSegment.IOMap, portNum))
-		return (status = 0);
-	else
+	// If the bit is clear, permission is granted
+	if (!GET_PORT_BIT(proc->context.taskStateSegment.IOMap, portNum))
 		return (status = 1);
+#endif
+
+	return (status = 0);
 }
 
 
@@ -3819,13 +3841,15 @@ int kernelMultitaskerSetIoPerm(int processId, int portNum, int yesNo)
 		return (status = ERR_NOSUCHPROCESS);
 	}
 
-	if (portNum >= IO_PORTS)
+#ifdef ARCH_X86
+	if (portNum >= X86_IO_PORTS)
 		return (status = ERR_BOUNDS);
 
 	if (yesNo)
-		UNSET_PORT_BIT(proc->taskStateSegment.IOMap, portNum);
+		UNSET_PORT_BIT(proc->context.taskStateSegment.IOMap, portNum);
 	else
-		SET_PORT_BIT(proc->taskStateSegment.IOMap, portNum);
+		SET_PORT_BIT(proc->context.taskStateSegment.IOMap, portNum);
+#endif
 
 	return (status = 0);
 }

@@ -1,6 +1,6 @@
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  Makefile
 ##
@@ -8,20 +8,21 @@
 ##  This file is the Makefile for the Visopsys kernel itself.
 
 ROOT = ../..
+BUILDDIR = build
 UTILSDIR = ${ROOT}/utils
-BUILDDIR = ${ROOT}/build
+OUTPUTDIR = ${ROOT}/${BUILDDIR}
 INCDIR = ../include
-LIBDIR = ${BUILDDIR}/system/libraries
+LIBDIR = ${OUTPUTDIR}/system/libraries
 
 include ${ROOT}/Makefile.include
 
-STDDEPS = ${ROOT}/Makefile.include Makefile *.h ${INCDIR}/sys/*.h \
-	${INCDIR}/*.h
+STDDEPS = ${ROOT}/Makefile.include Makefile kernel-*.ld *.h \
+	${INCDIR}/*.h ${INCDIR}/sys/*.h
 STATLIBS = ${LIBDIR}/libvis.a ${LIBDIR}/libc.a
 INCLUDE = -nostdinc -I. -I${INCDIR}
-CFLAGS = ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} -DKERNEL ${DEBUG}
-LFLAGS = -L${LIBDIR} -nostdlib -static \
-	-Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000
+CFLAGS = ${OPT} ${ARCHFLAGS} ${CCODEGEN} ${CWARN} ${INCLUDE} -DKERNEL ${DEBUG}
+LFLAGS = -L${LIBDIR} -nostdlib -Wl,-static -Wl,-warn-common -Wl,-X \
+	-Wl,-T,kernel-${ARCH}.ld
 RELEASE = $(shell ${UTILSDIR}/release.sh)
 
 ifdef DEBUG
@@ -170,19 +171,19 @@ DRIVERNAMES = \
 
 ALLNAMES = ${NAMES} ${DRIVERNAMES}
 OBJS = $(addprefix obj/, $(addsuffix .o, ${ALLNAMES}))
-KERNEL = ${BUILDDIR}/visopsys
+KERNEL = ${OUTPUTDIR}/visopsys
 
 # Targets
 
 all: target-dirs ${KERNEL} strip
-	${MAKE} -C de
-	${MAKE} -C es
-	${MAKE} -C ru
-	${MAKE} -C tr
+	${MAKE} -C de BUILDDIR=${BUILDDIR}
+	${MAKE} -C es BUILDDIR=${BUILDDIR}
+	${MAKE} -C ru BUILDDIR=${BUILDDIR}
+	${MAKE} -C tr BUILDDIR=${BUILDDIR}
 
 target-dirs:
 	mkdir -p obj
-	mkdir -p ${BUILDDIR}
+	mkdir -p ${OUTPUTDIR}
 
 ${KERNEL}: ${OBJS} ${STATLIBS}
 	${CC} ${CFLAGS} ${LFLAGS} ${OBJS} -lvis -lc -lgcc -o $@
@@ -202,9 +203,9 @@ obj/kernelMisc.o: kernelMisc.c ${STDDEPS}
 	${CC} ${CFLAGS} -D_KVERSION_=\"${RELEASE}\" -c $< -o $@
 
 clean:
-	${MAKE} -C de clean
-	${MAKE} -C es clean
-	${MAKE} -C ru clean
-	${MAKE} -C tr clean
+	${MAKE} -C de BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C es BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C ru BUILDDIR=${BUILDDIR} clean
+	${MAKE} -C tr BUILDDIR=${BUILDDIR} clean
 	rm -Rf *~ *.o core obj ${KERNEL}
 

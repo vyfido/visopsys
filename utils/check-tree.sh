@@ -1,7 +1,7 @@
 #!/bin/sh
 ##
 ##  Visopsys
-##  Copyright (C) 1998-2020 J. Andrew McLaughlin
+##  Copyright (C) 1998-2021 J. Andrew McLaughlin
 ##
 ##  check-tree.sh
 ##
@@ -11,11 +11,18 @@
 
 # Then check that all of the items in the install files are in the build tree
 
-BUILD_DIR=../build/
+ARCH=x86
+BUILD_DIR=../build
+DIST_DIR=../dist/system
 BUILD_FILES=buildfiles.$$
-INST_FILES="../dist/system/install-files.basic ../dist/system/install-files.full"
+INST_FILES="${DIST_DIR}/install-files.basic ${DIST_DIR}/install-files.full"
 
-if [ ! -d $BUILD_DIR ] ; then
+if [ ! -z "$1" ] ; then
+	ARCH="$1"
+fi
+
+BUILD_DIR="${BUILD_DIR}/$ARCH"
+if [ ! -d "$BUILD_DIR" ] ; then
 	echo ERROR: No build directory
 	exit 1
 fi
