@@ -49,6 +49,7 @@ typedef volatile struct {
 typedef volatile struct {
   fatBPB bpb;
   fatFsInfo fsInfo;
+  unsigned char rootDirLabel[FAT_BYTES_PER_DIR_ENTRY];
 
   // Things that need to be calculated after we have all of the FAT
   // volume data from the boot block (see above)

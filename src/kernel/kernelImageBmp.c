@@ -43,7 +43,10 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
   // points to an BMP file.
 
   // Check params
-  if ((fileName == NULL) || (dataPtr == NULL) || !size || (class == NULL))
+  if ((fileName == NULL) || (dataPtr == NULL) || (class == NULL))
+    return (0);
+
+  if (size < 2)
     return (0);
 
   // See whether this file claims to be a bitmap file

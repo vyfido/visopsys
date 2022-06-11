@@ -108,12 +108,12 @@ static void createImages(int width, int height)
 			crossEndY);
 
   kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
-			crossStartX, crossEndX, crossEndY, crossStartY);
+			crossStartX, crossEndY, crossEndX, crossStartY);
   kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
-			crossStartX, (crossEndX - 1), (crossEndY - 1),
+			crossStartX, (crossEndY - 1), (crossEndX - 1),
 			crossStartY);
   kernelGraphicDrawLine(&graphicBuffer, &COLOR_BLACK, draw_normal,
-			(crossStartX + 1), crossEndX, crossEndY,
+			(crossStartX + 1), crossEndY, crossEndX,
 			(crossStartY + 1));
 
   kernelGraphicGetImage(&graphicBuffer, &tmpImage, 0, 0,

@@ -39,14 +39,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/iso.h>
 
 // All the disks
 static kernelPhysicalDisk *physicalDisks[DISK_MAXDEVICES];
 static volatile int physicalDiskCounter = 0;
 static kernelDisk *logicalDisks[DISK_MAXDEVICES];
 static volatile int logicalDiskCounter = 0;
-static int numFloppyDisks = 0, numCdRoms = 0, numScsiDisks = 0,
-  numHardDisks = 0;
 
 // The name of the disk we booted from
 static char bootDisk[DISK_MAX_NAMELENGTH];
@@ -163,79 +162,59 @@ static msdosPartType msdosPartTypes[] = {
 
 // This is a table for keeping known GPT partition type GUIDs and descriptions
 static gptPartType gptPartTypes[] = {
-  { { 0x024DEE41, 0x33E7, 0x11D3, 0x9D, 0x69,
-      { 0x00, 0x08, 0xC7, 0x81, 0xF3, 0x9F } }, "MBR partition scheme" },
-  { { 0xC12A7328, 0xF81F, 0x11D2, 0xBA, 0x4B,
-      { 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B } }, "EFI System partition" },
-  { { 0xE3C9E316, 0x0B5C, 0x4DB8, 0x81, 0x7D,
-      { 0xF9, 0x2D, 0xF0, 0x02, 0x15, 0xAE } }, "Microsoft Reserved" },
-  { { 0xEBD0A0A2, 0xB9E5, 0x4433, 0x87, 0xC0,
-      { 0x68, 0xB6, 0xB7, 0x26, 0x99, 0xC7 } }, "Windows or Linux data" },
-  { { 0x5808C8AA, 0x7E8F, 0x42E0, 0x85, 0xD2,
-      { 0xE1, 0xE9, 0x04, 0x34, 0xCF, 0xB3 } }, "Windows LDM metadata" },
-  { { 0xAF9B60A0, 0x1431, 0x4F62, 0xBC, 0x68,
-      { 0x33, 0x11, 0x71, 0x4A, 0x69, 0xAD } }, "Windows LDM data" },
-  { { 0x75894C1E, 0x3AEB, 0x11D3, 0xB7, 0xC1,
-      { 0x7B, 0x03, 0xA0, 0x00, 0x00, 0x00 } }, "HP, UX data" },
-  { { 0xE2A1E728, 0x32E3, 0x11D6, 0xA6, 0x82,
-      { 0x7B, 0x03, 0xA0, 0x00, 0x00, 0x00 } }, "HP, UX service" },
-  { { 0xA19D880F, 0x05FC, 0x4D3B, 0xA0, 0x06,
-      { 0x74, 0x3F, 0x0F, 0x84, 0x91, 0x1E } }, "Linux RAID" },
-  { { 0x0657FD6D, 0xA4AB, 0x43C4, 0x84, 0xE5,
-      { 0x09, 0x33, 0xC8, 0x4B, 0x4F, 0x4F } }, "Linux swap" },
-  { { 0xE6D6D379, 0xF507, 0x44C2, 0xA2, 0x3C,
-      { 0x23, 0x8F, 0x2A, 0x3D, 0xF9, 0x28 } }, "Linux LVM" },
-  { { 0x8DA63339, 0x0007, 0x60C0, 0xC4, 0x36,
-      { 0x08, 0x3A, 0xC8, 0x23, 0x09, 0x08 } }, "Linux reserved" },
-  { { 0x516E7CB4, 0x6ECF, 0x11D6, 0x8F, 0xF8,
-      { 0x00, 0x02, 0x2D, 0x09, 0x71, 0x2B } }, "FreeBSD data" },
-  { { 0x516E7CB5, 0x6ECF, 0x11D6, 0x8F, 0xF8,
-      { 0x00, 0x02, 0x2D, 0x09, 0x71, 0x2B } }, "FreeBSD swap" },
-  { { 0x516E7CB6, 0x6ECF, 0x11D6, 0x8F, 0xF8,
-      { 0x00, 0x02, 0x2D, 0x09, 0x71, 0x2B } }, "FreeBSD Unix UFS" },
-  { { 0x516E7CB8, 0x6ECF, 0x11D6, 0x8F, 0xF8,
-      { 0x00, 0x02, 0x2D, 0x09, 0x71, 0x2B } }, "FreeBSD Vinum" },
-  { { 0x48465300, 0x0000, 0x11AA, 0xAA, 0x11,
-      { 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC } }, "MacOS X HFS+" },
-  { { 0x55465300, 0x0000, 0x11AA, 0xAA, 0x11,
-      { 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC } }, "Apple UFS" },
-  { { 0x52414944, 0x0000, 0x11AA, 0xAA, 0x11,
-      { 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC } }, "Apple RAID" },
-  { { 0x52414944, 0x5F4F, 0x11AA, 0xAA, 0x11,
-      { 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC } }, "Apple RAID offline" },
-  { { 0x426F6F74, 0x0000, 0x11AA, 0xAA, 0x11,
-      { 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC } }, "Apple Boot" },
-  { { 0x4C616265, 0x6C00, 0x11AA, 0xAA, 0x11,
-      { 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC } }, "Apple label" },
-  { { 0x5265636F, 0x7665, 0x11AA, 0xAA, 0x11,
-      { 0x00, 0x30, 0x65, 0x43, 0xEC, 0xAC } }, "Apple TV recovery" },
-  { { 0x6A82CB45, 0x1DD2, 0x11B2, 0x99, 0xA6,
-      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris boot" },
-  { { 0x6A85CF4D, 0x1DD2, 0x11B2, 0x99, 0xA6,
-      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris root" },
-  { { 0x6A87C46F, 0x1DD2, 0x11B2, 0x99, 0xA6,
-      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris swap" },
-  { { 0x6A8B642B, 0x1DD2, 0x11B2, 0x99, 0xA6,
-      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris backup" },
-  { { 0x6A898CC3, 0x1DD2, 0x11B2, 0x99, 0xA6,
-      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris /usr" },
-  { { 0x6A8EF2E9, 0x1DD2, 0x11B2, 0x99, 0xA6,
-      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris /var" },
-  { { 0x6A90BA39, 0x1DD2, 0x11B2, 0x99, 0xA6,
-      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris /home" },
-  { { 0x6A9283A5, 0x1DD2, 0x11B2, 0x99, 0xA6,
-      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris EFI_ALTSCTR" },
-  { { 0x6A945A3B, 0x1DD2, 0x11B2, 0x99, 0xA6,
-      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris reserved" },
-  { { 0x6A9630D1, 0x1DD2, 0x11B2, 0x99, 0xA6,
-      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris reserved" },
-  { { 0x6A980767, 0x1DD2, 0x11B2, 0x99, 0xA6,
-      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris reserved" },
-  { { 0x6A96237F, 0x1DD2, 0x11B2, 0x99, 0xA6,
-      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris reserved" },
-  { { 0x6A8D2AC7, 0x1DD2, 0x11B2, 0x99, 0xA6,
-      { 0x08, 0x00, 0x20, 0x73, 0x66, 0x31 } }, "Solaris reserved" },
-  { GUID_BLANK, "" }
+  { GUID_MBRPART,     GUID_MBRPART_DESC },
+  { GUID_EFISYS,      GUID_EFISYS_DESC },
+  { GUID_BIOSBOOT,    GUID_BIOSBOOT_DESC },
+  { GUID_MSRES,       GUID_MSRES_DESC},
+  { GUID_WINDATA,     GUID_WINDATA_DESC },
+  { GUID_WINLDMMETA,  GUID_WINLDMMETA_DESC },
+  { GUID_WINLDMDATA,  GUID_WINLDMDATA_DESC },
+  { GUID_WINRECOVER,  GUID_WINRECOVER_DESC },
+  { GUID_IMBGPFS,     GUID_IMBGPFS_DESC },
+  { GUID_HPUXDATA,    GUID_HPUXDATA_DESC },
+  { GUID_HPUXSERV,    GUID_HPUXSERV_DESC },
+  { GUID_LINUXDATA,   GUID_LINUXDATA_DESC },
+  { GUID_LINUXRAID,   GUID_LINUXRAID_DESC },
+  { GUID_LINUXSWAP,   GUID_LINUXSWAP_DESC },
+  { GUID_LINUXLVM,    GUID_LINUXLVM_DESC },
+  { GUID_LINUXRES,    GUID_LINUXRES_DESC },
+  { GUID_FREEBSDBOOT, GUID_FREEBSDBOOT_DESC },
+  { GUID_FREEBSDDATA, GUID_FREEBSDDATA_DESC },
+  { GUID_FREEBSDSWAP, GUID_FREEBSDSWAP_DESC },
+  { GUID_FREEBSDUFS,  GUID_FREEBSDUFS_DESC },
+  { GUID_FREEBSDVIN,  GUID_FREEBSDVIN_DESC },
+  { GUID_FREEBSDZFS,  GUID_FREEBSDZFS_DESC },
+  { GUID_MACOSXHFS,   GUID_MACOSXHFS_DESC },
+  { GUID_APPLEUFS,    GUID_APPLEUFS_DESC },
+  { GUID_APPLERAID,   GUID_APPLERAID_DESC },
+  { GUID_APPLERDOFFL, GUID_APPLERDOFFL_DESC },
+  { GUID_APPLEBOOT,   GUID_APPLEBOOT_DESC },
+  { GUID_APPLELABEL,  GUID_APPLELABEL_DESC },
+  { GUID_APPLETVRECV, GUID_APPLETVRECV_DESC },
+  { GUID_APPLECOREST, GUID_APPLECOREST_DESC },
+  { GUID_SOLBOOT,     GUID_SOLBOOT_DESC },
+  { GUID_SOLROOT,     GUID_SOLROOT_DESC },
+  { GUID_SOLSWAP,     GUID_SOLSWAP_DESC },
+  { GUID_SOLBACKUP,   GUID_SOLBACKUP_DESC },
+  { GUID_SOLUSR,      GUID_SOLUSR_DESC },
+  { GUID_SOLVAR,      GUID_SOLVAR_DESC },
+  { GUID_SOLHOME,     GUID_SOLHOME_DESC },
+  { GUID_SOLALTSECT,  GUID_SOLALTSECT_DESC },
+  { GUID_SOLRES1,     GUID_SOLRES1_DESC },
+  { GUID_SOLRES2,     GUID_SOLRES2_DESC },
+  { GUID_SOLRES3,     GUID_SOLRES3_DESC },
+  { GUID_SOLRES4,     GUID_SOLRES4_DESC },
+  { GUID_SOLRES5,     GUID_SOLRES5_DESC },
+  { GUID_NETBSDSWAP,  GUID_NETBSDSWAP_DESC },
+  { GUID_NETBSDFFS,   GUID_NETBSDFFS_DESC },
+  { GUID_NETBSDLFS,   GUID_NETBSDLFS_DESC },
+  { GUID_NETBSDRAID,  GUID_NETBSDRAID_DESC },
+  { GUID_NETBSDCONCT, GUID_NETBSDCONCT_DESC },
+  { GUID_NETBSDENCR,  GUID_NETBSDENCR_DESC },
+  { GUID_CHROMEKERN,  GUID_CHROMEKERN_DESC },
+  { GUID_CHROMEROOT,  GUID_CHROMEROOT_DESC },
+  { GUID_CHROMEFUT,   GUID_CHROMEFUT_DESC },
+  { GUID_UNUSED,      GUID_UNUSED_DESC }
 };
 
 static int initialized = 0;
@@ -1309,11 +1288,28 @@ static int isDosDisk(kernelPhysicalDisk *physicalDisk)
   kernelFree(sectorData);
 
   if (status == 1)
-    // Call this an MSDOS label.
-    return (status);
+    {
+      // Call this an MSDOS label.
+      kernelDebug(debug_io, "%s MSDOS partition table found",
+		  physicalDisk->name);
+      return (status);
+    }
   else
     // Not an MSDOS label
     return (status = 0);
+}
+
+
+static inline int checkGptSignature(unsigned char *sectorData)
+{
+  // Returns 1 if the buffer contains a GPT signature.
+
+  if (kernelMemCmp(sectorData, "EFI PART", 8))
+    // No signature.  Return 0.
+    return (0);
+  else
+    // We'll say this has a GPT signature.
+    return (1);
 }
 
 
@@ -1326,6 +1322,8 @@ static int isGptDisk(kernelPhysicalDisk *physicalDisk)
 
   // A GPT disk must have a "guard" MS-DOS table, so a call to the MS-DOS
   // detect() function must succeed first.
+  kernelDebug(debug_io, "%s GPT check for MSDOS guard table",
+	      physicalDisk->name);
   if (isDosDisk(physicalDisk) != 1)
     // Not a GPT label
     return (status = 0);
@@ -1346,16 +1344,20 @@ static int isGptDisk(kernelPhysicalDisk *physicalDisk)
     }
 
   // Check for the GPT signature 
-  if (kernelMemCmp(sectorData, "EFI PART", 8))
-    {
-      // No signature.
-      kernelFree(sectorData);
-      return (status = 0);
-    }
+  status = checkGptSignature(sectorData);
 
-  // Say it's GPT
   kernelFree(sectorData);
-  return (status = 1);
+
+  if (status == 1)
+    {
+      // Call this a GPT label.
+      kernelDebug(debug_io, "%s GPT partition table found",
+		  physicalDisk->name);
+      return (status);
+    }
+  else
+    // Not a GPT label
+    return (status = 0);
 }
 
 
@@ -1391,6 +1393,8 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
   uquad_t entriesLogical = 0;
   unsigned numEntries = 0;
   unsigned entrySize = 0;
+  unsigned entryBytes = 0;
+  unsigned entrySectors = 0;
   unsigned char *entry = NULL;
   kernelDisk *logicalDisk = NULL;
   guid *typeGuid = NULL;
@@ -1416,6 +1420,9 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
   numEntries = *((unsigned *)(sectorData + 80));
   entrySize = *((unsigned *)(sectorData + 84));
 
+  kernelDebug(debug_io, "%s has %u GPT entries of size %u", physicalDisk->name,
+	      numEntries, entrySize);
+
   // Check the checksum
   if (checksum != gptHeaderChecksum(sectorData))
     {
@@ -1424,17 +1431,23 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
       return (status = ERR_BADDATA);
     }
   
+  // Calculate the number of sectors we need to read
+  entryBytes = (numEntries * entrySize);
+  entrySectors = ((entryBytes / physicalDisk->sectorSize) +
+		  ((entryBytes % physicalDisk->sectorSize)? 1 : 0));
+
   // Reallocate the buffer for reading the entries
   kernelFree(sectorData);
-  sectorData = kernelMalloc(numEntries * entrySize);
+  sectorData = kernelMalloc(entrySectors * physicalDisk->sectorSize);
   if (sectorData == NULL)
     return (status = ERR_MEMORY);
 
   // Read the first sector of the entries.
+  kernelDebug(debug_io, "%s read %u sectors of GPT entries at %llu",
+	      physicalDisk->name, entrySectors, entriesLogical);
   status = kernelDiskReadSectors((char *) physicalDisk->name,
-				 (unsigned) entriesLogical,
-				 ((numEntries * entrySize) /
-				  physicalDisk->sectorSize), sectorData);
+				 (unsigned) entriesLogical, entrySectors,
+				 sectorData);
   if (status < 0)
     {
       kernelFree(sectorData);
@@ -1444,14 +1457,20 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
   for (count = 0; ((count < numEntries) &&
 		   (physicalDisk->numLogical < DISK_MAX_PARTITIONS)); count ++)
     {
+      kernelDebug(debug_io, "%s read GPT entry %d", physicalDisk->name, count);
+
       entry = (sectorData + (count * entrySize));
       logicalDisk = &(physicalDisk->logical[physicalDisk->numLogical]);
 
       typeGuid = (guid *) entry;
 
-      if (!kernelMemCmp(typeGuid, &GUID_BLANK, sizeof(guid)))
-	// Empty
-	continue;
+      if (!kernelMemCmp(typeGuid, &GUID_UNUSED, sizeof(guid)))
+	{
+	  // Empty
+	  kernelDebug(debug_io, "%s GPT entry %d is empty", physicalDisk->name,
+		      count);
+	  continue;
+	}
 
       // We will add a logical disk corresponding to the partition we've
       // discovered
@@ -1471,7 +1490,14 @@ static int readGptPartitions(kernelPhysicalDisk *physicalDisk,
       logicalDisk->startSector = (unsigned) *((uquad_t *)(entry + 32));
       logicalDisk->numSectors =
 	((unsigned) *((uquad_t *)(entry + 40)) - logicalDisk->startSector + 1);
+
+      // GPT partitions are always 'primary'
       logicalDisk->primary = 1;
+
+      kernelDebug(debug_io, "%s GPT entry %d startSector=%llu numSectors=%llu",
+		  physicalDisk->name, count, logicalDisk->startSector,
+		  logicalDisk->numSectors);
+		  
 
       newLogicalDisks[*newLogicalDiskCounter] = logicalDisk;
       *newLogicalDiskCounter += 1;
@@ -1676,6 +1702,270 @@ static int unmountAll(void)
 }
 
 
+static int getUnusedDiskNumber(unsigned type)
+{
+  int diskNum = 0;
+  const char *prefix = NULL;
+  char name[8];
+  int count;
+
+  if (type & DISKTYPE_FLOPPY)
+    prefix = DISK_NAME_PREFIX_FLOPPY;
+  else if (type & DISKTYPE_CDROM)
+    prefix = DISK_NAME_PREFIX_CDROM;
+  else if (type & DISKTYPE_SCSIDISK)
+    prefix = DISK_NAME_PREFIX_SCSIDISK;
+  else if (type & DISKTYPE_HARDDISK)
+    prefix = DISK_NAME_PREFIX_HARDDISK;
+  else
+    {
+      kernelError(kernel_error, "Disk type %x is unknown", type);
+      return (diskNum = ERR_NOTIMPLEMENTED);
+    }
+
+  for (count = 0; count < DISK_MAXDEVICES; count ++)
+    {
+      snprintf(name, 8, "%s%d", prefix, count);
+      if (!getPhysicalByName(name))
+	return (diskNum = count);
+    }
+
+  // Looks like we've reached the maximum number
+  kernelError(kernel_error, "No free disk number of type %s", prefix);
+  return (diskNum = ERR_NOFREE);
+}
+
+
+static int identifyBootCd(void)
+{
+  // If we believe we are booting from a CD-ROM in floppy emulation mode,
+  // we should not attempt to identify it using the same method as other
+  // types of disks, as we will have booted from a floppy disk image contained
+  // within the disk.
+
+  int status = 0;
+  kernelPhysicalDisk *physicalDisk = NULL;
+  unsigned char *buffer = NULL;
+  isoBootCatInitEntry *bootCatEntry = NULL;
+  unsigned imageSector = 0;
+  int count;
+
+  kernelDebug(debug_io, "searching for CD-ROM boot image with signature "
+	      "0x%08x", kernelOsLoaderInfo->bootSectorSig);
+
+  bootDisk[0] = '\0';
+  for (count = 0; count < physicalDiskCounter; count ++)
+    {
+      physicalDisk = physicalDisks[count];
+
+      if (!(physicalDisk->type & DISKTYPE_CDROM))
+	continue;
+
+      // This is a CD-ROM.
+
+      buffer = kernelMalloc(physicalDisk->sectorSize);
+      if (buffer == NULL)
+	return (status = ERR_MEMORY);
+
+      // Reset the 'last access' value
+      physicalDisk->lastAccess = kernelSysTimerRead();
+  
+      // Lock the disk
+      status = kernelLockGet(&physicalDisk->lock);
+      if (status < 0)
+	{
+	  kernelFree(buffer);
+	  continue;
+	}
+
+      // Read the boot record descriptor
+      status = readWrite(physicalDisk, ISO_BOOTRECORD_SECTOR, 1, buffer,
+			 IOMODE_READ);
+
+      // Reset the 'last access' value
+      physicalDisk->lastAccess = kernelSysTimerRead();
+  
+      if (status < 0)
+	{
+	  kernelLockRelease(&physicalDisk->lock);
+	  kernelFree(buffer);
+	  continue;
+	}
+
+      // Read the first sector of the boot catalog
+      status = readWrite(physicalDisk,
+			 ((isoBootRecordDescriptor *) buffer)->bootCatSector,
+			 1, buffer, IOMODE_READ);
+
+      // Reset the 'last access' value
+      physicalDisk->lastAccess = kernelSysTimerRead();
+  
+      if (status < 0)
+	{
+	  kernelLockRelease(&physicalDisk->lock);
+	  kernelFree(buffer);
+	  continue;
+	}
+
+      bootCatEntry = (isoBootCatInitEntry *) buffer;
+      if (bootCatEntry[1].bootIndicator != 0x88)
+	{
+	  kernelDebug(debug_io, "%s is not bootable", physicalDisk->name);
+	  kernelLockRelease(&physicalDisk->lock);
+	  kernelFree(buffer);
+	  continue;
+	}
+
+      imageSector = bootCatEntry[1].loadRba;
+      kernelDebug(debug_io, "%s image at sector %u", physicalDisk->name,
+		  imageSector);
+
+      // Read the first sector of the boot image
+      status = readWrite(physicalDisk, imageSector, 1, buffer, IOMODE_READ);
+
+      // Reset the 'last access' value
+      physicalDisk->lastAccess = kernelSysTimerRead();
+
+      // Unlock the disk
+      kernelLockRelease(&physicalDisk->lock);
+  
+      if (status < 0)
+	{
+	  kernelFree(buffer);
+	  continue;
+	}
+
+      // Make sure that this is a boot sector
+      if (*((unsigned short *)(buffer + 510)) != 0xAA55)
+	{
+	  kernelDebugError("%s first sector of boot image is not valid",
+			   physicalDisk->name);
+	  kernelFree(buffer);
+	  continue;
+	}
+
+      // Does the boot sector signature match?
+      if (*((unsigned *)(buffer + 498)) == kernelOsLoaderInfo->bootSectorSig)
+	{
+	  // We found the logical disk we booted from
+	  kernelDebug(debug_io, "%s boot sector signature matches",
+		      physicalDisk->name);
+	  strcpy(bootDisk, (char *) physicalDisk->name);
+	  kernelFree(buffer);
+	  break;
+	}
+      else
+	{
+	  kernelDebug(debug_io, "%s boot sector signature (0x%08x) doesn't "
+		      "match", physicalDisk->name,
+		      *((unsigned *)(buffer + 498)));
+	  kernelFree(buffer);
+	}
+    }
+
+  if (!bootDisk[0])
+    {
+      kernelError(kernel_error, "The boot CD could not be identified");
+      return (status = ERR_NOSUCHDRIVER);
+    }
+
+  return (status = 0);
+}
+
+
+static int identifyBootDisk(void)
+{
+  // Try to locate the logical disk we booted from, by examining the boot
+  // sector signatures and comparing them with the one we were passed.
+
+  int status = 0;
+  kernelDisk *logicalDisk = NULL;
+  kernelPhysicalDisk *physicalDisk = NULL;
+  unsigned char *buffer = NULL;
+  int count;
+
+  kernelDebug(debug_io, "searching for boot sector with signature 0x%08x",
+	      kernelOsLoaderInfo->bootSectorSig);
+
+  bootDisk[0] = '\0';
+  for (count = 0; count < logicalDiskCounter; count ++)
+    {
+      logicalDisk = logicalDisks[count];
+
+      kernelDebug(debug_io, "trying %s", logicalDisk->name);
+
+      physicalDisk = logicalDisk->physical;
+
+      // Does this logical disk have the correct starting sector number?
+      if (logicalDisk->startSector == kernelOsLoaderInfo->bootSector)
+	{
+	  kernelDebug(debug_io, "%s start sector %llu is correct",
+		      logicalDisk->name, logicalDisk->startSector);
+
+	  // Read the boot sector.
+
+	  buffer = kernelMalloc(physicalDisk->sectorSize);
+	  if (buffer == NULL)
+	    return (status = ERR_MEMORY);
+
+	  // Reset the 'last access' value
+	  physicalDisk->lastAccess = kernelSysTimerRead();
+  
+	  // Lock the disk
+	  status = kernelLockGet(&physicalDisk->lock);
+	  if (status < 0)
+	    {
+	      kernelFree(buffer);
+	      continue;
+	    }
+
+	  // Read the logical start sector
+	  status = readWrite(physicalDisk, logicalDisk->startSector, 1,
+			     buffer, IOMODE_READ);
+
+	  // Reset the 'last access' value
+	  physicalDisk->lastAccess = kernelSysTimerRead();
+  
+	  // Unlock the disk
+	  kernelLockRelease(&physicalDisk->lock);
+
+	  if (status < 0)
+	    {
+	      kernelFree(buffer);
+	      continue;
+	    }
+
+	  // Does the boot sector signature match?
+	  if (*((unsigned *)(buffer + 498)) ==
+	      kernelOsLoaderInfo->bootSectorSig)
+	    {
+	      // We found the logical disk we booted from
+	      kernelDebug(debug_io, "%s boot sector signature matches",
+			  logicalDisk->name);
+	      strcpy(bootDisk, (char *) logicalDisk->name);
+	      kernelFree(buffer);
+	      break;
+	    }
+	  else
+	    {
+	      kernelDebug(debug_io, "%s boot sector signature (0x%08x) "
+			  "doesn't match", logicalDisk->name,
+			  *((unsigned *)(buffer + 498)));
+	      kernelFree(buffer);
+	    }
+	}
+    }
+
+  if (!bootDisk[0])
+    {
+      kernelError(kernel_error, "The boot device could not be identified");
+      return (status = ERR_NOSUCHDRIVER);
+    }
+
+  return (status = 0);
+}
+
+
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -1719,19 +2009,27 @@ int kernelDiskRegisterDevice(kernelDevice *dev)
     }
 
   // Compute the name for the disk, depending on what type of device it is
+  status = getUnusedDiskNumber(physicalDisk->type);
+  if (status < 0)
+    return (status);
+
   if (physicalDisk->type & DISKTYPE_FLOPPY)
-    sprintf((char *) physicalDisk->name, "fd%d", numFloppyDisks++);
+    sprintf((char *) physicalDisk->name, "%s%d", DISK_NAME_PREFIX_FLOPPY,
+	    status);
   else if (physicalDisk->type & DISKTYPE_CDROM)
-    sprintf((char *) physicalDisk->name, "cd%d", numCdRoms++);
+    sprintf((char *) physicalDisk->name, "%s%d", DISK_NAME_PREFIX_CDROM,
+	    status);
   else if (physicalDisk->type & DISKTYPE_SCSIDISK)
-    sprintf((char *) physicalDisk->name, "sd%d", numScsiDisks++);
+    sprintf((char *) physicalDisk->name, "%s%d", DISK_NAME_PREFIX_SCSIDISK,
+	    status);
   else if (physicalDisk->type & DISKTYPE_HARDDISK)
-    sprintf((char *) physicalDisk->name, "hd%d", numHardDisks++);
+    sprintf((char *) physicalDisk->name, "%s%d", DISK_NAME_PREFIX_HARDDISK,
+	    status);
 
   // Disk cache initialization is deferred until cache use is attempted.
   // Otherwise we waste memory allocating caches for disks that might
   // never be used.
-  
+
   // Lock the disk
   status = kernelLockGet(&physicalDisk->lock);
   if (status < 0)
@@ -1829,9 +2127,6 @@ int kernelDiskInitialize(void)
   // is an error.  If there's an error it returns negative.
   
   int status = 0;
-  kernelPhysicalDisk *physicalDisk = NULL;
-  kernelDisk *logicalDisk = NULL;
-  int count1, count2;
 
   // Check whether any disks have been registered.  If not, that's 
   // an indication that the hardware enumeration has not been done
@@ -1855,37 +2150,14 @@ int kernelDiskInitialize(void)
   if (status < 0)
     kernelError(kernel_error, "Unable to read disk partitions");
 
-  // Copy the name of the physical boot disk
-  strcpy(bootDisk, kernelOsLoaderInfo->bootDisk);
+  // Identify the name of the boot disk.
+  if (kernelOsLoaderInfo->bootCd)
+    status = identifyBootCd();
+  else
+    status = identifyBootDisk();
 
-  // If we booted from a hard disk, we need to find out which partition
-  // (logical disk) it was.
-  if (!strncmp(bootDisk, "hd", 2) || !strncmp(bootDisk, "sd", 2))
-    {
-      // Loop through the physical disks and find the one with this name
-      for (count1 = 0; count1 < physicalDiskCounter; count1 ++)
-	{
-	  physicalDisk = physicalDisks[count1];
-	  if (!strcmp((char *) physicalDisk->name, bootDisk))
-	    {
-	      // This is the physical disk we booted from.  Find the
-	      // partition
-	      for (count2 = 0; count2 < physicalDisk->numLogical; count2 ++)
-		{
-		  logicalDisk = &(physicalDisk->logical[count2]);
-		  // If the boot sector we booted from is in this partition,
-		  // save its name as our boot disk.
-		  if (logicalDisk->startSector ==
-		      kernelOsLoaderInfo->bootSector)
-		    {
-		      strcpy(bootDisk, (char *) logicalDisk->name);
-		      break;
-		    }
-		}
-	      break;
-	    }
-	}
-    }
+  if (status < 0)
+    return (status);
 
   return (status = 0);
 }
@@ -2161,11 +2433,16 @@ int kernelDiskReadPartitions(const char *diskName)
   if (diskName == NULL)
     return (status = ERR_NULLPARAMETER);
 
+  kernelDebug(debug_io, "Read partitions on disk %s",  diskName);
+
   // Find the disk structure.
   physicalDisk = getPhysicalByName(diskName);
   if (physicalDisk == NULL)
-    // No such disk.
-    return (status = ERR_NOSUCHENTRY);
+    {
+      // No such disk.
+      kernelError(kernel_error, "No such disk \"%s\"", diskName);
+      return (status = ERR_NOSUCHENTRY);
+    }
 
   // Add all the logical disks that don't belong to this physical disk
   for (count = 0; count < logicalDiskCounter; count ++)
@@ -2220,17 +2497,22 @@ int kernelDiskReadPartitions(const char *diskName)
 	status = readDosPartitions(physicalDisk, newLogicalDisks,
 				   &newLogicalDiskCounter);
 
+      else
+	kernelDebug(debug_io, "%s unknown disk label", physicalDisk->name);
+
       if (status < 0)
 	return (status);
     }
 
   else
     {
-      // If this is a not a hard disk, make the logical disk be the same
-      // as the physical disk
+      kernelDebug(debug_io, "%s is not a partitioned disk",  diskName);
+
+      // If this is a not a hard disk with partitions, etc, make the logical
+      // disk be the same as the physical disk
       physicalDisk->numLogical = 1;
       logicalDisk = &(physicalDisk->logical[0]);
-      // Logical disk name same as device name
+      // Logical disk name same as physical
       strcpy((char *) logicalDisk->name, (char *) physicalDisk->name);
       strncpy((char *) logicalDisk->partType, msdosType.description,
 	      FSTYPE_MAX_NAMELENGTH);
@@ -2240,6 +2522,7 @@ int kernelDiskReadPartitions(const char *diskName)
       logicalDisk->physical = physicalDisk;
       logicalDisk->startSector = 0;
       logicalDisk->numSectors = physicalDisk->numSectors;
+      logicalDisk->primary = 1;
 
       newLogicalDisks[newLogicalDiskCounter++] = logicalDisk;
     }
@@ -2259,8 +2542,10 @@ int kernelDiskReadPartitions(const char *diskName)
 	  if (physicalDisk->flags & DISKFLAG_MOTORON)
 	    kernelFilesystemScan(logicalDisk);
 
-	  kernelLog("Disk %s (hard disk %s, %s): %s",
-		    logicalDisk->name, physicalDisk->name,
+	  kernelLog("Disk %s (%sdisk %s, %s): %s",
+		    logicalDisk->name,
+		    ((physicalDisk->type & DISKTYPE_HARDDISK)? "hard " : ""),
+		    physicalDisk->name,
 		    (logicalDisk->primary? "primary" : "logical"),
 		    logicalDisk->fsType);
 	}
@@ -2607,7 +2892,7 @@ int kernelDiskGetGptPartType(guid *g, gptPartType *type)
     return (status = ERR_NULLPARAMETER);
 
   for (count = 0;
-       kernelMemCmp(&gptPartTypes[count].typeGuid, &GUID_BLANK, sizeof(guid));
+       kernelMemCmp(&gptPartTypes[count].typeGuid, &GUID_UNUSED, sizeof(guid));
        count ++)
     if (!kernelMemCmp(&gptPartTypes[count].typeGuid, g, sizeof(guid)))
       {

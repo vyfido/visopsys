@@ -209,8 +209,10 @@ static void doFileSelection(file *theFile, char *fullName,
 	  return;
 	
 	// Exec the command, no block
-	multitaskerSpawn(&execProgram, "exec program", 1,
-			 (void *[]){ command });
+	if (multitaskerSpawn(&execProgram, "exec program", 1,
+			     (void *[]){ command } ) < 0)
+	  error(_("Couldn't execute command \"%s\""), command);
+
 	break;
       }
 

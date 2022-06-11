@@ -1468,7 +1468,8 @@ static int lengthenFile(fatInternalData *fatData, kernelFileEntry *entry,
 }
 
 
-static int dirRequiredEntries(kernelFileEntry *directory)
+static int dirRequiredEntries(fatInternalData *fatData,
+			      kernelFileEntry *directory)
 {
   // This function is internal, and is used to determine how many 32-byte
   // entries will be required to hold the requested directory.  Returns
@@ -1514,6 +1515,12 @@ static int dirRequiredEntries(kernelFileEntry *directory)
 
       listItemPointer = listItemPointer->nextEntry;
     }
+
+  // If this is the root directory, and it needs an entry for the volume label,
+  // add one.
+  if ((directory == directory->disk->filesystem.filesystemRoot) &&
+      fatData->rootDirLabel[0])
+    entries++;
   
   // Add 1 for the NULL entry at the end
   entries++;
@@ -1607,7 +1614,8 @@ static inline unsigned makeSystemTime(unsigned theTime)
 }
 
 
-static int fillDirectory(kernelFileEntry *currentDir, void *dirBuffer)
+static int fillDirectory(fatInternalData *fatData, kernelFileEntry *currentDir,
+			 void *dirBuffer)
 {
   // This function takes a directory structure and writes it to the
   // appropriate directory on disk.
@@ -1683,14 +1691,14 @@ static int fillDirectory(kernelFileEntry *currentDir, void *dirBuffer)
       // Calculate this file's 8.3 checksum.  We need this in advance for
       // associating the long filename entries
       fileCheckSum = 0;
-      for (count = 0; count < 11; count++)
+      for (count = 0; count < FAT_8_3_NAME_LEN; count++)
 	fileCheckSum = (unsigned char)
 	  ((((fileCheckSum & 0x01) << 7) | ((fileCheckSum & 0xFE) >> 1)) 
 	   + shortAlias[count]);
 
-      // All files except '.' and '..' will have at least one long filename
-      // entry, just because that's the only kind we use in Visopsys.  Short
-      // aliases are only generated for compatibility.
+      // All files except '.' and '..' (and any volume label) will have at
+      // least one long filename entry, just because that's the only kind we
+      // use in Visopsys.  Short aliases are only generated for compatibility.
 
       if (strcmp((char *) listItemPointer->name, ".") &&
 	  strcmp((char *) listItemPointer->name, ".."))
@@ -1777,7 +1785,7 @@ static int fillDirectory(kernelFileEntry *currentDir, void *dirBuffer)
 
       // Copy the short alias into the entry.
       dirEntry[0] = NULL;
-      strncpy(dirEntry, shortAlias, 11);
+      strncpy(dirEntry, shortAlias, FAT_8_3_NAME_LEN);
 
       // attributes (byte value)
       dirEntry[0x0B] = (unsigned char) entryData->attributes;
@@ -1836,6 +1844,16 @@ static int fillDirectory(kernelFileEntry *currentDir, void *dirBuffer)
 
       // Increment to the next file structure
       listItemPointer = listItemPointer->nextEntry;
+    }
+
+  // If this is the root directory, and there was a volume label entry,
+  // replace it.
+  if ((currentDir == currentDir->disk->filesystem.filesystemRoot) &&
+      fatData->rootDirLabel[0])
+    {
+      kernelMemCopy((unsigned char *) fatData->rootDirLabel, dirEntry,
+		    FAT_BYTES_PER_DIR_ENTRY);
+      dirEntry += FAT_BYTES_PER_DIR_ENTRY;
     }
 
   // Put a NULL entry in the last spot.
@@ -2391,8 +2409,8 @@ static void setVolumeLabel(kernelDisk *theDisk, char *label)
 {
   int count;
 
-  for (count = 0; (count < 11) && (label[count] && (label[count] != ' '));
-       count ++)
+  for (count = 0; ((count < FAT_8_3_NAME_LEN) &&
+		   (label[count] && (label[count] != ' '))); count ++)
     theDisk->filesystem.label[count] = label[count];
 }
 
@@ -2447,16 +2465,22 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
 	continue;
 
       // Skip '.' and '..' entries
-      else if (!strncmp((char *) dirEntry, ".          ", 11) ||
-	       !strncmp((char *) dirEntry, "..         ", 11))
+      else if (!strncmp((char *) dirEntry, ".          ", FAT_8_3_NAME_LEN) ||
+	       !strncmp((char *) dirEntry, "..         ", FAT_8_3_NAME_LEN))
 	continue;
 
       // Peek ahead and get the attributes (byte value).  Figure out the 
       // type of the file
       if (((unsigned) dirEntry[0x0B] & FAT_ATTRIB_VOLUMELABEL) != 0)
 	{
-	  // Then it's a volume label.  Set the label and skip it.
-	  setVolumeLabel(theDisk, (char *) dirEntry);
+	  // Then it's a volume label.  If this is the root directory,
+	  // remember this entry so we can re-write it later.
+	  if (currentDir == theDisk->filesystem.filesystemRoot)
+	    {
+	      kernelMemCopy(dirEntry, (unsigned char *) fatData->rootDirLabel,
+			    FAT_BYTES_PER_DIR_ENTRY);
+	      setVolumeLabel(theDisk, (char *) dirEntry);
+	    }
 	  continue;
 	}
 
@@ -2525,8 +2549,9 @@ static int scanDirectory(fatInternalData *fatData, kernelDisk *theDisk,
       // Now go through the regular (DOS short) entry for this file.
 
       // Copy short alias into the shortAlias field of the file structure
-      strncpy((char *) entryData->shortAlias, (char *) dirEntry, 11);
-      entryData->shortAlias[11] = '\0';
+      strncpy((char *) entryData->shortAlias, (char *) dirEntry,
+	      FAT_8_3_NAME_LEN);
+      entryData->shortAlias[FAT_8_3_NAME_LEN] = '\0';
 
       // If there's no long filename, set the filename to be the same as
       // the short alias we just extracted.  We'll need to construct it
@@ -3192,7 +3217,7 @@ static int writeDir(kernelFileEntry *directory)
   else
     {
       // Figure out how many directory entries there are
-      directoryEntries = dirRequiredEntries(directory);
+      directoryEntries = dirRequiredEntries(fatData, directory);
 
       // Calculate the size of a cluster in this filesystem
       clusterSize = (fatData->bpb.bytesPerSect * fatData->bpb.sectsPerClust);
@@ -3237,7 +3262,7 @@ static int writeDir(kernelFileEntry *directory)
     }
 
   // Fill in the directory entries
-  status = fillDirectory(directory, dirBuffer);
+  status = fillDirectory(fatData, directory, dirBuffer);
   if (status < 0)
     {
       kernelDebugError("Error filling directory structure");
@@ -3575,9 +3600,9 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	fatData.bpb.fat.biosDriveNum |= 0x80;
       fatData.bpb.fat.bootSig = 0x29;  // Means volume id, label, etc., valid
       fatData.bpb.fat.volumeId = kernelSysTimerRead();
-      strncpy((char *) fatData.bpb.fat.volumeLabel, label, 11);
-      for (count = strlen((char *) fatData.bpb.fat.volumeLabel); count < 11;
-	   count ++)
+      strncpy((char *) fatData.bpb.fat.volumeLabel, label, FAT_8_3_NAME_LEN);
+      for (count = strlen((char *) fatData.bpb.fat.volumeLabel);
+	   count < FAT_8_3_NAME_LEN; count ++)
 	fatData.bpb.fat.volumeLabel[count] = ' ';
     }
   else if (fatData.fsType == fat32)
@@ -3587,9 +3612,9 @@ static int format(kernelDisk *theDisk, const char *type, const char *label,
 	fatData.bpb.fat32.biosDriveNum |= 0x80;
       fatData.bpb.fat32.bootSig = 0x29;  // Means volume id, label, etc., valid
       fatData.bpb.fat32.volumeId = kernelSysTimerRead();
-      strncpy((char *) fatData.bpb.fat32.volumeLabel, label, 11);
-      for (count = strlen((char *) fatData.bpb.fat32.volumeLabel); count < 11;
-	   count ++)
+      strncpy((char *) fatData.bpb.fat32.volumeLabel, label, FAT_8_3_NAME_LEN);
+      for (count = strlen((char *) fatData.bpb.fat32.volumeLabel);
+	   count < FAT_8_3_NAME_LEN; count ++)
 	fatData.bpb.fat32.volumeLabel[count] = ' ';
     }
 

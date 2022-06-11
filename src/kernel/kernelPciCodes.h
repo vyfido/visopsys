@@ -50,7 +50,8 @@ PCI_VENTABLE	PciVenTable [] =
     { 0x0E11, "Compaq", "Compaq Computer Corp." } ,
     { 0x1000, "LSI", "LSI Logic" } ,
     { 0x1001, "KOLTER", "Kolter Electronic - Germany" } ,
-    { 0x1002, "ATI / AMD", "ATI Technologies Inc. / Advanced Micro Devices, Inc." } ,
+    { 0x1002, "ATI / AMD", "ATI Technologies Inc. / Advanced Micro Devices, "
+      "Inc." } ,
     { 0x1003, "ULSI", "ULSI" } ,
     { 0x1004, "VLSI", "VLSI Technology" } ,
     { 0x1006, "Reply", "Reply Group" } ,
@@ -2599,7 +2600,7 @@ PCI_DEVTABLE	PciDevTable [] =
     { 0x8086, 0x7030, "82437VX", "System Controller" } ,
     { 0x8086, 0x7051, "PB 642365-003", "Intel Business Video Conferencing Card" } ,
     { 0x8086, 0x7100, "82439TX", "System Controller (MTXC), part of 430TX chipset" } ,
-    { 0x8086, 0x7110, "82371AB/EB/MB", "PIIX4/4E/4M ISBridgeA " } ,
+    { 0x8086, 0x7110, "82371AB/EB/MB", "PIIX4/4E/4M ISA Bridge" } ,
     { 0x8086, 0x7111, "82371AB/EB/MB", "PIIX4/4E/4M IDE Controller" } ,
     { 0x8086, 0x7112, "82371AB/EB/MB", "PIIX4/4E/4M USB Interface" } ,
     { 0x8086, 0x7113, "82371AB/EB/MB", "PIIX4/4E/4M Power Management Controller" } ,

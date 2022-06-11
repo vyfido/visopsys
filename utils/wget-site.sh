@@ -9,7 +9,7 @@
 # Retrieves the relevant parts of the visopsys.org website that we include
 # in the 'docs' directory.
 
-wget --recursive --page-requisites --html-extension --convert-links --restrict-file-names=windows --reject zip --domains visopsys.org visopsys.org
+wget --recursive --level=99 --page-requisites --html-extension --convert-links --restrict-file-names=windows --reject zip --domains visopsys.org visopsys.org
 
 rm -Rf visopsys.org/forums
 

@@ -87,6 +87,10 @@ static int gifDetect(const char *fileName, void *dataPtr, unsigned size,
 
   #define GIF_MAGIC "GIF"
 
+  // Make sure there's enough data here for our detection
+  if (size < sizeof(GIF_MAGIC))
+    return (0);
+  
   if (binaryDetect(fileName, dataPtr, size, class) &&
       !strncmp(dataPtr, GIF_MAGIC, min(size, 3)))
     {
@@ -111,6 +115,10 @@ static int pngDetect(const char *fileName, void *dataPtr, unsigned size,
 
   unsigned *sig = dataPtr;
 
+  // Make sure there's enough data here for our detection
+  if (size < sizeof(PNG_MAGIC1))
+    return (0);
+  
   if (binaryDetect(fileName, dataPtr, size, class) &&
       (sig[0] == PNG_MAGIC1) && (sig[1] == PNG_MAGIC2))
     {
@@ -131,6 +139,10 @@ static int bootDetect(const char *fileName, void *dataPtr, unsigned size,
 
   unsigned short *sig = (dataPtr + 510);
 
+  // Make sure there's enough data here for our detection
+  if (size < 512)
+    return (0);
+  
   if (binaryDetect(fileName, dataPtr, size, class) && (*sig == 0xAA55))
     {
       sprintf(class->className, "%s %s", FILECLASS_NAME_BOOT,
@@ -150,6 +162,10 @@ static int keymapDetect(const char *fileName, void *dataPtr, unsigned size,
 {
   // Must be binary, and have the magic number KEYMAP_MAGIC at the beginning
 
+  // Make sure there's enough data here for our detection
+  if (size < sizeof(KEYMAP_MAGIC))
+    return (0);
+  
   if (binaryDetect(fileName, dataPtr, size, class) &&
       !strncmp(dataPtr, KEYMAP_MAGIC, min(size, sizeof(KEYMAP_MAGIC))))
     {
@@ -170,6 +186,10 @@ static int pdfDetect(const char *fileName __attribute__((unused)),
 
   #define PDF_MAGIC "%PDF-"
 
+  // Make sure there's enough data here for our detection
+  if (size < sizeof(PDF_MAGIC))
+    return (0);
+  
   if (!strncmp(dataPtr, PDF_MAGIC, min(size, 5)))
     {
       sprintf(class->className, "%s %s", FILECLASS_NAME_PDF,
@@ -192,6 +212,10 @@ static int zipDetect(const char *fileName, void *dataPtr, unsigned size,
 
   unsigned *sig = dataPtr;
 
+  // Make sure there's enough data here for our detection
+  if (size < sizeof(ZIP_MAGIC))
+    return (0);
+  
   if (binaryDetect(fileName, dataPtr, size, class) && (*sig == ZIP_MAGIC))
     {
       sprintf(class->className, "%s %s", FILECLASS_NAME_ZIP,
@@ -214,6 +238,10 @@ static int gzipDetect(const char *fileName, void *dataPtr, unsigned size,
 
   unsigned short *sig = dataPtr;
 
+  // Make sure there's enough data here for our detection
+  if (size < sizeof(GZIP_MAGIC))
+    return (0);
+  
   if (binaryDetect(fileName, dataPtr, size, class) && (*sig == GZIP_MAGIC))
     {
       sprintf(class->className, "%s %s", FILECLASS_NAME_GZIP,
@@ -234,6 +262,10 @@ static int arDetect(const char *fileName, void *dataPtr, unsigned size,
 
   #define AR_MAGIC "!<arch>\n"
 
+  // Make sure there's enough data here for our detection
+  if (size < sizeof(AR_MAGIC))
+    return (0);
+  
   if (binaryDetect(fileName, dataPtr, size, class) &&
       !strncmp(dataPtr, AR_MAGIC, min(size, 8)))
     {
@@ -260,9 +292,13 @@ static int pcfDetect(const char *fileName, void *dataPtr, unsigned size,
   #define PCF_MAGIC 0x70636601 // ("pcf" 0x01)
 
   // Check params
-  if ((fileName == NULL) || (dataPtr == NULL) || !size || (class == NULL))
+  if ((fileName == NULL) || (dataPtr == NULL) || (class == NULL))
     return (0);
 
+  // Make sure there's enough data here for our detection
+  if (size < sizeof(PCF_MAGIC))
+    return (0);
+  
   // See whether this file claims to be a PCF file.  Must have the signature
   // 'pcf1' at the beginning
   if (*((unsigned *) dataPtr) == PCF_MAGIC)
@@ -287,9 +323,13 @@ static int messageDetect(const char *fileName, void *dataPtr, unsigned size,
   #define MO_MAGIC 0x950412DE
 
   // Check params
-  if ((fileName == NULL) || (dataPtr == NULL) || !size || (class == NULL))
+  if ((fileName == NULL) || (dataPtr == NULL) || (class == NULL))
     return (0);
 
+  // Make sure there's enough data here for our detection
+  if (size < sizeof(MO_MAGIC))
+    return (0);
+  
   // See whether this file claims to be an MO file.
   if (*((unsigned *) dataPtr) == MO_MAGIC)
     {
@@ -316,6 +356,7 @@ static int configDetect(const char *fileName, void *data, unsigned size,
   int haveEquals = 0;
   unsigned count;
 
+  // This call will check params
   if (!textDetect(fileName, dataPtr, size, class))
     return (0);
 
@@ -383,9 +424,14 @@ static int htmlDetect(const char *fileName, void *dataPtr, unsigned size,
   #define HTML_MAGIC1 "<html>"
   #define HTML_MAGIC2 "<!doctype html"
 
+  // This call will check params
   if (!textDetect(fileName, dataPtr, size, class))
     return (0);
 
+  // Make sure there's enough data here for our detection
+  if (size < min(sizeof(HTML_MAGIC1), sizeof(HTML_MAGIC2)))
+    return (0);
+  
   if (!strncasecmp(dataPtr, HTML_MAGIC1, min(size, 6)) ||
       !strncasecmp(dataPtr, HTML_MAGIC2, min(size, 14)))
     {

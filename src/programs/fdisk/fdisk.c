@@ -67,7 +67,6 @@ functionality of PartitionMagic and similar utilities.
 #include <sys/ascii.h>
 #include <sys/fat.h>
 #include <sys/font.h>
-#include <sys/ntfs.h>
 #include <sys/vsh.h>
 
 #define _(string) gettext(string)
@@ -93,6 +92,9 @@ static textScreen screen;
 static char *tmpBackupName = NULL;
 static char sliceListHeader[SLICESTRING_LENGTH + 1];
 static listItemParameters *diskListParams = NULL;
+static int (*ntfsGetResizeConstraints)(const char *, uquad_t *, uquad_t *,
+				       progress *);
+static int (*ntfsResize)(const char *, uquad_t, progress *);
 static ioThreadArgs readerArgs;
 static ioThreadArgs writerArgs;
 static int ioThreadsTerminate = 0;
@@ -515,7 +517,8 @@ static int isSliceUsed(partitionTable *t, int sliceNum)
     }
   else if (t->label->flags & LABELFLAG_USEGUIDS)
     {
-      if (memcmp(&t->slices[sliceNum].raw.typeGuid, &GUID_BLANK, sizeof(guid)))
+      if (memcmp(&t->slices[sliceNum].raw.typeGuid, &GUID_UNUSED,
+		 sizeof(guid)))
 	return (1);
       else
 	return (0);
@@ -3210,12 +3213,13 @@ static int resize(int sliceNumber)
   windowDrawParameters drawParams;
   windowEvent event;
   unsigned newSize = 0;
-  objectKey bannerDialog = NULL;
+  progress prog;
+  objectKey progressDialog = NULL;
   char tmpChar[256];
 
   // Determine whether or not we can resize the filesystem
   if ((table->slices[sliceNumber].opFlags & FS_OP_RESIZE) ||
-      (!strcmp(table->slices[sliceNumber].fsType, "ntfs")))
+      (!strcmp(table->slices[sliceNumber].fsType, "ntfs") && ntfsResize))
     {
       // We can resize this filesystem.
       resizeFs = 1;
@@ -3258,29 +3262,36 @@ static int resize(int sliceNumber)
 	      return (status = 0);
 	    }
 
-	  if ((table->slices[sliceNumber].opFlags & FS_OP_RESIZECONST)
-	      /* || !strcmp(table->slices[sliceNumber].fsType, "ntfs") */)
+	  if ((table->slices[sliceNumber].opFlags & FS_OP_RESIZECONST) ||
+	      (!strcmp(table->slices[sliceNumber].fsType, "ntfs") &&
+	       ntfsGetResizeConstraints))
 	    {
 	      strcpy(tmpChar, _("Collecting filesystem resizing "
 				"constraints..."));
+	      bzero((void *) &prog, sizeof(progress));
 	      if (graphics)
-		bannerDialog = windowNewBannerDialog(window, _("Filesystem"),
-						     tmpChar);
+		progressDialog =
+		  windowNewProgressDialog(window, tmpChar, &prog);
 	      else
-		printf("\n%s\n\n", tmpChar);
+		{
+		  printf("\n%s\n\n", tmpChar);
+		  vshProgressBar(&prog);
+		}
 
 	      if (table->slices[sliceNumber].opFlags & FS_OP_RESIZECONST)
 		status = filesystemResizeConstraints(table->slices[sliceNumber]
 						     .diskName, &minFsSectors,
-						     &maxFsSectors);
+						     &maxFsSectors, &prog);
 
 	      else if (!strcmp(table->slices[sliceNumber].fsType, "ntfs"))
 		status = ntfsGetResizeConstraints(table->slices[sliceNumber]
 						  .diskName, &minFsSectors,
-						  &maxFsSectors);
+						  &maxFsSectors, &prog);
 
-	      if (graphics && bannerDialog)
-		windowDestroy(bannerDialog);
+	      if (graphics && progressDialog)
+		windowProgressDialogDestroy(progressDialog);
+	      else
+		vshProgressBarDestroy(&prog);
 
 	      if (status < 0)
 		{
@@ -5678,6 +5689,7 @@ int main(int argc, char *argv[])
   char *language = "";
   char opt;
   int clearLabel = 0;
+  void *handle = NULL;
   char tmpChar[80];
   int count;
 
@@ -5755,6 +5767,14 @@ int main(int argc, char *argv[])
       // There are no fixed disks
       error("%s", _("No fixed disks to manage.  Quitting."));
       quit(status, 1);
+    }
+
+  // See whether the NTFS resizing library is available
+  handle = dlopen("libntfs.so", 0);
+  if (handle)
+    {
+      ntfsGetResizeConstraints = dlsym(handle, "ntfsGetResizeConstraints");
+      ntfsResize = dlsym(handle, "ntfsResize");
     }
 
   makeSliceListHeader();

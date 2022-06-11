@@ -129,7 +129,7 @@ typedef struct _kernelDynamicLibrary {
 // Functions exported by kernelLoader.c
 void *kernelLoaderLoad(const char *, file *);
 kernelFileClass *kernelLoaderGetFileClass(const char *);
-kernelFileClass *kernelLoaderClassify(const char *, void *, int,
+kernelFileClass *kernelLoaderClassify(const char *, void *, unsigned,
 				      loaderFileClass *);
 kernelFileClass *kernelLoaderClassifyFile(const char *, loaderFileClass *);
 loaderSymbolTable *kernelLoaderGetSymbols(const char *);

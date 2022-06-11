@@ -25,10 +25,16 @@ endif
 STDDEPS		= ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h ${LIBDIR}/crt0.o
 INCLUDE         = -nostdinc -I${INCDIR} -I${INCDIR}/c++
-CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEFLANG}
+DEBUG		= # -DDEBUG # Uncomment to turn on debugging
+CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG} \
+		${DEFLANG}
 C++FLAGS	= ${OPT} ${ARCH} ${C++CODEGEN} ${C++WARN} ${INCLUDE}
 LFLAGS		= -L${LIBDIR} -nostdlib \
 		-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
+
+ifeq (${DEBUG},)
+	STRIP = strip -s ${COBJS} ${C++OBJS}
+endif 
 
 CNAMES	= adduser \
 	bootmenu \
@@ -124,7 +130,7 @@ ${BUILDDIR}/%: %.cpp ${STDDEPS}
 	${CC++} ${C++FLAGS} -nostartfiles ${LFLAGS} $< -lstdc++ -lc -lgcc -o $@
 
 strip: ${COBJS} ${C++OBJS}
-	strip -s ${COBJS} ${C++OBJS}
+	${STRIP}
 
 messages: ${OBJS}
 	${MAKEMSGS}

@@ -166,7 +166,7 @@ typedef struct {
 
 // Functions in libntfs
 int ntfsFormat(const char *, const char *, int, progress *);
-int ntfsGetResizeConstraints(const char *, uquad_t *, uquad_t *);
+int ntfsGetResizeConstraints(const char *, uquad_t *, uquad_t *, progress *);
 int ntfsResize(const char *, uquad_t, progress *);
 
 #define _NTFS_H

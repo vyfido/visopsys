@@ -29,6 +29,7 @@
 	EXTERN loaderPrint
 	EXTERN loaderPrintNumber
 	EXTERN loaderPrintNewline
+	EXTERN BOOTSECTSIG
 	EXTERN PARTENTRY
 	EXTERN HARDWAREINFO
 	EXTERN KERNELGMODE
@@ -60,7 +61,7 @@
 	%include "loader.h"
 
 	
-loaderMain:	
+loaderMain:
 	;; This is the main OS loader driver code.  It calls a number
 	;; of other routines for the puposes of detecting hardware,
 	;; loading the kernel, etc.  After everything else is done, it
@@ -88,6 +89,9 @@ loaderMain:
 	xor DH, DH
 	mov word [DRIVENUMBER], DX
 
+	;; It should also have put the boot sector signature in EBX
+	mov dword [BOOTSECTSIG], EBX
+
 	;; If we are not booting from a floppy, then the boot sector code
 	;; should have put a pointer to the MBR record for this partition
 	;; in SI.  Copy the partition entry.
@@ -101,8 +105,8 @@ loaderMain:
 	cld
 	rep movsb
 	pop DS
-	.notHDD:
 
+	.notHDD:
 	;; Set the text display to a good mode, clearing the screen
 	push word 0
 	call loaderSetTextDisplay
@@ -860,11 +864,9 @@ loaderMemSet:
 ;;
 	
 KERNELSIZE	dd 0
-;; This records the number of fatal errors recorded
 PRINTINFO	dw 0	;; Show hardware information messages?
 FATALERROR	db 0 	;; Fatal error encountered?
 
-	
 ;;
 ;; Info about our boot device and filesystem.
 ;;
@@ -884,7 +886,6 @@ SECPERCLUST	dw 0
 FATS		dw 0
 DRIVENUMBER	dw 0
 	
-
 ;;
 ;; Tables, desciptors, etc., used for protected mode
 ;;
@@ -946,7 +947,7 @@ TMPGDT:
 
 HAPPY		db 01h, ' ', 0
 BLANK		db '               ', 10h, ' ', 0
-LOADMSG1	db 'Visopsys OS Loader v0.7' , 0
+LOADMSG1	db 'Visopsys OS Loader v0.71' , 0
 LOADMSG2	db 'Copyright (C) 1998-2011 J. Andrew McLaughlin', 0
 BOOTDEV1	db 'Boot device  ', 10h, ' ', 0
 BOOTFLOPPY	db 'fd', 0

@@ -27,10 +27,7 @@
 #define PCI_CONFIG_PORT              0x0CF8
 #define PCI_DATA_PORT                0x0CFC
 
-// The true maximum value is 255, but searching all buses slows the starting
-// process down, and there won't be many people with more than 10 PCI buses
-// (none thatI can think of)
-#define PCI_MAX_BUSES                10
+#define PCI_MAX_BUSES                255
 #define PCI_MAX_DEVICES              32
 #define PCI_MAX_FUNCTIONS            8
 #define PCI_CONFIGHEADER_SIZE        64

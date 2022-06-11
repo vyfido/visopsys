@@ -231,7 +231,8 @@ static int print(kernelTextArea *area, const char *string, textAttrs *attrs)
   unsigned char *bufferAddress = NULL;
   unsigned char *visibleAddress = NULL;
   int length = 0;
-  int count;
+  int tabChars = 0;
+  int count1, count2;
 
   // See whether we're printing with special attributes
   if (attrs)
@@ -272,19 +273,33 @@ static int print(kernelTextArea *area, const char *string, textAttrs *attrs)
 
   // Loop through the string, putting one byte into every even-numbered
   // screen address.  Put the color byte into every odd address
-  for (count = 0; count < length; count ++)
+  for (count1 = 0; count1 < length; count1 ++)
     {
-      if (string[count] != '\n')
+      if ((string[count1] != '\t') && (string[count1] != '\n'))
 	{
-	  *(bufferAddress++) = string[count];
-	  *(visibleAddress++) = string[count];
+	  *(bufferAddress++) = string[count1];
+	  *(visibleAddress++) = string[count1];
 	  *(bufferAddress++) = pcColor;
 	  *(visibleAddress++) = pcColor;
 	  area->cursorColumn += 1;
 	}
 
-      // Newline?
-      if ((string[count] == '\n') || (area->cursorColumn >= area->columns))
+      if (string[count1] == '\t')
+	{
+	  tabChars =
+	    (TEXT_DEFAULT_TAB - (area->cursorColumn % TEXT_DEFAULT_TAB));
+	  for (count2 = 0; count2 < tabChars; count2 ++)
+	    {
+	      *(bufferAddress++) = ' ';
+	      *(visibleAddress++) = ' ';
+	      *(bufferAddress++) = pcColor;
+	      *(visibleAddress++) = pcColor;
+	      area->cursorColumn += 1;
+	    }
+	}
+
+      // Newline, or otherwise scrolling?
+      if ((string[count1] == '\n') || (area->cursorColumn >= area->columns))
 	{
 	  // Will this cause a scroll?
 	  if (area->cursorRow >= (area->rows - 1))

@@ -261,9 +261,13 @@ typedef volatile struct {
   usbDevQualDesc devQualDesc;
   usbConfigDesc *configDesc;
   usbInterDesc *interDesc[USB_MAX_INTERFACES];
+  usbEndpointDesc endpoint0Desc;
   usbEndpointDesc *endpointDesc[USB_MAX_ENDPOINTS];
   int numEndpoints;
-  char dataToggle[USB_MAX_ENDPOINTS];
+  struct {
+    unsigned char endpntAddress;
+    unsigned char toggle;
+  } dataToggle[USB_MAX_ENDPOINTS];
   void *data;
 
 } usbDevice;
@@ -282,7 +286,7 @@ typedef struct {
 
 typedef volatile struct _usbHub {
   volatile struct _usbController *controller;
-  int target;
+  kernelBusTarget *busTarget;
   kernelDevice dev;
   usbDevice *usbDev;
   usbHubDesc hubDesc;
@@ -293,15 +297,16 @@ typedef volatile struct _usbHub {
   kernelLinkedList devices;
 
   // Functions for managing the hub
-  void (*threadCall) (volatile struct _usbHub *);
+  void (*detectDevices)(volatile struct _usbHub *);
+  void (*threadCall)(volatile struct _usbHub *);
 
 } usbHub;
 
 typedef volatile struct _usbController {
+  kernelBus *bus;
   kernelDevice *device;
   unsigned char num;
   unsigned short usbVersion;
-  void *ioAddress;
   int interruptNum;
   unsigned char addressCounter;
   usbHub hub;
@@ -309,10 +314,10 @@ typedef volatile struct _usbController {
   void *data;
 
   // Functions provided by the specific USB root hub driver
-  void (*reset) (volatile struct _usbController *);
+  void (*reset)(volatile struct _usbController *);
   int (*interrupt)(volatile struct _usbController *);
-  int (*queue) (volatile struct _usbController *, usbDevice *,
-		usbTransaction *, int);
+  int (*queue)(volatile struct _usbController *, usbDevice *,
+	       usbTransaction *, int);
   int (*schedInterrupt)(volatile struct _usbController *, usbDevice *,
 			unsigned char, int, unsigned,
 			void (*)(usbDevice *, void *, unsigned));
@@ -371,9 +376,11 @@ int kernelUsbShutdown(void);
 usbClass *kernelUsbGetClass(int);
 usbSubClass *kernelUsbGetSubClass(usbClass *, int, int);
 int kernelUsbGetClassName(int, int, int, char **, char **);
-int kernelUsbDevConnect(usbController *, usbHub *, int, int);
+void kernelUsbAddHub(usbHub *);
+int kernelUsbDevConnect(usbController *, usbHub *, int, int, int);
 void kernelUsbDevDisconnect(usbController *, usbHub *, int);
 usbDevice *kernelUsbGetDevice(int);
+usbEndpointDesc *kernelUsbGetEndpointDesc(usbDevice *, unsigned char);
 int kernelUsbControlTransfer(usbDevice *, unsigned char, unsigned short,
 			     unsigned short, unsigned short, void *,
 			     unsigned *);
@@ -382,12 +389,9 @@ int kernelUsbScheduleInterrupt(usbDevice *, unsigned char, int, unsigned,
 int kernelUsbUnscheduleInterrupt(usbDevice *);
 
 // Detection routines for different driver types
-kernelDevice *kernelUsbUhciDetect(kernelDevice *, kernelBusTarget *,
-				  kernelDriver *);
-kernelDevice *kernelUsbOhciDetect(kernelDevice *, kernelBusTarget *,
-				  kernelDriver *);
-kernelDevice *kernelUsbEhciDetect(kernelDevice *, kernelBusTarget *,
-				  kernelDriver *);
+kernelDevice *kernelUsbUhciDetect(kernelBusTarget *, kernelDriver *);
+kernelDevice *kernelUsbOhciDetect(kernelBusTarget *, kernelDriver *);
+kernelDevice *kernelUsbEhciDetect(kernelBusTarget *, kernelDriver *);
 
 #define _KERNELUSBDRIVER_H
 #endif

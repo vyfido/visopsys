@@ -36,10 +36,15 @@ CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} -DKERNEL \
 LFLAGS		= -L${LIBDIR} -nostdlib -static \
 		-Wl,-warn-common,-X,--oformat,elf32-i386,-e,kernelMain,-Ttext,0xC0000000
 
+ifeq (${DEBUG},)
+	STRIP = strip -s ${KERNEL}
+endif 
+
 # kernelMain needs to go first
 NAMES =	kernelMain \
 	kernelApi \
 	kernelBus \
+	kernelCpu \
 	kernelDebug \
 	kernelDescriptor \
 	kernelDevice \
@@ -86,6 +91,7 @@ NAMES =	kernelMain \
 	kernelNetworkStream \
 	kernelPage \
 	kernelPic \
+	kernelPower \
 	kernelRandom \
 	kernelRtc \
 	kernelShutdown \
@@ -122,7 +128,8 @@ NAMES =	kernelMain \
 	kernelWindowTextLabel \
 	kernelWindowTitleBar
 
-DRIVERNAMES = kernelDmaDriver \
+DRIVERNAMES = kernelAcpiDriver \
+	kernelDmaDriver \
 	kernelFloppyDriver \
 	kernelFramebufferGraphicDriver \
 	kernelGraphicConsoleDriver \
@@ -150,7 +157,6 @@ ALLNAMES = ${NAMES} ${DRIVERNAMES} ${PLUSNAMES}
 
 OBJS = $(addprefix obj/, $(addsuffix .o, ${ALLNAMES}))
 KERNEL = ${BUILDDIR}/visopsys
-SYMBOLS = ${BUILDDIR}/system/kernelSymbols.txt
 
 # Targets
 
@@ -163,16 +169,15 @@ target-dirs:
 
 ${KERNEL}: ${OBJS}
 	${CC} ${CFLAGS} ${LFLAGS} ${OBJS} -lc -lgcc -o $@
-	${UTILSDIR}/kernel-symbols.sh ${KERNEL} ${SYMBOLS}
 
 strip: ${KERNEL}
-	strip -s ${KERNEL}
+	${STRIP}
 
 obj/%.o: %.c ${STDDEPS}
 	${CC} ${CFLAGS} -c $< -o $@
 
 clean:
-	rm -Rf *~ *.o core obj ${KERNEL} ${SYMBOLS}
+	rm -Rf *~ *.o core obj ${KERNEL}
 	${MAKELANGCLEAN}
 
 # Object files with explicit rules

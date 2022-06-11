@@ -48,7 +48,6 @@ typedef volatile struct {
 } __attribute__((packed)) ahciPort;
 
 typedef volatile struct {
-
   // Generic host control
   unsigned caps;
   unsigned ghc;

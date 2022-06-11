@@ -85,7 +85,10 @@ static void setLabel(kernelWindowIcon *icon, const char *label,
 
   // Try splitting the string at labelSplit
   strncpy((char *) icon->label[0], label, labelSplit);
-  icon->label[0][labelSplit] = '\0';
+  if (label[labelSplit] == ' ')
+    icon->label[0][labelSplit] = '\0';
+  else
+    icon->label[0][labelSplit + 1] = '\0';
   strncpy((char *) icon->label[1], (label + labelSplit + 1),
 	  (labelLen - (labelSplit + 1)));
   icon->label[1][labelLen - labelSplit] = '\0';

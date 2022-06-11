@@ -41,7 +41,7 @@ int printf(const char *format, ...)
   // Initialize the argument list
   va_start(list, format);
 
-  // Fill out the output line based on 
+  // Fill out the output line
   len = _xpndfmt(output, MAXSTRINGLENGTH, format, list);
 
   va_end(list);

@@ -40,8 +40,138 @@
 
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" width="700">
     <tr>
-      <td>VERSION 0.7<br>
-      16/02/2011<p>Overview: More than four years in the making, this is a major
+      <td>VERSION 0.71<br>
+      28/10/2011<p>Overview: <span LANG="EN-GB"><font SIZE="3">The bulk of this 
+      release consists of general bug fixes, and improvements to hardware 
+      detection and device drivers, with particular focus on USB. New features 
+      include the ability to boot from a USB device (a new USB image is 
+      available for download) and the ability to power down the system.</font></span></p>
+      <span LANG="EN-GB"><font SIZE="3">
+      <ul>
+        <li>Implemented USB booting.</li>
+        <li>Added a USB blank-image file and a script for installing into it.</li>
+        <li>Improved detection of USB devices by always separating hotplug 
+        behaviour from coldplug detection at boot time.</li>
+        <li>USB 2.0 (EHCI) controllers are detected and disabled (reset) so that 
+        they don't interfere with access to the legacy USB 1.1 UHCI ports.</li>
+        <li>Search all 255 possible PCI buses, not just the first 10. It's 
+        slower to search them all, but some devices have been seen to reside on 
+        e.g. the 17th bus.</li>
+        <li>Improved recognition of PCI device classes and subclasses.</li>
+        <li>Added support for multiple buses of any type (such as PCI and USB)</li>
+        <li>Implemented a partial ACPI power management driver, so that the 
+        shutdown command can power off the system.</li>
+        <li>Added a kernelCpu module to contain the old driver detection code 
+        and some new functions for using the CPU timestamp counter.</li>
+        <li>CPU timestamp frequency is now measured from within the real time 
+        clock initialization.</li>
+        <li>The malloc() memory management code has been changed to a best-fit 
+        allocation strategy, in order to reduce memory fragmentation and improve 
+        heap memory usage. In addition, the memory block list has been separated 
+        into 'used' and 'free' lists for faster searches.</li>
+        <li>Updated GPT GUIDs for partition types, and moved the definitions and 
+        descriptions into the header file src/include/sys/guid.h</li>
+        <li>The boot menu installer now shows a warning that Windows 7 (and 
+        maybe Vista) will require the installation CD, in order to 'repair' its 
+        boot configuration.</li>
+        <li>The OS loader now passes a boot sector 'signature' found on the boot 
+        device (such as in the MBR) to the kernel in order to help the kernel 
+        figure out for itself which device it should mount as the root 
+        filesystem.</li>
+        <li>We now mark the logical disks of non-partitioned physical disks as 
+        being 'primary' partitions.</li>
+        <li>Implemented an advisory bus target 'claiming' system, so that 
+        multiple drivers won't attempt to control a device (such as the IDE 
+        driver trying to operate a supported SATA controller in legacy mode).</li>
+        <li>The kernel's symbols are now read from the ELF file itself, and not 
+        from the kernelSymbols.txt file, which has been obsoleted.</li>
+        <li>Moved general ATA definitions (i.e. those common to PATA, SATA, etc) 
+        into a new kernelAtaDriver.h file.</li>
+        <li>Moved the UHCI getEndpointDesc() function into the general USB 
+        driver as kernelUsbGetEndpointDesc(), and fixed the UHCI global reset 
+        timing so that it's closer to being exactly 100ms.</li>
+        <li>Added a PCI subclass for SD controllers</li>
+        <li>The kernel's linked list iteration has been changed so that it 
+        allows simultaneous read-only iteration through the list (not 
+        thread-safe per se, but multithread-able).</li>
+        <li>Added DEBUG flags to the src/programs Makefiles</li>
+        <li>Improved the OS loader, so that it searches for the code and data 
+        segments in the kernel's ELF executable, rather than assuming that 
+        they're the first and second segments, respectively. Kernels built under 
+        Ubuntu, for example, have additional segments.</li>
+        <li>The kernel's disk management code now recycles disk numbers, so that 
+        for example, inserting a USB stick which gets named sd0, then removing 
+        it and reinserting, doesn't result in the disk being named sd1</li>
+        <li>Modified the install script to use the install files in the build 
+        area, and ignore comment lines that start with '#'</li>
+        <li>Reformatted the output of the disks command.</li>
+        <li>The kernel's kernelPageMap(), kernelPageMapToFree(), and 
+        kernelPageUnmap() functions will now accept non-page-aligned physical 
+        and virtual addresses, and adjust requests accordingly for use by the 
+        internal map() and unmap() functions.</li>
+        <li>The kernel's memory allocation code now makes proper use of the BIOS 
+        memory map passed in by the OS loader</li>
+        <li>The EXT 2/3 driver can now mount filesystems with variable-sized 
+        inode structures.</li>
+        <li>The mouse abstraction layer now has a default, simple pointer built 
+        in, that it can draw manually into an image, in the case where the mouse 
+        pointer image files are missing.</li>
+        <li>The filesystem 'resize constraints' call (such as to the kernel or 
+        NTFS) now passes a 'progress' parameter just like a real resize, so that 
+        error messages, etc., can be presented to the user.</li>
+        <li>Implemented libdl.so functionality, providing functions such as 
+        dlfcn.h, dlopen(), dlerror(), dlsym(), and dlclose().</li>
+        <li>Fixed: USB endpoint enumeration no longer discards the 0x80 bit of 
+        the endpoint address, since some devices require it in order for the 
+        endpoint address to be unique.</li>
+        <li>Fixed: A number of USB sticks would fail to enumerate, because port 
+        reset timings/logic were not technically correct.</li>
+        <li>Fixed: Pulling a USB stick that hadn't been successfully configured 
+        by the SCSI USB code would cause the USB thread to page fault in 
+        kernelDeviceHotplug().</li>
+        <li>Fixed: An EXT 2/3 symbolic link was showing up as an empty icon in 
+        the file browser.</li>
+        <li>Fixed: FAT volume label entries stored in the root directory were 
+        not being re-created when the directories were written.</li>
+        <li>Fixed: The kernel's GPT partition table code was not correctly 
+        reading partition table entries; it was failing to correctly calculate 
+        the buffer size and number of sectors of the entries.</li>
+        <li>Fixed: The Disk Manager program was incorrectly calculating the 
+        ending sector of entries in GPT partition tables.</li>
+        <li>Fixes and improvements to the kernel's file stream functions, and to 
+        the C library fflush(), fread(), fwrite(), and fseek() functions.</li>
+        <li>Fixed: Incorrect kernel API parameter definitions for the 
+        kernelCrc32() (userspace crc32()) function to allow a NULL 3rd 
+        parameter.</li>
+        <li>Fixed: The kernel's CRC-32 code was not correctly calculating 
+        checksums when an initial/carried-over CRC checksum was supplied.</li>
+        <li>Fixed: All of the kernel loader's file detection/classification 
+        routines now check for adequate file data length before examining 
+        various offsets in the data.</li>
+        <li>Fixed: The Bresenham line drawing algorithm in the kernel's 
+        framebuffer graphic drover was incorrect/incomplete for diagonal lines 
+        going from upper-left to lower-right.</li>
+        <li>Fixed: The kernel's random number generator was outputting many more 
+        even numbers than odd numbers. Out of 1 million calls, the ratios of 
+        even:odd were more than 4:1.</li>
+        <li>Fixed: When using the built-in system font, the code that wraps the 
+        icon text could discard a letter.</li>
+        <li>Fixed: Printing TAB characters with '\t' in printf() was not 
+        working.</li>
+        <li>Fixed: When doing a screenshot, the &quot;saving...&quot; dialog could appear 
+        in the screenshot. The dialog was being created before capturing the 
+        screen data.</li>
+        <li>Fixed: ISOs compiled/created under Ubuntu 10.10 did not start 
+        successfully; the system crashed during kernel initialization.</li>
+        <li>Fixed: Some small compilation errors and an install.sh script bug 
+        when building under Ubuntu 10.4</font></span><br>
+&nbsp;</li>
+      </ul>
+<hr>
+
+      <p>VERSION 0.7<br>
+      16/02/2011</p>
+      <p>Overview: More than four years in the making, this is a major
       
       new release offering an updated look and a number of new
   features, including JPEG image support, image resizing, 64-bit disk

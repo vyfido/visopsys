@@ -33,25 +33,9 @@
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelProcessorX86.h"
+#include "kernelVariableList.h"
 #include <stdio.h>
 #include <string.h>
-
-
-static struct {
-  char *string;
-  char *vendor;
-} cpuVendorIds[] = {
-  { "GenuineIntel", "Intel" },
-  { "UMC UMC UMC ", "United Microelectronics" },
-  { "AuthenticAMD", "AMD" },
-  { "AMD ISBETTER", "AMD" },
-  { "CyrixInstead", "Cyrix" },
-  { "NexGenDriven", "NexGen" },
-  { "CentaurHauls", "IDT/Centaur/VIA" },
-  { "RiseRiseRise", "Rise" },
-  { "GenuineTMx86", "Transmeta" },
-  { NULL, NULL }
-};
 
 
 static kernelDevice *regDevice(void *parent, void *driver,
@@ -80,121 +64,6 @@ static kernelDevice *regDevice(void *parent, void *driver,
     }
 
   return (dev);
-}
-
-
-static int driverDetectCpu(void *parent, kernelDriver *driver)
-{
-  int status = 0;
-  unsigned cpuIdLimit = 0;
-  char vendorString[13];
-  unsigned rega = 0, regb = 0, regc = 0, regd = 0;
-  kernelDevice *dev = NULL;
-  char variable[80];
-  char value[80];
-  unsigned count;
-
-  dev = regDevice(parent, driver, kernelDeviceGetClass(DEVICECLASS_CPU),
-		  kernelDeviceGetClass(DEVICESUBCLASS_CPU_X86));
-  if (dev == NULL)
-    return (status = ERR_NOCREATE);
-
-  // Initialize the variable list for attributes of the CPU
-  status = kernelVariableListCreate(&dev->device.attrs);
-  if (status < 0)
-    return (status);
-
-  // Try to identify the CPU
-
-  // The initial call gives us the vendor string and tells us how many other
-  // functions are supported
-
-  kernelProcessorId(0, rega, regb, regc, regd);
-
-  cpuIdLimit = (rega & 0x7FFFFFFF);
-  ((unsigned *) vendorString)[0] = regb;
-  ((unsigned *) vendorString)[1] = regd;
-  ((unsigned *) vendorString)[2] = regc;
-  vendorString[12] = '\0';
-
-  // Try to identify the chip vendor by name
-  kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR,
-			"unknown");
-  for (count = 0; cpuVendorIds[count].string; count ++)
-    {
-      if (!strncmp(vendorString, cpuVendorIds[count].string, 12))
-	{
-	  kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR,
-				cpuVendorIds[count].vendor);
-	  break;
-	}
-    }
-  kernelVariableListSet(&dev->device.attrs, "vendor.string", vendorString);
-
-  // Do additional supported functions
-
-  // If supported, the second call gives us a bunch of binary flags telling
-  // us about the capabilities of the chip
-  if (cpuIdLimit >= 1)
-    {
-      kernelProcessorId(1, rega, regb, regc, regd);
-
-      // CPU type
-      sprintf(variable, "%s.%s", "cpu", "type");
-      sprintf(value, "%02x", ((rega & 0xF000) >> 12));
-      kernelVariableListSet(&dev->device.attrs, variable, value);
-
-      // CPU family
-      sprintf(variable, "%s.%s", "cpu", "family");
-      sprintf(value, "%02x", ((rega & 0xF00) >> 8));
-      kernelVariableListSet(&dev->device.attrs, variable, value);
-
-      // CPU model
-      sprintf(variable, "%s.%s", "cpu", "model");
-      sprintf(value, "%02x", ((rega & 0xF0) >> 4));
-      kernelVariableListSet(&dev->device.attrs, variable, value);
-
-      // CPU revision
-      sprintf(variable, "%s.%s", "cpu", "rev");
-      sprintf(value, "%02x", (rega & 0xF));
-      kernelVariableListSet(&dev->device.attrs, variable, value);
-
-      // CPU features
-      sprintf(variable, "%s.%s", "cpu", "features");
-      sprintf(value, "%08x", regd);
-      kernelVariableListSet(&dev->device.attrs, variable, value);
-    }
-
-  // See if there's extended CPUID info
-  kernelProcessorId(0x80000000, cpuIdLimit, regb, regc, regd);
-
-  if (cpuIdLimit & 0x80000000)
-    {     
-      if (cpuIdLimit >= 0x80000004)
-	{
-	  // Get the product string
-	  kernelProcessorId(0x80000002, rega, regb, regc, regd);
-	  ((unsigned *) value)[0] = rega;
-	  ((unsigned *) value)[1] = regb;
-	  ((unsigned *) value)[2] = regc;
-	  ((unsigned *) value)[3] = regd;
-	  kernelProcessorId(0x80000003, rega, regb, regc, regd);
-	  ((unsigned *) value)[4] = rega;
-	  ((unsigned *) value)[5] = regb;
-	  ((unsigned *) value)[6] = regc;
-	  ((unsigned *) value)[7] = regd;
-	  kernelProcessorId(0x80000004, rega, regb, regc, regd);
-	  ((unsigned *) value)[8] = rega;
-	  ((unsigned *) value)[9] = regb;
-	  ((unsigned *) value)[10] = regc;
-	  ((unsigned *) value)[11] = regd;
-	  value[48] = '\0';
-	  kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_MODEL,
-				value);
-	}
-    }
-
-  return (status = 0);
 }
 
 
@@ -236,10 +105,11 @@ static int driverDetectBios(void *parent, kernelDriver *driver)
   if (status < 0)
     return (status = 0);
 
-  for (ptr = biosArea ; ptr < (char *) (biosArea + BIOSAREA_SIZE);
+  for (ptr = biosArea ;
+       ptr <= (char *) (biosArea + BIOSAREA_SIZE - sizeof(kernelBiosHeader));
        ptr += sizeof(kernelBiosHeader))
     {
-      if (!strncmp(ptr, BIOSAREA_SIG, 4))
+      if (!strncmp(ptr, BIOSAREA_SIG32, strlen(BIOSAREA_SIG32)))
 	{
 	  dataStruct = (kernelBiosHeader *) ptr;
 	  break;
@@ -249,11 +119,14 @@ static int driverDetectBios(void *parent, kernelDriver *driver)
   if (!dataStruct)
     goto out;
 
-  // Check the checksum
+  // Check the checksum (signed chars, should sum to zero)
   for (count = 0; count < (int) sizeof(kernelBiosHeader); count ++)
     checkSum += ptr[count];
   if (checkSum)
-    kernelLog("32-bit BIOS checksum failed (%d)", checkSum);
+    {
+      kernelLog("32-bit BIOS checksum failed (%d)", checkSum);
+      goto out;
+    }
 
   kernelLog("32-bit BIOS found at %p, entry point %p",
 	    (void *)(BIOSAREA_START + ((void *) dataStruct - biosArea)),
@@ -293,14 +166,6 @@ static int driverDetectBios(void *parent, kernelDriver *driver)
 //
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
-
-void kernelCpuDriverRegister(kernelDriver *driver)
-{
-  // Device driver registration.
-  driver->driverDetect = driverDetectCpu;
-  return;
-}
 
 
 void kernelMemoryDriverRegister(kernelDriver *driver)

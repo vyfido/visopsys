@@ -199,12 +199,57 @@ static void *load(const char *filename, file *theFile, int kernel)
 }
 
 
+static int sortSymbols(loaderSymbolTable *table)
+{
+  int status = 0;
+  loaderSymbolTable *tempTable = NULL;
+  void *smallestValue = NULL;
+  int smallestPosition = 0;
+  int count1, count2;
+
+  // Allocate memory for a temporary table
+  tempTable = kernelMalloc(table->tableSize);
+  if (!tempTable)
+    return (status = ERR_MEMORY);
+
+  // Loop through our temporary table and fill it with the symbols sorted
+  // by value.
+  for (count1 = 0; count1 < table->numSymbols; count1 ++)
+    {
+      smallestValue = NULL;
+      for (count2 = 0; count2 < table->numSymbols; count2 ++)
+	if (table->symbols[count2].value &&
+	    (!smallestValue || (table->symbols[count2].value < smallestValue)))
+	  {
+	    smallestValue = table->symbols[count2].value;
+	    smallestPosition = count2;
+	  }
+
+      if (smallestValue)
+	{
+	  kernelMemCopy(&table->symbols[smallestPosition],
+			&tempTable->symbols[count1], sizeof(loaderSymbol));
+	  table->symbols[smallestPosition].value = NULL;
+	}
+    }
+
+  // Copy our temporary table's sorted symbols back to the original table
+  kernelMemCopy(tempTable->symbols, table->symbols,
+		(table->numSymbols * sizeof(loaderSymbol)));
+
+  kernelFree(tempTable);
+  return (status = 0);
+}
+
+
 static void populateFileClassList(void)
 {
   // Populate our list of file classes
 
   int count;
   
+  kernelDebug(debug_loader, "Populating file class list");
+
   for (count = 0; count < LOADER_NUM_FILECLASSES; count ++)
     fileClassList[numFileClasses++] = classRegFns[count]();
 }
@@ -260,7 +305,7 @@ kernelFileClass *kernelLoaderGetFileClass(const char *className)
 
 
 kernelFileClass *kernelLoaderClassify(const char *fileName, void *fileData,
-				      int size, loaderFileClass *class)
+				      unsigned size, loaderFileClass *class)
 {
   // Given some file data, try to determine whether it is one of our known
   // file classes.
@@ -271,6 +316,9 @@ kernelFileClass *kernelLoaderClassify(const char *fileName, void *fileData,
   if ((fileName == NULL) || (class == NULL))
     return (NULL);
 
+  kernelDebug(debug_loader, "Classifying file %s fileData=%p size=%u class=%p",
+	      fileName, fileData, size, class);
+
   // Has our list of file classes been initialized?
   if (!numFileClasses)
     populateFileClassList();
@@ -278,16 +326,23 @@ kernelFileClass *kernelLoaderClassify(const char *fileName, void *fileData,
   // Empty file?
   if ((fileData == NULL) || !size)
     {
+      kernelDebug(debug_loader, "File is empty");
       strcpy(class->className, FILECLASS_NAME_EMPTY);
       class->class = LOADERFILECLASS_NONE;
       class->subClass = LOADERFILESUBCLASS_NONE;
       return (&emptyFileClass);
     }
+  else
+    kernelDebug(debug_loader, "File is not empty");
 
   // Determine the file's class
   for (count = 0; count < numFileClasses; count ++)
-    if (fileClassList[count]->detect(fileName, fileData, size, class))
-      return (fileClassList[count]);
+    {
+      kernelDebug(debug_loader, "Detecting %s",
+		  fileClassList[count]->className);
+      if (fileClassList[count]->detect(fileName, fileData, size, class))
+	return (fileClassList[count]);
+    }
 
   // Not found
   return (NULL);
@@ -298,7 +353,7 @@ kernelFileClass *kernelLoaderClassifyFile(const char *fileName,
 					  loaderFileClass *loaderClass)
 {
   // This is a wrapper for the function above, and just temporarily loads
-  // the first sector of the file in order to classify it.
+  // the first sectors of the file in order to classify it.
 
   int status = 0;
   file theFile;
@@ -388,6 +443,14 @@ loaderSymbolTable *kernelLoaderGetSymbols(const char *fileName)
       fileClassDriver->executable.getSymbols(loadAddress, 0 /* not kernel */);
 
   kernelFree(loadAddress);
+
+  if (symTable)
+    {
+      // Sort 'em
+      if (sortSymbols(symTable) < 0)
+	kernelDebugError("Couldn't sort symbols");
+    }
+
   return (symTable);
 }
 
@@ -505,8 +568,8 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
   // We may need to do some fixup or relocations
   if (fileClassDriver->executable.layoutExecutable)
     {
-      status = fileClassDriver->executable
-	.layoutExecutable(loadAddress, &execImage);
+      status =
+	fileClassDriver->executable.layoutExecutable(loadAddress, &execImage);
       if (status < 0)
 	{
 	  kernelMemoryRelease(loadAddress);
@@ -536,8 +599,9 @@ int kernelLoaderLoadProgram(const char *command, int privilege)
       // libraries
       if (fileClassDriver->executable.link)
 	{
-	  status = fileClassDriver->executable
-	    .link(newProcId, loadAddress, &execImage, &symTable);
+	  status =
+	    fileClassDriver->executable.link(newProcId, loadAddress,
+					     &execImage, &symTable);
 	  if (status < 0)
 	    {
 	      kernelMemoryRelease(loadAddress);

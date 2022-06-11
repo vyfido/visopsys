@@ -195,9 +195,9 @@ static int usbScsiCommand(kernelScsiDisk *dsk, unsigned char lun, void *cmd,
   kernelDebug(debug_scsi, "USB MS status length=%u", statusTrans->length);
 
   // Write the transactions
-  status = kernelBusWrite(dsk->busType, dsk->target,
-			  (transCount * sizeof(usbTransaction)),
-			  (void *) &trans);
+  status =
+    kernelBusWrite(dsk->busTarget, (transCount * sizeof(usbTransaction)),
+		   (void *) &trans);
   if (status < 0)
     {
       kernelDebug(debug_scsi, "USB MS trans error=%d", status);
@@ -283,7 +283,7 @@ static int scsiInquiry(kernelScsiDisk *dsk, unsigned char lun,
   cmd12.byte[1] = (lun << 5);
   cmd12.byte[4] = sizeof(scsiInquiryData);
 
-  if (dsk->busType == bus_usb)
+  if (dsk->busTarget->bus->type == bus_usb)
     {
       // Set up the USB transaction, with the SCSI 'inquiry' command.
       status = usbScsiCommand(dsk, lun, &cmd12, sizeof(scsiUsbCmd12),
@@ -292,7 +292,10 @@ static int scsiInquiry(kernelScsiDisk *dsk, unsigned char lun,
 	return (status);
     }
   else
-    return (status = ERR_NOTIMPLEMENTED);
+    {
+      kernelDebugError("Non-USB SCSI not supported");
+      return (status = ERR_NOTIMPLEMENTED);
+    }
 
   debugInquiry(inquiryData);
   return (status = 0);
@@ -316,7 +319,7 @@ static int scsiModeSense(kernelScsiDisk *dsk, unsigned char lun,
   cmd12.byte[2] = pageCode;
   cmd12.byte[4] = length;
 
-  if (dsk->busType == bus_usb)
+  if (dsk->busTarget->bus->type == bus_usb)
     {
       // Set up the USB transaction, with the SCSI 'mode sense' command.
       status = usbScsiCommand(dsk, lun, &cmd12, sizeof(scsiUsbCmd12), buffer,
@@ -326,7 +329,10 @@ static int scsiModeSense(kernelScsiDisk *dsk, unsigned char lun,
 	return (status);
     }
   else
-    return (status = ERR_NOTIMPLEMENTED);
+    {
+      kernelDebugError("Non-USB SCSI not supported");
+      return (status = ERR_NOTIMPLEMENTED);
+    }
 
   return (status = 0);
 }
@@ -357,7 +363,7 @@ static int scsiReadWrite(kernelScsiDisk *dsk, unsigned char lun,
   *((unsigned *) &cmd12.byte[2]) = kernelProcessorSwap32(logicalSector);
   *((unsigned short *) &cmd12.byte[7]) = kernelProcessorSwap16(numSectors);
 
-  if (dsk->busType == bus_usb)
+  if (dsk->busTarget->bus->type == bus_usb)
     {
       // Set up the USB transaction, with the SCSI 'read' command.
       status = usbScsiCommand(dsk, lun, &cmd12, sizeof(scsiUsbCmd12), buffer,
@@ -366,7 +372,10 @@ static int scsiReadWrite(kernelScsiDisk *dsk, unsigned char lun,
 	return (status);
     }
   else
-    return (status = ERR_NOTIMPLEMENTED);
+    {
+      kernelDebugError("Non-USB SCSI not supported");
+      return (status = ERR_NOTIMPLEMENTED);
+    }
 
   kernelDebug(debug_scsi, "SCSI %s successul %u bytes",
 	      (read? "read" : "write"), bytes);
@@ -388,7 +397,7 @@ static int scsiReadCapacity(kernelScsiDisk *dsk, unsigned char lun,
   cmd12.byte[0] = SCSI_CMD_READCAPACITY;
   cmd12.byte[1] = (lun << 5);
 
-  if (dsk->busType == bus_usb)
+  if (dsk->busTarget->bus->type == bus_usb)
     {
       // Set up the USB transaction, with the SCSI 'read capacity' command.
       status =
@@ -398,7 +407,10 @@ static int scsiReadCapacity(kernelScsiDisk *dsk, unsigned char lun,
 	return (status);
     }
   else
-    return (status = ERR_NOTIMPLEMENTED);
+    {
+      kernelDebugError("Non-USB SCSI not supported");
+      return (status = ERR_NOTIMPLEMENTED);
+    }
 
   // Swap bytes around
   capacityData->blockNumber = kernelProcessorSwap32(capacityData->blockNumber);
@@ -424,7 +436,7 @@ static int scsiRequestSense(kernelScsiDisk *dsk, unsigned char lun,
   cmd12.byte[1] = (lun << 5);
   cmd12.byte[4] = sizeof(scsiSenseData);
 
-  if (dsk->busType == bus_usb)
+  if (dsk->busTarget->bus->type == bus_usb)
     {
       // Set up the USB transaction, with the SCSI 'request sense' command.
       status = usbScsiCommand(dsk, lun, &cmd12, sizeof(scsiUsbCmd12),
@@ -433,7 +445,10 @@ static int scsiRequestSense(kernelScsiDisk *dsk, unsigned char lun,
 	return (status);
     }
   else
-    return (status = ERR_NOTIMPLEMENTED);
+    {
+      kernelDebugError("Non-USB SCSI not supported");
+      return (status = ERR_NOTIMPLEMENTED);
+    }
 
   // Swap bytes around
   senseData->info = kernelProcessorSwap32(senseData->info);
@@ -458,7 +473,7 @@ static int scsiStartStopUnit(kernelScsiDisk *dsk, unsigned char lun,
   cmd12.byte[1] = (lun << 5);
   cmd12.byte[4] = (((loadEject & 0x01) << 1) | (startStop & 0x01));
 
-  if (dsk->busType == bus_usb)
+  if (dsk->busTarget->bus->type == bus_usb)
     {
       // Set up the USB transaction, with the SCSI 'start/stop unit' command.
       status = usbScsiCommand(dsk, lun, &cmd12, sizeof(scsiUsbCmd12), NULL, 0,
@@ -467,7 +482,10 @@ static int scsiStartStopUnit(kernelScsiDisk *dsk, unsigned char lun,
 	return (status);
     }
   else
-    return (status = ERR_NOTIMPLEMENTED);
+    {
+      kernelDebugError("Non-USB SCSI not supported");
+      return (status = ERR_NOTIMPLEMENTED);
+    }
 
   kernelDebug(debug_scsi, "SCSI %s unit successful",
 	      (startStop? "start" : "stop"));
@@ -487,7 +505,7 @@ static int scsiTestUnitReady(kernelScsiDisk *dsk, unsigned char lun)
   cmd12.byte[0] = SCSI_CMD_TESTUNITREADY;
   cmd12.byte[1] = (lun << 5);
 
-  if (dsk->busType == bus_usb)
+  if (dsk->busTarget->bus->type == bus_usb)
     {
       // Set up the USB transaction, with the SCSI 'test unit ready' command.
       status = usbScsiCommand(dsk, lun, &cmd12, sizeof(scsiUsbCmd12), NULL, 0,
@@ -496,7 +514,10 @@ static int scsiTestUnitReady(kernelScsiDisk *dsk, unsigned char lun)
 	return (status);
     }
   else
-    return (status = ERR_NOTIMPLEMENTED);
+    {
+      kernelDebugError("Non-USB SCSI not supported");
+      return (status = ERR_NOTIMPLEMENTED);
+    }
 
   kernelDebug(debug_scsi, "SCSI test unit ready successful");
   return (status = 0);
@@ -584,42 +605,41 @@ static void guessDiskGeom(kernelPhysicalDisk *physicalDisk)
 }
 
 
-static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
-					void *driver)
+static kernelPhysicalDisk *detectTarget(void *parent, int busType,
+					int targetId, void *driver)
 {
   // Given a bus type and a bus target number, see if the device is a
   // SCSI disk
 
   int status = 0;
-  kernelDevice *dev = NULL;
-  kernelPhysicalDisk *physicalDisk = NULL;
   kernelScsiDisk *dsk = NULL;
+  kernelPhysicalDisk *physicalDisk = NULL;
   scsiSenseData senseData;
   scsiInquiryData inquiryData;
   scsiCapacityData capacityData;
   int count;
 
-  dev = kernelMalloc(sizeof(kernelDevice));
-  if (dev == NULL)
+  dsk = kernelMalloc(sizeof(kernelScsiDisk));
+  if (dsk == NULL)
+    goto err_out;
+
+  dsk->busTarget = kernelBusGetTarget(busType, targetId);
+  if (dsk->busTarget == NULL)
+    goto err_out;
+
+  dsk->dev = kernelMalloc(sizeof(kernelDevice));
+  if (dsk->dev == NULL)
     goto err_out;
 
   physicalDisk = kernelMalloc(sizeof(kernelPhysicalDisk));
   if (physicalDisk == NULL)
     goto err_out;
 
-  dsk = kernelMalloc(sizeof(kernelScsiDisk));
-  if (dsk == NULL)
-    goto err_out;
-
-  dsk->busType = busType;
-  dsk->target = target;
-  dsk->dev = dev;
-
-  if (dsk->busType == bus_usb)
+  if (dsk->busTarget->bus->type == bus_usb)
     {
       // Try to get the USB information about the target
       status =
-	kernelBusGetTargetInfo(busType, target, (void *) &dsk->usb.usbDev);
+	kernelBusGetTargetInfo(dsk->busTarget, (void *) &dsk->usb.usbDev);
       if (status < 0)
 	goto err_out;
 
@@ -631,8 +651,8 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
 	goto err_out;
 
       // Record the bulk-in and bulk-out endpoints, and any interrupt endpoint
-      for (count = 0; count < dsk->usb.usbDev.interDesc[0]->numEndpoints;
-	   count ++)
+      kernelDebug(debug_scsi, "USB MS search for bulk endpoints");
+      for (count = 1; count < dsk->usb.usbDev.numEndpoints; count ++)
 	{
 	  if ((dsk->usb.usbDev.endpointDesc[count]->attributes == 2) &&
 	      !dsk->usb.bulkInDesc &&
@@ -640,19 +660,18 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
 	    {
 	      dsk->usb.bulkInDesc = dsk->usb.usbDev.endpointDesc[count];
 	      dsk->usb.bulkInEndpoint =
-		(dsk->usb.bulkInDesc->endpntAddress & 0xF);
+		dsk->usb.bulkInDesc->endpntAddress;
 	      kernelDebug(debug_scsi, "USB MS bulk in endpoint %d",
 			  dsk->usb.bulkInEndpoint);
 	    }
 
 	  if ((dsk->usb.usbDev.endpointDesc[count]->attributes == 2) &&
 	      !dsk->usb.bulkOutDesc &&
-	      (dsk->usb.usbDev.endpointDesc[count]->attributes == 2) &&
-	      (!(dsk->usb.usbDev.endpointDesc[count]->endpntAddress & 0x80)))
+	      !(dsk->usb.usbDev.endpointDesc[count]->endpntAddress & 0x80))
 	    {
 	      dsk->usb.bulkOutDesc = dsk->usb.usbDev.endpointDesc[count];
 	      dsk->usb.bulkOutEndpoint =
-		(dsk->usb.bulkOutDesc->endpntAddress & 0xF);
+		dsk->usb.bulkOutDesc->endpntAddress;
 	      kernelDebug(debug_scsi, "USB MS bulk out endpoint %d",
 			  dsk->usb.bulkOutEndpoint);
 	    }
@@ -661,8 +680,7 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
 	      !dsk->usb.intrInDesc)
 	    {
 	      dsk->usb.intrInDesc = dsk->usb.usbDev.endpointDesc[count];
-	      dsk->usb.intrInEndpoint =
-		(dsk->usb.intrInDesc->endpntAddress & 0xF);
+	      dsk->usb.intrInEndpoint =	dsk->usb.intrInDesc->endpntAddress;
 	      kernelDebug(debug_scsi, "USB MS interrupt endpoint %d",
 			  dsk->usb.intrInEndpoint);
 	    }
@@ -681,6 +699,7 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
     }
   else
     {
+      kernelDebugError("Non-USB SCSI not supported");
       status = ERR_NOTIMPLEMENTED;
       goto err_out;
     }
@@ -710,6 +729,8 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
 
   if (inquiryData.byte1.removable & 0x80)
     physicalDisk->type |= DISKTYPE_REMOVABLE;
+  else
+    physicalDisk->type |= DISKTYPE_FIXED;
 
   // Set up the vendor and product ID strings
 
@@ -770,21 +791,21 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
   physicalDisk->driver = driver;
   disks[numDisks++] = physicalDisk;
 
-  dev->device.class = kernelDeviceGetClass(DEVICECLASS_DISK);
-  dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_DISK_SCSI);
-  kernelVariableListCreate(&dev->device.attrs);
-  kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_VENDOR,
+  dsk->dev->device.class = kernelDeviceGetClass(DEVICECLASS_DISK);
+  dsk->dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_DISK_SCSI);
+  kernelVariableListCreate(&dsk->dev->device.attrs);
+  kernelVariableListSet(&dsk->dev->device.attrs, DEVICEATTRNAME_VENDOR,
 			dsk->vendorId);
-  kernelVariableListSet(&dev->device.attrs, DEVICEATTRNAME_MODEL,
+  kernelVariableListSet(&dsk->dev->device.attrs, DEVICEATTRNAME_MODEL,
 			dsk->productId);
-  dev->driver = driver;
-  dev->data = (void *) physicalDisk;
+  dsk->dev->driver = driver;
+  dsk->dev->data = (void *) physicalDisk;
 
-  status = kernelDiskRegisterDevice(dev);
+  status = kernelDiskRegisterDevice(dsk->dev);
   if (status < 0)
     goto err_out;
 
-  status = kernelDeviceAdd(parent, dev);
+  status = kernelDeviceAdd(parent, dsk->dev);
   if (status < 0)
     goto err_out;
 
@@ -793,14 +814,17 @@ static kernelPhysicalDisk *detectTarget(void *parent, int busType, int target,
  err_out:
 
   kernelError(kernel_error, "Error %d while detecting %sSCSI device",
-	      status, ((dsk->busType == bus_usb)? "USB " : ""));
+	      status, ((dsk->busTarget->bus->type == bus_usb)? "USB " : ""));
 
-  if (dev)
-    kernelFree(dev);
   if (physicalDisk)
     kernelFree((void *) physicalDisk);
+  if (dsk->dev)
+    kernelFree(dsk->dev);
+  if (dsk->busTarget)
+    kernelFree(dsk->busTarget);
   if (dsk)
     kernelFree(dsk);
+
   return (physicalDisk = NULL);
 }
 
@@ -813,12 +837,15 @@ static kernelPhysicalDisk *findBusTarget(kernelBusType busType, int target)
   int count;
 
   for (count = 0; count < numDisks; count ++)
-    {
-      dsk = (kernelScsiDisk *) disks[count]->driverData;
+    if (disks[count] && disks[count]->driverData)
+      {
+	dsk = (kernelScsiDisk *) disks[count]->driverData;
 
-      if ((dsk->busType == busType) && (dsk->target == target))
-	return (disks[count]);
-    }
+	if (dsk->busTarget && dsk->busTarget->bus &&
+	    (dsk->busTarget->bus->type == busType) &&
+	    (dsk->busTarget->id == target))
+	  return (disks[count]);
+      }
 
   // Not found
   return (NULL);
@@ -933,38 +960,35 @@ static int driverWriteSectors(int driveNum, uquad_t logicalSector,
 static int driverDetect(void *parent __attribute__((unused)),
 			kernelDriver *driver)
 {
-  // Try to detect SCSI disks
+  // Try to detect SCSI disks.
 
   int status = 0;
-  kernelDevice *usbDev = NULL;
   kernelBusTarget *busTargets = NULL;
   int numBusTargets = 0;
   int deviceCount = 0;
+  usbDevice usbDev;
 
-  // Look for USB SCSI disks
-  status = kernelDeviceFindType(kernelDeviceGetClass(DEVICECLASS_BUS),
-				kernelDeviceGetClass(DEVICESUBCLASS_BUS_USB),
-				&usbDev, 1);
-  if (status > 0)
+  kernelDebug(debug_scsi, "SCSI search for devices");
+
+  // Search the USB bus(es) for devices
+  numBusTargets = kernelBusGetTargets(bus_usb, &busTargets);
+  if (numBusTargets > 0)
     {
-      // Search the USB bus(es) for devices
-      numBusTargets = kernelBusGetTargets(bus_usb, &busTargets);
-      if (numBusTargets <= 0)
-	return (status = 0);
-
       // Search the bus targets for SCSI disk devices
       for (deviceCount = 0; deviceCount < numBusTargets; deviceCount ++)
 	{
-	  // If it's not a SCSI disk device, skip it
-	  if ((busTargets[deviceCount].class == NULL) ||
-	      (busTargets[deviceCount].class->class != DEVICECLASS_DISK) ||
-	      (busTargets[deviceCount].subClass == NULL) ||
-	      (busTargets[deviceCount].subClass->class !=
-	       DEVICESUBCLASS_DISK_SCSI))
+	  // Try to get the USB information about the target
+	  status = kernelBusGetTargetInfo(&busTargets[deviceCount],
+					  (void *) &usbDev);
+	  if (status < 0)
 	    continue;
 
-	  detectTarget(usbDev, bus_usb, busTargets[deviceCount].target,
-		       driver);
+	  if (usbDev.classCode != 0x08)
+	    continue;
+  
+	  kernelDebug(debug_scsi, "SCSI found USB mass storage device");
+	  detectTarget(usbDev.controller->device, bus_usb,
+		       busTargets[deviceCount].id, driver);
 	}
 
       kernelFree(busTargets);
@@ -985,17 +1009,16 @@ static int driverHotplug(void *parent, int busType, int target, int connected,
 
   int status = 0;
   kernelPhysicalDisk *physicalDisk = NULL;
-  kernelDevice *dev = NULL;
+  kernelScsiDisk *dsk = NULL;
   int count;
 
   if (connected)
     {
       // Determine whether any new SCSI disks have appeared on the USB bus
-      physicalDisk = detectTarget(parent, busType, target, driver);
-      if (physicalDisk == NULL)
-	return (status = 0);
 
-      kernelDiskReadPartitions((char *) physicalDisk->name);
+      physicalDisk = detectTarget(parent, busType, target, driver);
+      if (physicalDisk != NULL)
+	kernelDiskReadPartitions((char *) physicalDisk->name);
     }
   else
     {
@@ -1004,7 +1027,11 @@ static int driverHotplug(void *parent, int busType, int target, int connected,
       physicalDisk = findBusTarget(busType, target);
       if (physicalDisk == NULL)
 	{
-	  kernelError(kernel_error, "No such SCSI device %d", target);
+	  // This can happen if SCSI initialization did not complete
+	  // successfully.  In that case, it could be that we're still the
+	  // registered driver for the device, but we never added it to our
+	  // list.
+	  kernelDebugError("No such SCSI device %d", target);
 	  return (status = ERR_NOSUCHENTRY);
 	}
 
@@ -1019,17 +1046,20 @@ static int driverHotplug(void *parent, int busType, int target, int connected,
 				    .filesystem.mountPoint);
 	}
 
-      dev = ((kernelScsiDisk *) physicalDisk->driverData)->dev;
+      dsk = (kernelScsiDisk *) physicalDisk->driverData;
 
       // Remove it from the system's disks
-      kernelDiskRemoveDevice(dev);
+      kernelDiskRemoveDevice(dsk->dev);
 
       // Remove it from the device tree
-      kernelDeviceRemove(dev);
+      kernelDeviceRemove(dsk->dev);
 
       // Delete.
       removeDisk(physicalDisk);
-      kernelFree(dev);
+      if (dsk->busTarget)
+	kernelFree(dsk->busTarget);
+      if (dsk->dev)
+	kernelFree(dsk->dev);
     }
 
   return (status = 0);

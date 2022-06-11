@@ -2863,7 +2863,7 @@ static int _resize(const char *diskName, uquad_t blocks, progress *prog,
 
 	if (resize->prog && (lockGet(&resize->prog->progLock) >= 0))
 	  {
-	    bzero((void *) resize->prog, sizeof(progress));
+	    // Set initial values
 	    resize->prog->total = 100;
 	    resize->prog->canCancel = 1;
 	    lockRelease(&resize->prog->progLock);
@@ -3037,12 +3037,12 @@ void libntfsInitialize(void)
 
 
 int ntfsGetResizeConstraints(const char *diskName, uquad_t *minBlocks,
-			     uquad_t *maxBlocks)
+			     uquad_t *maxBlocks, progress *prog)
 {
   if (!libntfs_initialized)
     libntfsInitialize();
 
-  return (_resize(diskName, 0, NULL, 1, minBlocks, maxBlocks));
+  return (_resize(diskName, 0, prog, 1, minBlocks, maxBlocks));
 }
 
 

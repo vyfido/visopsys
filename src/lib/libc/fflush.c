@@ -26,15 +26,24 @@
 #include <sys/api.h>
 
 
-int fflush(FILE *theStream __attribute__((unused)))
+int fflush(FILE *theStream)
 {
-  // This is currently not implemented in Visopsys; generally a file stream
-  // is only fully flushed when it is closed.  If it's a text stream (like
-  // writing to stdout or stderr) the output is always done synchronously
-  // anyway.
+  // Write any buffered data to the disk.
+
+  int status = 0;
 
   if (visopsys_in_kernel)
-    return (errno = ERR_BUG);
+    {
+      errno = ERR_BUG;
+      return (status = EOF);
+    }
 
-  return (0);
+  status = fileStreamFlush(theStream);
+  if (status < 0)
+    {
+      errno = status;
+      return (status = EOF);
+    }
+
+  return (status = 0);
 }

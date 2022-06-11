@@ -32,6 +32,7 @@
 #include "kernelMisc.h"
 #include "kernelMultitasker.h"
 #include "kernelNetwork.h"
+#include "kernelPower.h"
 #include "kernelProcessorX86.h"
 #include "kernelSysTimer.h"
 #include "kernelUsbDriver.h"
@@ -296,7 +297,14 @@ int kernelShutdown(int reboot, int force)
       kernelProcessorReboot();
     }
   else
-    kernelProcessorStop();
+    {
+      // Try to power off, if the appropriate power management routines are
+      // installed
+      kernelPowerOff();
+
+      // Default to processor stop.
+      kernelProcessorStop();
+    }
 
   // Just for good form
   return (status);

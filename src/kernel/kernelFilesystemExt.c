@@ -229,7 +229,7 @@ static int readInode(extInternalData *extData, unsigned number,
 
   // Calculate the relevant sector of the inode table
   inodeTableBlock = (((number % extData->superblock.inodes_per_group) *
-		      sizeof(extInode)) / extData->blockSize); 
+		      extData->superblock.inode_size) / extData->blockSize); 
 
   // Get a new temporary buffer to read the inode table block
   buffer = kernelMalloc(extData->blockSize);
@@ -251,7 +251,8 @@ static int readInode(extInternalData *extData, unsigned number,
 
   // Copy the inode structure.
   kernelMemCopy((buffer + (((number % extData->superblock.inodes_per_group) *
-			    sizeof(extInode)) % extData->blockSize)),
+			    extData->superblock.inode_size) %
+			   extData->blockSize)),
 		inode, sizeof(extInode));
 
   kernelFree(buffer);

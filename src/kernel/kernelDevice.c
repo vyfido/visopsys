@@ -45,6 +45,7 @@ static kernelDeviceClass allClasses[] = {
   { DEVICECLASS_GRAPHIC,  "graphic adapter"       },
   { DEVICECLASS_NETWORK,  "network adapter"       },
   { DEVICECLASS_HUB,      "hub"                   },
+  { DEVICECLASS_POWER,    "power management"      },
   { DEVICECLASS_UNKNOWN,  "unknown"               },
   { 0, NULL }
 };
@@ -70,6 +71,7 @@ static kernelDeviceClass allSubClasses[] = {
   { DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER, "framebuffer"   },
   { DEVICESUBCLASS_NETWORK_ETHERNET,    "ethernet"      },
   { DEVICESUBCLASS_HUB_USB,             "USB"           },
+  { DEVICESUBCLASS_POWER_ACPI,          "ACPI"          },
   { DEVICESUBCLASS_UNKNOWN,             "unknown"       },
   { 0, NULL }
 };
@@ -89,36 +91,41 @@ static kernelDriver deviceDrivers[] = {
     kernelMemoryDriverRegister, NULL, NULL, NULL                       },
   { DEVICECLASS_SYSTEM, DEVICESUBCLASS_SYSTEM_BIOS,
     kernelBiosDriverRegister, NULL, NULL, NULL                         },
-  // PIC must be before most drivers so that other ones can unmask
-  // interrupts
+  // Do motherboard-type devices.  The PIC must be before most drivers,
+  // specifically anything that uses interrupts (which is almost
+  // everything)
   { DEVICECLASS_PIC, 0, kernelPicDriverRegister, NULL, NULL, NULL      },
   { DEVICECLASS_SYSTIMER, 0,
     kernelSysTimerDriverRegister, NULL, NULL, NULL                     },
   { DEVICECLASS_RTC, 0, kernelRtcDriverRegister, NULL, NULL, NULL      },
   { DEVICECLASS_DMA, 0, kernelDmaDriverRegister, NULL, NULL, NULL      },
-  // Do buses before most non-motherboard devices, so that other
-  // drivers can find their devices on the buses.
+  // Do buses before other non-motherboard devices, so that drivers can
+  // find their devices on the buses.
   { DEVICECLASS_BUS, DEVICESUBCLASS_BUS_PCI,
     kernelPciDriverRegister, NULL, NULL, NULL                          },
   { DEVICECLASS_BUS, DEVICESUBCLASS_BUS_USB,
     kernelUsbDriverRegister, NULL, NULL, NULL                          },
-  // Also do hubs before most other devices
+  // Also do hubs before most other devices (same reason as above)
   { DEVICECLASS_HUB, DEVICESUBCLASS_HUB_USB,
     kernelUsbHubDriverRegister, NULL, NULL, NULL                       },
+  // Do keyboards.  We do these fairly early in case we have a problem
+  // and we need to interact with the user (even if it's just "boot
+  // failed, press any key", etc)
   { DEVICECLASS_KEYBOARD, DEVICESUBCLASS_KEYBOARD_PS2,
     kernelPs2KeyboardDriverRegister, NULL, NULL, NULL                  },
   { DEVICECLASS_KEYBOARD, DEVICESUBCLASS_KEYBOARD_USB,
     kernelUsbKeyboardDriverRegister, NULL, NULL, NULL                  },
+  // Then do disk controllers and disks
   { DEVICECLASS_DISK, DEVICESUBCLASS_DISK_RAMDISK,
     kernelRamDiskDriverRegister, NULL, NULL, NULL                      },
   { DEVICECLASS_DISK, DEVICESUBCLASS_DISK_FLOPPY,
     kernelFloppyDriverRegister, NULL, NULL, NULL                       },
+  { DEVICECLASS_DISK, DEVICESUBCLASS_DISK_SCSI,
+    kernelScsiDiskDriverRegister, NULL, NULL, NULL                     },
   { DEVICECLASS_DISKCTRL, DEVICESUBCLASS_DISKCTRL_SATA,
     kernelSataAhciDriverRegister, NULL, NULL, NULL                     },
   { DEVICECLASS_DISKCTRL, DEVICESUBCLASS_DISKCTRL_IDE,
     kernelIdeDriverRegister, NULL, NULL, NULL                          },
-  { DEVICECLASS_DISK, DEVICESUBCLASS_DISK_SCSI,
-    kernelScsiDiskDriverRegister, NULL, NULL, NULL                     },
   // Do the mouse devices after the graphic device so we can get screen
   // parameters, etc.  Also needs to be after the keyboard driver since
   // PS2 mouses use the keyboard controller.
@@ -126,8 +133,11 @@ static kernelDriver deviceDrivers[] = {
     kernelPs2MouseDriverRegister, NULL, NULL, NULL                     },
   { DEVICECLASS_MOUSE, DEVICESUBCLASS_MOUSE_USB,
     kernelUsbMouseDriverRegister, NULL, NULL, NULL                     },
+  // Network and other non-critical (for basic operation) devices follow
   { DEVICECLASS_NETWORK, DEVICESUBCLASS_NETWORK_ETHERNET,
     kernelLanceDriverRegister, NULL, NULL, NULL                        },
+  { DEVICECLASS_POWER, DEVICESUBCLASS_POWER_ACPI,
+    kernelAcpiDriverRegister, NULL, NULL, NULL                         },
   { 0, 0, NULL, NULL, NULL, NULL                                       }
 };
 
@@ -192,6 +202,13 @@ static void device2user(kernelDevice *kernel, device *user)
   int count;
 
   kernelMemClear(user, sizeof(device));
+
+  // Check params
+  if ((kernel == NULL) || (user == NULL))
+    {
+      kernelError(kernel_error, "Device pointer is NULL");
+      return;
+    }
 
   if (kernel->device.class)
     {
@@ -331,7 +348,6 @@ int kernelDeviceDetect(void)
   for (driverCount = 0; (deviceDrivers[driverCount].class != 0);
        driverCount ++)
     {
-      class = NULL;
       class = kernelDeviceGetClass(deviceDrivers[driverCount].class);
 
       subClass = NULL;
@@ -418,7 +434,7 @@ int kernelDeviceHotplug(kernelDevice *parent, int classNum, int busType,
 			int target, int connected)
 {
   // Call the hotplug detection routine for any driver that matches the
-  // supplied class (and subclass).  This was added to support i.e.
+  // supplied class (and subclass).  This was added to support, for example,
   // USB devices that can be added or removed at any time.
 
   int status = 0;
@@ -431,7 +447,6 @@ int kernelDeviceHotplug(kernelDevice *parent, int classNum, int busType,
 	  if (!(classNum & DEVICESUBCLASS_MASK) ||
 	      (classNum == deviceDrivers[count].subClass))
 	    {
-	      //kernelTextPrintLine("Hotplug for %04x devices", classNum);
 	      if (deviceDrivers[count].driverHotplug)
 		status = deviceDrivers[count]
 		  .driverHotplug(parent, busType, target, connected,
@@ -614,7 +629,7 @@ int kernelDeviceTreeGetChild(device *parentDev, device *childDev)
 }
 
 
-int kernelDeviceTreeGetNext(device *siblingDev)
+int kernelDeviceTreeGetNext(device *dev)
 {
   // Returns the user-space portion of the supplied device's 'next' (sibling)
   // device
@@ -626,15 +641,15 @@ int kernelDeviceTreeGetNext(device *siblingDev)
     return (status = ERR_NOTINITIALIZED);
 
   // Check params
-  if (siblingDev == NULL)
+  if (dev == NULL)
     {
       kernelError(kernel_error, "Device pointer is NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
-  if ((siblingDev->next == NULL) || !isDevInTree(deviceTree, siblingDev->next))
+  if ((dev->next == NULL) || !isDevInTree(deviceTree, dev->next))
     return (status = ERR_NOSUCHENTRY);
 
-  device2user(siblingDev->next, siblingDev);
+  device2user(dev->next, dev);
   return (status = 0);
 }

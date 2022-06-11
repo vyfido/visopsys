@@ -19,9 +19,10 @@
 //  kernelIdeDriver.c
 //
 
-// Driver for standard ATA/ATAPI/IDE disks
+// Driver for standard PATA/ATAPI (IDE) disks
 
 #include "kernelIdeDriver.h"
+#include "kernelAtaDriver.h"
 #include "kernelBus.h"
 #include "kernelDebug.h"
 #include "kernelError.h"
@@ -1177,7 +1178,7 @@ static int identify(int diskNum, unsigned short *buffer)
 	  if (error != IDE_INVALIDCOMMAND)
 	    {
 	      // We don't know what this is
-	      kernelDebugError(errorMessages[error]);
+	      kernelDebugError("%s", errorMessages[error]);
 	      ackInterrupt(diskNum);
 	      return (status);
 	    }
@@ -1229,7 +1230,7 @@ static int identify(int diskNum, unsigned short *buffer)
       error = evaluateError(diskNum);
       if (error != IDE_INVALIDCOMMAND)
 	// We don't know what this is
-	kernelDebugError(errorMessages[error]);
+	kernelDebugError("%s", errorMessages[error]);
 
       return (status);
     }
@@ -2433,13 +2434,12 @@ static int driverFlush(int diskNum)
 }
 
 
-static kernelDevice *detectPciControllers(void)
+static int detectPciControllers(kernelDevice *controllerDevices[],
+				kernelDriver *driver)
 {
   // Try to detect IDE controllers on the PCI bus
 
   int status = 0;
-  kernelDevice *controllerDevices = NULL;
-  kernelDevice *busDevice = NULL;
   kernelBusTarget *pciTargets = NULL;
   int numPciTargets = 0;
   int deviceCount = 0;
@@ -2449,17 +2449,10 @@ static kernelDevice *detectPciControllers(void)
   // See if there are any IDE controllers on the PCI bus.  This obviously
   // depends upon PCI hardware detection occurring before IDE detection.
 
-  // Get the PCI bus device
-  status = kernelDeviceFindType(kernelDeviceGetClass(DEVICECLASS_BUS),
-				kernelDeviceGetClass(DEVICESUBCLASS_BUS_PCI),
-				&busDevice, 1);
-  if (status <= 0)
-    return (controllerDevices = NULL);
-
   // Search the PCI bus(es) for devices
   numPciTargets = kernelBusGetTargets(bus_pci, &pciTargets);
   if (numPciTargets <= 0)
-    return (controllerDevices = NULL);
+    return (numPciTargets);
 
   // Search the PCI bus targets for IDE controllers
   for (deviceCount = 0; deviceCount < numPciTargets; deviceCount ++)
@@ -2475,8 +2468,8 @@ static kernelDevice *detectPciControllers(void)
 	continue;
 
       // Get the PCI device header
-      status = kernelBusGetTargetInfo(bus_pci, pciTargets[deviceCount].target,
-				      &pciDevInfo);
+      status =
+	kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
       if (status < 0)
 	continue;
 
@@ -2490,8 +2483,17 @@ static kernelDevice *detectPciControllers(void)
 
       kernelDebug(debug_io, "PCI IDE: Found");
 
-      if (pciTargets[deviceCount].subClass->class ==
-	  DEVICESUBCLASS_DISKCTRL_IDE)
+      if ((pciTargets[deviceCount].subClass->class ==
+	   DEVICESUBCLASS_DISKCTRL_SATA) && pciTargets[deviceCount].claimed)
+	{
+	  // This appears to be an AHCI controller that has been claimed by
+	  // the AHCI driver (i.e. operating in native SATA mode)
+	  kernelDebug(debug_io, "PCI IDE: Controller has been already "
+		      "claimed, perhaps by AHCI");
+	  continue;
+	}
+      else if (pciTargets[deviceCount].subClass->class ==
+	       DEVICESUBCLASS_DISKCTRL_IDE)
 	{
 	  // Make sure it's a bus-mastering controller
 	  if (!(pciDevInfo.device.progIF & 0x80))
@@ -2507,11 +2509,10 @@ static kernelDevice *detectPciControllers(void)
 	  (PCI_COMMAND_MASTERENABLE | PCI_COMMAND_IOENABLE))
 	kernelDebug(debug_io, "PCI IDE: Bus mastering already enabled");
 
-      kernelBusDeviceEnable(bus_pci, pciTargets[deviceCount].target,
-			    PCI_COMMAND_IOENABLE);
-      kernelBusSetMaster(bus_pci, pciTargets[deviceCount].target, 1);
+      kernelBusDeviceEnable(&pciTargets[deviceCount], PCI_COMMAND_IOENABLE);
+      kernelBusSetMaster(&pciTargets[deviceCount], 1);
 
-      if (!(kernelBusReadRegister(bus_pci, pciTargets[deviceCount].target,
+      if (!(kernelBusReadRegister(&pciTargets[deviceCount],
 				  PCI_CONFREG_COMMAND_16, 16) &
 	    (PCI_COMMAND_MASTERENABLE | PCI_COMMAND_IOENABLE)))
 	{
@@ -2520,15 +2521,14 @@ static kernelDevice *detectPciControllers(void)
 	}
       kernelDebug(debug_io, "PCI IDE: Bus mastering enabled in PCI");
 
-      kernelBusGetTargetInfo(bus_pci, pciTargets[deviceCount].target,
-			     &pciDevInfo);
+      kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
 
       // (Re)allocate memory for the controllers
       controllers =
 	kernelRealloc((void *) controllers, ((numControllers + 1) *
 					     sizeof(ideController)));
       if (controllers == NULL)
-	return (controllerDevices = NULL);
+	return (status = ERR_MEMORY);
 
       // Print the registers
       kernelDebug(debug_io, "PCI IDE: Interrupt line=%d",
@@ -2610,11 +2610,11 @@ static kernelDevice *detectPciControllers(void)
 	  ((pciDevInfo.device.progIF & 0x0A) == 0x0A))
 	{
 	  pciDevInfo.device.progIF |= 0x05;
-	  kernelBusWriteRegister(bus_pci, pciTargets[deviceCount].target,
+	  kernelBusWriteRegister(&pciTargets[deviceCount],
 				 PCI_CONFREG_PROGIF_8, 8,
 				 pciDevInfo.device.progIF);
 	  pciDevInfo.device.progIF =
-	    kernelBusReadRegister(bus_pci, pciTargets[deviceCount].target,
+	    kernelBusReadRegister(&pciTargets[deviceCount],
 				  PCI_CONFREG_PROGIF_8, 8);
 	  kernelDebug(debug_io, "PCI IDE: progIF now=%02x",
 		      pciDevInfo.device.progIF);
@@ -2659,6 +2659,12 @@ static kernelDevice *detectPciControllers(void)
 	      break;
 	    }
 
+	  // Clear it out, since the kernelMemoryGetPhysical() routine doesn't
+	  // do it for us
+	  kernelMemClear((void *) CHANNEL(numControllers, count).prd,
+			 (CHANNEL(numControllers, count).prdEntries *
+			  sizeof(idePrd)));
+
 	  status = 0;
 	}
       if (status < 0)
@@ -2671,27 +2677,27 @@ static kernelDevice *detectPciControllers(void)
 
       // Create a device for it in the kernel.
 
-      // Allocate memory for the device.
-      controllerDevices =
-	kernelRealloc(controllerDevices,
-		      ((numControllers + 1) * sizeof(kernelDevice)));
-      if (controllerDevices == NULL)
-	continue;
+      controllerDevices[numControllers] = kernelMalloc(sizeof(kernelDevice));
+      if (controllerDevices[numControllers])
+	{
+	  controllerDevices[numControllers]->device.class =
+	    kernelDeviceGetClass(DEVICECLASS_DISKCTRL);
+	  controllerDevices[numControllers]->device.subClass =
+	    kernelDeviceGetClass(DEVICESUBCLASS_DISKCTRL_IDE);
 
-      controllerDevices[numControllers].device.class =
-	kernelDeviceGetClass(DEVICECLASS_DISKCTRL);
-      controllerDevices[numControllers].device.subClass =
-	kernelDeviceGetClass(DEVICESUBCLASS_DISKCTRL_IDE);
+	  // Claim the controller device in the list of PCI targets.
+	  kernelBusDeviceClaim(&(pciTargets[deviceCount]), driver);
 
-      numControllers += 1;
+	  // Register the controller
+	  kernelDeviceAdd(pciTargets[deviceCount].bus->dev,
+			  controllerDevices[numControllers]);
+
+	  numControllers += 1;
+	}
     }
 
-  // Register the controllers
-  for (count = 0; count < numControllers; count ++)
-    kernelDeviceAdd(busDevice, &controllerDevices[count]);
-
   kernelFree(pciTargets);
-  return (controllerDevices);
+  return (status = 0);
 }
 
 
@@ -2702,7 +2708,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
   // general driver initialization.
   
   int status = 0;
-  kernelDevice *controllerDevices = NULL;
+  kernelDevice *controllerDevices[IDE_MAX_CONTROLLERS];
   int numberHardDisks = 0;
   int numberIdeDisks = 0;
   int diskNum = 0;
@@ -2722,8 +2728,8 @@ static int driverDetect(void *parent, kernelDriver *driver)
   numControllers = 0;
 
   // First see whether we have PCI controller(s)
-  controllerDevices = detectPciControllers();
-  if (controllerDevices == NULL)
+  detectPciControllers(controllerDevices, driver);
+  if (numControllers <= 0)
     {
       // No PCI.  Assume standard IDE and use the parent device passed to us
       // as the parent for the disks.
@@ -2732,10 +2738,13 @@ static int driverDetect(void *parent, kernelDriver *driver)
       // Allocate memory for the controller
       controllers = kernelMalloc(sizeof(ideController));
       if (controllers == NULL)
-	return (status = ERR_MEMORY);
+	{
+	  status = ERR_MEMORY;
+	  goto out;
+	}
 
+      controllerDevices[0] = parent;
       numControllers = 1;
-      controllerDevices = parent;
     }
 
   kernelDebug(debug_io, "PCI IDE: %d controllers detected", numControllers);
@@ -2781,7 +2790,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	    kernelInterruptHook(controllers[controllerCount].pciInterrupt,
 				&pciIdeInterrupt);
 	  if (status < 0)
-	    return (status);
+	    continue;
 
 	  kernelDebug(debug_io, "IDE: Turn on interrupt %d",
 		      controllers[controllerCount].pciInterrupt);
@@ -2801,7 +2810,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	    kernelInterruptHook(CHANNEL(controllerCount, 0).interrupt,
 				&primaryIdeInterrupt);
 	  if (status < 0)
-	    return (status);
+	    continue;
 
 	  kernelDebug(debug_io, "IDE: Turn on interrupt %d",
 		      CHANNEL(controllerCount, 0).interrupt);
@@ -2819,7 +2828,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	    kernelInterruptHook(CHANNEL(controllerCount, 1).interrupt,
 				&secondaryIdeInterrupt);
 	  if (status < 0)
-	    return (status);
+	    continue;
 
 	  kernelDebug(debug_io, "IDE: Turn on interrupt %d",
 		      CHANNEL(controllerCount, 1).interrupt);
@@ -3038,7 +3047,10 @@ static int driverDetect(void *parent, kernelDriver *driver)
   // Allocate memory for the disk device(s)
   devices = kernelMalloc(numberIdeDisks * sizeof(kernelDevice));
   if (devices == NULL)
-    return (status = 0);
+    {
+      status = ERR_MEMORY;
+      goto out;
+    }
 
   for (controllerCount = 0; controllerCount < numControllers;
        controllerCount ++)
@@ -3231,12 +3243,12 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	    // Register the disk
 	    status = kernelDiskRegisterDevice(&devices[deviceCount]);
 	    if (status < 0)
-	      return (status);
+	      continue;
 
-	    status = kernelDeviceAdd(&controllerDevices[controllerCount],
+	    status = kernelDeviceAdd(controllerDevices[controllerCount],
 				     &devices[deviceCount]);
 	    if (status < 0)
-	      return (status);
+	      continue;
 
 	    kernelDebug(debug_io, "IDE: Disk %s successfully detected",
 			DISK(diskNum).physical.name);
@@ -3289,7 +3301,10 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	  }
       }
 
-  return (status = 0);
+  status = 0;
+
+ out:
+  return (status);
 }
 
 

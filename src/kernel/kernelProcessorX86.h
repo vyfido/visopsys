@@ -378,5 +378,11 @@ static inline unsigned kernelProcessorSwap32(unsigned variable)
   __asm__ __volatile__ ("lock cmpxchgl %1, %2"				\
 			: : "a" (0), "r" (proc), "m" (lck) : "memory")
 
+#define kernelProcessorTimestamp(hi, lo)  do {			 \
+    kernelProcessorId(0, hi, hi, hi, hi); /* serialize */ 	 \
+    __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));	 \
+  } while (0)
+
+
 #define _KERNELPROCESSORX86_H
 #endif

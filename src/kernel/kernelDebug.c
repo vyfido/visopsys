@@ -96,6 +96,8 @@ void kernelDebugInitialize(void)
   // kernelDebugAddCategory(debug_memory);
   // kernelDebugAddCategory(debug_misc);
   // kernelDebugAddCategory(debug_multitasker);
+  // kernelDebugAddCategory(debug_pci);
+  // kernelDebugAddCategory(debug_power);
   // kernelDebugAddCategory(debug_scsi);
   // kernelDebugAddCategory(debug_usb);
   // kernelDebugAddFile("kernelWindow.c");

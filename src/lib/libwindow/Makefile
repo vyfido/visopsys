@@ -24,6 +24,10 @@ INCLUDE         = -nostdinc -I${INCDIR}
 CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEFLANG}
 LFLAGS		= -nostdlib
 
+ifeq (${DEBUG},)
+	STRIP = strip -s ${SHAREDLIB}
+endif 
+
 NAMES		= windowBannerDialog \
 		windowCenterDialog \
 		windowChoiceDialog \
@@ -49,7 +53,7 @@ SHAREDLIB = ${BUILDDIR}/${SONAME}
 
 # Targets
 
-all: target-dirs ${LIBRARY} ${SHAREDLIB}
+all: target-dirs ${LIBRARY} ${SHAREDLIB} strip
 	${MAKELANG}
 
 target-dirs:
@@ -60,6 +64,9 @@ ${LIBRARY}: ${OBJS}
 
 ${SHAREDLIB}: ${PICOBJS}
 	${LD} -shared -soname=${SONAME} ${PICOBJS} -o $@
+
+strip: ${SHAREDLIB}
+	${STRIP}
 
 ${OBJDIR}/%.o: %.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@

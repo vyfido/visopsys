@@ -26,6 +26,7 @@
 
 #include "kernelError.h"
 #include "kernelFile.h"
+#include "kernelFileStream.h"
 #include "kernelKeyboard.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"

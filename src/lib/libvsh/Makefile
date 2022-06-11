@@ -18,6 +18,10 @@ INCLUDE         = -nostdinc -I${INCDIR}
 CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE}
 LFLAGS		= -nostdlib
 
+ifeq (${DEBUG},)
+	STRIP = strip -s ${SHAREDLIB}
+endif 
+
 NAMES		= vshCompleteFilename \
 		vshCursorMenu \
 		vshDeleteFile \
@@ -42,7 +46,7 @@ SHAREDLIB = ${BUILDDIR}/${SONAME}
 
 # Targets
 
-all: target-dirs ${LIBRARY} ${SHAREDLIB}
+all: target-dirs ${LIBRARY} ${SHAREDLIB} strip
 
 target-dirs:
 	mkdir -p ${OBJDIR} ${PICOBJDIR} ${BUILDDIR}
@@ -52,6 +56,9 @@ ${LIBRARY}: ${OBJS}
 
 ${SHAREDLIB}: ${PICOBJS}
 	${LD} -shared -soname=${SONAME} ${PICOBJS} -o $@
+
+strip: ${SHAREDLIB}
+	${STRIP}
 
 ${OBJDIR}/%.o: %.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@

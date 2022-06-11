@@ -67,6 +67,8 @@
 #define USBUHCI_PORT_ENABLED        0x0004
 #define USBUHCI_PORT_CONNCHG        0x0002
 #define USBUHCI_PORT_CONNSTAT       0x0001
+#define USBUHCI_PORT_RWC_BITS       (USBUHCI_PORT_ENABCHG | \
+				     USBUHCI_PORT_CONNCHG)
 
 // Bitfields for link pointers
 #define USBUHCI_LINKPTR_DEPTHFIRST  0x00000004
@@ -96,24 +98,6 @@
 #define USBUHCI_TDTOKEN_PID         0x000000FF
 #define USBUHCI_TD_NULLDATA         0x000007FF
 
-// Forward declarations, where necessary
-struct __usbUhciTransDesc;
-
-typedef volatile struct {
-  unsigned linkPointer;
-  unsigned element;
-  // Our use, also helps ensure 16-byte alignment.
-  unsigned saveElement;
-  volatile struct _usbUhciTransDesc *transDescs;
-
-} __attribute__((packed)) __attribute((aligned(16))) usbUhciQueueHead;
-
-// One memory page worth of queue heads
-#define USBUHCI_NUM_FRAMES          1024
-#define USBUHCI_FRAMELIST_MEMSIZE   (USBUHCI_NUM_FRAMES * sizeof(unsigned))
-#define USBUHCI_NUM_QUEUEHEADS      11
-#define USBUHCI_QUEUEHEADS_MEMSIZE  (USBUHCI_NUM_QUEUEHEADS * \
-				     sizeof(usbUhciQueueHead))
 // For the queue heads array
 #define USBUHCI_QH_INT128           0
 #define USBUHCI_QH_INT64            1
@@ -126,6 +110,11 @@ typedef volatile struct {
 #define USBUHCI_QH_CONTROL          8
 #define USBUHCI_QH_BULK             9
 #define USBUHCI_QH_TERM             10
+
+// Data structure memory sizes.  USBUHCI_QUEUEHEADS_MEMSIZE is below.
+#define USBUHCI_NUM_FRAMES          1024
+#define USBUHCI_FRAMELIST_MEMSIZE   (USBUHCI_NUM_FRAMES * sizeof(unsigned))
+#define USBUHCI_NUM_QUEUEHEADS      11
 
 typedef volatile struct _usbUhciTransDesc {
   unsigned linkPointer;
@@ -141,6 +130,19 @@ typedef volatile struct _usbUhciTransDesc {
 
 } __attribute__((packed)) __attribute((aligned(16))) usbUhciTransDesc;
 
+typedef volatile struct {
+  unsigned linkPointer;
+  unsigned element;
+  // Our use, also helps ensure 16-byte alignment.
+  unsigned saveElement;
+  usbUhciTransDesc *transDescs;
+
+} __attribute__((packed)) __attribute((aligned(16))) usbUhciQueueHead;
+
+// One memory page worth of queue heads
+#define USBUHCI_QUEUEHEADS_MEMSIZE  (USBUHCI_NUM_QUEUEHEADS * \
+				     sizeof(usbUhciQueueHead))
+
 typedef struct {
   usbDevice *usbDev;
   usbUhciQueueHead *queueHead;
@@ -153,6 +155,7 @@ typedef struct {
 } usbUhciInterruptReg;
 
 typedef struct {
+  void *ioAddress;
   void *frameListPhysical;
   unsigned *frameList;
   usbUhciQueueHead *queueHeads[USBUHCI_NUM_QUEUEHEADS];

@@ -67,7 +67,7 @@ typedef struct {
   file f;
   unsigned offset;
   unsigned block;
-  unsigned maxOffset;
+  unsigned size;
   int dirty;
   unsigned char *buffer;
 

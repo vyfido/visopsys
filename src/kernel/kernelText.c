@@ -429,7 +429,7 @@ int kernelTextSwitchToGraphics(kernelTextArea *area)
 
   // Don't do anything unless we've been initialized
   if (!initialized)
-    return (status = ERR_NULLPARAMETER);
+    return (status = ERR_NOTINITIALIZED);
 
   // For now, don't allow area to be NULL
   if (area == NULL)

@@ -32,7 +32,6 @@ typedef struct _kernelLinkedListItem {
 
 typedef struct {
   kernelLinkedListItem *first;
-  kernelLinkedListItem *iter;
   int numItems;
   lock lock;
 
@@ -41,9 +40,8 @@ typedef struct {
 int kernelLinkedListAdd(kernelLinkedList *, void *);
 int kernelLinkedListRemove(kernelLinkedList *, void *);
 int kernelLinkedListClear(kernelLinkedList *);
-void *kernelLinkedListIterStart(kernelLinkedList *);
-void *kernelLinkedListIterNext(kernelLinkedList *);
-int kernelLinkedListIterEnd(kernelLinkedList *);
+void *kernelLinkedListIterStart(kernelLinkedList *, kernelLinkedListItem **);
+void *kernelLinkedListIterNext(kernelLinkedList *, kernelLinkedListItem **);
 
 #define _KERNELLINKEDLIST_H
 #endif

@@ -1524,6 +1524,49 @@ static int libdl(void)
 }
 
 
+static int randoms(void)
+{
+  int status = 0;
+  unsigned numRandoms = 1000000;
+  int val = 0;
+  int evens = 0;
+  int odds = 0;
+  unsigned difference = 0;
+  unsigned count;
+
+  status = textScreenSave(&screen);
+  if (status < 0)
+    {
+      FAILMESS("Error %d saving screen", status);
+      goto out;
+    }
+
+  for (count = 0; count < numRandoms; count ++)
+    {
+      val = rand();
+
+      if (val & 1)
+	odds += 1;
+      else
+	evens += 1;
+    }
+
+  difference = abs(evens - odds);
+  if (difference > (numRandoms / 10))
+    {
+      FAILMESS("Imbalance in evens (%d) and odds (%d) > 10%%", evens, odds);
+      status = ERR_BADDATA;
+      goto out;
+    }
+
+ out:
+  // Restore the text screen
+  textScreenRestore(&screen);
+
+  return (status);
+}
+
+
 static int gui(void)
 {
   int status = 0;
@@ -1932,6 +1975,7 @@ struct {
   { cosines,         "cosines",         0,  0 },
   { floats,          "floats",          0,  0 },
   { libdl,           "libdl",           0,  0 },
+  { randoms,         "randoms",         0,  0 },
   { gui,             "gui",             0,  1 },
   { icons,           "icons",           0,  1 },
   { NULL, NULL, 0, 0 }

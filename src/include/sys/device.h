@@ -46,6 +46,7 @@
 #define DEVICECLASS_NETWORK                 0x0E00
 #define DEVICECLASS_HUB                     0x0F00
 #define DEVICECLASS_STORAGE                 0x1000
+#define DEVICECLASS_POWER                   0x2000
 #define DEVICECLASS_UNKNOWN                 0xFFFF
 
 // Device sub-classes
@@ -91,6 +92,7 @@
 
 // Sub-classes of network adapters
 #define DEVICESUBCLASS_NETWORK_ETHERNET     (DEVICECLASS_NETWORK | 0x01)
+#define DEVICESUBCLASS_NETWORK_WIRELESS     (DEVICECLASS_NETWORK | 0x02)
 
 // Sub-classes of hubs
 #define DEVICESUBCLASS_HUB_USB              (DEVICECLASS_HUB | 0x01)
@@ -98,6 +100,9 @@
 // Sub-classes of storage
 #define DEVICESUBCLASS_STORAGE_FLASH        (DEVICECLASS_STORAGE | 0x01)
 #define DEVICESUBCLASS_STORAGE_TAPE         (DEVICECLASS_STORAGE | 0x02)
+
+// Sub-classes of power management
+#define DEVICESUBCLASS_POWER_ACPI           (DEVICECLASS_POWER | 0x01)
 
 // For masking off class/subclass
 #define DEVICECLASS_MASK                    0xFF00

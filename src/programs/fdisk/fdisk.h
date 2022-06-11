@@ -138,9 +138,8 @@ typedef enum {
 #define LABELFLAG_USETAGS       0x04
 #define LABELFLAG_USEGUIDS      0x08
 
-// A default GUID for partition creation: "Windows or Linux data"
-#define DEFAULT_GUID ((guid) { 0xEBD0A0A2, 0xB9E5, 0x4433, 0x87, 0xC0, \
-			  { 0x68, 0xB6, 0xB7, 0x26, 0x99, 0xC7 } })
+// A default GUID for partition creation: "Windows data"
+#define DEFAULT_GUID GUID_WINDATA
 
 struct _partitionTable;
 

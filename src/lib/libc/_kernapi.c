@@ -663,10 +663,10 @@ _X_ int filesystemDefragment(const char *name, progress *prog _U_)
   return (_syscall(_fnum_filesystemDefragment, &name));
 }
 
-_X_ int filesystemResizeConstraints(const char *name, uquad_t *minBlocks _U_, uquad_t *maxBlocks _U_)
+_X_ int filesystemResizeConstraints(const char *name, uquad_t *minBlocks _U_, uquad_t *maxBlocks _U_, progress *prog _U_)
 {
-  // Proto: int kernelFilesystemResizeConstraints(const char *, uquad_t *, uquad_t *);
-  // Desc : Get the minimum ('minBlocks') and maximum ('maxBlocks') number of blocks for a filesystem resize on disk 'name'.  It is optional for filesystem drivers to implement this function.
+  // Proto: int kernelFilesystemResizeConstraints(const char *, uquad_t *, uquad_t *, progress *);
+  // Desc : Get the minimum ('minBlocks') and maximum ('maxBlocks') number of blocks for a filesystem resize on disk 'name'.  Progress can optionally be monitored by passing a non-NULL progress structure pointer 'prog'.  It is optional for filesystem drivers to implement this function.
   return (_syscall(_fnum_filesystemResizeConstraints, &name));
 }
 
@@ -892,21 +892,21 @@ _X_ int fileStreamReadLine(fileStream *f, unsigned bytes _U_, char *buff _U_)
   return (_syscall(_fnum_fileStreamReadLine, &f));
 }
 
-_X_ int fileStreamWrite(fileStream *f, unsigned bytes _U_, char *buff _U_)
+_X_ int fileStreamWrite(fileStream *f, unsigned bytes _U_, const char *buff _U_)
 {
   // Proto: int kernelFileStreamWrite(fileStream *, unsigned, char *);
   // Desc : Write 'bytes' bytes from the buffer 'buff' to the filestream 'f'.
   return (_syscall(_fnum_fileStreamWrite, &f));
 }
 
-_X_ int fileStreamWriteStr(fileStream *f, char *buff _U_)
+_X_ int fileStreamWriteStr(fileStream *f, const char *buff _U_)
 {
   // Proto: int kernelFileStreamWriteStr(fileStream *, char *);
   // Desc : Write the string in 'buff' to the filestream 'f'
   return (_syscall(_fnum_fileStreamWriteStr, &f));
 }
 
-_X_ int fileStreamWriteLine(fileStream *f, char *buff _U_)
+_X_ int fileStreamWriteLine(fileStream *f, const char *buff _U_)
 {
   // Proto: int kernelFileStreamWriteLine(fileStream *, char *);
   // Desc : Write the string in 'buff' to the filestream 'f', and add a newline at the end
@@ -1215,9 +1215,9 @@ _X_ void *loaderLoad(const char *filename, file *theFile _U_)
     return ((void *)(long) _syscall(_fnum_loaderLoad, &filename));
 }
 
-_X_ objectKey loaderClassify(const char *fileName, void *fileData _U_, int size _U_, loaderFileClass *fileClass _U_)
+_X_ objectKey loaderClassify(const char *fileName, void *fileData _U_, unsigned size _U_, loaderFileClass *fileClass _U_)
 {
-  // Proto: kernelFileClass *kernelLoaderClassify(const char *, void *, int, loaderFileClass *);
+  // Proto: kernelFileClass *kernelLoaderClassify(const char *, void *, unsigned, loaderFileClass *);
   // Desc : Given a file by the name 'fileName', the contents 'fileData', of size 'size', get the kernel loader's idea of the file type.  If successful, the return  value is non-NULL and the loaderFileClass structure 'fileClass' is filled out with the known information.
   return ((objectKey)(long) _syscall(_fnum_loaderClassify, &fileName));
 }

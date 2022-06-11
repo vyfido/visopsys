@@ -50,7 +50,7 @@ typedef struct {
 } __attribute__((packed)) usbHidDesc;
 
 typedef enum {
-  hid_mouse, hid_keyboard
+  hid_mouse, hid_keyboard, hid_any
 } hidType;
 
 typedef struct {
@@ -70,7 +70,7 @@ typedef struct {
 
 typedef struct {
   hidType type;
-  int target;
+  kernelBusTarget *busTarget;
   kernelDevice dev;
   usbDevice *usbDev;
   usbHidDesc hidDesc;

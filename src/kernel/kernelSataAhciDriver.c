@@ -54,19 +54,16 @@ static int reset(int ctrlNum)
 */
 
 
-static kernelDevice *detectPciControllers(kernelDriver *driver)
+static int detectPciControllers(kernelDevice *controllerDevices,
+				kernelDriver *driver)
 {
   // Try to detect AHCI controllers on the PCI bus
 
   int status = 0;
-  kernelDevice *controllerDevices = NULL;
-  kernelDevice *busDevice = NULL;
   kernelBusTarget *pciTargets = NULL;
   int numPciTargets = 0;
   int deviceCount = 0;
   pciDeviceInfo pciDevInfo;
-  unsigned modPageSize = 0;
-  void *virtualAddress = NULL;
   int legacySupport = 0;
   ahciPort *port = NULL;
   int isAtapi = 0;
@@ -77,22 +74,12 @@ static kernelDevice *detectPciControllers(kernelDriver *driver)
   // See if there are any AHCI controllers on the PCI bus.  This obviously
   // depends upon PCI hardware detection occurring before AHCI detection.
 
-  // Get the PCI bus device
-  status = kernelDeviceFindType(kernelDeviceGetClass(DEVICECLASS_BUS),
-				kernelDeviceGetClass(DEVICESUBCLASS_BUS_PCI),
-				&busDevice, 1);
-  if (status <= 0)
-    {
-      kernelDebug(debug_io, "PCI AHCI: no PCI bus");
-      return (controllerDevices = NULL);
-    }
-
   // Search the PCI bus(es) for devices
   numPciTargets = kernelBusGetTargets(bus_pci, &pciTargets);
   if (numPciTargets <= 0)
     {
       kernelDebug(debug_io, "PCI AHCI: no PCI targets");
-      return (controllerDevices = NULL);
+      return (numPciTargets);
     }
 
   // Search the PCI bus targets for AHCI controllers
@@ -107,8 +94,7 @@ static kernelDevice *detectPciControllers(kernelDriver *driver)
 	continue;
 
       // Get the PCI device header
-      status = kernelBusGetTargetInfo(bus_pci, pciTargets[deviceCount].target,
-				      &pciDevInfo);
+      status = kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
       if (status < 0)
 	{
 	  kernelDebug(debug_io, "PCI AHCI: error getting target info");
@@ -144,12 +130,11 @@ static kernelDevice *detectPciControllers(kernelDriver *driver)
       if (pciDevInfo.device.commandReg & PCI_COMMAND_MASTERENABLE)
 	kernelDebug(debug_io, "PCI AHCI: Bus mastering already enabled");
       else
-	kernelBusSetMaster(bus_pci, pciTargets[deviceCount].target, 1);
-      kernelBusDeviceEnable(bus_pci, pciTargets[deviceCount].target, 0);
+	kernelBusSetMaster(&pciTargets[deviceCount], 1);
+      kernelBusDeviceEnable(&pciTargets[deviceCount], 0);
 
       // Re-read target info
-      kernelBusGetTargetInfo(bus_pci, pciTargets[deviceCount].target,
-			     &pciDevInfo);
+      kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
 
       if (!(pciDevInfo.device.commandReg & PCI_COMMAND_MASTERENABLE))
 	{
@@ -170,7 +155,7 @@ static kernelDevice *detectPciControllers(kernelDriver *driver)
 	kernelRealloc((void *) controllers, ((numControllers + 1) *
 					     sizeof(ahciController)));
       if (controllers == NULL)
-	return (controllerDevices = NULL);
+	return (status = ERR_MEMORY);
 
       // Print registers
       kernelDebug(debug_io, "PCI AHCI: Interrupt line=%d",
@@ -199,60 +184,50 @@ static kernelDevice *detectPciControllers(kernelDriver *driver)
 		  controllers[numControllers].physMemSpace);
 
       // Determine the memory space size.  Write all 1s to the register.
-      kernelBusWriteRegister(bus_pci, pciTargets[deviceCount].target,
+      kernelBusWriteRegister(&pciTargets[deviceCount],
 			     PCI_CONFREG_BASEADDRESS5_32, 32, 0xFFFFFFFF);
 
       controllers[numControllers].memSpaceSize =
-	(~(kernelBusReadRegister(bus_pci, pciTargets[deviceCount].target,
-				 PCI_CONFREG_BASEADDRESS5_32, 32) & ~0x7) + 1);
+	(~(kernelBusReadRegister(&pciTargets[deviceCount],
+				 PCI_CONFREG_BASEADDRESS5_32, 32) & ~0xF) + 1);
 
       kernelDebug(debug_io, "PCI AHCI: address size %08x (%d)",
 		  controllers[numControllers].memSpaceSize,
 		  controllers[numControllers].memSpaceSize);
 
       // Restore the register we clobbered.
-      kernelBusWriteRegister(bus_pci, pciTargets[deviceCount].target,
+      kernelBusWriteRegister(&pciTargets[deviceCount],
 			     PCI_CONFREG_BASEADDRESS5_32, 32,
 			     pciDevInfo.device.nonBridge.baseAddress[5]);
 
       kernelDebug(debug_io, "PCI AHCI: ABAR now %08x",
-		  kernelBusReadRegister(bus_pci,
-					pciTargets[deviceCount].target,
+		  kernelBusReadRegister(&pciTargets[deviceCount],
 					PCI_CONFREG_BASEADDRESS5_32, 32));
 
       // Map the physical memory address of the controller's registers into
       // our virtual address space.
 
-      // We round the physical address so that we can map whole pages.
-      modPageSize =
-	(controllers[numControllers].physMemSpace % MEMORY_PAGE_SIZE);
-
       // Map the physical memory space pointed to by the decoder.
-      status = kernelPageMapToFree(KERNELPROCID, (void *)
-				   (controllers[numControllers].physMemSpace -
-				    modPageSize), &virtualAddress,
-				   (controllers[numControllers].memSpaceSize +
-				    modPageSize));
+      status =
+	kernelPageMapToFree(KERNELPROCID, (void *)
+			    controllers[numControllers].physMemSpace,
+			    (void **) &(controllers[numControllers].regs),
+			    controllers[numControllers].memSpaceSize);
       if (status < 0)
 	{
 	  kernelDebugError("PCI AHCI: Error mapping memory");
 	  continue;
 	}
 
-      // Adjust our registers pointer forward from the start of the page to
-      // the beginning of the actual data
-      controllers[numControllers].regs = (virtualAddress + modPageSize);
-
       // Enable memory mapping access
       if (pciDevInfo.device.commandReg & PCI_COMMAND_MEMORYENABLE)
 	kernelDebug(debug_io, "PCI AHCI: Memory access already enabled");
       else
-	kernelBusDeviceEnable(bus_pci, pciTargets[deviceCount].target,
+	kernelBusDeviceEnable(&pciTargets[deviceCount],
 			      PCI_COMMAND_MEMORYENABLE);
 
       // Re-read target info
-      kernelBusGetTargetInfo(bus_pci, pciTargets[deviceCount].target,
-			     &pciDevInfo);
+      kernelBusGetTargetInfo(&pciTargets[deviceCount], &pciDevInfo);
 
       if (!(pciDevInfo.device.commandReg & PCI_COMMAND_MEMORYENABLE))
 	{
@@ -290,21 +265,14 @@ static kernelDevice *detectPciControllers(kernelDriver *driver)
 		  ((controllers[numControllers].regs->caps & 0x1F) + 1));
 
       // Create a device for it in the kernel.
-
-      // Allocate memory for the device.
-      controllerDevices =
-	kernelRealloc(controllerDevices,
-		      ((numControllers + 1) * sizeof(kernelDevice)));
-      if (controllerDevices == NULL)
-	continue;
-
       controllerDevices[numControllers].device.class =
 	kernelDeviceGetClass(DEVICECLASS_DISKCTRL);
       controllerDevices[numControllers].device.subClass =
 	kernelDeviceGetClass(DEVICESUBCLASS_DISKCTRL_SATA);
 
       // Register the controller
-      kernelDeviceAdd(busDevice, &controllerDevices[numControllers]);
+      kernelDeviceAdd(pciTargets[deviceCount].bus->dev,
+		      &controllerDevices[numControllers]);
 
       // For each implemented port, loop through and see whether we think
       // there's a device attached.  The number of implemented ports is
@@ -417,7 +385,7 @@ static kernelDevice *detectPciControllers(kernelDriver *driver)
     }
 
   kernelFree(pciTargets);
-  return (controllerDevices);
+  return (status = 0);
 }
 
 
@@ -436,12 +404,17 @@ static int driverDetect(void *parent __attribute__((unused)),
   // Reset controller count
   numControllers = 0;
 
-  // First see whether we have PCI controller(s)
-  controllerDevices = detectPciControllers(driver);
+  controllerDevices = kernelMalloc(PCI_MAX_DEVICES * sizeof(kernelDevice));
   if (controllerDevices == NULL)
+    return (status = ERR_MEMORY);
+
+  // First see whether we have PCI controller(s)
+  status = detectPciControllers(controllerDevices, driver);
+  if ((status < 0) || (numControllers <= 0))
     {
       // Nothing on PCI.
       kernelDebug(debug_io, "PCI AHCI controller not detected.");
+      kernelFree(controllerDevices);
       return (status = 0);
     }
 

@@ -54,7 +54,8 @@ typedef struct _kernelFilesystemDriver {
   int (*driverDefragment) (kernelDisk *, progress *);
   int (*driverStat) (kernelDisk *, kernelFilesystemStats *);
   uquad_t (*driverGetFreeBytes) (kernelDisk *);
-  int (*driverResizeConstraints) (kernelDisk *, uquad_t *, uquad_t *);
+  int (*driverResizeConstraints) (kernelDisk *, uquad_t *, uquad_t *,
+				  progress *);
   int (*driverResize) (kernelDisk *, uquad_t, progress *);
   int (*driverMount) (kernelDisk *);
   int (*driverUnmount) (kernelDisk *);
@@ -93,7 +94,8 @@ int kernelFilesystemClobber(const char *);
 int kernelFilesystemCheck(const char *, int, int, progress *);
 int kernelFilesystemDefragment(const char *, progress *);
 int kernelFilesystemStat(const char *, kernelFilesystemStats *);
-int kernelFilesystemResizeConstraints(const char *, uquad_t *, uquad_t *);
+int kernelFilesystemResizeConstraints(const char *, uquad_t *, uquad_t *,
+				      progress *);
 int kernelFilesystemResize(const char *, uquad_t, progress *);
 int kernelFilesystemMount(const char *, const char *);
 int kernelFilesystemUnmount(const char *);

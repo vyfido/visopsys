@@ -50,7 +50,7 @@ static Elf32SectionHeader *getSectionHeader(void *data, const char *name)
     return (returnHeader = NULL);
 
   // Store a pointer to the start of the section headers
-  sectionHeaders = (Elf32SectionHeader *) ((void *) data + header->e_shoff);
+  sectionHeaders = (Elf32SectionHeader *)((void *) data + header->e_shoff);
 
   // Store a pointer to the header for the 'header strings' section
   headerStringsHeader = &(sectionHeaders[header->e_shstrndx]);
@@ -80,7 +80,7 @@ static Elf32SectionHeader *getSectionHeaderByNumber(void *data, int number)
     return (NULL);
 
   // Store a pointer to the start of the section headers
-  sectionHeaders = (Elf32SectionHeader *) (data + header->e_shoff);
+  sectionHeaders = (Elf32SectionHeader *)(data + header->e_shoff);
 
   return (&sectionHeaders[number]);
 }
@@ -97,9 +97,13 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
   Elf32SectionHeader *sectionHeaders = NULL;
   int count;
 
-  if ((fileName == NULL) || (dataPtr == NULL) || !size || (class == NULL))
+  if ((fileName == NULL) || (dataPtr == NULL) || (class == NULL))
     return (0);
 
+  // Make sure there's enough data here for our detection
+  if (size < sizeof(Elf32Header))
+    return (0);
+  
   // Look for the ELF magic number (0x7F + E + L + F)
   if (*magic == 0x464C457F)
     {
@@ -120,7 +124,7 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
 	case ELFTYPE_EXEC:
 	  {
 	    sectionHeaders =
-	      (Elf32SectionHeader *) ((void *) dataPtr + header->e_shoff);
+	      (Elf32SectionHeader *)((void *) dataPtr + header->e_shoff);
 
 	    for (count = 1; count < header->e_shnum; count ++)
 	      {
@@ -184,7 +188,7 @@ static loaderSymbolTable *getSymbols(void *data, int kernel)
     return (symTable = NULL);
 
   // Store a pointer to the start of the section headers
-  sectionHeaders = (Elf32SectionHeader *) (data + header->e_shoff);
+  sectionHeaders = (Elf32SectionHeader *)(data + header->e_shoff);
 
   // Try to use the static symbol and string tables (since they should be
   // supersets of the dynamic ones).  If the statics are not there, use the
@@ -205,7 +209,6 @@ static loaderSymbolTable *getSymbols(void *data, int kernel)
       if (!symbolTableHeader || !stringTableHeader)
 	{
 	  // No symbols or no strings
-	  kernelError(kernel_error, "Symbols or strings missing"); 
 	  return (symTable = NULL);
 	}
     }
@@ -227,7 +230,7 @@ static loaderSymbolTable *getSymbols(void *data, int kernel)
   // Set up the structure
   symTable->numSymbols = (numSymbols - 1);
   symTable->tableSize = symTableSize;
-  symTableData = (void *) ((unsigned) symTable + sizeof(loaderSymbolTable) +
+  symTableData = (void *)((unsigned) symTable + sizeof(loaderSymbolTable) +
 			   (numSymbols * sizeof(loaderSymbol)));
 
   // Copy the string table data
@@ -238,7 +241,7 @@ static loaderSymbolTable *getSymbols(void *data, int kernel)
   for (count = 1; count < numSymbols; count ++)
     {
       symTable->symbols[count - 1].name =
-	(char *) ((int) symTableData + symbols[count].st_name);
+	(char *)((int) symTableData + symbols[count].st_name);
       symTable->symbols[count - 1].defined = symbols[count].st_shndx;
       symTable->symbols[count - 1].value = symbols[count].st_value;
       symTable->symbols[count - 1].size = (unsigned) symbols[count].st_size;
@@ -281,17 +284,25 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
   static char *memoryDesc = "elf executable image";
   int count;
 
+  kernelDebug(debug_loader, "ELF program load address=%p", loadAddress);
+
   execImage->entryPoint = header->e_entry;
 
+  kernelDebug(debug_loader, "ELF program entry point=%p",
+	      execImage->entryPoint);
+
   // Get the address of the program header
-  programHeader = (Elf32ProgramHeader *) (loadAddress + header->e_phoff);
+  programHeader = (Elf32ProgramHeader *)(loadAddress + header->e_phoff);
 
   for (count = 0; count < header->e_phnum; count ++)
     {
       if (programHeader[count].p_type == ELFPT_LOAD)
 	{
+	  kernelDebug(debug_loader, "ELF loadable program header segment "
+		      "flags=0x%x", programHeader[count].p_flags);
+
 	  // Code segment?
-	  if (programHeader[count].p_flags & ELFPF_X)
+	  if (programHeader[count].p_flags == (ELFPF_R | ELFPF_X))
 	    {
 	      // Make sure that any code segment size in the file is the same
 	      // as the size in memory
@@ -320,7 +331,10 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
 
 	  // Add this program segment's memory size (rounded up to
 	  // MEMORY_PAGE_SIZE) to our image size
-	  imageSize += kernelPageRoundUp(programHeader[count].p_memsz);
+	  imageSize +=
+	    kernelPageRoundUp(((unsigned) programHeader[count].p_vaddr %
+			       MEMORY_PAGE_SIZE) +
+			      programHeader[count].p_memsz);
 	  loadSegments += 1;
 	}
     }
@@ -330,6 +344,8 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
   if (loadSegments != 2)
     kernelError(kernel_warn, "Unexpected number of loadable ELF program "
 		"header entries (%d)", loadSegments);
+
+  kernelDebug(debug_loader, "ELF image size=%u", imageSize);
 
   // Get kernel or user memory based on the flag
   if (kernel)
@@ -342,6 +358,9 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
       return (status = ERR_MEMORY);
     }
   
+  kernelDebug(debug_loader, "ELF image memory=%p size %u (%08x)", imageMemory,
+	      imageSize, imageSize);
+
   // Do layout for loadable program segments; the code and data segments
   for (count = 0; count < header->e_phnum; count ++)
     {
@@ -350,20 +369,34 @@ static int layoutCodeAndData(void *loadAddress, processImage *execImage,
 	  void *srcAddr = (loadAddress + programHeader[count].p_offset);
 	  void *destAddr = (imageMemory + (programHeader[count].p_vaddr -
 					   execImage->virtualAddress));
+
+	  kernelDebug(debug_loader, "ELF srcAddr=%p+%08x", loadAddress,
+		      programHeader[count].p_offset);
+	  kernelDebug(debug_loader, "ELF destAddr=%p+(%p-%p=%08x)", imageMemory,
+		      programHeader[count].p_vaddr, execImage->virtualAddress,
+		      (programHeader[count].p_vaddr -
+		       execImage->virtualAddress));
+	  kernelDebug(debug_loader, "ELF copy segment from %p->%p size %u (%x)",
+		      srcAddr, destAddr, programHeader[count].p_filesz,
+		      programHeader[count].p_filesz);
+
 	  kernelMemCopy(srcAddr, destAddr, programHeader[count].p_filesz);
 
 	  // Code segment?
-	  if (programHeader[count].p_flags & ELFPF_X)
+	  if (programHeader[count].p_flags == (ELFPF_R | ELFPF_X))
 	    {
-	      execImage->code = imageMemory;
+	      execImage->code = destAddr;
 	      execImage->codeSize = programHeader[count].p_memsz;
 	    }
-	  else
+	  else if (programHeader[count].p_flags == (ELFPF_R | ELFPF_W))
 	    {
 	      // Data segment
 	      execImage->data = destAddr;
 	      execImage->dataSize = programHeader[count].p_memsz;
 	    }
+	  else
+	    kernelError(kernel_warn, "Loadable ELF program header entry has "
+			"unsupported flags 0x%x", programHeader[count].p_flags);
 	}
     }
 
@@ -405,21 +438,15 @@ static int getLibraryDependencies(void *loadAddress, elfLibraryArray *array)
       return (status = ERR_INVALID);
     }
 
-  dynArray = (Elf32Dyn *) (loadAddress + dynamicHeader->sh_offset);
+  dynArray = (Elf32Dyn *)(loadAddress + dynamicHeader->sh_offset);
 
-  // Loop through the 'dynamic' entries, and count up the number and length
-  // of 'needed' entries
+  // Loop through the 'dynamic' entries, and count up the number of 'needed'
+  // entries
   array->numLibraries = 0;
   array->libraries = NULL;
   for (count = 0; (dynArray[count].d_tag != 0); count ++)
-    {
       if (dynArray[count].d_tag == ELFDT_NEEDED)
-	{
-	  string = (loadAddress + stringHeader->sh_offset +
-		    dynArray[count].d_un.d_val);
 	  numLibraries += 1;
-	}
-    }
 
   // If no dependencies, stop here
   if (numLibraries == 0)
@@ -456,9 +483,9 @@ static int getLibraryDependencies(void *loadAddress, elfLibraryArray *array)
 static int resolveLibrarySymbols(loaderSymbolTable **symTable,
 				 kernelDynamicLibrary *library)
 {
-  // Given 2 symbol tables, replace the first one with a version that
-  // combines the 2, with any resolveable symbols resolved and table2
-  // symbols adjusted by the value 'relocAddress'
+  // Given a symbol table and a dynamic library (with its symbol table),
+  // replace the first one with a version that combines the 2, with any
+  // resolveable symbols resolved.
 
   int status = 0;
   int newTableSize = 0;
@@ -641,7 +668,7 @@ static kernelRelocationTable *getRelocations(void *loadAddress,
       for (count2 = 0; count2 < relocSection[count1].numRelocs; count2 ++)
 	{
 	  table->relocations[table->numRelocs].offset =
-	    (void *) (relArray[count2].r_offset - (unsigned) baseAddress);
+	    (void *)(relArray[count2].r_offset - (unsigned) baseAddress);
 	  table->relocations[table->numRelocs].symbolName = NULL;
 	  table->relocations[table->numRelocs].info =
 	    (int) relArray[count2].r_info;
@@ -817,7 +844,7 @@ static int layoutLibrary(void *loadAddress, kernelDynamicLibrary *library)
       return (status = ERR_INVALID);
     }
 
-  dynArray = (Elf32Dyn *) (loadAddress + dynamicHeader->sh_offset);
+  dynArray = (Elf32Dyn *)(loadAddress + dynamicHeader->sh_offset);
 
   // Loop through the 'dynamic' entries
   for (count = 0; (dynArray[count].d_tag != 0); count ++)
@@ -827,7 +854,7 @@ static int layoutLibrary(void *loadAddress, kernelDynamicLibrary *library)
 	{
 	  kernelError(kernel_error, "Library %s needs library %s",
 		      library->name,
-		      (char *) (loadAddress + stringHeader->sh_offset +
+		      (char *)(loadAddress + stringHeader->sh_offset +
 				dynArray[count].d_un.d_val));
 	  return (status = ERR_NOTIMPLEMENTED);
 	}
@@ -910,8 +937,11 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
 
   kernelDebug(debug_loader, "ELF pull in library %s", library->name);
 
+  // Calculate the offset of the data start within its memory page
+  dataOffset = ((unsigned) library->dataVirtual % MEMORY_PAGE_SIZE);
+
   // Get memory for a copy of the library's data
-  dataMem = kernelMemoryGet(kernelPageRoundUp(library->dataSize),
+  dataMem = kernelMemoryGet(kernelPageRoundUp(dataOffset + library->dataSize),
 			    "dynamic library data");
   if (dataMem == NULL)
     return (status = ERR_MEMORY);
@@ -925,16 +955,19 @@ static int pullInLibrary(int processId, kernelDynamicLibrary *library,
       return (status = ERR_MEMORY);
     }
 
+  kernelDebug(debug_loader, "ELF library->codeVirtual=%p "
+	      "library->codeSize=%u (0x%x)", library->codeVirtual,
+	      library->codeSize, library->codeSize);
   kernelDebug(debug_loader, "ELF library->dataVirtual=%p "
-	      "library->codeVirtual=%p library->codeSize=%u",
-	      library->dataVirtual, library->codeVirtual, library->codeSize);
-
-  // Calculate the offset of the data start within its memory page
-  dataOffset = ((library->dataVirtual - library->codeVirtual) -
-		kernelPageRoundUp(library->codeSize));
+	      "library->dataSize=%u (0x%x)", library->dataVirtual,
+	      library->dataSize, library->dataSize);
 
   kernelDebug(debug_loader, "ELF got libraryDataPhysical=%p dataOffset=%u",
 	      libraryDataPhysical, dataOffset);
+
+  kernelDebug(debug_loader, "ELF copy data from %p to %p (%p + %u) size %u",
+	      library->data, (dataMem + dataOffset), dataMem, dataOffset,
+	      library->dataSize);
 
   // Make a copy of the data
   kernelMemCopy(library->data, (dataMem + dataOffset), library->dataSize);

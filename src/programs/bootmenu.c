@@ -64,6 +64,9 @@ choices for the first hard disk, hd0.
 			      "Copyright (C) 1998-2011 J. Andrew McLaughlin")
 #define PERM                _("You must be a privileged user to use this " \
 			      "command.\n(Try logging in as user \"admin\")")
+#define WINWARNING          _("Windows Vista and later versions may require " \
+			      "you to \"repair\"\nyour boot configuration " \
+			      "using the installation CD.  Continue?")
 #define PARTITIONS          _("Partitions on the disk:")
 #define ENTRIES             _("Chain-loadable entries for the boot menu:")
 #define WRITTEN             _("Boot menu written.")
@@ -150,6 +153,39 @@ static void quit(void)
     free(buffer);
 
   return;
+}
+
+
+static int yesOrNo(char *question)
+{
+  char character;
+
+  if (graphics)
+    return (windowNewQueryDialog(window, _("Confirmation"), question));
+
+  else
+    {
+      printf(_("\n%s (y/n): "), question);
+      textInputSetEcho(0);
+
+      while(1)
+	{
+	  character = getchar();
+      
+	  if ((character == 'y') || (character == 'Y'))
+	    {
+	      printf("%s", _("Yes\n"));
+	      textInputSetEcho(1);
+	      return (1);
+	    }
+	  else if ((character == 'n') || (character == 'N'))
+	    {
+	      printf("%s", _("No\n"));
+	      textInputSetEcho(1);
+	      return (0);
+	    }
+	}
+    }
 }
 
 
@@ -639,6 +675,16 @@ static void constructWindow(void)
 }
 
 
+static void warnWindows(void)
+{
+  if (yesOrNo(WINWARNING) != 1)
+    {
+      quit();
+      exit(0);
+    }
+}
+
+
 static int writeOut(unsigned numSectors, disk *physicalDisk)
 {
   int status = 0;
@@ -696,6 +742,7 @@ int main(int argc, char *argv[])
   file theFile;
   entryStructArray oldEntries;
   entryStruct *oldEntry = NULL;
+  int haveWindows = 0;
   int oldWasDefault = 0;
   char string[SLICESTRING_LENGTH];
   textAttrs attrs;
@@ -780,6 +827,28 @@ int main(int argc, char *argv[])
   for (count1 = 0; count1 < numberLogical; count1 ++)
     if (bootable(logicalDisks[count1].name))
       {
+	// See whether we think this might be a windows partition
+	if (!strcasecmp(logicalDisks[count1].fsType, "ntfs"))
+	  haveWindows = 1;
+	else
+	  {
+	    for (count2 = 0;
+		 ((count2 < (int) sizeof(logicalDisks[count1].partType)) &&
+		  logicalDisks[count1].partType[count2]); count2 ++)
+	      {
+		if (!strcasecmp((logicalDisks[count1].partType + count2),
+				"ntfs") ||
+		    !strcasecmp((logicalDisks[count1].partType + count2),
+				"windows") ||
+		    !strcasecmp((logicalDisks[count1].partType + count2),
+				"microsoft"))
+		  {
+		    haveWindows = 1;
+		    break;
+		  }
+	      }
+	  }
+
 	// Make sure we move up logical disks in our list for after
 	memcpy(&logicalDisks[entryArray->numberEntries],
 	       &logicalDisks[count1], sizeof(disk));
@@ -834,10 +903,24 @@ int main(int argc, char *argv[])
     {
       constructWindow();
       printPartitions();
+
+      // If we think this might be Windows, warn and check before proceeding
+      if (haveWindows)
+	warnWindows();
+
       windowGuiRun();
     }
   else
     {
+      // If we think this might be Windows, warn and check before
+      // proceeding
+      if (haveWindows)
+	{
+	  textScreenClear();
+	  printf("%s\n", TITLE);
+	  warnWindows();
+	}
+
       textSetCursor(0);
       textInputSetEcho(0);
       int selected = 0;

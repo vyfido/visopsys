@@ -30,6 +30,7 @@
 #include "kernelError.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
+#include "kernelMisc.h"
 #include "kernelProcessorX86.h"
 #include <string.h>
 
@@ -51,6 +52,7 @@ static pciSubClass subclass_diskctrl[] = {
   { 0x04, "RAID", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_NONE },
   { 0x05, "ATA", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_NONE },
   { 0x06, "SATA", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_DISKCTRL_SATA },
+  { 0x80, "other", DEVICECLASS_DISKCTRL, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
@@ -59,63 +61,88 @@ static pciSubClass subclass_net[] = {
   { 0x01, "token ring", DEVICECLASS_NETWORK, DEVICESUBCLASS_NONE },
   { 0x02, "FDDI", DEVICECLASS_NETWORK, DEVICESUBCLASS_NONE },
   { 0x03, "ATM", DEVICECLASS_NETWORK, DEVICESUBCLASS_NONE },
+  { 0x04, "ISDN", DEVICECLASS_NETWORK, DEVICESUBCLASS_NONE },
+  { 0x05, "WorldFip", DEVICECLASS_NETWORK, DEVICESUBCLASS_NONE },
+  { 0x06, "PICMG", DEVICECLASS_NETWORK, DEVICESUBCLASS_NONE },
+  { 0x80, "other", DEVICECLASS_NETWORK, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
 static pciSubClass subclass_graphics[] = {
   { 0x00, "VGA", DEVICECLASS_GRAPHIC, DEVICESUBCLASS_NONE },
-  { 0x01, "super VGA", DEVICECLASS_GRAPHIC, DEVICESUBCLASS_NONE },
-  { 0x02, "XGA", DEVICECLASS_GRAPHIC, DEVICESUBCLASS_NONE },
+  { 0x01, "XGA", DEVICECLASS_GRAPHIC, DEVICESUBCLASS_NONE },
+  { 0x02, "3D", DEVICECLASS_GRAPHIC, DEVICESUBCLASS_NONE },
+  { 0x80, "other", DEVICECLASS_GRAPHIC, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClass subclass_mma[] = {
+static pciSubClass subclass_multimed[] = {
   { 0x00, "video", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { 0x01, "audio", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x02, "telephony", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x03, "high-def audio", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x80, "other", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
 static pciSubClass subclass_mem[] = {
   { 0x00, "RAM", DEVICECLASS_MEMORY, DEVICESUBCLASS_NONE },
   { 0x01, "flash", DEVICECLASS_MEMORY, DEVICESUBCLASS_NONE },
+  { 0x80, "other", DEVICECLASS_MEMORY, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
 static pciSubClass subclass_bridge[] = {
-  { 0x00, "CPU/PCI", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
-  { 0x01, "PCI/ISA", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
-  { 0x02, "PCI/EISA", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
-  { 0x03, "PCI/MCA", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x00, "host", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x01, "ISA", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x02, "EISA", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x03, "MCA", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { 0x04, "PCI/PCI", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
-  { 0x05, "PCI/PCMCIA", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
-  { 0x06, "PCI/NuBus", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
-  { 0x07, "PCI/cardbus", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x05, "PCMCIA", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x06, "nubus", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x07, "cardbus", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x08, "raceway", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x09, "PCI/PCI", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x0A, "infiniband", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x80, "other", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
 static pciSubClass subclass_comm[] = {
   { 0x00, "serial", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { 0x01, "parallel", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x02, "multiport serial", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x03, "modem", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x04, "IEEE-488", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x05, "smart card", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x80, "other", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
 static pciSubClass subclass_sys[] = {
-  { 0x00, "PIC", DEVICECLASS_PIC, DEVICESUBCLASS_NONE },
-  { 0x01, "DMAC", DEVICECLASS_DMA, DEVICESUBCLASS_NONE },
+  { 0x00, "(A)PIC", DEVICECLASS_PIC, DEVICESUBCLASS_NONE },
+  { 0x01, "DMA", DEVICECLASS_DMA, DEVICESUBCLASS_NONE },
   { 0x02, "timer", DEVICECLASS_SYSTIMER, DEVICESUBCLASS_NONE },
   { 0x03, "RTC", DEVICECLASS_RTC, DEVICESUBCLASS_NONE },
+  { 0x04, "PCI hotplug", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x05, "SD controller", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x80, "other", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
-static pciSubClass subclass_hid[] = {
+static pciSubClass subclass_input[] = {
   { 0x00, "keyboard", DEVICECLASS_KEYBOARD, DEVICESUBCLASS_NONE },
   { 0x01, "digitizer", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { 0x02, "mouse", DEVICECLASS_MOUSE, DEVICESUBCLASS_NONE },
+  { 0x03, "scanner", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x04, "gameport", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x80, "other", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
 static pciSubClass subclass_dock[] = {
   { 0x00, "generic", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x80, "other", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
@@ -125,6 +152,8 @@ static pciSubClass subclass_cpu[] = {
   { 0x02, "pentium", DEVICECLASS_CPU, DEVICESUBCLASS_CPU_X86 },
   { 0x03, "P6", DEVICECLASS_CPU, DEVICESUBCLASS_CPU_X86 },
   { 0x10, "alpha", DEVICECLASS_CPU, DEVICESUBCLASS_NONE },
+  { 0x20, "powerpc", DEVICECLASS_CPU, DEVICESUBCLASS_NONE },
+  { 0x30, "MIPS", DEVICECLASS_CPU, DEVICESUBCLASS_NONE },
   { 0x40, "coprocessor", DEVICECLASS_CPU, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
@@ -134,7 +163,60 @@ static pciSubClass subclass_serial[] = {
   { 0x01, "ACCESS.bus", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
   { 0x02, "SSA", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
   { 0x03, "USB", DEVICECLASS_BUS, DEVICESUBCLASS_BUS_USB },
-  { 0x04, "fiber channel", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
+  { 0x04, "fibre channel", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
+  { 0x05, "smbus", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
+  { 0x06, "infiniband", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
+  { 0x07, "IPMI", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
+  { 0x08, "sercos", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
+  { 0x09, "canbus", DEVICECLASS_BUS, DEVICESUBCLASS_NONE },
+  { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
+};
+
+static pciSubClass subclass_wireless[] = {
+  { 0x00, "iRDA", DEVICECLASS_NETWORK, DEVICESUBCLASS_NETWORK_WIRELESS },
+  { 0x01, "infrared", DEVICECLASS_NETWORK, DEVICESUBCLASS_NETWORK_WIRELESS },
+  { 0x10, "radio", DEVICECLASS_NETWORK, DEVICESUBCLASS_NETWORK_WIRELESS },
+  { 0x11, "bluetooth", DEVICECLASS_NETWORK, DEVICESUBCLASS_NETWORK_WIRELESS },
+  { 0x12, "broadband", DEVICECLASS_NETWORK, DEVICESUBCLASS_NETWORK_WIRELESS },
+  { 0x20, "802.11a ethernet", DEVICECLASS_NETWORK,
+    DEVICESUBCLASS_NETWORK_WIRELESS },
+  { 0x21, "802.11b ethernet", DEVICECLASS_NETWORK,
+    DEVICESUBCLASS_NETWORK_WIRELESS },
+  { 0x80, "other", DEVICECLASS_NETWORK, DEVICESUBCLASS_NETWORK_WIRELESS },
+  { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
+};
+
+static pciSubClass subclass_intelio[] = {
+  { 0x00, "I20/message", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
+};
+
+static pciSubClass subclass_sat[] = {
+  { 0x01, "television", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x02, "audio", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x03, "voice", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x04, "data", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
+};
+
+static pciSubClass subclass_encrypt[] = {
+  { 0x00, "network", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x10, "entertainment", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x80, "other", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
+};
+
+static pciSubClass subclass_sigproc[] = {
+  { 0x00, "DPIO", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x01, "performance counter", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x10, "communications synch", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x20, "management", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { 0x80, "other", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
+  { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
+};
+
+static pciSubClass subclass_prop[] = {
+  { 0x80, "other", DEVICECLASS_NONE, DEVICESUBCLASS_NONE },
   { PCI_INVALID_SUBCLASSCODE, "", DEVICECLASS_NONE, DEVICESUBCLASS_NONE }
 };
 
@@ -143,15 +225,21 @@ static pciClass pciClassNames[] = {
   { 0x01, "disk controller", subclass_diskctrl },
   { 0x02, "network interface", subclass_net },
   { 0x03, "graphics adapter", subclass_graphics },
-  { 0x04, "multimedia adapter", subclass_mma },
-  { 0x05, "memory", subclass_mem },
-  { 0x06, "bridge", subclass_bridge },
-  { 0x07, "communication", subclass_comm },
-  { 0x08, "system peripheral", subclass_sys },
-  { 0x09, "HID", subclass_hid },
+  { 0x04, "multimedia controller", subclass_multimed },
+  { 0x05, "memory controller", subclass_mem },
+  { 0x06, "bridge device", subclass_bridge },
+  { 0x07, "communication controller", subclass_comm },
+  { 0x08, "system device", subclass_sys },
+  { 0x09, "input device", subclass_input },
   { 0x0a, "docking station", subclass_dock },
   { 0x0b, "CPU", subclass_cpu },
   { 0x0c, "serial bus", subclass_serial },
+  { 0x0d, "wireless controller", subclass_wireless },
+  { 0x0e, "intelligent I/O controller", subclass_intelio },
+  { 0x0f, "satellite controller", subclass_sat },
+  { 0x10, "encryption controller", subclass_encrypt },
+  { 0x11, "signal processing controller", subclass_sigproc },
+  { 0xFF, "proprietary device", subclass_prop },
   { PCI_INVALID_CLASSCODE, "", NULL }
 };
 
@@ -354,7 +442,7 @@ static const char *getVendorFromCode(unsigned short vendorCode
 				     __attribute__((unused)),
 				     int longDesc __attribute__((unused)))
 {
-  const char *vendor = "";
+  const char *vendor = "unknown";
   unsigned count;
 
   for (count = 0; count < PCI_VENTABLE_LEN; count ++)
@@ -378,7 +466,7 @@ static const char *getDeviceFromCode(unsigned short vendorCode
 				     __attribute__((unused)),
 				     int longDesc __attribute__((unused)))
 {
-  const char *dev = "";
+  const char *dev = "unknown";
   unsigned count;
 
   for (count = 0; count < PCI_DEVTABLE_LEN; count ++)
@@ -398,37 +486,73 @@ static const char *getDeviceFromCode(unsigned short vendorCode
 #endif
 
 
-static void deviceInfo2BusTarget(int bus, int dev, int function,
-				 pciDeviceInfo *info, kernelBusTarget *target)
+static void deviceInfo2BusTarget(kernelBus *bus, int busNum, int dev,
+				 int function, pciDeviceInfo *info,
+				 kernelBusTarget *target)
 {
   // Translate a device info header to a bus target listing
 
   pciClass *class = NULL;
   pciSubClass *subClass = NULL;
 
+  target->bus = bus;
+  target->id = makeTargetCode(busNum, dev, function);
+
   getClass(info->device.classCode, &class);
   if (class == NULL)
-    return;
+    {
+      kernelDebugError("No class for classCode %02x", info->device.classCode);
+      return;
+    }
 
   getSubClass(class, info->device.subClassCode, &subClass);
   if (subClass == NULL)
-    return;
+    {
+      kernelDebugError("No subclass for classCode %02x, subClassCode %02x",
+		       info->device.classCode, info->device.subClassCode);
+      return;
+    }
 
-  target->target = makeTargetCode(bus, dev, function);
   target->class = kernelDeviceGetClass(subClass->systemClassCode);
   target->subClass = kernelDeviceGetClass(subClass->systemSubClassCode);
 }
 
 
-static int driverGetTargets(kernelBusTarget **pointer)
+static int driverGetTargets(kernelBus *bus, kernelBusTarget **pointer)
 {
-  // Return the pointer to our list of targets
-  *pointer = targets;
-  return (numTargets);
+  // Generate the list of targets that reside on the given bus (controller).
+
+  int status = 0;
+  int targetCount = 0;
+  int count;
+
+  // Count up the number of targets that belong to the bus
+  for (count = 0; count < numTargets; count ++)
+    if (targets[count].bus == bus)
+      targetCount += 1;
+
+  if (!targetCount)
+    return (targetCount = 0);
+
+  // Allocate memory for all the targets
+  *pointer = kernelMalloc(targetCount * sizeof(kernelBusTarget));
+  if (*pointer == NULL)
+    return (status = ERR_MEMORY);
+
+  // Loop again and copy targets
+  for (targetCount = 0, count = 0; count < numTargets; count ++)
+    if (targets[count].bus == bus)
+      {
+	kernelMemCopy(&targets[count], &(*pointer)[targetCount],
+		      sizeof(kernelBusTarget));
+	targetCount += 1;
+      }
+
+  return (targetCount);
 }
 
 
-static int driverGetTargetInfo(int target, void *pointer)
+static int driverGetTargetInfo(kernelBusTarget *target, void *pointer)
 {
   // Read the device's PCI header and copy it to the supplied memory
   // pointer
@@ -436,21 +560,22 @@ static int driverGetTargetInfo(int target, void *pointer)
   int status = 0;
   int bus, dev, function;
 
-  makeBusDevFunc(target, bus, dev, function);
+  makeBusDevFunc(target->id, bus, dev, function);
   readConfigHeader(bus, dev, function, pointer);
 
   return (status = 0);
 }
 
 
-static unsigned driverReadRegister(int target, int reg, int bitWidth)
+static unsigned driverReadRegister(kernelBusTarget *target, int reg,
+				   int bitWidth)
 {
   // Returns the contents of a PCI configuration register
 
   unsigned contents = 0;
   int bus, dev, function;
 
-  makeBusDevFunc(target, bus, dev, function);
+  makeBusDevFunc(target->id, bus, dev, function);
 
   switch (bitWidth)
     {
@@ -471,14 +596,15 @@ static unsigned driverReadRegister(int target, int reg, int bitWidth)
 }
 
 
-static void driverWriteRegister(int target, int reg, int bitWidth,
-				unsigned contents)
+static int driverWriteRegister(kernelBusTarget *target, int reg, int bitWidth,
+			       unsigned contents)
 {
   // Write the contents of a PCI configuration register
 
+  int status = 0;
   int bus, dev, function;
   
-  makeBusDevFunc(target, bus, dev, function);
+  makeBusDevFunc(target->id, bus, dev, function);
 
   switch (bitWidth)
     {
@@ -493,20 +619,40 @@ static void driverWriteRegister(int target, int reg, int bitWidth,
       break;
     default:
       kernelError(kernel_error, "Register width %d not supported", bitWidth);
+      status = ERR_RANGE;
+      break;
     }
+
+  return (status);
+}
+
+
+static void driverDeviceClaim(kernelBusTarget *target, kernelDriver *driver)
+{
+  // Allows a driver to claim a PCI bus device
+
+  int count;
+
+  // Find our copy of the target using the ID
+  for (count = 0; count < numTargets; count ++)
+    if (targets[count].id == target->id)
+      {
+	kernelDebug(debug_pci, "PCI: target %08x claimed", targets[count].id);
+	targets[count].claimed = driver;
+      }
 
   return;
 }
 
 
-static int driverDeviceEnable(int target, int enable)
+static int driverDeviceEnable(kernelBusTarget *target, int enable)
 {
   // Enables or disables a PCI bus device
 
   int bus, dev, function;
   unsigned short commandReg = 0;
 
-  makeBusDevFunc(target, bus, dev, function);
+  makeBusDevFunc(target->id, bus, dev, function);
 
   // Read the command register
   readConfig16(bus, dev, function, PCI_CONFREG_COMMAND_16, &commandReg);
@@ -531,7 +677,7 @@ static int driverDeviceEnable(int target, int enable)
 }
 
 
-static int driverSetMaster(int target, int master)
+static int driverSetMaster(kernelBusTarget *target, int master)
 {
   // Sets the target device as a bus master
 
@@ -539,7 +685,7 @@ static int driverSetMaster(int target, int master)
   unsigned short commandReg = 0;
   unsigned char latency = 0;
 
-  makeBusDevFunc(target, bus, dev, function);
+  makeBusDevFunc(target->id, bus, dev, function);
 
   // Read the command register
   readConfig16(bus, dev, function, PCI_CONFREG_COMMAND_16, &commandReg);
@@ -580,6 +726,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
   char *subclassName = NULL;
   pciDeviceInfo pciDevice;
   kernelDevice *dev = NULL;
+  kernelBus *bus = NULL;
 
   // Check for a configuration mechanism #1 able PCI controller.
   kernelProcessorOutPort32(PCI_CONFIG_PORT, 0x80000000L);
@@ -609,9 +756,30 @@ static int driverDetect(void *parent, kernelDriver *driver)
 	    // No device here, so try next one
 	    continue;
 
+	  kernelDebug(debug_pci, "PCI: found device bus=%d device=%d "
+		      "function=%d", busCount, deviceCount, functionCount);
+
 	  // If here, we found a PCI device
 	  numTargets += 1;
 	}
+
+  // Allocate memory for the PCI bus device
+  dev = kernelMalloc(sizeof(kernelDevice));
+  if (dev == NULL)
+    return (status = ERR_MEMORY);
+
+  dev->device.class = kernelDeviceGetClass(DEVICECLASS_BUS);
+  dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_BUS_PCI);
+  dev->driver = driver;
+
+  // Allocate memory for the bus service
+  bus = kernelMalloc(sizeof(kernelBus));
+  if (bus == NULL)
+    return (status = ERR_MEMORY);
+
+  bus->type = bus_pci;
+  bus->dev = dev;
+  bus->ops = driver->ops;
 
   // Allocate memory for the targets list
   targets = kernelMalloc(numTargets * sizeof(kernelBusTarget));
@@ -619,8 +787,7 @@ static int driverDetect(void *parent, kernelDriver *driver)
     return (status = ERR_MEMORY);
 
   // Now fill up our targets list
-  numTargets = 0;
-  for (busCount = 0; busCount < PCI_MAX_BUSES; busCount ++) 
+  for (numTargets = 0, busCount = 0; busCount < PCI_MAX_BUSES; busCount ++) 
     for (deviceCount = 0; deviceCount < PCI_MAX_DEVICES; deviceCount ++)
       for (functionCount = 0; functionCount < PCI_MAX_FUNCTIONS;
 	   functionCount ++) 
@@ -654,27 +821,28 @@ static int driverDetect(void *parent, kernelDriver *driver)
 		      getDeviceFromCode(pciDevice.device.vendorID,
 					pciDevice.device.deviceID, 1));
 
-	  deviceInfo2BusTarget(busCount, deviceCount, functionCount,
+	  deviceInfo2BusTarget(bus, busCount, deviceCount, functionCount,
 			       &pciDevice, &targets[numTargets]);
 	  numTargets += 1;
 	}
 
-  // Allocate memory for the PCI bus device
-  dev = kernelMalloc(sizeof(kernelDevice));
-  if (dev == NULL)
-    return (status = ERR_MEMORY);
-
-  dev->device.class = kernelDeviceGetClass(DEVICECLASS_BUS);
-  dev->device.subClass = kernelDeviceGetClass(DEVICESUBCLASS_BUS_PCI);
-  dev->driver = driver;
-
+  // Register the device
   status = kernelDeviceAdd(parent, dev);
   if (status < 0)
-    return (status);
+    {
+      kernelFree(bus);
+      kernelFree(dev);
+      return (status);
+    }
 
-  status = kernelBusRegister(bus_pci, dev);
+  // Register the bus service
+  status = kernelBusRegister(bus);
   if (status < 0)
-    return (status);
+    {
+      kernelFree(bus);
+      kernelFree(dev);
+      return (status);
+    }
 
   return (status = 0);
 }
@@ -686,6 +854,7 @@ static kernelBusOps pciOps = {
   driverGetTargetInfo,
   driverReadRegister,
   driverWriteRegister,
+  driverDeviceClaim,
   driverDeviceEnable,
   driverSetMaster,
   NULL, // driverRead

@@ -57,6 +57,9 @@ static void driverTick(void)
 
   // Add one to the timer 0 tick counter
   timerTicks += 1;
+
+  kernelDebug(debug_misc, "PIT interrupt %d", timerTicks);
+
   return;
 }
 
@@ -149,7 +152,7 @@ static int driverSetupTimer(int counter, int mode, int count)
 
   timerMode[counter] = mode;
 
-  kernelDebug(debug_misc, "PIT: set counter cmd=%02x", commandByte);
+  kernelDebug(debug_misc, "PIT: set counter cmd=0x%02x", commandByte);
 
   return (status = 0);
 }

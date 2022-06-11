@@ -21,10 +21,10 @@
 	
 #if !defined(_KERNELSYSTEMDRIVER_H)
 
-#define BIOSAREA_START  0x000E0000
-#define BIOSAREA_END    0x000FFFF0
-#define BIOSAREA_SIZE   ((BIOSAREA_END - BIOSAREA_START) + 1)
-#define BIOSAREA_SIG    "_32_"
+#define BIOSAREA_START    0x000E0000
+#define BIOSAREA_END      0x000FFFF0
+#define BIOSAREA_SIZE     ((BIOSAREA_END - BIOSAREA_START) + 1)
+#define BIOSAREA_SIG32    "_32_"
 
 typedef struct {
   char signature[4];

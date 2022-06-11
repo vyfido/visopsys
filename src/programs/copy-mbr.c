@@ -51,8 +51,11 @@ Example:
 #include <sys/api.h>
 #include <sys/vsh.h>
 
-//#define DEBUG(message, arg...) printf(message, ##arg)
-#define DEBUG(message, arg...) do { } while (0)
+#ifdef DEBUG
+  #define DEBUGMSG(message, arg...) printf(message, ##arg)
+#else
+  #define DEBUGMSG(message, arg...) do { } while (0)
+#endif
 
 
 static void usage(char *name)
@@ -67,7 +70,7 @@ static int readMbrSect(const char *inputName, unsigned char *mbrSect)
   int status = 0;
   int fd = 0;
 
-  DEBUG("Read MBR sector from %s\n", inputName);
+  DEBUGMSG("Read MBR sector from %s\n", inputName);
 
   // Is the input source a Visopsys disk name?
   if (inputName[0] != '/')
@@ -75,7 +78,7 @@ static int readMbrSect(const char *inputName, unsigned char *mbrSect)
       status = diskReadSectors(inputName, 0, 1, mbrSect);
       if (status < 0)
 	{
-	  DEBUG("Error reading disk %s\n", inputName);
+	  DEBUGMSG("Error reading disk %s\n", inputName);
 	  return (errno = status);
 	}
     }
@@ -85,7 +88,7 @@ static int readMbrSect(const char *inputName, unsigned char *mbrSect)
       fd = open(inputName, O_RDONLY);
       if (fd < 0)
 	{
-	  DEBUG("Error opening file %s\n", inputName);
+	  DEBUGMSG("Error opening file %s\n", inputName);
 	  return (fd);
 	}
       
@@ -96,13 +99,13 @@ static int readMbrSect(const char *inputName, unsigned char *mbrSect)
       
       if (status < 0)
 	{
-	  DEBUG("Error reading file %s\n", inputName);
+	  DEBUGMSG("Error reading file %s\n", inputName);
 	  return (status);
 	}
       
       if (status < 512)
 	{
-	  DEBUG("Could only read %d bytes from %s\n", status, inputName);
+	  DEBUGMSG("Could only read %d bytes from %s\n", status, inputName);
 	  errno = EIO;
 	  return (-1);
 	}
@@ -119,6 +122,7 @@ int main(int argc, char *argv[])
   char *destName = NULL;
   unsigned char oldMbrSect[512];
   unsigned char newMbrSect[512];
+  time_t t = 0;
 
   if (argc != 3)
     {
@@ -146,15 +150,19 @@ int main(int argc, char *argv[])
       return (status);
     }
 
-  DEBUG("Add part table to new MBR\n");
+  DEBUGMSG("Add disk signature to new MBR\n");
+  time(&t);
+  memcpy((newMbrSect + 440), &t, 4);
+
+  DEBUGMSG("Copy partition table to new MBR\n");
   memcpy((newMbrSect + 446), (oldMbrSect + 446), 64);
 
   // Write the new MBR sector
-  DEBUG("Write MBR sector to %s\n", destName);
+  DEBUGMSG("Write MBR sector to %s\n", destName);
   status = diskWriteSectors(destName, 0, 1, newMbrSect);
   if (status < 0)
     {
-      DEBUG("Error writing disk %s\n", destName);
+      DEBUGMSG("Error writing disk %s\n", destName);
       perror(argv[0]);
       return (status);
     }

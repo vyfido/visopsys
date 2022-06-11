@@ -24,6 +24,7 @@
 // and performs all the work of mapping and unmapping pages in the tables.
 
 #include "kernelPage.h"
+#include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelLog.h"
 #include "kernelMemory.h"
@@ -46,13 +47,15 @@ static kernelPageTable *pageTableList[MAX_PROCESSES];
 static volatile int numberPageTables = 0;
 
 // The physical memory location where we'll store the kernel's paging data.
-static unsigned kernelPagingData = 0;
+static unsigned long kernelPagingData = 0;
 
 static volatile int initialized = 0;
 
 // Macros used internally
-#define getTableNumber(address) ((((unsigned) address) >> 22) & 0x000003FF)
-#define getPageNumber(address) ((((unsigned) address) >> 12) & 0x000003FF)
+#define getTableNumber(address) \
+  ((((unsigned long) address) >> 22) & 0x000003FF)
+#define getPageNumber(address) \
+  ((((unsigned long) address) >> 12) & 0x000003FF)
 
 
 static kernelPageTable *findPageTable(kernelPageDirectory *directory,
@@ -407,7 +410,7 @@ static int findPageTableEntry(kernelPageDirectory *directory,
 
   // virtualAddress is allowed to be NULL.
 
-  if ((unsigned) virtualAddress % MEMORY_PAGE_SIZE)
+  if ((unsigned long) virtualAddress % MEMORY_PAGE_SIZE)
     {
       kernelError(kernel_error, "Address is not page-aligned");
       return (status = ERR_ALIGN);
@@ -434,7 +437,7 @@ static int findPageTableEntry(kernelPageDirectory *directory,
 static inline int getNumPages(unsigned size)
 {
   // Turn a size into a number of pages
-  return ((size / MEMORY_PAGE_SIZE) + ((size % MEMORY_PAGE_SIZE)? 1 : 0));
+  return (((size + (MEMORY_PAGE_SIZE - 1)) / MEMORY_PAGE_SIZE));
 }
 
 
@@ -519,7 +522,7 @@ static int map(kernelPageDirectory *directory, void *physicalAddress,
   if (virtualAddress == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  if ((unsigned) physicalAddress % MEMORY_PAGE_SIZE)
+  if ((unsigned long) physicalAddress % MEMORY_PAGE_SIZE)
     return (status = ERR_ALIGN);
 
   // Determine how many pages we need to map
@@ -540,7 +543,7 @@ static int map(kernelPageDirectory *directory, void *physicalAddress,
     }
   else if (flags == PAGE_MAP_EXACT)
     {
-      if ((unsigned) *virtualAddress % MEMORY_PAGE_SIZE)
+      if ((unsigned long) *virtualAddress % MEMORY_PAGE_SIZE)
 	return (status = ERR_ALIGN);
 
       if (!areFreePagesAt(directory, numPages, *virtualAddress))
@@ -632,10 +635,16 @@ static int unmap(kernelPageDirectory *directory, void *virtualAddress,
   // that are used to call us from external locations do not check them.
 
   if (size == 0)
-    return (status = ERR_INVALID);
+    {
+      kernelDebugError("Can't unmap 0 bytes");
+      return (status = ERR_INVALID);
+    }
 
-  if (((unsigned) virtualAddress % MEMORY_PAGE_SIZE) != 0)
-    return (status = ERR_ALIGN);
+  if (((unsigned long) virtualAddress % MEMORY_PAGE_SIZE) != 0)
+    {
+      kernelDebugError("virtualAddress is not a multiple of page size");
+      return (status = ERR_ALIGN);
+    }
 
   // Determine how many pages we need to unmap
   numPages = getNumPages(size);
@@ -1041,7 +1050,11 @@ static int setPageAttrs(kernelPageDirectory *directory, int set,
     {
       pageTable = findPageTable(directory, getTableNumber(virtualAddress));
       if (pageTable == NULL)
-	return (status = ERR_NOSUCHENTRY);
+	{
+	  kernelError(kernel_error, "Virtual address %08x has no page table",
+			  (unsigned) virtualAddress);
+	  return (status = ERR_NOSUCHENTRY);
+	}
 
       pageNumber = getPageNumber(virtualAddress);
 
@@ -1289,6 +1302,7 @@ int kernelPageMap(int processId, void *physicalAddress, void *virtualAddress,
 
   int status = 0;
   kernelPageDirectory *directory = NULL;
+  unsigned offset = 0;
 
   // Have we been initialized?
   if (!initialized)
@@ -1298,6 +1312,15 @@ int kernelPageMap(int processId, void *physicalAddress, void *virtualAddress,
   directory = findPageDirectory(processId);
   if (directory == NULL)
     return (status = ERR_NOSUCHENTRY);
+
+  // If the physical address is not page-aligned, adjust the request.
+  offset = ((unsigned long) physicalAddress % MEMORY_PAGE_SIZE);
+  if (offset)
+    {
+      kernelDebug(debug_memory, "physicalAddress is not page-aligned");
+      physicalAddress -= offset;
+      size += offset;
+    }
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
@@ -1319,11 +1342,12 @@ int kernelPageMapToFree(int processId, void *physicalAddress,
 {
   // This is a publicly accessible wrapper function for the map() function.
   // It maps physical pages into an address space, at the first available
-  // virtual address.  Parameter checking is done inside the map() function,
-  // not here.
+  // virtual address.  More parameter checking is done inside the map()
+  // function.
 
   int status = 0;
   kernelPageDirectory *directory = NULL;
+  unsigned offset = 0;
 
   // Have we been initialized?
   if (!initialized)
@@ -1333,6 +1357,15 @@ int kernelPageMapToFree(int processId, void *physicalAddress,
   directory = findPageDirectory(processId);
   if (directory == NULL)
     return (status = ERR_NOSUCHENTRY);
+
+  // If the physical address is not page-aligned, adjust the request.
+  offset = ((unsigned long) physicalAddress % MEMORY_PAGE_SIZE);
+  if (offset)
+    {
+      kernelDebug(debug_memory, "physicalAddress is not page-aligned");
+      physicalAddress -= offset;
+      size += offset;
+    }
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
@@ -1344,18 +1377,23 @@ int kernelPageMapToFree(int processId, void *physicalAddress,
   status = map(directory, physicalAddress, virtualAddress, size, PAGE_MAP_ANY);
 
   kernelLockRelease(&(directory->dirLock));
+
+  if (offset)
+    *virtualAddress += offset;
+
   return (status);
 }
 
 
 int kernelPageUnmap(int processId, void *virtualAddress, unsigned size)
 {
-  // This is a publicly accessible wrapper function for the map() function.
-  // This one is used to remove mapped pages from an address space.  Parameter
-  // checking is done inside the map() function, not here.
+  // This is a publicly accessible wrapper function for the unmap() function.
+  // This one is used to remove mapped pages from an address space.  More
+  // parameter checking is done inside the unmap() function.
 
   int status = 0;
   kernelPageDirectory *directory = NULL;
+  unsigned offset = 0;
 
   // Have we been initialized?
   if (!initialized)
@@ -1365,6 +1403,15 @@ int kernelPageUnmap(int processId, void *virtualAddress, unsigned size)
   directory = findPageDirectory(processId);
   if (directory == NULL)
     return (status = ERR_NOSUCHENTRY);
+
+  // If the virtual address is not page-aligned, adjust the request.
+  offset = ((unsigned long) virtualAddress % MEMORY_PAGE_SIZE);
+  if (offset)
+    {
+      kernelDebug(debug_memory, "virtualAddress is not page-aligned");
+      virtualAddress -= offset;
+      size += offset;
+    }
 
   status = kernelLockGet(&(directory->dirLock));
   if (status < 0)
@@ -1382,7 +1429,6 @@ int kernelPageUnmap(int processId, void *virtualAddress, unsigned size)
 
 void *kernelPageGetPhysical(int processId, void *virtualAddress)
 {
-  // Let's get physical.  I wanna get physical.  Let me hear your body talk.
   // Return the physical address mapped to this virtual address.  The
   // virtualAddress parameter is allowed to be NULL.
 
@@ -1419,7 +1465,7 @@ void *kernelPageGetPhysical(int processId, void *virtualAddress)
       return (address = NULL);
     }
   else
-    return (address + ((unsigned) virtualAddress % MEMORY_PAGE_SIZE));
+    return (address + ((unsigned long) virtualAddress % MEMORY_PAGE_SIZE));
 }
 
 
@@ -1471,6 +1517,7 @@ int kernelPageSetAttrs(int processId, int set, unsigned char flags,
 
   int status = 0;
   kernelPageDirectory *directory = NULL;
+  unsigned offset = 0;
   int pages = 0;
 
   // Have we been initialized?
@@ -1481,6 +1528,15 @@ int kernelPageSetAttrs(int processId, int set, unsigned char flags,
   directory = findPageDirectory(processId);
   if (directory == NULL)
     return (status = ERR_NOSUCHENTRY);
+
+  // If the virtual address is not page-aligned, adjust the request.
+  offset = ((unsigned long) virtualAddress % MEMORY_PAGE_SIZE);
+  if (offset)
+    {
+      kernelDebug(debug_memory, "virtualAddress is not page-aligned");
+      virtualAddress -= offset;
+      size += offset;
+    }
 
   // Calculate the desired number of pages
   pages = getNumPages(size);

@@ -35,8 +35,10 @@ typedef enum
 {
   available = 1, 
   reserved  = 2,
-  reclaim   = 3,
-  nvs = 4
+  acpi_reclaim = 3,
+  acpi_nvs = 4,
+  bad = 5
+
 } memoryRangeType;
 
 typedef struct
@@ -106,13 +108,11 @@ typedef struct
   unsigned extendedMemory;
   memoryInfoBlock memoryMap[50];
   graphicsInfoBlock graphicsInfo;
-  int bootDevice;
   unsigned bootSector;
-  char bootDisk[4];
+  unsigned bootSectorSig;
+  int bootCd;
   int floppyDisks;
   fddInfoBlock fddInfo[2];
-  int hardDisks;
-  hddInfoBlock hddInfo[4];
   serialInfoBlock serialPorts;
 
 } __attribute__((packed)) loaderInfoStruct;

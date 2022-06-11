@@ -270,7 +270,7 @@ static uquad_t getFreeBytes(kernelDisk *theDisk __attribute__((unused)))
 
 
 static int resizeConstraints(kernelDisk *theDisk, uquad_t *minSectors,
-			     uquad_t *maxSectors)
+			     uquad_t *maxSectors, progress *prog)
 {
   // Return the minimum and maximum resize values
 
@@ -282,6 +282,12 @@ static int resizeConstraints(kernelDisk *theDisk, uquad_t *minSectors,
   *minSectors = 10;
   *maxSectors =
     ((MEMORY_PAGE_SIZE / physicalDisk->sectorSize) * LINUXSWAP_MAXPAGES);
+
+  if (prog && (kernelLockGet(&prog->progLock) >= 0))
+    {
+      prog->percentFinished = 100;
+      kernelLockRelease(&prog->progLock);
+    }
 
   return (status = 0);
 }
@@ -389,7 +395,7 @@ static int mount(kernelDisk *theDisk)
   theDisk->filesystem.blockSize = physicalDisk->sectorSize;
 
   resizeConstraints(theDisk, (uquad_t *) &theDisk->filesystem.minSectors,
-		    (uquad_t *) &theDisk->filesystem.maxSectors);
+		    (uquad_t *) &theDisk->filesystem.maxSectors, NULL);
 
   // Read-only
   theDisk->filesystem.readOnly = 1;

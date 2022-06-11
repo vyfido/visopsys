@@ -45,7 +45,7 @@ static int readBlock(fileStream *theStream)
   // Make sure we're not at the end of the file
   if (theStream->block >= theStream->f.blocks)
     {
-      kernelError(kernel_error, "Can't read beyond the end of file %s"
+      kernelError(kernel_error, "Can't read beyond the end of file %s "
 		  "(block %d > %d)", theStream->f.name, theStream->block,
 		  (theStream->f.blocks - 1));
       return (status = ERR_NODATA);
@@ -86,11 +86,11 @@ static int writeBlock(fileStream *theStream)
 
   // If we have enlarged the file, we should set the file size to the most
   // recent file 
-  if (theStream->maxOffset > oldSize)
+  if (theStream->size > oldSize)
     {
       kernelDebug(debug_io, "FileStream %s size %u", theStream->f.name,
-		  theStream->maxOffset);
-      kernelFileEntrySetSize(theStream->f.handle, theStream->maxOffset);
+		  theStream->size);
+      kernelFileEntrySetSize(theStream->f.handle, theStream->size);
     }
 
   // Return success
@@ -119,6 +119,8 @@ static int attachToFile(fileStream *newStream)
       if (status < 0)
 	return (status);
     }
+
+  newStream->size = newStream->f.size;
 
   return (status = 0);
 }
@@ -181,20 +183,32 @@ int kernelFileStreamSeek(fileStream *theStream, unsigned offset)
   int status = 0;
 
   // Check arguments
-  
+
   if (theStream == NULL)
     {
       kernelError(kernel_error, "NULL file stream argument");
       return (status = ERR_NULLPARAMETER);
     }
 
-  // Can only seek past the end of the file if we're in write mode
-  if (!(theStream->f.openMode & OPENMODE_WRITE) &&
-      (offset >= theStream->f.size))
+  if (theStream->f.openMode & OPENMODE_WRITE)
     {
-      kernelError(kernel_error, "Cannot seek past the end of the file in "
-		  "read-only mode");
-      return (status = ERR_RANGE);
+      // Can't seek past the last byte of the stream + 1
+      if (offset > theStream->size)
+	{
+	  kernelError(kernel_error, "Can't seek past the end of the file "
+		  "(%u > %u)", offset, theStream->size);
+	  return (status = ERR_RANGE);
+	}
+    }
+  else
+    {
+      // Can't seek past the last byte of the stream
+      if (offset >= theStream->size)
+	{
+	  kernelError(kernel_error, "Can't seek past the end of the file "
+		  "(%u >= %u)", offset, theStream->size);
+	  return (status = ERR_RANGE);
+	}
     }
 
   kernelDebug(debug_io, "Seek fileStream %s to %u", theStream->f.name, offset);
@@ -214,27 +228,18 @@ int kernelFileStreamSeek(fileStream *theStream, unsigned offset)
       theStream->block = (theStream->offset / theStream->f.blockSize);
 
       if (theStream->block < theStream->f.blocks)
-	{
+      	{
 	  // Read the block from the file, and put it into the buffer
 	  status = readBlock(theStream);
 	  if (status < 0)
 	    return (status);
 	}
-      else
-	{
-	  // Write an empty block at the new end of the file and proceed from
-	  // there
-	  kernelMemClear(theStream->buffer, theStream->f.blockSize);
-	  status = writeBlock(theStream);
-	  if (status < 0)
-	    return (status);
-	}
+      else if (theStream->f.openMode & OPENMODE_WRITE)
+	// Simply clear the buffer
+	kernelMemClear(theStream->buffer, theStream->f.blockSize);
     }
   else
     theStream->offset = offset;
-
-  if (theStream->offset > theStream->maxOffset)
-    theStream->maxOffset = theStream->offset;
 
   // Return success
   return (status = 0);
@@ -260,20 +265,21 @@ int kernelFileStreamRead(fileStream *theStream, unsigned readBytes,
       return (status = ERR_NULLPARAMETER);
     }
 
-  kernelDebug(debug_io, "Read %u from fileStream %s", readBytes,
-	      theStream->f.name);
+  kernelDebug(debug_io, "Read %u at %u from fileStream %s", readBytes,
+	      theStream->offset, theStream->f.name);
 
   // Make sure this file is open in a read mode
   if (!(theStream->f.openMode & OPENMODE_READ))
     {
-      kernelError(kernel_error, "file not open in read mode");
+      kernelError(kernel_error, "File not open in read mode");
       return (status = ERR_INVALID);
     }
 
-  if (theStream->offset >= theStream->f.size)
+  // Don't read past the end of the stream
+  if (theStream->offset >= theStream->size)
     return (status = ERR_NODATA);
 
-  while (doneBytes < readBytes)
+  while ((doneBytes < readBytes) && (theStream->offset < theStream->size))
     {
       // How many bytes remain in the buffer currently?  We will grab either
       // readBytes bytes, or all the bytes depending on which is greater
@@ -282,16 +288,20 @@ int kernelFileStreamRead(fileStream *theStream, unsigned readBytes,
 
       bytes = min(remainder, (readBytes - doneBytes));
 
+      // Don't read past the end of the stream
+      if ((theStream->size - theStream->offset) < bytes)
+	bytes = (theStream->size - theStream->offset);
+
       // Copy 'bytes' bytes from the stream buffer to the output buffer
       kernelMemCopy((theStream->buffer + blockOffset), (buffer + doneBytes),
 		    bytes);
 
       doneBytes += bytes;
-
       theStream->offset += bytes;
+
       if ((theStream->offset / theStream->f.blockSize) != theStream->block)
 	{
-	  // The stream is empty.  We need to read another block from the file
+	  // The stream is empty.  Can we read another block from the file?
 	  theStream->block = (theStream->offset / theStream->f.blockSize);
 
 	  if (theStream->block < theStream->f.blocks)
@@ -300,12 +310,13 @@ int kernelFileStreamRead(fileStream *theStream, unsigned readBytes,
 	      if (status < 0)
 		return (status);
 	    }
-	  else
+	  else if (theStream->f.openMode & OPENMODE_WRITE)
 	    // Simply clear the buffer
 	    kernelMemClear(theStream->buffer, theStream->f.blockSize);
 	}
     }
 
+  kernelDebug(debug_io, "Read %u", doneBytes);
   return (doneBytes);
 }
 
@@ -339,10 +350,11 @@ int kernelFileStreamReadLine(fileStream *theStream, unsigned maxBytes,
       return (status = ERR_INVALID);
     }
 
-  if (theStream->offset >= theStream->f.size)
+  // Don't read past the end of the stream
+  if (theStream->offset >= theStream->size)
     return (status = ERR_NODATA);
 
-  while (doneBytes < (maxBytes - 1))
+  while ((doneBytes < (maxBytes - 1)) && (theStream->offset < theStream->size))
     {
       blockOffset = (theStream->offset % theStream->f.blockSize);
 
@@ -350,11 +362,11 @@ int kernelFileStreamReadLine(fileStream *theStream, unsigned maxBytes,
       buffer[doneBytes] = theStream->buffer[blockOffset];
 
       doneBytes += 1;
-
       theStream->offset += 1;
+
       if ((theStream->offset / theStream->f.blockSize) != theStream->block)
 	{
-	  // The buffer is empty.  We need to read another block from the file
+	  // The stream is empty.  Can we read another block from the file?
 	  theStream->block = (theStream->offset / theStream->f.blockSize);
 
 	  if (theStream->block < theStream->f.blocks)
@@ -363,7 +375,7 @@ int kernelFileStreamReadLine(fileStream *theStream, unsigned maxBytes,
 	      if (status < 0)
 		return (status);
 	    }
-	  else
+	  else if (theStream->f.openMode & OPENMODE_WRITE)
 	    // Simply clear the buffer
 	    kernelMemClear(theStream->buffer, theStream->f.blockSize);
 	}
@@ -385,7 +397,7 @@ int kernelFileStreamReadLine(fileStream *theStream, unsigned maxBytes,
 
 
 int kernelFileStreamWrite(fileStream *theStream, unsigned writeBytes,
-			  char *buffer)
+			  const char *buffer)
 {
   // This function will write the requested number of bytes from the
   // supplied buffer to the file stream at the current offset.
@@ -432,16 +444,16 @@ int kernelFileStreamWrite(fileStream *theStream, unsigned writeBytes,
       doneBytes += bytes;
 
       theStream->offset += bytes;
-      if (theStream->offset > theStream->maxOffset)
-	theStream->maxOffset = theStream->offset;
+      if (theStream->offset > theStream->size)
+	theStream->size = theStream->offset;
 
       if ((theStream->offset / theStream->f.blockSize) != theStream->block)
 	{
 	  // The buffer is now full.  We will need to flush it and possibly
 	  // read in the next block of the file
 
-	  // Flush it so the block gets written to disk
-	  status = kernelFileStreamFlush(theStream);
+	  // Write the current block of the stream to the file.
+	  status = writeBlock(theStream);
 	  if (status < 0)
 	    return (status);
 
@@ -467,7 +479,7 @@ int kernelFileStreamWrite(fileStream *theStream, unsigned writeBytes,
 }
 
 
-int kernelFileStreamWriteStr(fileStream *theStream, char *buffer)
+int kernelFileStreamWriteStr(fileStream *theStream, const char *buffer)
 {
   // This is just a wrapper function for the Write function, above, except
   // that it saves the caller the trouble of specifying the length of the
@@ -478,7 +490,7 @@ int kernelFileStreamWriteStr(fileStream *theStream, char *buffer)
 }
 
 
-int kernelFileStreamWriteLine(fileStream *theStream, char *buffer)
+int kernelFileStreamWriteLine(fileStream *theStream, const char *buffer)
 {
   // This is just a wrapper function for the Write function, above, and
   // is just like the kernelFileStreamWriteStr function above except that

@@ -21,6 +21,7 @@
 
 	GLOBAL loaderDetectHardware
 	GLOBAL HARDWAREINFO
+	GLOBAL BOOTSECTSIG
 	GLOBAL HDDINFO
 
 	EXTERN loaderFindFile
@@ -33,7 +34,7 @@
 	EXTERN DRIVENUMBER
 	EXTERN CYLINDERS
 	EXTERN PARTENTRY
-
+	
 	SEGMENT .text
 	BITS 16
 	ALIGN 4
@@ -79,39 +80,8 @@ loaderDetectHardware:
 	add SP, 2
 
 	.skipVideo:
-	;; Save the boot device number
-	xor EAX, EAX
-	mov AX, word [DRIVENUMBER]
-	mov dword [BOOTDEVICE], EAX
-	
 	;; Check for CD-ROM emulation stuffs
 	call detectCdEmul
-	
-	;; Record the Visopsys name for the boot disk
-
-	cmp byte [CD_EMULATION], 1
-	jne .notCDROM
-	mov dword [BOOTDISK], 00306463h ; ("cd0")
-	jmp .doneBootName
-	
-	.notCDROM:
-	cmp word [DRIVENUMBER], 80h
-	jb .notHDD
-
-	mov word [BOOTDISK], 6468h ; ("hd")
-	mov AX, word [DRIVENUMBER]
-	sub AX, 0080h
-	add AL, 30h		; ("0")
-	mov byte [BOOTDISK + 2], AL
-	jmp .doneBootName
-		
-	.notHDD:
-	mov word [BOOTDISK], 6466h ; ("fd")
-	mov AX, word [DRIVENUMBER]
-	add AL, 30h		; ("0")
-	mov byte [BOOTDISK + 2], AL
-
-	.doneBootName:
 	
 	;; Detect floppy drives, if any
 	call detectFloppies
@@ -119,7 +89,7 @@ loaderDetectHardware:
 	cmp word [PRINTINFO], 1
 	jne .noEmul
 	;; If we're booting from CD-ROM in emulation mode, print a message
-	cmp byte [CD_EMULATION], 1
+	cmp dword [BOOTCD], 1
 	jne .noEmul
 	mov DL, 02h		; Use green color
 	mov SI, HAPPY
@@ -131,9 +101,14 @@ loaderDetectHardware:
 	call loaderPrint
 	call loaderPrintNewline
 	.noEmul:
-	
+
 	;; Detect Fixed disk drives, if any
 	call detectHardDisks
+
+	;; Record the sector number (LBA) of the boot sector
+	mov SI, PARTENTRY
+	mov EAX, dword [SI + 8]
+	mov dword [BOOTSECT], EAX
 
 	;; Serial ports
 	call detectSerial
@@ -335,9 +310,9 @@ detectMemory:
 	mov DI, MEMORYMAP	; The buffer
 
 	.smapLoop:
-	mov EAX, 0000E820h	; Function number
-	mov EDX, 534D4150h	; ('SMAP')
-	mov ECX, 20		; Size of buffer
+	mov EAX, 0000E820h		; Function number
+	mov EDX, 534D4150h		; ('SMAP')
+	mov ECX, memoryInfoBlock_size	; Size of buffer
 	int 15h
 
 	;; Call successful?
@@ -353,7 +328,7 @@ detectMemory:
 
 	;; Call the BIOS for the next bit
 	add DI, 20
-	cmp DI, (MEMORYMAP + (MEMORYMAPSIZE * 20))
+	cmp DI, (MEMORYMAP + (MEMORYMAPSIZE * memoryInfoBlock_size))
 	jl .smapLoop
 
 	.doneSmap:
@@ -406,13 +381,13 @@ detectCdEmul:
 	ja .notEmul
 
 	.isEmul:
-	mov byte [CD_EMULATION], 1
+	mov dword [BOOTCD], 1
 	
 	.notEmul:
 	popa
 	ret
 
-	
+
 detectFloppies:
 	;; This routine will detect the number and types of floppy
 	;; disk drives on board
@@ -444,7 +419,7 @@ detectFloppies:
 	;; CD-ROM emulations as a real one, indistinguishable from real
 	;; ones.  So, if the emulation disk number is the same as this one,
 	;; skip it.
-	cmp byte [CD_EMULATION], 1
+	cmp dword [BOOTCD], 1
 	jne .noEmul
 	cmp DL, byte [EMUL_SAVE + 2]
 	je .floppyLoop
@@ -608,7 +583,7 @@ detectHardDisks:
 
 	;; Start with drive 0
 	mov ECX, 0
-	mov EDI, HD0
+	mov EDI, HDDINFOBLOCK
 
 	.driveLoop:
 
@@ -618,16 +593,6 @@ detectHardDisks:
 	cmp ECX, dword [HARDDISKS]
 	jae near .done
 
-	;; If we are booting from this disk, record the boot sector LBA
-	mov AX, CX
-	add AX, 80h
-	cmp AX, word [DRIVENUMBER]
-	jne .notBoot		; This is not the boot device
-	mov SI, PARTENTRY
-	mov EAX, dword [SI + 8]
-	mov dword [BOOTSECT], EAX
-
-	.notBoot:
 	;; This interrupt call will destroy ES, so save it
 	push ECX		; Save this first
 	push EDI
@@ -709,7 +674,6 @@ detectHardDisks:
 	;; Prepare for the next disk.  Counter is checked at the beginning
 	;; of the loop.
 	inc ECX
-	add EDI, hddInfoBlock_size
 	jmp .driveLoop
 
 	.done:
@@ -1091,7 +1055,11 @@ int6_restore:
 OLDINT6		dd 0		;; Address of the interrupt 6 handler
 ISRRETURNADDR	dw 0		;; The offset of the return address for int6
 INVALIDOPCODE	db 0		;; To pass data from our interrupt handler
+HARDDISKS	dd 0		;; Number present
 HDDINFO		times 42h  db 0	;; Space for info ret by EBIOS
+HDDINFOBLOCK: ISTRUC hddInfoBlock
+	times hddInfoBlock_size db 0
+IEND
 
 ;; This is the data structure that these routines will fill.  The
 ;; (flat-mode) address of this structure is eventually passed to
@@ -1115,9 +1083,10 @@ HARDWAREINFO:
 	IEND
 	
 	;; This is the info about the boot device and booted sector
-	BOOTDEVICE	dd 0	;; BIOS boot device number
-	BOOTSECT	dd 0	;; Booted sector
-	BOOTDISK        db 0, 0, 0, 0  ;; Boot disk string 
+	BOOTSECT	dd 0	;; Boot sector LBA
+	BOOTSECTSIG	dd 0	;; Boot sector signature
+	BOOTCD		dd 0	;; Booting from a CD
+
 	;; This is an array of info about up to 2 floppy disks in the system
 	FLOPPYDISKS	dd 0	;; Number present
 	;; Floppy 0
@@ -1127,25 +1096,6 @@ HARDWAREINFO:
 	;; Floppy 1
 	FD1: ISTRUC fddInfoBlock
 	times fddInfoBlock_size db 0
-	IEND
-	
-	;; This is an array of info about up to 4 hard disks in the system
-	HARDDISKS	dd 0	;; Number present
-	;; Disk 0
-	HD0: ISTRUC hddInfoBlock
-	times hddInfoBlock_size db 0
-	IEND
-	;; Disk 1
-	HD1: ISTRUC hddInfoBlock
-	times hddInfoBlock_size db 0
-	IEND
-	;; Disk 2
-	HD2: ISTRUC hddInfoBlock
-	times hddInfoBlock_size db 0
-	IEND
-	;; Disk 3
-	HD3: ISTRUC hddInfoBlock
-	times hddInfoBlock_size db 0
 	IEND
 	
 	;; Info about the serial ports
@@ -1181,7 +1131,6 @@ BPSECT		db ' bps  ', 0
 MEGA		db ' MBytes', 0
 NOGRAPHICS	db 'NOGRAPH    ', 0
 
-CD_EMULATION	db 0
 EMUL_SAVE	times 20 db 0
 
 ;;

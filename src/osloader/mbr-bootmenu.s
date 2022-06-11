@@ -55,8 +55,8 @@
 %define DISKPACKET		(CYLINDER + CYLINDER_SZ)
 %define DISKPACKET_SZ		(BYTE * 16)
 
-%define	IOERR			(NEWCODELOCATION + (DATA1 - main))
-%define	PART_TABLE		(NEWCODELOCATION + (DATA2 - main))
+%define	IOERR			(NEWCODELOCATION + (DATA_IOERR - main))
+%define	PART_TABLE		(NEWCODELOCATION + (DATA_PART_TABLE - main))
 
 		
 main:
@@ -133,17 +133,23 @@ jmpTarget:
 	%include "bootsect-read.s"
 	
 
-;; Static data follows.  We don't want to refer to it by meaningful symbolic
-;; names here; after relocation these are not so meaningful
+;; Static data follows.  We don't refer to it by any of these symbol names;
+;; after relocation these are not so meaningful
 
 ;; Messages
-DATA1		db 'I/O Error reading boot sector', 0Dh, 0Ah, 0
+DATA_IOERR	db 'I/O Error reading boot sector', 0Dh, 0Ah, 0
 
 ;; Move to the end of the sector
-times (446-($-$$))	db 0
+times (440-($-$$)) db 0
 
+;; Disk signature
+DATA_DISKSIG	dd 0
+
+;; NULLs
+DATA_NULLS	dw 0
+	
 ;; Here's where the partition table goes
-DATA2		times 16	db 0
+DATA_PART_TABLE	times 16	db 0
 		times 16	db 0
 		times 16	db 0
 		times 16	db 0
@@ -152,4 +158,4 @@ DATA2		times 16	db 0
 ;; sector.  The BIOS uses this to determine whether this sector was
 ;; meant to be booted from (and also helps prevent us from making the
 ;; boot sector code larger than 512 bytes)
-ENDSECTOR:	dw 0AA55h
+DATA_BOOTSIG	dw 0AA55h

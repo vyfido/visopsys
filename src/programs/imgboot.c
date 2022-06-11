@@ -224,8 +224,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	}
       else
 	{
-	  runLogin();
-	  windowGuiStop();
+	  if (runLogin() >= 0)
+	    windowGuiStop();
 	}
     }
 
@@ -233,8 +233,8 @@ static void eventHandler(objectKey key, windowEvent *event)
   else if ((key == contButton) && (event->type == EVENT_MOUSE_LEFTUP))
     {
       // Stop the GUI here and run the login program
-      runLogin();
-      windowGuiStop();
+      if (runLogin() >= 0)
+	windowGuiStop();
     }
 }
 
@@ -383,8 +383,12 @@ int main(int argc, char *argv[])
     }
   else
     {
+    restart:
+
       // Print title message, and ask whether to install or run
       printf("\n%s\n", gplString);
+
+      numOptions = 0;
 
       if (haveInstall)
 	{
@@ -425,7 +429,10 @@ int main(int argc, char *argv[])
 	      shutdown(1, 1);
 	    }
 	  else
-	    runLogin();
+	    {
+	      if (runLogin() < 0)
+		goto restart;
+	    }
 	}
       else
 	{
@@ -436,8 +443,9 @@ int main(int argc, char *argv[])
 		// Tell the user about the admin account
 		printf("\n%s\n", adminString);
 	    }
-	  
-	  runLogin();
+
+	  if (runLogin() < 0)
+	    goto restart;
 	}
     }
 

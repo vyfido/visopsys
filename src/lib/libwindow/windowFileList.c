@@ -301,6 +301,14 @@ static int classifyEntry(fileEntry *entry)
 	  memcpy(&(entry->iconParams.iconImage), entry->icon->image,
 		 sizeof(image));
 	}
+      else
+	{
+	  // Get the target's file class information
+	  loaderClassifyFile(entry->fullName, &(entry->class));
+
+	  // Get the the icon for the file
+	  getFileIcon(entry);
+	}
       break;
 
     default:
@@ -555,7 +563,7 @@ static int eventHandler(windowFileList *fileList, windowEvent *event)
 	  if (selected >= fileList->numFileEntries)
 	    selected = (fileList->numFileEntries - 1);
 
-	  windowComponentSetSelected(fileList, selected);
+	  windowComponentSetSelected(fileList->key, selected);
 	}
     }
 

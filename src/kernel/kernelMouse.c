@@ -24,11 +24,11 @@
 #include "kernelMouse.h"
 #include "kernelError.h"
 #include "kernelFile.h"
+#include "kernelGraphic.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
-#include "kernelMemory.h"
-#include "kernelMultitasker.h"
+#include "kernelVariableList.h"
 #include "kernelWindow.h"
 #include <string.h>
 
@@ -91,6 +91,123 @@ static inline int findPointerSlot(const char *pointerName)
       return (count);
 
   return (ERR_NOSUCHENTRY);
+}
+
+
+static int insertPointer(kernelMousePointer *pointer)
+{
+  int status = 0;
+  int pointerSlot = -1;
+
+  // Let's see whether this is a new pointer, or whether this will replace
+  // an existing one
+  pointerSlot = findPointerSlot(pointer->name);
+
+  if (pointerSlot < 0)
+    {
+      // This is a new pointer, so add it to the list.
+      
+      if (numberPointers >= MOUSE_MAX_POINTERS)
+	{
+	  kernelError(kernel_error, "Can't exceed max number of mouse "
+		      "pointers (%d)", MOUSE_MAX_POINTERS);
+	  return (status = ERR_BOUNDS);
+	}
+      
+      pointerList[numberPointers++] = pointer;
+    }
+  else
+    {
+      // Replace the existing pointer with this one
+      kernelImageFree(&pointerList[pointerSlot]->pointerImage);
+      kernelFree(pointerList[pointerSlot]);
+      pointerList[pointerSlot] = pointer;
+    }
+
+  return (status = 0);
+}
+
+
+static int makeDefaultPointer(void)
+{
+  int status = 0;
+  kernelGraphicBuffer buffer;
+  int bufferBytes = 0;
+  image tmpImage;
+  kernelMousePointer *newPointer = NULL;
+
+  kernelMemClear((void *) &buffer, sizeof(kernelGraphicBuffer));
+  kernelMemClear(&tmpImage, sizeof(image));
+
+  buffer.width = 12;
+  buffer.height = 12;
+
+  bufferBytes = kernelGraphicCalculateAreaBytes(buffer.width, buffer.height);
+
+  buffer.data = kernelMalloc(bufferBytes);
+  if (buffer.data == NULL)
+    return (status = ERR_MEMORY);
+
+  kernelGraphicDrawRect(&buffer, &((color) { 0, 255, 0 } ), draw_normal,
+			0, 0, buffer.width, buffer.height, 1, 1);
+
+  kernelGraphicDrawLine(&buffer, &COLOR_WHITE, draw_normal, 0, 0,
+			(buffer.width - 1), (buffer.height / 2));
+  kernelGraphicDrawLine(&buffer, &COLOR_BLACK, draw_normal, 0, 0,
+			(buffer.width - 1), ((buffer.height / 2) - 1));
+  kernelGraphicDrawLine(&buffer, &COLOR_BLACK, draw_normal, 0, 0,
+			(buffer.width - 1), ((buffer.height / 2) - 2));
+  kernelGraphicDrawLine(&buffer, &COLOR_WHITE, draw_normal, 0, 0,
+			(buffer.width / 2), (buffer.height - 1));
+  kernelGraphicDrawLine(&buffer, &COLOR_BLACK, draw_normal, 0, 0,
+			((buffer.width / 2) - 1), (buffer.height - 1));
+  kernelGraphicDrawLine(&buffer, &COLOR_BLACK, draw_normal, 0, 0,
+			((buffer.width / 2) - 2), (buffer.height - 1));
+
+  status = kernelGraphicGetImage(&buffer, &tmpImage, 0, 0, buffer.width,
+				 buffer.height);
+
+  kernelFree(buffer.data);
+
+  if (status < 0)
+    return (status);
+
+  newPointer = kernelMalloc(sizeof(kernelMousePointer));
+  if (newPointer == NULL)
+    {
+      kernelImageFree(&tmpImage);  
+      return (status = ERR_MEMORY);
+    }
+
+  // Copy the image to kernel memory
+  status = kernelImageCopyToKernel(&tmpImage, &newPointer->pointerImage);
+
+  kernelImageFree(&tmpImage);
+
+  if (status < 0)
+    {
+      kernelFree(newPointer);
+      return (status);
+    }
+
+  // Save the name
+  strncpy(newPointer->name, "default", MOUSE_POINTER_NAMELEN);
+
+  // Mouse pointers are translucent, and the translucent color is pure green
+  newPointer->pointerImage.transColor.red = 0;
+  newPointer->pointerImage.transColor.green = 255;
+  newPointer->pointerImage.transColor.blue = 0;
+
+  // Put it into the list
+  status = insertPointer(newPointer);
+  if (status < 0)
+    {
+      kernelImageFree(&newPointer->pointerImage);
+      kernelFree(newPointer);
+      return (status);
+    }
+
+  return (status = 0);
 }
 
 
@@ -163,6 +280,17 @@ int kernelMouseInitialize(void)
 		    name, value);
     }
 
+  // Make sure there's at least a default pointer
+  status = findPointerSlot("default");
+  if (status < 0)
+    {
+      // Perhaps the pointer image is missing.  We need to have something, so
+      // we're going to create a rudimentary one, manually.
+      status = makeDefaultPointer();
+      if (status < 0)
+	kernelError(kernel_warn, "Unable to create default pointer");
+    }
+
   return (status = 0);
 }
 
@@ -181,9 +309,8 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
   // Load a new pointer.
 
   int status = 0;
-  kernelMousePointer *newPointer = NULL;
   image tmpImage;
-  int pointerSlot = -1;
+  kernelMousePointer *newPointer = NULL;
   
   // Make sure we've been initialized
   if (!initialized)
@@ -195,24 +322,13 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
 
   kernelMemClear(&tmpImage, sizeof(image));
 
-  newPointer = kernelMalloc(sizeof(kernelMousePointer));
-  if (newPointer == NULL)
-    return (status = ERR_MEMORY);
-
-  // Does the image file exist?  If not, use the default.
-  if (kernelFileFind(fileName, NULL))
+  // Does the image file exist?
+  status = kernelFileFind(fileName, NULL);
+  if (status < 0)
     {
-      // Not found.  Try the default pointer name.
-      kernelLog("Mouse pointer \"%s\" image file %s not found.  Trying "
-		"default.", pointerName, fileName);
-      fileName = MOUSE_DEFAULT_POINTER_DEFAULT;
-
-      if (kernelFileFind(fileName, NULL))
-	{
-	  kernelError(kernel_error, "Error loading mouse pointer \"%s\" "
-		      "image %s", pointerName, fileName);
-	  return (status);
-	}
+      kernelLog("Mouse pointer \"%s\" image file %s not found.", pointerName,
+		fileName);
+      return (status);
     }
 
   status = kernelImageLoad(fileName, 0, 0, &tmpImage);
@@ -223,9 +339,20 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
       return (status);
     }
   
+  newPointer = kernelMalloc(sizeof(kernelMousePointer));
+  if (newPointer == NULL)
+    {
+      kernelImageFree(&tmpImage);
+      return (status = ERR_MEMORY);
+    }
+
   // Copy the image to kernel memory
-  kernelImageCopyToKernel(&tmpImage, &newPointer->pointerImage);
+  status = kernelImageCopyToKernel(&tmpImage, &newPointer->pointerImage);
+
   kernelImageFree(&tmpImage);
+
+  if (status < 0)
+    return (status);
 
   // Save the name
   strncpy(newPointer->name, pointerName, MOUSE_POINTER_NAMELEN);
@@ -235,31 +362,13 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
   newPointer->pointerImage.transColor.green = 255;
   newPointer->pointerImage.transColor.blue = 0;
 
-  // Let's see whether this is a new pointer, or whether this will replace
-  // an existing one
-  pointerSlot = findPointerSlot(pointerName);
-
-  if (pointerSlot < 0)
+  // Put it into the list
+  status = insertPointer(newPointer);
+  if (status < 0)
     {
-      // This is a new pointer, so add it to the list.
-      
-      if (numberPointers >= MOUSE_MAX_POINTERS)
-	{
-	  kernelError(kernel_error, "Can't exceed max number of mouse "
-		      "pointers (%d)", MOUSE_MAX_POINTERS);
-	  kernelImageFree(&newPointer->pointerImage);
-	  kernelFree(newPointer);
-	  return (status = ERR_BOUNDS);
-	}
-      
-      pointerList[numberPointers++] = newPointer;
-    }
-  else
-    {
-      // Replace the existing pointer with this one
-      kernelImageFree(&pointerList[pointerSlot]->pointerImage);
-      kernelFree(pointerList[pointerSlot]);
-      pointerList[pointerSlot] = newPointer;
+      kernelImageFree(&newPointer->pointerImage);
+      kernelFree(newPointer);
+      return (status);
     }
 
   kernelLog("Loaded mouse pointer %s from file %s", newPointer->name,

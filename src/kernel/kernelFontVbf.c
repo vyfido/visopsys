@@ -45,9 +45,13 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
   vbfFileHeader *vbfHeader = dataPtr;
 
   // Check params
-  if ((fileName == NULL) || (dataPtr == NULL) || !size || (class == NULL))
+  if ((fileName == NULL) || (dataPtr == NULL) || (class == NULL))
     return (0);
 
+  // Make sure there's enough data here for our detection
+  if (size < sizeof(vbfFileHeader))
+    return (0);
+  
   // See whether this file claims to be a VBF file.
   if (!strncmp(vbfHeader->magic, VBF_MAGIC, 4))
     {

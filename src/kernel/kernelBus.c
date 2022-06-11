@@ -21,34 +21,13 @@
 
 #include "kernelBus.h"
 #include "kernelError.h"
+#include "kernelLinkedList.h"
 #include "kernelMalloc.h"
 #include "kernelMisc.h"
 #include <string.h>
 
-
-static kernelBus *buses[BUS_MAX_BUSES];
-static int numBuses = 0;
-
-
-static inline kernelBus *findBus(kernelBusType type)
-{
-  // Search through our list of buses to find the first one of the correct
-  // type
-
-  kernelBus *bus = NULL;
-  int count;
-
-  for (count = 0; count < numBuses; count ++)
-    {
-      if (buses[count]->type == type)
-	{
-	  bus = buses[count];
-	  break;
-	}
-    }
-
-  return (bus);
-}
+static kernelLinkedList buses;
+static int initialized = 0;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -60,32 +39,24 @@ static inline kernelBus *findBus(kernelBusType type)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelBusRegister(kernelBusType type, kernelDevice *dev)
+int kernelBusRegister(kernelBus *bus)
 {
   int status = 0;
-  kernelBus *bus = NULL;
 
   // Check params
-  if (dev == NULL)
+  if (bus == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  if (numBuses >= BUS_MAX_BUSES)
+  if (!initialized)
     {
-      kernelError(kernel_error, "Max buses (%d) has been reached", numBuses);
-      return (status = ERR_NOFREE);
+      kernelMemClear(&buses, sizeof(kernelLinkedList));
+      initialized = 1;
     }
 
-  // Get memory for the bus
-  bus = kernelMalloc(sizeof(kernelBus));
-  if (bus == NULL)
-    return (status = ERR_MEMORY);
-
-  bus->type = type;
-  bus->ops = dev->driver->ops;
-
   // Add the supplied device to our list of buses
-  buses[numBuses] = bus;
-  numBuses += 1;
+  status = kernelLinkedListAdd(&buses, (void *) bus);
+  if (status < 0)
+    return (status);
 
   return (status = 0);
 }
@@ -93,271 +64,312 @@ int kernelBusRegister(kernelBusType type, kernelDevice *dev)
 
 int kernelBusGetTargets(kernelBusType type, kernelBusTarget **pointer)
 {
-  // This is a wrapper for the bus-specific driver function
+  // This is a wrapper for the bus-specific driver functions, but it will
+  // aggregate a list of targets from all buses of the requested type.
 
   int status = 0;
+  kernelLinkedListItem *iter = NULL;
   kernelBus *bus = NULL;
   kernelBusTarget *tmpTargets = NULL;
-  kernelBusTarget *currentTargets = NULL;
   int numTargets = 0;
-  int count;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
 
   // Check params
   if (pointer == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  // Loop through all our buses and count the number of targets for buses
-  // of this type
-  for (count = 0; count < numBuses; count ++)
+  *pointer = NULL;
+
+  // Loop through all our buses and collect all the targets for buses
+  // of the requested type
+  bus = kernelLinkedListIterStart(&buses, &iter);
+  while (bus)
     {
-      bus = buses[count];
-      
       if (bus->type == type)
 	{
 	  // Operation supported?
 	  if (!bus->ops->driverGetTargets)
+	    continue;
+
+	  status = bus->ops->driverGetTargets(bus, &tmpTargets);
+
+	  if (status > 0)
 	    {
-	      kernelError(kernel_error, "Bus type %d doesn't support this "
-			  "function", type);
-	      return (status = ERR_NOSUCHFUNCTION);
+	      *pointer = kernelRealloc(*pointer, ((numTargets + status) *
+						  sizeof(kernelBusTarget)));
+	      if (*pointer == NULL)
+		return (status = ERR_MEMORY);
+
+	      kernelMemCopy(tmpTargets, &((*pointer)[numTargets]),
+			    (status * sizeof(kernelBusTarget)));
+
+	      numTargets += status;
+	      kernelFree(tmpTargets);
 	    }
-      
-	  status = bus->ops->driverGetTargets(&tmpTargets);
-	  if (status < 0)
-	    return (status);
-
-	  numTargets += status;
 	}
-    }
 
-  if (numTargets <= 0)
-    return (status = ERR_NODATA);
-
-  // Allocate enough memory for all the targets
-  *pointer = kernelMalloc(numTargets * sizeof(kernelBusTarget));
-  if (*pointer == NULL)
-    return (status = ERR_MEMORY);
-
-  // Loop through the buses again and copy the targets into our new memory
-  numTargets = 0;
-  for (count = 0; count < numBuses; count ++)
-    {
-      bus = buses[count];
-      
-      if (bus->type == type)
-	{
-	  status = bus->ops->driverGetTargets(&tmpTargets);
-	  if (status < 0)
-	    return (status);
-
-	  currentTargets = (*pointer + (numTargets * sizeof(kernelBusTarget)));
-	  
-	  kernelMemCopy(tmpTargets, currentTargets,
-			(status * sizeof(kernelBusTarget)));
-	  numTargets += status;
-	}
+      bus = kernelLinkedListIterNext(&buses, &iter);
     }
 
   return (numTargets);
 }
 
 
-int kernelBusGetTargetInfo(kernelBusType type, int target, void *pointer)
+kernelBusTarget *kernelBusGetTarget(kernelBusType type, int id)
+{
+  // Get the target for the specified type and ID
+
+  int numTargets = 0;
+  kernelBusTarget *targets = NULL;
+  kernelBusTarget *target = NULL;
+  int count;
+
+  numTargets = kernelBusGetTargets(type, &targets);
+  if (numTargets <= 0)
+    return (target = NULL);
+
+  for (count = 0; count < numTargets; count ++)
+    {
+      if (targets[count].id == id)
+	{
+	  target = kernelMalloc(sizeof(kernelBusTarget));
+	  if (target == NULL)
+	    break;
+
+	  kernelMemCopy(&targets[count], target, sizeof(kernelBusTarget));
+	  break;
+	}
+    }
+
+  kernelFree(targets);
+  return (target);
+}
+
+
+int kernelBusGetTargetInfo(kernelBusTarget *target, void *pointer)
 {
   // This is a wrapper for the bus-specific driver function
 
   int status = 0;
-  kernelBus *bus = NULL;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
 
   // Check params
-  if (pointer == NULL)
+  if ((target == NULL) || (pointer == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  bus = findBus(type);
-  if (bus == NULL)
-    {
-      kernelError(kernel_error, "No such bus type %d for target %d", type,
-		  target);
-      return (status = ERR_NOSUCHENTRY);
-    }
+  if (!target->bus)
+    return (status = ERR_NODATA);
 
   // Operation supported?
-  if (!bus->ops->driverGetTargetInfo)
+  if (!target->bus->ops->driverGetTargetInfo)
     {
       kernelError(kernel_error, "Bus type %d doesn't support this function",
-		  type);
+		  target->bus->type);
       return (status = ERR_NOSUCHFUNCTION);
     }
 
-  status = bus->ops->driverGetTargetInfo(target, pointer);
+  status = target->bus->ops->driverGetTargetInfo(target, pointer);
   return (status);
 }
 
 
-unsigned kernelBusReadRegister(kernelBusType type, int target, int reg,
-			       int bitWidth)
+unsigned kernelBusReadRegister(kernelBusTarget *target, int reg, int bitWidth)
 {
   // This is a wrapper for the bus-specific driver function
 
   unsigned contents = 0;
-  kernelBus *bus = NULL;
 
-  bus = findBus(type);
-  if (bus == NULL)
-    {
-      kernelError(kernel_error, "No such bus type %d", type);
-      return (contents = 0);
-    }
+  if (!initialized)
+    return (0);
+
+  // Check params
+  if ((target == NULL) || (!target->bus))
+    return (0);
 
   // Operation supported?
-  if (!bus->ops->driverReadRegister)
+  if (!target->bus->ops->driverReadRegister)
     {
       kernelError(kernel_error, "Bus type %d doesn't support this function",
-		  type);
+		  target->bus->type);
       return (contents = 0);
     }
 
-  contents = bus->ops->driverReadRegister(target, reg, bitWidth);
+  contents = target->bus->ops->driverReadRegister(target, reg, bitWidth);
   return (contents);
 }
 
 
-void kernelBusWriteRegister(kernelBusType type, int target, int reg,
-			    int bitWidth, unsigned contents)
+int kernelBusWriteRegister(kernelBusTarget *target, int reg, int bitWidth,
+			   unsigned contents)
 {
   // This is a wrapper for the bus-specific driver function
-  kernelBus *bus = NULL;
 
-  bus = findBus(type);
-  if (bus == NULL)
-    {
-      kernelError(kernel_error, "No such bus type %d", type);
-      return;
-    }
+  int status = 0;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (target == NULL)
+    return (status = ERR_NULLPARAMETER);
+  
+  if (!target->bus)
+    return (status = ERR_NODATA);
 
   // Operation supported?
-  if (!bus->ops->driverWriteRegister)
+  if (!target->bus->ops->driverWriteRegister)
     {
       kernelError(kernel_error, "Bus type %d doesn't support this function",
-		  type);
+		  target->bus->type);
+      return (status = ERR_NOSUCHFUNCTION);
+    }
+
+  status = target->bus->ops->driverWriteRegister(target, reg, bitWidth,
+						 contents);
+  return (status);
+}
+
+
+void kernelBusDeviceClaim(kernelBusTarget *target, kernelDriver *driver)
+{
+  // This is a wrapper for the bus-specific driver function, called by a
+  // device driver that wants to lay claim to a specific device.  This is
+  // advisory-only.
+
+  if (!initialized)
+    return;
+
+  // Check params
+  if ((target == NULL) || (driver == NULL))
+    return;
+  
+  // Operation supported?
+  if (!target->bus->ops->driverDeviceClaim)
+    {
+      kernelError(kernel_error, "Bus type %d doesn't support this function",
+		  target->bus->type);
       return;
     }
 
-  bus->ops->driverWriteRegister(target, reg, bitWidth, contents);
+  target->bus->ops->driverDeviceClaim(target, driver);
   return;
 }
 
 
-int kernelBusDeviceEnable(kernelBusType type, int target, int enable)
+int kernelBusDeviceEnable(kernelBusTarget *target, int enable)
 {
   // This is a wrapper for the bus-specific driver function
 
   int status = 0;
-  kernelBus *bus = NULL;
 
-  bus = findBus(type);
-  if (bus == NULL)
-    {
-      kernelError(kernel_error, "No such bus type %d", type);
-      return (status = ERR_NOSUCHENTRY);
-    }
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (target == NULL)
+    return (status = ERR_NULLPARAMETER);
+  
+  if (!target->bus)
+    return (status = ERR_NODATA);
 
   // Operation supported?
-  if (!bus->ops->driverDeviceEnable)
+  if (!target->bus->ops->driverDeviceEnable)
     {
       kernelError(kernel_error, "Bus type %d doesn't support this function",
-		  type);
+		  target->bus->type);
       return (status = ERR_NOSUCHFUNCTION);
     }
 
-  status = bus->ops->driverDeviceEnable(target, enable);
+  status = target->bus->ops->driverDeviceEnable(target, enable);
   return (status);
 }
 
 
-int kernelBusSetMaster(kernelBusType type, int target, int master)
+int kernelBusSetMaster(kernelBusTarget *target, int master)
 {
   // This is a wrapper for the bus-specific driver function
 
   int status = 0;
-  kernelBus *bus = NULL;
 
-  bus = findBus(type);
-  if (bus == NULL)
-    {
-      kernelError(kernel_error, "No such bus type %d", type);
-      return (status = ERR_NOSUCHENTRY);
-    }
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Check params
+  if (target == NULL)
+    return (status = ERR_NULLPARAMETER);
+  
+  if (!target->bus)
+    return (status = ERR_NODATA);
 
   // Operation supported?
-  if (!bus->ops->driverSetMaster)
+  if (!target->bus->ops->driverSetMaster)
     {
       kernelError(kernel_error, "Bus type %d doesn't support this function",
-		  type);
+		  target->bus->type);
       return (status = ERR_NOSUCHFUNCTION);
     }
 
-  status = bus->ops->driverSetMaster(target, master);
+  status = target->bus->ops->driverSetMaster(target, master);
   return (status);
 }
 
 
-int kernelBusRead(kernelBusType type, int target, unsigned size, void *buffer)
+int kernelBusRead(kernelBusTarget *target, unsigned size, void *buffer)
 {
   // This is a wrapper for the bus-specific driver function
 
   int status = 0;
-  kernelBus *bus = NULL;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
 
   // Check params
-  if (buffer == NULL)
+  if ((target == NULL) || (buffer == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  bus = findBus(type);
-  if (bus == NULL)
-    {
-      kernelError(kernel_error, "No such bus type %d", type);
-      return (status = ERR_NOSUCHENTRY);
-    }
+  if (!target->bus)
+    return (status = ERR_NODATA);
 
   // Operation supported?
-  if (!bus->ops->driverRead)
+  if (!target->bus->ops->driverRead)
     {
       kernelError(kernel_error, "Bus type %d doesn't support this function",
-		  type);
+		  target->bus->type);
       return (status = ERR_NOSUCHFUNCTION);
     }
 
-  return (bus->ops->driverRead(target, size, buffer));
+  return (target->bus->ops->driverRead(target, size, buffer));
 }
 
 
-int kernelBusWrite(kernelBusType type, int target, unsigned size, void *buffer)
+int kernelBusWrite(kernelBusTarget *target, unsigned size, void *buffer)
 {
   // This is a wrapper for the bus-specific driver function
 
   int status = 0;
-  kernelBus *bus = NULL;
+
+  if (!initialized)
+    return (status = ERR_NOTINITIALIZED);
 
   // Check params
-  if (buffer == NULL)
+  if ((target == NULL) || (buffer == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  bus = findBus(type);
-  if (bus == NULL)
-    {
-      kernelError(kernel_error, "No such bus type %d", type);
-      return (status = ERR_NOSUCHENTRY);
-    }
+  if (!target->bus)
+    return (status = ERR_NODATA);
 
   // Operation supported?
-  if (!bus->ops->driverWrite)
+  if (!target->bus->ops->driverWrite)
     {
       kernelError(kernel_error, "Bus type %d doesn't support this function",
-		  type);
+		  target->bus->type);
       return (status = ERR_NOSUCHFUNCTION);
     }
 
-  return (bus->ops->driverWrite(target, size, buffer));
+  return (target->bus->ops->driverWrite(target, size, buffer));
 }
 

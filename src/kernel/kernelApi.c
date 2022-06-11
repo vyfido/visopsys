@@ -398,7 +398,8 @@ static kernelArgInfo args_filesystemDefragment[] =
 static kernelArgInfo args_filesystemResizeConstraints[] =
   { { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
     { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-    { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+    { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
+    { 1, type_ptr, API_ARG_USERPTR } };
 static kernelArgInfo args_filesystemResize[] =
   { { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
     { 2, type_val, API_ARG_ANYVAL },
@@ -423,7 +424,7 @@ static kernelFunctionIndex filesystemFunctionIndex[] = {
   { _fnum_filesystemDefragment, kernelFilesystemDefragment,
     PRIVILEGE_SUPERVISOR, 2, args_filesystemDefragment, type_val },
   { _fnum_filesystemResizeConstraints, kernelFilesystemResizeConstraints,
-    PRIVILEGE_USER, 3, args_filesystemResizeConstraints, type_val },
+    PRIVILEGE_USER, 4, args_filesystemResizeConstraints, type_val },
   { _fnum_filesystemResize, kernelFilesystemResize,
     PRIVILEGE_SUPERVISOR, 3, args_filesystemResize, type_val },
   { _fnum_filesystemMount, kernelFilesystemMount,
@@ -787,7 +788,7 @@ static kernelArgInfo args_loaderLoad[] =
 static kernelArgInfo args_loaderClassify[] =
   { { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
     { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
-    { 1, type_val, API_ARG_ANYVAL },
+    { 1, type_val, API_ARG_POSINTVAL },
     { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_loaderClassifyFile[] =
   { { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
@@ -1692,7 +1693,7 @@ static kernelArgInfo args_guidGenerate[] =
 static kernelArgInfo args_crc32[] =
   { { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR },
     { 1, type_val, API_ARG_ANYVAL },
-    { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
+    { 1, type_ptr, API_ARG_USERPTR } };
 static kernelArgInfo args_keyboardGetMap[] =
   { { 1, type_ptr, API_ARG_NONNULLPTR | API_ARG_USERPTR } };
 static kernelArgInfo args_keyboardSetMap[] =
@@ -1848,9 +1849,7 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
   int pushCount = 0;
   int count;
 #if defined(DEBUG)
-  extern kernelSymbol *kernelSymbols;
-  extern int kernelNumberSymbols;
-  char *symbol = "unknown";
+  const char *symbolName = NULL;
 #endif // defined(DEBUG)
 
   kernelProcessorApiEnter(stackAddress);
@@ -1922,17 +1921,9 @@ void kernelApi(unsigned CS __attribute__((unused)), unsigned *args)
   functionPointer = functionEntry->functionPointer;
 
 #if defined(DEBUG)
-  if (kernelSymbols)
-    {
-      for (count = 0; count < kernelNumberSymbols; count ++)
-	if (kernelSymbols[count].value == (unsigned) functionPointer)
-	  {
-	    symbol = kernelSymbols[count].name;
-	    break;
-	  }
-    }
+  symbolName = kernelLookupClosestSymbol(NULL, functionPointer);
   kernelDebug(debug_api, "Kernel API function %d (%s), %d args ",
-  	      functionNumber, symbol, functionEntry->argCount);
+	      functionNumber, symbolName, functionEntry->argCount);
   for (count = 0; count < functionEntry->argCount; count ++)
     kernelDebug(debug_api, "arg %d=%u", count, functionArgs[count]);
 #endif // defined(DEBUG)

@@ -41,6 +41,9 @@
 // The kernel's process Id
 #define KERNELPROCID 1
 
+// The kernel executable
+#define KERNEL_FILE "/visopsys"
+
 // The kernel's settings file
 #define DEFAULT_KERNEL_CONFIG "/system/config/kernel.conf"
 
@@ -49,9 +52,6 @@
 
 // Default start executable
 #define DEFAULT_KERNEL_STARTPROGRAM "/programs/login"
-
-// The kernel's symbol file
-#define KERNEL_SYMBOLS_FILE "/system/kernelSymbols.txt"
 
 // Disks
 #define MAXFLOPPIES   4

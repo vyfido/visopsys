@@ -30,10 +30,11 @@
 #include <sys/memory.h>
 #include <sys/api.h>
 
-static mallocBlock *blockList = NULL;
-static mallocBlock *unusedBlockList = NULL;
+static mallocBlock *usedBlockList = NULL;
+static mallocBlock *freeBlockList = NULL;
+static mallocBlock *vacantBlockList = NULL;
 static volatile unsigned totalBlocks = 0;
-static volatile unsigned usedBlocks = 0;
+static volatile unsigned vacantBlocks = 0;
 static volatile unsigned totalMemory = 0;
 static volatile unsigned usedMemory = 0;
 static lock blocksLock;
@@ -41,6 +42,8 @@ static lock blocksLock;
 unsigned mallocHeapMultiple = USER_MEMORY_HEAP_MULTIPLE;
 mallocKernelOps mallocKernOps;
 
+#define USEDLIST_REF (&usedBlockList)
+#define FREELIST_REF (&freeBlockList)
 #define blockEnd(block) (block->start + (block->size - 1))
 
 #if defined(DEBUG)
@@ -86,7 +89,7 @@ static inline int procid(void)
 
 static inline void *memory_get(unsigned size, const char *desc)
 {
-  debug("%s %u", __FUNCTION__, size);
+  debug("Request memory block of size %u", size);
   if (visopsys_in_kernel)
     return (mallocKernOps.memoryGet(size, desc));
   else
@@ -96,7 +99,7 @@ static inline void *memory_get(unsigned size, const char *desc)
 
 static inline int memory_release(void *start)
 {
-  debug("%s %p", __FUNCTION__, start);
+  debug("Release memory block at %p", start);
   if (visopsys_in_kernel)
     return (mallocKernOps.memoryRelease(start));
   else
@@ -122,12 +125,14 @@ static inline void lock_release(lock *lk)
 }
 
 
-static inline void insertBlock(mallocBlock *insBlock, mallocBlock *nextBlock)
+static inline void insertBlock(mallocBlock **list, mallocBlock *insBlock,
+			       mallocBlock *nextBlock)
 {
   // Stick the first block in front of the second block
 
-  debug("Insert block %u->%u before %u->%u", insBlock->start,
-	blockEnd(insBlock), nextBlock->start, blockEnd(nextBlock));
+  debug("Insert block %08x->%08x (%u) before %08x->%08x (%u)", insBlock->start,
+	blockEnd(insBlock), insBlock->size, nextBlock->start,
+	blockEnd(nextBlock), nextBlock->size);
 
   insBlock->prev = nextBlock->prev;
   insBlock->next = nextBlock;
@@ -136,8 +141,8 @@ static inline void insertBlock(mallocBlock *insBlock, mallocBlock *nextBlock)
     nextBlock->prev->next = insBlock;
   nextBlock->prev = insBlock;
 
-  if (nextBlock == blockList)
-    blockList = insBlock;
+  if (nextBlock == *list)
+    *list = insBlock;
 }
 
 
@@ -145,9 +150,9 @@ static inline void appendBlock(mallocBlock *appBlock, mallocBlock *prevBlock)
 {
   // Stick the first block behind the second block
 
-  debug("Append block %u->%u (%u) after %u->%u (%u)", appBlock->start,
-	blockEnd(appBlock), appBlock->size, prevBlock->start,
-	blockEnd(prevBlock), prevBlock->size);
+  debug("Append block %08x->%08x (%u) after %08x->%08x (%u)",
+	appBlock->start, blockEnd(appBlock), appBlock->size,
+	prevBlock->start, blockEnd(prevBlock), prevBlock->size);
 
   appBlock->prev = prevBlock;
   appBlock->next = prevBlock->next;
@@ -158,22 +163,26 @@ static inline void appendBlock(mallocBlock *appBlock, mallocBlock *prevBlock)
 }
 
 
-static int sortInsertBlock(mallocBlock *block)
+static int sortInsertBlock(mallocBlock **list, mallocBlock *block)
 {
   // Find the correct (sorted) place for in the block list for this block.
 
   int status = 0;
   mallocBlock *nextBlock = NULL;
 
-  if (blockList)
+  debug("Sort insert block %08x->%08x (%u) in %s list", block->start,
+	blockEnd(block), block->size,
+	((list == USEDLIST_REF)? "used" : "free"));
+
+  if (*list)
     {
-      nextBlock = blockList;
+      nextBlock = *list;
 
       while (nextBlock)
 	{
 	  if (nextBlock->start > block->start)
 	    {
-	      insertBlock(block, nextBlock);
+	      insertBlock(list, block, nextBlock);
 	      break;
 	    }
 
@@ -190,28 +199,28 @@ static int sortInsertBlock(mallocBlock *block)
     {
       block->prev = NULL;
       block->next = NULL;
-      blockList = block;
+      *list = block;
     }
 
   return (status = 0);
 }
 
 
-static int allocUnusedBlocks(void)
+static int allocVacantBlocks(void)
 {
-  // This grows the unused block list by 1 memory page.
+  // This gets 1 memory page of memory for a new batch of vacant blocks.
 
   int status = 0;
   int numBlocks = 0;
   int count;
 
-  debug("Allocating new unused blocks");
+  debug("Allocating new vacant blocks");
 
   if (visopsys_in_kernel)
-    unusedBlockList = memory_get(MEMORY_BLOCK_SIZE, "kernel heap metadata");
+    vacantBlockList = memory_get(MEMORY_BLOCK_SIZE, "kernel heap metadata");
   else
-    unusedBlockList = memory_get(MEMORY_BLOCK_SIZE, "user heap metadata");
-  if (unusedBlockList == NULL)
+    vacantBlockList = memory_get(MEMORY_BLOCK_SIZE, "user heap metadata");
+  if (vacantBlockList == NULL)
     {
       error("Unable to allocate heap management memory");
       return (status = ERR_MEMORY);
@@ -224,12 +233,13 @@ static int allocUnusedBlocks(void)
   for (count = 0; count < numBlocks; count ++)
     {
       if (count > 0)
-	unusedBlockList[count].prev = &unusedBlockList[count - 1];
+	vacantBlockList[count].prev = &vacantBlockList[count - 1];
       if (count < (numBlocks - 1))
-	unusedBlockList[count].next = &unusedBlockList[count + 1];
+	vacantBlockList[count].next = &vacantBlockList[count + 1];
     }
 
   totalBlocks += numBlocks;
+  vacantBlocks += numBlocks;
 
   return (status = 0);
 }
@@ -237,80 +247,94 @@ static int allocUnusedBlocks(void)
 
 static mallocBlock *getBlock(void)
 {
-  // Get a block from the unused block list.
+  // Get a block from the vacant block list.
 
   mallocBlock *block = NULL;
 
   // Do we have any more unused blocks?
-  if (!unusedBlockList)
+  if (!vacantBlockList)
     {
-      if (allocUnusedBlocks() < 0)
+      if (allocVacantBlocks() < 0)
 	return (block = NULL);
     }
 
-  block = unusedBlockList;
-  unusedBlockList = block->next;
+  block = vacantBlockList;
+  vacantBlockList = block->next;
   
   // Clear it
   bzero(block, sizeof(mallocBlock));
 
-  usedBlocks += 1;
+  vacantBlocks -= 1;
 
   return (block);
 }
 
 
-static void putBlock(mallocBlock *block)
+static void removeBlock(mallocBlock **list, mallocBlock *block)
 {
-  // This function gets called when a block is no longer needed.  We
-  // zero out its fields and move it to the end of the used blocks.
+  // Remove a block from a list
 
-  // Remove the block from the list.
+  debug("Remove block %08x->%08x (%u) from %s list", block->start,
+	blockEnd(block), block->size,
+	((list == USEDLIST_REF)? "used" : "free"));
+
   if (block->prev)
     block->prev->next = block->next;
   if (block->next)
     block->next->prev = block->prev;
 
-  if (block == blockList)
-    blockList = block->next;
+  if (block == *list)
+    *list = block->next;
 
-  // Clear it
-  bzero(block, sizeof(mallocBlock));
-
-  // Put it at the head of the unused block list
-  block->next = unusedBlockList;
-  unusedBlockList = block;
-
-  usedBlocks -= 1;
+  block->prev = NULL;
+  block->next = NULL;
 
   return;
 }
 
 
-static int addBlock(int used, unsigned start, unsigned size,
-		    unsigned heapAlloc)
+static void putBlock(mallocBlock **list, mallocBlock *block)
 {
-  // Creates a used or free block in our block list.
+  // This function gets called when a block is no longer needed.  We
+  // zero out its fields and move it to the end of the used blocks.
+
+  // Remove the block from the list.
+  removeBlock(list, block);
+
+  // Clear it
+  bzero(block, sizeof(mallocBlock));
+
+  // Put it at the head of the unused block list
+  block->next = vacantBlockList;
+  vacantBlockList = block;
+
+  vacantBlocks += 1;
+
+  return;
+}
+
+
+static int createBlock(mallocBlock **list, unsigned start, unsigned size,
+		       unsigned heapAlloc, unsigned heapAllocSize)
+{
+  // Creates a used or free block in the supplied block list.
 
   int status = 0;
   mallocBlock *block = NULL;
 
-  debug("Add block %u-%u of size %u", start, (start + (size - 1)), size);
+  debug("Create block %08x-%08x (%u) in %s list", start, (start + (size - 1)),
+	size, ((list == USEDLIST_REF)? "used" : "free"));
 
   block = getBlock();
   if (block == NULL)
     return (status = ERR_NOFREE);
 
-  block->used = used;
   block->start = start;
   block->size = size;
   block->heapAlloc = heapAlloc;
+  block->heapAllocSize = heapAllocSize;
 
-  status = sortInsertBlock(block);
-  if (status < 0)
-    return (status);
-
-  return (status = 0);
+  return (status = sortInsertBlock(list, block));
 }
 
 
@@ -328,7 +352,7 @@ static int growHeap(unsigned minSize)
   if (minSize % MEMORY_BLOCK_SIZE)
     minSize += (MEMORY_BLOCK_SIZE - (minSize % MEMORY_BLOCK_SIZE));
 
-  debug("%s %u", __FUNCTION__, minSize);
+  debug("Grow heap by at least %u", minSize);
   if (minSize > mallocHeapMultiple)
     debug("Size is greater than %u", mallocHeapMultiple);
 
@@ -346,24 +370,52 @@ static int growHeap(unsigned minSize)
   totalMemory += minSize;
 
   // Add it as a single free block
-  return (addBlock(0 /* unused */, (unsigned) newHeap, minSize,
-		   (unsigned) newHeap));
+  return (createBlock(FREELIST_REF, (unsigned) newHeap, minSize,
+		      (unsigned) newHeap, minSize));
 }
 
 
 static mallocBlock *findFree(unsigned size)
 {
-  mallocBlock *block = blockList;
+  // This is a best-fit algorithm to search the free block list for the free
+  // block that's closest to the size requested.  We do it this way in order
+  // to (hopefully) reduce memory fragmentation - i.e. reduce heap memory
+  // usage - at the possible expense of slightly longer searches.
+
+  mallocBlock *block = freeBlockList;
+  mallocBlock *closestBlock = NULL;
+
+  debug("Search for free block of at least %u", size);
 
   while (block)
     {
-      if (!block->used && (block->size >= size))
-	return (block);
-      
+      // If the block is exactly the right size, return it
+      if (block->size == size)
+	{
+	  debug("Found free block of size %u", block->size);
+	  return (block);
+	}
+
+      // If the block is closer in size than any others, remember it
+      if (block->size > size)
+	{
+	  if (!closestBlock || (block->size < closestBlock->size))
+	    closestBlock = block;
+	}
+
       block = block->next;
     }
 
-  return (block = NULL);
+  if (closestBlock)
+    {
+      debug("Found free block of size %u", closestBlock->size);
+      return (closestBlock);
+    }
+  else
+    {
+      debug("No block found");
+      return (block = NULL);
+    }
 }
 
 
@@ -378,7 +430,7 @@ static void *allocateBlock(unsigned size, const char *function)
   // Make sure we do allocations on nice boundaries
   if (size % sizeof(int))
     {
-      debug("%s increase size from %u to %u", __FUNCTION__, size,
+      debug("Increase allocation size from %u to %u", size,
 	    (size + (sizeof(int) - (size % sizeof(int)))));
       size += (sizeof(int) - (size % sizeof(int)));
     }
@@ -404,9 +456,16 @@ static void *allocateBlock(unsigned size, const char *function)
 	}
     }
 
-  block->used = 1;
+  // Remove it from the free list
+  removeBlock(FREELIST_REF, block);
+
   block->function = function;
   block->process = procid();
+
+  // Add it to the used block list
+  sortInsertBlock(USEDLIST_REF, block);
+  if (status < 0)
+    return (NULL);
 
   // If part of this block will be unused, we will need to create a free
   // block for the remainder
@@ -415,11 +474,11 @@ static void *allocateBlock(unsigned size, const char *function)
       remainder = (block->size - size);
       block->size = size;
 
-      debug("%s split block of size %u from remainder of size %u",
-	    __FUNCTION__, size, remainder);
+      debug("Split block of size %u from remainder of size %u", size,
+	    remainder);
 
-      if (addBlock(0 /* unused */, (block->start + size), remainder,
-		   block->heapAlloc) < 0)
+      if (createBlock(FREELIST_REF, (block->start + size), remainder,
+		      block->heapAlloc, block->heapAllocSize) < 0)
 	return (NULL);
     }
 
@@ -434,21 +493,21 @@ static void mergeFree(mallocBlock *block)
   // Merge this free block with the previous and/or next blocks if they
   // are also free.
 
-  if (block->prev && !block->prev->used &&
-      (blockEnd(block->prev) == (block->start - 1)) &&
-      (block->prev->heapAlloc == block->heapAlloc))
+  // Check whether we're contiguous with the previous block
+  if (block->prev && (block->prev->heapAlloc == block->heapAlloc) &&
+      (blockEnd(block->prev) == (block->start - 1)))
     {
       block->start = block->prev->start;
       block->size += block->prev->size;
-      putBlock(block->prev);
+      putBlock(FREELIST_REF, block->prev);
     }
   
-  if (block->next && !block->next->used &&
-      (blockEnd(block) == (block->next->start - 1)) &&
-      (block->next->heapAlloc == block->heapAlloc))
+  // Check whether we're contiguous with the next block
+  if (block->next && (block->next->heapAlloc == block->heapAlloc) &&
+      (blockEnd(block) == (block->next->start - 1)))
     {
       block->size += block->next->size;
-      putBlock(block->next);
+      putBlock(FREELIST_REF, block->next);
     }
 }
 
@@ -458,16 +517,16 @@ static void cleanupHeap(mallocBlock *block)
   // If the supplied free block comprises an entire heap allocation,
   // return that heap memory and get rid of the block.
 
-  if (block->prev && (block->prev->heapAlloc == block->heapAlloc))
-    return;
-
-  if (block->next && (block->next->heapAlloc == block->heapAlloc))
+  if (block->size != block->heapAllocSize)
     return;
 
   // Looks like we can return this memory.
+  debug("Release heap memory allocation %08x->%08x (%u)", block->start,
+	blockEnd(block), block->size);
+
   memory_release((void *) block->start);
   totalMemory -= block->size;
-  putBlock(block);
+  putBlock(FREELIST_REF, block);
 }
 
 
@@ -476,24 +535,25 @@ static int deallocateBlock(void *start, const char *function)
   // Find an allocated (used) block and deallocate it.
 
   int status = 0;
-  mallocBlock *block = blockList;
+  mallocBlock *block = usedBlockList;
 
   while (block)
     {
       if (block->start == (unsigned) start)
 	{
-	  if (!block->used)
-	    {
-	      error("Block at %p is not allocated (%s)", start, function);
-	      return (status = ERR_ALREADY);
-	    }
-	  
+	  // Remove it from the used list
+	  removeBlock(USEDLIST_REF, block);
+
 	  // Clear out the memory
 	  bzero(start, block->size);
 
-	  block->used = 0;
 	  block->process = 0;
 	  block->function = NULL;
+
+	  // Add it to the free block list
+	  sortInsertBlock(FREELIST_REF, block);
+	  if (status < 0)
+	    return (status);
 
 	  usedMemory -= block->size;
 
@@ -502,6 +562,10 @@ static int deallocateBlock(void *start, const char *function)
 
 	  // Can the heap be deallocated?
 	  cleanupHeap(block);
+
+	  // Don't try to use 'block' after this point, it might have
+	  // disappeared.
+	  block = NULL;
   
 	  return (status = 0);
 	}
@@ -509,7 +573,7 @@ static int deallocateBlock(void *start, const char *function)
       block = block->next;
     }
 
-  error("No such memory block %u to deallocate (%s)", (unsigned) start,
+  error("No such memory block %08x to deallocate (%s)", (unsigned) start,
 	function);
   return (status = ERR_NOSUCHENTRY);
 }
@@ -519,9 +583,7 @@ static inline void mallocBlock2MemoryBlock(mallocBlock *maBlock,
 					   memoryBlock *meBlock)
 {
   meBlock->processId = maBlock->process;
-  strncpy(meBlock->description,
-	  (maBlock->used? maBlock->function : "--free--"),
-	  MEMORY_MAX_DESC_LENGTH);
+  strncpy(meBlock->description, maBlock->function, MEMORY_MAX_DESC_LENGTH);
   meBlock->description[MEMORY_MAX_DESC_LENGTH - 1] = '\0';
   meBlock->startLocation = maBlock->start;
   meBlock->endLocation = blockEnd(maBlock);
@@ -532,71 +594,94 @@ static inline void mallocBlock2MemoryBlock(mallocBlock *maBlock,
 static int checkBlocks(void)
 {
   int status = 0;
-  mallocBlock *block = blockList;
+  mallocBlock **lists[2] = {
+    FREELIST_REF, USEDLIST_REF,
+  };
+  const char *listName = NULL;
+  mallocBlock *block = NULL;
   mallocBlock *prev = NULL;
   mallocBlock *next = NULL;
+  int count;
 
-  while (block)
+  for (count = 0; count < 2; count ++)
     {
-      if (block->prev)
+      if (lists[count] == FREELIST_REF)
+	listName = "free";
+      else if (lists[count] == USEDLIST_REF)
+	listName = "used";
+      else
+	listName = "unknown";
+
+      block = *lists[count];
+
+      while (block)
 	{
-	  prev = block->prev;
-
-	  if (prev->next != block)
+	  if (block->prev)
 	    {
-	      error("Previous block %u->%u does not point to current block "
-		    "%u->%u", prev->start, blockEnd(prev), block->start,
-		    blockEnd(block));
-	      return (status = ERR_BADDATA);
+	      prev = block->prev;
+
+	      if (prev->next != block)
+		{
+		  error("Previous block %08x->%08x (%u) does not point to "
+			"current block %08x->%08x (%u) in %s list",
+			prev->start, blockEnd(prev), prev->size, block->start,
+			blockEnd(block), block->size, listName);
+		  return (status = ERR_BADDATA);
+		}
+
+	      if (prev->start >= block->start)
+		{
+		  error("Previous block %08x->%08x (%u) does not start before "
+			"current block %08x->%08x (%u) in %s list",
+			prev->start, blockEnd(prev), prev->size, block->start,
+			blockEnd(block), block->size, listName);
+		  return (status = ERR_BADDATA);
+		}
+
+	      if (blockEnd(prev) >= block->start)
+		{
+		  error("Previous block %08x->%08x (%u) end overlaps current "
+			"block %08x->%08x (%u) in %s list", prev->start,
+			blockEnd(prev),	prev->size, block->start,
+			blockEnd(block), block->size, listName);
+		  return (status = ERR_BADDATA);
+		}
 	    }
 
-	  if (prev->start >= block->start)
+	  if (block->next)
 	    {
-	      error("Previous block %u->%u does not start before current "
-		    "block %u->%u", prev->start,  blockEnd(prev), block->start,
-		    blockEnd(block));
-	      return (status = ERR_BADDATA);
-	    }
+	      next = block->next;
 
-	  if (blockEnd(prev) >= block->start)
-	    {
-	      error("Previous block %u->%u end overlaps current block "
-		    "%u->%u", prev->start,  blockEnd(prev), block->start,
-		    blockEnd(block));
-	      return (status = ERR_BADDATA);
-	    }
-	}
+	      if (next->prev != block)
+		{
+		  error("Next block %08x->%08x (%u) does not point to current "
+			"block %08x->%08x (%u) in %s list", next->start,
+			blockEnd(next), next->size, block->start,
+			blockEnd(block), block->size, listName);
+		  return (status = ERR_BADDATA);
+		}
 
-      if (block->next)
-	{
-	  next = block->next;
+	      if (block->start >= next->start)
+		{
+		  error("Next block %08x->%08x (%u) does not start after "
+			"current block %08x->%08x (%u) in %s list",
+			next->start, blockEnd(next), next->size, block->start,
+			blockEnd(block), block->size, listName);
+		  return (status = ERR_BADDATA);
+		}
 
-	  if (next->prev != block)
-	    {
-	      error("Next block %u->%u does not point to current block "
-		    "%u->%u", next->start, blockEnd(next), block->start,
-		    blockEnd(block));
-	      return (status = ERR_BADDATA);
+	      if (blockEnd(block) >= next->start)
+		{
+		  error("Current block %08x->%08x (%u) end overlaps next "
+			"block %08x->%08x (%u) in %s list", block->start,
+			blockEnd(block), block->size, next->start,
+			blockEnd(next), next->size, listName);
+		  return (status = ERR_BADDATA);
+		}
 	    }
-
-	  if (block->start >= next->start)
-	    {
-	      error("Next block %u->%u does not start after current "
-		    "block %u->%u", next->start,  blockEnd(next), block->start,
-		    blockEnd(block));
-	      return (status = ERR_BADDATA);
-	    }
-
-	  if (blockEnd(block) >= next->start)
-	    {
-	      error("Current block %u->%u end overlaps next block "
-		    "%u->%u", block->start, blockEnd(block), next->start,
-		    blockEnd(next));
-	      return (status = ERR_BADDATA);
-	    }
-	}
       
-      block = block->next;
+	  block = block->next;
+	}
     }
 
   return (status = 0);
@@ -626,7 +711,7 @@ void *_doMalloc(unsigned size, const char *function)
   // assume something has gone wrong in the calling program
   if (size == 0)
     {
-      error("Can't allocate 0 bytes (%s)", function);
+      error("Can't allocate zero bytes (%s)", function);
       errno = ERR_INVALID;
       return (address = NULL);
     }
@@ -642,6 +727,11 @@ void *_doMalloc(unsigned size, const char *function)
   // Find a free block big enough
   address = allocateBlock(size, function);
 
+  #if defined(DEBUG)
+  if (checkBlocks())
+    while (1);
+  #endif
+
   lock_release(&blocksLock);
 
   return (address);
@@ -653,22 +743,13 @@ void *_malloc(size_t size, const char *function)
   // User space wrapper for _doMalloc() so we can ensure kernel-space calls
   // use kernelMalloc()
 
-  void *ptr = NULL;
-
   if (visopsys_in_kernel)
     {
       error("Cannot call malloc() directly from kernel space (%s)", function);
       return (NULL);
     }
-
-  ptr = _doMalloc(size, function);
-
-  #if defined(DEBUG)
-  if (checkBlocks())
-    while (1);
-  #endif
-
-  return (ptr);
+  else
+    return (_doMalloc(size, function));
 }
 
 
@@ -686,9 +767,9 @@ void _doFree(void *start, const char *function)
     }
 
   // Make sure we've been initialized
-  if (!usedBlocks)
+  if (!usedBlockList)
     {
-      error("Malloc not initialized");
+      error("No memory allocated (%s)", function);
       errno = ERR_NOTINITIALIZED;
       return;
     }
@@ -738,23 +819,33 @@ int _mallocBlockInfo(void *start, memoryBlock *meBlock)
   // the structure with information about it.
 
   int status = 0;
-  mallocBlock *maBlock = blockList;
+  mallocBlock *maBlock = usedBlockList;
 
   // Check params
   if ((start == NULL) || (meBlock == NULL))
     return (status = ERR_NULLPARAMETER);
 
-  // Loop through the block list
+  status = lock_get(&blocksLock);
+  if (status < 0)
+    {
+      error("Can't get memory lock");
+      return (errno = status);
+    }
+
+  // Loop through the used block list
   while (maBlock)
     {
       if (maBlock->start == (unsigned) start)
 	{
 	  mallocBlock2MemoryBlock(maBlock, meBlock);
+	  lock_release(&blocksLock);
 	  return (status = 0);
 	}	
 
       maBlock = maBlock->next;
     }
+
+  lock_release(&blocksLock);
 
   // Fell through -- no such block
   return (status = ERR_NOSUCHENTRY);
@@ -766,6 +857,7 @@ int _mallocGetStats(memoryStats *stats)
   // Return malloc memory usage statistics
   
   int status = 0;
+  mallocBlock *block = usedBlockList;
 
   // Check params
   if (stats == NULL)
@@ -774,10 +866,25 @@ int _mallocGetStats(memoryStats *stats)
       return (status = ERR_NULLPARAMETER);
     }
 
+  status = lock_get(&blocksLock);
+  if (status < 0)
+    {
+      error("Can't get memory lock");
+      return (errno = status);
+    }
+
   stats->totalBlocks = totalBlocks;
-  stats->usedBlocks = usedBlocks;
+  stats->usedBlocks = 0;
+  while (block)
+    {
+      stats->usedBlocks += 1;
+      block = block->next;
+    }
   stats->totalMemory = totalMemory;
   stats->usedMemory = usedMemory;
+
+  lock_release(&blocksLock);
+
   return (status = 0);
 }
 
@@ -787,7 +894,7 @@ int _mallocGetBlocks(memoryBlock *blocksArray, int doBlocks)
   // Fill a memoryBlock array with 'doBlocks' used malloc blocks information
   
   int status = 0;
-  mallocBlock *block = blockList;
+  mallocBlock *block = usedBlockList;
   int count;
 
   // Check params
@@ -797,12 +904,21 @@ int _mallocGetBlocks(memoryBlock *blocksArray, int doBlocks)
       return (status = ERR_NULLPARAMETER);
     }
 
-  // Loop through the block list
+  status = lock_get(&blocksLock);
+  if (status < 0)
+    {
+      error("Can't get memory lock");
+      return (errno = status);
+    }
+
+  // Loop through the used block list
   for (count = 0; (block && (count < doBlocks)); count ++)
     {
       mallocBlock2MemoryBlock(block, &(blocksArray[count]));
       block = block->next;
     }
   
+  lock_release(&blocksLock);
+
   return (status = 0);
 }

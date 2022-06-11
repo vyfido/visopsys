@@ -28,8 +28,7 @@
 #define SCSI_MAX_DISKS 16
 
 typedef struct {
-  kernelBusType busType;
-  int target;
+  kernelBusTarget *busTarget;
   kernelDevice *dev;
   char vendorId[9];
   char productId[17];

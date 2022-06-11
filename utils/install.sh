@@ -14,8 +14,8 @@ BUILDDIR=../build
 BOOTSECTOR="$BUILDDIR"/system/boot/bootsect.fat
 OSLOADER=vloader
 FSTAB=/etc/fstab
-BASICFILES=../dist/system/install-files.basic
-FULLFILES=../dist/system/install-files.full
+BASICFILES="$BUILDDIR"/system/install-files.basic
+FULLFILES="$BUILDDIR"/system/install-files.full
 INSTTYPE=full
 COPYBOOTLOG=./copy-boot.log
 MKDOSFSLOG=./mkdosfs.log
@@ -120,7 +120,7 @@ rm -f $COPYBOOTLOG
 # Try to figure out where the disk gets mounted by reading the fstab
 # file.  If this is not working on your system, you should override
 # this manually (or fix the following command)
-MOUNTDIR=`cat $FSTAB | grep $DEVICE | awk '{print $2}'`
+MOUNTDIR=`cat $FSTAB | grep ^$DEVICE | awk '{print $2}'`
 
 if [ "$MOUNTDIR" != "" ] ; then
 	mount $DEVICE
@@ -147,7 +147,7 @@ if [ "$INSTTYPE" = "isoboot" ] ; then
 		fi
 	done
 else
-	for FILE in `cat $BASICFILES` ; do
+	for FILE in `cat $BASICFILES | grep -v ^#` ; do
 		if [ -d "$BUILDDIR""$FILE" ] ; then
 			mkdir -p "$MOUNTDIR""$FILE"
 		elif [ -f "$BUILDDIR""$FILE" ] ; then
@@ -156,7 +156,7 @@ else
 	done
 
 	if [ "$INSTTYPE" != "basic" ] ; then
-		for FILE in `cat $FULLFILES` ; do
+		for FILE in `cat $FULLFILES | grep -v ^#` ; do
 			if [ -d "$BUILDDIR""$FILE" ] ; then
 				mkdir -p "$MOUNTDIR""$FILE"
 			elif [ -f "$BUILDDIR""$FILE" ] ; then

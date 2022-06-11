@@ -106,17 +106,24 @@ static void logLoaderInfo(void)
 	case reserved:
 	  memType = "reserved";
 	  break;
-	case reclaim:
-	  memType = "reclaim";
+	case acpi_reclaim:
+	  memType = "acpi reclaim";
 	  break;
-	case nvs:
-	  memType = "nvs";
+	case acpi_nvs:
+	  memType = "acpi nvs";
+	  break;
+	case bad:
+	  memType = "bad";
 	  break;
 	default:
 	  memType = "unknown";
 	  break;
 	}
-      kernelLog("OS Loader: memory range %s: %lldK->%lldK", memType,
+      kernelLog("OS Loader: memory range %s: %p-%p (%lldK->%lldK)", memType,
+		(void *)(unsigned) kernelOsLoaderInfo->memoryMap[count].start,
+		(void *)(unsigned)
+		(kernelOsLoaderInfo->memoryMap[count].start +
+		 kernelOsLoaderInfo->memoryMap[count].size - 1),
 		(kernelOsLoaderInfo->memoryMap[count].start >> 10),
 		((kernelOsLoaderInfo->memoryMap[count].start +
 		  kernelOsLoaderInfo->memoryMap[count].size - 1) >> 10));
@@ -146,9 +153,11 @@ static void logLoaderInfo(void)
 		  .bitsPerPixel);
     }
 
-  kernelLog("OS Loader: boot device=0x%02x", kernelOsLoaderInfo->bootDevice);
   kernelLog("OS Loader: boot sector=%u", kernelOsLoaderInfo->bootSector);
-  kernelLog("OS Loader: boot disk=%s", kernelOsLoaderInfo->bootDisk);
+  kernelLog("OS Loader: boot signature=0x%08x",
+	    kernelOsLoaderInfo->bootSectorSig);
+  kernelLog("OS Loader: boot from CD: %s",
+	    (kernelOsLoaderInfo->bootCd? "yes" : "no"));
   kernelLog("OS Loader: floppy disks=%d", kernelOsLoaderInfo->floppyDisks);
 
   for (count = 0; count < kernelOsLoaderInfo->floppyDisks; count ++)
@@ -157,17 +166,6 @@ static void logLoaderInfo(void)
 	      kernelOsLoaderInfo->fddInfo[count].heads,
 	      kernelOsLoaderInfo->fddInfo[count].tracks,
 	      kernelOsLoaderInfo->fddInfo[count].sectors);
-
-  kernelLog("OS Loader: hard disks=%d", kernelOsLoaderInfo->hardDisks);
-
-  for (count = 0; count < kernelOsLoaderInfo->hardDisks; count ++)
-    kernelLog("OS Loader: hard disk %d heads=%d cyls=%d sects=%d bps=%d "
-	      "total=%u", count,
-	      kernelOsLoaderInfo->hddInfo[count].heads,
-	      kernelOsLoaderInfo->hddInfo[count].cylinders,
-	      kernelOsLoaderInfo->hddInfo[count].sectorsPerCylinder,
-	      kernelOsLoaderInfo->hddInfo[count].bytesPerSector,
-	      kernelOsLoaderInfo->hddInfo[count].totalSectors);
 
   kernelLog("OS Loader: serial ports 0x%04x 0x%04x 0x%04x 0x%04x",
 	    kernelOsLoaderInfo->serialPorts.port1,
@@ -546,8 +544,8 @@ int kernelInitialize(unsigned kernelMemory, void *kernelStack,
   if (screen.data)
     kernelMemoryRelease(screen.data);
 
-  // Read the kernel's symbols from the kernel symbols file, if possible
-  kernelReadSymbols(KERNEL_SYMBOLS_FILE);
+  // Load the kernel's symbol table
+  kernelReadSymbols();
 
   // Initialize network functions?
   if (networking)

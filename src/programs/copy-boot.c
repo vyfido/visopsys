@@ -53,12 +53,13 @@ Example:
 #define OSLOADER  "../build/vloader"
 #endif
 
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <string.h>
-#include <errno.h>
+#include <time.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
 
@@ -66,8 +67,11 @@ Example:
 #define FAT16_SIG "FAT16   "
 #define FAT32_SIG "FAT32   "
 
-//#define DEBUG(message, arg...) printf(message, ##arg)
-#define DEBUG(message, arg...) do { } while (0)
+#ifdef DEBUG
+  #define DEBUGMSG(message, arg...) printf(message, ##arg)
+#else
+  #define DEBUGMSG(message, arg...) do { } while (0)
+#endif
 
 // FAT structures.  We pad out the bits we don't care about.
 
@@ -223,18 +227,18 @@ static int readBootsect(const char *inputName, unsigned char *bootSect)
 {
   int status = 0;
 
-  DEBUG("Read boot sector from %s\n", inputName);
+  DEBUGMSG("Read boot sector from %s\n", inputName);
 
   status = readSector(inputName, 0, 512, bootSect);
   if (status < 0)
     {
-      DEBUG("Couldn't read boot sector from %s\n", inputName);
+      DEBUGMSG("Couldn't read boot sector from %s\n", inputName);
       return (errno = status);
     }
 
   if ((bootSect[510] != 0x55) || (bootSect[511] != 0xAA))
     {
-      DEBUG("%s is not a valid boot sector\n", inputName);
+      DEBUGMSG("%s is not a valid boot sector\n", inputName);
       errno = EINVAL;
       return (-1);
     }
@@ -248,12 +252,12 @@ static int writeBootsect(const char *outputName, unsigned char *bootSect)
   int status = 0;
   fat32BSHeader *fat32Header = (fat32BSHeader *) bootSect;
 
-  DEBUG("Write boot sector to %s\n", outputName);
+  DEBUGMSG("Write boot sector to %s\n", outputName);
 
   status = writeSector(outputName, 0, 512, bootSect);
   if (status < 0)
     {
-      DEBUG("Couldn't write boot sector to %s\n", outputName);
+      DEBUGMSG("Couldn't write boot sector to %s\n", outputName);
       return (errno = status);
     }
 
@@ -265,7 +269,7 @@ static int writeBootsect(const char *outputName, unsigned char *bootSect)
 	writeSector(outputName, fat32Header->backupBootSector, 512, bootSect);
       if (status < 0)
 	{
-	  DEBUG("Couldn't write backup boot sector to %s\n", outputName);
+	  DEBUGMSG("Couldn't write backup boot sector to %s\n", outputName);
 	  return (errno = status);
 	}
     }
@@ -280,7 +284,7 @@ static int merge(unsigned char *oldBootsect, unsigned char *newBootsect)
   fatBSHeader *fatHeader = (fatBSHeader *) oldBootsect;
   fat32BSHeader *fat32Header = (fat32BSHeader *) oldBootsect;
 
-  DEBUG("Merge boot sectors\n");
+  DEBUGMSG("Merge boot sectors\n");
 
   if (!strncmp(fatHeader->common2.fsSignature, FAT12_SIG, 8) ||
       !strncmp(fatHeader->common2.fsSignature, FAT16_SIG, 8))
@@ -311,12 +315,12 @@ static unsigned findUnusedCluster(const char *outputName, char *signature,
   unsigned firstUnused = 2;
   unsigned count;
 
-  DEBUG("Find first unused cluster\n");
+  DEBUGMSG("Find first unused cluster\n");
 
   buffer = malloc(bsHeader->bytesPerSector);
   if (buffer == NULL)
     {
-      DEBUG("Can't alloc %u bytes to find an unused cluster\n",
+      DEBUGMSG("Can't alloc %u bytes to find an unused cluster\n",
 	    bsHeader->bytesPerSector);
       goto out;
     }
@@ -325,7 +329,7 @@ static unsigned findUnusedCluster(const char *outputName, char *signature,
 		      bsHeader->bytesPerSector, buffer);
   if (status < 0)
     {
-      DEBUG("Can't read FAT sector\n");
+      DEBUGMSG("Can't read FAT sector\n");
       goto out;
     }
 
@@ -384,7 +388,7 @@ static unsigned findUnusedCluster(const char *outputName, char *signature,
  out:
   if (buffer)
     free(buffer);
-  DEBUG("First unused cluster %u\n", firstUnused);
+  DEBUGMSG("First unused cluster %u\n", firstUnused);
   return (firstUnused);
 }
 
@@ -411,22 +415,22 @@ static int setOsLoaderParams(const char *outputName,
   unsigned *firstUserSector = (unsigned *) (newBootsect + 502);
   unsigned *osLoaderSectors = (unsigned *) (newBootsect + 506);
 
-  DEBUG("Set OS loader parameters\n");
+  DEBUGMSG("Set OS loader parameters\n");
 
   if (!strncmp(fatHeader->common2.fsSignature, FAT12_SIG, 8) ||
       !strncmp(fatHeader->common2.fsSignature, FAT16_SIG, 8))
     {
       if (!strncmp(fatHeader->common2.fsSignature, FAT12_SIG, 8))
-	DEBUG("Target filesystem is FAT12\n");
+	DEBUGMSG("Target filesystem is FAT12\n");
       else if (!strncmp(fatHeader->common2.fsSignature, FAT16_SIG, 8))
-	DEBUG("Target filesystem is FAT16\n");
-      DEBUG("%u reserved\n", (unsigned) fatHeader->common1.reservedSectors);
-      DEBUG("%u FATs of %u\n", (unsigned) fatHeader->common1.numberOfFats,
+	DEBUGMSG("Target filesystem is FAT16\n");
+      DEBUGMSG("%u reserved\n", (unsigned) fatHeader->common1.reservedSectors);
+      DEBUGMSG("%u FATs of %u\n", (unsigned) fatHeader->common1.numberOfFats,
 	    (unsigned) fatHeader->common1.fatSectors);
-      DEBUG("%u root dir sectors\n",
+      DEBUGMSG("%u root dir sectors\n",
 	    (((unsigned) fatHeader->common1.rootDirEntries * 32) /
 	     fatHeader->common1.bytesPerSector));
-      DEBUG("Sectors per cluster %u\n",
+      DEBUGMSG("Sectors per cluster %u\n",
 	    (unsigned) fatHeader->common1.sectorsPerCluster);
 
       firstUnusedCluster =
@@ -453,12 +457,14 @@ static int setOsLoaderParams(const char *outputName,
       if (fat32Header->fatSectors)
 	fatSectors = (unsigned) fat32Header->fatSectors;
 
-      DEBUG("Target filesystem is FAT32\n");
-      DEBUG("%u reserved\n", (unsigned) fat32Header->common1.reservedSectors);
-      DEBUG("%u FATs of %u\n", (unsigned) fat32Header->common1.numberOfFats,
+      DEBUGMSG("Target filesystem is FAT32\n");
+      DEBUGMSG("%u reserved\n",
+	       (unsigned) fat32Header->common1.reservedSectors);
+      DEBUGMSG("%u FATs of %u\n", (unsigned) fat32Header->common1.numberOfFats,
 	    fatSectors);
-      DEBUG("Root dir cluster %u\n", (unsigned) fat32Header->rootDirCluster);
-      DEBUG("Sectors per cluster %u\n",
+      DEBUGMSG("Root dir cluster %u\n",
+	       (unsigned) fat32Header->rootDirCluster);
+      DEBUGMSG("Sectors per cluster %u\n",
 	    (unsigned) fat32Header->common1.sectorsPerCluster);
 
       // Read the FAT32 FSInfo sector
@@ -474,7 +480,7 @@ static int setOsLoaderParams(const char *outputName,
 	  (unsigned) fat32Header->common1.sectorsPerCluster));
     }
 
-  DEBUG("First user sector for OS loader is %u\n", *firstUserSector);
+  DEBUGMSG("First user sector for OS loader is %u\n", *firstUserSector);
   
   bzero(&statBuff, sizeof(struct stat));
   status = stat(osLoader, &statBuff);
@@ -486,9 +492,23 @@ static int setOsLoaderParams(const char *outputName,
   *osLoaderSectors +=
     (((unsigned) statBuff.st_size % fatHeader->common1.bytesPerSector) != 0);
 
-  DEBUG("OS loader sectors are %u\n", *osLoaderSectors);
+  DEBUGMSG("OS loader sectors are %u\n", *osLoaderSectors);
 
   return (errno = status = 0);
+}
+
+
+static void addBootSignature(unsigned char *newBootsect)
+{
+  // We use a unique signature in each Visopsys boot sector, in order for
+  // the kernel to determine which device it was *really* booted from
+  // (information about this from the BIOS can be misleading or inadequate)
+
+  time_t t = 0;
+
+  DEBUGMSG("Add boot sector signature\n");
+  time(&t);
+  memcpy((newBootsect + 498), &t, 4);
 }
 
 
@@ -561,6 +581,8 @@ int main(int argc, char *argv[])
       perror(argv[0]);
       return (status);
     }
+
+  addBootSignature(newBootsect);
 
   // Write the new boot sector
   status = writeBootsect(destName, newBootsect);

@@ -119,36 +119,50 @@ getElfHeaderInfo:
 	mov EAX, dword [ES:ESI]
 	mov dword [ENTRYPOINT], EAX
 
-	;; Now the offset of the program header
+	;; Now the offset of the program headers
 	mov ESI, 28
 	mov EAX, dword [ES:ESI]
-	mov dword [PROGHEADER], EAX
+	mov dword [PROGHEADERS], EAX
 
 	;; That is all the information we get directly from the ELF header.
-	;; Now, we need to get information from the program header.
-	mov ESI, dword [PROGHEADER]
+	;; Now, we need to get information from the program headers.
 
-	;; Skip the segment type.
+	;; Find the code.
+	mov ESI, dword [PROGHEADERS]
 
-	add ESI, 4
+	;; Loop until we find a header with a segment type PT_LOAD (1) and
+	;; flags indicating that the segment is read-only and executable
+	.codeFind:
 	mov EAX, dword [ES:ESI]
+	cmp EAX, 1 		; PT_LOAD
+	je .codeCheckFlags
+	add ESI, 32
+	jmp .codeFind
+	
+	.codeCheckFlags:
+	mov EAX, [ES:ESI + 24]
+	cmp EAX, 05h		; 04h=read 01h=execute
+	je .codeFound
+	add ESI, 32
+	jmp .codeFind
+	
+	.codeFound:
+	;; Get the code offset
+	mov EAX, dword [ES:ESI + 4]
 	mov dword [CODE_OFFSET], EAX
 
-	add ESI, 4
-	mov EAX, dword [ES:ESI]
+	;; Get the code virtual address
+	mov EAX, dword [ES:ESI + 8]
 	mov dword [CODE_VIRTADDR], EAX
 
-	;; Skip the physical address.
-	
-	add ESI, 8
-	mov EAX, dword [ES:ESI]
+	;; Get the code size in the file
+	mov EAX, dword [ES:ESI + 16]
 	mov dword [CODE_SIZEINFILE], EAX
 
 	;; Make sure the size in memory is the same in the file
-	add ESI, 4
-	mov EAX, dword [ES:ESI]
+	mov EAX, dword [ES:ESI + 20]
 	cmp EAX, dword [CODE_SIZEINFILE]
-	je .codeFlags
+	je .codeCheckAlign
 
 	;; The kernel image doesn't look the way we expected.  This program
 	;; isn't versatile enough to handle that yet.
@@ -167,14 +181,11 @@ getElfHeaderInfo:
 	mov word [SS:(BP + 16)], -3
 	jmp .done
 	
-	.codeFlags:
-	;; Skip the flags
-
-	;; Just check the alignment.  Must be 4096 (page size)
-	add ESI, 8
-	mov EAX, dword [ES:ESI]
+	.codeCheckAlign:
+	;; Check the alignment.  Must be 4096 (page size)
+	mov EAX, dword [ES:ESI + 28]
 	cmp EAX, 4096
-	je .dataSeg
+	je .dataFind
 
 	;; The kernel image doesn't look the way we expected.  This program
 	;; isn't versatile enough to handle that yet.
@@ -193,33 +204,44 @@ getElfHeaderInfo:
 	mov word [SS:(BP + 16)], -4
 	jmp .done
 
-	.dataSeg:
-	;; Now the data segment
-	
-	;; Skip the segment type.
+	;; Now the data segment.
+	mov ESI, dword [PROGHEADERS]
 
-	add ESI, 8
+	;; Loop until we find a header with a segment type PT_LOAD (1) and
+	;; flags indicating that the segment is read-write
+	.dataFind:
 	mov EAX, dword [ES:ESI]
+	cmp EAX, 1 		; PT_LOAD
+	je .dataCheckFlags
+	add ESI, 32
+	jmp .dataFind
+	
+	.dataCheckFlags:
+	mov EAX, [ES:ESI + 24]
+	cmp EAX, 06h		; 04h=read 02h=write
+	je .dataFound
+	add ESI, 32
+	jmp .dataFind
+
+	.dataFound:
+	;; Get the data offset
+	mov EAX, dword [ES:ESI + 4]
 	mov dword [DATA_OFFSET], EAX
 
-	add ESI, 4
-	mov EAX, dword [ES:ESI]
+	;; Get the data virtual address
+	mov EAX, dword [ES:ESI + 8]
 	mov dword [DATA_VIRTADDR], EAX
 
-	;; Skip the physical address.
-	
-	add ESI, 8
-	mov EAX, dword [ES:ESI]
+	;; Get the data size in the file
+	mov EAX, dword [ES:ESI + 16]
 	mov dword [DATA_SIZEINFILE], EAX
-	
-	add ESI, 4
-	mov EAX, dword [ES:ESI]
-	mov dword [DATA_SIZEINMEM], EAX
 
-	;; Skip the flags
+	;; Get the data size in memory
+	mov EAX, dword [ES:ESI + 20]
+	mov dword [DATA_SIZEINMEM], EAX
 	
-	add ESI, 8
-	mov EAX, dword [ES:ESI]
+	;; Check the alignment.  Must be 4096 (page size)
+	mov EAX, dword [ES:ESI + 28]
 	cmp EAX, 4096
 	je .success
 
@@ -519,7 +541,7 @@ loaderLoadKernel:
 	ALIGN 4
 	
 ENTRYPOINT	dd 0
-PROGHEADER	dd 0
+PROGHEADERS	dd 0
 CODE_OFFSET	dd 0
 CODE_VIRTADDR	dd 0
 CODE_SIZEINFILE	dd 0

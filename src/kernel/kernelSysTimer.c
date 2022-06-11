@@ -87,6 +87,9 @@ int kernelSysTimerInitialize(kernelDevice *dev)
 
   ops = systemTimer->driver->ops;
 
+  // Set up initial, default values
+  kernelSysTimerSetupTimer(0, 3, 0);
+
   // Register our interrupt handler
   status = kernelInterruptHook(INTERRUPT_NUM_SYSTIMER, &timerInterrupt);
   if (status < 0)

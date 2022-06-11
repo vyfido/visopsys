@@ -416,11 +416,12 @@ static int createNewProcess(const char *name, int priority, int privilege,
   kernelProcess *newProcess = NULL;
   void *stackMemoryAddr = NULL;
   void *physicalCodeData = NULL;
-  int *args = NULL;
+  int argMemorySize = 0;
+  char *argMemory = NULL;
+  char *oldArgPtr = NULL;
+  char *newArgPtr = NULL;
+  int *stackArgs = NULL;
   char **argv = NULL;
-  int argSpaceSize = 0;
-  char *argSpace = NULL;
-  char *newArgAddress = NULL;
   int length = 0;
   int count;
 
@@ -615,42 +616,18 @@ static int createNewProcess(const char *name, int priority, int privilege,
   // Copy 'argc' and 'argv' arguments to the new process' stack while we
   // still own the stack memory.
 
-  // Set pointers to the appropriate stack locations for the arguments
-  args = (stackMemoryAddr + newProcess->userStackSize - (2 * sizeof(int)));
-
   // Calculate the amount of memory we need to allocate for argument data.
   // Leave space for pointers to the strings, since the (int argc,
   // char *argv[]) scheme means just 2 values on the stack: an integer
   // an a pointer to an array of char* pointers...
-  argSpaceSize = ((execImage->argc + 1) * sizeof(char *));
+  argMemorySize = ((execImage->argc + 1) * sizeof(char *));
   for (count = 0; count < execImage->argc; count ++)
     if (execImage->argv[count])
-      argSpaceSize += (strlen(execImage->argv[count]) + 1);
+      argMemorySize += (strlen(execImage->argv[count]) + 1);
 
   // Get memory for the argument data
-  argSpace = kernelMemoryGet(argSpaceSize, "process arguments");
-  if (argSpace == NULL)
-    {
-      kernelMemoryRelease(stackMemoryAddr);
-      removeProcessFromQueue(newProcess);
-      releaseProcess(newProcess);
-      return (status = ERR_MEMORY);
-    }
-      
-  // Change ownership to the new process, and share it back with this process.
-  if (kernelMemoryChangeOwner(newProcess->parentProcessId,
-			      newProcess->processId, 1, argSpace,
-			      (void **) &newArgAddress) < 0)
-    {
-      kernelMemoryRelease(stackMemoryAddr);
-      kernelMemoryRelease(argSpace);
-      removeProcessFromQueue(newProcess);
-      releaseProcess(newProcess);
-      return (status = ERR_MEMORY);
-    }
-
-  if (kernelMemoryShare(newProcess->processId, newProcess->parentProcessId,
-			newArgAddress, (void **) &argSpace) < 0)
+  argMemory = kernelMemoryGet(argMemorySize, "process arguments");
+  if (argMemory == NULL)
     {
       kernelMemoryRelease(stackMemoryAddr);
       removeProcessFromQueue(newProcess);
@@ -658,28 +635,61 @@ static int createNewProcess(const char *name, int priority, int privilege,
       return (status = ERR_MEMORY);
     }
 
-  args[0] = execImage->argc;
-  args[1] = (int) newArgAddress;
-	
-  argv = (char **) argSpace;
-  argSpace += ((execImage->argc + 1) * sizeof(char *));
-  newArgAddress += ((execImage->argc + 1) * sizeof(char *));
+  if (newPageDir)
+    {
+      // Change ownership to the new process, and share it back with this
+      // process.
+      if (kernelMemoryChangeOwner(newProcess->parentProcessId,
+				  newProcess->processId, 1, argMemory,
+				  (void **) &newArgPtr) < 0)
+	{
+	  kernelMemoryRelease(stackMemoryAddr);
+	  kernelMemoryRelease(argMemory);
+	  removeProcessFromQueue(newProcess);
+	  releaseProcess(newProcess);
+	  return (status = ERR_MEMORY);
+	}
+
+      if (kernelMemoryShare(newProcess->processId, newProcess->parentProcessId,
+			    newArgPtr, (void **) &argMemory) < 0)
+	{
+	  kernelMemoryRelease(stackMemoryAddr);
+	  removeProcessFromQueue(newProcess);
+	  releaseProcess(newProcess);
+	  return (status = ERR_MEMORY);
+	}
+    }
+  else
+    newArgPtr = argMemory;
+
+  oldArgPtr = argMemory;
+
+  // Set pointers to the beginning stack location for the arguments
+  stackArgs =
+    (stackMemoryAddr + newProcess->userStackSize - (2 * sizeof(int)));
+  stackArgs[0] = execImage->argc;
+  stackArgs[1] = (int) newArgPtr;
+
+  argv = (char **) oldArgPtr;
+  oldArgPtr += ((execImage->argc + 1) * sizeof(char *));
+  newArgPtr += ((execImage->argc + 1) * sizeof(char *));
 
   // Copy the args into argv
   for (count = 0; count < execImage->argc; count ++)
     if (execImage->argv[count])
       {
-	strcpy((argSpace + length), execImage->argv[count]);
-	argv[count] = (newArgAddress + length);
+	strcpy((oldArgPtr + length), execImage->argv[count]);
+	argv[count] = (newArgPtr + length);
 	length += (strlen(execImage->argv[count]) + 1);
       }
 
   // argv[argc] is supposed to be a NULL pointer, according to
   // some standard or other
-  argv[args[0]] = NULL;
+  argv[execImage->argc] = NULL;
 
-  // Unmap the argument space from this process
-  kernelPageUnmap(newProcess->parentProcessId, argSpace, argSpaceSize);
+  if (newPageDir)
+    // Unmap the argument space from this process
+    kernelPageUnmap(newProcess->parentProcessId, argMemory, argMemorySize);
 
   // Make the process own its stack memory
   status = kernelMemoryChangeOwner(newProcess->parentProcessId, 
@@ -839,13 +849,10 @@ static void exceptionHandler(void)
   kernelProcess *targetProc = NULL;
   char *message = NULL;
   char *details = NULL;
-  char *symbolName = NULL;
+  const char *symbolName = NULL;
+  const char *kernOrApp = NULL;
   int interrupt = 0;
-  int count;
   
-  extern kernelSymbol *kernelSymbols;
-  extern int kernelNumberSymbols;
-
   message = kernelMalloc(MAXSTRINGLENGTH);
   details = kernelMalloc(MAXSTRINGLENGTH);
   if ((message == NULL) || (details == NULL))
@@ -883,32 +890,20 @@ static void exceptionHandler(void)
 	      exceptionVector[processingException].name);
 
       if (exceptionAddress >= KERNEL_VIRTUAL_ADDRESS)
-	{
-	  if (kernelSymbols)
-	    {
-	      // Find roughly the kernel function where the exception
-	      // happened
-	      for (count = 0; count < kernelNumberSymbols; count ++)
-		{
-		  if ((exceptionAddress >= kernelSymbols[count].value) &&
-		      (exceptionAddress < kernelSymbols[count + 1].value))
-		    {
-		      symbolName = kernelSymbols[count].name;
-		      break;
-		    }
-		}
-	    }
-
-	  if (symbolName)
-	    sprintf((message + strlen(message)), " in function %s (%08x)",
-		    symbolName, exceptionAddress);
-	  else
-	    sprintf((message + strlen(message)), " at kernel address %08x",
-		    exceptionAddress);
-	}
+	kernOrApp = "kernel";
       else
-	sprintf((message + strlen(message)), " at application address %08x",
-		exceptionAddress);
+	kernOrApp = "application";
+
+      // Find roughly the symbolic address where the exception happened
+      symbolName =
+	kernelLookupClosestSymbol(targetProc, (void *) exceptionAddress);
+
+      if (symbolName)
+	sprintf((message + strlen(message)), " in %s function %s "
+		"(%08x)", kernOrApp, symbolName, exceptionAddress);
+      else
+	sprintf((message + strlen(message)), " at %s address %08x",
+		kernOrApp, exceptionAddress);
 
       if (kernelProcessingInterrupt)
 	{

@@ -23,4 +23,6 @@ clean:
 	make -C utils clean
 	make -C src clean
 	rm -Rf ${BUILDDIR}
-	find . -type f -a ! -name \*.sh -exec chmod -x {} \;
+	find -name '*.rej' -exec rm {} \;
+	find -name '*.orig' -exec rm {} \;
+	find . -type f -a ! -name '*.sh' -exec chmod -x {} \;

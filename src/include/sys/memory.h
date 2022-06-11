@@ -37,11 +37,11 @@
 #define KERNEL_MEMORY_HEAP_MULTIPLE  (1024 * 1024)  // 1 meg
 
 typedef struct _mallocBlock {
-  int used;
   int process;
   unsigned start;
   unsigned size;
   unsigned heapAlloc;
+  unsigned heapAllocSize;
   struct _mallocBlock *prev;
   struct _mallocBlock *next;
   const char *function;

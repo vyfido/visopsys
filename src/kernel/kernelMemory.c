@@ -58,16 +58,11 @@ static memoryBlock reservedBlocks[] =
 {
   // { processId, description, startlocation, endlocation }
 
-  { KERNELPROCID, "conventional memory", 0, (VIDEO_MEMORY - 1) },
+  { KERNELPROCID, "real mode ivt and bda", 0, (MEMORY_BLOCK_SIZE - 1) },
+  
+  { KERNELPROCID, "memory hole and ebda", 0x00080000, 0x0009FFFF },
 
-  { KERNELPROCID, "video memory", VIDEO_MEMORY, 
-    (VIDEO_MEMORY + VIDEO_MEMORY_SIZE - 1) },
-
-  { KERNELPROCID, "video BIOS memory", VIDEO_BIOS_MEMORY, 
-    (VIDEO_BIOS_MEMORY + VIDEO_BIOS_MEMORY_SIZE - 1) },
-
-  { KERNELPROCID, "conventional memory",
-    (VIDEO_BIOS_MEMORY + VIDEO_BIOS_MEMORY_SIZE), (KERNEL_LOAD_ADDRESS - 1) },
+  { KERNELPROCID, "video memory and rom", VIDEO_MEMORY, 0x000FFFFF },
 
   // Ending value is set during initialization, since it is variable
   { KERNELPROCID, "kernel memory", KERNEL_LOAD_ADDRESS, 0 },
@@ -92,10 +87,20 @@ static int allocateBlock(int processId, unsigned start, unsigned end,
   // the totalUsed and totalFree values accordingly.
 
   int status = 0;
-  unsigned temp = 0;
   unsigned lastBit = 0;
+  unsigned count;
 
   // The description pointer is allowed to be NULL
+
+  if ((start % MEMORY_BLOCK_SIZE) || (((end - start) + 1) % MEMORY_BLOCK_SIZE))
+    {
+      kernelError(kernel_error, "Memory block start or size is not "
+      		  "block-aligned");
+      return (status = ERR_INVALID);
+    }
+
+  if ((start >= totalMemory) || (end >= totalMemory))
+    return (status = ERR_INVALID);
 
   // Clear the memory occupied by the first unused memory block structure
   kernelMemClear((void *) usedBlockList[usedBlocks], sizeof(memoryBlock));
@@ -114,20 +119,20 @@ static int allocateBlock(int processId, unsigned start, unsigned end,
   else
     usedBlockList[usedBlocks]->description[0] = '\0';
 
-  // Adjust the total used and free memory quantities
-  temp = ((usedBlockList[usedBlocks]->endLocation - 
-	   usedBlockList[usedBlocks]->startLocation) + 1);
-  totalUsed += temp;
-  totalFree -= temp;
-
-  // Now increase the total count of used memory blocks.
+  // Increment the count of used memory blocks.
   usedBlocks += 1;
 
   // Take the whole range of memory covered by this new block, and mark
-  // each of its physical memory blocks as "used" in the free-block bitmap.
-  lastBit = (end / MEMORY_BLOCK_SIZE);
-  for (temp = (start / MEMORY_BLOCK_SIZE); temp <= lastBit; temp ++)
-    freeBlockBitmap[temp / 8] |= (0x80 >> (temp % 8));
+  // each of its physical memory blocks as "used" in the free-block bitmap,
+  // adjusting the totalUsed and totalFree values as we go.
+  lastBit = ((end + (MEMORY_BLOCK_SIZE - 1)) / MEMORY_BLOCK_SIZE);
+  for (count = (start / MEMORY_BLOCK_SIZE); count <= lastBit; count ++)
+    if (!(freeBlockBitmap[count / 8] & (0x80 >> (count % 8))))
+      {
+	freeBlockBitmap[count / 8] |= (0x80 >> (count % 8));
+	totalUsed += MEMORY_BLOCK_SIZE;
+	totalFree -= MEMORY_BLOCK_SIZE;
+      }
 
   // Return success
   return (status = 0);
@@ -156,7 +161,10 @@ static int requestBlock(int processId, unsigned requestedSize,
   // If the requested block size is zero, forget it.  We can probably
   // assume something has gone wrong in the calling program
   if (requestedSize == 0)
-    return (status = ERR_INVALID);
+    {
+      kernelError(kernel_error, "Can't allocate 0 bytes");
+      return (status = ERR_INVALID);
+    }
 
   // Make sure that we have room for a new block.  If we don't, return
   // NULL.
@@ -172,9 +180,12 @@ static int requestBlock(int processId, unsigned requestedSize,
   // Obviously, if MEMORY_BLOCK_SIZE is the size of each block, we can't
   // really start allocating memory which uses only bits and pieces
   // of blocks
-  if (alignment != 0)
-    if ((alignment % MEMORY_BLOCK_SIZE) != 0)
+  if (alignment && ((alignment % MEMORY_BLOCK_SIZE) != 0))
+    {
+      kernelError(kernel_error, "Physical memory can only be aligned on "
+		  "%u-byte boundary (not %u)", MEMORY_BLOCK_SIZE, alignment);
       return (status = ERR_ALIGN);
+    }
 
   // Make the requested size be a multiple of MEMORY_BLOCK_SIZE.  Our memory 
   // blocks are all going to be multiples of this size
@@ -325,6 +336,8 @@ int kernelMemoryInitialize(unsigned kernelMemory)
   int status = 0;
   unsigned char *bitmapPhysical = NULL;
   unsigned bitmapSize = 0;
+  const char *desc = NULL;
+  unsigned start = 0, end = 0;
   int count;
 
   // Make sure that this initialization routine only gets called once
@@ -418,17 +431,54 @@ int kernelMemoryInitialize(unsigned kernelMemory)
 	}
     }
 
-  // Allocate blocks for all the reserved memory ranges, including the free
-  // block bitmap (which is cool, because this allocation will use the
+  // Allocate blocks for all our static reserved memory ranges, including the
+  // free block bitmap (which is cool, because this allocation will use the
   // bitmap itself (which is 'unofficially' allocated).  Woo, paradox...
   for (count = 0; reservedBlocks[count].processId != 0; count ++)
+    // No point in checking status from this call, as we don't want to fail
+    // kernel initialization because of this, and logging and error output
+    // aren't initialized at this stage.
+    allocateBlock(reservedBlocks[count].processId,
+		  reservedBlocks[count].startLocation, 
+		  reservedBlocks[count].endLocation, 
+		  (char *) reservedBlocks[count].description);
+
+  // Now do the same for all the BIOS's non-available memory blocks.  It's OK
+  // if these overlap with - or are already covered by - our static ones.
+  for (count = 0; (kernelOsLoaderInfo->memoryMap[count].type &&
+		   (count < (int)(sizeof(kernelOsLoaderInfo->memoryMap) /
+				  sizeof(memoryInfoBlock)))); count ++)
     {
-      status = allocateBlock(reservedBlocks[count].processId,
-			     reservedBlocks[count].startLocation, 
-			     reservedBlocks[count].endLocation, 
-			     (char *) reservedBlocks[count].description);
-      if (status < 0)
-	return (status);
+      if (kernelOsLoaderInfo->memoryMap[count].type == available)
+	continue;
+
+      switch(kernelOsLoaderInfo->memoryMap[count].type)
+	{
+	case reserved:
+	  desc = "bios reserved";
+	  break;
+	case acpi_reclaim:
+	  desc = "acpi reclaim";
+	  break;
+	case acpi_nvs:
+	  desc = "acpi nvs";
+	  break;
+	case bad:
+	  desc = "bios bad";
+	  break;
+	default:
+	  desc = "bios unknown";
+	  break;
+	}
+
+      // Make sure start locations are rounded down to block boundaries, and
+      // sizes are rounded up.
+      start = kernelOsLoaderInfo->memoryMap[count].start;
+      end = (kernelOsLoaderInfo->memoryMap[count].start +
+	     (kernelOsLoaderInfo->memoryMap[count].size - 1));
+      allocateBlock(KERNELPROCID, (start - (start % MEMORY_BLOCK_SIZE)),
+		    (end + ((MEMORY_BLOCK_SIZE -
+			     (end % MEMORY_BLOCK_SIZE)) - 1)), desc);
     }
 
   // Make note of the fact that we've now been initialized
@@ -848,8 +898,8 @@ int kernelMemoryChangeOwner(int oldPid, int newPid, int remap,
 
   if (block && (block->processId != oldPid))
     {
-      kernelError(kernel_error, "Attempt to change memory ownership "
-		  "from incorrect owner (%d should be %d)", oldPid,
+      kernelError(kernel_error, "Attempt to change memory ownership from "
+		  "incorrect owner (%d should be %d)", oldPid,
 		  block->processId);
       kernelLockRelease(&memoryLock);
       return (status = ERR_PERMISSION);

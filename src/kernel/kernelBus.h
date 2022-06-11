@@ -23,47 +23,54 @@
 
 #include "kernelDevice.h"
 
-#define BUS_MAX_BUSES 16
+// Forward declarations, where necessary
+struct _kernelBus;
 
 typedef enum {
   bus_pci = 1, bus_usb = 2
 } kernelBusType;
 
 typedef struct {
-  int target;
+  struct _kernelBus *bus;
+  int id;
   kernelDeviceClass *class;
   kernelDeviceClass *subClass;
+  kernelDriver *claimed;
 
 } kernelBusTarget;
 
 typedef struct {
-  int (*driverGetTargets) (kernelBusTarget **);
-  int (*driverGetTargetInfo) (int, void *);
-  unsigned (*driverReadRegister) (int, int, int);
-  void (*driverWriteRegister) (int, int, int, unsigned);
-  int (*driverDeviceEnable) (int, int);
-  int (*driverSetMaster) (int, int);
-  int (*driverRead) (int, unsigned, void *);
-  int (*driverWrite) (int, unsigned, void *);
+  int (*driverGetTargets)(struct _kernelBus *, kernelBusTarget **);
+  int (*driverGetTargetInfo)(kernelBusTarget *, void *);
+  unsigned (*driverReadRegister)(kernelBusTarget *, int, int);
+  int (*driverWriteRegister)(kernelBusTarget *, int, int, unsigned);
+  void (*driverDeviceClaim) (kernelBusTarget *, kernelDriver *);
+  int (*driverDeviceEnable)(kernelBusTarget *, int);
+  int (*driverSetMaster)(kernelBusTarget *, int);
+  int (*driverRead)(kernelBusTarget *, unsigned, void *);
+  int (*driverWrite)(kernelBusTarget *, unsigned, void *);
 
 } kernelBusOps;
 
-typedef struct {
+typedef struct _kernelBus {
   kernelBusType type;
+  kernelDevice *dev;
   kernelBusOps *ops;
 
 } kernelBus;
 
 // Functions exported by kernelBus.c
-int kernelBusRegister(kernelBusType, kernelDevice *);
+int kernelBusRegister(kernelBus *);
 int kernelBusGetTargets(kernelBusType, kernelBusTarget **);
-int kernelBusGetTargetInfo(kernelBusType, int, void *);
-unsigned kernelBusReadRegister(kernelBusType, int, int, int);
-void kernelBusWriteRegister(kernelBusType, int, int, int, unsigned);
-int kernelBusDeviceEnable(kernelBusType, int, int);
-int kernelBusSetMaster(kernelBusType, int, int);
-int kernelBusRead(kernelBusType, int, unsigned, void *);
-int kernelBusWrite(kernelBusType, int, unsigned, void *);
+kernelBusTarget *kernelBusGetTarget(kernelBusType, int);
+int kernelBusGetTargetInfo(kernelBusTarget *, void *);
+unsigned kernelBusReadRegister(kernelBusTarget *, int, int);
+int kernelBusWriteRegister(kernelBusTarget *, int, int, unsigned);
+void kernelBusDeviceClaim(kernelBusTarget *, kernelDriver *);
+int kernelBusDeviceEnable(kernelBusTarget *, int);
+int kernelBusSetMaster(kernelBusTarget *, int);
+int kernelBusRead(kernelBusTarget *, unsigned, void *);
+int kernelBusWrite(kernelBusTarget *, unsigned, void *);
 
 #define _KERNELBUS_H
 #endif

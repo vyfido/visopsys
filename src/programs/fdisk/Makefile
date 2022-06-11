@@ -22,9 +22,15 @@ endif
 STDDEPS		= ${ROOT}/Makefile.include Makefile ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h *.h ${LIBDIR}/crt0.o
 INCLUDE         = -nostdinc -I${INCDIR}
-CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${PARTLOGIC} ${DEFLANG} ${PLUS}
+DEBUG		= # -DDEBUG # Uncomment to turn on debugging
+CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG} \
+		 ${PARTLOGIC} ${DEFLANG} ${PLUS}
 LFLAGS		= -L${LIBDIR} -nostdlib \
 		-Wl,${LIBDIR}/crt0.o,--warn-common,-X,--oformat,elf32-i386
+
+ifeq (${DEBUG},)
+	STRIP = strip -s ${FDISK}
+endif 
 
 NAMES	= fdisk \
 	gpt \
@@ -42,10 +48,10 @@ target-dirs:
 	mkdir -p ${BUILDDIR}
 
 ${FDISK}: ${OBJS}
-	${CC} ${CFLAGS} ${LFLAGS} ${OBJS} -lntfs -lintl -lwindow -lvsh -lc -lgcc -o $@
+	${CC} ${CFLAGS} ${LFLAGS} ${OBJS} -lintl -lwindow -lvsh -ldl -lc -lgcc -o $@
 
 strip: ${FDISK}
-	strip -s ${FDISK}
+	${STRIP}
 
 messages: ${OBJS}
 	${MAKEMSGS}

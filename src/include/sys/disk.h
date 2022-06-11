@@ -35,6 +35,10 @@
 #define DISK_MAX_PARTITIONS          16
 #define DISK_MAX_PRIMARY_PARTITIONS  4
 #define DISK_MAX_CACHE               1048576 // 1 Meg
+#define DISK_NAME_PREFIX_FLOPPY      "fd"
+#define DISK_NAME_PREFIX_CDROM       "cd"
+#define DISK_NAME_PREFIX_SCSIDISK    "sd"
+#define DISK_NAME_PREFIX_HARDDISK    "hd"
 #define FSTYPE_MAX_NAMELENGTH        32
 
 // MS-DOS partition tags of interest.

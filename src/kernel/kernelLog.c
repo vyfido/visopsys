@@ -265,7 +265,7 @@ int kernelLog(const char *format, ...)
 
   // Now take care of the output part
 
-  // Are we logging to the console?  Just print the message itself.
+  // Are we logging to the console?  Print the message itself.
   if (logToConsole)
     kernelTextPrintLine("%s", output);
 

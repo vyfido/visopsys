@@ -134,6 +134,10 @@ static int detect(const char *fileName, void *dataPtr, unsigned dataLength,
       (class == NULL))
     return (0);
 
+  // Make sure there's enough data here for our detection
+  if (dataLength < (sizeof(JFIF_START) + sizeof(jpgJfifHeader)))
+    return (0);
+  
   // See whether this file claims to be a JPEG file
 
   if (kernelMemCmp(dataPtr, JFIF_START, sizeof(JFIF_START)) &&

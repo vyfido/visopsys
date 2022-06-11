@@ -22,12 +22,13 @@
 // A file for miscellaneous things
 
 #include "kernelMisc.h"
+#include "kernelDebug.h"
 #include "kernelError.h"
 #include "kernelFile.h"
+#include "kernelFileStream.h"
 #include "kernelLoader.h"
 #include "kernelLog.h"
 #include "kernelMalloc.h"
-#include "kernelMemory.h"
 #include "kernelNetwork.h"
 #include "kernelParameters.h"
 #include "kernelProcessorX86.h"
@@ -35,8 +36,6 @@
 #include "kernelRtc.h"
 #include <ctype.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 static unsigned long  crcTable[256] = {
   0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA, 0x076DC419, 0x706AF48F,
@@ -89,120 +88,6 @@ char *kernelVersion[] = {
   _KVERSION_
 };
 
-kernelSymbol *kernelSymbols = NULL;
-int kernelNumberSymbols = 0;
-
-
-static const char *lookupClosestKernelSymbol(void *address)
-{
-  int count;
-
-  // If the return address looks as if it might be a kernel memory
-  // address, try to find the symbol it most closely matches
-
-  if (kernelSymbols == NULL)
-    {
-      kernelError(kernel_error, "No kernel symbols to do stack trace");
-      return (NULL);
-    }
-
-  if (address >= (void *) KERNEL_VIRTUAL_ADDRESS)
-    // Find roughly the kernel function that this number corresponds to
-    for (count = 0; count < kernelNumberSymbols; count ++)
-      if ((address >= (void *) kernelSymbols[count].value) &&
-	  ((count >= (kernelNumberSymbols - 1)) ||
-	   (address < (void *) kernelSymbols[count + 1].value)))
-	return (kernelSymbols[count].name);
-
-  // Not found
-  return (NULL);
-}
-
-
-static const char *lookupClosestSymbol(kernelProcess *lookupProcess,
-				       void *address)
-{
-  loaderSymbolTable *symTable = lookupProcess->symbols;
-  int count = 0;
-
-  if (address >= (void *) KERNEL_VIRTUAL_ADDRESS)
-    {
-      if (kernelSymbols)
-	return (lookupClosestKernelSymbol(address));
-      else
-	// No symbols.
-	return (NULL);
-    }
-
-  if (symTable == NULL)
-    {
-      kernelError(kernel_error, "process \"%s\" has no symbol table",
-		  lookupProcess->name);
-      return (NULL);
-    }
-
-  for (count = 0; count < symTable->numSymbols; count ++)
-    if ((symTable->symbols[count].type == LOADERSYMBOLTYPE_FUNC) &&
-	(address >= symTable->symbols[count].value) &&
-	((count >= (symTable->numSymbols - 1)) ||
-	 (address < symTable->symbols[count + 1].value)))
-      return (symTable->symbols[count].name);
-
-  // Not found
-  return (NULL);
-}
-
-
-static int sortSymbols(kernelProcess *sortProcess)
-{
-  int status = 0;
-  loaderSymbolTable *tempTable = NULL;
-  void *smallestValue = NULL;
-  int smallestPosition = 0;
-  int count1, count2;
-
-  if (!sortProcess->symbols)
-    {
-      kernelError(kernel_error, "Process \"%s\" has no symbol table",
-		  sortProcess->name);
-      return (status = ERR_NODATA);
-    }
-
-  // Allocate memory for a temporary table
-  tempTable = kernelMalloc(sortProcess->symbols->tableSize);
-  if (!tempTable)
-    return (status = ERR_MEMORY);
-
-  // Loop through our temporary table and fill it with the symbols sorted
-  // by value.
-  for (count1 = 0; count1 < sortProcess->symbols->numSymbols; count1 ++)
-    {
-      smallestValue = NULL;
-      for (count2 = 0; count2 < sortProcess->symbols->numSymbols; count2 ++)
-	if (sortProcess->symbols->symbols[count2].value &&
-	    (!smallestValue ||
-	     (sortProcess->symbols->symbols[count2].value < smallestValue)))
-	  {
-	    smallestValue = sortProcess->symbols->symbols[count2].value;
-	    smallestPosition = count2;
-	  }
-
-      if (smallestValue)
-	{
-	  kernelMemCopy(&sortProcess->symbols->symbols[smallestPosition],
-			&tempTable->symbols[count1], sizeof(loaderSymbol));
-	  sortProcess->symbols->symbols[smallestPosition].value = NULL;
-	}
-    }
-
-  // Copy our temporary table's sorted symbols back to the original table
-  kernelMemCopy(tempTable->symbols, sortProcess->symbols->symbols,
-		(sortProcess->symbols->numSymbols * sizeof(loaderSymbol)));
-
-  kernelFree(tempTable);
-  return (status = 0);
-}
-
 
 static void walkStack(kernelProcess *traceProcess, void *stackMemory,
 		      unsigned stackSize, long memoryOffset,
@@ -230,7 +115,7 @@ static void walkStack(kernelProcess *traceProcess, void *stackMemory,
       if (returnAddress &&
 	  STILLWALKING(stackMemory, stackBase, *framePointer, oldFramePointer))
 	{
-	  symbolName = lookupClosestSymbol(traceProcess, returnAddress);
+	  symbolName = kernelLookupClosestSymbol(traceProcess, returnAddress);
 	  if (symbolName)
 	    snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
 		     "  %p  %s\n", returnAddress, symbolName);
@@ -349,6 +234,33 @@ int kernelMemCmp(const void *src, const void *dest, unsigned bytes)
 }
 
 
+const char *kernelLookupClosestSymbol(kernelProcess *lookupProcess,
+				      void *address)
+{
+  loaderSymbolTable *symTable = NULL;
+  int count = 0;
+
+  if (address >= (void *) KERNEL_VIRTUAL_ADDRESS)
+    // Try to get the symbol from the kernel's process
+    symTable = kernelMultitaskerGetSymbols(KERNELPROCID);
+  else
+    symTable = lookupProcess->symbols;
+
+  if (symTable == NULL)
+    return (NULL);
+
+  for (count = 0; count < symTable->numSymbols; count ++)
+    if ((symTable->symbols[count].type == LOADERSYMBOLTYPE_FUNC) &&
+	(address >= symTable->symbols[count].value) &&
+	((count >= (symTable->numSymbols - 1)) ||
+	 (address < symTable->symbols[count + 1].value)))
+      return (symTable->symbols[count].name);
+
+  // Not found
+  return (NULL);
+}
+
+
 int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 {
   // Will try to do a stack trace of the return addresses between for each
@@ -390,10 +302,6 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
 		  "privilege and user does not own the process"); 
       return (status = ERR_PERMISSION);
     }
-
-  // If the process has symbols, make sure they're in sorted order
-  if (traceProcess->symbols)
-    sortSymbols(traceProcess);
 
   snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
 	   "--> stack trace process \"%s\":\n", traceProcess->name);
@@ -440,7 +348,7 @@ int kernelStackTrace(kernelProcess *traceProcess, char *buffer, int len)
     }
 
   // First try and figure out the current function
-  symbolName = lookupClosestSymbol(traceProcess, instPointer);
+  symbolName = kernelLookupClosestSymbol(traceProcess, instPointer);
   if (symbolName)
     snprintf((buffer + strlen(buffer)), (len - strlen(buffer)),
 	     "  %p  %s\n", instPointer, symbolName);
@@ -859,56 +767,38 @@ int kernelConfigUnset(const char *fileName, const char *variable)
 }
 
 
-int kernelReadSymbols(const char *filename)
+int kernelReadSymbols(void)
 {
-  // This will attempt to read the supplied properties file of kernel
-  // symbols into a variable list, then turn that into a data structure
-  // through which we can search for addresses.
+  // This will attempt to read the symbol table from the kernel executable,
+  // and attach it to the kernel process.
   
   int status = 0;
-  variableList tmpList;
-  int count;
+  loaderSymbolTable *kernelSymbols = NULL;
 
-  // See if there is a kernelSymbols file.
-  status = kernelFileFind(filename, NULL);
+  // See if there is a kernel file.
+  status = kernelFileFind(KERNEL_FILE, NULL);
   if (status < 0)
     {
-      kernelLog("No kernel symbols file \"%s\"", filename);
+      kernelLog("No kernel file \"%s\"", KERNEL_FILE);
       return (status);
     }
 
   // Make a log message
-  kernelLog("Reading kernel symbols from \"%s\"", filename);
+  kernelLog("Reading kernel symbols from \"%s\"", KERNEL_FILE);
 
-  // Try to read the supplied file name
-  status = kernelConfigRead(filename, &tmpList);
-  if (status < 0)
-    return (status);
-
-  if (tmpList.numVariables == 0)
-    // No symbols were properly read
-    return (status = ERR_NOSUCHENTRY);
-
-  // Get some memory to hold our list of symbols
-  kernelSymbols =
-    kernelMemoryGet((tmpList.numVariables * sizeof(kernelSymbol)),
-		    "kernel symbols");
+  kernelSymbols = kernelLoaderGetSymbols(KERNEL_FILE);
   if (kernelSymbols == NULL)
-    // Couldn't get the memory
-    return (status = ERR_MEMORY);
-
-  // Loop through all of the variables, setting the symbols in our table
-  for (count = 0; count < tmpList.numVariables; count ++)
     {
-      kernelSymbols[count].value = xtoi(tmpList.variables[count]);
-      strncpy((char *) kernelSymbols[count].name, tmpList.values[count],
-	      MAX_SYMBOL_LENGTH);
+      kernelDebugError("Couldn't load kernel symbols");
+      return (status = ERR_NODATA);
     }
 
-  kernelNumberSymbols = tmpList.numVariables;
-
-  // Release our variable list
-  kernelVariableListDestroy(&tmpList);
+  status = kernelMultitaskerSetSymbols(KERNELPROCID, kernelSymbols);
+  if (status < 0)
+    {
+      kernelError(kernel_warn, "Couldn't set kernel symbols");
+      return (status);
+    }
 
   return (status = 0);
 }
@@ -1042,15 +932,15 @@ unsigned kernelCrc32(void *buff, unsigned len, unsigned *lastCrc)
   // Generates a CRC32.
 
   register char *p = buff;
-  register unsigned crc;
+  register unsigned crc = 0;
 
   if (lastCrc)
     crc = *lastCrc;
-  else
-    crc = ~0U;
+
+  crc ^= ~0U;
 
   while (len-- > 0)
-    crc = (unsigned) (crcTable[(crc ^ *p++) & 0xFFL] ^ (unsigned)(crc >> 8));
+    crc = (unsigned)(crcTable[(crc ^ *p++) & 0xFFL] ^ (unsigned)(crc >> 8));
 
   if (lastCrc)
     *lastCrc = crc;

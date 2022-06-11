@@ -27,11 +27,13 @@
 // Definitions
 #define ISO_PRIMARY_VOLDESC_SECTOR        16
 #define ISO_STANDARD_IDENTIFIER           "CD001"
+#define ISO_BOOTRECORD_IDENTIFIER         "EL TORITO SPECIFICATION"
 #define ISO_DESCRIPTORTYPE_BOOT           0
 #define ISO_DESCRIPTORTYPE_PRIMARY        1
 #define ISO_DESCRIPTORTYPE_SUPPLEMENTARY  2
 #define ISO_DESCRIPTORTYPE_PARTITION      3
 #define ISO_DESCRIPTORTYPE_TERMINATOR     255
+#define ISO_BOOTRECORD_SECTOR             17
 
 #define ISO_FLAGMASK_HIDDEN               0x01
 #define ISO_FLAGMASK_DIRECTORY            0x02
@@ -58,6 +60,17 @@ typedef struct {
   char name[];
 
 } __attribute__((packed)) isoDirectoryRecord;
+
+typedef struct {
+  unsigned char type;
+  char identifier[5];
+  unsigned char version;
+  char bootSysIdent[32];
+  unsigned char unused1[32];
+  unsigned bootCatSector;
+  unsigned char unused2[1973];
+
+} __attribute__((packed)) isoBootRecordDescriptor;
 
 typedef struct {
   unsigned char type;
@@ -104,6 +117,18 @@ typedef struct {
   unsigned char res[2041];
 
 } __attribute__((packed)) isoTermDescriptor;
+
+typedef struct {
+  unsigned char bootIndicator;
+  unsigned char bootMediaType;
+  unsigned short loadSegment;
+  unsigned char systemType;
+  unsigned char unused1;
+  unsigned short sectorCount;
+  unsigned loadRba;
+  unsigned char unused2[20];
+
+} __attribute__((packed)) isoBootCatInitEntry;
 
 #define _ISO_H
 #endif

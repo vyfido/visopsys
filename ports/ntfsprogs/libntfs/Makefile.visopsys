@@ -24,6 +24,10 @@ CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEFLANG} \
 		-DHAVE_CONFIG_H #-DDEBUG
 LFLAGS		= -nostdlib
 
+ifeq (${DEBUG},)
+	STRIP = strip -s ${SHAREDLIB}
+endif 
+
 NAMES	= attrib \
 	attrdef \
 	attrlist \
@@ -61,7 +65,7 @@ SHAREDLIB = ${BUILDDIR}/${SONAME}
 
 # Targets
 
-all: target-dirs ${LIBRARY} ${SHAREDLIB}
+all: target-dirs ${LIBRARY} ${SHAREDLIB} strip
 
 target-dirs:
 	mkdir -p ${OBJDIR} ${PICOBJDIR} ${BUILDDIR}
@@ -72,6 +76,9 @@ ${LIBRARY}: ${OBJS}
 ${SHAREDLIB}: ${PICOBJS}
 	${CC} -shared -nostdlib -Wl,-soname=${SONAME} ${PICOBJS} -static \
 	-lgcc -o $@
+
+strip: ${SHAREDLIB}
+	${STRIP}
 
 ${OBJDIR}/device_io.o: visopsys_io.c ${STDDEPS}
 	${CC} ${CFLAGS} ${LFLAGS} -c $< -o $@

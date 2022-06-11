@@ -493,7 +493,7 @@ int kernelFilesystemStat(const char *diskName, kernelFilesystemStats *stat)
 
 
 int kernelFilesystemResizeConstraints(const char *diskName, uquad_t *minBlocks,
-				      uquad_t *maxBlocks)
+				      uquad_t *maxBlocks, progress *prog)
 {
   // This function is a wrapper for the filesystem driver's 'get resize
   // constraints' function, if applicable.
@@ -529,7 +529,7 @@ int kernelFilesystemResizeConstraints(const char *diskName, uquad_t *minBlocks,
 
   theDriver = theDisk->filesystem.driver;
 
-  // Make sure the driver's checking routine is not NULL
+  // Make sure the driver's resizing constraints routine is not NULL
   if (theDriver->driverResizeConstraints == NULL)
     {
       kernelError(kernel_error, "The filesystem driver does not support the "
@@ -539,7 +539,7 @@ int kernelFilesystemResizeConstraints(const char *diskName, uquad_t *minBlocks,
 
   // Get the constraints from the driver
   return (status = theDriver->driverResizeConstraints(theDisk, minBlocks,
-						      maxBlocks));
+						      maxBlocks, prog));
 }
 
 

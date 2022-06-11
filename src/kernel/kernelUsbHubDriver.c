@@ -33,7 +33,7 @@
 #ifdef DEBUG
 static void debugHubDesc(volatile usbHubDesc *hubDesc)
 {
-  kernelDebug(debug_usb, "Debug hub descriptor:\n"
+  kernelDebug(debug_usb, "USB debug hub descriptor:\n"
 	      "    descLength=%d\n"
 	      "    descType=%x\n"
 	      "    numPorts=%d\n"
@@ -54,7 +54,7 @@ static int getHubStatus(usbHub *hub, usbHubStatus *hubStatus)
 
   usbTransaction usbTrans;
 
-  kernelDebug(debug_usb, "Get hub status for address %d",
+  kernelDebug(debug_usb, "USB HUB get hub status for address %d",
 	      hub->usbDev->address);
 
   kernelMemClear((void *) &usbTrans, sizeof(usbTrans));
@@ -68,7 +68,7 @@ static int getHubStatus(usbHub *hub, usbHubStatus *hubStatus)
   usbTrans.pid = USB_PID_IN;
 
   // Write the command
-  return (kernelBusWrite(bus_usb, hub->target, sizeof(usbTransaction),
+  return (kernelBusWrite(hub->busTarget, sizeof(usbTransaction),
 			 (void *) &usbTrans));
 }
 
@@ -81,7 +81,7 @@ static int getPortStatus(usbHub *hub, unsigned char port,
 
   usbTransaction usbTrans;
 
-  kernelDebug(debug_usb, "Get port status for address %d port %d",
+  kernelDebug(debug_usb, "USB HUB get port status for address %d port %d",
 	      hub->usbDev->address, port);
 
   kernelMemClear((void *) &usbTrans, sizeof(usbTrans));
@@ -96,7 +96,7 @@ static int getPortStatus(usbHub *hub, unsigned char port,
   usbTrans.pid = USB_PID_IN;
 
   // Write the command
-  return (kernelBusWrite(bus_usb, hub->target, sizeof(usbTransaction),
+  return (kernelBusWrite(hub->busTarget, sizeof(usbTransaction),
 			 (void *) &usbTrans));
 }
 
@@ -108,8 +108,8 @@ static int setPortFeature(usbHub *hub, unsigned char port,
 
   usbTransaction usbTrans;
 
-  kernelDebug(debug_usb, "Set port feature %d for address %d port %d", feature,
-	      hub->usbDev->address, port);
+  kernelDebug(debug_usb, "USB HUB set port feature %d for address %d port %d",
+	      feature, hub->usbDev->address, port);
 
   kernelMemClear((void *) &usbTrans, sizeof(usbTrans));
   usbTrans.type = usbxfer_control;
@@ -122,7 +122,7 @@ static int setPortFeature(usbHub *hub, unsigned char port,
   usbTrans.pid = USB_PID_OUT;
 
   // Write the command
-  return (kernelBusWrite(bus_usb, hub->target, sizeof(usbTransaction),
+  return (kernelBusWrite(hub->busTarget, sizeof(usbTransaction),
 			 (void *) &usbTrans));
 }
 
@@ -131,8 +131,8 @@ static int clearHubFeature(usbHub *hub, unsigned char feature)
 {
   // Sends a 'clear feature' request to the hub.
 
-  kernelDebug(debug_usb, "Clear hub feature %d for address %d", feature,
-	      hub->usbDev->address);
+  kernelDebug(debug_usb, "USB HUB clear hub feature %d for address %d",
+	      feature, hub->usbDev->address);
 
   return (kernelUsbControlTransfer(hub->usbDev, USB_CLEAR_FEATURE, feature,
 				   0, 0, NULL, NULL));
@@ -146,8 +146,8 @@ static int clearPortFeature(usbHub *hub, unsigned char port,
 
   usbTransaction usbTrans;
 
-  kernelDebug(debug_usb, "Clear port feature %d for address %d port %d",
-	      feature, hub->usbDev->address, port);
+  kernelDebug(debug_usb, "USB HUB clear port feature %d for address %d "
+	      "port %d", feature, hub->usbDev->address, port);
 
   kernelMemClear((void *) &usbTrans, sizeof(usbTrans));
   usbTrans.type = usbxfer_control;
@@ -160,16 +160,14 @@ static int clearPortFeature(usbHub *hub, unsigned char port,
   usbTrans.pid = USB_PID_OUT;
 
   // Write the command
-  return (kernelBusWrite(bus_usb, hub->target, sizeof(usbTransaction),
+  return (kernelBusWrite(hub->busTarget, sizeof(usbTransaction),
 			 (void *) &usbTrans));
 }
 
 
-static void threadCall(usbHub *hub)
+static void doDetectDevices(usbHub *hub, int hotplug)
 {
-  // This function gets called periodically by the USB thread, to give us
-  // an opportunity to detect connections/disconnections, or whatever else
-  // we want.
+  // Detect devices connected to the hub
 
   int lowSpeed = 0;
   int count;
@@ -180,7 +178,7 @@ static void threadCall(usbHub *hub)
       if (hub->portStatus[count].change & USB_HUBPORTSTAT_CONN)
 	{
 	  // A device connected or disconnected
-	  kernelDebug(debug_usb, "USB hub CONNECTION change (=%d) on port %d",
+	  kernelDebug(debug_usb, "USB HUB CONNECTION change (=%d) on port %d",
 		      (hub->portStatus[count].status & USB_HUBPORTSTAT_CONN),
 		      count);
 
@@ -191,12 +189,13 @@ static void threadCall(usbHub *hub)
 	      // The next interrupt should occur when the reset is
 	      // finished.
 	      setPortFeature(hub, (count + 1), USB_HUBFEAT_PORTRESET);
+	      setPortFeature(hub, (count + 1), USB_HUBFEAT_PORTENABLE);
 	    }
 	  else
 	    {
 	      // A device disconnected.
 	      kernelUsbDevDisconnect(hub->controller, hub, count);
-	      kernelDebug(debug_usb, "Port %d is disconnected", count);
+	      kernelDebug(debug_usb, "USB HUB port %d is disconnected", count);
 	    }
 
 	  hub->portStatus[count].change &= ~USB_HUBPORTSTAT_CONN;
@@ -204,7 +203,7 @@ static void threadCall(usbHub *hub)
 
       if (hub->portStatus[count].change & USB_HUBPORTSTAT_ENABLE)
 	{
-	  kernelDebug(debug_usb, "USB hub ENABLED change (=%d) on port %d",
+	  kernelDebug(debug_usb, "USB HUB ENABLED change (=%d) on port %d",
 		      (hub->portStatus[count].status & USB_HUBPORTSTAT_ENABLE),
 		      count);
 	  hub->portStatus[count].change &= ~USB_HUBPORTSTAT_ENABLE;
@@ -213,7 +212,7 @@ static void threadCall(usbHub *hub)
       if (hub->portStatus[count].change & USB_HUBPORTSTAT_RESET)
 	{
 	  // A reset has finished.
-	  kernelDebug(debug_usb, "USB hub RESET change (=%d) on port %d",
+	  kernelDebug(debug_usb, "USB HUB RESET change (=%d) on port %d",
 		      (hub->portStatus[count].status & USB_HUBPORTSTAT_RESET),
 		      count);
 
@@ -225,11 +224,11 @@ static void threadCall(usbHub *hub)
 	      lowSpeed = ((hub->portStatus[count].status &
 			   USB_HUBPORTSTAT_LOWSPEED)? 1 : 0);
 
-	      if (kernelUsbDevConnect(hub->controller, hub, count, lowSpeed)
-		  < 0)
+	      if (kernelUsbDevConnect(hub->controller, hub, count, lowSpeed,
+				      hotplug) < 0)
 		kernelError(kernel_error, "Error enumerating new USB device");
 
-	      kernelDebug(debug_usb, "Port %d is connected", count);
+	      kernelDebug(debug_usb, "USB HUB port %d is connected", count);
 	    }
 
 	  hub->portStatus[count].change &= ~USB_HUBPORTSTAT_RESET;
@@ -238,11 +237,28 @@ static void threadCall(usbHub *hub)
 }
 
 
+static void detectDevices(usbHub *hub)
+{
+  // This function gets called once at startup
+  doDetectDevices(hub, 0 /* no hotplug */);
+}
+
+
+static void threadCall(usbHub *hub)
+{
+  // This function gets called periodically by the USB thread, to give us
+  // an opportunity to detect connections/disconnections, or whatever else
+  // we want.
+  doDetectDevices(hub, 1 /* hotplug */);
+}
+
+
 static int getHubDescriptor(usbHub *hub)
 {
   usbTransaction usbTrans;
 
-  kernelDebug(debug_usb, "Get hub descriptor for target %d", hub->target);
+  kernelDebug(debug_usb, "USB HUB get hub descriptor for target %d",
+	      hub->busTarget->id);
 
   // Set up the USB transaction to send the 'get descriptor' command
   kernelMemClear((void *) &usbTrans, sizeof(usbTrans));
@@ -257,7 +273,7 @@ static int getHubDescriptor(usbHub *hub)
   usbTrans.pid = USB_PID_IN;
 
   // Write the command
-  return (kernelBusWrite(bus_usb, hub->target, sizeof(usbTransaction),
+  return (kernelBusWrite(hub->busTarget, sizeof(usbTransaction),
 			 (void *) &usbTrans));
 }
 
@@ -273,14 +289,14 @@ static void interrupt(usbDevice *usbDev, void *buffer,
   usbPortStatus portStatus;
   int count;
 
-  kernelDebug(debug_usb, "USB hub interrupt %u bytes", length);
+  kernelDebug(debug_usb, "USB HUB interrupt %u bytes", length);
 
   if (bitmap[0] & 0x01)
     {
       if (getHubStatus(hub, (usbHubStatus *) &hub->hubStatus) < 0)
 	return;
 
-      kernelDebug(debug_usb, "USB hub status=%04x change=%04x",
+      kernelDebug(debug_usb, "USB HUB status=%04x change=%04x",
 		  hub->hubStatus.status, hub->hubStatus.change);
 
       if (hub->hubStatus.change & USB_HUBSTAT_LOCPOWER)
@@ -289,7 +305,6 @@ static void interrupt(usbDevice *usbDev, void *buffer,
       else if (hub->hubStatus.change & USB_HUBSTAT_OVERCURR)
 	clearHubFeature(hub, USB_HUBFEAT_HUBOVERCURR_CH);
     }
-
   else
     {
       for (count = 1; count <= hub->hubDesc.numPorts; count ++)
@@ -298,7 +313,7 @@ static void interrupt(usbDevice *usbDev, void *buffer,
 	    if (getPortStatus(hub, count, &portStatus) < 0)
 	      return;
 
-	    kernelDebug(debug_usb, "USB port %d status=%04x change=%04x",
+	    kernelDebug(debug_usb, "USB HUB port %d status=%04x change=%04x",
 			count, portStatus.status, portStatus.change);
 
 	    // Record the current status of the port
@@ -328,7 +343,7 @@ static void interrupt(usbDevice *usbDev, void *buffer,
 }
 
 
-static int detectTarget(void *parent, int target, void *driver)
+static int detectTarget(void *parent, int targetId, void *driver)
 {
   int status = 0;
   usbHub *hub = NULL;
@@ -339,7 +354,7 @@ static int detectTarget(void *parent, int target, void *driver)
   if (hub == NULL)
     return (status = ERR_MEMORY);
 
-  hub->usbDev = kernelUsbGetDevice(target);
+  hub->usbDev = kernelUsbGetDevice(targetId);
   if (hub->usbDev == NULL)
     {
       status = ERR_NODATA;
@@ -347,7 +362,14 @@ static int detectTarget(void *parent, int target, void *driver)
     }
 
   hub->controller = hub->usbDev->controller;
-  hub->target = target;
+
+  hub->busTarget = kernelBusGetTarget(bus_usb, targetId);
+  if (hub->busTarget == NULL)
+    {
+      status = ERR_NODATA;
+      goto out;
+    }
+
   hub->usbDev->data = (void *) hub;
 
   // If the USB class is 0x09, and the subclass is 0x00, then we believe we
@@ -367,7 +389,7 @@ static int detectTarget(void *parent, int target, void *driver)
       {
 	hub->intrInDesc = hub->usbDev->endpointDesc[count];
 	hub->intrInEndpoint = (hub->intrInDesc->endpntAddress & 0xF);
-	kernelDebug(debug_usb, "Got interrupt endpoint %d",
+	kernelDebug(debug_usb, "USB HUB got interrupt endpoint %d",
 		    hub->intrInEndpoint);
 	break;
       }
@@ -376,7 +398,7 @@ static int detectTarget(void *parent, int target, void *driver)
   if (!hub->intrInDesc)
     {
       kernelError(kernel_error, "Hub device %d has no interrupt endpoint",
-		  target);
+		  targetId);
       status = ERR_NODATA;
       goto out;
     }
@@ -398,6 +420,7 @@ static int detectTarget(void *parent, int target, void *driver)
     }
 
   // Add our function pointers
+  hub->detectDevices = &detectDevices;
   hub->threadCall = &threadCall;
 
   // Add the device
@@ -422,11 +445,16 @@ static int detectTarget(void *parent, int target, void *driver)
 	{
 	  if (hub->portStatus)
 	    kernelFree(hub->portStatus);
+	  if (hub->busTarget)
+	    kernelFree(hub->busTarget);
 	  kernelFree((void *) hub);
 	}
     }
   else
-    kernelDebug(debug_usb, "Detected USB hub device");
+    {
+      kernelDebug(debug_usb, "USB HUB detected USB hub device");
+      kernelUsbAddHub(hub);
+    }
 
   return (status);
 }
@@ -452,15 +480,15 @@ static int detect(void *parent, kernelDriver *driver)
   for (deviceCount = 0; deviceCount < numBusTargets; deviceCount ++)
     {
       // Try to get the USB information about the target
-      status = kernelBusGetTargetInfo(bus_usb, busTargets[deviceCount].target,
+      status = kernelBusGetTargetInfo(&busTargets[deviceCount],
 				      (void *) &usbDev);
       if (status < 0)
 	continue;
 
-      if (usbDev.classCode != 0x03)
+      if ((usbDev.classCode != 0x09) || (usbDev.subClassCode != 0x00))
 	continue;
   
-      detectTarget(parent, busTargets[deviceCount].target, driver);
+      detectTarget(parent, busTargets[deviceCount].id, driver);
     }
 
   kernelFree(busTargets);
@@ -504,7 +532,7 @@ static int hotplug(void *parent, int busType __attribute__((unused)),
 	}
 
       // Found it.
-      kernelDebug(debug_scsi, "Hub device removed");
+      kernelDebug(debug_scsi, "USB HUB hub device removed");
 
       // Unschedule any interrupts
       if (hub->intrInDesc)
@@ -514,6 +542,8 @@ static int hotplug(void *parent, int busType __attribute__((unused)),
       kernelDeviceRemove((kernelDevice *) &hub->dev);
 
       // Free the memory.
+      if (hub->busTarget)
+	kernelFree(hub->busTarget);
       if (hub->portStatus)
 	kernelFree(hub->portStatus);
       kernelFree((void *) hub);

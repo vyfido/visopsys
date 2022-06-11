@@ -109,7 +109,7 @@ static int getHidDescriptor(hidDevice *hidDev)
   usbTransaction usbTrans;
 
   kernelDebug(debug_usb, "Get HID descriptor for target %d, interface %d",
-	      hidDev->target, hidDev->interNum);
+	      hidDev->busTarget->id, hidDev->interNum);
 
   // Set up the USB transaction to send the 'get descriptor' command
   kernelMemClear((void *) &usbTrans, sizeof(usbTrans));
@@ -123,7 +123,7 @@ static int getHidDescriptor(hidDevice *hidDev)
   usbTrans.buffer = &hidDev->hidDesc;
 
   // Write the command
-  return (kernelBusWrite(bus_usb, hidDev->target, sizeof(usbTransaction),
+  return (kernelBusWrite(hidDev->busTarget, sizeof(usbTransaction),
 			 (void *) &usbTrans));
 }
 
@@ -133,7 +133,7 @@ static int setBootProtocol(hidDevice *hidDev)
   usbTransaction usbTrans;
 
   kernelDebug(debug_usb, "Set HID boot protocol for target %d, interface %d",
-	      hidDev->target, hidDev->interNum);
+	      hidDev->busTarget->id, hidDev->interNum);
 
   // Tell the device to use the simple (boot) protocol.
   kernelMemClear((void *) &usbTrans, sizeof(usbTrans));
@@ -146,7 +146,7 @@ static int setBootProtocol(hidDevice *hidDev)
   usbTrans.pid = USB_PID_OUT;
 
   // Write the command
-  return (kernelBusWrite(bus_usb, hidDev->target, sizeof(usbTransaction),
+  return (kernelBusWrite(hidDev->busTarget, sizeof(usbTransaction),
 			 (void *) &usbTrans));
 }
 
@@ -176,7 +176,7 @@ static void lockKey(hidDevice *hidDev, unsigned char usbCode)
     report |= 1;
 
   kernelDebug(debug_usb, "Set HID report %02x for target %d, interface %d",
-	      report, hidDev->target, hidDev->interNum);
+	      report, hidDev->busTarget->id, hidDev->interNum);
 
   // Send a "set report" command to the keyboard with the LED status.
   kernelMemClear((void *) &usbTrans, sizeof(usbTrans));
@@ -192,7 +192,7 @@ static void lockKey(hidDevice *hidDev, unsigned char usbCode)
   usbTrans.pid = USB_PID_OUT;
 
   // Write the command
-  kernelBusWrite(bus_usb, hidDev->target, sizeof(usbTransaction),
+  kernelBusWrite(hidDev->busTarget, sizeof(usbTransaction),
 		 (void *) &usbTrans);
 }
 
@@ -393,7 +393,7 @@ static void interrupt(usbDevice *usbDev, void *buffer, unsigned length)
 }
 
 
-static int detectTarget(void *parent, int target, void *driver)
+static int detectTarget(void *parent, int target, void *driver, hidType type)
 {
   int status = 0;
   hidDevice *hidDev = NULL;
@@ -404,7 +404,12 @@ static int detectTarget(void *parent, int target, void *driver)
   if (hidDev == NULL)
     return (status = ERR_MEMORY);
 
-  hidDev->target = target;
+  hidDev->busTarget = kernelBusGetTarget(bus_usb, target);
+  if (hidDev->busTarget == NULL)
+    {
+      status = ERR_NODATA;
+      goto out;
+    }
 
   hidDev->usbDev = kernelUsbGetDevice(target);
   if (hidDev->usbDev == NULL)
@@ -428,6 +433,11 @@ static int detectTarget(void *parent, int target, void *driver)
 
   if (hidDev->usbDev->protocol == 0x01)
     {
+      if ((type != hid_keyboard) && (type != hid_any))
+	{
+	  status = ERR_INVALID;
+	  goto out;
+	}
       hidDev->type = hid_keyboard;
       hidDev->dev.device.class = kernelDeviceGetClass(DEVICECLASS_KEYBOARD);
       hidDev->dev.device.subClass =
@@ -435,6 +445,11 @@ static int detectTarget(void *parent, int target, void *driver)
     }
   else if (hidDev->usbDev->protocol == 0x02)
     {
+      if ((type != hid_mouse) && (type != hid_any))
+	{
+	  status = ERR_INVALID;
+	  goto out;
+	}
       hidDev->type = hid_mouse;
       hidDev->dev.device.class = kernelDeviceGetClass(DEVICECLASS_MOUSE);
       hidDev->dev.device.subClass =
@@ -510,7 +525,11 @@ static int detectTarget(void *parent, int target, void *driver)
   if (status < 0)
     {
       if (hidDev)
-	kernelFree(hidDev);
+	{
+	  if (hidDev->busTarget)
+	    kernelFree(hidDev->busTarget);
+	  kernelFree(hidDev);
+	}
     }
   else
     kernelDebug(debug_usb, "Detected USB HID device");
@@ -519,7 +538,7 @@ static int detectTarget(void *parent, int target, void *driver)
 }
 
 
-static int detect(void *parent, kernelDriver *driver)
+static int detect(kernelDriver *driver, hidType type)
 {
   // This routine is used to detect and initialize each device, as well as
   // registering each one with any higher-level interfaces.
@@ -539,7 +558,7 @@ static int detect(void *parent, kernelDriver *driver)
   for (deviceCount = 0; deviceCount < numBusTargets; deviceCount ++)
     {
       // Try to get the USB information about the target
-      status = kernelBusGetTargetInfo(bus_usb, busTargets[deviceCount].target,
+      status = kernelBusGetTargetInfo(&busTargets[deviceCount],
 				      (void *) &usbDev);
       if (status < 0)
 	continue;
@@ -547,11 +566,32 @@ static int detect(void *parent, kernelDriver *driver)
       if (usbDev.classCode != 0x03)
 	continue;
   
-      detectTarget(parent, busTargets[deviceCount].target, driver);
+      if ((type == hid_keyboard) && (usbDev.protocol != 0x01))
+	continue;
+
+      if ((type == hid_mouse) && (usbDev.protocol != 0x02))
+	continue;
+
+      detectTarget(usbDev.controller->device, busTargets[deviceCount].id,
+		   driver, type);
     }
 
   kernelFree(busTargets);
   return (status = 0);
+}
+
+
+static int detectKeyboard(void *parent __attribute__((unused)),
+			  kernelDriver *driver)
+{
+  return (detect(driver, hid_keyboard));
+}
+
+
+static int detectMouse(void *parent __attribute__((unused)),
+		       kernelDriver *driver)
+{
+  return (detect(driver, hid_mouse));
 }
 
 
@@ -570,7 +610,7 @@ static int hotplug(void *parent, int busType __attribute__((unused)),
 
   if (connected)
     {
-      status = detectTarget(parent, target, driver);
+      status = detectTarget(parent, target, driver, hid_any);
       if (status < 0)
 	return (status);
     }
@@ -601,6 +641,8 @@ static int hotplug(void *parent, int busType __attribute__((unused)),
       kernelDeviceRemove(&hidDev->dev);
 
       // Free the memory.
+      if (hidDev->busTarget)
+	kernelFree(hidDev->busTarget);
       kernelFree(hidDev);
     }
 
@@ -621,7 +663,7 @@ void kernelUsbKeyboardDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
 
-  driver->driverDetect = detect;
+  driver->driverDetect = detectKeyboard;
   driver->driverHotplug = hotplug;
 
   return;
@@ -632,7 +674,7 @@ void kernelUsbMouseDriverRegister(kernelDriver *driver)
 {
    // Device driver registration.
 
-  driver->driverDetect = detect;
+  driver->driverDetect = detectMouse;
   driver->driverHotplug = hotplug;
 
   return;

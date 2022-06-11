@@ -38,6 +38,11 @@ from http://www.opennc.org/onlinepubs/7908799/xsh/fcntl.h.html
 files from Linux and Solaris on i386 machines, and based on the 'Standard C'
 specification Copyright (C) 1989-1996 P.J. Plauger and Jim Brodie.
 
+- Pseudorandom number generation in kernelRancom.c inspired by Nick
+Galbreath's <nickg@modp.com> re-implementation of the PRNG from Sun's
+java.util.Random at:
+http://javarng.googlecode.com/svn/trunk/com/modp/random/LinearSunJDK.java
+
 - sqrt.c is Copyright (C) 1996-2004 Paul Hsieh.  Paul's square root page is
 here: http://www.azillionmonkeys.com/qed/sqroot.html
 
@@ -48,11 +53,6 @@ at http://www.dontletgo.com/planets/math.html by Asaph Engel
 - JPEG inverse discrete cosine transform (IDCT) algorithm is Copyright (C)
 1996, MPEG Software Simulation Group.  See the function inverseDctBlock()
 in the file src/kernel/kernelImageJpg.c
-
-- Bresenham lines algorithm in kernelFramebufferGraphicDriver.c is a  heavily
-customized version of the code published here:
-http://www.funducode.com/freec/graphics/graphics2.htm, the original author of
-which seems to be Abhijit Roychoudhuri
 
 - kernelPciCodes.h is a fixed version of the one created automatically from
 the web using the following URL: http://pcidatabase.com/  Software to create

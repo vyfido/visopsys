@@ -29,9 +29,9 @@ typedef struct _kernelDriver {
   int subClass;
 
   // The registration and detection functions, which all drivers must implement
-  void (*driverRegister) (struct _kernelDriver *);
-  int (*driverDetect) (void *, struct _kernelDriver *);
-  int (*driverHotplug) (void *, int, int, int, struct _kernelDriver *);
+  void (*driverRegister)(struct _kernelDriver *);
+  int (*driverDetect)(void *, struct _kernelDriver *);
+  int (*driverHotplug)(void *, int, int, int, struct _kernelDriver *);
 
   // Device class-specific operations
   void *ops;
@@ -53,6 +53,7 @@ int kernelDriverRegister(kernelDriverType type, void *);
 void *kernelDriverGet(kernelDriverType);
 
 // Registration routines for our built-in drivers
+void kernelAcpiDriverRegister(kernelDriver *);
 void kernelBiosDriverRegister(kernelDriver *);
 void kernelCpuDriverRegister(kernelDriver *);
 void kernelDmaDriverRegister(kernelDriver *);

@@ -48,6 +48,7 @@ find "$DESTDIR" -name CVS -exec rm -R {} \; > /dev/null 2>&1
 # Other stuff
 rm -f "$DESTDIR"/*.patch
 rm -Rf "$DESTDIR"/work
+rm -f "$DESTDIR"/src/HARDWARE.txt
 rm -f "$DESTDIR"/src/ISSUES.txt
 rm -Rf "$DESTDIR"/patches
 # Stuff from the 'plus' distribution

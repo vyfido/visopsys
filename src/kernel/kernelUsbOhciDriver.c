@@ -29,8 +29,7 @@
 #include <string.h>
 
 
-kernelDevice *kernelUsbOhciDetect(kernelDevice *parent,
-				  kernelBusTarget *busTarget,
+kernelDevice *kernelUsbOhciDetect(kernelBusTarget *busTarget,
 				  kernelDriver *driver)
 {
   // This routine is used to detect and initialize a potential OHCI USB
@@ -40,12 +39,23 @@ kernelDevice *kernelUsbOhciDetect(kernelDevice *parent,
   pciDeviceInfo pciDevInfo;
   kernelDevice *dev = NULL;
   usbController *controller = NULL;
-  const char *headerType = NULL;
 
   // Get the PCI device header
-  status = kernelBusGetTargetInfo(bus_pci, busTarget->target, &pciDevInfo);
+  status = kernelBusGetTargetInfo(busTarget, &pciDevInfo);
   if (status < 0)
     goto err_out;
+
+  // Don't care about the 'multi-function' bit in the header type
+  if (pciDevInfo.device.headerType & PCI_HEADERTYPE_MULTIFUNC)
+    pciDevInfo.device.headerType &= ~PCI_HEADERTYPE_MULTIFUNC;
+
+  // Make sure it's a non-bridge header
+  if (pciDevInfo.device.headerType != PCI_HEADERTYPE_NORMAL)
+    {
+      kernelDebug(debug_usb, "OHCI: Headertype not 'normal' (%d)",
+		  pciDevInfo.device.headerType);
+      goto err_out;
+    }
 
   // Make sure it's an OHCI controller (programming interface is 0x10 in
   // the PCI header)
@@ -54,17 +64,12 @@ kernelDevice *kernelUsbOhciDetect(kernelDevice *parent,
 
   // After this point, we believe we have a supported device.
 
-  // Enable the device on the PCI bus as a bus master
-  if ((kernelBusDeviceEnable(bus_pci, busTarget->target,
-			     PCI_COMMAND_IOENABLE) < 0) ||
-      (kernelBusSetMaster(bus_pci, busTarget->target, 1) < 0))
-    goto err_out;
-
   // Allocate memory for the device
   dev = kernelMalloc(sizeof(kernelDevice));
   if (dev == NULL)
     goto err_out;
 
+  // Allocate memory for the controller
   controller = kernelMalloc(sizeof(usbController));
   if (controller == NULL)
     goto err_out;
@@ -72,47 +77,10 @@ kernelDevice *kernelUsbOhciDetect(kernelDevice *parent,
   // The USB version number.  Fake this.
   controller->usbVersion = 0x10;
 
-  // Don't care about the 'multi-function' bit in the header type
-  if (pciDevInfo.device.headerType & PCI_HEADERTYPE_MULTIFUNC)
-    pciDevInfo.device.headerType &= ~PCI_HEADERTYPE_MULTIFUNC;
-
   // Get the interrupt line
-  if (pciDevInfo.device.headerType == PCI_HEADERTYPE_NORMAL)
-    {
-      controller->interruptNum =
-	(int) pciDevInfo.device.nonBridge.interruptLine;
-      headerType = "normal";
-    }
-  else if (pciDevInfo.device.headerType == PCI_HEADERTYPE_BRIDGE)
-    {
-      controller->interruptNum = (int) pciDevInfo.device.bridge.interruptLine;
-      headerType = "bridge";
-    }
-  else if (pciDevInfo.device.headerType == PCI_HEADERTYPE_CARDBUS)
-    {
-      controller->interruptNum = (int) pciDevInfo.device.cardBus.interruptLine;
-      headerType = "cardbus";
-    }
-  else
-    {
-      kernelDebugError("OHCI: Unsupported USB controller header type %d",
-		       pciDevInfo.device.headerType);
-      goto err_out;
-    }
+  controller->interruptNum = pciDevInfo.device.nonBridge.interruptLine;
 
-  kernelLog("USB: OHCI controller interrupt %d PCI type: %s",
-	    controller->interruptNum, headerType);
-
-  // Get the I/O space base address.  For USB, it comes in the 5th
-  // PCI base address register
-  controller->ioAddress = (void *)
-    (kernelBusReadRegister(bus_pci, busTarget->target, 0x04, 32) & 0xFFFFFFE0);
-
-  if (controller->ioAddress == NULL)
-    {
-      kernelDebugError("OHCI: Unknown USB controller I/O address");
-      goto err_out;
-    }
+  kernelLog("USB: OHCI controller interrupt %d", controller->interruptNum);
 
   // Create the USB kernel device
   dev->device.class = kernelDeviceGetClass(DEVICECLASS_BUS);
@@ -125,7 +93,7 @@ kernelDevice *kernelUsbOhciDetect(kernelDevice *parent,
   if (status >= 0)
     kernelVariableListSet(&dev->device.attrs, "controller.type", "OHCI");
 
-  status = kernelDeviceAdd(parent, dev);
+  status = kernelDeviceAdd(busTarget->bus->dev, dev);
   if (status < 0)
     goto err_out;
   else 

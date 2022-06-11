@@ -242,7 +242,7 @@ static inline int isEntryUsed(guid *g)
 {
   // A GPT entry is empty if the partition type GUID is all NULLs
  
-  if (memcmp(g, &GUID_BLANK, sizeof(guid)))
+  if (memcmp(g, &GUID_UNUSED, sizeof(guid)))
     return (1);
   else
     return (0);
@@ -308,7 +308,7 @@ static int readTable(const disk *theDisk, rawSlice *slices, int *numSlices)
 	// The logical (LBA) start sector and number of sectors.
 	slices[*numSlices].startLogical = entries[count].startingLBA;
 	slices[*numSlices].sizeLogical =
-	  (entries[count].endingLBA - entries[count].startingLBA - 1);
+	  ((entries[count].endingLBA - entries[count].startingLBA) + 1);
 
 	// Calculate some (fictitious) partition geometry.
 	slices[*numSlices].geom.startCylinder =

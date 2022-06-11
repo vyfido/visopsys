@@ -165,6 +165,7 @@
 /system/headers/wchar.h
 /system/headers/wctype.h
 /system/headers/sys
+/system/headers/sys/acpi.h
 /system/headers/sys/api.h
 /system/headers/sys/ascii.h
 /system/headers/sys/cdefs.h
@@ -229,7 +230,6 @@
 /system/icons/usericon.ico
 /system/icons/viewmasticon.bmp
 /system/install-files.full
-/system/kernelSymbols.txt
 /system/keymaps/
 /system/keymaps/BE_BE.map
 /system/keymaps/DE_DE.map

@@ -142,6 +142,12 @@ static void setMessage(volatile char *message, int pause, int confirm)
       textInputSetEcho(0);
       getchar();
       textInputSetEcho(1);
+
+      // Erase the 'press any key' message
+      memset(output, ' ', (textGetColumn() + 1));
+      output[(textGetColumn() + 1)] = '\0';
+      textSetColumn(0);
+      printf("%s", output);
     }
   else if (confirm)
     {

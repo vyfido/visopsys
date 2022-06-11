@@ -15,8 +15,12 @@ include ${ROOT}/Makefile.include
 STDDEPS		= ${ROOT}/Makefile.include Makefile ../shared/* ${INCDIR}/*.h \
 		${INCDIR}/sys/*.h
 INCLUDE         = -nostdinc -I${INCDIR}
-DEBUG		= # -DDEBUG # Uncomment to turn on debugging
+DEBUG          = # -DDEBUG # Uncomment to turn on debugging
 CFLAGS		= ${OPT} ${ARCH} ${CCODEGEN} ${CWARN} ${INCLUDE} ${DEBUG}
+
+ifeq (${DEBUG},)
+	STRIP = strip -s ${SHAREDLIB}
+endif 
 
 CDEFNAMES	= _dbl2str \
 		_digits \
@@ -180,7 +184,7 @@ SHAREDLIB = ${BUILDDIR}/${SONAME}
 
 # Targets
 
-all: target-dirs ${CRT0} ${LIBRARY} ${SHAREDLIB}
+all: target-dirs ${CRT0} ${LIBRARY} ${SHAREDLIB} strip
 
 target-dirs:
 	mkdir -p ${OBJDIR} ${PICOBJDIR} ${BUILDDIR}
@@ -194,6 +198,9 @@ ${LIBRARY}: ${OBJS}
 ${SHAREDLIB}: ${PICOBJS}
 	${CC} -shared -nostdlib -Wl,--soname=${SONAME} ${PICOBJS} -static \
 	-lgcc -o $@
+
+strip: ${SHAREDLIB}
+	${STRIP}
 
 ${OBJDIR}/%.o: %.c ${STDDEPS}
 	${CC} ${CFLAGS} -c $< -o $@

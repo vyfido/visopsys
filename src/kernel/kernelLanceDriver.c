@@ -422,7 +422,6 @@ static int driverDetect(void *parent __attribute__((unused)),
   // appropriate commands to the netork adapter to initialize it.
 
   int status = 0;
-  kernelDevice *pciDevice = NULL;
   kernelBusTarget *busTargets = NULL;
   int numBusTargets = 0;
   pciDeviceInfo pciDevInfo;
@@ -439,13 +438,6 @@ static int driverDetect(void *parent __attribute__((unused)),
   void *initPhysical = NULL;
   lanceInitBlock16 *initBlock = NULL;
   int deviceCount, count, shift;
-
-  // Get the PCI bus device
-  status = kernelDeviceFindType(kernelDeviceGetClass(DEVICECLASS_BUS),
-				kernelDeviceGetClass(DEVICESUBCLASS_BUS_PCI),
-				&pciDevice, 1);
-  if (status <= 0)
-    return (status);
 
   // Search the PCI bus(es) for devices
   numBusTargets = kernelBusGetTargets(bus_pci, &busTargets);
@@ -464,8 +456,7 @@ static int driverDetect(void *parent __attribute__((unused)),
 	continue;
 
       // Get the PCI device header
-      status = kernelBusGetTargetInfo(bus_pci, busTargets[deviceCount].target,
-				      &pciDevInfo);
+      status = kernelBusGetTargetInfo(&busTargets[deviceCount], &pciDevInfo);
       if (status < 0)
 	continue;
 
@@ -481,9 +472,9 @@ static int driverDetect(void *parent __attribute__((unused)),
       // After this point, we know we have a supported device.
 
       // Enable the device on the PCI bus as a bus master
-      if ((kernelBusDeviceEnable(bus_pci, busTargets[deviceCount].target,
+      if ((kernelBusDeviceEnable(&busTargets[deviceCount],
 				 PCI_COMMAND_IOENABLE) < 0) ||
-	  (kernelBusSetMaster(bus_pci, busTargets[deviceCount].target, 1) < 0))
+	  (kernelBusSetMaster(&busTargets[deviceCount], 1) < 0))
 	continue;
 
       // Check the first base address for I/O and memory addresses.
@@ -525,19 +516,19 @@ static int driverDetect(void *parent __attribute__((unused)),
 	(void *) (pciDevInfo.device.nonBridge.baseAddress[0] & 0xFFFFFFFC);
 
       // Determine the I/O space size.  Write all 1s to the register.
-      kernelBusWriteRegister(bus_pci, busTargets[deviceCount].target,
+      kernelBusWriteRegister(&busTargets[deviceCount],
 			     PCI_CONFREG_BASEADDRESS0_32, 32, 0xFFFFFFFF);
 
       shift = 2;
       lance->ioSpaceSize = 4;
       ioSpaceSize =
-	kernelBusReadRegister(bus_pci, busTargets[deviceCount].target,
+	kernelBusReadRegister(&busTargets[deviceCount],
 			      PCI_CONFREG_BASEADDRESS0_32, 32);
       while (!((ioSpaceSize >> shift++) & 1))
 	lance->ioSpaceSize *= 2;
 
       // Restore the register we clobbered.
-      kernelBusWriteRegister(bus_pci, busTargets[deviceCount].target,
+      kernelBusWriteRegister(&busTargets[deviceCount],
 			     PCI_CONFREG_BASEADDRESS0_32, 32,
 			     pciDevInfo.device.nonBridge.baseAddress[0]);
 
@@ -593,6 +584,8 @@ static int driverDetect(void *parent __attribute__((unused)),
       kernelPageMapToFree(KERNELPROCID, receiveBufferPhysical, &receiveBuffer,
 			  (LANCE_NUM_RINGBUFFERS * LANCE_RINGBUFFER_SIZE));
 
+      // Clear it out, since the kernelMemoryGetPhysical() routine doesn't
+      // do it for us
       kernelMemClear(receiveBuffer,
 		     (LANCE_NUM_RINGBUFFERS * LANCE_RINGBUFFER_SIZE));
 
@@ -602,10 +595,15 @@ static int driverDetect(void *parent __attribute__((unused)),
       recvRingPhysical = kernelMemoryGetPhysical((LANCE_NUM_RINGBUFFERS *
 						  sizeof(lanceRecvDesc16)), 0,
 						 "lance ring descriptors");
+
       kernelPageMapToFree(KERNELPROCID, recvRingPhysical, &recvRingVirtual,
 			  (LANCE_NUM_RINGBUFFERS * sizeof(lanceRecvDesc16)));
+
+      // Clear it out, since the kernelMemoryGetPhysical() routine doesn't
+      // do it for us
       kernelMemClear(recvRingVirtual, (LANCE_NUM_RINGBUFFERS *
 				       sizeof(lanceRecvDesc16)));
+
       lance->recvRing.desc.recv = recvRingVirtual; 
       for (count = 0; count < LANCE_NUM_RINGBUFFERS; count ++)
 	{
@@ -628,10 +626,15 @@ static int driverDetect(void *parent __attribute__((unused)),
 	kernelMemoryGetPhysical((LANCE_NUM_RINGBUFFERS *
 				 sizeof(lanceTransDesc16)), 0,
 				"lance ring descriptors");
+
       kernelPageMapToFree(KERNELPROCID, transRingPhysical, &transRingVirtual,
 			  (LANCE_NUM_RINGBUFFERS * sizeof(lanceTransDesc16)));
+
+      // Clear it out, since the kernelMemoryGetPhysical() routine doesn't
+      // do it for us
       kernelMemClear(transRingVirtual, (LANCE_NUM_RINGBUFFERS *
 					sizeof(lanceTransDesc16)));
+
       lance->transRing.desc.trans = transRingVirtual; 
 
       // Set up the initialization registers.
@@ -642,9 +645,15 @@ static int driverDetect(void *parent __attribute__((unused)),
       // Set up the initialization block
       initPhysical = kernelMemoryGetPhysical(sizeof(lanceInitBlock16), 0,
 					     "lance init block");
+
       kernelPageMapToFree(KERNELPROCID, initPhysical, (void **) &initBlock,
 			  sizeof(lanceInitBlock16));
+
+
+      // Clear it out, since the kernelMemoryGetPhysical() routine doesn't
+      // do it for us
       kernelMemClear(initBlock, sizeof(lanceInitBlock16));
+
       // Mode zero is 'normal' mode
       initBlock->mode = 0;//LANCE_CSR_MODE_PROM;
       for (count = 0; count < 6; count ++)
@@ -709,7 +718,8 @@ static int driverDetect(void *parent __attribute__((unused)),
 	  return (status);
 	}
 
-      status = kernelDeviceAdd(pciDevice, dev);
+      // Register the kernel device
+      status = kernelDeviceAdd(busTargets[deviceCount].bus->dev, dev);
       if (status < 0)
 	{
 	  kernelFree(busTargets);

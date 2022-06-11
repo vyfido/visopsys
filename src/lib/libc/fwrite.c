@@ -31,31 +31,29 @@ size_t fwrite(const void *buf, size_t size, size_t number, FILE *theStream)
   // Write 'size' bytes to the stream 'number' times
   
   int status = 0;
-  size_t count = 0;
+  size_t bytes = (size * number);
 
   if (visopsys_in_kernel)
     {
       errno = ERR_BUG;
-      return (count);
+      return (bytes = 0);
     }
 
-  while (count < number)
+  if (!size)
+    return (bytes = 0);
+
+  if ((theStream == stdout) || (theStream == stderr))
+    status = textPrint(buf);
+  else
+    status = fileStreamWrite(theStream, bytes, buf);
+
+  if (status < 0)
     {
-      if ((theStream == stdout) || (theStream == stderr))
-	status = textPrint((void *) (buf + (count * size)));
-      else
-	status =
-	  fileStreamWrite(theStream, size, (void *) (buf + (count * size)));
-
-      if (status < (int) size)
-	{
-	  if (status < 0)
-	    errno = status;
-	  break;
-	}
-
-      count += 1;
+      errno = status;
+      return 0;
     }
 
-  return (count);
+  bytes = (status / size);
+
+  return (bytes);
 }

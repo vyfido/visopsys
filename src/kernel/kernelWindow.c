@@ -3454,63 +3454,69 @@ int kernelWindowSaveScreenShot(const char *name)
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  filename = kernelMalloc(MAX_PATH_NAME_LENGTH);
-  if (filename == NULL)
-    return (status = ERR_MEMORY);
+  kernelMemClear(&saveImage, sizeof(image));
 
-  if (name == NULL)
-    {
-      kernelMultitaskerGetCurrentDirectory(filename, MAX_PATH_NAME_LENGTH);
-      if (filename[strlen(filename) - 1] != '/')
-	strcat(filename, "/");
-      strcat(filename, "screenshot1.bmp");
-    }
-  else
-    {
-      strncpy(filename, name, MAX_PATH_NAME_LENGTH);
-      filename[MAX_PATH_NAME_LENGTH - 1] = '\0';
-    }
-
-  dialog = kernelWindowNew(NULL, "Screen shot");
-  if (dialog)
-    {
-      labelText = kernelMalloc(MAX_PATH_NAME_LENGTH + 40);
-      if (labelText)
-	{
-	  sprintf(labelText, "Saving screen shot as \"%s\"...", filename);
-	  
-	  kernelMemClear(&params, sizeof(componentParameters));
-	  params.gridWidth = 1;
-	  params.gridHeight = 1;
-	  params.padLeft = 5;
-	  params.padRight = 5;
-	  params.padTop = 5;
-	  params.padBottom = 5;
-	  params.orientationX = orient_center;
-	  params.orientationY = orient_middle;
-	  
-	  kernelWindowNewTextLabel(dialog, labelText, &params);
-	  kernelWindowSetVisible(dialog, 1);
-	  kernelFree(labelText);
-	}
-    }
-
+  // Try to grab the screenshot image
   status = kernelWindowScreenShot(&saveImage);
-  if (status == 0)
+  if (status >= 0)
     {
+      filename = kernelMalloc(MAX_PATH_NAME_LENGTH);
+      if (filename == NULL)
+	return (status = ERR_MEMORY);
+
+      if (name == NULL)
+	{
+	  kernelMultitaskerGetCurrentDirectory(filename, MAX_PATH_NAME_LENGTH);
+	  if (filename[strlen(filename) - 1] != '/')
+	    strcat(filename, "/");
+	  strcat(filename, "screenshot1.bmp");
+	}
+      else
+	{
+	  strncpy(filename, name, MAX_PATH_NAME_LENGTH);
+	  filename[MAX_PATH_NAME_LENGTH - 1] = '\0';
+	}
+
+      dialog = kernelWindowNew(NULL, "Screen shot");
+      if (dialog)
+	{
+	  labelText = kernelMalloc(MAX_PATH_NAME_LENGTH + 40);
+	  if (labelText)
+	    {
+	      sprintf(labelText, "Saving screen shot as \"%s\"...", filename);
+	  
+	      kernelMemClear(&params, sizeof(componentParameters));
+	      params.gridWidth = 1;
+	      params.gridHeight = 1;
+	      params.padLeft = 5;
+	      params.padRight = 5;
+	      params.padTop = 5;
+	      params.padBottom = 5;
+	      params.orientationX = orient_center;
+	      params.orientationY = orient_middle;
+	  
+	      kernelWindowNewTextLabel(dialog, labelText, &params);
+	      kernelWindowSetVisible(dialog, 1);
+	      kernelFree(labelText);
+	    }
+	}
+
       status = kernelImageSave(filename, IMAGEFORMAT_BMP, &saveImage);
       if (status < 0)
-	kernelError(kernel_error, "Error %d saving image", status);
-      
-      kernelImageFree(&saveImage);
+	kernelError(kernel_error, "Error %d saving image %s", status,
+		    filename);
     }
   else
-    kernelError(kernel_error, "Error %d getting screen shot", status);
-
-  kernelFree(filename);
+    kernelError(kernel_error, "Error %d getting screen shot image", status);
 
   if (dialog)
     kernelWindowDestroy(dialog);
+
+  if (filename)
+    kernelFree(filename);
+
+  if (saveImage.data)
+    kernelImageFree(&saveImage);
 
   return (status);
 }

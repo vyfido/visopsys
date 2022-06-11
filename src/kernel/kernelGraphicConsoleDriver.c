@@ -286,6 +286,7 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
   char lineBuffer[1024];
   int inputCounter = 0;
   int bufferCounter = 0;
+  unsigned tabChars = 0;
   unsigned count;
 
   // See whether we're printing with special attributes
@@ -327,8 +328,15 @@ static int print(kernelTextArea *area, const char *text, textAttrs *attrs)
       // Add this character to the lineBuffer
       lineBuffer[bufferCounter++] = (unsigned char) text[inputCounter];
 
-      // Is this the completion of the line?
+      if (text[inputCounter] == '\t')
+	{
+	  tabChars =
+	    ((TEXT_DEFAULT_TAB - (bufferCounter % TEXT_DEFAULT_TAB)) - 1);
+	  for (count = 0; count < tabChars; count ++)
+	    lineBuffer[bufferCounter++] = ' ';
+	}
 
+      // Is this the completion of the line?
       if ((inputCounter >= (length - 1)) ||
 	  ((area->cursorColumn + bufferCounter) >= area->columns) ||
 	  (text[inputCounter] == '\n'))

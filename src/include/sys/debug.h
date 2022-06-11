@@ -26,8 +26,8 @@
 
 typedef enum {
   debug_all, debug_api, debug_fs, debug_gui, debug_io, debug_loader,
-  debug_memory, debug_misc, debug_multitasker, debug_pci, debug_scsi,
-  debug_usb
+  debug_memory, debug_misc, debug_multitasker, debug_pci, debug_power,
+  debug_scsi, debug_usb
 
 } debug_category;
 

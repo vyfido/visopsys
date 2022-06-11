@@ -139,7 +139,7 @@ STRUC fddInfoBlock
 ENDSTRUC
 
 ;; The data structure created by the loader to describe the particulars
-;; about a hard disk drive to the kernel
+;; about a hard disk drive
 STRUC hddInfoBlock
  .heads          resd 1
  .cylinders      resd 1

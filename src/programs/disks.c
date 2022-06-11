@@ -82,26 +82,28 @@ int main(int argc __attribute__((unused)), char *argv[])
       return (status);
     }
 
-  printf("\nDisk  Partition");
-  textSetColumn(31);
+  printf("\nDisk name");
+  textSetColumn(11);
+  printf("Partition");
+  textSetColumn(37);
   printf("Filesystem");
-  textSetColumn(43);
+  textSetColumn(49);
   printf("Mount\n");
 
   for (count = 0; count < availableDisks; count ++)
     {
       // Print disk info
-      printf("%s: ", diskInfo[count].name);
-      textSetColumn(6);
+      printf("%s", diskInfo[count].name);
+      textSetColumn(11);
       printf("%s", diskInfo[count].partType);
       if (strcmp(diskInfo[count].fsType, "unknown"))
 	{
-	  textSetColumn(30);
-	  printf(" %s", diskInfo[count].fsType);
+	  textSetColumn(37);
+	  printf("%s", diskInfo[count].fsType);
 	}
       if (diskInfo[count].mounted)
 	{
-	  textSetColumn(43);
+	  textSetColumn(49);
 	  printf("%s", diskInfo[count].mountPoint);
 	}
       printf("\n");

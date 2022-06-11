@@ -20,6 +20,7 @@
 //
 
 #include "kernelRtc.h"
+#include "kernelCpu.h"
 #include "kernelError.h"
 
 static kernelDevice *systemRtc = NULL;
@@ -66,6 +67,9 @@ int kernelRtcInitialize(kernelDevice *dev)
   startDayOfMonth = kernelRtcReadDayOfMonth();
   startMonth = kernelRtcReadMonth();
   startYear = kernelRtcReadYear();
+
+  // Measure CPU timestamp frequency
+  kernelCpuTimestampFreq();
 
   // Return success
   return (status = 0);

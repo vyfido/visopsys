@@ -95,14 +95,7 @@ int kernelLinkedListRemove(kernelLinkedList *list, void *data)
       if (iter->data == data)
 	{
 	  if (iter->prev)
-	    {
-	      // If the item we're removing is the current one in an active
-	      // iteration, point the iteration at the previous item now.
-	      if (iter == list->iter)
-		list->iter = iter->prev;
-
-	      iter->prev->next = iter->next;
-	    }
+	    iter->prev->next = iter->next;
 
 	  if (iter->next)
 	    iter->next->prev = iter->prev;
@@ -157,55 +150,47 @@ int kernelLinkedListClear(kernelLinkedList *list)
 }
 
 
-void *kernelLinkedListIterStart(kernelLinkedList *list)
+void *kernelLinkedListIterStart(kernelLinkedList *list,
+				kernelLinkedListItem **iter)
 {
-  // Starts an iteration through the linked list.  Locks the list and doesn't
-  // release the lock until kernelLinkedListIterEnd() is called, since the
-  // state of the iteration is held in the list.  Returns the data value from
+  // Starts an iteration through the linked list.  Returns the data value from
   // the first item, if applicable.
 
-  if (list == NULL)
-    return (NULL);
-
-  if (list->iter)
+  // Check params
+  if ((list == NULL) || (iter == NULL))
     {
-      kernelError(kernel_error, "List iteration is already active");
+      kernelError(kernel_error, "List or iterator pointer is NULL");
       return (NULL);
     }
-  
-  list->iter = list->first;
 
-  if (!list->iter)
+  *iter = list->first;
+
+  if (!(*iter))
     return (NULL);
 
-  return (list->iter->data);
+  return ((*iter)->data);
 }
 
 
-void *kernelLinkedListIterNext(kernelLinkedList *list)
+void *kernelLinkedListIterNext(kernelLinkedList *list,
+			       kernelLinkedListItem **iter)
 {
   // Returns the data value from the next item in the list, if applicable.
 
-  if (list == NULL)
+  // Check params
+  if ((list == NULL) || (iter == NULL))
+    {
+      kernelError(kernel_error, "List or iterator pointer is NULL");
+      return (NULL);
+    }
+
+  if (!(*iter))
     return (NULL);
-  
-  if (!list->iter)
+
+  *iter = (*iter)->next;
+
+  if (!(*iter))
     return (NULL);
 
-  list->iter = list->iter->next;
-
-  if (!list->iter)
-    return (NULL);
-
-  return (list->iter->data);
-}
-
-
-int kernelLinkedListIterEnd(kernelLinkedList *list)
-{
-  // Terminate an interation through the list.  Unlock the list and clear
-  // the iteration state.
-
-  list->iter = NULL;
-  return (0);
+  return ((*iter)->data);
 }

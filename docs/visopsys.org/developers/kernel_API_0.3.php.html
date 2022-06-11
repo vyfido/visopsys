@@ -31,7 +31,7 @@
 			<td height="1" colspan="2">
             <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111">
               <tr>
-                <td align="left" valign="top" bgcolor="#BBBBFF">
+                <td align="left" valign="top" bgcolor="#C4D0E0">
                 <table border="0" cellpadding="5" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" id="AutoNumber1" width="700">
 	  <tr>
 		<td>
@@ -42,9 +42,9 @@
   <center>
   <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse" bordercolor="#111111" width="700">
     <tr>
-      <td><font face="Arial"><font size="4"><b>THE VISOPSYS KERNEL API (Version 0.3)<br>
-</b></font>(version 0.2 is <a href="http://visopsys.org/developers/kernel_API_0.2.php">here</a>)</font><p>
-      <font size="4" face="Arial">All of the kernel's functions are defined in the file 
+      <td><font face="Arial"><b>THE VISOPSYS KERNEL API (Version 0.3)<br>
+</b>(version 0.2 is <a href="kernel_API_0.2.php.html">here</a>)</font><p>
+      <font face="Arial">All of the kernel's functions are defined in the file 
 /system/headers/sys/api.h. In future, this file may be split into smaller 
 chunks, by functional area. Data structures referred to in these function 
 definitions are found in header files in the /system/headers/sys directory. For 
@@ -57,8 +57,8 @@ example, a 'disk' object is defined in /system/headers/sys/disk.h.</font></p>
   kernel header files. You could try to use it as more than just a reference 
   key, but you would do so at your own risk.</i></font></p>
 </blockquote>
-<p><font size="4" face="Arial">Here is the breakdown of functions divided by functional area:</font></p>
-<p><font size="4" face="Arial"><a href="kernel_API_0.3.php.html#text">Text input/output functions</a><br>
+<p><font face="Arial">Here is the breakdown of functions divided by functional area:</font></p>
+<p><font face="Arial"><a href="kernel_API_0.3.php.html#text">Text input/output functions</a><br>
 <a href="kernel_API_0.3.php.html#disk">Disk functions</a><br>
 <a href="kernel_API_0.3.php.html#filesystem">Filesystem functions</a><br>
 <a href="kernel_API_0.3.php.html#file">File functions</a><br>
@@ -73,7 +73,7 @@ example, a 'disk' object is defined in /system/headers/sys/disk.h.</font></p>
 <a href="kernel_API_0.3.php.html#miscellaneous">Miscellaneous functions</a></font></p>
 <p>&nbsp;</p>
 <p><font face="Arial"></p>
-<p><b><font size="4"><a name="text"></a>Text input/output functions</font></b></p>
+<p><b><a name="text"></a>Text input/output functions</b></p>
 <p><font face="Courier New">objectKey textGetConsoleInput(void)</font></p>
 <blockquote>
   <p>Returns a reference to the console input stream. This is where keyboard 
@@ -325,7 +325,7 @@ onOff)</font></p>
   they won't.</p>
 </blockquote>
 <p>&nbsp;</p>
-<p><b><font size="4"><a name="disk"></a>Disk functions</font></b></p>
+<p><b><a name="disk"></a>Disk functions</b></p>
 <p><font face="Courier New">int diskReadPartitions(void)</font></p>
 <blockquote>
   <p>Tells the kernel to (re)read the disk partition tables.</p>
@@ -398,7 +398,7 @@ unsigned sect, unsigned count, void *buf)</font></p>
   know what you're doing.</p>
 </blockquote>
 <p>&nbsp;</p>
-<p><b><font size="4"><a name="filesystem"></a>Filesystem functions</font></b></p>
+<p><b><a name="filesystem"></a>Filesystem functions</b></p>
 <p><font face="Courier New">int filesystemFormat(const char *disk, const char 
 *type, const char *label, int longFormat)</font></p>
 <blockquote>
@@ -459,11 +459,11 @@ repair)</font></p>
   represented by the mount point 'fs'.</p>
 </blockquote>
 <p>&nbsp;</p>
-<p><b><font size="4"><a name="file"></a>File functions</font></b></p>
-<p><font size="4">Note that in all of the functions of this section, any 
+<p><b><a name="file"></a>File functions</b></p>
+<p>Note that in all of the functions of this section, any 
 reference to pathnames means absolute pathnames, from root. E.g. '/files/myfile', 
 not simply 'myfile'. From the kernel's point of view, 'myfile' might be 
-ambiguous.</font></p>
+ambiguous.</p>
 <p><font face="Courier New">int fileFixupPath(const char *orig, char *new)</font></p>
 <blockquote>
   <p>Take the absolute pathname in 'orig' and fix it up. This means eliminating 
@@ -578,7 +578,7 @@ fileStream *f)</font></p>
   <p>[Flush and] close the file stream 'f'.</p>
 </blockquote>
 <p>&nbsp;</p>
-<p><b><font size="4"><a name="memory"></a>Memory functions</font></b></p>
+<p><b><a name="memory"></a>Memory functions</b></p>
 <p><font face="Courier New">void memoryPrintUsage(int kernel)</font></p>
 <blockquote>
   <p>Prints the current memory usage statistics to the current output stream. If 
@@ -621,7 +621,7 @@ void **naddr)</font></p>
   a privileged process can change memory ownership.</p>
 </blockquote>
 <p>&nbsp;</p>
-<p><b><font size="4"><a name="multitasker"></a>Multitasker functions</font></b></p>
+<p><b><a name="multitasker"></a>Multitasker functions</b></p>
 <p><font face="Courier New">int multitaskerCreateProcess(void *addr, unsigned 
 int size, const char *name, int numargs, void *args)</font></p>
 <blockquote>
@@ -771,7 +771,7 @@ objectKey key)</font></p>
   &quot;currently necessary peculiarity&quot;.</p>
 </blockquote>
 <p>&nbsp;</p>
-<p><b><font size="4"><a name="loader"></a>Loader functions</font></b></p>
+<p><b><a name="loader"></a>Loader functions</b></p>
 <p><font face="Courier New">void *loaderLoad(const char *filename, file *theFile)</font></p>
 <blockquote>
   <p>Load a file referenced by the pathname 'filename', and fill the file data 
@@ -802,7 +802,7 @@ privilege, int argc, char *argv[], int block)</font></p>
   functions loaderLoadProgram() and loaderExecProgram().</p>
 </blockquote>
 <p>&nbsp;</p>
-<p><b><font size="4"><a name="rtc"></a>Real-time clock functions</font></b></p>
+<p><b><a name="rtc"></a>Real-time clock functions</b></p>
 <p><font face="Courier New">int rtcReadSeconds(void)</font></p>
 <blockquote>
   <p>Get the current seconds value.</p>
@@ -840,7 +840,7 @@ privilege, int argc, char *argv[], int block)</font></p>
   <p>Get the current data and time as a tm data structure in 'time'.</p>
 </blockquote>
 <p>&nbsp;</p>
-<p><b><font size="4"><a name="random"></a>Random number functions</font></b></p>
+<p><b><a name="random"></a>Random number functions</b></p>
 <p><font face="Courier New">unsigned int randomUnformatted(void)</font></p>
 <blockquote>
   <p>Get an unformatted random unsigned number. Just any unsigned number.</p>
@@ -865,7 +865,7 @@ seed, unsigned int start, unsigned int end)</font></p>
   default random seed.</p>
 </blockquote>
 <p>&nbsp;</p>
-<p><b><font size="4"><a name="environment"></a>Environment functions</font></b></p>
+<p><b><a name="environment"></a>Environment functions</b></p>
 <p><font face="Courier New">int environmentGet(const char *var, char *buf, 
 unsigned int bufsz)</font></p>
 <blockquote>
@@ -887,7 +887,7 @@ unsigned int bufsz)</font></p>
   calling process' environment space to the current text output stream.</p>
 </blockquote>
 <p>&nbsp;</p>
-<p><b><font size="4"><a name="graphics"></a>Raw graphics functions</font></b></p>
+<p><b><a name="graphics"></a>Raw graphics functions</b></p>
 <p><font face="Courier New">int graphicsAreEnabled(void)</font></p>
 <blockquote>
   <p>Returns 1 if the kernel is operating in graphics mode.</p>
@@ -1010,7 +1010,7 @@ int drawY, int clipX, int clipY, unsigned clipWidth, unsigned clipHeight)</font>
   not legal for 'buffer' to be NULL in this case.</p>
 </blockquote>
 <p>&nbsp;</p>
-<p><b><font size="4"><a name="windowmanager"></a>Window manager functions</font></b></p>
+<p><b><a name="windowmanager"></a>Window manager functions</b></p>
 <p><font face="Courier New">int windowManagerStart(void)</font></p>
 <blockquote>
   <p>Starts the window manager. Not useful for most external programa.</p>
@@ -1286,7 +1286,7 @@ unsigned width, unsigned height)</font></p>
   by calling the windowAddClientComponent() function.</p>
 </blockquote>
 <p>&nbsp;</p>
-<p><b><font size="4"><a name="miscellaneous"></a>Miscellaneous functions</font></b></p>
+<p><b><a name="miscellaneous"></a>Miscellaneous functions</b></p>
 <p><font face="Courier New">int fontGetDefault(objectKey *pointer)</font></p>
 <blockquote>
   <p>Get an object key in 'pointer' to refer to the current default font.</p>
@@ -1386,7 +1386,7 @@ char *string)</font></p>
               </tr>
               <tr>
                 <td nowrap align="left" valign="bottom">
-			  <font size="1">Copyright &#169; 1999-2010 J. Andrew McLaughlin | 
+			  <font size="1">Copyright &#169; 1999-2011 J. Andrew McLaughlin | 
               Visopsys and Visopsys.org are trademarks of J. Andrew McLaughlin.&nbsp;&nbsp;&nbsp
               <a href="mailto:andy@visopsys.org">Contact</a></font></td>
               </tr>

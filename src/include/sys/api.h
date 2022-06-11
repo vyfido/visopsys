@@ -539,7 +539,8 @@ int filesystemFormat(const char *, const char *, const char *, int,
 int filesystemClobber(const char *);
 int filesystemCheck(const char *, int, int, progress *);
 int filesystemDefragment(const char *, progress *);
-int filesystemResizeConstraints(const char *, uquad_t *, uquad_t *);
+int filesystemResizeConstraints(const char *, uquad_t *, uquad_t *,
+				progress *);
 int filesystemResize(const char *, uquad_t, progress *);
 int filesystemMount(const char *, const char *);
 int filesystemUnmount(const char *);
@@ -575,9 +576,9 @@ int fileStreamOpen(const char *, int, fileStream *);
 int fileStreamSeek(fileStream *, unsigned);
 int fileStreamRead(fileStream *, unsigned, char *);
 int fileStreamReadLine(fileStream *, unsigned, char *);
-int fileStreamWrite(fileStream *, unsigned, char *);
-int fileStreamWriteStr(fileStream *, char *);
-int fileStreamWriteLine(fileStream *, char *);
+int fileStreamWrite(fileStream *, unsigned, const char *);
+int fileStreamWriteStr(fileStream *, const char *);
+int fileStreamWriteLine(fileStream *, const char *);
 int fileStreamFlush(fileStream *);
 int fileStreamClose(fileStream *);
 int fileStreamGetTemp(fileStream *);
@@ -631,7 +632,7 @@ int multitaskerStackTrace(int);
 // Loader functions
 //
 void *loaderLoad(const char *, file *);
-objectKey loaderClassify(const char *, void *, int, loaderFileClass *);
+objectKey loaderClassify(const char *, void *, unsigned, loaderFileClass *);
 objectKey loaderClassifyFile(const char *, loaderFileClass *);
 loaderSymbolTable *loaderGetSymbols(const char *);
 int loaderCheckCommand(const char *);

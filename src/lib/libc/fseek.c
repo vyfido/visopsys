@@ -62,10 +62,7 @@ int fseek(FILE *theStream, long offset, int whence)
     new_pos = offset;
 
   else if (whence == SEEK_CUR)
-    {
-      // Set position to current location plus offset.
-      new_pos = (theStream->offset + offset);
-    }
+    new_pos = (theStream->offset + offset);
 
   else if (whence == SEEK_END)
     // What is the current EOF of the file?  Set position to EOF plus offset.

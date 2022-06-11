@@ -249,8 +249,8 @@ static void eventHandler(objectKey key, windowEvent *event)
 	return;
 
       if (multitaskerSpawn(&execProgram, "exec program", 1,
-			   (void *[]){ icons[clickedIcon].command }) < 0)
-	error("Unable to exectute command");
+			   (void *[]){ icons[clickedIcon].command } ) < 0)
+	error("Couldn't execute command \"%s\"", icons[clickedIcon].command);
     }
 }
 

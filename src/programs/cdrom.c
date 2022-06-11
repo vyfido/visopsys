@@ -168,16 +168,16 @@ int main(int argc, char *argv[])
 
   if (!strcasecmp(argv[argc - 1], "open") ||
       !strcasecmp(argv[argc - 1], "eject"))
-    status = diskSetDoorState(selectedDisk->name , 1);
+    status = diskSetDoorState(selectedDisk->name, 1);
 
   else if (!strcasecmp(argv[argc - 1], "lock"))
-    status = diskSetLockState(selectedDisk->name , 1);
+    status = diskSetLockState(selectedDisk->name, 1);
 
   else if (!strcasecmp(argv[argc - 1], "unlock"))
-    status = diskSetLockState(selectedDisk->name , 0);
+    status = diskSetLockState(selectedDisk->name, 0);
 
   else if (!strcasecmp(argv[argc - 1], "close"))
-    status = diskSetDoorState(selectedDisk->name , 0);
+    status = diskSetDoorState(selectedDisk->name, 0);
 
   else
     {

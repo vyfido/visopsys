@@ -31,6 +31,7 @@
 #include "kernelPage.h"
 #include "kernelParameters.h"
 #include "kernelProcessorX86.h"
+#include <stdlib.h>
 
 static kernelGraphicAdapter *adapter = NULL;
 static kernelGraphicBuffer wholeScreen;
@@ -353,14 +354,15 @@ static int driverDrawLine(kernelGraphicBuffer *buffer, color *foreground,
   // to make the line
   else
     {
-      // Since I didn't feel like dragging out my old computer science
-      // textbooks and re-implementing the Bresenham algorithm, this is a
-      // heavily customized version of the code published here:
-      // http://www.funducode.com/freec/graphics/graphics2.htm
-      // The original author of which seems to be Abhijit Roychoudhuri
+      int deltaX = 0, deltaY = 0, yStep = 0, x = 0, y = 0;
+      float error = 0.0, deltaError = 0.0;
+      int steep = (abs(endY - startY) > abs(endX - startX));
 
-      int dx, dy, e = 0, e_inc = 0, e_noinc = 0, incdec = 0,
-	start = 0, end = 0, var = 0;
+      if (steep)
+	{
+	  SWAP(startX, startY);
+	  SWAP(endX, endY);
+	}
 
       if (startX > endX)
 	{
@@ -368,78 +370,30 @@ static int driverDrawLine(kernelGraphicBuffer *buffer, color *foreground,
 	  SWAP(startY, endY);
 	}
 
-      dx = (endX - startX);
-      dy = (endY - startY);
-      
-      /* 0 < m <= 1 */
-      if ((dy <= dx) && (dy > 0))
-	{
-	  e_noinc = (dy << 1);
-	  e = ((dy << 1) - dx);
-	  e_inc = ((dy - dx) << 1);
-	  start = startX;
-	  end = endX;
-	  var = startY;
-	  incdec = 1;
-	}
+      deltaX = (endX - startX);
+      deltaY = abs(endY - startY);
 
-      /* 1 < m < infinity */
-      if ((dy > dx) && (dy > 0))
-	{
-	  e_noinc = (dx << 1);
-	  e = ((dx << 1) - dy);
-	  e_inc = ((dx - dy) << 1);
-	  start = startY;
-	  end = endY;
-	  var = startX;
-	  incdec = 1;
-	}
+      deltaError = ((float) deltaY / (float) deltaX);
 
-      /* 0 > m > -1, or m = -1 */
-      if (((-dy < dx) && (dy < 0)) ||
-	  ((dy == -dx) && (dy < 0)))
+      y = startY;
+
+      if (startY < endY)
+	yStep = 1;
+      else
+	yStep = -1;
+
+      for (x = startX; x <= endX; x ++)
 	{
-	  dy = -dy;
-	  e_noinc = (dy << 1);
-	  if ((-dy < dx) && (dy < 0))
-	    e = ((dy - dx) << 1);
+	  if (steep)
+	    driverDrawPixel(buffer, foreground, mode, y, x);
 	  else
-	    e = ((dy << 1) - dx);
-	  e_inc = ((dy - dx) << 1);
-	  start = startX;
-	  end = endX;
-	  var = startY;
-	  incdec = -1;
-	}
+	    driverDrawPixel(buffer, foreground, mode, x, y);
 
-      /* -1 > m > 0 */
-      if ((-dy > dx) && (dy < 0))
-	{
-	  dx = -dx;
-	  e_noinc = -(dx << 1);
-	  e = ((dx - dy) << 1);
-	  e_inc = -((dx - dy) << 1);
-	  SWAP(startX, endX);
-	  SWAP(startY, endY);
-	  start = startY;
-	  end = endY;
-	  var = startX;
-	  incdec = -1;
-	}
-  
-      for (count = start; count <= end; count++)
-	{
-	  if (start == startY)
-	    driverDrawPixel(buffer, foreground, mode, var, count);
-	  else
-	    driverDrawPixel(buffer, foreground, mode, count, var);
-
-	  if (e < 0)
-	    e += e_noinc;
-	  else
+	  error += deltaError;
+	  if (error >= 0.5)
 	    {
-	      var += incdec;
-	      e += e_inc;
+	      y += yStep;
+	      error -= 1.0;
 	    }
 	}
     }

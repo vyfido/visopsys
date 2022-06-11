@@ -40,7 +40,11 @@ static int detect(const char *fileName, void *dataPtr, unsigned dataSize,
 
   icoHeader *header = dataPtr;
 
-  if ((fileName == NULL) || (dataPtr == NULL) || !dataSize || (class == NULL))
+  if ((fileName == NULL) || (dataPtr == NULL) || (class == NULL))
+    return (0);
+
+  // Make sure there's enough data here for our detection
+  if (dataSize < (sizeof(icoHeader) + sizeof(icoEntry)))
     return (0);
 
   // See whether this file seems to be an .ico file

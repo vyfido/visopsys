@@ -166,9 +166,13 @@ static int detect(const char *fileName, void *dataPtr, unsigned size,
   unsigned short tableEntries = 0;
 
   // Check params
-  if ((fileName == NULL) || (dataPtr == NULL) || !size || (class == NULL))
+  if ((fileName == NULL) || (dataPtr == NULL) || (class == NULL))
     return (0);
 
+  // Make sure there's enough data here for our detection
+  if (size < sizeof(ttfOffsetSubtable))
+    return (0);
+  
   // See whether this file claims to be a TTF file.  First look for a couple
   // of known magic number values
   if ((offSub->scalerType == TTF_MAGIC1) || (offSub->scalerType == TTF_MAGIC2))

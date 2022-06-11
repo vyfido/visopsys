@@ -79,8 +79,6 @@ bootCode:
 	
 	sti
 
-	pusha
-
 	;; The MBR or bootloader code will pass the boot device number to us
 	;; in the DL register.
 	mov byte [DISK], DL
@@ -111,8 +109,8 @@ bootCode:
 	call read
 	add SP, 10
 
-	popa
-
+	mov DL, byte [DISK]
+	mov EBX, dword [BOOTSECTSIG]
 	mov SI, PARTENTRY
 	
 	jmp (LDRCODESEGMENTLOCATION / 16):0
@@ -123,10 +121,14 @@ bootCode:
 	%include "bootsect-read.s"
 
 
-IOERR			db 'I/O Error reading Visopsys loader', 0Dh, 0Ah
-			db 'Press any key to continue.', 0Dh, 0Ah, 0
+IOERR			db 'Error reading OS loader', 0Dh, 0Ah
+			db 'Press any key to continue', 0Dh, 0Ah, 0
 
-times (502-($-$$))	db 0
+times (498-($-$$))	db 0
+
+;; This is the boot sector signature, to help the kernel find the root
+;; filesystem.
+BOOTSECTSIG		dd 0
 
 ;; The installation process will record the logical starting sector of
 ;; the loader, and number of sectors to read, here.
@@ -137,4 +139,4 @@ LOADERNUMSECTORS	dd 0
 ;; sector.  The BIOS uses this to determine whether this sector was
 ;; meant to be booted from (and also helps prevent us from making the
 ;; boot sector code larger than 512 bytes)
-ENDSECTOR:		dw 0AA55h
+ENDSECTOR		dw 0AA55h

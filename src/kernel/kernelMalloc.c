@@ -92,7 +92,7 @@ int _kernelFree(void *start, const char *function)
   if (start < (void *) KERNEL_VIRTUAL_ADDRESS)
     {
       kernelError(kernel_error, "The kernel memory block to release is not "
-		  "in the kernel's address space");
+		  "in the kernel's address space (%s)", function);
       return (ERR_INVALID);
     }
 
