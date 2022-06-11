@@ -345,7 +345,6 @@ static void constructWindow(void)
   // The canvas to show the current color
   params.gridY = 2;
   params.hasBorder = 1;
-  //params.padBottom = 5;
   canvasWidth = windowComponentGetWidth(changeColorsButton);
   canvas = windowNewCanvas(container, canvasWidth, 50, &params);
 
@@ -358,6 +357,7 @@ static void constructWindow(void)
   params.padTop = 5;
   params.padBottom = 5;
   params.orientationX = orient_center;
+  params.fixedHeight = 1;
   params.hasBorder = 0;
   container = windowNewContainer(window, "buttonContainer", &params);
 
@@ -381,7 +381,7 @@ static void constructWindow(void)
 
   // Register an event handler to catch window close events
   windowRegisterEventHandler(window, &eventHandler);
-
+  
   windowSetVisible(window, 1);
 
   drawColor(&foreground);

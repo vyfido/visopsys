@@ -21,36 +21,23 @@
 
 #if !defined(_KERNELSYSTIMER_H)
 
-// Some system timer structures
-typedef struct
-{
-  int (*driverInitialize) (void);
-  int (*driverRegisterDevice) (void *);
-  void (*driverTimerTick) (void);
-  int (*driverReadTicks) (void);
+#include "kernelDevice.h"
+
+typedef struct {
+  void (*driverTick) (void);
+  int (*driverRead) (void);
   int (*driverReadValue) (int);
   int (*driverSetupTimer) (int, int, int);
 
-} kernelSysTimerDriver;
-
-typedef struct
-{
-  kernelSysTimerDriver *driver;
-
-} kernelSysTimer;
-
-
-// The default driver initialization
-int kernelSysTimerDriverInitialize(void);
+} kernelSysTimerOps;
 
 // Functions exported by kernelSysTimer.c
-int kernelSysTimerRegisterDevice(kernelSysTimer *);
-int kernelSysTimerInitialize(void);
+int kernelSysTimerInitialize(kernelDevice *);
+void kernelSysTimerTick(void);
 unsigned kernelSysTimerRead(void);
 int kernelSysTimerReadValue(int);
 int kernelSysTimerSetupTimer(int, int, int);
 void kernelSysTimerWaitTicks(int);
-void kernelSysTimerTick(void);
 
 #define _KERNELSYSTIMER_H
 #endif

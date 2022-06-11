@@ -24,8 +24,8 @@
 
 #include "kernelFilesystemIso.h"
 #include "kernelFile.h"
-#include "kernelDriverManagement.h"
 #include "kernelMalloc.h"
+#include "kernelSysTimer.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <string.h>
@@ -34,7 +34,6 @@
 static kernelFilesystemDriver defaultIsoDriver = {
   Iso,   // FS type
   "ISO", // Driver name
-  kernelFilesystemIsoInitialize,
   kernelFilesystemIsoDetect,
   NULL, // driverFormat
   NULL, // driverCheck

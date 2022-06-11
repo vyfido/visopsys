@@ -101,6 +101,8 @@ typedef volatile struct
   kernelEnvironment *environment;
   kernelTextInputStream *textInputStream;
   kernelTextOutputStream *textOutputStream;
+  unsigned signalMask;
+  stream signalStream;
 
 } kernelProcess;
 
@@ -145,6 +147,9 @@ int kernelMultitaskerKillProcess(int, int);
 int kernelMultitaskerKillByName(const char *, int);
 int kernelMultitaskerKillAll(void);
 int kernelMultitaskerTerminate(int);
+int kernelMultitaskerSignalSet(int, int, int);
+int kernelMultitaskerSignal(int, int);
+int kernelMultitaskerSignalRead(int);
 
 #define _KERNELMULTITASKER_H
 #endif

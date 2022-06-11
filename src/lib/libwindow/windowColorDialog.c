@@ -138,6 +138,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
   // Create scroll bars for the red, green, and blue colors
   params.gridX = 1;
   params.hasBorder = 0;
+  params.fixedWidth = 1;
   redSlider = windowNewScrollBar(dialogWindow, scrollbar_vertical, 0,
 				 SLIDER_HEIGHT, &params);
   scrollState.displayPercent = 20;
@@ -161,6 +162,7 @@ _X_ int windowNewColorDialog(objectKey parentWindow, color *pickedColor)
   params.gridX = 1;
   params.gridY = 2;
   params.padRight = 0;
+  params.fixedWidth = 0;
   redLabel = windowNewTextLabel(dialogWindow, "000", &params);
   params.gridX = 2;
   greenLabel = windowNewTextLabel(dialogWindow, "000", &params);

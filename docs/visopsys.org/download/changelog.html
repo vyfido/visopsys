@@ -43,6 +43,54 @@ background="../img/background.jpg" bgproperties="fixed"><!--msnavigation--><tabl
 <img src="../img/banners/visopsys-logo.gif" align="middle" border="0" width="291" height="94"><br>
 <img src="../img/banners/visopsys-download.gif" align="middle" border="0" width="291" height="46"></p>
 
+<font SIZE="2">
+
+<p><font size="4">VERSION 0.55<br>
+</font></font>18/05/2005</p>
+<p><font size="4">Overview: This is a maintenance and bugfix release, with some 
+additional capabilities including installation support for all FAT filesystems, 
+primitive PCI driver support, and a better organised device driver 
+infrastructure. In addition, GUI window layout and resizing has been 
+reimplemented and generally fixed.</font></p>
+<ul>
+  <li><font size="4">The system can now install to and boot from any kind of FAT 
+  filesystem (FAT12, FAT16, and FAT32/VFAT).</font></li>
+  <li><font size="4">Fixed window relayout when windows are sized.</font></li>
+  <li><font size="4">Implemented a better-organised hardware device &quot;tree&quot; and a 
+  new, more generic device driver interface.</font></li>
+  <li><font size="4">Added a basic PCI bus driver, the initial implementation of 
+  which was provided by Jonas Zaddach. Only logs a bus device scan, for the 
+  moment.</font></li>
+  <li><font size="4">Implemented a basic a signalling infrastructure, which 
+  initially fixes the problem of CTRL-C crashing the system in text mode.</font></li>
+  <li><font size="4">Back-ported a number of changes and improvements from the 
+  0.6 branch to the kernel's disk layer.</font></li>
+  <li><font size="4">Added a 'debug window layout' function that displays the 
+  layout grid alongside the components; makes it much easier to do program 
+  window design and to debug the kernel's layout code.</font></li>
+  <li><font size="4">The window manager's event handler thread now dynamically 
+  allocates the memory it uses for storing event hooks.</font></li>
+  <li><font size="4">Implemented the 'swab' libc function. Useful for 
+  networking.</font></li>
+  <li><font size="4">The page manager's 'get physical address' function has been 
+  modified so that it works with addresses that aren't page-aligned.</font></li>
+  <li><font size="4">The interrupt controller functions now have a function that 
+  returns the active interrupt number, and synchronized the kernel's hardware 
+  interrupt number codes with the 'normal' PC interrupt numbers (e.g. 0-F).</font></li>
+  <li><font size="4">Fixed: Interrupts are now disabled during the pause before 
+  reboot, so that for example the kernel is not still processing I/O interrupts 
+  and such.</font></li>
+  <li><font size="4">Fixed: A number of small issues with the kernelWindowStream 
+  code.</font></li>
+  <li><font size="4">Fixed: In the install program, installing on a 
+  freshly-inserted floppy. could produce the error message &quot;can't install a boot 
+  sector for filesystem type 'unknown'&quot;.</font></li>
+  <li><font size="4">Fixed: When installing from a 'basic' install, there was a 
+  spurious error message resulting from attempting to look for the 'full' 
+  install file.</font></li>
+</ul>
+<hr>
+
 <p><font size="4">VERSION 0.54<br>
 </font>22/03/2005</p>
 <p><font size="4">Overview: This is a maintenance release, with numerous small 

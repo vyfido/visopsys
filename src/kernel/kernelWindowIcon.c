@@ -375,6 +375,8 @@ kernelWindowComponent *kernelWindowNewIcon(volatile void *parent,
   component->height = ((imageCopy->height + 5 + (defaultFont->charHeight *
 						 iconComponent->labelLines)));
   
+  component->minWidth = component->width;
+  component->minHeight = component->height;
   component->data = (void *) iconComponent;
 
   component->flags |= WINFLAG_CANFOCUS;

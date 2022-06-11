@@ -51,12 +51,14 @@ color kernelDefaultDesktop = {
   DEFAULT_DESKTOP_RED
 };
 
+static kernelDevice *systemAdapter = NULL;
+static kernelGraphicAdapter *adapterDevice = NULL;
+static kernelGraphicOps *ops = NULL;
+static kernelGraphicBuffer tmpConsoleBuffer;
+
 // This is data for a temporary console when we first arrive in a graphical
 // mode
 static kernelTextArea *tmpGraphicConsole = NULL;
-static kernelGraphicBuffer tmpConsoleBuffer;
-static kernelGraphicAdapter *systemAdapter = NULL;
-static int initialized = 0;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -68,23 +70,39 @@ static int initialized = 0;
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelGraphicInitialize(void)
+int kernelGraphicInitialize(kernelDevice *device)
 {
-  // This function initializes the graphic routines.  It pretty much just
-  // calls the associated driver routine, but it also does some checks and
-  // whatnot to make sure that the device, driver, and driver routines are
-  // valid.
+  // This function initializes the graphic routines.
 
   int status = 0;
   kernelTextInputStream *inputStream = NULL;
 
+  if (device == NULL)
+    {
+      kernelError(kernel_error, "The graphic adapter device is NULL");
+      return (status = ERR_NOTINITIALIZED);
+    }
+
+  systemAdapter = device;
+
+  if ((systemAdapter->dev == NULL) ||
+      (systemAdapter->driver == NULL) ||
+      (systemAdapter->driver->ops == NULL))
+    {
+      kernelError(kernel_error, "The graphic adapter, driver or ops are NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  adapterDevice = (kernelGraphicAdapter *) systemAdapter->dev;
+  ops = systemAdapter->driver->ops;
+
   // Are we in a graphics mode?
-  if (systemAdapter->mode == 0)
+  if (adapterDevice->mode == 0)
     return (status = ERR_INVALID);
   
   // Get a temporary text area for console output, and use the graphic screen
   // as a temporary output
-  tmpGraphicConsole = kernelTextAreaNew(80, 50, DEFAULT_SCROLLBACKLINES);
+  tmpGraphicConsole = kernelTextAreaNew(80, 50, 1, DEFAULT_SCROLLBACKLINES);
   if (tmpGraphicConsole == NULL)
     // Better not try to print any error messages...
     return (status = ERR_NOTINITIALIZED);
@@ -114,13 +132,10 @@ int kernelGraphicInitialize(void)
       kernelFree(tmpGraphicConsole->outputStream);
       tmpGraphicConsole->outputStream = (void *) kernelTextGetConsoleOutput();
     }
-  tmpConsoleBuffer.width = systemAdapter->xRes;
-  tmpConsoleBuffer.height = systemAdapter->yRes;
-  tmpConsoleBuffer.data = systemAdapter->framebuffer;
+  tmpConsoleBuffer.width = adapterDevice->xRes;
+  tmpConsoleBuffer.height = adapterDevice->yRes;
+  tmpConsoleBuffer.data = adapterDevice->framebuffer;
   tmpGraphicConsole->graphicBuffer = &tmpConsoleBuffer;
-
-  // We are initialized
-  initialized = 1;
 
   // Initialize the font functions
   status = kernelFontInitialize();
@@ -137,48 +152,20 @@ int kernelGraphicInitialize(void)
   kernelTextSwitchToGraphics(tmpGraphicConsole);
 
   // Clear the screen with our default background color
-  systemAdapter->driver->driverClearScreen(&kernelDefaultDesktop);
+  ops->driverClearScreen(&kernelDefaultDesktop);
 
   // Return success
   return (status = 0);
 }
 
 
-int kernelGraphicRegisterDevice(kernelGraphicAdapter *theAdapter)
-{
-  // This routine will register a new graphic adapter.  On error,
-  // it returns negative
-
-  int status = 0;
-
-  if (theAdapter == NULL)
-    {
-      kernelError(kernel_error, "The graphic adapter is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  if (theAdapter->driver == NULL)
-    {
-      kernelError(kernel_error, "The graphic driver is NULL");
-      return (status = ERR_NOSUCHDRIVER);
-    }
-
-  // If the driver has a 'register device' function, call it
-  if (theAdapter->driver->driverRegisterDevice)
-    status = theAdapter->driver->driverRegisterDevice(theAdapter);
-
-  // Alright.  We'll save the pointer to the device
-  systemAdapter = theAdapter;
-
-  // Return success
-  return (status);
-}
-
-
 int kernelGraphicsAreEnabled(void)
 {
   // Returns 1 if graphics are enabled, 0 otherwise
-  return (initialized);
+  if (systemAdapter != NULL)
+    return (1);
+  else
+    return (0);
 }
 
 
@@ -187,18 +174,18 @@ int kernelGraphicGetModes(videoMode *modeBuffer, unsigned size)
   // Return the list of graphics modes supported by the adapter
 
   size = max(size, (sizeof(videoMode) * MAXVIDEOMODES));
-  kernelMemCopy(&(systemAdapter->supportedModes), modeBuffer, size);
-  return (systemAdapter->numberModes);
+  kernelMemCopy(&(adapterDevice->supportedModes), modeBuffer, size);
+  return (adapterDevice->numberModes);
 }
 
 
 int kernelGraphicGetMode(videoMode *mode)
 {
   // Get the current graphics mode
-  mode->mode = systemAdapter->mode;
-  mode->xRes = systemAdapter->xRes;
-  mode->yRes = systemAdapter->yRes;
-  mode->bitsPerPixel = systemAdapter->bitsPerPixel;
+  mode->mode = adapterDevice->mode;
+  mode->xRes = adapterDevice->xRes;
+  mode->yRes = adapterDevice->yRes;
+  mode->bitsPerPixel = adapterDevice->bitsPerPixel;
   return (0);
 }
 
@@ -235,10 +222,10 @@ int kernelGraphicGetScreenWidth(void)
   // Yup, returns the screen width
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (ERR_NOTINITIALIZED);
 
-  return (systemAdapter->xRes);
+  return (adapterDevice->xRes);
 }
 
 
@@ -247,10 +234,10 @@ int kernelGraphicGetScreenHeight(void)
   // Yup, returns the screen height
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (ERR_NOTINITIALIZED);
 
-  return (systemAdapter->yRes);
+  return (adapterDevice->yRes);
 }
 
 
@@ -260,7 +247,7 @@ int kernelGraphicCalculateAreaBytes(int width, int height)
   // that can be drawn on the current display (this varies depending on the
   // bites-per-pixel, etc, that higher-level code shouldn't have to know
   // about)
-  return (width * height * systemAdapter->bytesPerPixel);
+  return (width * height * adapterDevice->bytesPerPixel);
 }
 
 
@@ -271,7 +258,7 @@ int kernelGraphicClearScreen(color *background)
   int status = 0;
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   if (background == NULL)
@@ -279,14 +266,14 @@ int kernelGraphicClearScreen(color *background)
 
   // Now make sure the device driver drawPixel routine has been 
   // installed
-  if (systemAdapter->driver->driverClearScreen == NULL)
+  if (ops->driverClearScreen == NULL)
     {
       kernelError(kernel_error, "The driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Ok, now we can call the routine.
-  status = systemAdapter->driver->driverClearScreen(background);
+  status = ops->driverClearScreen(background);
   return (status);
 }
 
@@ -368,7 +355,7 @@ int kernelGraphicDrawPixel(kernelGraphicBuffer *buffer, color *foreground,
   int status = 0;
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Check parameters
@@ -377,15 +364,14 @@ int kernelGraphicDrawPixel(kernelGraphicBuffer *buffer, color *foreground,
 
   // Now make sure the device driver drawPixel routine has been 
   // installed
-  if (systemAdapter->driver->driverDrawPixel == NULL)
+  if (ops->driverDrawPixel == NULL)
     {
       kernelError(kernel_error, "The driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Ok, now we can call the routine.
-  status = systemAdapter->driver
-    ->driverDrawPixel(buffer, foreground, mode, xCoord, yCoord);
+  status = ops->driverDrawPixel(buffer, foreground, mode, xCoord, yCoord);
 
   return (status);
 }
@@ -400,7 +386,7 @@ int kernelGraphicDrawLine(kernelGraphicBuffer *buffer, color *foreground,
   int status = 0;
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Check parameters
@@ -409,16 +395,15 @@ int kernelGraphicDrawLine(kernelGraphicBuffer *buffer, color *foreground,
 
   // Now make sure the device driver drawLine routine has been 
   // installed
-  if (systemAdapter->driver->driverDrawLine == NULL)
+  if (ops->driverDrawLine == NULL)
     {
       kernelError(kernel_error, "The driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Ok, now we can call the routine.
-  status = systemAdapter->driver
-    ->driverDrawLine(buffer, foreground, mode, xCoord1, yCoord1, xCoord2,
-		     yCoord2);
+  status = ops->driverDrawLine(buffer, foreground, mode, xCoord1, yCoord1,
+			       xCoord2, yCoord2);
   return (status);
 }
 
@@ -432,7 +417,7 @@ int kernelGraphicDrawRect(kernelGraphicBuffer *buffer, color *foreground,
   int status = 0;
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Color not NULL
@@ -445,17 +430,15 @@ int kernelGraphicDrawRect(kernelGraphicBuffer *buffer, color *foreground,
 
   // Now make sure the device driver drawRect routine has been 
   // installed
-  if (systemAdapter->driver->driverDrawRect == NULL)
+  if (ops->driverDrawRect == NULL)
     {
       kernelError(kernel_error, "The driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Ok, now we can call the routine.
-  status = systemAdapter->driver
-    ->driverDrawRect(buffer, foreground, mode, xCoord, yCoord, width, height,
-		     thickness, fill);
-
+  status = ops->driverDrawRect(buffer, foreground, mode, xCoord, yCoord,
+			       width, height, thickness, fill);
   return (status);
 }
 
@@ -469,7 +452,7 @@ int kernelGraphicDrawOval(kernelGraphicBuffer *buffer, color *foreground,
   int status = 0;
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Color not NULL
@@ -478,16 +461,15 @@ int kernelGraphicDrawOval(kernelGraphicBuffer *buffer, color *foreground,
 
   // Now make sure the device driver drawOval routine has been 
   // installed
-  if (systemAdapter->driver->driverDrawOval == NULL)
+  if (ops->driverDrawOval == NULL)
     {
       kernelError(kernel_error, "The driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Ok, now we can call the routine.
-  status = systemAdapter->driver
-    ->driverDrawOval(buffer, foreground, mode, xCoord, yCoord, width, height,
-		     thickness, fill);
+  status = ops->driverDrawOval(buffer, foreground, mode, xCoord, yCoord,
+			       width, height, thickness, fill);
   return (status);
 }
 
@@ -502,7 +484,7 @@ int kernelGraphicImageToKernel(image *convImage)
   void *savePtr = NULL;
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Check parameters
@@ -595,7 +577,7 @@ int kernelGraphicDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
   int status = 0;
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Check parameters
@@ -604,16 +586,15 @@ int kernelGraphicDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
 
   // Now make sure the device driver drawImage routine has been 
   // installed
-  if (systemAdapter->driver->driverDrawImage == NULL)
+  if (ops->driverDrawImage == NULL)
     {
       kernelError(kernel_error, "The driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Ok, now we can call the routine.
-  status = systemAdapter->driver
-    ->driverDrawImage(buffer, drawImage, mode, xCoord, yCoord,
-		      xOffset, yOffset, width, height);
+  status = ops->driverDrawImage(buffer, drawImage, mode, xCoord, yCoord,
+				xOffset, yOffset, width, height);
   return (status);
 }
 
@@ -628,7 +609,7 @@ int kernelGraphicGetImage(kernelGraphicBuffer *buffer, image *getImage,
   int status = 0;
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Check parameters
@@ -637,15 +618,15 @@ int kernelGraphicGetImage(kernelGraphicBuffer *buffer, image *getImage,
 
   // Now make sure the device driver getImage routine has been 
   // installed
-  if (systemAdapter->driver->driverGetImage == NULL)
+  if (ops->driverGetImage == NULL)
     {
       kernelError(kernel_error, "The driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Ok, now we can call the routine.
-  status = systemAdapter->driver
-    ->driverGetImage(buffer, getImage, xCoord, yCoord, width, height);
+  status =
+    ops->driverGetImage(buffer, getImage, xCoord, yCoord, width, height);
   return (status);
 }
 
@@ -688,7 +669,7 @@ int kernelGraphicDrawText(kernelGraphicBuffer *buffer, color *foreground,
   int count;
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Check parameters
@@ -696,7 +677,7 @@ int kernelGraphicDrawText(kernelGraphicBuffer *buffer, color *foreground,
     return (status = ERR_NULLPARAMETER);
 
   // Now make sure the device driver drawImage routine has been installed
-  if (systemAdapter->driver->driverDrawMonoImage == NULL)
+  if (ops->driverDrawMonoImage == NULL)
     {
       kernelError(kernel_error, "The driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
@@ -715,9 +696,9 @@ int kernelGraphicDrawText(kernelGraphicBuffer *buffer, color *foreground,
 	index = 0;
       
       // Call the driver routine to draw the character
-      status = systemAdapter->driver
-	->driverDrawMonoImage(buffer, &(font->chars[index]), mode,
-			      foreground, background, xCoord, yCoord);
+      status =
+	ops->driverDrawMonoImage(buffer, &(font->chars[index]), mode,
+				 foreground, background, xCoord, yCoord);
 
       xCoord += font->chars[index].width;
     }
@@ -735,20 +716,19 @@ int kernelGraphicCopyArea(kernelGraphicBuffer *buffer, int xCoord1,
   int status = 0;
   
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Now make sure the device driver drawImage routine has been installed
-  if (systemAdapter->driver->driverCopyArea == NULL)
+  if (ops->driverCopyArea == NULL)
     {
       kernelError(kernel_error, "The driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Call the driver routine to copy the area
-  status = systemAdapter->driver
-    ->driverCopyArea(buffer, xCoord1, yCoord1, width, height, xCoord2,
-		     yCoord2);
+  status = ops->driverCopyArea(buffer, xCoord1, yCoord1, width, height,
+			       xCoord2, yCoord2);
   return (status);
 }
 
@@ -763,7 +743,7 @@ int kernelGraphicClearArea(kernelGraphicBuffer *buffer, color *background,
   int status = 0;
   
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Color and area not NULL
@@ -786,7 +766,7 @@ int kernelGraphicRenderBuffer(kernelGraphicBuffer *buffer, int drawX,
   int status = 0;
   
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Buffer is not allowed to be NULL this time
@@ -815,16 +795,15 @@ int kernelGraphicRenderBuffer(kernelGraphicBuffer *buffer, int drawX,
     return (status = 0);
 
   // Now make sure the device driver drawImage routine has been installed
-  if (systemAdapter->driver->driverRenderBuffer == NULL)
+  if (ops->driverRenderBuffer == NULL)
     {
       kernelError(kernel_error, "The driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Call the driver routine to render the buffer
-  status = systemAdapter->driver
-    ->driverRenderBuffer(buffer, drawX, drawY, clipX, clipY, clipWidth,
-			 clipHeight);
+  status = ops->driverRenderBuffer(buffer, drawX, drawY, clipX, clipY,
+				   clipWidth, clipHeight);
   return (status);
 }
 
@@ -837,7 +816,7 @@ int kernelGraphicFilter(kernelGraphicBuffer *buffer, color *filterColor,
   int status = 0;
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemAdapter == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Color not NULL
@@ -849,16 +828,15 @@ int kernelGraphicFilter(kernelGraphicBuffer *buffer, color *filterColor,
     return (status = 0);
 
   // Now make sure the device driver filter routine has been installed
-  if (systemAdapter->driver->driverFilter == NULL)
+  if (ops->driverFilter == NULL)
     {
       kernelError(kernel_error, "The driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Ok, now we can call the routine.
-  status = systemAdapter->driver
-    ->driverFilter(buffer, filterColor, xCoord, yCoord, width, height);
-
+  status =
+    ops->driverFilter(buffer, filterColor, xCoord, yCoord, width, height);
   return (status);
 }
 

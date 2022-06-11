@@ -24,13 +24,13 @@
 #if !defined(_KERNELINTERRUPT_H)
 
 // Interrupt numbers for interrupts we care about
-#define INTERRUPT_VECTOR            0x20
-#define INTERRUPT_NUM_SYSTIMER      (INTERRUPT_VECTOR + 0x00)
-#define INTERRUPT_NUM_KEYBOARD      (INTERRUPT_VECTOR + 0x01)
-#define INTERRUPT_NUM_FLOPPY        (INTERRUPT_VECTOR + 0x06)
-#define INTERRUPT_NUM_MOUSE         (INTERRUPT_VECTOR + 0x0C)
-#define INTERRUPT_NUM_PRIMARYIDE    (INTERRUPT_VECTOR + 0x0E)
-#define INTERRUPT_NUM_SECONDARYIDE  (INTERRUPT_VECTOR + 0x0F)
+#define INTERRUPT_VECTORS           16
+#define INTERRUPT_NUM_SYSTIMER      0x00
+#define INTERRUPT_NUM_KEYBOARD      0x01
+#define INTERRUPT_NUM_FLOPPY        0x06
+#define INTERRUPT_NUM_MOUSE         0x0C
+#define INTERRUPT_NUM_PRIMARYIDE    0x0E
+#define INTERRUPT_NUM_SECONDARYIDE  0x0F
 
 // Lets handlers tell everyone else which interrupt number is in service
 extern int kernelProcessingInterrupt;

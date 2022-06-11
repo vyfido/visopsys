@@ -20,19 +20,20 @@
 //
 
 #include "kernelInitialize.h"
-#include "kernelParameters.h"
-#include "kernelMiscFunctions.h"
-#include "kernelLog.h"
-#include "kernelInterrupt.h"
-#include "kernelDriverManagement.h"
-#include "kernelHardwareEnumeration.h"
-#include "kernelRandom.h"
-#include "kernelMemoryManager.h"
-#include "kernelDescriptor.h"
-#include "kernelPageManager.h"
-#include "kernelMultitasker.h"
+#include "kernelDisk.h"
 #include "kernelFile.h"
-#include "kernelGraphic.h"
+#include "kernelImage.h"
+#include "kernelMiscFunctions.h"
+#include "kernelPageManager.h"
+#include "kernelMemoryManager.h"
+#include "kernelText.h"
+#include "kernelLog.h"
+#include "kernelDescriptor.h"
+#include "kernelInterrupt.h"
+#include "kernelMultitasker.h"
+#include "kernelParameters.h"
+#include "kernelRandom.h"
+#include "kernelKeyboard.h"
 #include "kernelUser.h"
 #include "kernelWindow.h"
 #include "kernelError.h"
@@ -50,7 +51,7 @@
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
+int kernelInitialize(unsigned kernelMemory)
 {
   // Does a bunch of calls involved in initializing the kernel.
   // kernelMain passes all of the kernel's arguments to this function
@@ -80,13 +81,9 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
     return (status);
 
   // Initialize the memory manager
-  status = kernelMemoryInitialize(kernelMemory, info);
+  status = kernelMemoryInitialize(kernelMemory);
   if (status < 0)
     return (status);
-
-  // Initialize all our built-in drivers.  We need this before text
-  // initialization, but we can't print any error messages until after.
-  int driverStatus = kernelDriversInitialize();
 
   // Initialize the text screen output.  This needs to be done after paging
   // has been initialized so that our screen memory can be mapped to a
@@ -94,12 +91,6 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   status = kernelTextInitialize(80, 50);
   if (status < 0)
     return (status);
-
-  if (driverStatus < 0)
-    {
-      kernelError(kernel_error, "Driver initialization failed");
-      return (driverStatus);
-    }
 
   // Initialize kernel logging
   status = kernelLogInitialize();
@@ -137,9 +128,7 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
       return (status);
     }
 
-  // Pass the loader's info structure to the hardware enumeration
-  // routine
-  status = kernelHardwareEnumerate(info);
+  status = kernelDeviceInitialize();
   if (status < 0)
     {
       kernelError(kernel_error, "Hardware initialization failed");
@@ -167,9 +156,17 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
       return (status);
     }
 
+  // Initialize the filesystem drivers
+  status = kernelFilesystemDriversInitialize();
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Filesystem drivers initialization failed");
+      return (status);
+    }
+
   // Initialize the disk functions.  This must be done AFTER the hardware
   // has been enumerated, and AFTER the drivers have been installed.
-  status = kernelDiskInitialize(info->bootDisk, info->bootSector);
+  status = kernelDiskInitialize();
   if (status < 0)
     {
       kernelError(kernel_error, "Disk functions initialization failed");
@@ -188,7 +185,7 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   status = kernelFileInitialize();
   if (status < 0)
     {
-      kernelError(kernel_error, "Filesystem functions initialization failed");
+      kernelError(kernel_error, "Files functions initialization failed");
       return (status);
     }
 
@@ -334,10 +331,8 @@ int kernelInitialize(unsigned kernelMemory, loaderInfoStruct *info)
     {
       status = kernelWindowInitialize();
       if (status < 0)
-	{
-	  // Make a warning, but don't return error.  This is not fatal.
-	  kernelError(kernel_warn, "Unable to start the window manager");
-	}
+	// Make a warning, but don't return error.  This is not fatal.
+	kernelError(kernel_warn, "Unable to start the window manager");
 
       // Clear the screen with our default background color
       kernelGraphicClearScreen(&kernelDefaultDesktop);

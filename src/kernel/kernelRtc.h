@@ -21,14 +21,12 @@
 
 #if !defined(_KERNELRTC_H)
 
+#include "kernelDevice.h"
 #include <time.h>
 
 // Structures for the Real-Time Clock device
 
-typedef struct
-{
-  int (*driverInitialize) (void);
-  int (*driverRegisterDevice) (void *);
+typedef struct {
   int (*driverReadSeconds) (void);
   int (*driverReadMinutes) (void);
   int (*driverReadHours) (void);
@@ -36,20 +34,10 @@ typedef struct
   int (*driverReadMonth) (void);
   int (*driverReadYear) (void);
 
-} kernelRtcDriver;
-
-typedef struct 
-{
-  kernelRtcDriver *driver;
-
-} kernelRtc;
-
-// The default driver initialization
-int kernelRtcDriverInitialize(void);
+} kernelRtcOps;
 
 // Functions exported by kernelRtc.c
-int kernelRtcRegisterDevice(kernelRtc *);
-int kernelRtcInitialize(void);
+int kernelRtcInitialize(kernelDevice *);
 int kernelRtcReadSeconds(void);
 int kernelRtcReadMinutes(void);
 int kernelRtcReadHours(void);

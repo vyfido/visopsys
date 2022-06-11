@@ -269,6 +269,8 @@ kernelWindowComponent *kernelWindowNewCheckbox(volatile void *parent,
   component->height = max(((kernelAsciiFont *) component->parameters.font)
 			  ->charHeight, CHECKBOX_SIZE);
   
+  component->minWidth = component->width;
+  component->minHeight = component->height;
   component->data = (void *) checkbox;
 
   return (component);

@@ -21,10 +21,8 @@
 
 #if !defined(_KERNELINITIALIZE_H)
 
-#include "loaderInfo.h"
-
 // Functions from kernelInitialize.c
-int kernelInitialize(unsigned, loaderInfoStruct *);
+int kernelInitialize(unsigned);
 
 #define _KERNELINITIALIZE_H
 #endif

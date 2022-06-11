@@ -24,37 +24,28 @@
 #if !defined(_KERNELMOUSE_H)
 
 #include "kernelImage.h"
+#include "kernelDevice.h"
 
 // A structure for holding pointers to the mouse driver functions
-typedef struct
-{
-  int (*driverInitialize) (void);
-  int (*driverRegisterDevice) (void *);
+typedef struct {
   void (*driverReadData) (void);
 
-} kernelMouseDriver;
+} kernelMouseOps;
 
-typedef struct
-{
+typedef struct {
   char name[64];
   image pointerImage;
 
 } kernelMousePointer;
 
 // A structure for holding information about the mouse
-typedef struct
-{
-  kernelMouseDriver *driver;
+typedef struct {
   int busy;
 
 } kernelMouse;
 
-// The default driver initialization
-int kernelPS2MouseDriverInitialize(void);
-
 // Functions exported by kernelMouse.c
-int kernelMouseRegisterDevice(kernelMouse *);
-int kernelMouseInitialize(void);
+int kernelMouseInitialize(kernelDevice *);
 int kernelMouseShutdown(void);
 int kernelMouseLoadPointer(const char *, const char *);
 int kernelMouseSwitchPointer(const char *);

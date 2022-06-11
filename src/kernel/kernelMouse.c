@@ -39,7 +39,9 @@ static kernelMousePointer *currentPointer;
 static kernelMousePointer pointerList[16];
 static int numberPointers = 0;
 
-static kernelMouse *systemMouse = NULL;
+static kernelDevice *systemMouse = NULL;
+static kernelMouse *mouseDevice = NULL;
+static kernelMouseOps *ops = NULL;
 
 // Keeps mouse pointer size and location data
 volatile struct {
@@ -55,8 +57,6 @@ volatile struct {
 } mouseStatus = {
   0, 0, 0, 0, 0, 0, 0, 0
 };
-
-static int initialized = 0;
 
 
 static inline void draw(void)
@@ -94,11 +94,11 @@ static void mouseInterrupt(void)
   // to actually read data from the device.
 
   kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = INTERRUPT_NUM_MOUSE;
+  kernelProcessingInterrupt = 1;
 
   // Ok, now we can call the routine.
-  if (systemMouse->driver->driverReadData)
-    systemMouse->driver->driverReadData();
+  if (ops->driverReadData)
+    ops->driverReadData();
 
   kernelPicEndOfInterrupt(INTERRUPT_NUM_MOUSE);
   kernelProcessingInterrupt = 0;
@@ -115,34 +115,38 @@ static void mouseInterrupt(void)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelMouseRegisterDevice(kernelMouse *theMouse)
+int kernelMouseInitialize(kernelDevice *device)
 {
-  // This routine will register a new mouse
+  // Initialize the mouse functions
 
   int status = 0;
 
-  if (theMouse == NULL)
+  if (device == NULL)
     {
-      kernelError(kernel_error, "NULL mouse device");
+      kernelError(kernel_error, "The mouse device is NULL");
+      return (status = ERR_NOTINITIALIZED);
+    }
+
+  systemMouse = device;
+
+  if ((systemMouse->dev == NULL) ||
+      (systemMouse->driver == NULL) ||
+      (systemMouse->driver->ops == NULL))
+    {
+      kernelError(kernel_error, "The mouse, driver or ops are NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
-  if (theMouse->driver == NULL)
-    {
-      kernelError(kernel_error, "NULL mouse driver");
-      return (status = ERR_NOSUCHDRIVER);
-    }
+  mouseDevice = (kernelMouse *) systemMouse->dev;
+  ops = systemMouse->driver->ops;
 
-  // If the driver has a 'register device' function, call it
-  if (theMouse->driver->driverRegisterDevice)
-    {
-      status = theMouse->driver->driverRegisterDevice(theMouse);
-      if (status < 0)
-	return (status);
-    }
+  screenWidth = kernelGraphicGetScreenWidth();
+  screenHeight = kernelGraphicGetScreenHeight();
 
-  // Alright.  We'll save the pointer to the device
-  systemMouse = theMouse;
+  // Put the mouse in the center of the screen
+
+  mouseStatus.xPosition = (screenWidth / 2);
+  mouseStatus.yPosition = (screenHeight / 2);
 
   // Register our interrupt handler
   status = kernelInterruptHook(INTERRUPT_NUM_MOUSE, &mouseInterrupt);
@@ -156,38 +160,11 @@ int kernelMouseRegisterDevice(kernelMouse *theMouse)
 }
 
 
-int kernelMouseInitialize(void)
-{
-  // Initialize the mouse functions
-
-  int status = 0;
-
-  // Check the mouse structure and device driver before proceeding
-  if (systemMouse == NULL)
-    {
-      kernelError(kernel_error, "NULL mouse structure");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  screenWidth = kernelGraphicGetScreenWidth();
-  screenHeight = kernelGraphicGetScreenHeight();
-
-  // Put the mouse in the center of the screen
-
-  mouseStatus.xPosition = (screenWidth / 2);
-  mouseStatus.yPosition = (screenHeight / 2);
-
-  initialized = 1;
-
-  return (status = 0);
-}
-
-
 int kernelMouseShutdown(void)
 {
   // Stop processing mouse stuff.
 
-  initialized = 0;
+  systemMouse = NULL;
   return (0);
 }
 
@@ -199,7 +176,7 @@ int kernelMouseLoadPointer(const char *pointerName, const char *fileName)
   int status = 0;
   
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemMouse == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Check parameters
@@ -240,7 +217,7 @@ int kernelMouseSwitchPointer(const char *pointerName)
   int count;
   
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemMouse == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Check parameters
@@ -271,7 +248,7 @@ void kernelMouseDraw(void)
   // anything
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemMouse == NULL)
     return;
 
   draw();
@@ -287,7 +264,7 @@ void kernelMouseMove(int xChange, int yChange)
   windowEvent event;
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemMouse == NULL)
     return;
 
   erase();
@@ -330,7 +307,7 @@ void kernelMouseButtonChange(int buttonNumber, int status)
   windowEvent event;
 
   // Make sure we've been initialized
-  if (!initialized)
+  if (systemMouse == NULL)
     return;
 
   switch (buttonNumber)
@@ -373,17 +350,17 @@ void kernelMouseBusy(int busy)
   
   if (busy)
     {
-      if (!systemMouse->busy)
+      if (!mouseDevice->busy)
 	kernelMouseSwitchPointer("busy");
 
-      systemMouse->busy += 1;
+      mouseDevice->busy += 1;
     }
   else
     {
-      if (systemMouse->busy)
-	systemMouse->busy -= 1;
+      if (mouseDevice->busy)
+	mouseDevice->busy -= 1;
 
-      if (!systemMouse->busy)
+      if (!mouseDevice->busy)
 	kernelMouseSwitchPointer("default");
     }
 }

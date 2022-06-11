@@ -22,18 +22,20 @@
 // This contains functions for user programs to operate GUI components.
 
 #include <string.h>
+#include <stdlib.h>
+#include <errno.h>
 #include <sys/window.h>
 #include <sys/api.h>
-#include <sys/errors.h>
 
 
-static volatile struct {
+typedef volatile struct {
   objectKey key;
   unsigned eventMask;
   void (*function)(objectKey, windowEvent *);
 
-} callBacks[WINDOW_MAX_COMPONENTS];
+} callBack;
 
+static callBack *callBacks = NULL;
 static volatile int numCallBacks = 0;
 static volatile int run = 0;
 static volatile int guiThreadPid = 0;
@@ -88,7 +90,10 @@ _X_ int windowClearEventHandlers(void)
   // Desc: Remove all the callback event handlers registered with the windowRegisterEventHandler() function.
 
   numCallBacks = 0;
-  bzero((void *) callBacks, sizeof(callBacks));
+
+  if (callBacks)
+    bzero((void *) callBacks, (WINDOW_MAX_COMPONENTS * sizeof(callBack)));
+
   return (0);
 }
 
@@ -102,6 +107,17 @@ _X_ int windowRegisterEventHandler(objectKey key, void (*function)(objectKey, wi
   // Check parameters
   if ((key == NULL) || (function == NULL))
     return (status = ERR_NULLPARAMETER);
+
+  if (callBacks == NULL)
+    {
+      // Get memory for our callbacks
+      callBacks = malloc(WINDOW_MAX_COMPONENTS * sizeof(callBack));
+      if (callBacks == NULL)
+	{
+	  errno = ERR_MEMORY;
+	  return (status = errno);
+	}
+    }
 
   callBacks[numCallBacks].key = key;
   callBacks[numCallBacks].function = function;
@@ -143,6 +159,13 @@ _X_ void windowGuiStop(void)
     {
       multitaskerKillProcess(guiThreadPid, 0);
       guiThreadPid = 0;
+    }
+  
+  numCallBacks = 0;
+  if (callBacks)
+    {
+      free((void *) callBacks);
+      callBacks = NULL;
     }
 
   return;

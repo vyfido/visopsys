@@ -32,22 +32,22 @@
 #endif
 
 // Window events/masks
-#define EVENT_MOUSE_LEFTDOWN     0x0001
-#define EVENT_MOUSE_LEFTUP       0x0002
-#define EVENT_MOUSE_MIDDLEDOWN   0x0004
-#define EVENT_MOUSE_MIDDLEUP     0x0008
-#define EVENT_MOUSE_RIGHTDOWN    0x0010
-#define EVENT_MOUSE_RIGHTUP      0x0020
-#define EVENT_MOUSE_MOVE         0x0040
-#define EVENT_MOUSE_DRAG         0x0080
-#define EVENT_MASK_MOUSE         0x00FF
-#define EVENT_KEY_DOWN           0x0100
-#define EVENT_KEY_UP             0x0200
-#define EVENT_MASK_KEY           0x0F00
-#define EVENT_WINDOW_MINIMIZE    0x1000
-#define EVENT_WINDOW_CLOSE       0x2000
-#define EVENT_WINDOW_RESIZE      0x4000
 #define EVENT_MASK_WINDOW        0xF000
+#define EVENT_WINDOW_RESIZE      0x4000
+#define EVENT_WINDOW_CLOSE       0x2000
+#define EVENT_WINDOW_MINIMIZE    0x1000
+#define EVENT_MASK_KEY           0x0F00
+#define EVENT_KEY_UP             0x0200
+#define EVENT_KEY_DOWN           0x0100
+#define EVENT_MASK_MOUSE         0x00FF
+#define EVENT_MOUSE_DRAG         0x0080
+#define EVENT_MOUSE_MOVE         0x0040
+#define EVENT_MOUSE_RIGHTUP      0x0020
+#define EVENT_MOUSE_RIGHTDOWN    0x0010
+#define EVENT_MOUSE_MIDDLEUP     0x0008
+#define EVENT_MOUSE_MIDDLEDOWN   0x0004
+#define EVENT_MOUSE_LEFTUP       0x0002
+#define EVENT_MOUSE_LEFTDOWN     0x0001
 
 // The maximum numbers of window things
 #define WINDOW_MAXWINDOWS        256
@@ -89,8 +89,8 @@ typedef struct {
   int padBottom;
   componentXOrientation orientationX;
   componentYOrientation orientationY;
-  int resizableX;
-  int resizableY;
+  int fixedWidth;
+  int fixedHeight;
   int hasBorder;
   int stickyFocus;
   int useDefaultForeground;
@@ -113,7 +113,7 @@ typedef struct {
 // A structure for a queue of window events as a stream.
 typedef struct {
   objectKey component;
-  stream s;
+  volatile stream s;
 
 } windowEventStream;
 
@@ -165,7 +165,9 @@ int windowNewErrorDialog(objectKey, const char *, const char *);
 int windowNewFileDialog(objectKey, const char *, const char *, char *,
 			unsigned);
 int windowNewInfoDialog(objectKey, const char *, const char *);
-int windowNewPasswordDialog(objectKey, const char *, const char *, int, char *);int windowNewPromptDialog(objectKey, const char *, const char *, int, int,
+int windowNewPasswordDialog(objectKey, const char *, const char *, int,
+			    char *);
+int windowNewPromptDialog(objectKey, const char *, const char *, int, int,
 			  char *);
 int windowNewQueryDialog(objectKey, const char *, const char *);
 int windowRegisterEventHandler(objectKey, void (*)(objectKey, windowEvent *));

@@ -22,32 +22,22 @@
 // This is the simple graphics driver for a LFB (Linear Framebuffer)
 // -equipped graphics adapter
 
-#include "kernelDriverManagement.h" // Contains my prototypes
+#include "kernelGraphic.h"
 #include "kernelMemoryManager.h"
 #include "kernelMalloc.h"
+#include "kernelMain.h"
 #include "kernelMiscFunctions.h"
+#include "kernelPageManager.h"
+#include "kernelParameters.h"
 #include "kernelProcessorX86.h"
 #include "kernelError.h"
+#include <string.h>
 
 static kernelGraphicAdapter *adapter = NULL;
 static kernelGraphicBuffer wholeScreen;
 
 
-static int registerDevice(void *device)
-{
-  // Save the reference to the device information
-  adapter = (kernelGraphicAdapter *) device;
-
-  // Set up the kernelGraphicBuffer that represents the whole screen
-  wholeScreen.width = adapter->xRes;
-  wholeScreen.height = adapter->yRes;
-  wholeScreen.data = adapter->framebuffer;
-
-  return (0);
-}
-
-
-static int clearScreen(color *background)
+static int driverClearScreen(color *background)
 {
   // Resets the whole screen to the background color
   
@@ -92,8 +82,8 @@ static int clearScreen(color *background)
 }
 
 
-static int drawPixel(kernelGraphicBuffer *buffer, color *foreground,
-		     drawMode mode, int xCoord, int yCoord)
+static int driverDrawPixel(kernelGraphicBuffer *buffer, color *foreground,
+			   drawMode mode, int xCoord, int yCoord)
 {
   // Draws a single pixel to the graphic buffer using the preset foreground
   // color
@@ -166,8 +156,9 @@ static int drawPixel(kernelGraphicBuffer *buffer, color *foreground,
 }
 
 
-static int drawLine(kernelGraphicBuffer *buffer, color *foreground,
-		    drawMode mode, int startX, int startY, int endX, int endY)
+static int driverDrawLine(kernelGraphicBuffer *buffer, color *foreground,
+			  drawMode mode, int startX, int startY,
+			  int endX, int endY)
 {
   // Draws a line on the screen using the preset foreground color
 
@@ -440,10 +431,10 @@ static int drawLine(kernelGraphicBuffer *buffer, color *foreground,
       for (count = start; count <= end; count++)
 	{
 	  if (start == startY)
-	    drawPixel(buffer, foreground, mode,
+	    driverDrawPixel(buffer, foreground, mode,
 		      var, count);
 	  else
-	    drawPixel(buffer, foreground, mode,
+	    driverDrawPixel(buffer, foreground, mode,
 		      count, var);
 
 	  if (e < 0)
@@ -460,9 +451,9 @@ static int drawLine(kernelGraphicBuffer *buffer, color *foreground,
 }
 
 
-static int drawRect(kernelGraphicBuffer *buffer, color *foreground,
-		    drawMode mode, int xCoord, int yCoord, int width,
-		    int height, int thickness, int fill)
+static int driverDrawRect(kernelGraphicBuffer *buffer, color *foreground,
+			  drawMode mode, int xCoord, int yCoord, int width,
+			  int height, int thickness, int fill)
 {
   // Draws a rectangle on the screen using the preset foreground color
 
@@ -514,8 +505,7 @@ static int drawRect(kernelGraphicBuffer *buffer, color *foreground,
 	// with individually and we can't really do that better than the
 	// line drawing routine does already.
 	for (count = yCoord; count <= endY; count ++)
-	  drawLine(buffer, foreground, mode,
-		   xCoord, count, endX, count);
+	  driverDrawLine(buffer, foreground, mode, xCoord, count, endX, count);
       else
 	{
 	  // Draw the box manually
@@ -577,30 +567,30 @@ static int drawRect(kernelGraphicBuffer *buffer, color *foreground,
     {
       // Draw the top line 'thickness' times
       for (count = (yCoord + thickness - 1); count >= yCoord; count --)
-	drawLine(buffer, foreground, mode, xCoord, count, endX, count);
+	driverDrawLine(buffer, foreground, mode, xCoord, count, endX, count);
 
       // Draw the left line 'thickness' times
       for (count = (xCoord + thickness - 1); count >= xCoord; count --)
-	drawLine(buffer, foreground, mode, count, (yCoord + thickness), count,
-		 (endY - thickness));
+	driverDrawLine(buffer, foreground, mode, count, (yCoord + thickness),
+		       count, (endY - thickness));
 
       // Draw the bottom line 'thickness' times
       for (count = (endY - thickness + 1); count <= endY; count ++)
-	drawLine(buffer, foreground, mode, xCoord, count, endX, count);
+	driverDrawLine(buffer, foreground, mode, xCoord, count, endX, count);
 
       // Draw the right line 'thickness' times
       for (count = (endX - thickness + 1); count <= endX; count ++)
-	drawLine(buffer, foreground, mode, count, (yCoord + thickness), count,
-		 (endY - thickness));
+	driverDrawLine(buffer, foreground, mode, count, (yCoord + thickness),
+		       count, (endY - thickness));
     }
 
   return (status = 0);
 }
 
 
-static int drawOval(kernelGraphicBuffer *buffer, color *foreground,
-		    drawMode mode, int centerX, int centerY, int width,
-		    int height, int thickness, int fill)
+static int driverDrawOval(kernelGraphicBuffer *buffer, color *foreground,
+			  drawMode mode, int centerX, int centerY, int width,
+			  int height, int thickness, int fill)
 {
   // Draws an oval on the screen using the preset foreground color.  We use
   // a version of the Bresenham circle algorithm, but in the case of an
@@ -649,22 +639,22 @@ static int drawOval(kernelGraphicBuffer *buffer, color *foreground,
     {
       if (!fill && (thickness == 1))
 	{
-	  drawPixel(buffer, foreground, mode,
-		    (centerX + outerX), (centerY + outerY));
-	  drawPixel(buffer, foreground, mode,
-		    (centerX + outerX), (centerY - outerY));
-	  drawPixel(buffer, foreground, mode,
-		    (centerX - outerX), (centerY + outerY));
-	  drawPixel(buffer, foreground, mode,
-		    (centerX - outerX), (centerY - outerY));
-	  drawPixel(buffer, foreground, mode,
-		    (centerX + outerY), (centerY + outerX));
-	  drawPixel(buffer, foreground, mode,
-		    (centerX + outerY), (centerY - outerX));
-	  drawPixel(buffer, foreground, mode,
-		    (centerX - outerY), (centerY + outerX));
-	  drawPixel(buffer, foreground, mode,
-		    (centerX - outerY), (centerY - outerX));
+	  driverDrawPixel(buffer, foreground, mode,
+			  (centerX + outerX), (centerY + outerY));
+	  driverDrawPixel(buffer, foreground, mode,
+			  (centerX + outerX), (centerY - outerY));
+	  driverDrawPixel(buffer, foreground, mode,
+			  (centerX - outerX), (centerY + outerY));
+	  driverDrawPixel(buffer, foreground, mode,
+			  (centerX - outerX), (centerY - outerY));
+	  driverDrawPixel(buffer, foreground, mode,
+			  (centerX + outerY), (centerY + outerX));
+	  driverDrawPixel(buffer, foreground, mode,
+			  (centerX + outerY), (centerY - outerX));
+	  driverDrawPixel(buffer, foreground, mode,
+			  (centerX - outerY), (centerY + outerX));
+	  driverDrawPixel(buffer, foreground, mode,
+			  (centerX - outerY), (centerY - outerX));
 	}
       
       if (outerY > outerBitmap[outerX])
@@ -704,39 +694,39 @@ static int drawOval(kernelGraphicBuffer *buffer, color *foreground,
       {
 	if ((outerY > innerRadius) || fill)
 	  {
-	    drawLine(buffer, foreground, mode,
-		     (centerX - outerBitmap[outerY]),
-		     (centerY - outerY),
-		     (centerX + outerBitmap[outerY]),
-		     (centerY - outerY));
-	    drawLine(buffer, foreground, mode,
-		     (centerX - outerBitmap[outerY]),
-		     (centerY + outerY),
-		     (centerX + outerBitmap[outerY]),
-		     (centerY + outerY));
+	    driverDrawLine(buffer, foreground, mode,
+			   (centerX - outerBitmap[outerY]),
+			   (centerY - outerY),
+			   (centerX + outerBitmap[outerY]),
+			   (centerY - outerY));
+	    driverDrawLine(buffer, foreground, mode,
+			   (centerX - outerBitmap[outerY]),
+			   (centerY + outerY),
+			   (centerX + outerBitmap[outerY]),
+			   (centerY + outerY));
 	  }
 	else
 	  {
-	    drawLine(buffer, foreground, mode,
-		     (centerX - outerBitmap[outerY]),
-		     (centerY - outerY),
-		     (centerX - innerBitmap[outerY]),
-		     (centerY - outerY));
-	    drawLine(buffer, foreground, mode,
-		     (centerX + innerBitmap[outerY]),
-		     (centerY - outerY),
-		     (centerX + outerBitmap[outerY]),
-		     (centerY - outerY));
-	    drawLine(buffer, foreground, mode,
-		     (centerX - outerBitmap[outerY]),
-		     (centerY + outerY),
-		     (centerX - innerBitmap[outerY]),
-		     (centerY + outerY));
-	    drawLine(buffer, foreground, mode,
-		     (centerX + innerBitmap[outerY]),
-		     (centerY + outerY),
-		     (centerX + outerBitmap[outerY]),
-		     (centerY + outerY));
+	    driverDrawLine(buffer, foreground, mode,
+			   (centerX - outerBitmap[outerY]),
+			   (centerY - outerY),
+			   (centerX - innerBitmap[outerY]),
+			   (centerY - outerY));
+	    driverDrawLine(buffer, foreground, mode,
+			   (centerX + innerBitmap[outerY]),
+			   (centerY - outerY),
+			   (centerX + outerBitmap[outerY]),
+			   (centerY - outerY));
+	    driverDrawLine(buffer, foreground, mode,
+			   (centerX - outerBitmap[outerY]),
+			   (centerY + outerY),
+			   (centerX - innerBitmap[outerY]),
+			   (centerY + outerY));
+	    driverDrawLine(buffer, foreground, mode,
+			   (centerX + innerBitmap[outerY]),
+			   (centerY + outerY),
+			   (centerX + outerBitmap[outerY]),
+			   (centerY + outerY));
 	  }
       }
 
@@ -748,9 +738,9 @@ static int drawOval(kernelGraphicBuffer *buffer, color *foreground,
 }
 
 
-static int drawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
-			 drawMode mode,color *foreground, color *background,
-			 int xCoord, int yCoord)
+static int driverDrawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
+			       drawMode mode,color *foreground,
+			       color *background, int xCoord, int yCoord)
 {
   // Draws the supplied image on the screen at the requested coordinates
 
@@ -896,9 +886,9 @@ static int drawMonoImage(kernelGraphicBuffer *buffer, image *drawImage,
 }
 
 
-static int drawImage(kernelGraphicBuffer *buffer, image *drawImage,
-		     drawMode mode, int xCoord, int yCoord, int xOffset,
-		     int yOffset, int width, int height)
+static int driverDrawImage(kernelGraphicBuffer *buffer, image *drawImage,
+			   drawMode mode, int xCoord, int yCoord, int xOffset,
+			   int yOffset, int width, int height)
 {
   // Draws the requested width and height of the supplied image on the screen
   // at the requested coordinates, with the requested offset
@@ -1044,8 +1034,8 @@ static int drawImage(kernelGraphicBuffer *buffer, image *drawImage,
 }
 
 
-static int getImage(kernelGraphicBuffer *buffer, image *theImage,
-		    int xCoord, int yCoord, int width, int height)
+static int driverGetImage(kernelGraphicBuffer *buffer, image *theImage,
+			  int xCoord, int yCoord, int width, int height)
 {
   // Draws the supplied image on the screen at the requested coordinates
 
@@ -1164,8 +1154,9 @@ static int getImage(kernelGraphicBuffer *buffer, image *theImage,
 }
 
 
-static int copyArea(kernelGraphicBuffer *buffer, int xCoord1, int yCoord1,
-		    int width, int height, int xCoord2, int yCoord2)
+static int driverCopyArea(kernelGraphicBuffer *buffer,
+			  int xCoord1, int yCoord1, int width, int height,
+			  int xCoord2, int yCoord2)
 {
   // Copy a clip of data from one area of the buffer to another
 
@@ -1195,8 +1186,9 @@ static int copyArea(kernelGraphicBuffer *buffer, int xCoord1, int yCoord1,
 }
 
 
-static int renderBuffer(kernelGraphicBuffer *buffer, int drawX, int drawY,
-			int clipX, int clipY, int width, int height)
+static int driverRenderBuffer(kernelGraphicBuffer *buffer,
+			      int drawX, int drawY, int clipX, int clipY,
+			      int width, int height)
 {
   // Take the supplied graphic buffer and render it onto the screen.
 
@@ -1258,8 +1250,8 @@ static int renderBuffer(kernelGraphicBuffer *buffer, int drawX, int drawY,
 }
 
 
-static int filter(kernelGraphicBuffer *buffer, color *filterColor, int xCoord,
-		  int yCoord, int width, int height)
+static int driverFilter(kernelGraphicBuffer *buffer, color *filterColor,
+			int xCoord, int yCoord, int width, int height)
 {
   // Take an area of a buffer and average it with the supplied color
   
@@ -1358,22 +1350,84 @@ static int filter(kernelGraphicBuffer *buffer, color *filterColor, int xCoord,
 }
 
 
-static kernelGraphicDriver defaultGraphicDriver =
-  {
-    kernelFramebufferGraphicDriverInitialize,
-    registerDevice,
-    clearScreen,
-    drawPixel,
-    drawLine,
-    drawRect,
-    drawOval,
-    drawMonoImage,
-    drawImage,
-    getImage,
-    copyArea,
-    renderBuffer,
-    filter,
-  };
+static int driverDetect(void *driver)
+{
+  // This routine is used to detect and initialize each device, as well as
+  // registering each one with any higher-level interfaces
+
+  int status = 0;
+  kernelDevice *device = NULL;
+
+  // Allocate memory for the device
+  device = kernelMalloc(sizeof(kernelDevice) + sizeof(kernelGraphicAdapter));
+  if (device == NULL)
+    return (status = 0);
+
+  adapter = ((void *) device + sizeof(kernelDevice));
+
+  // Set up the device parameters
+  adapter->videoMemory = kernelOsLoaderInfo->graphicsInfo.videoMemory;
+  adapter->framebuffer = kernelOsLoaderInfo->graphicsInfo.framebuffer;
+  adapter->mode = kernelOsLoaderInfo->graphicsInfo.mode;
+  adapter->xRes = kernelOsLoaderInfo->graphicsInfo.xRes;
+  adapter->yRes = kernelOsLoaderInfo->graphicsInfo.yRes;
+  adapter->bitsPerPixel = kernelOsLoaderInfo->graphicsInfo.bitsPerPixel;
+  if (adapter->bitsPerPixel == 15)
+    adapter->bytesPerPixel = 2;
+  else
+    adapter->bytesPerPixel = (adapter->bitsPerPixel / 8);
+  adapter->numberModes = kernelOsLoaderInfo->graphicsInfo.numberModes;
+  kernelMemCopy(&(kernelOsLoaderInfo->graphicsInfo.supportedModes),
+		&(adapter->supportedModes),
+		(sizeof(videoMode) * MAXVIDEOMODES));
+
+  device->class = kernelDeviceGetClass(DEVICECLASS_GRAPHIC);
+  device->subClass = kernelDeviceGetClass(DEVICESUBCLASS_GRAPHIC_FRAMEBUFFER);
+  device->driver = driver;
+  device->dev = adapter;
+  
+  // If we are in a graphics mode, initialize the graphics functions
+  if (adapter->mode != 0)
+    {
+      // Map the supplied physical linear framebuffer address into kernel
+      // memory
+      status = kernelPageMapToFree(KERNELPROCID, adapter->framebuffer,
+				   &(adapter->framebuffer),
+				   (adapter->xRes * adapter->yRes *
+				    adapter->bytesPerPixel));
+      if (status < 0)
+	{
+	  kernelError(kernel_error, "Unable to map linear framebuffer");
+	  return (status);
+	}
+
+      status = kernelGraphicInitialize(device);
+      if (status < 0)
+	return (status);
+    }
+
+  // Set up the kernelGraphicBuffer that represents the whole screen
+  wholeScreen.width = adapter->xRes;
+  wholeScreen.height = adapter->yRes;
+  wholeScreen.data = adapter->framebuffer;
+
+  return (status = kernelDeviceAdd(NULL, device));
+}
+
+
+static kernelGraphicOps framebufferOps = {
+  driverClearScreen,
+  driverDrawPixel,
+  driverDrawLine,
+  driverDrawRect,
+  driverDrawOval,
+  driverDrawMonoImage,
+  driverDrawImage,
+  driverGetImage,
+  driverCopyArea,
+  driverRenderBuffer,
+  driverFilter,
+};
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -1385,8 +1439,14 @@ static kernelGraphicDriver defaultGraphicDriver =
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelFramebufferGraphicDriverInitialize(void)
+void kernelFramebufferGraphicDriverRegister(void *driverData)
 {
-  // The standard initialization stuff
-  return (kernelDriverRegister(graphicDriver, &defaultGraphicDriver));
+   // Device driver registration.
+
+  kernelDriver *driver = (kernelDriver *) driverData;
+
+  driver->driverDetect = driverDetect;
+  driver->ops = &framebufferOps;
+
+  return;
 }

@@ -20,7 +20,6 @@
 //
 
 #include "kernelText.h"
-#include "kernelDriverManagement.h"
 #include "kernelKeyboard.h"
 #include "kernelParameters.h"
 #include "kernelPageManager.h"
@@ -31,6 +30,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <signal.h>
 
 // There is only ONE kernelTextInputStream for console input
 static kernelTextInputStream originalConsoleInput;
@@ -95,8 +95,8 @@ static int currentInputIntercept(stream *theStream, unsigned char byte)
       // Show that something happened
       kernelTextStreamPrintLine(currentOutput, "^C");
 
-      // Kill the process that owns the input stream
-      kernelMultitaskerKillProcess(currentInput->ownerPid, 0);
+      // Send the interrupt signal to the process that owns the input stream
+      kernelMultitaskerSignal(currentInput->ownerPid, SIGINT);
 
       return (status = 0);
     }
@@ -175,10 +175,9 @@ int kernelTextInitialize(int columns, int rows)
 
   // Take the physical text screen address and turn it into a virtual
   // address in the kernel's address space.
-  status =
-    kernelPageMapToFree(KERNELPROCID, consoleArea.visibleData,
-			(void *) &(consoleArea.visibleData),
-			(columns * rows * consoleArea.bytesPerChar));
+  status = kernelPageMapToFree(KERNELPROCID, consoleArea.visibleData,
+			       (void *) &(consoleArea.visibleData),
+			       (columns * rows * consoleArea.bytesPerChar));
   // Make sure we got a proper new virtual address
   if (status < 0)
     return (status);
@@ -189,6 +188,9 @@ int kernelTextInitialize(int columns, int rows)
 		 ((consoleArea.maxBufferLines - rows) * columns *
 		  consoleArea.bytesPerChar)),
 		 (columns * rows * consoleArea.bytesPerChar));
+
+  // Initialize the text drivers
+  kernelTextDriversInitialize();
 
   // We assign the text mode driver to be the output driver for now.
   consoleOutput->textArea = &consoleArea;
@@ -237,7 +239,8 @@ int kernelTextInitialize(int columns, int rows)
 }
 
 
-kernelTextArea *kernelTextAreaNew(int columns, int rows, int bufferLines)
+kernelTextArea *kernelTextAreaNew(int columns, int rows, int bytesPerChar,
+				  int bufferLines)
 {
   // Do the allocations and whatnot for a kernelTextArea.  Doesn't set any
   // colors, and makes some other assumptions that may need to be overwritten.
@@ -255,7 +258,7 @@ kernelTextArea *kernelTextAreaNew(int columns, int rows, int bufferLines)
   // All values not listed are NULL
   area->columns = columns;
   area->rows = rows;
-  area->bytesPerChar = 1;
+  area->bytesPerChar = bytesPerChar;
   area->cursorState = 1;
   area->maxBufferLines = (rows + bufferLines);
 
@@ -282,7 +285,7 @@ kernelTextArea *kernelTextAreaNew(int columns, int rows, int bufferLines)
 
   // The big buffer
   area->bufferData =
-    (unsigned char *) kernelMalloc(area->maxBufferLines * columns);
+    kernelMalloc(columns * area->maxBufferLines * bytesPerChar);
   if (area->bufferData == NULL)
     {
       kernelTextAreaDestroy(area);
@@ -290,7 +293,7 @@ kernelTextArea *kernelTextAreaNew(int columns, int rows, int bufferLines)
     }
 
   // The buffer for the visible part
-  area->visibleData = (unsigned char *) kernelMalloc(columns * rows);
+  area->visibleData = kernelMalloc(columns * rows * bytesPerChar);
   if (area->visibleData == NULL)
     {
       kernelTextAreaDestroy(area);
@@ -335,6 +338,77 @@ void kernelTextAreaDestroy(kernelTextArea *area)
 
   kernelMemClear((void *) area, sizeof(kernelTextArea));
   kernelFree((void *) area);
+}
+
+
+int kernelTextAreaResize(kernelTextArea *area, int columns, int rows)
+{
+  // Given an existing text area, resize it.
+
+  int status = 0;
+  int newBufferLines = 0;
+  unsigned char *newVisibleData = NULL;
+  unsigned char *newBufferData = NULL;
+  int copyColumns = 0, diffRows = 0, diffVisibleRows = 0;
+  int rowCount;
+
+  diffRows = (rows - area->rows);
+
+  // Adjust this by the difference between the number of rows
+  newBufferLines = (area->maxBufferLines + diffRows);
+
+  // Get a new main buffer, and a new buffer for the visible part
+  newBufferData = kernelMalloc(columns * newBufferLines * area->bytesPerChar);
+  newVisibleData = kernelMalloc(columns * rows * area->bytesPerChar);
+  if ((newBufferData == NULL) || (newVisibleData == NULL))
+    return (status = ERR_MEMORY);
+
+  copyColumns = min(area->columns, columns);
+
+  // Copy the rows from the buffer.
+  if (diffRows >= 0)
+    {
+      diffVisibleRows = min(diffRows, area->scrollBackLines);
+      for (rowCount = 0; rowCount < area->maxBufferLines; rowCount ++)
+	strncpy((newBufferData + ((diffVisibleRows + rowCount) * columns)),
+		(area->bufferData + (rowCount * area->columns)), copyColumns);
+      area->cursorRow += diffVisibleRows;
+      area->scrollBackLines -= diffVisibleRows;
+    }
+  else
+    {
+      diffVisibleRows = min(-diffRows, area->scrollBackLines);
+      for (rowCount = 0; rowCount < newBufferLines; rowCount ++)
+	strncpy((newBufferData + (rowCount * columns)),
+		(area->bufferData + ((diffVisibleRows + rowCount) *
+				     area->columns)), copyColumns);
+      if (area->cursorRow >= (area->rows - 1))
+	area->scrollBackLines += min(-diffRows, ((newBufferLines - rows) -
+						 area->scrollBackLines));
+    }
+
+  // Free the old buffers and assign the new ones
+  kernelFree(area->bufferData);
+  area->bufferData = newBufferData;
+  kernelFree(area->visibleData);
+  area->visibleData = newVisibleData;
+
+  // Adjust the cursor position if it falls outside the new boundaries
+  if (area->cursorColumn >= columns)
+    area->cursorColumn = (columns - 1);
+  if (area->cursorRow >= rows)
+    area->cursorRow = (rows - 1);
+
+  area->columns = columns;
+  area->rows = rows;
+  area->maxBufferLines = newBufferLines;
+
+  // Update the visible bit.  Not sure this is really necessary since in most
+  // cases the screenDraw() function will be called next.
+  kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), area->visibleData, 
+		(columns * rows * area->bytesPerChar));
+
+  return (status = 0);
 }
 
 

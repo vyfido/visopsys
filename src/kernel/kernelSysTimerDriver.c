@@ -21,79 +21,22 @@
 
 // Driver for standard PC system timer chip
 
-#include "kernelDriverManagement.h" // Contains my prototypes
+#include "kernelDriver.h" // Contains my prototypes
+#include "kernelSysTimer.h"
+#include "kernelMalloc.h"
 #include "kernelProcessorX86.h"
 #include "kernelError.h"
-
-int kernelSysTimerDriverRegisterDevice(void *);
-void kernelSysTimerDriverTick(void);
-int kernelSysTimerDriverRead(void);
-int kernelSysTimerDriverSetTimer(int, int, int);
-int kernelSysTimerDriverReadTimer(int);
-
-static kernelSysTimerDriver defaultSysTimerDriver =
-{
-  kernelSysTimerDriverInitialize,
-  kernelSysTimerDriverRegisterDevice,
-  kernelSysTimerDriverTick,
-  kernelSysTimerDriverRead,
-  kernelSysTimerDriverReadTimer,
-  kernelSysTimerDriverSetTimer
-};
+#include <string.h>
 
 static int portNumber[] = { 0x40, 0x41, 0x42 };
 static unsigned char latchCommand[] = { 0x00, 0x04, 0x08 };
 static unsigned char dataCommand[] = { 0x03, 0x07, 0x0B };
-
 static int timerTicks = 0;
-static int initialized = 0;
 
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//
-// Below here, the functions are exported for external use
-//
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
-int kernelSysTimerDriverRegisterDevice(void *timer)
-{
-  // Initializes the system timer itself.
-
-  // We ignore the timer argument.  This keeps the compiler happy
-  if (timer == NULL)
-    return (ERR_NULLPARAMETER);
-
-  // Make sure that counter 0 is set to operate in mode 3 
-  // (some systems erroneously use mode 2) with an initial value of 0
-  return (kernelSysTimerDriverSetTimer(0, 3, 0));
-}
-
-
-int kernelSysTimerDriverInitialize(void)
-{
-  // Just registers our device driver.  Device initialization is done in
-  // the 'register device' function
-
-  // Reset the counter we use to count the number of timer 0 (system timer)
-  // interrupts we've encountered
-  timerTicks = 0;
-
-  initialized = 1;
-
-  // Register our driver
-  return (kernelDriverRegister(sysTimerDriver, &defaultSysTimerDriver));
-}
-
-
-void kernelSysTimerDriverTick(void)
+static void driverTick(void)
 {
   // This updates the count of the system timer
-
-  if (!initialized)
-    return;
 
   // Add one to the timer 0 tick counter
   timerTicks += 1;
@@ -101,26 +44,56 @@ void kernelSysTimerDriverTick(void)
 }
 
 
-int kernelSysTimerDriverRead(void)
+static int driverRead(void)
 {
-  if (!initialized)
-    return (ERR_NOTINITIALIZED);
-
   // Returns the value of the system timer tick counter.
   return (timerTicks);
 }
-
 	
-int kernelSysTimerDriverSetTimer(int counter, int mode, int count)
+	
+static int driverReadValue(int counter)
+{
+  // This function is used to select and read one of the system 
+  // timer counters
+
+  int timerValue = 0;
+  unsigned char data, commandByte;
+
+  // Make sure the timer number is not greater than 2.  This driver only
+  // supports timers 0 through 2 (since that's all most systems will have)
+  if (counter > 2)
+    return (timerValue = ERR_BOUNDS);
+
+  // Before we can read the timer reliably, we must send a command
+  // to cause it to latch the current value.  Calculate which latch 
+  // command to use
+  commandByte = latchCommand[counter];
+  // Shift the commandByte left by 4 bits
+  commandByte <<= 4;
+
+  // We can send the command to the general command port
+  kernelProcessorOutPort8(0x43, commandByte);
+
+  // The counter will now be expecting us to read two bytes from
+  // the applicable port.
+
+  // Read the low byte first, followed by the high byte
+  kernelProcessorInPort8(portNumber[counter], data);
+  timerValue = data;
+  kernelProcessorInPort8(portNumber[counter], data);
+  timerValue |= (data << 8);
+
+  return (timerValue);
+}
+
+
+static int driverSetupTimer(int counter, int mode, int count)
 {
   // This function is used to select, set the mode and count of one
   // of the system timer counters
 
   int status = 0;
   unsigned char data, commandByte;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
 
   // Make sure the timer number is not greater than 2.  This driver only
   // supports timers 0 through 2 (since that's all most systems will have)
@@ -155,39 +128,70 @@ int kernelSysTimerDriverSetTimer(int counter, int mode, int count)
 
   return (status = 0);
 }
-	
-	
-int kernelSysTimerDriverReadTimer(int counter)
+
+
+static int driverDetect(void *driver)
 {
-  // This function is used to select and read one of the system 
-  // timer counters
+  // Normally, this routine is used to detect and initialize each device,
+  // as well as registering each one with any higher-level interfaces.  Since
+  // we can assume that there's a system timer, just initialize it.
 
-  int timerValue = 0;
-  unsigned char data, commandByte;
+  int status = 0;
+  kernelDevice *device = NULL;
 
-  // Make sure the timer number is not greater than 2.  This driver only
-  // supports timers 0 through 2 (since that's all most systems will have)
-  if (counter > 2)
-    return (timerValue = ERR_BOUNDS);
+  // Allocate memory for the device
+  device = kernelMalloc(sizeof(kernelDevice));
+  if (device == NULL)
+    return (status = 0);
 
-  // Before we can read the timer reliably, we must send a command
-  // to cause it to latch the current value.  Calculate which latch 
-  // command to use
-  commandByte = latchCommand[counter];
-  // Shift the commandByte left by 4 bits
-  commandByte <<= 4;
+  device->class = kernelDeviceGetClass(DEVICECLASS_SYSTIMER);
+  device->driver = driver;
 
-  // We can send the command to the general command port
-  kernelProcessorOutPort8(0x43, commandByte);
+  // Reset the counter we use to count the number of timer 0 (system timer)
+  // interrupts we've encountered
+  timerTicks = 0;
 
-  // The counter will now be expecting us to read two bytes from
-  // the applicable port.
+  // Make sure that counter 0 is set to operate in mode 3 
+  // (some systems erroneously use mode 2) with an initial value of 0
+  driverSetupTimer(0, 3, 0);
 
-  // Read the low byte first, followed by the high byte
-  kernelProcessorInPort8(portNumber[counter], data);
-  timerValue = data;
-  kernelProcessorInPort8(portNumber[counter], data);
-  timerValue |= (data << 8);
+  // Initialize system timer operations
+  status = kernelSysTimerInitialize(device);
+  if (status < 0)
+    {
+      kernelFree(device);
+      return (status);
+    }
 
-  return (timerValue);
+  return (status = kernelDeviceAdd(NULL, device));
+}
+
+	
+static kernelSysTimerOps sysTimerOps = {
+  driverTick,
+  driverRead,
+  driverReadValue,
+  driverSetupTimer
+};
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+// Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+void kernelSysTimerDriverRegister(void *driverData)
+{
+   // Device driver registration.
+
+  kernelDriver *driver = (kernelDriver *) driverData;
+
+  driver->driverDetect = driverDetect;
+  driver->ops = &sysTimerOps;
+
+  return;
 }

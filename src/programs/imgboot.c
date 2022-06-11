@@ -210,6 +210,8 @@ static void constructWindow(void)
   params.gridWidth = 1;
   params.padBottom = 5;
   params.orientationX = orient_right;
+  params.fixedWidth = 1;
+  params.fixedHeight = 1;
   installButton = windowNewButton(window, "Install", NULL, &params);
   windowRegisterEventHandler(installButton, &eventHandler);
 
@@ -222,6 +224,8 @@ static void constructWindow(void)
   params.gridY = 4;
   params.gridWidth = 2;
   params.orientationX = orient_center;
+  params.fixedWidth = 0;
+  params.fixedHeight = 0;
   goAwayCheckbox =
     windowNewCheckbox(window, "Don't ask me this again", &params);
   if (readOnly)

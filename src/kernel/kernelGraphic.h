@@ -24,6 +24,7 @@
 #if !defined(_KERNELGRAPHIC_H)
 
 #include "kernelFont.h"
+#include "kernelDevice.h"
 
 // Definitions
 #define DEFAULT_FOREGROUND_RED    40
@@ -37,8 +38,7 @@
 #define DEFAULT_DESKTOP_BLUE      171
 
 // Structure to represent a drawing area
-typedef volatile struct
-{
+typedef volatile struct {
   int width;
   int height;
   void *data;
@@ -47,10 +47,7 @@ typedef volatile struct
 
 // Structures for the graphic adapter device
 
-typedef struct
-{
-  int (*driverInitialize) (void);
-  int (*driverRegisterDevice) (void *);
+typedef struct {
   int (*driverClearScreen) (color *);
   int (*driverDrawPixel) (kernelGraphicBuffer *, color *, drawMode, int, int);
   int (*driverDrawLine) (kernelGraphicBuffer *, color *, drawMode, int, int,
@@ -69,10 +66,9 @@ typedef struct
 			     int);
   int (*driverFilter) (kernelGraphicBuffer *, color *, int, int, int, int);
 
-} kernelGraphicDriver;
+} kernelGraphicOps;
 
-typedef struct 
-{
+typedef struct {
   unsigned videoMemory;
   void *framebuffer;
   int mode;
@@ -82,16 +78,12 @@ typedef struct
   int bytesPerPixel;
   int numberModes;
   videoMode supportedModes[MAXVIDEOMODES];
-  kernelGraphicDriver *driver;
+  kernelDriver *driver;
 
 } kernelGraphicAdapter;
 
-// The default driver initialization
-int kernelFramebufferGraphicDriverInitialize(void);
-
 // Functions exported by kernelGraphic.c
-int kernelGraphicRegisterDevice(kernelGraphicAdapter *);
-int kernelGraphicInitialize(void);
+int kernelGraphicInitialize(kernelDevice *);
 int kernelGraphicsAreEnabled(void);
 int kernelGraphicGetModes(videoMode *, unsigned);
 int kernelGraphicGetMode(videoMode *);

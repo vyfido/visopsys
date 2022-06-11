@@ -43,6 +43,9 @@ int errno = 0;
 // should help to catch mistakes.
 int visopsys_in_kernel = 1;
 
+// A pointer to a copy (on the kernel's stack) of the OS loader info structure
+loaderInfoStruct *kernelOsLoaderInfo = NULL;
+
 // General kernel configuration variables
 variableList *kernelVariables = NULL;
 
@@ -54,14 +57,15 @@ void kernelMain(unsigned kernelMemory, loaderInfoStruct *info)
 
   int status = 0;
   int pid = -1;
-  loaderInfoStruct systemInfo;
+  loaderInfoStruct _osLoaderInfo;
   char value[128];
 
   // Copy the loaderHardware structure we were passed into kernel memory
-  kernelMemCopy(info, &systemInfo, sizeof(loaderInfoStruct));
+  kernelOsLoaderInfo = &_osLoaderInfo;
+  kernelMemCopy(info, kernelOsLoaderInfo, sizeof(loaderInfoStruct));
 
   // Call the kernel initialization routine
-  status = kernelInitialize(kernelMemory, &systemInfo);
+  status = kernelInitialize(kernelMemory);
   if (status < 0)
     {
       // Kernel initialization failed.  Crap.  We don't exactly know

@@ -39,6 +39,7 @@
 #include "kernelError.h"
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
 
 
 // Global multitasker stuff
@@ -551,6 +552,10 @@ static int deleteProcess(kernelProcess *killProcess)
 	  return (status);
 	}
     }
+
+  // If the process has a signal stream, destroy it
+  if (killProcess->signalStream.buffer)
+    kernelStreamDestroy((stream *) &(killProcess->signalStream));
 
   // Deallocate all memory owned by this process
   status = kernelMemoryReleaseAllByProcId(killProcess->processId);
@@ -1220,7 +1225,7 @@ static int schedulerInitialize(void)
   // Install a task gate for the interrupt, which will
   // be the scheduler's timer interrupt.  After this point, our
   // new scheduler task will run with every clock tick
-  status = kernelDescriptorSetIDTTaskGate(INTERRUPT_NUM_SYSTIMER, 
+  status = kernelDescriptorSetIDTTaskGate((0x20 + INTERRUPT_NUM_SYSTIMER), 
 	 				  schedulerProc->tssSelector);
   if (status < 0)
     {
@@ -1494,7 +1499,7 @@ void kernelExceptionHandler(void)
       // interrupt handler is screwy, but that's what we have to do for
       // the time being.
       if (kernelProcessingInterrupt)
-	kernelPicEndOfInterrupt(kernelProcessingInterrupt);
+	kernelPicEndOfInterrupt(0xFF);
 
       if (!multitaskingEnabled || (deadProcess == kernelProc))
 	strcpy(tmpMsg, "The kernel has experienced a fatal exception");
@@ -1543,8 +1548,8 @@ void kernelExceptionHandler(void)
 	}
 
       if (kernelProcessingInterrupt)
-	sprintf(tmpMsg, "%s while processing interrupt %x",
-		tmpMsg, kernelProcessingInterrupt);
+	sprintf(tmpMsg, "%s while processing interrupt %d", tmpMsg,
+		kernelPicGetActive());
 
       if (!multitaskingEnabled || (deadProcess == kernelProc))
 	// If it's the kernel, we're finished
@@ -2919,4 +2924,134 @@ int kernelMultitaskerTerminate(int retCode)
     }
 
   return (status);
+}
+
+
+int kernelMultitaskerSignalSet(int processId, int sig, int on)
+{
+  // Set signal handling enabled (on) or disabled for the specified signal
+
+  int status = 0;
+  kernelProcess *signalProcess = NULL;
+  
+  // Make sure multitasking has been enabled
+  if (!multitaskingEnabled)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Make sure the signal number fits in the signal mask
+  if ((sig <= 0) || (sig >= SIGNALS_MAX))
+    {
+      kernelError(kernel_error, "Invalid signal code %d", sig);
+      return (status = ERR_RANGE);
+    }
+
+  // Try to find the process
+  signalProcess = getProcessById(processId);
+  if (signalProcess == NULL)
+    {
+      // There's no such process
+      kernelError(kernel_error, "No process %d to signal", processId);
+      return (status = ERR_NOSUCHPROCESS);
+    }
+
+  // If there is not yet a signal stream allocated for this process, do it now.
+  if (!(signalProcess->signalStream.buffer))
+    {
+      status = kernelStreamNew((stream *) &(signalProcess->signalStream),
+			       16, 1);
+      if (status < 0)
+	return (status);
+    }
+  
+  if (on)
+    signalProcess->signalMask |= (1 << sig);
+  else
+    signalProcess->signalMask &= ~(1 << sig);
+
+  return (status = 0);
+}
+
+
+int kernelMultitaskerSignal(int processId, int sig)
+{
+  int status = 0;
+  kernelProcess *signalProcess = NULL;
+  
+  // Make sure multitasking has been enabled
+  if (!multitaskingEnabled)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Make sure the signal number fits in the signal mask
+  if ((sig <= 0) || (sig >= SIGNALS_MAX))
+    {
+      kernelError(kernel_error, "Invalid signal code %d", sig);
+      return (status = ERR_RANGE);
+    }
+
+  // Try to find the process
+  signalProcess = getProcessById(processId);
+  if (signalProcess == NULL)
+    {
+      // There's no such process
+      kernelError(kernel_error, "No process %d to signal", processId);
+      return (status = ERR_NOSUCHPROCESS);
+    }
+
+  // See if the signal is handled, and make sure there's a signal stream
+  if (!(signalProcess->signalMask & (1 << sig)) ||
+      !(signalProcess->signalStream.buffer))
+    {
+      // Not handled.  Terminate the process.
+      signalProcess->state = proc_finished;
+      return (status = 0);
+    }
+
+  // Put the signal into the signal stream
+  status = signalProcess->signalStream
+    .append((stream *) &(signalProcess->signalStream), sig);
+
+  return (status);
+}
+
+
+int kernelMultitaskerSignalRead(int processId)
+{
+  int status = 0;
+  kernelProcess *signalProcess = NULL;
+  int sig;
+  
+  // Make sure multitasking has been enabled
+  if (!multitaskingEnabled)
+    return (status = ERR_NOTINITIALIZED);
+
+  // Try to find the process
+  signalProcess = getProcessById(processId);
+  if (signalProcess == NULL)
+    {
+      // There's no such process
+      kernelError(kernel_error, "No process %d to signal", processId);
+      return (status = ERR_NOSUCHPROCESS);
+    }
+
+  // Any signals handled?
+  if (!(signalProcess->signalMask))
+    return (status = 0);
+
+  // Make sure there's a signal stream
+  if (!(signalProcess->signalStream.buffer))
+    {
+      kernelError(kernel_error, "Process has no signal stream");
+      return (status = ERR_NOTINITIALIZED);
+    }
+
+  if (!(signalProcess->signalStream.count))
+    return (sig = 0);
+
+  status = signalProcess->signalStream
+    .pop((stream *) &(signalProcess->signalStream), &sig);
+  
+  if (status < 0)
+    return (status);
+  else
+    return (sig);
 }

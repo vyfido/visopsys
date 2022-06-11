@@ -95,6 +95,7 @@ _X_ int windowNewQueryDialog(objectKey parentWindow, const char *title, const ch
   params.gridY = 1;
   params.gridWidth = 1;
   params.orientationX = orient_right;
+  params.fixedWidth = 1;
   params.padBottom = 5;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
   if (okButton == NULL)

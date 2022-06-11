@@ -22,10 +22,10 @@
 #include "kernelRtc.h"
 #include "kernelError.h"
 
-static kernelRtc *systemRtc = NULL;
+static kernelDevice *systemRtc = NULL;
+static kernelRtcOps *ops = NULL;
 static int startSeconds, startMinutes, startHours, startDayOfMonth,
   startMonth, startYear;  // Set when the timer code is initialized
-static int initialized = 0;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -37,55 +37,27 @@ static int initialized = 0;
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelRtcRegisterDevice(kernelRtc *theRtc)
+int kernelRtcInitialize(kernelDevice *device)
 {
-  // This routine will register a new RTC.  Returns 0 if successful.
+  // This function initializes the RTC.
 
   int status = 0;
 
-  if (theRtc == NULL)
+  if (device == NULL)
     {
       kernelError(kernel_error, "The RTC device is NULL");
+      return (status = ERR_NOTINITIALIZED);
+    }
+
+  systemRtc = device;
+
+  if ((systemRtc->driver == NULL) || (systemRtc->driver->ops == NULL))
+    {
+      kernelError(kernel_error, "The RTC driver or ops are NULL");
       return (status = ERR_NULLPARAMETER);
     }
 
-  // Make sure that the device has a non-NULL driver
-  if (theRtc->driver == NULL)
-    {
-      kernelError(kernel_error, "The RTC driver is NULL");
-      return (status = ERR_NOSUCHDRIVER);
-    }
-
-  // If the driver has a 'register device' function, call it
-  if (theRtc->driver->driverRegisterDevice)
-    status = theRtc->driver->driverRegisterDevice(theRtc);
-
-  // Alright.  We'll save the pointer to the device
-  systemRtc = theRtc;
-
-  // Return success
-  return (status);
-}
-
-
-int kernelRtcInitialize(void)
-{
-  // This function initializes the RTC.  It pretty much just calls
-  // the associated driver routines, but it also does some checks and
-  // whatnot to make sure that the device, driver, and driver routines are
-  // valid.
-
-  int status = 0;
-
-  // Check the RTC before proceeding
-  if (systemRtc == NULL)
-    {
-      kernelError(kernel_error, "The Real-Time clock is NULL");
-      return (status = ERR_NOSUCHENTRY);
-    }
-
-  // We are initialized
-  initialized = 1;
+  ops = systemRtc->driver->ops;
 
   // Now, register the starting time that the kernel was booted.
   startSeconds = kernelRtcReadSeconds();
@@ -108,18 +80,18 @@ int kernelRtcReadSeconds(void)
 
   int status = 0;
 
-  if (!initialized)
+  if (systemRtc == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Make sure the device driver 'read seconds' function has been installed
-  if (systemRtc->driver->driverReadSeconds == NULL)
+  if (ops->driverReadSeconds == NULL)
     {
       kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Call the driver function
-  status = systemRtc->driver->driverReadSeconds();
+  status = ops->driverReadSeconds();
   return (status);
 }
 
@@ -132,18 +104,18 @@ int kernelRtcReadMinutes(void)
 
   int status = 0;
 
-  if (!initialized)
+  if (systemRtc == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Make sure the device driver 'read minutes' function has been installed
-  if (systemRtc->driver->driverReadMinutes == NULL)
+  if (ops->driverReadMinutes == NULL)
     {
       kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Call the driver function
-  status = systemRtc->driver->driverReadMinutes();
+  status = ops->driverReadMinutes();
   return (status);
 }
 
@@ -156,18 +128,18 @@ int kernelRtcReadHours(void)
 
   int status = 0;
 
-  if (!initialized)
+  if (systemRtc == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Make sure the device driver 'read hours' function has been installed
-  if (systemRtc->driver->driverReadHours == NULL)
+  if (ops->driverReadHours == NULL)
     {
       kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Call the driver function
-  status = systemRtc->driver->driverReadHours();
+  status = ops->driverReadHours();
   return (status);
 }
 
@@ -180,19 +152,19 @@ int kernelRtcReadDayOfMonth(void)
 
   int status = 0;
 
-  if (!initialized)
+  if (systemRtc == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Make sure the device driver 'read day-of-month' function has been
   // installed
-  if (systemRtc->driver->driverReadDayOfMonth == NULL)
+  if (ops->driverReadDayOfMonth == NULL)
     {
       kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Call the driver function
-  status = systemRtc->driver->driverReadDayOfMonth();
+  status = ops->driverReadDayOfMonth();
   return (status);
 }
 
@@ -205,18 +177,18 @@ int kernelRtcReadMonth(void)
 
   int status = 0;
 
-  if (!initialized)
+  if (systemRtc == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Make sure the device driver 'read month' function has been installed
-  if (systemRtc->driver->driverReadMonth == NULL)
+  if (ops->driverReadMonth == NULL)
     {
       kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Call the driver function
-  status = systemRtc->driver->driverReadMonth();
+  status = ops->driverReadMonth();
   return (status);
 }
 
@@ -229,18 +201,18 @@ int kernelRtcReadYear(void)
 
   int status = 0;
 
-  if (!initialized)
+  if (systemRtc == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Make sure the device driver 'read year' function has been installed
-  if (systemRtc->driver->driverReadYear == NULL)
+  if (ops->driverReadYear == NULL)
     {
       kernelError(kernel_error, "The device driver routine is NULL");
       return (status = ERR_NOSUCHFUNCTION);
     }
 
   // Call the driver function
-  status = systemRtc->driver->driverReadYear();
+  status = ops->driverReadYear();
 
   // Y2K COMPLIANCE SECTION :-)
 
@@ -282,7 +254,7 @@ unsigned kernelRtcUptimeSeconds(void)
 
   unsigned upSeconds = 0;
 
-  if (!initialized)
+  if (systemRtc == NULL)
     return (upSeconds = 0);
 
   upSeconds += (kernelRtcReadSeconds() - startSeconds);
@@ -308,7 +280,7 @@ unsigned kernelRtcPackedDate(void)
   unsigned temp = 0;
   unsigned returnedDate = 0;
 
-  if (!initialized)
+  if (systemRtc == NULL)
     return (returnedDate = 0);
 
   // The RTC function for reading the day of the month will return a value 
@@ -348,7 +320,7 @@ unsigned kernelRtcPackedTime(void)
   unsigned temp = 0;
   unsigned returnedTime = 0;
 
-  if (!initialized)
+  if (systemRtc == NULL)
     return (returnedTime = 0);
 
   // The RTC function for reading seconds will pass us a value between
@@ -401,7 +373,7 @@ int kernelRtcDateTime(struct tm *timeStruct)
   
   int status = 0;
   
-  if (!initialized)
+  if (systemRtc == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Make sure our time struct isn't NULL

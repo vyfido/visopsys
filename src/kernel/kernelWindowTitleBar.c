@@ -322,6 +322,8 @@ static int resize(void *componentData, int width, int height)
 
       titleBar->closeButton->width = (height - 4);
       titleBar->closeButton->height = (height - 4);
+      titleBar->closeButton->minWidth = titleBar->closeButton->width;
+      titleBar->closeButton->minHeight = titleBar->closeButton->height;
       titleBar->closeButton->xCoord = buttonX;
       titleBar->closeButton->yCoord = buttonY;
     }
@@ -340,6 +342,8 @@ static int resize(void *componentData, int width, int height)
 
       titleBar->minimizeButton->width = (height - 4);
       titleBar->minimizeButton->height = (height - 4);
+      titleBar->minimizeButton->minWidth = titleBar->minimizeButton->width;
+      titleBar->minimizeButton->minHeight = titleBar->minimizeButton->height;
       titleBar->minimizeButton->xCoord = buttonX;
       titleBar->minimizeButton->yCoord = buttonY;
     }
@@ -547,6 +551,8 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
   component->type = titleBarComponentType;
   component->width = width;
   component->height = DEFAULT_TITLEBAR_HEIGHT;
+  component->minWidth = component->width;
+  component->minHeight = component->height;
 
   // The functions
   component->draw = &draw;
@@ -578,6 +584,8 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
     {
       titleBar->closeButton->width = (DEFAULT_TITLEBAR_HEIGHT - 4);
       titleBar->closeButton->height = (DEFAULT_TITLEBAR_HEIGHT - 4);
+      titleBar->closeButton->minWidth = titleBar->closeButton->width;
+      titleBar->closeButton->minHeight = titleBar->closeButton->height;
 
       // We don't want close buttons to get the focus
       titleBar->closeButton->flags &= ~WINFLAG_CANFOCUS;
@@ -596,6 +604,8 @@ kernelWindowComponent *kernelWindowNewTitleBar(volatile void *parent,
     {
       titleBar->minimizeButton->width = (DEFAULT_TITLEBAR_HEIGHT - 4);
       titleBar->minimizeButton->height = (DEFAULT_TITLEBAR_HEIGHT - 4);
+      titleBar->minimizeButton->minWidth = titleBar->minimizeButton->width;
+      titleBar->minimizeButton->minHeight = titleBar->minimizeButton->height;
 
       // We don't want close buttons to get the focus
       titleBar->minimizeButton->flags &= ~WINFLAG_CANFOCUS;

@@ -25,6 +25,7 @@
 
 #if !defined(_KERNELDISK_H)
 
+#include "kernelDevice.h"
 #include "kernelLock.h"
 #include <sys/disk.h>
 
@@ -35,13 +36,7 @@
 
 typedef enum { addr_pchs, addr_lba } kernelAddrMethod;
 
-typedef struct
-{
-  // This is a structure containing pointers to the
-  // generic disk driver routines
-
-  int (*driverDetect) (int, void *);    // Pointer is a kernelPhysicalDisk *
-  int (*driverRegisterDevice) (void *); // Pointer is a kernelPhysicalDisk *
+typedef struct {
   int (*driverReset) (int);
   int (*driverRecalibrate) (int);
   int (*driverSetMotorState) (int, int);
@@ -51,13 +46,11 @@ typedef struct
   int (*driverReadSectors) (int, unsigned, unsigned, void *);
   int (*driverWriteSectors) (int, unsigned, unsigned, void *);
 
-} kernelDiskDriver;
+} kernelDiskOps;
 
 #if (DISK_CACHE)
-typedef volatile struct
-{
-  // This is for metadata about one sector of data from a disk cache
-  
+// This is for metadata about one sector of data from a disk cache
+typedef volatile struct {
   unsigned number;
   void *data;
   int dirty;
@@ -65,10 +58,8 @@ typedef volatile struct
 
 } kernelDiskCacheSector;
 
-typedef volatile struct
-{
-  // This is for managing the data cache of a logical disk
-
+// This is for managing the data cache of a logical disk
+typedef volatile struct {
   int initialized;
   unsigned numSectors;
   unsigned usedSectors;
@@ -81,11 +72,9 @@ typedef volatile struct
 } kernelDiskCache;
 #endif // DISK_CACHE
 
-typedef volatile struct
-{
-  // This defines a logical disk, a disk 'volume' (for example, a hard
-  // disk partition is a logical disk)
-
+// This defines a logical disk, a disk 'volume' (for example, a hard
+// disk partition is a logical disk)
+typedef volatile struct {
   char name[DISK_MAX_NAMELENGTH];
   partitionType partType;
   char fsType[FSTYPE_MAX_NAMELENGTH];
@@ -97,11 +86,9 @@ typedef volatile struct
 
 } kernelDisk;
 
-typedef volatile struct 
-{
-  // This structure describes a physical disk device, as opposed to a
-  // logical disk.
-  
+// This structure describes a physical disk device, as opposed to a
+// logical disk.
+typedef volatile struct {
   // Generic disk metadata
   char name[DISK_MAX_NAMELENGTH];
   int deviceNumber;
@@ -131,7 +118,7 @@ typedef volatile struct
   int doorState;
   unsigned idleSince;
 
-  kernelDiskDriver *driver;
+  kernelDriver *driver;
 
 #if (DISK_CACHE)
   kernelDiskCache cache;
@@ -139,32 +126,28 @@ typedef volatile struct
 
 } kernelPhysicalDisk;
 
-// The default driver initializations
-int kernelFloppyDriverInitialize(void);
-int kernelIdeDriverInitialize(void);
-
 // Functions exported by kernelDisk.c
-int kernelDiskRegisterDevice(kernelPhysicalDisk *);
-int kernelDiskReadPartitions(void);
-int kernelDiskInitialize(const char *, unsigned);
-int kernelDiskSync(void);
+int kernelDiskRegisterDevice(kernelDevice *);
+int kernelDiskInitialize(void);
 int kernelDiskSyncDisk(const char *);
 int kernelDiskInvalidateCache(const char *);
 int kernelDiskShutdown(void);
+int kernelDiskFromLogical(kernelDisk *, disk *);
+kernelDisk *kernelGetDiskByName(const char *);
+// More functions, but also exported to user space
+int kernelDiskReadPartitions(void);
+int kernelDiskSync(void);
 int kernelDiskGetBoot(char *);
 int kernelDiskGetCount(void);
 int kernelDiskGetPhysicalCount(void);
 int kernelDiskGet(const char *, disk *);
 int kernelDiskGetAll(disk *, unsigned);
 int kernelDiskGetAllPhysical(disk *, unsigned);
-int kernelDiskFromLogical(kernelDisk *, disk *);
 int kernelDiskGetInfo(disk *);
 int kernelDiskFromPhysical(kernelPhysicalDisk *, disk *);
 int kernelDiskGetPhysicalInfo(disk *);
 int kernelDiskGetPartType(int, partitionType *);
 partitionType *kernelDiskGetPartTypes(void);
-kernelDisk *kernelGetDiskByName(const char *);
-kernelPhysicalDisk *kernelGetPhysicalDiskByName(const char *);
 int kernelDiskSetLockState(const char *diskName, int state);
 int kernelDiskSetDoorState(const char *, int);
 int kernelDiskReadSectors(const char *, unsigned, unsigned, void *);

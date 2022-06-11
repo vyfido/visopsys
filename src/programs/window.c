@@ -84,6 +84,10 @@ int main(int argc, char *argv[])
   bzero(&params, sizeof(componentParameters));
   params.gridWidth = 1;
   params.gridHeight = 1;
+  params.padLeft = 5;
+  params.padRight = 5;
+  params.padTop = 5;
+  params.padBottom = 5;
   params.orientationX = orient_center;
   params.orientationY = orient_middle;
   params.stickyFocus = 1;

@@ -99,6 +99,7 @@ static int dialog(dialogType type, objectKey parentWindow, const char *title,
   params.gridWidth = 1;
   params.padBottom = 5;
   params.orientationX = orient_right;
+  params.fixedWidth = 1;
   params.useDefaultBackground = 1;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
 

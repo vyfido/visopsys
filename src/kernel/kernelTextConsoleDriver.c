@@ -23,21 +23,13 @@
 // the original one which was done in assembler.  It seemed like a good idea
 // to use C instead, except in one or two places where we need asm.
 
-#include "kernelDriverManagement.h"
+#include "kernelText.h"
 #include "kernelProcessorX86.h"
 #include "kernelMiscFunctions.h"
 #include "kernelMalloc.h"
 #include "kernelError.h"
 #include <string.h>
 #include <stdlib.h>
-
-
-// Macros used strictly within this file
-#define cursorPosition(area) ((area->cursorRow * area->columns) + area->cursorColumn)
-#define firstScrollBack(area) (area->bufferData + ((area->maxBufferLines - (area->rows + area->scrollBackLines)) * (area->columns * 2)))
-#define lastScrollBack(area) (area->bufferData + ((area->maxBufferLines - (area->rows + 1)) * (area->columns * 2)))
-#define firstVisible(area) (area->bufferData + ((area->maxBufferLines - area->rows) * (area->columns * 2)))
-#define lastVisible(area) (area->bufferData + ((area->maxBufferLines - 1) * (area->columns * 2)))
 
 
 static void scrollBuffer(kernelTextArea *area, int lines)
@@ -51,7 +43,8 @@ static void scrollBuffer(kernelTextArea *area, int lines)
     area->scrollBackLines += min(lines, (area->maxBufferLines -
 				 (area->rows + area->scrollBackLines)));
     
-  kernelMemCopy((firstScrollBack(area) + dataLength), firstScrollBack(area),
+  kernelMemCopy((TEXTAREA_FIRSTSCROLLBACK(area) + dataLength),
+		TEXTAREA_FIRSTSCROLLBACK(area),
 		((area->rows + area->scrollBackLines) * (area->columns * 2)));
 }
 
@@ -60,7 +53,7 @@ static void setCursor(kernelTextArea *area, int onOff)
 {
   // This sets the cursor on or off at the requested cursor position
 
-  int index = (cursorPosition(area) * 2);
+  int index = (TEXTAREA_CURSORPOS(area) * 2);
 
   if (onOff)
     area->visibleData[index + 1] = ((area->foreground.blue & 0x0F) << 4) |
@@ -91,7 +84,7 @@ static void scrollLine(kernelTextArea *area)
   scrollBuffer(area, 1);
 
   // Clear out the bottom row
-  lastRow = lastVisible(area);
+  lastRow = TEXTAREA_LASTVISIBLE(area);
   for (count = 0; count < lineLength; )
     {
       lastRow[count++] = '\0';
@@ -99,7 +92,7 @@ static void scrollLine(kernelTextArea *area)
     }
 
   // Copy our buffer data to the visible area
-  kernelMemCopy(firstVisible(area), area->visibleData,
+  kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), area->visibleData,
 		(area->rows * lineLength));
 
   // Move the cursor up by one row.
@@ -127,7 +120,7 @@ static int drawScreen(kernelTextArea *area)
   unsigned char *bufferAddress = NULL;
 
   // Copy from the buffer to the visible area, minus any scrollback lines
-  bufferAddress = firstVisible(area);
+  bufferAddress = TEXTAREA_FIRSTVISIBLE(area);
   bufferAddress -= (area->scrolledBackLines * area->columns * 2);
   
   kernelMemCopy(bufferAddress, area->visibleData,
@@ -245,8 +238,9 @@ static int print(kernelTextArea *area, const char *string)
     // Turn off the cursor
     setCursor(area, 0);
 
-  bufferAddress = (firstVisible(area) + (cursorPosition(area) * 2));
-  visibleAddress = (area->visibleData + (cursorPosition(area) * 2));
+  bufferAddress = (TEXTAREA_FIRSTVISIBLE(area) +
+		   (TEXTAREA_CURSORPOS(area) * 2));
+  visibleAddress = (area->visibleData + (TEXTAREA_CURSORPOS(area) * 2));
 
   // Loop through the string, putting one byte into every even-numbered
   // screen address.  Put the color byte into every odd address
@@ -269,9 +263,9 @@ static int print(kernelTextArea *area, const char *string)
 	  area->cursorRow += 1;
 	  area->cursorColumn = 0;
 	  bufferAddress =
-	    (firstVisible(area) + (cursorPosition(area) * 2));
+	    (TEXTAREA_FIRSTVISIBLE(area) + (TEXTAREA_CURSORPOS(area) * 2));
 	  visibleAddress =
-	    (area->visibleData + (cursorPosition(area) * 2));
+	    (area->visibleData + (TEXTAREA_CURSORPOS(area) * 2));
 	}
     }
 
@@ -288,7 +282,7 @@ static int delete(kernelTextArea *area)
   // Erase the character at the current position
 
   int cursorState = area->cursorState;
-  int position = (cursorPosition(area) * 2);
+  int position = (TEXTAREA_CURSORPOS(area) * 2);
 
   // If we are currently scrolled back, this puts us back to normal
   if (area->scrolledBackLines)
@@ -302,7 +296,7 @@ static int delete(kernelTextArea *area)
     setCursor(area, 0);
 
   // Delete the character in our buffers
-  *(firstVisible(area) + position) = '\0';
+  *(TEXTAREA_FIRSTVISIBLE(area) + position) = '\0';
   *(area->visibleData + position) = '\0';
 
   if (cursorState)
@@ -329,10 +323,10 @@ static int clearScreen(kernelTextArea *area)
   // Formula is ((COLS * ROWS) / 2)
   dwords = (area->columns * area->rows) / 2;
 
-  kernelProcessorWriteDwords(tmpData, firstVisible(area), dwords);
+  kernelProcessorWriteDwords(tmpData, TEXTAREA_FIRSTVISIBLE(area), dwords);
 
   // Copy to the visible area
-  kernelMemCopy(firstVisible(area), area->visibleData,
+  kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), area->visibleData,
 		(area->rows * area->columns * 2));
 
   // Make the cursor go to the top left
@@ -355,7 +349,7 @@ static int saveScreen(kernelTextArea *area)
   if (area->savedScreen == NULL)
     return (ERR_MEMORY);
 
-  kernelMemCopy(firstVisible(area), area->savedScreen,
+  kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), area->savedScreen,
 		(area->rows * area->columns * 2));
 
   area->savedCursorColumn = area->cursorColumn;
@@ -369,7 +363,7 @@ static int restoreScreen(kernelTextArea *area)
 {
   // This routine restores the saved contents of the screen
 
-  kernelMemCopy(area->savedScreen, firstVisible(area), 
+  kernelMemCopy(area->savedScreen, TEXTAREA_FIRSTVISIBLE(area), 
 		(area->rows * area->columns * 2));
 
   // Copy to the visible area
@@ -385,7 +379,6 @@ static int restoreScreen(kernelTextArea *area)
 
 // Our kernelTextOutputDriver structure
 static kernelTextOutputDriver textModeDriver = {
-  kernelTextConsoleInitialize,
   setCursor,
   getCursorAddress,
   setCursorAddress,

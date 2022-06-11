@@ -124,6 +124,18 @@ static int draw(void *componentData)
 }
 
 
+static int resize(void *componentData, int width, int height)
+{
+  // Nothing to do, but we want the upper layers to treat us as resizable
+  // without defaulting to the regular container resize function
+
+  if (componentData && width && height)
+    {
+    }
+  return (0);
+}
+
+
 static int focus(void *componentData, int focus)
 {
   // We just want to know when we've lost the focus, so we can make the
@@ -331,10 +343,16 @@ kernelWindowComponent *kernelWindowNewMenuBar(volatile void *parent,
   component->width = (getWindow(parent))->buffer.width;
   component->height = (((kernelAsciiFont *) component->parameters.font)
 		       ->charHeight + (borderThickness * 2));
+  component->minWidth = component->width;
+  component->minHeight = component->height;
+
+  // Only want this to be resizable horizontally
+  component->flags &= ~WINFLAG_RESIZABLEY;
 
   // Save the old draw function, and superimpose our own
   saveContainerDraw = component->draw;
   component->draw = &draw;
+  component->resize = &resize;
   component->focus = &focus;
   component->mouseEvent = &mouseEvent;
 

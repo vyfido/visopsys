@@ -117,6 +117,9 @@ kernelWindowComponent *kernelWindowNewTextField(volatile void *parent,
 
   textArea = ((kernelWindowTextArea *) component->data)->area;
 
+  // Only X-resizable
+  component->flags &= ~WINFLAG_RESIZABLEY;
+
   // Turn off the cursor until we get the focus
   textArea->cursorState = 0;
 

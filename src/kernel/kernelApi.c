@@ -258,6 +258,11 @@ static kernelFunctionIndex multitaskerFunctionIndex[] = {
   { _fnum_multitaskerTerminate, kernelMultitaskerTerminate,
     1, PRIVILEGE_USER },
   { _fnum_multitaskerProcessIsAlive, kernelMultitaskerProcessIsAlive,
+    1, PRIVILEGE_USER },
+  { _fnum_multitaskerSignalSet, kernelMultitaskerSignalSet,
+    3, PRIVILEGE_USER },
+  { _fnum_multitaskerSignal, kernelMultitaskerSignal, 2, PRIVILEGE_USER },
+  { _fnum_multitaskerSignalRead, kernelMultitaskerSignalRead,
     1, PRIVILEGE_USER }
 };
 
@@ -425,7 +430,8 @@ static kernelFunctionIndex windowFunctionIndex[] = {
   { _fnum_windowNewScrollBar, kernelWindowNewScrollBar, 5, PRIVILEGE_USER },
   { _fnum_windowNewTextArea, kernelWindowNewTextArea, 5, PRIVILEGE_USER },
   { _fnum_windowNewTextField, kernelWindowNewTextField, 3, PRIVILEGE_USER },
-  { _fnum_windowNewTextLabel, kernelWindowNewTextLabel, 3, PRIVILEGE_USER }
+  { _fnum_windowNewTextLabel, kernelWindowNewTextLabel, 3, PRIVILEGE_USER },
+  { _fnum_windowDebugLayout, kernelWindowDebugLayout, 1, PRIVILEGE_USER }
 };
 
 static kernelFunctionIndex userFunctionIndex[] = {

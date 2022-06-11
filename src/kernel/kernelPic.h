@@ -21,31 +21,20 @@
 
 #if !defined(_KERNELPIC_H)
 
-// Structures for the PIC device
+#include "kernelDevice.h"
 
-typedef struct
-{
-  int (*driverInitialize) (void);
-  int (*driverRegisterDevice) (void *);
+typedef struct {
   int (*driverEndOfInterrupt) (int);
   int (*driverMask) (int, int);
+  int (*driverGetActive) (void);
 
-} kernelPicDriver;
-
-typedef struct 
-{
-  kernelPicDriver *driver;
-
-} kernelPic;
-
-// The default driver initialization
-int kernelPicDriverInitialize(void);
+} kernelPicOps;
 
 // Functions exported by kernelPic.c
-int kernelPicRegisterDevice(kernelPic *);
-int kernelPicInitialize(void);
+int kernelPicInitialize(kernelDevice *);
 int kernelPicEndOfInterrupt(int);
 int kernelPicMask(int, int);
+int kernelPicGetActive(void);
 
 #define _KERNELPIC_H
 #endif

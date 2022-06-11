@@ -21,7 +21,6 @@
 	
 #if !defined(_KERNELMEMORYMANAGER_H)
 
-#include "loaderInfo.h"
 #include <sys/memory.h>
 
 // Definitions
@@ -29,7 +28,7 @@
 #define MEMBLOCKSIZE MEMORY_PAGE_SIZE
 
 // Functions from kernelMemoryManager.c
-int kernelMemoryInitialize(unsigned, loaderInfoStruct *);
+int kernelMemoryInitialize(unsigned);
 void *kernelMemoryGet(unsigned, const char *);
 void *kernelMemoryGetSystem(unsigned, const char *);
 void *kernelMemoryGetPhysical(unsigned, unsigned, const char *);

@@ -45,6 +45,7 @@ int getopt(int, char *const[], const char *);
 off_t lseek(int, off_t, int);
 size_t read(int, void *, size_t);
 int stat(const char *, struct stat *);
+void swab(const void *, void *, ssize_t);
 size_t write(int, const void *, size_t);
 
 #define _UNISTD_H

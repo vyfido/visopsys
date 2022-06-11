@@ -1445,7 +1445,7 @@ void *kernelPageGetPhysical(int processId, void *virtualAddress)
   // Have we been initialized?
   if (!initialized)
     return (address = NULL);
-  
+
   // Find the appropriate page directory
   directory = findPageDirectory(processId);
   if (directory == NULL)
@@ -1455,14 +1455,16 @@ void *kernelPageGetPhysical(int processId, void *virtualAddress)
   if (status < 0)
     return (address = NULL);
   
-  status = findPageTableEntry(directory, virtualAddress, &address);
+  status =
+    findPageTableEntry(directory, (void *) kernelPageRoundDown(virtualAddress),
+		       &address);
 
   kernelLockRelease(&(directory->dirLock));
 
   if (status < 0)
     return (address = NULL);
   else
-    return (address);
+    return (address + ((unsigned) virtualAddress % MEMORY_PAGE_SIZE));
 }
 
 

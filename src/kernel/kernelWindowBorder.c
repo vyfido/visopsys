@@ -81,6 +81,8 @@ static int draw(void *componentData)
       component->yCoord = 0;
       component->width = window->buffer.width;
       component->height = DEFAULT_BORDER_THICKNESS;
+      component->minWidth = component->width;
+      component->minHeight = component->height;
     }
   else if (border->type == border_bottom)
     {
@@ -89,6 +91,8 @@ static int draw(void *componentData)
 	(window->buffer.height - DEFAULT_BORDER_THICKNESS + 1);
       component->width = window->buffer.width;
       component->height = DEFAULT_BORDER_THICKNESS;
+      component->minWidth = component->width;
+      component->minHeight = component->height;
     }
   else if (border->type == border_left)
     {
@@ -96,6 +100,8 @@ static int draw(void *componentData)
       component->yCoord = 0;
       component->width = DEFAULT_BORDER_THICKNESS;
       component->height = window->buffer.height;
+      component->minWidth = component->width;
+      component->minHeight = component->height;
     }
   else if (border->type == border_right)
     {
@@ -104,6 +110,8 @@ static int draw(void *componentData)
       component->yCoord = 0;
       component->width = DEFAULT_BORDER_THICKNESS;
       component->height = window->buffer.height;
+      component->minWidth = component->width;
+      component->minHeight = component->height;
     }
 
   // Only draw when the top border component is requested
@@ -220,7 +228,7 @@ static int mouseEvent(void *componentData, windowEvent *event)
     }
 
   else if ((event->type == EVENT_MOUSE_DRAG) &&
-	   (window->flags & WINFLAG_RESIZABLE))
+	   (window->flags & (WINFLAG_RESIZABLEX | WINFLAG_RESIZABLEY)))
     {
       // Don't show it while it's being resized
       kernelWindowSetVisible(window, 0);
@@ -304,6 +312,8 @@ kernelWindowComponent *kernelWindowNewBorder(volatile void *parent,
   component->yCoord = 0;
   component->width = window->buffer.width;
   component->height = window->buffer.height;
+  component->minWidth = component->width;
+  component->minHeight = component->height;
 
   component->data = (void *) borderComponent;
 

@@ -178,6 +178,8 @@ kernelWindowComponent *kernelWindowNewProgressBar(volatile void *parent,
   component->type = progressBarComponentType;
   component->width = 200;
   component->height = 25;
+  component->minWidth = component->width;
+  component->minHeight = component->height;
 
   progressBar = kernelMalloc(sizeof(kernelWindowProgressBar));
   if (progressBar == NULL)

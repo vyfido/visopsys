@@ -16,14 +16,14 @@
 //  with this program; if not, write to the Free Software Foundation, Inc.,
 //  59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 //
-//  kernelEncryptMD5.h
+//  kernelEncrypt.h
 //
 	
 // Stuff and declarations for any encryption code
 
-#if !defined(_KERNELENCRYPTMD5_H)
+#if !defined(_KERNELENCRYPT_H)
 
 int kernelEncryptMD5(const char *, char *);
   
-#define _KERNELENCRYPTMD5_H
+#define _KERNELENCRYPT_H
 #endif

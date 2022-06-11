@@ -21,9 +21,13 @@
 
 // Driver for standard PC keyboards
 
-#include "kernelDriverManagement.h" // Contains my prototypes
+#include "kernelDriver.h" // Contains my prototypes
+#include "kernelKeyboard.h"
 #include "kernelProcessorX86.h"
 #include "kernelMultitasker.h"
+#include "kernelMalloc.h"
+#include "kernelPageManager.h"
+#include "kernelParameters.h"
 #include "kernelWindow.h"
 #include "kernelShutdown.h"
 #include "kernelFile.h"
@@ -33,10 +37,6 @@
 #include <stdio.h>
 #include <sys/window.h>
 #include <sys/stream.h>
-
-int kernelKeyboardDriverRegisterDevice(void *);
-int kernelKeyboardDriverSetStream(stream *);
-void kernelKeyboardDriverReadData(void);
 
 // Some special scan values that we care about
 #define KEY_RELEASE      128
@@ -68,15 +68,7 @@ void kernelKeyboardDriverReadData(void);
 #define NUMLOCK_LIGHT    1
 #define CAPSLOCK_LIGHT   2
 
-static kernelKeyboardDriver defaultKeyboardDriver =
-{
-  kernelKeyboardDriverInitialize,
-  kernelKeyboardDriverRegisterDevice,
-  kernelKeyboardDriverReadData
-};
-
-static kernelKeyboard *theKeyboard = NULL;
-static int initialized = 0;
+static kernelKeyboard *keyboardDevice = NULL;
 
 
 static void setLight(int whichLight, int onOff)
@@ -152,53 +144,7 @@ static void screenshotThread(void)
 }
 
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//
-// Below here, the functions are exported for external use
-//
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
-int kernelKeyboardDriverInitialize(void)
-{
-  // This routine issues the appropriate commands to the keyboard controller
-  // to set keyboard settings.
-
-  unsigned char data;
-
-  // Wait for port 64h to be ready for a command.  We know it's ready when
-  // port 64 bit 1 is 0
-  data = 0x02;
-  while (data & 0x02)
-    kernelProcessorInPort8(0x64, data);
-
-  // Tell the keyboard to enable
-  kernelProcessorOutPort8(0x64, 0xAE);
-
-  initialized = 1;
-  return (kernelDriverRegister(keyboardDriver, &defaultKeyboardDriver));
-}
-
-
-int kernelKeyboardDriverRegisterDevice(void *keyboardPointer)
-{
-  // Just save a pointer to the device structure
-
-  // Check params
-  if (keyboardPointer == NULL)
-    {
-      kernelError(kernel_error, "NULL keyboard pointer");
-      return (ERR_NULLPARAMETER);
-    }
-
-  theKeyboard = (kernelKeyboard *) keyboardPointer;
-  return (0);
-}
-
-
-void kernelKeyboardDriverReadData(void)
+static void driverReadData(void)
 {
   // This routine reads the keyboard data and returns it to the keyboard
   // console text input stream
@@ -206,9 +152,6 @@ void kernelKeyboardDriverReadData(void)
   unsigned char data = 0;
   int release = 0;
   static int extended = 0;
-
-  if (!initialized)
-    return;
 
   // Wait for keyboard data to be available
   while (!(data & 0x01))
@@ -237,15 +180,15 @@ void kernelKeyboardDriverReadData(void)
 	case (KEY_RELEASE + LEFT_SHIFT):
 	case (KEY_RELEASE + RIGHT_SHIFT):
 	  // Left or right shift release.
-	  theKeyboard->flags &= ~SHIFT_FLAG;
+	  keyboardDevice->flags &= ~SHIFT_FLAG;
 	  return;
 	case (KEY_RELEASE + LEFT_CTRL):
 	  // Left control release.
-	  theKeyboard->flags &= ~CONTROL_FLAG;
+	  keyboardDevice->flags &= ~CONTROL_FLAG;
 	  return;
 	case (KEY_RELEASE + LEFT_ALT):
 	  // Left Alt release.
-	  theKeyboard->flags &= ~ALT_FLAG;
+	  keyboardDevice->flags &= ~ALT_FLAG;
 	  return;
 	default:
 	  data -= KEY_RELEASE;
@@ -263,51 +206,49 @@ void kernelKeyboardDriverReadData(void)
 	case LEFT_SHIFT:
 	case RIGHT_SHIFT:
 	  // Left shift or right shift press.
-	  theKeyboard->flags |= SHIFT_FLAG;
+	  keyboardDevice->flags |= SHIFT_FLAG;
 	  return;
 	case LEFT_CTRL:
 	  // Left control press.
-	  theKeyboard->flags |= CONTROL_FLAG;
+	  keyboardDevice->flags |= CONTROL_FLAG;
 	  return;
 	case LEFT_ALT:
 	  // Left alt press.
-	  theKeyboard->flags |= ALT_FLAG;
+	  keyboardDevice->flags |= ALT_FLAG;
 	  return;
 	case CAPSLOCK:
-	  if (theKeyboard->flags & CAPSLOCK_FLAG)
+	  if (keyboardDevice->flags & CAPSLOCK_FLAG)
 	    // Capslock off
-	    theKeyboard->flags ^= CAPSLOCK_FLAG;
+	    keyboardDevice->flags ^= CAPSLOCK_FLAG;
 	  else
 	    // Capslock on
-	    theKeyboard->flags |= CAPSLOCK_FLAG;
-	  setLight(CAPSLOCK_LIGHT, (theKeyboard->flags & CAPSLOCK_FLAG));
+	    keyboardDevice->flags |= CAPSLOCK_FLAG;
+	  setLight(CAPSLOCK_LIGHT, (keyboardDevice->flags & CAPSLOCK_FLAG));
 	  return;
 	case NUMLOCK:
-	  if (theKeyboard->flags & NUMLOCK_FLAG)
+	  if (keyboardDevice->flags & NUMLOCK_FLAG)
 	    // Numlock off
-	    theKeyboard->flags ^= NUMLOCK_FLAG;
+	    keyboardDevice->flags ^= NUMLOCK_FLAG;
 	  else
 	    // Numlock on
-	    theKeyboard->flags |= NUMLOCK_FLAG;
-	  setLight(NUMLOCK_LIGHT, (theKeyboard->flags & NUMLOCK_FLAG));
+	    keyboardDevice->flags |= NUMLOCK_FLAG;
+	  setLight(NUMLOCK_LIGHT, (keyboardDevice->flags & NUMLOCK_FLAG));
 	  return;
 	case SCROLLLOCK:
-	  if (theKeyboard->flags & SCROLLLOCK_FLAG)
+	  if (keyboardDevice->flags & SCROLLLOCK_FLAG)
 	    // Scroll lock off
-	    theKeyboard->flags ^= SCROLLLOCK_FLAG;
+	    keyboardDevice->flags ^= SCROLLLOCK_FLAG;
 	  else
 	    // Scroll lock on
-	    theKeyboard->flags |= SCROLLLOCK_FLAG;
-	  setLight(SCROLLLOCK_LIGHT, (theKeyboard->flags & SCROLLLOCK_FLAG));
+	    keyboardDevice->flags |= SCROLLLOCK_FLAG;
+	  setLight(SCROLLLOCK_LIGHT,
+		   (keyboardDevice->flags & SCROLLLOCK_FLAG));
 	  return;
 	case F1_KEY:
 	  kernelConsoleLogin();
 	  return;
 	case F2_KEY:
 	  kernelMultitaskerDumpProcessList();
-	  return;
-	case F3_KEY:
-	  kernelWindowDumpList();
 	  return;
 	default:
 	  break;
@@ -326,29 +267,29 @@ void kernelKeyboardDriverReadData(void)
 
   // Check whether the control or shift keys are pressed.  Shift
   // overrides control.
-  if (!extended && ((theKeyboard->flags & SHIFT_FLAG) ||
-		    ((theKeyboard->flags & NUMLOCK_FLAG) &&
+  if (!extended && ((keyboardDevice->flags & SHIFT_FLAG) ||
+		    ((keyboardDevice->flags & NUMLOCK_FLAG) &&
 		     (data >= 0x47) && (data <= 0x53))))
-    data = theKeyboard->keyMap->shiftMap[data - 1];
+    data = keyboardDevice->keyMap->shiftMap[data - 1];
   
-  else if (theKeyboard->flags & CONTROL_FLAG)
+  else if (keyboardDevice->flags & CONTROL_FLAG)
     {
       // CTRL-ALT-DEL?
-      if ((theKeyboard->flags & ALT_FLAG) && (data == DEL_KEY) && release)
+      if ((keyboardDevice->flags & ALT_FLAG) && (data == DEL_KEY) && release)
 	{
 	  // CTRL-ALT-DEL means reboot
 	  kernelMultitaskerSpawn(rebootThread, "reboot", 0, NULL);
 	  return;
 	}
       else
-	data = theKeyboard->keyMap->controlMap[data - 1];
+	data = keyboardDevice->keyMap->controlMap[data - 1];
     }
   
   else
-    data = theKeyboard->keyMap->regMap[data - 1];
+    data = keyboardDevice->keyMap->regMap[data - 1];
       
   // If capslock is on, uppercase any alphabetic characters
-  if ((theKeyboard->flags & CAPSLOCK_FLAG) &&
+  if ((keyboardDevice->flags & CAPSLOCK_FLAG) &&
       ((data >= 'a') && (data <= 'z')))
     data -= 32;
   
@@ -360,5 +301,99 @@ void kernelKeyboardDriverReadData(void)
   
   // Clear the extended flag
   extended = 0;
+  return;
+}
+
+
+static int driverDetect(void *driver)
+{
+  // This routine is used to detect and initialize each device, as well as
+  // registering each one with any higher-level interfaces.  Also issues the
+  // appropriate commands to the keyboard controller to set keyboard settings.
+
+  int status = 0;
+  kernelDevice *device = NULL;
+  void *biosData = NULL;
+  unsigned char data;
+
+  // Allocate memory for the device
+  device = kernelMalloc(sizeof(kernelDevice) + sizeof(kernelKeyboard));
+  if (device == NULL)
+    return (status = 0);
+
+  keyboardDevice = ((void *) device + sizeof(kernelDevice));
+
+  device->class = kernelDeviceGetClass(DEVICECLASS_KEYBOARD);
+  device->driver = driver;
+  device->dev = keyboardDevice;
+
+  // Map the BIOS data area into our memory so we can get hardware information
+  // from it.
+  status = kernelPageMapToFree(KERNELPROCID, (void *) 0, &biosData, 0x1000);
+  if (status < 0)
+    {
+      kernelError(kernel_error, "Error mapping BIOS data area");
+      return (status);
+    }
+
+  // Get the flags from the BIOS data area
+  keyboardDevice->flags = (unsigned) *((unsigned char *)(biosData + 0x417));
+
+  // Unmap BIOS data
+  kernelPageUnmap(KERNELPROCID, biosData, 0x1000);
+
+  // Wait for port 64h to be ready for a command.  We know it's ready when
+  // port 64 bit 1 is 0
+  data = 0x02;
+  while (data & 0x02)
+    kernelProcessorInPort8(0x64, data);
+
+  // Tell the keyboard to enable
+  kernelProcessorOutPort8(0x64, 0xAE);
+
+  // Initialize keyboard operations
+  status = kernelKeyboardInitialize(device);
+  if (status < 0)
+    {
+      kernelFree(device);
+      return (status);
+    }
+
+  // Set the default keyboard data stream to be the console input
+  status =
+    kernelKeyboardSetStream((stream *) &(kernelTextGetConsoleInput()->s));
+  if (status < 0)
+    {
+      kernelFree(device);
+      return (status);
+    }
+
+  return (status = kernelDeviceAdd(NULL, device));
+}
+
+
+static kernelKeyboardOps keyboardOps = {
+  driverReadData
+};
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+// Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+void kernelKeyboardDriverRegister(void *driverData)
+{
+   // Device driver registration.
+
+  kernelDriver *driver = (kernelDriver *) driverData;
+
+  driver->driverDetect = driverDetect;
+  driver->ops = &keyboardOps;
+
   return;
 }

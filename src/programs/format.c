@@ -207,43 +207,41 @@ static int chooseDisk(void)
 }
 
 
-static int copyBootSector(const char *destDisk)
+static int copyBootSector(disk *theDisk)
 {
-  // Overlay the boot sector from /system/boot/bootsect.fatnoboot onto the
+  // Overlay the "no boot" code from a /system/boot/ boot sector onto the
   // boot sector of the target disk
 
   int status = 0;
+  char bootSectFilename[MAX_PATH_NAME_LENGTH];
+  char command[MAX_PATH_NAME_LENGTH];
   file bootSectFile;
-  unsigned char *bootSectData = NULL;
-  unsigned char destBootSector[512];
-  int count;
 
-  // Try to read a boot sector file from the system directory
-  bootSectData = loaderLoad("/system/boot/bootsect.fatnoboot",
-			    &bootSectFile);  
-  if (bootSectData == NULL)
-    return (status = ERR_NOSUCHFILE);
-  
-  // Read the boot sector of the target disk
-  status = diskReadSectors(destDisk, 0, 1, destBootSector);
+  strcpy(bootSectFilename, "/system/boot/bootsect.fatnoboot");
+  if (!strcmp(theDisk->fsType, "fat32"))
+    strcat(bootSectFilename, "32");
+
+  // Find the boot sector
+  status = fileFind(bootSectFilename, &bootSectFile);
   if (status < 0)
-    return (status);
+    {
+      error("Unable to find the boot sector file \"%s\"", bootSectFilename);
+      return (status);
+    }
 
-  // Copy bytes 0-2 and 62-511 from the root disk boot sector to the
-  // target boot sector
-  for (count = 0; count < 3; count ++)
-    destBootSector[count] = bootSectData[count];
-  for (count = 62; count < 512; count ++)
-    destBootSector[count] = bootSectData[count];
-
-  memoryRelease(bootSectData);
-
-  // Write the boot sector of the target disk
-  status = diskWriteSectors(destDisk, 0, 1, destBootSector);
-  if (status < 0)
-    return (status);
+  // Use our companion program to do the work
+  sprintf(command, "/programs/copy-boot %s %s", bootSectFilename,
+	  theDisk->name);
+  status = system(command);
 
   diskSync();
+
+  if (status < 0)
+    {
+      error("Error %d copying boot sector \"%s\" to disk %s",
+	    bootSectFilename, theDisk->name);
+      return (status);
+    }
 
   return (status = 0);
 }
@@ -377,7 +375,7 @@ int main(int argc, char *argv[])
   // The kernel's format code creates a 'dummy' boot sector.  If we have
   // a proper one stored in the /system/boot directory, copy it to the
   // disk.
-  status = copyBootSector(diskName);
+  status = copyBootSector(&diskInfo[diskNumber]);
   if (status < 0)
     return (errno = status);
 

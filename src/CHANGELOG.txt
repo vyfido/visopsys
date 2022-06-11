@@ -1,5 +1,46 @@
 
 ---------------
+Version 0.55
+---------------
+
+  Overview: This is a maintenance and bugfix release, with some additional
+  capabilities including installation support for all FAT filesystems,
+  primitive PCI driver support, and a better organised device driver
+  infrastructure.  In addition, GUI window layout and resizing has been
+  reimplemented and generally fixed.
+
+- The system can now install to and boot from any kind of FAT filesystem
+(FAT12, FAT16, and FAT32/VFAT).
+- Fixed window relayout when windows are sized.
+- Implemented a better-organised hardware device "tree" and a new, more
+generic device driver interface.
+- Added a basic PCI bus driver, the initial implementation of which was
+provided by Jonas Zaddach.  Only logs a bus device scan, for the moment.
+- Implemented a basic a signalling infrastructure, which initially fixes
+the problem of CTRL-C crashing the system in text mode.
+- Back-ported a number of changes and improvements from the 0.6 branch to
+the kernel's disk layer.
+- Added a 'debug window layout' function that displays the layout grid
+alongside the components; makes it much easier to do program window design
+and to debug the kernel's layout code.
+- The window manager's event handler thread now dynamically allocates the
+memory it uses for storing event hooks.
+- Implemented the 'swab' libc function.  Useful for networking.
+- The page manager's 'get physical address' function has been modified so
+that it works with addresses that aren't page-aligned.
+- The interrupt controller functions now have a function that returns the
+active interrupt number, and synchronized the kernel's hardware interrupt
+number codes with the 'normal' PC interrupt numbers (e.g. 0-F).
+- Fixed: Interrupts are now disabled during the pause before reboot, so
+that for example the kernel is not still processing I/O interrupts and such.
+- Fixed: A number of small issues with the kernelWindowStream code.
+- Fixed: In the install program, installing on a freshly-inserted floppy.
+could produce the error message "can't install a boot sector for filesystem
+type 'unknown'".
+- Fixed: When installing from a 'basic' install, there was a spurious error
+message resulting from attempting to look for the 'full' install file.
+
+---------------
 Version 0.54
 ---------------
 

@@ -41,18 +41,21 @@
 #define DEFAULT_MOUSEPOINTER_DEFAULT      "/system/mouse.bmp"
 #define DEFAULT_MOUSEPOINTER_BUSY         "/system/mousebsy.bmp"
 
-#define WINFLAG_VISIBLE                   0x0001
-#define WINFLAG_ENABLED                   0x0002
-#define WINFLAG_MOVABLE                   0x0004
-#define WINFLAG_RESIZABLE                 0x0008
-#define WINFLAG_PACKED                    0x0010
-#define WINFLAG_HASTITLEBAR               0x0020
+#define WINFLAG_VISIBLE                   0x2000
+#define WINFLAG_ENABLED                   0x1000
+#define WINFLAG_MOVABLE                   0x0800
+#define WINFLAG_RESIZABLE                 0x0600
+#define WINFLAG_RESIZABLEX                0x0400
+#define WINFLAG_RESIZABLEY                0x0200
+#define WINFLAG_PACKED                    0x0100
+#define WINFLAG_HASTITLEBAR               0x0080
 #define WINFLAG_HASMINIMIZEBUTTON         0x0040
-#define WINFLAG_HASCLOSEBUTTON            0x0080
-#define WINFLAG_HASBORDER                 0x0100
-#define WINFLAG_CANFOCUS                  0x0200
-#define WINFLAG_HASFOCUS                  0x0400
-#define WINFLAG_BACKGROUNDTILED           0x0800
+#define WINFLAG_HASCLOSEBUTTON            0x0020
+#define WINFLAG_HASBORDER                 0x0010
+#define WINFLAG_CANFOCUS                  0x0008
+#define WINFLAG_HASFOCUS                  0x0004
+#define WINFLAG_BACKGROUNDTILED           0x0002
+#define WINFLAG_DEBUGLAYOUT               0x0001
 
 #define WINNAME_TEMPCONSOLE               "temp console window"
 #define WINNAME_ROOTWINDOW                "root window"
@@ -87,8 +90,7 @@ typedef enum {
 } borderType;
 
 // The object that defines a GUI component inside a window
-typedef volatile struct
-{
+typedef volatile struct {
   kernelWindowObjectType type;
   void *window;
   void *container;
@@ -97,6 +99,8 @@ typedef volatile struct
   int level;
   int width;
   int height;
+  int minWidth;
+  int minHeight;
   unsigned flags;
   componentParameters parameters;
   windowEventStream events;
@@ -126,45 +130,43 @@ typedef volatile struct
 
 } kernelWindowComponent;
 
-typedef volatile struct
-{
+typedef volatile struct {
   borderType type;
 
 } kernelWindowBorder;
 
-typedef volatile struct
-{
+typedef volatile struct {
   const char label[WINDOW_MAX_LABEL_LENGTH];
   image buttonImage;
   int state;
 
 } kernelWindowButton;
 
-typedef volatile struct
-{
+typedef volatile struct {
   char *text;
   int selected;
 
 } kernelWindowCheckbox;
 
-typedef volatile struct
-{
+typedef volatile struct {
   const char name[WINDOW_MAX_LABEL_LENGTH];
   kernelWindowComponent *components[WINDOW_MAX_COMPONENTS];
   int numComponents;
+  int numColumns;
+  int numRows;
   int doneLayout;
 
   // Functions
   int (*containerAdd) (kernelWindowComponent*, kernelWindowComponent *,
 		       componentParameters *);
   int (*containerRemove) (kernelWindowComponent *, kernelWindowComponent *);
-  int (*containerLayout) (kernelWindowComponent *);  
+  int (*containerLayout) (kernelWindowComponent *);
+  void (*containerDrawGrid) (kernelWindowComponent *);
 
 } kernelWindowContainer;
 
 // An icon image component
-typedef volatile struct
-{
+typedef volatile struct {
   image iconImage;
   char label[2][WINDOW_MAX_LABEL_LENGTH];
   int labelLines;
@@ -174,8 +176,7 @@ typedef volatile struct
 } kernelWindowIcon;
 
 // An image as a window component
-typedef volatile struct
-{
+typedef volatile struct {
   image imageData;
   drawMode mode;
 
@@ -183,8 +184,7 @@ typedef volatile struct
 
 typedef kernelWindowImage kernelWindowCanvas;
 
-typedef volatile struct
-{
+typedef volatile struct {
   int columns;
   int rows;
   int itemWidth;
@@ -196,8 +196,7 @@ typedef volatile struct
 
 } kernelWindowList;
 
-typedef volatile struct
-{
+typedef volatile struct {
   const char *text;
   int selected;
 
@@ -211,23 +210,20 @@ typedef kernelWindowListItem kernelWindowMenuItem;
 
 typedef kernelTextArea kernelWindowPasswordField;
 
-typedef volatile struct
-{
+typedef volatile struct {
   int progressPercent;
   int sliderWidth;
 
 } kernelWindowProgressBar;
 
-typedef volatile struct
-{
+typedef volatile struct {
   char *text;
   int numItems;
   int selectedItem;
 
 } kernelWindowRadioButton;
 
-typedef volatile struct
-{
+typedef volatile struct {
   scrollBarType type;
   scrollBarState state;
   int sliderY;
@@ -236,8 +232,7 @@ typedef volatile struct
 
 } kernelWindowScrollBar;
 
-typedef volatile struct
-{
+typedef volatile struct {
   kernelTextArea *area;
   int areaWidth;
   kernelWindowComponent *scrollBar;
@@ -247,23 +242,20 @@ typedef volatile struct
 // A text area as a text field component
 typedef kernelTextArea kernelWindowTextField;
 
-typedef volatile struct
-{
+typedef volatile struct {
   char *text;
   int lines;
 
 } kernelWindowTextLabel;
 
-typedef volatile struct
-{
+typedef volatile struct {
   kernelWindowComponent *minimizeButton;
   kernelWindowComponent *closeButton;
 
 } kernelWindowTitleBar;
 
 // The object that defines a GUI window
-typedef volatile struct
-{
+typedef volatile struct {
   kernelWindowObjectType type;
   int processId;
   char title[WINDOW_MAX_TITLE_LENGTH];
@@ -291,8 +283,7 @@ typedef volatile struct
 } kernelWindow;
 
 // This is only used internally, to define a coordinate area
-typedef struct 
-{
+typedef struct {
   int leftX;
   int topY;
   int rightX;
@@ -406,7 +397,7 @@ int kernelWindowCenterBackground(const char *);
 int kernelWindowScreenShot(image *);
 int kernelWindowSaveScreenShot(const char *);
 int kernelWindowSetTextOutput(kernelWindowComponent *);
-void kernelWindowDumpList(void);
+void kernelWindowDebugLayout(kernelWindow *);
 
 // Functions for managing components
 kernelWindowComponent *kernelWindowComponentNew(volatile void *,

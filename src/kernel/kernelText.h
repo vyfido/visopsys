@@ -26,9 +26,9 @@
 #include "kernelGraphic.h"
 
 // Definitions
-#define TEXTSTREAMSIZE 32768
-#define DEFAULT_TAB 8
-#define DEFAULT_SCROLLBACKLINES 256
+#define TEXTSTREAMSIZE           32768
+#define DEFAULT_TAB              8
+#define DEFAULT_SCROLLBACKLINES  256
 
 // Colours for the text console
 // 0  = black
@@ -47,14 +47,13 @@
 // 13 = light magenta
 // 14 = yellow
 // 15 = white
-#define DEFAULTFOREGROUND       7
-#define DEFAULTBACKGROUND       1
-#define DEFAULTERRORFOREGROUND  6
+#define DEFAULTFOREGROUND        7
+#define DEFAULTBACKGROUND        1
+#define DEFAULTERRORFOREGROUND   6
 
 // A data structure to represent a text area on the screen which gets drawn
 // by the appropriate driver functions
-typedef volatile struct
-{
+typedef volatile struct {
   int xCoord;
   int yCoord;
   int columns;
@@ -83,9 +82,7 @@ typedef volatile struct
 
 // This structure contains pointers to all the appropriate functions
 // to output text from a given text stream
-typedef struct
-{
-  int (*driverInitialize) (void);
+typedef struct {
   void (*setCursor) (kernelTextArea *, int);
   int (*getCursorAddress) (kernelTextArea *);
   int (*setCursorAddress) (kernelTextArea *, int, int);
@@ -104,8 +101,7 @@ typedef struct
 
 // A text input stream.  In single user operation there is only one, and it's
 // where all keyboard input goes.
-typedef volatile struct 
-{
+typedef volatile struct {
   stream s;
   int ownerPid;
   int echo;
@@ -113,8 +109,7 @@ typedef volatile struct
 } kernelTextInputStream;
 
 // This structure is used to refer to a stream made up of text.
-typedef volatile struct 
-{
+typedef volatile struct {
   kernelTextOutputDriver *outputDriver;
   kernelTextArea *textArea;
 
@@ -127,8 +122,9 @@ int kernelGraphicConsoleInitialize(void);
 // Functions from kernelText.c
 
 int kernelTextInitialize(int, int);
-kernelTextArea *kernelTextAreaNew(int, int, int);
+kernelTextArea *kernelTextAreaNew(int, int, int, int);
 void kernelTextAreaDestroy(kernelTextArea *);
+int kernelTextAreaResize(kernelTextArea *, int, int);
 int kernelTextSwitchToGraphics(kernelTextArea *);
 kernelTextInputStream *kernelTextGetConsoleInput(void);
 kernelTextOutputStream *kernelTextGetConsoleOutput(void);
@@ -207,6 +203,23 @@ int kernelTextInputStreamRemoveAll(kernelTextInputStream *);
 int kernelTextInputRemoveAll(void);
 void kernelTextInputStreamSetEcho(kernelTextInputStream *, int);
 void kernelTextInputSetEcho(int);
+
+// Some useful macros for working with text areas
+#define TEXTAREA_CURSORPOS(area) \
+  ((area->cursorRow * area->columns) + area->cursorColumn)
+#define TEXTAREA_FIRSTSCROLLBACK(area) \
+  (area->bufferData + ((area->maxBufferLines - \
+                        (area->rows + area->scrollBackLines)) * \
+                       (area->columns * area->bytesPerChar)))
+#define TEXTAREA_LASTSCROLLBACK(area) \
+  (area->bufferData + ((area->maxBufferLines - (area->rows + 1)) * \
+                       (area->columns * area->bytesPerChar)))
+#define TEXTAREA_FIRSTVISIBLE(area) \
+  (area->bufferData + ((area->maxBufferLines - area->rows) * \
+                       (area->columns * area->bytesPerChar)))
+#define TEXTAREA_LASTVISIBLE(area) \
+  (area->bufferData + ((area->maxBufferLines - 1) * \
+                       (area->columns * area->bytesPerChar)))
 
 #define _KERNELTEXT_H
 #endif

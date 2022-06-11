@@ -22,20 +22,12 @@
 // This is the graphic console screen driver.  Manipulates character images
 // using the kernelGraphic functions.
 
-#include "kernelDriverManagement.h"
 #include "kernelWindow.h"
 #include "kernelMiscFunctions.h"
 #include "kernelMalloc.h"
 #include "kernelError.h"
 #include <stdlib.h>
 #include <string.h>
-
-// Macros used strictly within this file
-#define cursorPosition(area) ((area->cursorRow * area->columns) + area->cursorColumn)
-#define firstScrollBack(area) (area->bufferData + ((area->maxBufferLines - (area->rows + area->scrollBackLines)) * area->columns))
-#define lastScrollBack(area) (area->bufferData + ((area->maxBufferLines - (area->rows + 1)) * area->columns))
-#define firstVisible(area) (area->bufferData + ((area->maxBufferLines - area->rows) * area->columns))
-#define lastVisible(area) (area->bufferData + ((area->maxBufferLines - 1) * area->columns))
 
 
 static void scrollBuffer(kernelTextArea *area, int lines)
@@ -49,7 +41,8 @@ static void scrollBuffer(kernelTextArea *area, int lines)
     area->scrollBackLines += min(lines, (area->maxBufferLines -
 				 (area->rows + area->scrollBackLines)));
     
-  kernelMemCopy((firstScrollBack(area) + dataLength), firstScrollBack(area),
+  kernelMemCopy((TEXTAREA_FIRSTSCROLLBACK(area) + dataLength),
+		TEXTAREA_FIRSTSCROLLBACK(area),
 		((area->rows + area->scrollBackLines) * area->columns));
 }
 
@@ -164,10 +157,10 @@ static int scrollLine(kernelTextArea *area)
   scrollBuffer(area, 1);
 
   // Clear out the bottom row
-  kernelMemClear(lastVisible(area), area->columns);
+  kernelMemClear(TEXTAREA_LASTVISIBLE(area), area->columns);
 
   // Copy our buffer data to the visible area
-  kernelMemCopy(firstVisible(area), area->visibleData,
+  kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), area->visibleData,
 		(area->rows * area->columns));
 
   // The cursor position is now 1 row up from where it was.
@@ -200,7 +193,7 @@ static int drawScreen(kernelTextArea *area)
 			 (area->rows * area->font->charHeight));
 
   // Copy from the buffer to the visible area, minus any scrollback lines
-  bufferAddress = firstVisible(area);
+  bufferAddress = TEXTAREA_FIRSTVISIBLE(area);
   bufferAddress -= (area->scrolledBackLines * area->columns);
   
   for (count = 0; count < area->rows; count ++)
@@ -248,7 +241,7 @@ static int setCursorAddress(kernelTextArea *area, int row, int col)
 
   // If any of the preceding spots have NULLS in them, fill those with
   // spaces instead
-  line = (firstVisible(area) + cursorPosition(area) - col);
+  line = (TEXTAREA_FIRSTVISIBLE(area) + TEXTAREA_CURSORPOS(area) - col);
   for ( ; col >= 0; col --)
     if (line[col] == '\0')
       line[col] = ' ';
@@ -302,19 +295,19 @@ static int print(kernelTextArea *area, const char *text)
 	  lineBuffer[bufferCounter] = '\0';
 
 	  // Add it to our buffers
-	  strncpy((firstVisible(area) + cursorPosition(area)), lineBuffer,
-		  (area->columns - area->cursorColumn));
+	  strncpy((TEXTAREA_FIRSTVISIBLE(area) + TEXTAREA_CURSORPOS(area)),
+		  lineBuffer, (area->columns - area->cursorColumn));
 
 	  if (area->hidden)
 	    {
 	      for (count = 0; count < strlen(lineBuffer); count ++)
 		lineBuffer[count] = '*';
-	      strncpy((area->visibleData + cursorPosition(area)),
+	      strncpy((area->visibleData + TEXTAREA_CURSORPOS(area)),
 		     lineBuffer, (area->columns - area->cursorColumn));
 	    }
 	  else
-	    strncpy((area->visibleData + cursorPosition(area)),
-		    (firstVisible(area) + cursorPosition(area)),
+	    strncpy((area->visibleData + TEXTAREA_CURSORPOS(area)),
+		    (TEXTAREA_FIRSTVISIBLE(area) + TEXTAREA_CURSORPOS(area)),
 		    (area->columns - area->cursorColumn));
 
 	  // Draw it
@@ -366,7 +359,7 @@ static int delete(kernelTextArea *area)
   // Erase the character at the current position
 
   int cursorState = area->cursorState;
-  int position = cursorPosition(area);
+  int position = TEXTAREA_CURSORPOS(area);
 
   // If we are currently scrolled back, this puts us back to normal
   if (area->scrolledBackLines)
@@ -380,7 +373,7 @@ static int delete(kernelTextArea *area)
     setCursor(area, 0);
 
   // Delete the character in our buffers
-  *(firstVisible(area) + position) = '\0';
+  *(TEXTAREA_FIRSTVISIBLE(area) + position) = '\0';
   *(area->visibleData + position) = '\0';
 
   kernelWindowUpdateBuffer(area->graphicBuffer,
@@ -413,10 +406,10 @@ static int clearScreen(kernelTextArea *area)
 			   (area->rows * area->font->charHeight));
 
   // Empty all the data
-  kernelMemClear(firstVisible(area), (area->columns * area->rows));
+  kernelMemClear(TEXTAREA_FIRSTVISIBLE(area), (area->columns * area->rows));
 
   // Copy to the visible area
-  kernelMemCopy(firstVisible(area), area->visibleData,
+  kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), area->visibleData,
 		(area->rows * area->columns));
 
   // Cursor to the top right
@@ -440,7 +433,7 @@ static int saveScreen(kernelTextArea *area)
   if (area->savedScreen == NULL)
     return (ERR_MEMORY);
 
-  kernelMemCopy(firstVisible(area), area->savedScreen,
+  kernelMemCopy(TEXTAREA_FIRSTVISIBLE(area), area->savedScreen,
 		(area->rows * area->columns));
 
   area->savedCursorColumn = area->cursorColumn;
@@ -454,7 +447,7 @@ static int restoreScreen(kernelTextArea *area)
 {
   // This routine restores the saved contents of the screen
 
-  kernelMemCopy(area->savedScreen, firstVisible(area), 
+  kernelMemCopy(area->savedScreen, TEXTAREA_FIRSTVISIBLE(area), 
 		(area->rows * area->columns));
 
   // Copy to the visible area
@@ -470,7 +463,6 @@ static int restoreScreen(kernelTextArea *area)
 
 
 static kernelTextOutputDriver graphicModeDriver = {
-  kernelGraphicConsoleInitialize,
   setCursor,
   getCursorAddress,
   setCursorAddress,

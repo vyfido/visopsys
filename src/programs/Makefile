@@ -28,6 +28,7 @@ NAMES	= adduser \
 	clock \
 	confedit \
 	console \
+	copy-boot \
 	cp \
 	date \
 	disks \
@@ -90,6 +91,8 @@ clean:
 
 # Object files with explicit rules
 
+${BUILDDIR}/copy-boot: copy-boot.c ${STDDEPS}
+	${CC} ${OPTS} -DVISOPSYS $< -lvsh -lc -o $@
 
 ${BUILDDIR}/fdisk: fdisk.c fdisk.h ${STDDEPS}
 	${CC} ${OPTS} ${PARTLOGIC} $< -lwindow -lvsh -lc -o $@

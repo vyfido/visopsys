@@ -102,6 +102,8 @@ kernelWindowComponent *kernelWindowNewImage(volatile void *parent,
   component->type = imageComponentType;
   component->width = imageCopy->width;
   component->height = imageCopy->height;
+  component->minWidth = component->width;
+  component->minHeight = component->height;
 
   // Get the kernelWindowImage component memory
   windowImage = kernelMalloc(sizeof(kernelWindowImage));

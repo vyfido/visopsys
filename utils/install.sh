@@ -11,7 +11,7 @@
 # permissions which allow direct writes by the invoking user. 
 
 BUILDDIR=../build
-BOOTSECTOR="$BUILDDIR"/system/boot/bootsect.fat12
+BOOTSECTOR="$BUILDDIR"/system/boot/bootsect.fat
 OSLOADER=vloader
 FSTAB=/etc/fstab
 BASICFILES=../dist/system/install-files.basic
@@ -57,9 +57,9 @@ if [ ! -w "$DEVICE" ] ; then
 fi
 
 # Just to a quick check to see whether we think a build has been done
-if [ ! -e "$BOOTSECTOR" ] ; then
+if [ ! -e "$BUILDDIR" ] ; then
     echo ""
-    echo "$BOOTSECTOR is missing.  Have you done a make yet?"
+    echo "$BUILDDIR is missing.  Have you done a make yet?"
     echo "Terminating."
     echo ""
     exit 1
@@ -70,10 +70,20 @@ MNTARGS=
 if [ -b "$DEVICE" ] ; then
     echo -n "Formatting...  "
     # Format the disk.  Stop if the command fails.
-    /sbin/mkdosfs -F12 $DEVICE >& /dev/null
-    if [ $? -ne 0 ] ; then
+    /sbin/mkdosfs -v $DEVICE >& ./mkdosfs.$$
+    RET=$? 
+    if [ $RET -ne 0 ] ; then
+	# Wait, will specifying FAT32 work?
+	echo -n "(trying FAT32)...  "
+	if [ `grep -c "too large" ./mkdosfs.$$` -ne 0 ] ; then
+	    /sbin/mkdosfs -F32 -v $DEVICE >& ./mkdosfs.$$
+	    RET=$?
+	fi
+    fi
+    if [ $RET -ne 0 ] ; then
 	echo ""
-	echo Not able to format disk $DEVICE.  Terminating.
+	echo -n "Not able to format disk $DEVICE.  See ./mkdosfs.$$.  "
+	echo Terminating.
 	echo ""
 	exit 1
     else
@@ -83,11 +93,21 @@ else
     MNTARGS="-o loop,sync"
 fi
 
-# Install the boot sector
-./copy-boot.sh $BOOTSECTOR $DEVICE
+# Check whether we should be using a different boot sector than the default
+if [ -f ./mkdosfs.$$ ] ; then
+	if [ `grep -c "32-bit" ./mkdosfs.$$` -ne 0 ] ; then
+    		BOOTSECTOR="$BOOTSECTOR"32
+	fi
+fi
+rm -f ./mkdosfs.$$
+
+# Install the boot sector.
+echo -n "Copying boot sector...  "
+./copy-boot $BOOTSECTOR $DEVICE >& /dev/null
 if [ $? -ne 0 ] ; then
     exit $?
 fi
+echo Done
 
 # Try to figure out where the disk gets mounted by reading the fstab
 # file.  If this is not working on your system, you should override

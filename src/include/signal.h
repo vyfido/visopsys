@@ -23,18 +23,35 @@
 
 #if !defined(_SIGNAL_H)
 
-#include <stddef.h>
+#define SIGNALS_MAX 32
 
-// Compatible with solaris codes
-#define SIGABRT   6
-#define SIGFPE    8
-#define SIGILL    4
-#define SIGINT    2
-#define SIGSEGV   11
-#define SIGTERM   15
-#define SIG_DFL   (void(*)())0
-#define SIG_ERR   (void(*)())0
-#define SIG_IGN   (void(*)())0
+// Signal numbers.  Compatible with solaris codes.
+
+// SIGABRT: Abnormal termination, such as is initiated by the abort function
+#define SIGABRT     6
+// SIGFPE: An erroneous arithmetic operation, such as zero divide or an
+// operation resulting in overflow
+#define SIGFPE      8
+// SIGILL: Detection of an invalid function image, such as an invalid
+// instruction
+#define SIGILL      4
+// SIGINT: Receipt of an interactive attention signal
+#define SIGINT      2
+// SIGSEGV: An invalid access to storage
+#define SIGSEGV     11
+// SIGTERM: A termination request sent to the program
+#define SIGTERM     15
+
+// A type for a signal handler
+typedef void (*sighandler_t)(int);
+
+// Built-in signal handing macros. 
+#define SIG_DFL ((sighandler_t) 0)  // Do the default action.
+#define SIG_ERR ((sighandler_t) 1)  // Signal handling error.
+#define SIG_IGN ((sighandler_t) 2)  // Ignore this signal.
+
+// Signal handling functions
+sighandler_t signal(int, sighandler_t);
 
 #define _SIGNAL_H
 #endif

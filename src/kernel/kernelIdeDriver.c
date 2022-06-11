@@ -27,10 +27,12 @@
 #include "kernelPic.h"
 #include "kernelProcessorX86.h"
 #include "kernelSysTimer.h"
-#include "kernelDriverManagement.h"
-#include "kernelParameters.h"
+#include "kernelMalloc.h"
+#include "kernelMain.h"
 #include "kernelMiscFunctions.h"
+#include "kernelLog.h"
 #include "kernelError.h"
+#include <stdio.h>
 
 // List of IDE ports, per device number
 static idePorts ports[] = {
@@ -59,7 +61,7 @@ static char *errorMessages[] = {
 };
 
 static ideController controllers[MAX_IDE_DISKS / 2];
-static kernelPhysicalDisk *disks[MAX_IDE_DISKS];
+static kernelPhysicalDisk disks[MAX_IDE_DISKS];
 
 
 static int selectDrive(int driveNum)
@@ -301,11 +303,11 @@ static int atapiStartStop(int driveNum, int state)
   if (state)
     {
       // If we know the drive door is open, try to close it
-      if (disks[driveNum]->doorState)
+      if (disks[driveNum].doorState)
 	sendAtapiPacket(driveNum, 0, ATAPI_PACKET_CLOSE);
 
       // Well, okay, assume this.
-      disks[driveNum]->doorState = 0;
+      disks[driveNum].doorState = 0;
 
       status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_START);
       if (status < 0)
@@ -318,44 +320,36 @@ static int atapiStartStop(int driveNum, int state)
       // Read the number of sectors
       pollStatus(driveNum, IDE_DRV_DRQ, 1);
       kernelProcessorInPort16(ports[driveNum].data, dataWord);
-      disks[driveNum]->numSectors =
-	(((unsigned)(dataWord & 0x00FF)) << 24);
-      disks[driveNum]->numSectors |= 
-	(((unsigned)(dataWord & 0xFF00)) << 8);
+      disks[driveNum].numSectors = (((unsigned)(dataWord & 0x00FF)) << 24);
+      disks[driveNum].numSectors |= (((unsigned)(dataWord & 0xFF00)) << 8);
       pollStatus(driveNum, IDE_DRV_DRQ, 1);
       kernelProcessorInPort16(ports[driveNum].data, dataWord);
-      disks[driveNum]->numSectors |=
-	(((unsigned)(dataWord & 0x00FF)) << 8);
-      disks[driveNum]->numSectors |=
-	(((unsigned)(dataWord & 0xFF00)) >> 8);
+      disks[driveNum].numSectors |= (((unsigned)(dataWord & 0x00FF)) << 8);
+      disks[driveNum].numSectors |= (((unsigned)(dataWord & 0xFF00)) >> 8);
 
       // Read the sector size
       pollStatus(driveNum, IDE_DRV_DRQ, 1);
       kernelProcessorInPort16(ports[driveNum].data, dataWord);
-      disks[driveNum]->sectorSize =
-	(((unsigned)(dataWord & 0x00FF)) << 24);
-      disks[driveNum]->sectorSize |=
-	(((unsigned)(dataWord & 0xFF00)) << 8);
+      disks[driveNum].sectorSize = (((unsigned)(dataWord & 0x00FF)) << 24);
+      disks[driveNum].sectorSize |= (((unsigned)(dataWord & 0xFF00)) << 8);
       pollStatus(driveNum, IDE_DRV_DRQ, 1);
       kernelProcessorInPort16(ports[driveNum].data, dataWord);
-      disks[driveNum]->sectorSize |=
-	(((unsigned)(dataWord & 0x00FF)) << 8);
-      disks[driveNum]->sectorSize |=
-	(((unsigned)(dataWord & 0xFF00)) >> 8);
+      disks[driveNum].sectorSize |= (((unsigned)(dataWord & 0x00FF)) << 8);
+      disks[driveNum].sectorSize |= (((unsigned)(dataWord & 0xFF00)) >> 8);
 
       // If there's no disk, the number of sectors will be illegal.  Set
       // to the maximum value and quit
-      if ((disks[driveNum]->numSectors == 0) ||
-	  (disks[driveNum]->numSectors == 0xFFFFFFFF))
+      if ((disks[driveNum].numSectors == 0) ||
+	  (disks[driveNum].numSectors == 0xFFFFFFFF))
 	{
-	  disks[driveNum]->numSectors = 0xFFFFFFFF;
-	  disks[driveNum]->sectorSize = 2048;
+	  disks[driveNum].numSectors = 0xFFFFFFFF;
+	  disks[driveNum].sectorSize = 2048;
 	  kernelError(kernel_error, "No media in drive %s",
-		      disks[driveNum]->name);
+		      disks[driveNum].name);
 	  return (status = ERR_NOSUCHENTRY);
 	}
 
-      disks[driveNum]->logical[0].numSectors = disks[driveNum]->numSectors;
+      disks[driveNum].logical[0].numSectors = disks[driveNum].numSectors;
       
       // Read the TOC (Table Of Contents)
       status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_READTOC);
@@ -375,23 +369,18 @@ static int atapiStartStop(int driveNum, int state)
       // Read the LBA address of the start of the last track
       pollStatus(driveNum, IDE_DRV_DRQ, 1);
       kernelProcessorInPort16(ports[driveNum].data, dataWord);
-      disks[driveNum]->lastSession =
-	(((unsigned)(dataWord & 0x00FF)) << 24);
-      disks[driveNum]->lastSession |=
-	(((unsigned)(dataWord & 0xFF00)) << 8);
+      disks[driveNum].lastSession = (((unsigned)(dataWord & 0x00FF)) << 24);
+      disks[driveNum].lastSession |= (((unsigned)(dataWord & 0xFF00)) << 8);
       pollStatus(driveNum, IDE_DRV_DRQ, 1);
       kernelProcessorInPort16(ports[driveNum].data, dataWord);
-      disks[driveNum]->lastSession |=
-	(((unsigned)(dataWord & 0x00FF)) << 8);
-      disks[driveNum]->lastSession |=
-	(((unsigned)(dataWord & 0xFF00)) >> 8);
-
-      disks[driveNum]->motorState = 1;
+      disks[driveNum].lastSession |= (((unsigned)(dataWord & 0x00FF)) << 8);
+      disks[driveNum].lastSession |= (((unsigned)(dataWord & 0xFF00)) >> 8);
+      disks[driveNum].motorState = 1;
     }
   else
     {
       status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_STOP);
-      disks[driveNum]->motorState = 0;
+      disks[driveNum].motorState = 0;
     }
 
   return (status);
@@ -410,12 +399,12 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
   unsigned transferBytes = 0;
   unsigned count;
   
-  if (!disks[driveNum])
+  if (!disks[driveNum].name[0])
     {
       kernelError(kernel_error, "No such drive %d", driveNum);
       return (status = ERR_NOSUCHENTRY);
     }
-  
+
   // Wait for a lock on the controller
   status = kernelLockGet(&(controllers[driveNum / 2].controllerLock));
   if (status < 0)
@@ -425,10 +414,10 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
   selectDrive(driveNum);
 
   // If it's an ATAPI device
-  if (disks[driveNum]->flags & DISKFLAG_IDECDROM)
+  if (disks[driveNum].flags & DISKFLAG_IDECDROM)
     {
       // If it's not started, we start it
-      if (!disks[driveNum]->motorState)
+      if (!disks[driveNum].motorState)
 	{
 	  status = atapiStartStop(driveNum, 1);
 	  if (status < 0)
@@ -439,7 +428,7 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
 	    }
 	}
 
-      transferBytes = (numSectors * disks[driveNum]->sectorSize);
+      transferBytes = (numSectors * disks[driveNum].sectorSize);
 
       status = sendAtapiPacket(driveNum, 0xFFFF, ((unsigned char[])
 	  { ATAPI_READ12, 0,
@@ -571,7 +560,7 @@ static int readWriteSectors(int driveNum, unsigned logicalSector,
 	  if (status < 0)
 	    {
 	      kernelError(kernel_error, "Disk %s, %s %u at %u: %s",
-			  disks[driveNum]->name, (read? "read" : "write"),
+			  disks[driveNum].name, (read? "read" : "write"),
 			  numSectors, logicalSector,
 			  errorMessages[evaluateError(driveNum)]);
 	      kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
@@ -630,8 +619,8 @@ static int reset(int driveNum)
 
   // If either the slave or the master on this controller is an ATAPI device,
   // delay
-  if ((disks[master] && (disks[master]->flags & DISKFLAG_IDECDROM)) ||
-      (disks[slave] && (disks[slave]->flags & DISKFLAG_IDECDROM)))
+  if ((disks[master].name[0] && (disks[master].flags & DISKFLAG_IDECDROM)) ||
+      (disks[slave].name[0] && (disks[slave].flags & DISKFLAG_IDECDROM)))
     atapiDelay();
 
   // Wait for controller ready
@@ -648,7 +637,7 @@ static int reset(int driveNum)
     kernelError(kernel_error, errorMessages[evaluateError(master)]);
 
   // If there is a slave, make sure it is ready
-  if (disks[slave])
+  if (disks[slave].name[0])
     {
       // Select the slave
       selectDrive(slave);
@@ -742,7 +731,7 @@ static int atapiSetLockState(int driveNum, int lockState)
   else
     status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_UNLOCK);
 
-  disks[driveNum]->lockState = lockState;
+  disks[driveNum].lockState = lockState;
 
   return (status);
 }
@@ -757,7 +746,7 @@ static int atapiSetDoorState(int driveNum, int open)
   if (open)
     {
       // If the disk is started, stop it
-      if (disks[driveNum]->motorState)
+      if (disks[driveNum].motorState)
 	{
 	  status = atapiStartStop(driveNum, 0);
 	  if (status < 0)
@@ -773,7 +762,7 @@ static int atapiSetDoorState(int driveNum, int open)
   else
     status = sendAtapiPacket(driveNum, 0, ATAPI_PACKET_CLOSE);
 
-  disks[driveNum]->doorState = open;
+  disks[driveNum].doorState = open;
 
   return (status);
 }
@@ -788,7 +777,7 @@ static void primaryIdeInterrupt(void)
   // the information.
 
   kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = INTERRUPT_NUM_PRIMARYIDE;
+  kernelProcessingInterrupt = 1;
 
   controllers[0].interruptReceived = 1;
 
@@ -818,7 +807,7 @@ static void secondaryIdeInterrupt(void)
   kernelProcessorInPort8(0xA0, data);
   if (data & 0x80)
     {
-      kernelProcessingInterrupt = INTERRUPT_NUM_SECONDARYIDE;
+      kernelProcessingInterrupt = 1;
       
       controllers[1].interruptReceived = 1;
       
@@ -830,200 +819,13 @@ static void secondaryIdeInterrupt(void)
 }
 
 
-static int ideDriverDetect(int driveNum, void *diskPointer)
-{
-  // Returns 1 if we detect a disk at the requested physical drive number.
-  
-  int status = 0;
-  unsigned char cylinderLow = 0, cylinderHigh = 0;
-  unsigned short buffer[256];
-
-  // Check params
-  if (diskPointer == NULL)
-    {
-      kernelError(kernel_error, "Disk structure is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  // Register our interrupt handlers
-  status = kernelInterruptHook(INTERRUPT_NUM_PRIMARYIDE, &primaryIdeInterrupt);
-  if (status < 0)
-    return (status);
-
-  // Turn on the interrupt
-  kernelPicMask(INTERRUPT_NUM_PRIMARYIDE, 1);
-
-  // Register our interrupt handlers
-  status = kernelInterruptHook(INTERRUPT_NUM_SECONDARYIDE,
-			       &secondaryIdeInterrupt);
-  if (status < 0)
-    return (status);
-
-  // Turn on the interrupt
-  kernelPicMask(INTERRUPT_NUM_SECONDARYIDE, 1);
-
-  // Wait for a lock on the controller
-  status = kernelLockGet(&(controllers[driveNum / 2].controllerLock));
-  if (status < 0)
-    return (status);
-  
-  // Select the drive
-  selectDrive(driveNum);
-  
-  // Wait for the controller to be ready
-  status = pollStatus(driveNum, IDE_CTRL_BSY, 0);
-  if (status < 0)
-    {
-      kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
-      return (status);
-    }
-
-  // Try to wait for the selected drive to be ready, but don't quit if not
-  // since CD-ROMs don't seem to respond to this when they're masters.
-  pollStatus(driveNum, IDE_DRV_RDY, 1);
-
-  // Seems to be an IDE device of one kind or another.
-  disks[driveNum] = (kernelPhysicalDisk *) diskPointer;
-  disks[driveNum]->description = "Unknown IDE disk";
-  disks[driveNum]->deviceNumber = driveNum;
-  disks[driveNum]->dmaChannel = 3;
-  kernelMemClear(buffer, 512);
-  
-  // First try a plain, ATA "identify device" command.  If the device doesn't
-  // respond to that, try the ATAPI "identify packet device" command.
-  
-  // Clear the "interrupt received" byte
-  controllers[driveNum / 2].interruptReceived = 0;
-  
-  // Send the "identify device" command
-  kernelProcessorOutPort8(ports[driveNum].comStat, (unsigned char)
-			  ATA_GETDEVINFO);
-  
-  // Wait for the controller to finish the operation
-  status = waitOperationComplete(driveNum);
-  
-  if (status == 0)
-    {
-      // This is an ATA hard disk device
-      disks[driveNum]->description = "ATA/IDE hard disk";
-      disks[driveNum]->flags =
-	(DISKFLAG_PHYSICAL | DISKFLAG_FIXED | DISKFLAG_IDEDISK);
-      
-      // Transfer one sector's worth of data from the controller.
-      kernelProcessorRepInPort16(ports[driveNum].data, buffer, 256);
-      
-      // Return some information we know from our device info command
-      disks[driveNum]->heads = (unsigned) buffer[3];
-      disks[driveNum]->cylinders = (unsigned) buffer[1];
-      disks[driveNum]->sectorsPerCylinder = (unsigned) buffer[6];
-      disks[driveNum]->numSectors = *((unsigned *)(buffer + 0x78));
-      disks[driveNum]->sectorSize = (unsigned) buffer[5];
-    }
-  
-  else
-    {
-      // Possibly ATAPI?
-
-      // Read the cylinder low + high registers
-      kernelProcessorInPort8(ports[driveNum].cylinderLow, cylinderLow);
-      kernelProcessorInPort8(ports[driveNum].cylinderHigh, cylinderHigh);
-
-      if ((cylinderLow != 0x14) || (cylinderHigh != 0xEB))
-	{
-	  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
-          return (status);
-	}
-
-      // Send the "identify packet device" command
-      kernelProcessorOutPort8(ports[driveNum].comStat, (unsigned char)
-			      ATA_ATAPIIDENTIFY);
-
-      // Wait for BSY=0
-      status = pollStatus(driveNum, IDE_CTRL_BSY, 0);
-      if (status < 0)
-	{
-	  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
-	  return (status);
-	}
-
-      // Check for the signature again
-      if ((cylinderLow != 0x14) || (cylinderHigh != 0xEB))
-	{
-	  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
-          return (status);
-	}
-
-      // This is an ATAPI device (such as a CD-ROM)
-
-      // Transfer one sector's worth of data from the controller.
-      kernelProcessorRepInPort16(ports[driveNum].data, buffer, 256);
-      
-      // Check ATAPI packet interface supported
-      if ((buffer[0] & ((unsigned short) 0xC000)) != 0x8000)
-        {
-          kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
-          return (status = ERR_NOTIMPLEMENTED);
-        }
-      
-      disks[driveNum]->description = "ATAPI CD-ROM";
-
-      // Removable?
-      if (buffer[0] & (unsigned short) 0x0080)
-	disks[driveNum]->flags |= DISKFLAG_REMOVABLE;
-      else
-	disks[driveNum]->flags |= DISKFLAG_FIXED;
-
-      // Device type: Bits 12-8 of buffer[0] should indicate 0x05 for CDROM,
-      // but we will just warn if it isn't for now
-      disks[driveNum]->flags |= DISKFLAG_IDECDROM;
-      if (((buffer[0] & (unsigned short) 0x1F00) >> 8) != 0x05)
-	kernelError(kernel_warn, "ATAPI device type may not be supported");
-
-      if ((buffer[0] & (unsigned short) 0x0003) != 0)
-	kernelError(kernel_warn, "ATAPI packet size not 12");
-
-      atapiReset(driveNum);
-
-      // Return some information we know from our device info command
-      disks[driveNum]->heads = (unsigned) buffer[3];
-      disks[driveNum]->cylinders = (unsigned) buffer[1];
-      disks[driveNum]->sectorsPerCylinder = (unsigned) buffer[6];
-      disks[driveNum]->numSectors = 0xFFFFFFFF;
-      disks[driveNum]->sectorSize = 2048;
-    }
-
-  kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
-  return (status = 1);
-}
-
-
-static int ideDriverRegisterDevice(void *diskPointer)
-{
-  // The disk routine has finished setting up the physical device.  Keep a
-  // pointer to it.
-
-  int status = 0;
-  kernelPhysicalDisk *physicalDisk = (kernelPhysicalDisk *) diskPointer;
-
-  // Check params
-  if (physicalDisk == NULL)
-    {
-      kernelError(kernel_error, "Disk structure is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  disks[physicalDisk->deviceNumber] = physicalDisk;
-  return (status = 0);
-}
-
-
-static int ideDriverReset(int driveNum)
+static int driverReset(int driveNum)
 {
   // Does a software reset of the requested disk controller.
   
   int status = 0;
   
-  if (!disks[driveNum])
+  if (!disks[driveNum].name[0])
     {
       kernelError(kernel_error, "No such drive %d", driveNum);
       return (status = ERR_NOSUCHENTRY);
@@ -1046,20 +848,20 @@ static int ideDriverReset(int driveNum)
 }
 
 
-static int ideDriverRecalibrate(int driveNum)
+static int driverRecalibrate(int driveNum)
 {
   // Recalibrates the requested drive, causing it to seek to cylinder 0
   
   int status = 0;
   
-  if (!disks[driveNum])
+  if (!disks[driveNum].name[0])
     {
       kernelError(kernel_error, "No such drive %d", driveNum);
       return (status = ERR_NOSUCHENTRY);
     }
 
   // Don't try to recalibrate ATAPI 
-  if (disks[driveNum]->flags & DISKFLAG_IDECDROM)
+  if (disks[driveNum].flags & DISKFLAG_IDECDROM)
     return (status = 0);
 
   // Wait for a lock on the controller
@@ -1113,19 +915,19 @@ static int ideDriverRecalibrate(int driveNum)
 }
 
 
-static int ideDriverSetLockState(int driveNum, int lockState)
+static int driverSetLockState(int driveNum, int lockState)
 {
   // This will lock or unlock the CD-ROM door
 
   int status = 0;
 
-  if (!disks[driveNum])
+  if (!disks[driveNum].name[0])
     {
       kernelError(kernel_error, "No such drive %d", driveNum);
       return (status = ERR_NOSUCHENTRY);
     }
 
-  if (lockState && disks[driveNum]->doorState)
+  if (lockState && disks[driveNum].doorState)
     {
       // Don't to lock the door if it is open
       kernelError(kernel_error, "Drive door is open");
@@ -1149,19 +951,19 @@ static int ideDriverSetLockState(int driveNum, int lockState)
 }
 
 
-static int ideDriverSetDoorState(int driveNum, int open)
+static int driverSetDoorState(int driveNum, int open)
 {
   // This will open or close the CD-ROM door
 
   int status = 0;
 
-  if (!disks[driveNum])
+  if (!disks[driveNum].name[0])
     {
       kernelError(kernel_error, "No such drive %d", driveNum);
       return (status = ERR_NOSUCHENTRY);
     }
 
-  if (open && disks[driveNum]->lockState)
+  if (open && disks[driveNum].lockState)
     {
       // Don't try to open the door if it is locked
       kernelError(kernel_error, "Drive door is locked");
@@ -1185,8 +987,8 @@ static int ideDriverSetDoorState(int driveNum, int open)
 }
 
 
-static int ideDriverReadSectors(int driveNum, unsigned logicalSector,
-				unsigned numSectors, void *buffer)
+static int driverReadSectors(int driveNum, unsigned logicalSector,
+			     unsigned numSectors, void *buffer)
 {
   // This routine is a wrapper for the readWriteSectors routine.
   return (readWriteSectors(driveNum, logicalSector, numSectors, buffer,
@@ -1194,8 +996,8 @@ static int ideDriverReadSectors(int driveNum, unsigned logicalSector,
 }
 
 
-static int ideDriverWriteSectors(int driveNum, unsigned logicalSector,
-				 unsigned numSectors, void *buffer)
+static int driverWriteSectors(int driveNum, unsigned logicalSector,
+			      unsigned numSectors, void *buffer)
 {
   // This routine is a wrapper for the readWriteSectors routine.
   return (readWriteSectors(driveNum, logicalSector, numSectors, buffer,
@@ -1203,17 +1005,251 @@ static int ideDriverWriteSectors(int driveNum, unsigned logicalSector,
 }
 
 
-static kernelDiskDriver defaultIdeDriver = {
-  ideDriverDetect,
-  ideDriverRegisterDevice,
-  ideDriverReset,
-  ideDriverRecalibrate,
+static int driverDetect(void *driver)
+{
+  // This routine is used to detect and initialize each device, as well as
+  // registering each one with any higher-level interfaces.  Also does
+  // general driver initialization.
+  
+  int status = 0;
+  int driveNum = 0;
+  int numberHardDisks = 0;
+  int numberCdRoms = 0;
+  int numberIdeDisks = 0;
+  unsigned char cylinderLow = 0;
+  unsigned char cylinderHigh = 0;
+  unsigned short buffer[256];
+  kernelDevice *devices = NULL;
+
+  kernelLog("Examining hard disks...");
+
+  // Reset the number of IDE devices
+  numberIdeDisks = 0;
+
+  // Clear the controller and disk memory
+  kernelMemClear(controllers, (sizeof(ideController) * (MAX_IDE_DISKS / 2)));
+  kernelMemClear((void *) disks, (sizeof(kernelPhysicalDisk) * MAX_IDE_DISKS));
+  
+  // Register our interrupt handlers and turn on the interrupts
+
+  // Primary
+  status = kernelInterruptHook(INTERRUPT_NUM_PRIMARYIDE, &primaryIdeInterrupt);
+  if (status < 0)
+    return (status);
+  kernelPicMask(INTERRUPT_NUM_PRIMARYIDE, 1);
+
+  // Secondary
+  status =
+    kernelInterruptHook(INTERRUPT_NUM_SECONDARYIDE, &secondaryIdeInterrupt);
+  if (status < 0)
+    return (status);
+  kernelPicMask(INTERRUPT_NUM_SECONDARYIDE, 1);
+
+  for (driveNum = 0; (driveNum < MAX_IDE_DISKS); driveNum ++)
+    {
+      // Wait for a lock on the controller
+      status = kernelLockGet(&(controllers[driveNum / 2].controllerLock));
+      if (status < 0)
+	return (status);
+
+      // Select the drive
+      selectDrive(driveNum);
+  
+      // Try to wait for the selected drive to be ready, but don't quit
+      // if not since CD-ROMs don't seem to respond to this when they're
+      // masters.
+      pollStatus(driveNum, IDE_DRV_RDY, 1);
+
+      disks[driveNum].description = "Unknown IDE disk";
+      disks[driveNum].deviceNumber = driveNum;
+      disks[driveNum].dmaChannel = 3;
+      disks[driveNum].driver = driver;
+      kernelMemClear(buffer, 512);
+  
+      // First try a plain, ATA "identify device" command.  If the device
+      // doesn't respond to that, try the ATAPI "identify packet device"
+      // command.
+  
+      // Clear the "interrupt received" byte
+      controllers[driveNum / 2].interruptReceived = 0;
+  
+      // Send the "identify device" command
+      kernelProcessorOutPort8(ports[driveNum].comStat, (unsigned char)
+			      ATA_GETDEVINFO);
+  
+      // Wait for the controller to finish the operation
+      status = waitOperationComplete(driveNum);
+  
+      if (status == 0)
+	{
+	  // This is an ATA hard disk device
+	  kernelLog("Disk %d is an IDE disk", driveNum);
+	      
+	  sprintf((char *) disks[driveNum].name, "hd%d", numberHardDisks++);
+	  disks[driveNum].description = "ATA/IDE hard disk";
+	  disks[driveNum].flags =
+	    (DISKFLAG_PHYSICAL | DISKFLAG_FIXED | DISKFLAG_IDEDISK);
+      
+	  // Transfer one sector's worth of data from the controller.
+	  kernelProcessorRepInPort16(ports[driveNum].data, buffer, 256);
+      
+	  /*
+	  // Return some information we know from our device info command
+	  disks[driveNum].heads = (unsigned) buffer[3];
+	  disks[driveNum].cylinders = (unsigned) buffer[1];
+	  disks[driveNum].sectorsPerCylinder = (unsigned) buffer[6];
+	  disks[driveNum].numSectors = *((unsigned *)(buffer + 0x78));
+	  disks[driveNum].sectorSize = (unsigned) buffer[5];
+	  */
+	  disks[driveNum].heads = kernelOsLoaderInfo->hddInfo[driveNum].heads;
+	  disks[driveNum].cylinders =
+	    kernelOsLoaderInfo->hddInfo[driveNum].cylinders;
+	  disks[driveNum].sectorsPerCylinder = 
+	    kernelOsLoaderInfo->hddInfo[driveNum].sectorsPerCylinder;
+	  disks[driveNum].numSectors =
+	    kernelOsLoaderInfo->hddInfo[driveNum].totalSectors;
+	  disks[driveNum].sectorSize =
+	    kernelOsLoaderInfo->hddInfo[driveNum].bytesPerSector;
+	  disks[driveNum].motorState = 1;
+
+	  // Sometimes 0?  We can't have that as we are about to use it to
+	  // perform a division operation.
+	  if (disks[driveNum].sectorSize == 0)
+	    {
+	      kernelError(kernel_warn, "Physical disk %d sector size 0; "
+			  "assuming 512", driveNum);
+	      disks[driveNum].sectorSize = 512;
+	    }
+
+	  // In some cases, we are detecting hard disks that don't seem
+	  // to actually exist.  Check whether the number of cylinders
+	  // passed by the loader is non-NULL.
+	  if (!disks[driveNum].cylinders)
+	    {
+	      kernelError(kernel_warn, "Physical disk %d cylinders 0",
+			  driveNum);
+	      continue;
+	    }
+	}
+
+      else
+	{
+	  // Possibly ATAPI?
+	  
+	  // Read the cylinder low + high registers
+	  kernelProcessorInPort8(ports[driveNum].cylinderLow, cylinderLow);
+	  kernelProcessorInPort8(ports[driveNum].cylinderHigh, cylinderHigh);
+
+	  if ((cylinderLow != 0x14) || (cylinderHigh != 0xEB))
+	    goto nextDisk;
+
+	  // Send the "identify packet device" command
+	  kernelProcessorOutPort8(ports[driveNum].comStat, (unsigned char)
+				  ATA_ATAPIIDENTIFY);
+
+	  // Wait for BSY=0
+	  status = pollStatus(driveNum, IDE_CTRL_BSY, 0);
+	  if (status < 0)
+	    {
+	      kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
+	      return (status);
+	    }
+
+	  // Check for the signature again
+	  if ((cylinderLow != 0x14) || (cylinderHigh != 0xEB))
+	    goto nextDisk;
+
+	  // This is an ATAPI device (such as a CD-ROM)
+	  kernelLog("Disk %d is an IDE CD-ROM", driveNum);
+
+	  // Transfer one sector's worth of data from the controller.
+	  kernelProcessorRepInPort16(ports[driveNum].data, buffer, 256);
+      
+	  // Check ATAPI packet interface supported
+	  if ((buffer[0] & ((unsigned short) 0xC000)) != 0x8000)
+	    {
+	      kernelError(kernel_warn, "ATAPI packet interface not supported");
+	      goto nextDisk;
+	    }
+      
+	  sprintf((char *) disks[driveNum].name, "cd%d", numberCdRoms++);
+	  disks[driveNum].description = "ATAPI CD-ROM";
+	  // Removable?
+	  if (buffer[0] & (unsigned short) 0x0080)
+	    disks[driveNum].flags |= DISKFLAG_REMOVABLE;
+	  else
+	    disks[driveNum].flags |= DISKFLAG_FIXED;
+
+	  // Device type: Bits 12-8 of buffer[0] should indicate 0x05 for
+	  // CDROM, but we will just warn if it isn't for now
+	  disks[driveNum].flags |= DISKFLAG_IDECDROM;
+	  if (((buffer[0] & (unsigned short) 0x1F00) >> 8) != 0x05)
+	    kernelError(kernel_warn, "ATAPI device type may not be supported");
+
+	  if ((buffer[0] & (unsigned short) 0x0003) != 0)
+	    kernelError(kernel_warn, "ATAPI packet size not 12");
+
+	  atapiReset(driveNum);
+
+	  // Return some information we know from our device info command
+	  disks[driveNum].heads = (unsigned) buffer[3];
+	  disks[driveNum].cylinders = (unsigned) buffer[1];
+	  disks[driveNum].sectorsPerCylinder = (unsigned) buffer[6];
+	  disks[driveNum].numSectors = 0xFFFFFFFF;
+	  disks[driveNum].sectorSize = 2048;
+	}
+
+      // Increase the overall count of IDE disks
+      numberIdeDisks += 1;
+
+    nextDisk:
+      kernelLockRelease(&(controllers[driveNum / 2].controllerLock));
+    }
+
+  // Allocate memory for the device(s)
+  devices = kernelMalloc(numberIdeDisks * (sizeof(kernelDevice) +
+					   sizeof(kernelPhysicalDisk)));
+  if (devices == NULL)
+    return (status = 0);
+
+  numberIdeDisks = 0;
+  for (driveNum = 0; (driveNum < MAX_IDE_DISKS); driveNum ++)
+    {
+      if (disks[driveNum].name[0])
+	{
+	  devices[numberIdeDisks].class =
+	    kernelDeviceGetClass(DEVICECLASS_DISK);
+	  devices[numberIdeDisks].subClass =
+	    kernelDeviceGetClass(DEVICESUBCLASS_DISK_IDE);
+	  devices[numberIdeDisks].driver = driver;
+	  devices[numberIdeDisks].dev = (void *) &disks[driveNum];
+
+	  // Register the disk
+	  status = kernelDiskRegisterDevice(&devices[numberIdeDisks]);
+	  if (status < 0)
+	    return (status);
+
+	  status = kernelDeviceAdd(NULL, &devices[numberIdeDisks]);
+	  if (status < 0)
+	    return (status);
+
+	  numberIdeDisks += 1;
+	}
+    }
+
+  return (status = 0);
+}
+
+
+static kernelDiskOps ideOps = {
+  driverReset,
+  driverRecalibrate,
   NULL, // driverSetMotorState
-  ideDriverSetLockState,
-  ideDriverSetDoorState,
+  driverSetLockState,
+  driverSetDoorState,
   NULL, // driverDiskChanged
-  ideDriverReadSectors,
-  ideDriverWriteSectors,
+  driverReadSectors,
+  driverWriteSectors,
 };
 
 
@@ -1226,19 +1262,14 @@ static kernelDiskDriver defaultIdeDriver = {
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelIdeDriverInitialize(void)
+void kernelIdeDriverRegister(void *driverData)
 {
-  // This initializes the driver and returns success.
-  
-  int status = 0;
-  
-  // Clear the "interrupt received" bytes
-  controllers[0].interruptReceived = 0;
-  controllers[1].interruptReceived = 0;
-  
-  status = kernelDriverRegister(ideDriver, &defaultIdeDriver);
-  if (status < 0)
-    return (status);
+   // Device driver registration.
 
-  return (status = 0);
+  kernelDriver *driver = (kernelDriver *) driverData;
+
+  driver->driverDetect = driverDetect;
+  driver->ops = &ideOps;
+
+  return;
 }

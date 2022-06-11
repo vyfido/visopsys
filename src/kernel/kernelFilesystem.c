@@ -23,7 +23,6 @@
 
 #include "kernelFilesystem.h"
 #include "kernelFile.h"
-#include "kernelDriverManagement.h"
 #include "kernelMultitasker.h"
 #include "kernelLock.h"
 #include "kernelSysTimer.h"
@@ -595,8 +594,9 @@ int kernelFilesystemMount(const char *diskName, const char *path)
 
   // If the disk is removable and has a 'lock' function, lock it
   if ((physicalDisk->flags & DISKFLAG_REMOVABLE) &&
-      (physicalDisk->driver->driverSetLockState))
-    physicalDisk->driver->driverSetLockState(physicalDisk->deviceNumber, 1);
+      (((kernelDiskOps *) physicalDisk->driver->ops)->driverSetLockState))
+    ((kernelDiskOps *) physicalDisk->driver->ops)
+      ->driverSetLockState(physicalDisk->deviceNumber, 1);
 
   // If the driver specified that the filesystem is read-only, mark the disk
   // as read-only also
@@ -704,9 +704,9 @@ int kernelFilesystemUnmount(const char *path)
 		    "before mount", theFilesystem->disk->name);
 
       // If it has an 'unlock' function, unlock it
-      if (physicalDisk->driver->driverSetLockState)
-	physicalDisk->driver->driverSetLockState(physicalDisk->deviceNumber,
-						 0);
+      if (((kernelDiskOps *) physicalDisk->driver->ops)->driverSetLockState)
+	((kernelDiskOps *) physicalDisk->driver->ops)
+	  ->driverSetLockState(physicalDisk->deviceNumber, 0);
     }
 
   releaseFilesystem(theFilesystem);

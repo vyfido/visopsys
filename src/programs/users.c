@@ -219,19 +219,20 @@ static int setPasswordDialog(int userNumber)
   params.gridY = 5;
   params.gridWidth = 1;
   params.padBottom = 5;
-  params.padRight = 0;
+  params.padLeft = 5;
+  params.padRight = 5;
   params.orientationX = orient_right;
+  params.fixedHeight = 1;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
 
   // Create the Cancel button
   params.gridX = 1;
-  params.padRight = 5;
   params.orientationX = orient_left;
   cancelButton = windowNewButton(dialogWindow, "Cancel", NULL, &params);
 
   windowCenterDialog(window, dialogWindow);
   windowSetVisible(dialogWindow, 1);
-  
+
   while(1)
     {
       // Check for the OK button
@@ -465,6 +466,7 @@ static void constructWindow(void)
   // command line.
 
   componentParameters params;
+  objectKey container = NULL;
 
   // Create a new window
   window = windowNew(processId, "User Manager");
@@ -476,37 +478,41 @@ static void constructWindow(void)
   params.gridHeight = 1;
   params.padLeft = 5;
   params.padTop = 5;
+  params.padBottom = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_top;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
-
-  params.gridY = 0;
-  params.gridHeight = 3;
-  params.padBottom = 5;
   userList = windowNewList(window, 5, 1, 0, userNames, numUserNames, &params);
 
-  // Create an 'add user' button
+  // A container for the buttons
   params.gridX = 1;
-  params.gridHeight = 1;
   params.padRight = 5;
-  params.padBottom = 0;
-  addUserButton = windowNewButton(window, "Add User", NULL, &params);
+  params.fixedHeight = 1;
+  container = windowNewContainer(window, "button container", &params);
+
+  // Create an 'add user' button
+  params.gridX = 0;
+  params.padLeft = 0;
+  params.padRight = 0;
+  params.padTop = 0;
+  params.fixedHeight = 0;
+  addUserButton = windowNewButton(container, "Add User", NULL, &params);
   windowRegisterEventHandler(addUserButton, &eventHandler);
   if (privilege || readOnly)
     windowComponentSetEnabled(addUserButton, 0);
 
   // Create a 'delete user' button
   params.gridY = 1;
-  deleteUserButton = windowNewButton(window, "Delete User", NULL, &params);
+  deleteUserButton = windowNewButton(container, "Delete User", NULL, &params);
   windowRegisterEventHandler(deleteUserButton, &eventHandler);
   if (privilege || readOnly)
     windowComponentSetEnabled(deleteUserButton, 0);
 
   // Create a 'set password' button
   params.gridY = 2;
-  params.padBottom = 5;
-  setPasswordButton = windowNewButton(window, "Set Password", NULL, &params);
+  setPasswordButton =
+    windowNewButton(container, "Set Password", NULL, &params);
   windowRegisterEventHandler(setPasswordButton, &eventHandler);
   if (readOnly)
     windowComponentSetEnabled(setPasswordButton, 0);

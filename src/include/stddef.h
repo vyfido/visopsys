@@ -25,6 +25,7 @@
 
 typedef int ptrdiff_t;
 typedef unsigned size_t;
+typedef int ssize_t;
 
 #if !defined(__cplusplus)
 typedef int wchar_t;

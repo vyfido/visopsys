@@ -24,6 +24,8 @@
 
 #if !defined(_KERNELDMA_H)
 
+#include "kernelDevice.h"
+
 // Definitions.  
 
 // These are 8-bit bitwise numbers sent to the controller's
@@ -33,29 +35,14 @@
 
 // A structure used to register a DMA driver.
 
-typedef struct
-{
-  int (*driverInitialize) (void);
-  int (*driverRegisterDevice) (void *);
+typedef struct {
   int (*driverOpenChannel) (int, void *, int, int);
   int (*driverCloseChannel) (int);
 
-} kernelDmaDriver;
-
-// A structure to represent the DMA controller array
-
-typedef struct
-{
-  kernelDmaDriver *driver;
-
-} kernelDma;
-
-// The default driver initialization
-int kernelDmaDriverInitialize(void);
+} kernelDmaOps;
 
 // Functions exported from kernelDma.c
-int kernelDmaRegisterDevice(kernelDma *);
-int kernelDmaInitialize(void);
+int kernelDmaInitialize(kernelDevice *);
 int kernelDmaOpenChannel(int, void *, int, int);
 int kernelDmaCloseChannel(int);
 

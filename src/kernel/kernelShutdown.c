@@ -273,6 +273,8 @@ int kernelShutdown(int reboot, int force)
   if (reboot)
     {
       kernelSysTimerWaitTicks(20); // Wait ~2 seconds
+      // Disable interrupts
+      kernelProcessorDisableInts();
       kernelProcessorReboot();
     }
   else

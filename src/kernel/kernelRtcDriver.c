@@ -21,16 +21,10 @@
 
 // Driver for standard Real-Time Clock (RTC) chips.
 
-#include "kernelDriverManagement.h" // Contains my prototypes
+#include "kernelDriver.h" // Contains my prototypes
+#include "kernelRtc.h"
+#include "kernelMalloc.h"
 #include "kernelProcessorX86.h"
-
-
-int kernelRtcDriverReadSeconds(void);
-int kernelRtcDriverReadMinutes(void);
-int kernelRtcDriverReadHours(void);
-int kernelRtcDriverReadDayOfMonth(void);
-int kernelRtcDriverReadMonth(void);
-int kernelRtcDriverReadYear(void);
 
 // Register numbers
 #define SECSREG 0  // Seconds register
@@ -40,18 +34,6 @@ int kernelRtcDriverReadYear(void);
 #define DOTMREG 7  // Day of month register
 #define MNTHREG 8  // Month register
 #define YEARREG 9  // Year register
-
-static kernelRtcDriver defaultRtcDriver =
-{
-  kernelRtcDriverInitialize,
-  NULL, // driverRegisterDevice
-  kernelRtcDriverReadSeconds,
-  kernelRtcDriverReadMinutes,
-  kernelRtcDriverReadHours,
-  kernelRtcDriverReadDayOfMonth,
-  kernelRtcDriverReadMonth,
-  kernelRtcDriverReadYear
-};
 
 
 static inline void waitReady(void)
@@ -106,6 +88,86 @@ static int readRegister(int regNum)
 }
 
 
+static int driverReadSeconds(void)
+{
+  // This function returns the seconds value from the Real-Time clock.
+  return (readRegister(SECSREG));
+}
+
+
+static int driverReadMinutes(void)
+{
+  // This function returns the minutes value from the Real-Time clock.
+  return (readRegister(MINSREG));
+}
+
+
+static int driverReadHours(void)
+{
+  // This function returns the hours value from the Real-Time clock.
+  return (readRegister(HOURREG));
+}
+
+
+static int driverReadDayOfMonth(void)
+{
+  // This function returns the day-of-month value from the Real-Time clock.
+  return (readRegister(DOTMREG));
+}
+
+
+static int driverReadMonth(void)
+{
+  // This function returns the month value from the Real-Time clock.
+  return (readRegister(MNTHREG));
+}
+
+
+static int driverReadYear(void)
+{
+  // This function returns the year value from the Real-Time clock.
+  return (readRegister(YEARREG));
+}
+
+
+static int driverDetect(void *driver)
+{
+  // Normally, this routine is used to detect and initialize each device,
+  // as well as registering each one with any higher-level interfaces.  Since
+  // we can assume that there's an RTC, just initialize it.
+
+  int status = 0;
+  kernelDevice *device = NULL;
+
+  // Allocate memory for the device
+  device = kernelMalloc(sizeof(kernelDevice));
+  if (device == NULL)
+    return (status = 0);
+
+  device->class = kernelDeviceGetClass(DEVICECLASS_RTC);
+  device->driver = driver;
+
+  // Initialize RTC operations
+  status = kernelRtcInitialize(device);
+  if (status < 0)
+    {
+      kernelFree(device);
+      return (status);
+    }
+
+  return (status = kernelDeviceAdd(NULL, device));
+}
+
+	
+static kernelRtcOps rtcOps = {
+  driverReadSeconds,
+  driverReadMinutes,
+  driverReadHours,
+  driverReadDayOfMonth,
+  driverReadMonth,
+  driverReadYear
+};
+
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 //
@@ -115,50 +177,14 @@ static int readRegister(int regNum)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelRtcDriverInitialize(void)
+void kernelRtcDriverRegister(void *driverData)
 {
-  // Register our driver
-  return (kernelDriverRegister(rtcDriver, &defaultRtcDriver));
-}
+   // Device driver registration.
 
+  kernelDriver *driver = (kernelDriver *) driverData;
 
-int kernelRtcDriverReadSeconds(void)
-{
-  // This function returns the seconds value from the Real-Time clock.
-  return (readRegister(SECSREG));
-}
+  driver->driverDetect = driverDetect;
+  driver->ops = &rtcOps;
 
-
-int kernelRtcDriverReadMinutes(void)
-{
-  // This function returns the minutes value from the Real-Time clock.
-  return (readRegister(MINSREG));
-}
-
-
-int kernelRtcDriverReadHours(void)
-{
-  // This function returns the hours value from the Real-Time clock.
-  return (readRegister(HOURREG));
-}
-
-
-int kernelRtcDriverReadDayOfMonth(void)
-{
-  // This function returns the day-of-month value from the Real-Time clock.
-  return (readRegister(DOTMREG));
-}
-
-
-int kernelRtcDriverReadMonth(void)
-{
-  // This function returns the month value from the Real-Time clock.
-  return (readRegister(MNTHREG));
-}
-
-
-int kernelRtcDriverReadYear(void)
-{
-  // This function returns the year value from the Real-Time clock.
-  return (readRegister(YEARREG));
+  return;
 }

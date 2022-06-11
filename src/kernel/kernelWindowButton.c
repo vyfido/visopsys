@@ -270,7 +270,7 @@ kernelWindowComponent *kernelWindowNewButton(volatile void *parent,
 
   // Now populate it
   component->type = buttonComponentType;
-  component->flags |= (WINFLAG_CANFOCUS | WINFLAG_RESIZABLE);
+  component->flags |= (WINFLAG_CANFOCUS | WINFLAG_RESIZABLEX);
 
   button = kernelMalloc(sizeof(kernelWindowButton));
   if (button == NULL)
@@ -318,6 +318,8 @@ kernelWindowComponent *kernelWindowNewButton(volatile void *parent,
   else
     button->buttonImage.data = NULL;
 
+  component->minWidth = component->width;
+  component->minHeight = component->height;
   component->data = (void *) button;
 
   // The functions

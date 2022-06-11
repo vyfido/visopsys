@@ -88,7 +88,6 @@ typedef struct
 {
   kernelFileSysTypeEnum driverType;
   char *driverTypeName;
-  int (*driverInitialize) (void);
   int (*driverDetect) (const kernelDisk *);
   int (*driverFormat) (kernelDisk *, const char *, const char *, int);
   int (*driverCheck) (kernelFilesystem *, int, int);

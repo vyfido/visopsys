@@ -500,18 +500,21 @@ static void constructWindow(void)
   params.gridX = 1;
   params.gridY = 4;
   params.padRight = 5;
+  params.fixedHeight = 1;
   container = windowNewContainer(window, "rightContainer", &params);
   
-  // Create a 'set priority' button
+  // Create a 'run program' button
   params.gridX = 0;
   params.gridY = 0;
   params.padLeft = 0;
   params.padRight = 0;
   params.padTop = 0;
   params.padBottom = 0;
+  params.fixedHeight = 1;
   runProgramButton = windowNewButton(container, "Run program", NULL, &params);
   windowRegisterEventHandler(runProgramButton, &eventHandler);
 
+  // Create a 'set priority' button
   params.gridY = 1;
   params.padTop = 5;
   setPriorityButton =

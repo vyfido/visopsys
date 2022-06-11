@@ -245,6 +245,8 @@ kernelWindowComponent *kernelWindowNewListItem(volatile void *parent,
     (kernelFontGetPrintedWidth(component->parameters.font, text) + 2);
   component->height =
     (((kernelAsciiFont *) component->parameters.font)->charHeight + 2);
+  component->minWidth = component->width;
+  component->minHeight = component->height;
 
   // The label data
   listItemComponent = kernelMalloc(sizeof(kernelWindowListItem));

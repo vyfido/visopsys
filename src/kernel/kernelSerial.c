@@ -22,12 +22,12 @@
 // This file contains the C functions belonging to the kernel's serial port
 // services
 
+/*
 #include "kernelSerial.h"
 #include "kernelParameters.h"
 #include "kernelError.h"
 #include <string.h>
 
-/*
 static volatile kernelSerialPort *serialPort[MAX_SERIAL_PORTS];
 static volatile int numSerialPorts = 0;
 static int initialized = 0;

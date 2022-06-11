@@ -191,6 +191,34 @@
 			"popal"                           \
                         : : "d" (port), "S" (buffer), "c" (writes))
 
+#define kernelProcessorInPort32(port, data) \
+  __asm__ __volatile__ ("inl %%dx, %%eax"   \
+                        : "=a" (data) : "d" (port))
+
+#define kernelProcessorOutPort32(port, data) \
+  __asm__ __volatile__ ("outl %%eax, %%dx"   \
+                        : : "a" (data), "d" (port))
+
+#define kernelProcessorRepInPort32(port, buffer, reads) \
+  __asm__ __volatile__ ("pushal \n\t"                   \
+			"pushfl \n\t"                   \
+                        "cli \n\t"                      \
+                        "cld \n\t"                      \
+                        "rep insl \n\t"                 \
+                        "popfl \n\t"                    \
+			"popal"                         \
+                        : : "d" (port), "D" (buffer), "c" (reads))
+
+#define kernelProcessorRepOutPort32(port, buffer, writes) \
+  __asm__ __volatile__ ("pushal \n\t"                     \
+			"pushfl \n\t"                     \
+                        "cli \n\t"                        \
+                        "cld \n\t"                        \
+                        "rep outsl \n\t"                  \
+                        "popfl \n\t"                      \
+			"popal"                           \
+                        : : "d" (port), "S" (buffer), "c" (writes))
+
 #define kernelProcessorIntStatus(variable) \
   __asm__ __volatile__ ("pushfl \n\t"      \
                         "popl %0 \n\t"     \

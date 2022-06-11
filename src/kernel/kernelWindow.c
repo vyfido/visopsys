@@ -577,10 +577,9 @@ static int drawWindow(kernelWindow *window)
     }
 
   // Draw a blank background
-  kernelGraphicDrawRect(&(window->buffer),
-			(color *) &(window->background), draw_normal,
-			0, 0, window->buffer.width, window->buffer.height,
-			0, 1);
+  kernelGraphicDrawRect(&(window->buffer), (color *) &(window->background),
+			draw_normal, 0, 0, window->buffer.width,
+			window->buffer.height, 0, 1);
 
   // If the window has a background image, draw it
   if (window->backgroundImage.data)
@@ -618,6 +617,10 @@ static int drawWindow(kernelWindow *window)
 	      return (status);
 	  }
     }
+
+  if (window->flags & WINFLAG_DEBUGLAYOUT)
+    ((kernelWindowContainer *) window->mainContainer->data)
+      ->containerDrawGrid(window->mainContainer);
 
   // Only render the visible portions of the window
   renderVisiblePortions(window, &((screenArea)
@@ -747,7 +750,11 @@ static int drawWindowClip(kernelWindow *window, int xCoord, int yCoord,
 	  }
       }
 
-  // Update visible portions of the area on the screen
+  if (window->flags & WINFLAG_DEBUGLAYOUT)
+    ((kernelWindowContainer *) window->mainContainer->data)
+      ->containerDrawGrid(window->mainContainer);
+
+  // Only render the visible portions of the window
   renderVisiblePortions(window, &((screenArea)
   { xCoord, yCoord, (xCoord + width - 1), (yCoord + height - 1) } ));
 
@@ -2191,7 +2198,27 @@ int kernelWindowSetSize(kernelWindow *window, int width, int height)
   if (status < 0)
     return (status);
 
-  return (status = 0);
+  // See if we need to call the 'resize' operation for the main container
+  if (!(window->flags & WINFLAG_PACKED) &&
+      (((kernelWindowContainer *) window->mainContainer->data)->doneLayout))
+    {
+      width = window->buffer.width;
+      height = window->buffer.height;
+      if (window->flags & WINFLAG_HASTITLEBAR)
+	height -= titleBarHeight;
+      if (window->flags & WINFLAG_HASBORDER)
+	{
+	  width -= (borderThickness * 2);
+	  height -= (borderThickness * 2);
+	}
+
+      status = window->mainContainer->resize((void *) window->mainContainer,
+					     width, height);
+      window->mainContainer->width = width;
+      window->mainContainer->height = height;
+    }
+
+  return (status);
 }
 
 
@@ -2502,10 +2529,10 @@ int kernelWindowSetVisible(kernelWindow *window, int visible)
   if (window == NULL)
     return (status = ERR_NULLPARAMETER);
 
-  // If the window is becoming visible and hasn't yet had its layout done,
-  // do that now
   if (visible)
     {
+      // If the window is becoming visible and hasn't yet had its layout done,
+      // do that now
       if (!((kernelWindowContainer *) window->mainContainer->data)->doneLayout)
 	{
 	  status = layoutWindow(window);
@@ -3034,30 +3061,6 @@ int kernelWindowSetTextOutput(kernelWindowComponent *component)
 }
 
 
-void kernelWindowDumpList(void)
-{
-  kernelTextOutputStream *currentOutput = NULL;
-  kernelWindow *window = NULL;
-  char output[MAXSTRINGLENGTH];
-  int count;
-
-  // Make sure we've been initialized
-  if (!initialized)
-    return;
-
-  // Get the current output stream
-  currentOutput = kernelTextGetCurrentOutput();
-
-  for (count = 0; count < numberWindows; count ++)
-    {
-      window = windowList[count];
-      sprintf(output, "%d: \"%s\" proc=%d lev=%d", count, window->title,
-	      window->processId, window->level);
-      kernelTextStreamPrintLine(currentOutput, output);
-    }
-}
-
-
 kernelWindowComponent *kernelWindowComponentNew(volatile void *parent,
 						componentParameters *params)
 {
@@ -3508,4 +3511,26 @@ int kernelWindowComponentSetSelected(kernelWindowComponent *component,
     return (ERR_NOSUCHFUNCTION);
 
   return (component->setSelected((void *) component, selected));
+}
+
+
+void kernelWindowDebugLayout(kernelWindow *window)
+{
+  // Sets the 'debug layout' flag on the window so that layout grids get
+  // drawn around the components
+
+  // Make sure we've been initialized
+  if (!initialized)
+    return;
+
+  // Check parameters
+  if (window == NULL)
+    return;
+
+  window->flags |= WINFLAG_DEBUGLAYOUT;
+
+  if (window->flags & WINFLAG_VISIBLE)
+    drawWindow(window);
+
+  return;
 }

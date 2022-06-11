@@ -369,6 +369,7 @@ static void constructWindow(void)
   params.padRight = 5;
   params.orientationX = orient_left;
   params.orientationY = orient_top;
+  params.fixedHeight = 1;
   params.font = NULL;
   buttonContainer = windowNewContainer(window, "buttonContainer", &params);
 
@@ -378,13 +379,15 @@ static void constructWindow(void)
   params.padLeft = 0;
   params.padRight = 0;
   params.padTop = 0;
-  params.orientationY = orient_middle;
+  params.padBottom = 0;
+  params.fixedHeight = 0;
   addVariableButton =
     windowNewButton(buttonContainer, "Add variable", NULL, &params);
   windowRegisterEventHandler(addVariableButton, &eventHandler);
 
   // Create a 'change variable' button
   params.gridY = 1;
+  params.padTop = 5;
   changeVariableButton =
     windowNewButton(buttonContainer, "Change variable", NULL, &params);
   windowRegisterEventHandler(changeVariableButton, &eventHandler);

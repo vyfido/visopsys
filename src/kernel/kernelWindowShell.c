@@ -265,8 +265,7 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
 
   // The window will have no border, title bar or close button, is not
   // movable or resizable, and is packed
-  rootWindow->flags &= ~WINFLAG_MOVABLE;
-  rootWindow->flags &= ~WINFLAG_RESIZABLE;
+  rootWindow->flags &= ~(WINFLAG_MOVABLE | WINFLAG_RESIZABLE);
   rootWindow->flags |= WINFLAG_PACKED;
   kernelWindowSetHasTitleBar(rootWindow, 0);
   kernelWindowSetHasBorder(rootWindow, 0);
@@ -318,7 +317,6 @@ kernelWindow *kernelWindowMakeRoot(variableList *settings)
   params.gridHeight = 1;
   params.orientationX = orient_left;
   params.orientationY = orient_top;
-  params.resizableX = 1;
   params.foreground.red = 255;
   params.foreground.green = 255;
   params.foreground.blue = 255;

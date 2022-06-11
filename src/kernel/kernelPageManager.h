@@ -83,10 +83,12 @@ typedef volatile struct
 
 } kernelPageTable;
 
-// A little macro for rounding up to the nearest page size
-#define kernelPageRoundSize(size)                                        \
-  ((((size) / MEMORY_PAGE_SIZE) + (((size) % MEMORY_PAGE_SIZE) != 0)) *  \
-   MEMORY_PAGE_SIZE)
+// Little macros for rounding up or down to the nearest page size
+#define kernelPageRoundUp(size)                                       \
+  (((((unsigned) size) / MEMORY_PAGE_SIZE) +                          \
+   ((((unsigned) size) % MEMORY_PAGE_SIZE) != 0)) * MEMORY_PAGE_SIZE)
+#define kernelPageRoundDown(size)                                     \
+  ((((unsigned) size) / MEMORY_PAGE_SIZE) * MEMORY_PAGE_SIZE)
 
 // Functions exported by kernelPageManager.c
 int kernelPageManagerInitialize(unsigned);

@@ -36,7 +36,7 @@ static void intHandlerUnimp(void)
   // This is the "unimplemented interrupt" handler
 
   kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = 0xFF;  // Bogus
+  kernelProcessingInterrupt = 1;
 
   // Issue an end-of-interrupt (EOI) to the slave PIC
   kernelProcessorOutPort8(0xA0, 0x20);
@@ -49,8 +49,7 @@ static void intHandlerUnimp(void)
 
 
 // All the interrupt vectors
-static void *vectorList[] = 
-  {
+static void *vectorList[INTERRUPT_VECTORS] = {
     intHandlerUnimp,
     intHandlerUnimp,
     intHandlerUnimp,
@@ -67,23 +66,7 @@ static void *vectorList[] =
     intHandlerUnimp,
     intHandlerUnimp,
     intHandlerUnimp
-  };
-
-
-static int getVectorNumber(int intNumber)
-{
-  intNumber -= INTERRUPT_VECTOR;
-  
-  if ((intNumber < 0) ||
-      ((unsigned) intNumber >= (sizeof(vectorList) / (sizeof(void *)))))
-    {
-      kernelError(kernel_error, "Invalid interrupt vector number %d",
-		  intNumber);
-      return (ERR_RANGE);
-    }
-  else
-    return (intNumber);
-}
+};
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -104,18 +87,6 @@ int kernelInterruptInitialize(void)
   int status = 0;
   int count;
     
-  // Make sure we haven't already been called
-  if (initialized)
-    return (status = ERR_ALREADY);
-
-  // Note that we've been called
-  initialized = 1;
-
-  // Initialize the entire table with the vector for the standard
-  // "unimplemented" interrupt vector
-  for (count = 0; count < IDT_SIZE; count ++)
-    kernelDescriptorSetIDTInterruptGate(count, intHandlerUnimp);
-
   // Set the kernel's exception handler code to handle exceptions as
   // an interrupt handler until multitasking is enabled.  After that,
   // exceptions will point to a task gate for the exception handler.
@@ -126,6 +97,14 @@ int kernelInterruptInitialize(void)
       if (status < 0) 
 	return (status);
     }
+
+  // Initialize the rest of the table with the vector for the standard
+  // "unimplemented" interrupt vector
+  for (count = 19; count < IDT_SIZE; count ++)
+    kernelDescriptorSetIDTInterruptGate(count, intHandlerUnimp);
+
+  // Note that we've been called
+  initialized = 1;
 
   // Return success
   return (status = 0);
@@ -139,7 +118,7 @@ void *kernelInterruptGetHandler(int intNumber)
   if (!initialized)
     return (NULL);
 
-  if ((intNumber = getVectorNumber(intNumber)) < 0)
+  if ((intNumber < 0) || (intNumber >= INTERRUPT_VECTORS))
     return (NULL);
 
   return (vectorList[intNumber]);
@@ -155,19 +134,18 @@ int kernelInterruptHook(int intNumber, void *handlerAddress)
   // means, please stay away from hooking interrupts!  ;)
 
   int status = 0;
-  int vectorNumber = 0;
 
   if (!initialized)
     return (status = ERR_NOTINITIALIZED);
 
-  vectorNumber = getVectorNumber(intNumber);
-  if (vectorNumber < 0)
-    return (vectorNumber);
+  if ((intNumber < 0) || (intNumber >= INTERRUPT_VECTORS))
+    return (status = ERR_INVALID);
 
-  status = kernelDescriptorSetIDTInterruptGate(intNumber, handlerAddress);
+  status =
+    kernelDescriptorSetIDTInterruptGate((0x20 + intNumber), handlerAddress);
   if (status < 0)
     return (status);
 
-  vectorList[vectorNumber] = handlerAddress;
+  vectorList[intNumber] = handlerAddress;
   return (status = 0);
 }

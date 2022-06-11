@@ -26,6 +26,7 @@
 // advantage but do imply significant overhead.
 
 #include "kernelMemoryManager.h"
+#include "kernelMain.h"
 #include "kernelParameters.h"
 #include "kernelText.h"
 #include "kernelPageManager.h"
@@ -313,7 +314,7 @@ static int releaseBlock(unsigned blockLocation)
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelMemoryInitialize(unsigned kernelMemory, loaderInfoStruct *info)
+int kernelMemoryInitialize(unsigned kernelMemory)
 {
   // This routine will initialize all of the machine's memory between the
   // starting point and the ending point.  It will call a routine to test 
@@ -337,7 +338,7 @@ int kernelMemoryInitialize(unsigned kernelMemory, loaderInfoStruct *info)
   totalMemory = (1024 * 1024);
 
   // Add all the extended memory
-  totalMemory += (info->extendedMemory * 1024);
+  totalMemory += (kernelOsLoaderInfo->extendedMemory * 1024);
 
   // Make sure that totalMemory is a multiple of MEMBLOCKSIZE.
   if ((totalMemory % MEMBLOCKSIZE) != 0)

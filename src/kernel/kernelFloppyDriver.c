@@ -21,18 +21,21 @@
 
 // Driver for standard 3.5" floppy disks
 
-#include "kernelDriverManagement.h"
+#include "kernelDisk.h"
 #include "kernelInterrupt.h"
+#include "kernelDma.h"
 #include "kernelPic.h"
 #include "kernelProcessorX86.h"
+#include "kernelMain.h"
 #include "kernelParameters.h"
 #include "kernelMemoryManager.h"
 #include "kernelPageManager.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
+#include "kernelSysTimer.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
-
+#include <stdio.h>
 
 // Error codes and messages
 #define FLOPPY_ABNORMAL           0
@@ -81,6 +84,7 @@ static char *errorMessages[] = {
 };
 
 static kernelPhysicalDisk *floppies[MAXFLOPPIES];
+static int numberFloppies = 0;
 static volatile int controllerLock = 0;
 static volatile unsigned currentTrack = 0;
 static volatile int readStatusOnInterrupt = 0;
@@ -630,7 +634,7 @@ static void floppyInterrupt(void)
   // useful with the information.
 
   kernelProcessorIsrEnter();
-  kernelProcessingInterrupt = INTERRUPT_NUM_FLOPPY;
+  kernelProcessingInterrupt = 1;
 
   // Check whether to do the "sense interrupt status" command.
   if (readStatusOnInterrupt)
@@ -657,115 +661,7 @@ static void floppyInterrupt(void)
 }
 
 
-static int floppyDriverRegisterDevice(void *diskPointer)
-{
-  // This function should be called before any attempt is made to use the
-  // drive in question.  This allows us to store some information about this
-  // drive.
-
-  int status = 0;
-  kernelPhysicalDisk *newDisk = NULL;
-  floppyDriveData *floppyData = NULL;
-
-  // Check params
-  if (diskPointer == NULL)
-    {
-      kernelError(kernel_error, "NULL disk pointer");
-      return (status = ERR_NULLPARAMETER);
-    }
-
-  newDisk = (kernelPhysicalDisk *) diskPointer;
-
-  if ((newDisk->sectorsPerCylinder == 0) || (newDisk->heads == 0))
-    {
-      // We do division operations with these values
-      kernelError(kernel_error, "NULL sectors or heads value");
-      return (status = ERR_INVALID);
-    }
-
-  // Get memory for our private data
-  floppyData = kernelMalloc(sizeof(floppyDriveData));
-  if (floppyData == NULL)
-    {
-      kernelError(kernel_error, "Can't get memory for floppy drive data");
-      return (status = ERR_MEMORY);
-    }
-
-  switch(newDisk->biosType)
-    {
-    case 1:
-      // This is a 360 KB 5.25" Disk.  Yuck.
-      newDisk->description = "360 Kb 5.25\" floppy"; 
-      floppyData->stepRate = 0x0D;
-      floppyData->gapLength = 0x2A;
-      break;
-	
-    case 2:
-      // This is a 1.2 MB 5.25" Disk.  Yuck.
-      newDisk->description = "1.2 Mb 5.25\" floppy"; 
-      floppyData->stepRate = 0x0D;
-      floppyData->gapLength = 0x2A;
-      break;
-	
-    case 3:
-      // This is a 720 KB 3.5" Disk.  Yuck.
-      newDisk->description = "720 Kb 3.5\" floppy"; 
-      floppyData->stepRate = 0x0D;
-      floppyData->gapLength = 0x1B;
-      break;
-	
-    case 5:
-    case 6:
-      // This is a 2.88 MB 3.5" Disk.
-      newDisk->description = "2.88 Mb 3.5\" floppy"; 
-      floppyData->stepRate = 0x0A;
-      floppyData->gapLength = 0x1B;
-      break;
-      
-    default:
-      // Oh oh.  This is an unexpected value.  Make a warning and fall
-      // through to 1.44 MB.
-      kernelError(kernel_warn, "Floppy disk fd%d type %d is unknown.  "
-		  "Assuming 1.44 Mb.", newDisk->deviceNumber,
-		  newDisk->biosType);
-    case 4:
-      // This is a 1.44 MB 3.5" Disk.
-      newDisk->description = "1.44 Mb 3.5\" floppy"; 
-      floppyData->stepRate = 0x0A;
-      floppyData->gapLength = 0x1B;
-      break;
-    }
-
-  // Generic, regardless of type
-  floppyData->headLoad = 0x02;
-  floppyData->headUnload = 0x0F;
-  floppyData->dataRate = 0;
-
-  // Attach the drive data to the disk
-  newDisk->driverData = (void *) floppyData;
-
-  // Save the pointer to the disk info
-  floppies[newDisk->deviceNumber] = newDisk;
-
-  // Register our interrupt handler
-  status = kernelInterruptHook(INTERRUPT_NUM_FLOPPY, &floppyInterrupt);
-  if (status < 0)
-    return (status);
-
-  // Turn on the interrupt
-  kernelPicMask(INTERRUPT_NUM_FLOPPY, 1);
-
-  // Select the drive on the controller
-  selectDrive(newDisk->deviceNumber);
-
-  // Send the controller info about the drive.
-  specify(newDisk->deviceNumber);
-
-  return (status = 0);
-}
-
-
-static int floppyDriverReset(int driveNum)
+static int driverReset(int driveNum)
 {
   // Does a software reset of the requested floppy controller.  Always
   // returns success.
@@ -810,7 +706,7 @@ static int floppyDriverReset(int driveNum)
 }
 
 
-static int floppyDriverRecalibrate(int driveNum)
+static int driverRecalibrate(int driveNum)
 {
   // Recalibrates the selected drive, causing it to seek to track 0
 
@@ -860,7 +756,7 @@ static int floppyDriverRecalibrate(int driveNum)
 }
 
 
-static int floppyDriverSetMotorState(int driveNum, int onOff)
+static int driverSetMotorState(int driveNum, int onOff)
 {
   // Turns the floppy motor on or off
 
@@ -880,7 +776,7 @@ static int floppyDriverSetMotorState(int driveNum, int onOff)
 }
 
 
-static int floppyDriverDiskChanged(int driveNum)
+static int driverDiskChanged(int driveNum)
 {
   // This routine determines whether the media in the floppy has changed.
   // drive.  It takes no parameters, and returns 1 if the disk is missing
@@ -915,8 +811,8 @@ static int floppyDriverDiskChanged(int driveNum)
 }
 
 
-static int floppyDriverReadSectors(int driveNum, unsigned logicalSector,
-				   unsigned numSectors, void *buffer)
+static int driverReadSectors(int driveNum, unsigned logicalSector,
+			     unsigned numSectors, void *buffer)
 {
   if (driveNum >= MAXFLOPPIES)
     return (ERR_BOUNDS);
@@ -927,8 +823,8 @@ static int floppyDriverReadSectors(int driveNum, unsigned logicalSector,
 }
 
 
-static int floppyDriverWriteSectors(int driveNum, unsigned logicalSector,
-				    unsigned numSectors, void *buffer)
+static int driverWriteSectors(int driveNum, unsigned logicalSector,
+			      unsigned numSectors, void *buffer)
 {
   if (driveNum >= MAXFLOPPIES)
     return (ERR_BOUNDS);
@@ -939,18 +835,200 @@ static int floppyDriverWriteSectors(int driveNum, unsigned logicalSector,
 }
 
 
-static kernelDiskDriver defaultFloppyDriver =
+static int driverDetect(void *driver)
 {
-  NULL, // driverDetect
-  floppyDriverRegisterDevice,
-  floppyDriverReset,
-  floppyDriverRecalibrate,
-  floppyDriverSetMotorState,
+  // This routine is used to detect and initialize each device, as well as
+  // registering each one with any higher-level interfaces.  Also does
+  // general driver initialization.
+
+  int status = 0;
+  kernelDevice *devices = NULL;
+  kernelPhysicalDisk *floppyPointer = NULL;
+  floppyDriveData *floppyData = NULL;
+  int count;
+
+  // Reset the number of floppy devices 
+  numberFloppies = kernelOsLoaderInfo->floppyDisks;
+
+  // Allocate memory for the floppy device(s)
+  devices = kernelMalloc(numberFloppies * (sizeof(kernelDevice) +
+					   sizeof(kernelPhysicalDisk)));
+  if (devices == NULL)
+    return (status = 0);
+
+  floppyPointer = ((void *) devices + (numberFloppies * sizeof(kernelDevice)));
+
+  // Loop for each device
+  for (count = 0; count < numberFloppies; count ++)
+    {
+      floppies[count] = &floppyPointer[count];
+
+      // The device name and filesystem type
+      sprintf((char *) floppies[count]->name, "fd%d", count);
+
+      // The head, track and sector values we got from the loader
+      floppies[count]->heads = kernelOsLoaderInfo->fddInfo[count].heads;
+      floppies[count]->cylinders = kernelOsLoaderInfo->fddInfo[count].tracks;
+      floppies[count]->sectorsPerCylinder =
+	kernelOsLoaderInfo->fddInfo[count].sectors;
+      floppies[count]->numSectors =
+	(floppies[count]->heads * floppies[count]->cylinders *
+	 floppies[count]->sectorsPerCylinder);
+      floppies[count]->biosType = kernelOsLoaderInfo->fddInfo[count].type;
+
+      // Some additional universal default values
+      floppies[count]->flags =
+	(DISKFLAG_PHYSICAL | DISKFLAG_REMOVABLE | DISKFLAG_FLOPPY);
+      floppies[count]->deviceNumber = count;
+      floppies[count]->sectorSize = 512;
+      floppies[count]->dmaChannel = 2;
+      // Assume motor off for now
+
+      // We do division operations with these values
+      if ((floppies[count]->sectorsPerCylinder == 0) ||
+	  (floppies[count]->heads == 0))
+	{
+	  // We do division operations with these values
+	  kernelError(kernel_error, "NULL sectors or heads value");
+	  return (status = ERR_INVALID);
+	}
+
+      // Get memory for our private data
+      floppyData = kernelMalloc(sizeof(floppyDriveData));
+      if (floppyData == NULL)
+	{
+	  kernelError(kernel_error, "Can't get memory for floppy drive data");
+	  return (status = ERR_MEMORY);
+	}
+
+      switch(floppies[count]->biosType)
+	{
+	case 1:
+	  // This is a 360 KB 5.25" Disk.  Yuck.
+	  floppies[count]->description = "360 Kb 5.25\" floppy"; 
+	  floppyData->stepRate = 0x0D;
+	  floppyData->gapLength = 0x2A;
+	  break;
+	
+	case 2:
+	  // This is a 1.2 MB 5.25" Disk.  Yuck.
+	  floppies[count]->description = "1.2 Mb 5.25\" floppy"; 
+	  floppyData->stepRate = 0x0D;
+	  floppyData->gapLength = 0x2A;
+	  break;
+	
+	case 3:
+	  // This is a 720 KB 3.5" Disk.  Yuck.
+	  floppies[count]->description = "720 Kb 3.5\" floppy"; 
+	  floppyData->stepRate = 0x0D;
+	  floppyData->gapLength = 0x1B;
+	  break;
+	  
+	case 5:
+	case 6:
+	  // This is a 2.88 MB 3.5" Disk.
+	  floppies[count]->description = "2.88 Mb 3.5\" floppy"; 
+	  floppyData->stepRate = 0x0A;
+	  floppyData->gapLength = 0x1B;
+	  break;
+      
+	default:
+	  // Oh oh.  This is an unexpected value.  Make a warning and fall
+	  // through to 1.44 MB.
+	  kernelError(kernel_warn, "Floppy disk fd%d type %d is unknown.  "
+		      "Assuming 1.44 Mb.", floppies[count]->deviceNumber,
+		      floppies[count]->biosType);
+
+	case 4:
+	  // This is a 1.44 MB 3.5" Disk.
+	  floppies[count]->description = "1.44 Mb 3.5\" floppy"; 
+	  floppyData->stepRate = 0x0A;
+	  floppyData->gapLength = 0x1B;
+	  break;
+	}
+
+      // Generic, regardless of type
+      floppyData->headLoad = 0x02;
+      floppyData->headUnload = 0x0F;
+      floppyData->dataRate = 0;
+
+      // Attach the drive data to the disk
+      floppies[count]->driverData = (void *) floppyData;
+
+      floppies[count]->driver = driver;
+
+      devices[count].class =
+	kernelDeviceGetClass(DEVICECLASS_DISK);
+      devices[count].subClass =
+	kernelDeviceGetClass(DEVICESUBCLASS_DISK_FLOPPY);
+      devices[count].driver = driver;
+      devices[count].dev = (void *) floppies[count];
+    }
+
+  // Get memory for a disk transfer area.
+
+  // We need to get a physical memory address to pass to the DMA controller.
+  // Therefore, we ask the memory manager specifically for the physical
+  // address.
+  xFerPhysical = kernelMemoryGetPhysical(DISK_CACHE_ALIGN, DISK_CACHE_ALIGN,
+					 "floppy disk transfer");
+  if (xFerPhysical == NULL)
+    return (status = ERR_MEMORY);
+  
+  // Map it into the kernel's address space
+  status = kernelPageMapToFree(KERNELPROCID, (void *) xFerPhysical,
+			       (void **) &xFer, DISK_CACHE_ALIGN);
+  if (status < 0)
+    return (status);
+
+  // Clear it out, since the kernelMemoryGetPhysical() routine doesn't do
+  // it for us
+  kernelMemClear((void *) xFer, DISK_CACHE_ALIGN);
+
+  // Clear the "interrupt received" byte
+  interruptReceived = 0;
+  readStatusOnInterrupt = 0;    
+  
+  // Register our interrupt handler
+  status = kernelInterruptHook(INTERRUPT_NUM_FLOPPY, &floppyInterrupt);
+  if (status < 0)
+    return (status);
+
+  // Turn on the interrupt
+  kernelPicMask(INTERRUPT_NUM_FLOPPY, 1);
+
+  // Loop again, for each device, to finalize the setup
+  for (count = 0; count < numberFloppies; count ++)
+    {
+      // Select the drive on the controller
+      selectDrive(floppies[count]->deviceNumber);
+
+      // Send the controller info about the drive.
+      specify(floppies[count]->deviceNumber);
+
+      // Register the floppy disk device
+      status = kernelDiskRegisterDevice(&devices[count]);
+      if (status < 0)
+	return (status);
+
+      status = kernelDeviceAdd(NULL, &devices[count]);
+      if (status < 0)
+	return (status);
+    }
+
+  return (status = 0);
+}
+
+
+static kernelDiskOps floppyOps = {
+  driverReset,
+  driverRecalibrate,
+  driverSetMotorState,
   NULL, // driverLockState
   NULL, // driverDoorState
-  floppyDriverDiskChanged,
-  floppyDriverReadSectors,
-  floppyDriverWriteSectors,
+  driverDiskChanged,
+  driverReadSectors,
+  driverWriteSectors,
 };
 
 
@@ -963,44 +1041,14 @@ static kernelDiskDriver defaultFloppyDriver =
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelFloppyDriverInitialize(void)
+void kernelFloppyDriverRegister(void *driverData)
 {
-  // This initializes the driver and returns success
+   // Device driver registration.
 
-  int status = 0;
+  kernelDriver *driver = (kernelDriver *) driverData;
 
-  // Get memory for a disk transfer area.
+  driver->driverDetect = driverDetect;
+  driver->ops = &floppyOps;
 
-  // We need to get a physical memory address to pass to the DMA controller
-  // (in the case of floppies).  Therefore, we ask the memory manager
-  // specifically for the physical address.
-  xFerPhysical =
-    kernelMemoryGetPhysical(DISK_CACHE_ALIGN, DISK_CACHE_ALIGN,
-			    "floppy disk transfer");
-  if (xFerPhysical == NULL)
-    {
-      kernelError(kernel_error, "Unable to allocate memory for floppy "
-		  "disk transfer area");
-      return (status = ERR_MEMORY);
-    }
-  
-  // Map it into the kernel's address space
-  status = kernelPageMapToFree(KERNELPROCID, (void *) xFerPhysical,
-			       (void **) &xFer, DISK_CACHE_ALIGN);
-  if (status < 0)
-    {
-      kernelError(kernel_error, "Unable to map memory for floppy disk "
-		  "transfer area");
-      return (status);
-    }
-
-  // Clear it out, since the kernelMemoryGetPhysical() routine doesn't do
-  // it for us
-  kernelMemClear((void *) xFer, DISK_CACHE_ALIGN);
-
-  // Clear the "interrupt received" byte
-  interruptReceived = 0;
-  readStatusOnInterrupt = 0;    
-  
-  return (kernelDriverRegister(floppyDriver, &defaultFloppyDriver));
+  return;
 }

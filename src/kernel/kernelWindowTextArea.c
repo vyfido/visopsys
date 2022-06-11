@@ -26,7 +26,6 @@
 #include "kernelWindow.h"     // Our prototypes are here
 #include "kernelMalloc.h"
 #include "kernelMiscFunctions.h"
-#include "kernelError.h"
 #include <string.h>
 
 
@@ -72,13 +71,21 @@ static int move(void *componentData, int xCoord, int yCoord)
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
   kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
   kernelTextArea *area = textArea->area;
+  int scrollBarX = 0;
 
   area->xCoord = xCoord;
   area->yCoord = yCoord;
 
+  // If we have a scroll bar, move it too
   if (textArea->scrollBar)
     {
-      textArea->scrollBar->xCoord = (xCoord + textArea->areaWidth);
+      scrollBarX = (xCoord + textArea->areaWidth);
+
+      if (textArea->scrollBar->move)
+	textArea->scrollBar->move((void *) textArea->scrollBar, scrollBarX,
+				  yCoord);
+
+      textArea->scrollBar->xCoord = scrollBarX;
       textArea->scrollBar->yCoord = yCoord;
     }
 
@@ -90,39 +97,49 @@ static int resize(void *componentData, int width, int height)
 {
   int status = 0;
   kernelWindowComponent *component = (kernelWindowComponent *) componentData;
-  kernelTextArea *area = ((kernelWindowTextArea *) component->data)->area;
-  int oldColumns = 0, oldRows = 0;
-  unsigned char *oldBuffer = NULL;
-  unsigned char *oldLine = NULL;
-  int rowCount;
+  kernelWindowTextArea *textArea = (kernelWindowTextArea *) component->data;
+  kernelTextArea *area = textArea->area;
+  int newColumns = 0, newRows = 0;
+  int scrollBarX = 0;
 
-  // This doesn't work right now
-  return 0;
+  textArea->areaWidth = width;
+  if (textArea->scrollBar)
+    textArea->areaWidth -= textArea->scrollBar->width;
 
-  oldColumns = area->columns;
-  oldRows = area->rows;
-  oldBuffer = area->visibleData;
-  area->visibleData = NULL;
+  // Calculate the new columns and rows.
+  newColumns = (textArea->areaWidth / area->font->charWidth);
+  newRows = (height / area->font->charHeight);
 
-  // Set the new columns and rows.
-  area->columns = (width / area->font->charWidth);
-  area->rows = (height / area->font->charHeight);
-  area->cursorColumn = 0;
-  area->cursorRow = 0;
-
-  area->visibleData = kernelMalloc(area->columns * area->rows);
-  if (area->visibleData == NULL)
-    return (status = ERR_MEMORY);
-
-  for (rowCount = 0; ((rowCount < oldRows) &&
-		      (rowCount < area->rows)); rowCount ++)
+  if ((newColumns != area->columns) || (newRows != area->rows))
     {
-      oldLine = (oldBuffer + (rowCount * oldColumns));
-      kernelTextStreamPrint(area->outputStream, oldLine);
+      status = kernelTextAreaResize(area, newColumns, newRows);
+      if (status < 0)
+	return (status);
     }
 
-  // Free the old data buffer and assign the new one
-  kernelFree(oldBuffer);
+  // If we have a scroll bar, move/resize it too
+  if (textArea->scrollBar)
+    {
+      if (width != component->width)
+	{
+	  scrollBarX = (component->xCoord + textArea->areaWidth);
+
+	  if (textArea->scrollBar->move)
+	    textArea->scrollBar->move((void *) textArea->scrollBar, scrollBarX,
+				      textArea->scrollBar->yCoord);
+
+	  textArea->scrollBar->xCoord = scrollBarX;
+	}
+
+      if (height != component->height)
+	{
+	  if (textArea->scrollBar->resize)
+	    textArea->scrollBar->resize((void *) textArea->scrollBar,
+					textArea->scrollBar->width, height);
+
+	  textArea->scrollBar->height = height;
+	}
+    }
 
   return (status = 0);
 }
@@ -332,7 +349,7 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
     }
 
   // Create the text area inside it
-  textArea->area = kernelTextAreaNew(columns, rows, bufferLines);
+  textArea->area = kernelTextAreaNew(columns, rows, 1, bufferLines);
   if (textArea->area == NULL)
     {
       kernelFree((void *) textArea);
@@ -393,6 +410,10 @@ kernelWindowComponent *kernelWindowNewTextArea(volatile void *parent,
       textArea->scrollBar->xCoord = component->width;
       component->width += textArea->scrollBar->width;
     }
+
+  // After our width and height are finalized...
+  component->minWidth = component->width;
+  component->minHeight = component->height;
 
   // The functions
   component->draw = &draw;

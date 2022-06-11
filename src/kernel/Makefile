@@ -27,9 +27,10 @@ LFLAGS		= -L${LIBDIR} -nostdlib -nodefaultlibs -nostartfiles -static -Wl,-warn-c
 NAMES =	kernelMain \
 	kernelApi \
 	kernelDescriptor \
+	kernelDevice \
 	kernelDisk \
 	kernelDma \
-	kernelDriverManagement \
+	kernelDriver \
 	kernelEncryptMD5 \
 	kernelEnvironment \
 	kernelError \
@@ -41,7 +42,6 @@ NAMES =	kernelMain \
 	kernelFilesystemIso \
 	kernelFont \
 	kernelGraphic \
-	kernelHardwareEnumeration \
 	kernelImage \
 	kernelInitialize \
 	kernelInterrupt \
@@ -94,10 +94,12 @@ DRIVERNAMES = kernelDmaDriver \
 	kernelGraphicConsoleDriver \
 	kernelIdeDriver \
 	kernelKeyboardDriver \
+	kernelPciDriver \
 	kernelPicDriver \
 	kernelPS2MouseDriver \
 	kernelRtcDriver \
 	kernelSysTimerDriver \
+	kernelSystemDriver \
 	kernelTextConsoleDriver
 
 ALLNAMES = ${NAMES} ${DRIVERNAMES}

@@ -66,8 +66,8 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
   params.padLeft = 5;
   params.padRight = 5;
   params.padTop = 5;
-  params.orientationX = orient_center;
-  params.orientationY = orient_top;
+  params.orientationX = orient_left;
+  params.orientationY = orient_middle;
   params.useDefaultForeground = 1;
   params.useDefaultBackground = 1;
   textLabel = windowNewTextLabel(dialogWindow, message, &params);
@@ -76,7 +76,6 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 
   // Put a text field in the window for the user to type
   params.gridY = 1;
-  params.padTop = 5;
   params.hasBorder = 1;
   params.stickyFocus = 1;
   params.useDefaultBackground = 0;
@@ -90,8 +89,12 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
   // Create the OK button
   params.gridY = 2;
   params.gridWidth = 1;
+  params.padLeft = 0;
+  params.padRight = 5;
   params.padBottom = 5;
   params.orientationX = orient_right;
+  params.fixedWidth = 1;
+  params.hasBorder = 0;
   params.stickyFocus = 0;
   params.useDefaultBackground = 1;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
@@ -100,8 +103,8 @@ _X_ int windowNewFileDialog(objectKey parentWindow, const char *title, const cha
 
   // Create the Cancel button
   params.gridX = 1;
-  params.padLeft = 0;
-  params.padRight = 5;
+  params.padLeft = 5;
+  params.padRight = 0;
   params.orientationX = orient_left;
   cancelButton = windowNewButton(dialogWindow, "Cancel", NULL, &params);
   if (cancelButton == NULL)

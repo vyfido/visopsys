@@ -20,11 +20,12 @@
 //
 
 #include "kernelPic.h"
+#include "kernelProcessorX86.h"
 #include "kernelError.h"
 #include <string.h>
 
-static kernelPic *systemPic = NULL;
-static int initialized = 0;
+static kernelDevice *systemPic = NULL;
+static kernelPicOps *ops = NULL;
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -36,55 +37,29 @@ static int initialized = 0;
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelPicRegisterDevice(kernelPic *thePic)
+int kernelPicInitialize(kernelDevice *device)
 {
-  // This routine will register a new PIC.
-
   int status = 0;
 
-  // Check the PIC and driver
-  if (thePic == NULL)
+  if (device == NULL)
     {
       kernelError(kernel_error, "The PIC device is NULL");
-      return (status = ERR_NULLPARAMETER);
-    }
-  // Make sure that the device has a non-NULL driver
-  if (thePic->driver == NULL)
-    {
-      kernelError(kernel_error, "The PIC driver is NULL");
-      return (status = ERR_NOSUCHDRIVER);
-    }
-
-  // If the driver has a 'register device' function, call it
-  if (thePic->driver->driverRegisterDevice)
-    status = thePic->driver->driverRegisterDevice(thePic);
-
-  // Alright.  We'll save the pointer to the device
-  systemPic = thePic;
-
-  // Return success
-  return (status);
-}
-
-
-int kernelPicInitialize(void)
-{
-  // This function initializes the PIC.  It pretty much just calls
-  // the associated driver routines, but it also does some checks and
-  // whatnot to make sure that the device, driver, and driver routines are
-  // valid.
-
-  int status = 0;
-
-  if (systemPic == NULL)
-    {
-      kernelError(kernel_error, "The interrupt controller is NULL");
       return (status = ERR_NOTINITIALIZED);
     }
 
-  initialized = 1;
+  systemPic = device;
 
-  // Return success
+  if ((systemPic->driver == NULL) || (systemPic->driver->ops == NULL))
+    {
+      kernelError(kernel_error, "The PIC driver or ops are NULL");
+      return (status = ERR_NULLPARAMETER);
+    }
+
+  ops = systemPic->driver->ops;
+
+  // Enable interrupts now.
+  kernelProcessorEnableInts();
+
   return (status = 0);
 }
 
@@ -97,12 +72,12 @@ int kernelPicEndOfInterrupt(int interruptNumber)
 
   int status = 0;
 
-  if (!initialized)
+  if (systemPic == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Ok, now we can call the routine.
-  if (systemPic->driver->driverEndOfInterrupt)
-    status = systemPic->driver->driverEndOfInterrupt(interruptNumber);
+  if (ops->driverEndOfInterrupt)
+    status = ops->driverEndOfInterrupt(interruptNumber);
 
   return (status);
 }
@@ -114,12 +89,29 @@ int kernelPicMask(int interruptNumber, int on)
 
   int status = 0;
 
-  if (!initialized)
+  if (systemPic == NULL)
     return (status = ERR_NOTINITIALIZED);
 
   // Ok, now we can call the routine.
-  if (systemPic->driver->driverMask)
-    status = systemPic->driver->driverMask(interruptNumber, on);
+  if (ops->driverMask)
+    status = ops->driverMask(interruptNumber, on);
 
   return (status);
+}
+
+
+int kernelPicGetActive(void)
+{
+  // This asks the PIC for the currently-active interrupt
+
+  int interruptNumber = 0;
+
+  if (systemPic == NULL)
+    return (interruptNumber = ERR_NOTINITIALIZED);
+
+  // Ok, now we can call the routine.
+  if (ops->driverGetActive)
+    interruptNumber = ops->driverGetActive();
+
+  return (interruptNumber);
 }

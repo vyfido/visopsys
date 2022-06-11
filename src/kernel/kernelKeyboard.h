@@ -21,7 +21,7 @@
 	
 #if !defined(_KERNELKEYBOARD_H)
 
-#include "kernelLock.h"
+#include "kernelDevice.h"
 #include <sys/stream.h>
 
 // A structure for holding keyboard key mappings
@@ -33,30 +33,21 @@ typedef struct {
 
 } kernelKeyMap;
 
-// A structure for holding pointers to the keyboard driver functions
-typedef struct
-{
-  int (*driverInitialize) (void);
-  int (*driverRegisterDevice) (void *);
-  void (*driverReadData) (void);
-
-} kernelKeyboardDriver;
-
 // A structure for holding information about the keyboard
-typedef struct
-{
+typedef struct {
   unsigned flags;
   kernelKeyMap *keyMap;
-  kernelKeyboardDriver *driver;
 
 } kernelKeyboard;
 
-// The default driver initialization
-int kernelKeyboardDriverInitialize(void);
+// A structure for holding pointers to the keyboard driver functions
+typedef struct {
+  void (*driverReadData) (void);
+
+} kernelKeyboardOps;
 
 // Functions exported by kernelKeyboard.c
-int kernelKeyboardRegisterDevice(kernelKeyboard *);
-int kernelKeyboardInitialize(void);
+int kernelKeyboardInitialize(kernelDevice *);
 int kernelKeyboardGetMaps(char *, unsigned);
 int kernelKeyboardSetMap(const char *);
 int kernelKeyboardSetStream(stream *);

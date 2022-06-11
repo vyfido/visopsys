@@ -25,7 +25,6 @@
 #include "kernelFilesystemFat.h"
 #include "kernelParameters.h"
 #include "kernelFile.h"
-#include "kernelDriverManagement.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
 #include "kernelLock.h"
@@ -40,7 +39,6 @@
 static kernelFilesystemDriver defaultFatDriver = {
   Fat,   // FS type
   "FAT", // Driver name
-  kernelFilesystemFatInitialize,
   kernelFilesystemFatDetect,
   kernelFilesystemFatFormat,
   kernelFilesystemFatCheck,
@@ -3869,6 +3867,22 @@ int kernelFilesystemFatFormat(kernelDisk *theDisk, const char *type,
 	  kernelError(kernel_error, "Error writing filesystem info block");
 	  return (status);
 	}
+    }
+
+  // Set the proper filesystem type name on the disk structure
+  switch (fatData.fsType)
+    {
+    case fat12:
+      strcpy((char *) theDisk->fsType, "fat12");
+      break;
+    case fat16:
+      strcpy((char *) theDisk->fsType, "fat16");
+      break;
+    case fat32:
+      strcpy((char *) theDisk->fsType, "fat32");
+      break;
+    default:
+      strcpy((char *) theDisk->fsType, "fat");
     }
 
   status = kernelDiskSyncDisk((char *) theDisk->name);

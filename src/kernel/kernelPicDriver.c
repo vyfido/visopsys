@@ -21,19 +21,121 @@
 
 // Driver for standard Programmable Interrupt Controllers (PIC)
 
-#include "kernelDriverManagement.h" // Contains my prototypes
+#include "kernelDriver.h" // Contains my prototypes
+#include "kernelPic.h"
 #include "kernelInterrupt.h"
+#include "kernelMalloc.h"
 #include "kernelProcessorX86.h"
 #include "kernelError.h"
+#include <string.h>
 
 
-static int driverRegisterDevice(void *thePic)
+static int driverEndOfInterrupt(int intNumber)
 {
-  // Initialize the PIC master controller
+  // Sends end of interrupt (EOI) commands to one or both of the PICs.
+  // Our parameter should be the number of the interrupt.  If the number
+  // is greater than 7, we will issue EOI to both the slave and master
+  // controllers.  Otherwise, just the master.
 
-  // We ignore the PIC argument.  This keeps the compiler happy
-  if (thePic == NULL)
-    return (ERR_NULLPARAMETER);
+  if (intNumber > 0x07)
+    // Issue an end-of-interrupt (EOI) to the slave PIC
+    kernelProcessorOutPort8(0xA0, 0x20);
+
+  // Issue an end-of-interrupt (EOI) to the master PIC
+  kernelProcessorOutPort8(0x20, 0x20);
+
+  return (0);
+}
+
+
+static int driverMask(int intNumber, int on)
+{
+  // This masks or unmasks an interrupt.  Our parameters should be the number
+  // of the interrupt vector, and an on/off value.
+
+  unsigned char data = 0;
+
+  if (intNumber <= 0x07)
+    {
+      intNumber = (0x01 << intNumber);
+
+      // Get the current mask value
+      kernelProcessorInPort8(0x21, data);
+
+      // An enabled interrupt has its mask bit off
+      if (on)
+	data &= ~intNumber;
+      else
+	data |= intNumber;
+
+      kernelProcessorOutPort8(0x21, data);
+    }
+  else
+    {
+      intNumber = (0x01 << (intNumber - 0x08));
+
+      // Get the current mask value
+      kernelProcessorInPort8(0xA1, data);
+
+      // An enabled interrupt has its mask bit off
+      if (on)
+	data &= ~intNumber;
+      else
+	data |= intNumber;
+
+      kernelProcessorOutPort8(0xA1, data);
+    }
+
+  return (0);
+}
+
+
+static int driverGetActive(void)
+{
+  // Returns the number of the active interrupt
+
+  unsigned char data = 0;
+  int intNumber = 0;
+  
+  // First ask the master pic
+  kernelProcessorOutPort8(0x20, 0x0B);
+  kernelProcessorInPort8(0x20, data);
+  
+  while (!((data >> intNumber) & 1))
+    intNumber += 1;
+  
+  // Is it actually the slave PIC?
+  if (intNumber == 2)
+    {
+      // Ask the slave PIC which interrupt
+      kernelProcessorOutPort8(0xA0, 0x0B);
+      kernelProcessorInPort8(0xA0, data);
+
+      intNumber = 8;
+      while (!((data >> (intNumber - 8)) & 1))
+	intNumber += 1;
+    }
+
+  return (intNumber);
+}
+
+
+static int driverDetect(void *driver)
+{
+  // Normally, this routine is used to detect and initialize each device,
+  // as well as registering each one with any higher-level interfaces.  Since
+  // we can assume that there's a PIC, just initialize it.
+
+  int status = 0;
+  kernelDevice *device = NULL;
+
+  // Allocate memory for the device
+  device = kernelMalloc(sizeof(kernelDevice));
+  if (device == NULL)
+    return (status = 0);
+
+  device->class = kernelDeviceGetClass(DEVICECLASS_PIC);
+  device->driver = driver;
 
   // Initialization byte 1
   kernelProcessorOutPort8(0x20, 0x11);
@@ -60,88 +162,25 @@ static int driverRegisterDevice(void *thePic)
   kernelProcessorOutPort8(0xA1, 0x01);
   // Normal operation, normal priorities
   kernelProcessorOutPort8(0xA0, 0x27);
-  // Mask all ints offinitially
+  // Mask all ints off initially
   kernelProcessorOutPort8(0xA1, 0xFF);
 
-  // Return success
-  return (0);
-}
-
-
-static int driverEndOfInterrupt(int vector)
-{
-  // Sends end of interrupt (EOI) commands to one or both of the PICs.
-  // Our parameter should be the number of the interrupt vector.  If
-  // The number is greater than 0x27, we will issue EOI to both the
-  // slave and master controllers.  Otherwise, just the master.
-
-  if (vector > 0x27)
-    // Issue an end-of-interrupt (EOI) to the slave PIC
-    kernelProcessorOutPort8(0xA0, 0x20);
-
-  // Issue an end-of-interrupt (EOI) to the master PIC
-  kernelProcessorOutPort8(0x20, 0x20);
-
-  return (0);
-}
-
-
-static int driverMask(int vector, int on)
-{
-  // This masks or unmasks an interrupt.  Our parameters should be the number
-  // of the interrupt vector, and an on/off value.
-
-  unsigned char data = 0;
-
-  if (vector < INTERRUPT_VECTOR)
-    // Illegal
-    return (ERR_INVALID);
-
-  vector -= INTERRUPT_VECTOR;
-
-  if (vector <= 0x07)
+  // Initialize PIC operations
+  status = kernelPicInitialize(device);
+  if (status < 0)
     {
-      vector = (0x01 << vector);
-
-      // Get the current mask value
-      kernelProcessorInPort8(0x21, data);
-
-      // An enabled interrupt has its mask bit off
-      if (on)
-	data &= ~vector;
-      else
-	data |= vector;
-
-      kernelProcessorOutPort8(0x21, data);
-    }
-  else
-    {
-      vector -= 0x08;
-      vector = (0x01 << vector);
-
-      // Get the current mask value
-      kernelProcessorInPort8(0xA1, data);
-
-      // An enabled interrupt has its mask bit off
-      if (on)
-	data &= ~vector;
-      else
-	data |= vector;
-
-      kernelProcessorOutPort8(0xA1, data);
+      kernelFree(device);
+      return (status);
     }
 
-  return (0);
+  return (status = kernelDeviceAdd(NULL, device));
 }
 
 
-// Our driver structure.
-static kernelPicDriver defaultPicDriver =
-{
-  kernelPicDriverInitialize,
-  driverRegisterDevice,
+static kernelPicOps picOps = {
   driverEndOfInterrupt,
-  driverMask
+  driverMask,
+  driverGetActive
 };
 
 
@@ -154,11 +193,14 @@ static kernelPicDriver defaultPicDriver =
 /////////////////////////////////////////////////////////////////////////
 
 
-int kernelPicDriverInitialize(void)
+void kernelPicDriverRegister(void *driverData)
 {
-   // Register our driver
-  kernelDriverRegister(picDriver, &defaultPicDriver);
+   // Device driver registration.
 
-  // Return success.
-  return (0);
+  kernelDriver *driver = (kernelDriver *) driverData;
+
+  driver->driverDetect = driverDetect;
+  driver->ops = &picOps;
+
+  return;
 }

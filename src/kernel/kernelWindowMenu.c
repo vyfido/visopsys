@@ -175,6 +175,9 @@ static int containerLayout(kernelWindowComponent *containerComponent)
   if (containerComponent->width < 50)
     containerComponent->width = 50;
 
+  containerComponent->minWidth = containerComponent->width;
+  containerComponent->minHeight = containerComponent->height;
+
   // Set the flag to indicate layout complete
   menu->doneLayout = 1;
 
@@ -208,6 +211,9 @@ kernelWindowComponent *kernelWindowNewMenu(volatile void *parent,
   component = kernelWindowNewContainer(parent, name, params);
   if (component == NULL)
     return (component);
+
+  // Don't want this resized
+  component->flags &= ~WINFLAG_RESIZABLE;
 
   component->draw = &draw;
   component->mouseEvent = &mouseEvent;

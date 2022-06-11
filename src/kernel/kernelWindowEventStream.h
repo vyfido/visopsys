@@ -20,8 +20,7 @@
 //
 
 // This file describes the kernel's facilities for reading and writing
-// files using a 'streams' abstraction.  It's a convenience for dealing
-// with files.
+// window events using a 'streams' abstraction.
 
 #if !defined(_KERNELWINDOWEVENTSTREAM_H)
 

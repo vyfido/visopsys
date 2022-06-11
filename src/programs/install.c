@@ -45,8 +45,7 @@ static char *diskName = NULL;
 static char *titleString = "Visopsys Installer\nCopyright (C) 1998-2005 "
                            "J. Andrew McLaughlin";
 static char *chooseVolumeString = "Please choose the volume on which to "
-  "install.  (Note that this\nversion of Visopsys can only install on a "
-  "FAT12 filesystem):";
+  "install:";
 static char *setPasswordString = "Please choose a password for the 'admin' "
                                  "account";
 static char statusLabelString[STATUSLENGTH];
@@ -436,6 +435,12 @@ static unsigned getInstallSize(const char *installFileName)
   bzero(&theFile, sizeof(file));
   bzero(buffer, BUFFSIZE);
 
+  // See if the install file exists
+  status = fileFind(installFileName, &theFile);
+  if (status < 0)
+    // Doesn't exist
+    return (bytes = 0);
+
   // Open the install file
   status = fileStreamOpen(installFileName, OPENMODE_READ, &installFile);
   if (status < 0)
@@ -591,63 +596,51 @@ static void setTextProgressBar(int percent)
 }
 
 
-static int copyBootSector(const char *destDisk)
+static int copyBootSector(disk *theDisk)
 {
   // Overlay the boot sector from the root disk onto the boot sector of
   // the target disk
 
   int status = 0;
+  char bootSectFilename[MAX_PATH_NAME_LENGTH];
+  char command[MAX_PATH_NAME_LENGTH];
   file bootSectFile;
-  unsigned char *bootSectData = NULL;
-  unsigned char rootBootSector[512];
-  unsigned char destBootSector[512];
-  int count;
 
   updateStatus("Copying boot sector...  ");
 
-  // Try to read a boot sector file from the system directory
-  bootSectData = loaderLoad("/system/boot/bootsect.fat12", &bootSectFile);  
-  
-  if (bootSectData == NULL)
+  // Determine which boot sector we should be using
+  if (strncmp(theDisk->fsType, "fat", 3))
     {
-      // Try to read the boot sector of the root disk instead
-      status = diskReadSectors(rootDisk, 0, 1, rootBootSector);
-      if (status < 0)
-	{
-	  printf("\nUnable to read the boot sector of the root disk.\n");
-	  return (status);
-	}
-
-      bootSectData = rootBootSector;
+      error("Can't install a boot sector for filesystem type \"%s\"",
+	    theDisk->fsType);
+      return (status = ERR_INVALID);
     }
-  
-  // Read the boot sector of the target disk
-  status = diskReadSectors(destDisk, 0, 1, destBootSector);
+
+  strcpy(bootSectFilename, "/system/boot/bootsect.fat");
+  if (!strcmp(theDisk->fsType, "fat32"))
+    strcat(bootSectFilename, "32");
+
+  // Find the boot sector
+  status = fileFind(bootSectFilename, &bootSectFile);
   if (status < 0)
     {
-      printf("\nUnable to read the boot sector of the target disk.\n");
+      error("Unable to find the boot sector file \"%s\"", bootSectFilename);
       return (status);
     }
 
-  // Copy bytes 0-2 and 62-511 from the root disk boot sector to the
-  // target boot sector
-  for (count = 0; count < 3; count ++)
-    destBootSector[count] = bootSectData[count];
-  for (count = 62; count < 512; count ++)
-    destBootSector[count] = bootSectData[count];
-
-  if (bootSectData != rootBootSector)
-    memoryRelease(bootSectData);
-
-  // Write the boot sector of the target disk
-  status = diskWriteSectors(destDisk, 0, 1, destBootSector);
-  if (status < 0)
-    {
-      printf("\nUnable to write the boot sector of the target disk\n");
-      return (status);
-    }
+  // Use our companion program to do the work
+  sprintf(command, "/programs/copy-boot %s %s", bootSectFilename,
+	  theDisk->name);
+  status = system(command);
 
   diskSync();
+
+  if (status < 0)
+    {
+      error("Error %d copying boot sector \"%s\" to disk %s", bootSectFilename,
+	    theDisk->name);
+      return (status);
+    }
 
   updateStatus("Done\n");
 
@@ -1117,14 +1110,20 @@ int main(int argc, char *argv[])
   if (yesOrNo(tmpChar))
     {
       updateStatus("Formatting... ");
-      status = filesystemFormat(diskName, "fat12", "Visopsys", 0);
+      status = filesystemFormat(diskName, "fat", "Visopsys", 0);
       if (status < 0)
 	quit(status, "Errors during format.");
+
+      // Rescan the disk info so we get the new filesystem type, etc.
+      status = diskGet(diskName, &diskInfo[diskNumber]);
+      if (status < 0)
+	quit(status, "Error rescanning disk after format.");
+
       updateStatus("Done\n");
     }
 
   // Copy the boot sector to the destination disk
-  status = copyBootSector(diskName);
+  status = copyBootSector(&diskInfo[diskNumber]);
   if (status < 0)
     quit(status, "Couldn't copy the boot sector.");
 

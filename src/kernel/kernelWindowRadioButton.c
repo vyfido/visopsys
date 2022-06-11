@@ -350,6 +350,8 @@ kernelWindowComponent *kernelWindowNewRadioButton(volatile void *parent,
   component->height =
     (numItems * ((kernelAsciiFont *) component->parameters.font)->charHeight);
   
+  component->minWidth = component->width;
+  component->minHeight = component->height;
   component->data = (void *) radioButton;
 
   return (component);

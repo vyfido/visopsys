@@ -19,21 +19,14 @@
 //  kernelPS2MouseDriver.c
 //
 
-// Driver for PS2 mouses.
+// Driver for PS2 meeses.
 
-#include "kernelDriverManagement.h" // Contains my prototypes
+#include "kernelDriver.h" // Contains my prototypes
+#include "kernelMouse.h"
+#include "kernelGraphic.h"
+#include "kernelMalloc.h"
 #include "kernelProcessorX86.h"
-
-void kernelPS2MouseDriverReadData(void);
-
-static kernelMouseDriver defaultMouseDriver =
-{
-  kernelPS2MouseDriverInitialize,
-  NULL, // driverRegisterDevice
-  kernelPS2MouseDriverReadData
-};
-
-static int initialized = 0;
+#include <string.h>
 
 
 static unsigned char inPort60(void)
@@ -51,20 +44,25 @@ static unsigned char inPort60(void)
 }
 
 
+static inline void waitControllerReady(void)
+{
+  // Wait for the controller to be ready
+  unsigned char data = 0x02;
+  while (data & 0x02)
+    kernelProcessorInPort8(0x64, data);
+}
+
+
 static void outPort60(unsigned char value)
 {
   // Output a value to the keyboard controller's data port, after checking
   // to make sure it's ready for the data
 
-  unsigned char data;
+  unsigned char data = value;
   
-  // Wait for the controller to be ready
-  data = 0x02;
-  while (data & 0x02)
-    kernelProcessorInPort8(0x64, data);
-  
-  data = value;
+  waitControllerReady();
   kernelProcessorOutPort8(0x60, data);
+
   return;
 }
 
@@ -74,15 +72,11 @@ static void outPort64(unsigned char value)
   // Output a value to the keyboard controller's command port, after checking
   // to make sure it's ready for the command
 
-  unsigned char data;
+  unsigned char data = value;
   
-  // Wait for the controller to be ready
-  data = 0x02;
-  while (data & 0x02)
-    kernelProcessorInPort8(0x64, data);
-
-  data = value;
+  waitControllerReady();
   kernelProcessorOutPort8(0x64, data);
+
   return;
 }
 
@@ -102,92 +96,7 @@ static unsigned char getMouseData(void)
 }
 
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//
-// Below here, the functions are exported for external use
-//
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
-int kernelPS2MouseDriverInitialize(void)
-{
-  // Talk to the keyboard controller a little bit to initialize the mouse
-
-  unsigned char response = 0;
-  unsigned char deviceId = 0;
-  int count;
-
-  for (count = 0; count < 10; count ++)
-    {
-      // Disable the mouse line
-      outPort64(0xA7);
-      
-      // Enable the mouse line
-      outPort64(0xA8);
-      
-      // Disable data reporting
-      outPort64(0xD4);
-      outPort60(0xF5);
-
-      // Read the ack
-      response = inPort60();
-      if (response != 0xFA)
-	continue;
-
-      // Send reset command
-      outPort64(0xD4);
-      outPort60(0xFF);
-
-      // Read the ack 0xFA
-      response = inPort60();
-      if (response != 0xFA)
-	continue;
-
-      // Should be 'self test passed' 0xAA
-      response = inPort60();
-      if (response != 0xAA)
-	continue;
-
-      // Get the device ID.  0x00 for normal PS/2 mouse
-      deviceId = inPort60();
-
-      // Set scaling to 2:1
-      outPort64(0xD4);
-      outPort60(0xE7);
-
-      // Read the ack
-      response = inPort60();
-      if (response != 0xFA)
-	continue;
-
-      // Tell the controller to issue mouse interrupts
-      outPort64(0x20);
-      response = inPort60();
-      response |= 0x02;
-      outPort64(0x60);
-      outPort60(response);
-
-      // Enable data reporting (stream mode)
-      outPort64(0xD4);
-      outPort60(0xF4);
-
-      // Read the ack
-      response = inPort60();
-      if (response != 0xFA)
-       	continue;
-
-      // All set
-      break;
-    }
-
-  initialized = 1;
-  return (kernelDriverRegister(mouseDriver, &defaultMouseDriver));
-}
-
-
-void kernelPS2MouseDriverReadData(void)
+static void driverReadData(void)
 {
   // This gets called whenever there is a mouse interrupt
 
@@ -233,6 +142,128 @@ void kernelPS2MouseDriverReadData(void)
 
       kernelMouseMove(xChange, yChange);
     }
+
+  return;
+}
+
+
+static int driverDetect(void *driver)
+{
+  // This routine is used to detect and initialize each device, as well as
+  // registering each one with any higher-level interfaces.  Also talks to
+  // the keyboard controller a little bit to initialize the mouse
+
+  int status = 0;
+  kernelDevice *device = NULL;
+  int interrupts = 0;
+  unsigned char response = 0;
+  unsigned char deviceId = 0;
+  int count;
+
+  // Only proceed if we are in graphics mode
+  if (!kernelGraphicsAreEnabled())
+    return (0);
+
+  // Do the hardware initialization.
+
+  kernelProcessorSuspendInts(interrupts);
+
+  for (count = 0; count < 10; count ++)
+    {
+      // Send reset command
+      outPort64(0xD4);
+      outPort60(0xFF);
+
+      // Read the ack 0xFA
+      response = inPort60();
+      if (response != 0xFA)
+	continue;
+
+      // Should be 'self test passed' 0xAA
+      response = inPort60();
+      if (response != 0xAA)
+	continue;
+
+      // Get the device ID.  0x00 for normal PS/2 mouse
+      deviceId = inPort60();
+      //if (deviceId != 0)
+      //return (status = 0);
+
+      // Set scaling to 2:1
+      outPort64(0xD4);
+      outPort60(0xE7);
+
+      // Read the ack
+      response = inPort60();
+      if (response != 0xFA)
+        continue;
+
+      // Tell the controller to issue mouse interrupts
+      outPort64(0x20);
+      response = inPort60();
+      response |= 0x02;
+      outPort64(0x60);
+      outPort60(response);
+
+      // Enable data reporting (stream mode)
+      outPort64(0xD4);
+      outPort60(0xF4);
+
+      // Read the ack
+      response = inPort60();
+      if (response != 0xFA)
+        continue;
+
+      // All set
+      break;
+    }
+
+  kernelProcessorRestoreInts(interrupts);
+
+  // Allocate memory for the device
+  device = kernelMalloc(sizeof(kernelDevice) + sizeof(kernelMouse));
+  if (device == NULL)
+    return (status = 0);
+
+  device->class = kernelDeviceGetClass(DEVICECLASS_MOUSE);
+  device->subClass = kernelDeviceGetClass(DEVICESUBCLASS_MOUSE_PS2);
+  device->driver = driver;
+  device->dev = ((void *) device + sizeof(kernelDevice));
+
+  // Initialize mouse operations
+  status = kernelMouseInitialize(device);
+  if (status < 0)
+    {
+      kernelFree(device);
+      return (status);
+    }
+
+  return (status = kernelDeviceAdd(NULL, device));
+}
+
+
+static kernelMouseOps mouseOps = {
+  driverReadData
+};
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+// Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+void kernelPS2MouseDriverRegister(void *driverData)
+{
+   // Device driver registration.
+
+  kernelDriver *driver = (kernelDriver *) driverData;
+
+  driver->driverDetect = driverDetect;
+  driver->ops = &mouseOps;
 
   return;
 }

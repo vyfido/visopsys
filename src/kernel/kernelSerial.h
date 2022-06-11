@@ -25,7 +25,6 @@
 
 typedef struct
 {
-  int (*driverInitialize) (void);
   int (*driverConfigurePort) (int, int, int, int, int);
 
 } kernelSerialDriver;

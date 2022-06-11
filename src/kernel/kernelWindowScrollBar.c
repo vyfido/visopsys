@@ -30,6 +30,29 @@ static int borderThickness = 3;
 static int borderShadingIncrement = 15;
 
 
+static void calcSliderHeightPos(kernelWindowScrollBar *scrollBar, int height)
+{
+  scrollBar->sliderHeight = (((height - (borderThickness * 2)) *
+			      scrollBar->state.displayPercent) / 100);
+  scrollBar->sliderY =
+    ((((height - (borderThickness * 2)) - scrollBar->sliderHeight) *
+      scrollBar->state.positionPercent) / 100);
+}
+
+
+static void calcSliderPosPercent(kernelWindowScrollBar *scrollBar, int height)
+{
+  int extraSpace =
+    ((height - (borderThickness * 2)) - scrollBar->sliderHeight);
+
+  if (extraSpace)
+    scrollBar->state.positionPercent =
+      ((scrollBar->sliderY * 100) / extraSpace);
+  else
+    scrollBar->state.positionPercent = 0;
+}
+
+
 static int draw(void *componentData)
 {
   // Draw the scroll bar component
@@ -71,6 +94,20 @@ static int draw(void *componentData)
 }
 
 
+static int resize(void *componentData, int width, int height)
+{
+  kernelWindowComponent *component = (kernelWindowComponent *) componentData;
+  kernelWindowScrollBar *scrollBar = (kernelWindowScrollBar *) component->data;
+
+  // Ignore width
+  if (width) { }
+
+  calcSliderHeightPos(scrollBar, height);
+
+  return (0);
+}
+
+
 static int getData(void *componentData, void *buffer, int size)
 {
   // Gets the state of the scroll bar
@@ -96,11 +133,7 @@ static int setData(void *componentData, void *buffer, int size)
   kernelMemCopy(buffer, (void *) &(scrollBar->state),
 		max(size, (int) sizeof(scrollBarState)));
 
-  scrollBar->sliderHeight = (((component->height - (borderThickness * 2)) *
-			      scrollBar->state.displayPercent) / 100);
-  scrollBar->sliderY =
-    ((((component->height - (borderThickness * 2)) - scrollBar->sliderHeight) *
-      scrollBar->state.positionPercent) / 100);
+  calcSliderHeightPos(scrollBar, component->height);
 
   draw(componentData);
 
@@ -174,14 +207,8 @@ static int mouseEvent(void *componentData, windowEvent *event)
 			  scrollBar->sliderHeight);
 
   // Recalculate the position percentage
-  int extraSpace =
-    ((component->height - (borderThickness * 2)) - scrollBar->sliderHeight);
-  if (extraSpace)
-    scrollBar->state.positionPercent =
-      ((scrollBar->sliderY * 100) / extraSpace);
-  else
-    scrollBar->state.positionPercent = 0;
-  
+  calcSliderPosPercent(scrollBar, component->height);
+
   if (component->draw)
     component->draw((void *) component);
   
@@ -260,10 +287,13 @@ kernelWindowComponent *kernelWindowNewScrollBar(volatile void *parent,
   if ((type == scrollbar_horizontal) && !height)
     component->height = 20;
 
+  component->minWidth = component->width;
+  component->minHeight = component->height;
   component->data = (void *) scrollBar;
 
   // The functions
   component->draw = &draw;
+  component->resize = &resize;
   component->getData = &getData;
   component->setData = &setData;
   component->mouseEvent = &mouseEvent;

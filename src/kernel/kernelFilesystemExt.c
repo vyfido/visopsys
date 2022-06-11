@@ -25,9 +25,9 @@
 #include "kernelFilesystemExt.h"
 #include "kernelFilesystem.h"
 #include "kernelFile.h"
-#include "kernelDriverManagement.h"
 #include "kernelMalloc.h"
 #include "kernelMultitasker.h"
+#include "kernelSysTimer.h"
 #include "kernelMiscFunctions.h"
 #include "kernelError.h"
 #include <stdio.h>
@@ -37,7 +37,6 @@
 static kernelFilesystemDriver defaultExtDriver = {
   Ext,   // FS type
   "EXT", // Driver name
-  kernelFilesystemExtInitialize,
   kernelFilesystemExtDetect,
   NULL, // driverFormat
   NULL, // driverCheck

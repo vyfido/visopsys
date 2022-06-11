@@ -76,6 +76,8 @@ static int setText(void *componentData, const char *text, int length)
 
   component->height = (((kernelAsciiFont *) component->parameters.font)
 			->charHeight * label->lines);
+  component->minWidth = component->width;
+  component->minHeight = component->height;
 
   return (status = 0);
 }

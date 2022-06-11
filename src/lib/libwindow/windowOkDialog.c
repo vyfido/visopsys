@@ -56,7 +56,6 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
     return (status = ERR_NULLPARAMETER);
 
   bzero(&params, sizeof(componentParameters));
-
   params.gridWidth = 1;
   params.gridHeight = 1;
   params.padLeft = 5;
@@ -112,6 +111,7 @@ static int okDialog(dialogType type, objectKey parentWindow, const char *title,
   params.gridY = 1;
   params.gridWidth = 2;
   params.padBottom = 5;
+  params.fixedWidth = 1;
   okButton = windowNewButton(dialogWindow, "OK", NULL, &params);
   if (okButton == NULL)
     return (status = ERR_NOCREATE);

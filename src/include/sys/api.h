@@ -202,6 +202,9 @@ extern int visopsys_in_kernel;
 #define _fnum_multitaskerKillByName                  6022
 #define _fnum_multitaskerTerminate                   6023
 #define _fnum_multitaskerProcessIsAlive              6024
+#define _fnum_multitaskerSignalSet                   6025
+#define _fnum_multitaskerSignal                      6026
+#define _fnum_multitaskerSignalRead                  6027
 
 // Loader functions.  All are in the 7000-7999 range.
 #define _fnum_loaderLoad                             7000
@@ -318,6 +321,7 @@ extern int visopsys_in_kernel;
 #define _fnum_windowNewTextArea                      12060
 #define _fnum_windowNewTextField                     12061
 #define _fnum_windowNewTextLabel                     12062
+#define _fnum_windowDebugLayout                      12063
 
 // User functions.  All are in the 13000-13999 range
 #define _fnum_userAuthenticate                       13000
@@ -1577,6 +1581,29 @@ _X_ static inline int multitaskerTerminate(int code)
   return (sysCall_1(_fnum_multitaskerTerminate, (void *) code));
 }
 
+_X_ static inline int multitaskerSignalSet(int processId, int sig, int on)
+{
+  // Proto: int kernelMultitaskerSignalSet(int, int, int);
+  // Desc : Set the current process' signal handling enabled (on) or disabled for the specified signal number 'sig'
+  return (sysCall_3(_fnum_multitaskerSignalSet, (void *) processId,
+		    (void *) sig, (void *) on));
+}
+
+_X_ static inline int multitaskerSignal(int processId, int sig)
+{
+  // Proto: int kernelMultitaskerSignal(int, int);
+  // Desc : Send the requested signal 'sig' to the process 'processId'
+  return (sysCall_2(_fnum_multitaskerSignal, (void *) processId,
+		    (void *) sig));
+}
+
+_X_ static inline int multitaskerSignalRead(int processId)
+{
+  // Proto: int kernelMultitaskerSignalRead(int);
+  // Desc : Returns the number code of the next pending signal for the current process, or 0 if no signals are pending.
+  return (sysCall_1(_fnum_multitaskerSignalRead, (void *) processId));
+}
+
 
 //
 // Loader functions
@@ -2400,6 +2427,14 @@ _X_ static inline objectKey windowNewTextLabel(objectKey parent, const char *tex
   // Desc : Get a new text labelComponent to be placed inside the parent object 'parent', with the given component parameters 'params', and using the text string 'text'.  If the params 'font' is NULL, the default font will be used.
   return ((objectKey) sysCall_3(_fnum_windowNewTextLabel, parent,
 				(void *) text, params));
+}
+
+
+_X_ static inline void windowDebugLayout(objectKey window)
+{
+  // Proto: void kernelWindowDebugLayout(kernelWindow *);
+  // Desc : This function draws grid boxes around all the grid cells containing components (or parts thereof)
+  sysCall_1(_fnum_windowDebugLayout, window);
 }
 
 

@@ -30,17 +30,23 @@ all: target-dirs bootsectors ${LOADERBUILDDIR}/vloader
 target-dirs:
 	mkdir -p obj ${BOOTBUILDDIR} ${LOADERBUILDDIR}
 
-bootsectors: ${BOOTBUILDDIR}/bootsect.fatnoboot ${BOOTBUILDDIR}/bootsect.fat12
+bootsectors: ${BOOTBUILDDIR}/bootsect.fat ${BOOTBUILDDIR}/bootsect.fat32 ${BOOTBUILDDIR}/bootsect.fatnoboot ${BOOTBUILDDIR}/bootsect.fatnoboot32
 
 #
 # MBRs and Boot sectors
 #
 
+${BOOTBUILDDIR}/bootsect.fat: bootsect-fat.s bootsect-fatBPB.s ${STDDEPEND}
+	${AS} ${SECTOPTS} $< -o $@
+
+${BOOTBUILDDIR}/bootsect.fat32: bootsect-fat.s bootsect-fatBPB.s ${STDDEPEND}
+	${AS} ${SECTOPTS} -DFAT32 $< -o $@
+
 ${BOOTBUILDDIR}/bootsect.fatnoboot: bootsect-fatnoboot.s bootsect-fatBPB.s ${STDDEPEND}
 	${AS} ${SECTOPTS} $< -o $@
 
-${BOOTBUILDDIR}/bootsect.fat12: bootsect-fat12.s bootsect-fatBPB.s ${STDDEPEND}
-	${AS} ${SECTOPTS} $< -o $@
+${BOOTBUILDDIR}/bootsect.fatnoboot32: bootsect-fatnoboot.s bootsect-fatBPB.s ${STDDEPEND}
+	${AS} ${SECTOPTS} -DFAT32 $< -o $@
 
 #
 # Loader files

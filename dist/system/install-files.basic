@@ -10,6 +10,7 @@
 /programs/clock
 /programs/confedit
 /programs/console
+/programs/copy-boot
 /programs/cp
 /programs/date
 /programs/disks
@@ -104,8 +105,10 @@
 /system/COPYING.txt
 /system/backgrnd.bmp
 /system/boot/
+/system/boot/bootsect.fat
+/system/boot/bootsect.fat32
 /system/boot/bootsect.fatnoboot
-/system/boot/bootsect.fat12
+/system/boot/bootsect.fatnoboot32
 /system/fonts/
 /system/fonts/arial-bold-10.bmp
 /system/fonts/arial-bold-12.bmp
@@ -136,4 +139,3 @@
 /system/windowmanager.conf
 /system/kernelSymbols.txt
 /temp/
-

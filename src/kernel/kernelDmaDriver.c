@@ -21,20 +21,12 @@
 
 // Driver for standard PC system DMA chip
 
-#include "kernelDriverManagement.h" // Contains my prototypes
+#include "kernelDriver.h" // Contains my prototypes
+#include "kernelDma.h"
+#include "kernelMalloc.h"
 #include "kernelProcessorX86.h"
 #include "kernelError.h"
-
-int kernelDmaDriverOpenChannel(int, void *, int, int);
-int kernelDmaDriverCloseChannel(int);
-
-static kernelDmaDriver defaultDmaDriver =
-{
-  kernelDmaDriverInitialize,
-  NULL, // driverRegisterDevice
-  kernelDmaDriverOpenChannel,
-  kernelDmaDriverCloseChannel
-};
+#include <string.h>
 
 static struct {
   int statusReg;
@@ -68,8 +60,6 @@ static struct {
   { 0xC8, 0xCA, 0x89 },
   { 0xCC, 0xCE, 0x8A }
 };
-
-static int initialized = 0;
 
 
 static inline void enableController(int controller)
@@ -114,23 +104,7 @@ static void writeWordPort(int port, int value)
 }
 
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//
-// Below here, the functions are exported for external use
-//
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
-int kernelDmaDriverInitialize(void)
-{
-  initialized = 1;
-  return (kernelDriverRegister(dmaDriver, &defaultDmaDriver));
-}
-
-
-int kernelDmaDriverOpenChannel(int channel, void *address, int count, int mode)
+static int driverOpenChannel(int channel, void *address, int count, int mode)
 {
   // This routine prepares the registers of the specified DMA channel for
   // a data transfer.   This routine calls a series of other routines that
@@ -142,9 +116,6 @@ int kernelDmaDriverOpenChannel(int channel, void *address, int count, int mode)
   unsigned segment = 0;
   unsigned offset = 0 ;
   unsigned char data;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
 
   if (channel > 7)
     return (status = ERR_NOSUCHENTRY);
@@ -208,7 +179,7 @@ int kernelDmaDriverOpenChannel(int channel, void *address, int count, int mode)
 }
 
 
-int kernelDmaDriverCloseChannel(int channel)
+static int driverCloseChannel(int channel)
 {
   // This routine disables the selected DMA channel by setting the
   // appropriate mask bit.  
@@ -217,9 +188,6 @@ int kernelDmaDriverCloseChannel(int channel)
   int controller = 0;
   int interrupts = 0;
   unsigned char data;
-
-  if (!initialized)
-    return (status = ERR_NOTINITIALIZED);
 
   if (channel >= 4)
     controller = 1;
@@ -242,4 +210,61 @@ int kernelDmaDriverCloseChannel(int channel)
   enableController(controller);
 
   return (status = 0);
+}
+
+
+static int driverDetect(void *driver)
+{
+  // Normally, this routine is used to detect and initialize each device,
+  // as well as registering each one with any higher-level interfaces.  Since
+  // we can assume that there's a DMA controller, just initialize it.
+
+  int status = 0;
+  kernelDevice *device = NULL;
+
+  // Allocate memory for the device
+  device = kernelMalloc(sizeof(kernelDevice));
+  if (device == NULL)
+    return (status = 0);
+
+  device->class = kernelDeviceGetClass(DEVICECLASS_DMA);
+  device->driver = driver;
+
+  // Initialize DMA operations
+  status = kernelDmaInitialize(device);
+  if (status < 0)
+    {
+      kernelFree(device);
+      return (status);
+    }
+
+  return (status = kernelDeviceAdd(NULL, device));
+}
+
+	
+static kernelDmaOps dmaOps = {
+  driverOpenChannel,
+  driverCloseChannel
+};
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//
+// Below here, the functions are exported for external use
+//
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
+
+void kernelDmaDriverRegister(void *driverData)
+{
+   // Device driver registration.
+
+  kernelDriver *driver = (kernelDriver *) driverData;
+
+  driver->driverDetect = driverDetect;
+  driver->ops = &dmaOps;
+
+  return;
 }

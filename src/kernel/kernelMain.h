@@ -23,6 +23,10 @@
 
 #include "loaderInfo.h"
 
+// So that hardware detection, etc., can access the kernel's copy of the
+// system info provided by the loader.
+extern loaderInfoStruct *kernelOsLoaderInfo;
+
 // The only function exported by kernelMain.c
 void kernelMain(unsigned, loaderInfoStruct *);
 
